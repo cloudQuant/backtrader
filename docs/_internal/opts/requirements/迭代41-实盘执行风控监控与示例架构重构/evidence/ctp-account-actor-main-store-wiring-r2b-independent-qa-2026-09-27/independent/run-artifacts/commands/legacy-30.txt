@@ -1,0 +1,1 @@
+﻿python -B -m pytest -p no:asyncio -p no:cacheprovider tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=D:\temp\iteration41-ctp-account-actor-main-store-wiring-r2b-independent-qa-20260927-v1\run-artifacts\junit\legacy-30.xml

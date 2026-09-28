@@ -1,0 +1,45 @@
+{
+  "name": "normalized-store-test-migration-r3",
+  "status": "FROZEN_TEST_ONLY_CANDIDATE_PENDING_INDEPENDENT_QA",
+  "supersedes": "normalized-test-migration-r2 (NEEDS_REVISION: private queue drain replaced public polling)",
+  "shared_checkout_modified": false,
+  "source_preimage": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF"
+  },
+  "test_preimage": {
+    "path": "tests/unit/stores/test_btapistore_normalized.py",
+    "sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397"
+  },
+  "test_target": {
+    "path": "tests/unit/stores/test_btapistore_normalized.py",
+    "sha256": "C3004A537AED8DF41B106F2A8D03287B02F54720B468E12C423BE2A82A5994F5"
+  },
+  "patch": {
+    "path": "TEST-MIGRATION-R3.diff",
+    "sha256": "56E0EEEC9D7F9764E6516CB6ECFCA4AF33FDF351CA19630F8DF32AF9A490D56F",
+    "modified_paths": ["tests/unit/stores/test_btapistore_normalized.py"],
+    "main_apply_check": "pass",
+    "scratch_replay_target_sha256": "C3004A537AED8DF41B106F2A8D03287B02F54720B468E12C423BE2A82A5994F5"
+  },
+  "focused": {
+    "result": "7 passed, 1 existing deprecation warning",
+    "junit": {"path": "focused.junit.xml", "sha256": "D62BC3D9AE2DA444BC44B5B50E10302DA7D0C4EA1602829F4B2A843869032D3E"},
+    "stdout": {"path": "focused.stdout.txt", "sha256": "8BAED0EB12E44D4799432E6F515494561D0DE20F02F3602B61DF804D061C369E"},
+    "guard_report": {"path": "guard-report.json", "sha256": "10665BBC87EE603079935C6554A35769E5EE3B668E271AC31EC40CB88EB38C20"},
+    "guard_plugin": {"path": "normalized_guard_plugin.py", "sha256": "E18961E7A362FA74E336415BA3F58B24ACCCB7585F665ABEC1E169D9DCBD1876"},
+    "provider_import_attempts": 0,
+    "external_socket_attempts": 0,
+    "allowed_loopback_event_loop_socketpair_calls": 3,
+    "nodeids": [
+      "test_order_conversion_preserves_native_units_and_all_position_fields[MT5___FOREX-EURUSD-0.2-lots]",
+      "test_order_conversion_preserves_native_units_and_all_position_fields[CTP___FUTURE-IF2609-2-contracts]",
+      "test_order_conversion_preserves_native_units_and_all_position_fields[BINANCE___SWAP-BTCUSDT-0.02-base]",
+      "test_order_conversion_preserves_native_units_and_all_position_fields[OKX___SWAP-BTC-USDT-SWAP-2-contracts]",
+      "test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchange_id",
+      "test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_interpretation",
+      "test_open_order_identity_supports_native_cancellation_without_local_order"
+    ]
+  },
+  "scope_note": "Test migration only; direct CTP writes remain rejected. No full Store/Runtime regression or writer-closure claim."
+}

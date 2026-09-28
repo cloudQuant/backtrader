@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bt_api_ctp"
+version = "2.0.4+g4r2.probe.20260927"
+description = "CTP exchange plugin for bt_api"
+license = {text = "MIT"}
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "bt_api_base>=0.15.4,<1.0",
+]
+
+[project.optional-dependencies]
+# 迭代06 数据清洗：SFTP 拉取后端（Windows 分片机）需要 paramiko。
+# rsync / local 后端不需要额外依赖。
+cleaner = ["paramiko>=3.0"]
+
+[project.entry-points."bt_api.plugins"]
+ctp = "bt_api_ctp.plugin:register_plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "*-musllinux_* *-manylinux_i686 *-win32 *-win_arm64 pp* cp3??t-*"
+test-command = "python -c \"from bt_api_ctp.ctp._ctp_base import is_ctp_native_loaded, get_ctp_import_error; assert is_ctp_native_loaded(), get_ctp_import_error()\""
+
+[tool.ruff]
+src = ["src"]
+fix = true
+show-fixes = true
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["I", "UP", "E", "F", "W"]
+ignore = [
+    "E501",  # line too long
+    "E731",  # lambda assignment
+    "TC002",  # dynamic import
+    "TRY003",  # broad Exception
+    "F403",  # star import
+    "F841",  # unused variable
+    "Q000",  # bad quoting
+    "Q003",  # bad escaping
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S106", "S105", "S311", "E402", "PERF401", "N806", "S108"]
+"examples/**" = ["S106", "S105", "S311", "E402", "PERF401", "N806", "S108"]
+"scripts/**" = ["S106", "S105", "S311", "E402", "PERF401", "N806", "S108"]
+"src/bt_api_ctp/ctp/__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "ctp: CTP related tests",
+    "ticker: Tests covering ticker data and event handling",
+    "network: Tests requiring network access",
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may require external services)",
+]

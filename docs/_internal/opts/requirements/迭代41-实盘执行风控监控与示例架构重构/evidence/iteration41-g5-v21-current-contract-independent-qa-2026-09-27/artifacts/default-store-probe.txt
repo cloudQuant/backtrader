@@ -1,0 +1,1 @@
+{"constructor": "(self, path: 'str | Path', *, busy_timeout_ms: 'int' = 5000, ctp_close_drain_verifier: 'CtpAccountCloseDrainVerifier | None' = None) -> 'None'", "default_floor": "trusted external CTP native ActionRef floor authority is unavailable", "public_floor_injection": "rejected"}

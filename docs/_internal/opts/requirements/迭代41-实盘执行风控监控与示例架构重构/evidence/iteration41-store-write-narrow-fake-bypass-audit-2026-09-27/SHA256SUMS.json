@@ -1,0 +1,52 @@
+{
+  "schema": "ac41-63-store-write-narrow-audit-files.v1",
+  "audit_date": "2026-09-27",
+  "classification": "LOCAL_FAKE_AUDIT / CONDITIONAL_BYPASS_REPRODUCED / NOT_AUTHORITY_EVIDENCE",
+  "identities": {
+    "main_a028_store_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "r3_patch_sha256": "C1550368359A159F18CE6777F6377CCA83DA7F948DE81B99D8DE86BEEE6CCAD3",
+    "patched_candidate_store_sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "654872114EA53E23BF614BB9A17AD8694F77DB0A0C5D91043397FA04FDBEA316",
+      "bytes": 4152
+    },
+    {
+      "path": "narrow_audit.py",
+      "sha256": "DD6BB9C34B27490FA2C06479176579599D784C8A7B813D9A58A384B005516C2D",
+      "bytes": 13886
+    },
+    {
+      "path": "narrow_audit-temp-replay.py",
+      "sha256": "31E65744FD695C4ACB846F219070234D958CC8689EAE3951879D6923F8456A70",
+      "bytes": 13904
+    },
+    {
+      "path": "btapistore-r3-candidate.py",
+      "sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+      "bytes": 782769
+    },
+    {
+      "path": "r3.patch.diff",
+      "sha256": "C1550368359A159F18CE6777F6377CCA83DA7F948DE81B99D8DE86BEEE6CCAD3",
+      "bytes": 7293
+    },
+    {
+      "path": "narrow-audit-results.json",
+      "sha256": "6D67C91E421C6BEFF87826B6392312EE30B0F1221BB2B1008851BDC04FE66D29",
+      "bytes": 9543
+    },
+    {
+      "path": "results-temp-original.json",
+      "sha256": "12A896EC545DFBCDB977422911F33A9E671A7CE1022DD4629B0D25E3C91CF1D9",
+      "bytes": 9373
+    },
+    {
+      "path": "run-output.txt",
+      "sha256": "CB7270013ADE753AEC8C1842EA994CF97366A20C19F511EC5DB54CC970167B95",
+      "bytes": 4659
+    }
+  ]
+}

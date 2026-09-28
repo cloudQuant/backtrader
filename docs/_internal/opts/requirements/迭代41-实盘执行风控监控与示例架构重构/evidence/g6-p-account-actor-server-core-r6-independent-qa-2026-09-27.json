@@ -1,0 +1,80 @@
+{
+  "record": "iteration41-g6-p-account-actor-server-core-r6-independent-qa",
+  "date": "2026-09-27",
+  "candidate": "r6 frozen source only",
+  "status": "G6-P BLOCKED",
+  "frozen_input": {
+    "path": "D:\\temp\\iteration41-g6-account-actor-server-core-freeze-20260927-r6",
+    "manifest_sha256": "9bc5f75a23db4870123c89c9d8a160c1389495c8fe63a7adb2d4ea6c8b23ac61",
+    "payload_verified": 42,
+    "payload_expected": 42
+  },
+  "independent_run": {
+    "copy": "D:\\temp\\iteration41-g6-account-actor-server-core-r6-independent-qa-20260927\\candidate",
+    "python": "3.11.5",
+    "full_command": "PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests -v",
+    "full_passed": 56,
+    "full_failed": 0,
+    "full_exit_code": 0,
+    "lifecycle_focus_passed": 7,
+    "lifecycle_focus_failed": 0,
+    "lifecycle_focus_exit_code": 0,
+    "module_origins": "account_actor_port and account_actor_server_core imported from independent copy"
+  },
+  "r5_historical_counterexample": {
+    "preserved_under": "candidate/r5-counterexample/",
+    "stdout_sha256": "8a611b05fb0d98f8103ae8262679a5cf46de823746af741d9a4dc1de7a16d1dc",
+    "observed": "r5 returned the same v77 authorization after current snapshot advanced to v78; command AUTHORIZED, one outbox row"
+  },
+  "r6_findings": {
+    "v77_to_v78_replay": {
+      "replay_error": "dispatch_authorization_stale",
+      "command_state": "BLOCKED",
+      "lifecycle": "REVOKED",
+      "old_claim_error": "dispatch_authorization_not_available",
+      "outbox_rows": 1
+    },
+    "v1_migration": {
+      "fixture_kind": "v1-shaped test DB created by dropping the v2 lifecycle table and setting user_version=1",
+      "migrated_schema_version": 2,
+      "old_command_state": "BLOCKED",
+      "old_lifecycle": "REVOKED",
+      "old_claim_rejected": true
+    },
+    "claimed_fence_and_crash": {
+      "snapshot_publish_blocked": "dispatch_claim_in_flight",
+      "writer_revoke_blocked": "dispatch_claim_in_flight",
+      "state_persisted_after_reopen": "CLAIMED",
+      "recovery_api": false,
+      "effect": "permanent local freeze after claim/process death"
+    },
+    "same_permission_sqlite_writer": {
+      "mutation": "actor_dispatch_lifecycle CLAIMED->AVAILABLE",
+      "result": "same authorization yielded second DispatchClaimV1 with same dispatch_id",
+      "provider_call": false
+    },
+    "fake_hmac": {
+      "synthetic_snapshot_version": 77,
+      "synthetic_funds": "999999999999999999.99 CNY",
+      "result": "local authorization and DispatchClaimV1 succeeded",
+      "external_trust_root": false
+    },
+    "qa_harness_diagnostic": "first adversarial runner exited 1 on Windows TemporaryDirectory cleanup because its direct SQLite query connection was not closed; original failure is preserved, corrected context-managed runner passed exit 0"
+  },
+  "not_accessed": ["main production source", "real SDK", "CTP native API", "provider", "credentials", "account", "network"],
+  "artifacts": {
+    "report": "g6-p-account-actor-server-core-r6-independent-qa-2026-09-27.md",
+    "raw_zip": {
+      "path": "g6-p-account-actor-server-core-r6-independent-qa-2026-09-27.raw.zip",
+      "sha256": "85296192504F909BA8EB134202EF4CB0066A547F936C2C33953CCB6259081E72"
+    },
+    "raw_zip_index": {
+      "path": "g6-p-account-actor-server-core-r6-independent-qa-2026-09-27.raw.zip.index.json",
+      "sha256": "8A256A428F36247990CFD5A48854D4096570BD0299DAF66D30EABD63E1F38B72"
+    },
+    "qa_manifest": {
+      "path": "g6-p-account-actor-server-core-r6-independent-qa-2026-09-27.qa-manifest.json",
+      "sha256": "15EEBBF7871C8809D0E07141B34A2E440CA94A1DC700BEF14586534B32C97F2E"
+    }
+  }
+}

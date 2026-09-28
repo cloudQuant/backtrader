@@ -173,8 +173,8 @@ def test_anchor_persistence_uses_owner_only_permissions(anchor_dir):
     notify_session.persist_anchor(str(path), {"bot_token": "t", "to_user_id": "u"})
     assert path.exists()
     if os.name == "nt":
-        _assert_windows_owner_only_acl(path, "(F)")
-        _assert_windows_owner_only_acl(path.parent, "(F)")
+        _assert_windows_owner_only_acl(path, "(R,W)")
+        _assert_windows_owner_only_acl(path.parent, "(OI)(CI)(F)")
     else:
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
         assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700

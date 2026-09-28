@@ -1,0 +1,66 @@
+{
+  "schema": "iteration41.bm58_independent_qa_receipt.v2",
+  "date": "2026-09-27",
+  "classification": "FAKE_LOCAL_DIAGNOSTIC",
+  "acceptance_status": "NOT_ACCEPTED",
+  "archive_sha256": "832198844ad718c1147754d7e3eedbdba20e18afa0ca00a0f5275f2c9a4168e3",
+  "archive_bytes": 166843,
+  "archive_member_count": 57,
+  "zip_testzip": null,
+  "report_sha256": "096dde7a86c2652b5c1dfa43de6c3ad34e12a930b1cbc31edd822957660884c2",
+  "output_audit_sha256": "fbbf14a59b483081387ef9f91b4673c12cdc47e5427fa818821f70e9c3da0820",
+  "author_raw_zip_sha256": "9363d92ecdda7527a12feb5e7357793458047067f137f336a795c3859a948272",
+  "author_manifest_sha256": "9426567739623296a95b78cd7c288a38f96764d0c7f38e4e1a45d26e88ac5adb",
+  "source_sha256": "b1f02883d706c6d5449c5483a9a67fc32dae99f903c16fd2738e5e1b278759b1",
+  "test_sha256": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+  "independent_pytest": "4 passed in 11.41s; CPython 3.11.5; plugin autoload disabled",
+  "run_summaries": {
+    "smoke-default-final": {
+      "planned": 20,
+      "accepted": 20,
+      "completed": 20,
+      "duplicates": 2,
+      "lost": 0,
+      "outstanding": 0,
+      "backpressure_events": 0,
+      "run_status": "PASS"
+    },
+    "pressure-40x1-actual": {
+      "planned": 40,
+      "accepted": 40,
+      "completed": 40,
+      "duplicates": 0,
+      "lost": 0,
+      "outstanding": 0,
+      "backpressure_events": 39,
+      "run_status": "PASS"
+    },
+    "pressure-40x1-final": {
+      "planned": 40,
+      "accepted": 40,
+      "completed": 40,
+      "duplicates": 0,
+      "lost": 0,
+      "outstanding": 0,
+      "backpressure_events": 39,
+      "run_status": "PASS"
+    }
+  },
+  "author_report_test_sha_erratum": {
+    "written": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffcb8f2fabb",
+    "verified": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+    "author_file_modified": false
+  },
+  "pressure_timing_reconciliation": {
+    "run_A": "pressure-40x1-actual; wait_ns=8375000000; polls=3158; elapsed=4.956; extension=3.831",
+    "run_B": "pressure-40x1-final; wait_ns=7218000000; polls=3104; elapsed=4.675; extension=3.55",
+    "interpretation": "separate executions, scheduling-dependent timings; both 40/40 complete and 39 backpressure events"
+  },
+  "limits": [
+    "Only a benchmark-owned local SQLite WAL table and two spawned local clients.",
+    "Fake provider is local sleep plus deterministic digest; it is not actor-server, Store, provider, SDK, native, account, credentials, or network evidence.",
+    "The 30-minute capacity profile was not run.",
+    "Zero external-call counters are emitted constants and are not OS-level call tracing.",
+    "The two repeated 40/s pressure runs have scheduling-dependent timings; both completed all 40 planned intents with 39 pressure events and zero outstanding. Run-specific timing values are preserved separately."
+  ]
+}

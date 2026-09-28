@@ -1,0 +1,9 @@
+{
+  "schema": "ac41-63-evidence-index-append-receipt-v1",
+  "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/README.md",
+  "archive_directory": "ac41-63-raw-fallback-removal-main-integration-2026-09-27",
+  "before_sha256": "38d439ed9b800ce9fbbf618469ec777621119ba0f7b1b15448a24e78965c6f13",
+  "after_sha256": "77c03cd00341e2ad1d813599930fc1d6ff9d89edd1412c406daa8351f4eb623e",
+  "operation": "append-only UTF-8 suffix; pre-existing bytes not rewritten",
+  "entry_sha256": "bcae9936f43cff04a0e15d9001ce12e3a2137701e547cdb03e954afb5fd4a79f"
+}

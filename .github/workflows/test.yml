@@ -236,6 +236,247 @@ jobs:
             pytest tests/ -m "not performance" -n auto --tb=short --timeout=300 -q
           fi
 
+  iteration41-cpython38-core-runtime:
+    name: Iteration 41 Core Runtime CPython 3.8
+    # Keep this on a runner image that still has a supported setup-python
+    # CPython 3.8 toolchain.  The generic matrix is broader; this focused job
+    # produces a durable, scope-labelled artifact for the configuration-first
+    # runtime itself.
+    runs-on: ubuntu-22.04
+    needs: lint
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up CPython 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Install only core config/operator dependencies
+        shell: bash
+        run: |
+          # Do not install requirements-ci-sdk.txt here.  bt_api_py and
+          # bt_api_execution require Python >=3.11; base/risk/monitor require
+          # Python >=3.9.  Managed SDK routes are intentionally unsupported
+          # on CPython 3.8 and must not be presented as this job's coverage.
+          python -m pip install --upgrade "pip<25.1"
+          python -m pip install --no-deps -e .
+          python -m pip install "PyYAML>=5.4,<7" "pytest>=8.2,<9" "pytest-asyncio>=0.24,<1"
+      - name: Execute the sealed core-runtime contract
+        shell: bash
+        run: |
+          python -c "import platform, sys; assert platform.python_implementation() == 'CPython'; assert sys.version_info[:2] == (3, 8); print(sys.version)"
+          python scripts/ci/run_iteration41_cpython38_core_runtime.py \
+            --output "$RUNNER_TEMP/iteration41-cpython38-core-runtime.json"
+      - name: Upload CPython 3.8 core-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration41-cpython38-core-runtime
+          path: ${{ runner.temp }}/iteration41-cpython38-core-runtime.json
+          if-no-files-found: error
+
+  iteration41-posix-runtime-directory:
+    name: Iteration 41 POSIX Runtime Directory Filesystem
+    runs-on: ubuntu-22.04
+    needs: lint
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up CPython 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only core runtime test dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-deps -e .
+          python -m pip install "PyYAML>=5.4,<7" "pytest>=8.2,<9" "pytest-asyncio>=0.24,<1"
+      - name: Run POSIX filesystem regressions and record evidence
+        shell: bash
+        env:
+          PYTEST_ADDOPTS: ''
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import platform
+          import sys
+
+          assert platform.system() == "Linux", platform.platform()
+          assert platform.python_implementation() == "CPython"
+          assert sys.version_info[:2] == (3, 11), sys.version
+          print(f"platform={platform.platform()}")
+          print(f"python={sys.version}")
+          PY
+
+          log="$RUNNER_TEMP/iteration41-posix-runtime-directory.log"
+          junit="$RUNNER_TEMP/iteration41-posix-runtime-directory-junit.xml"
+          summary="$RUNNER_TEMP/iteration41-posix-runtime-directory.json"
+          targets=(
+            "tests/unit/runtime/test_runtime_runner.py::test_posix_runner_capability_keeps_local_output_off_a_replacement_path"
+            "tests/unit/runtime/test_runtime_runner.py::test_posix_runner_capability_rejects_a_symlinked_child_component"
+          )
+
+          set +e
+          python -m pytest -q -p no:asyncio --junitxml="$junit" "${targets[@]}" 2>&1 | tee "$log"
+          pytest_exit_code=${PIPESTATUS[0]}
+          set -e
+
+          python - "$junit" "$summary" "$pytest_exit_code" <<'PY'
+          import json
+          import platform
+          import sys
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          junit_path = Path(sys.argv[1])
+          summary_path = Path(sys.argv[2])
+          pytest_exit_code = int(sys.argv[3])
+          expected = [
+              "test_posix_runner_capability_keeps_local_output_off_a_replacement_path",
+              "test_posix_runner_capability_rejects_a_symlinked_child_component",
+          ]
+          targets = [
+              "tests/unit/runtime/test_runtime_runner.py::" + name for name in expected
+          ]
+          parse_error = None
+          cases = []
+          try:
+              cases = list(ElementTree.parse(junit_path).getroot().iter("testcase"))
+          except (OSError, ElementTree.ParseError) as error:
+              parse_error = type(error).__name__
+
+          results = []
+          for case in cases:
+              name = case.attrib.get("name", "")
+              if case.find("skipped") is not None:
+                  result = "skipped"
+              elif case.find("failure") is not None or case.find("error") is not None:
+                  result = "failed"
+              else:
+                  result = "passed"
+              results.append({"name": name, "result": result})
+
+          names = [item["name"] for item in results]
+          valid = (
+              platform.system() == "Linux"
+              and platform.python_implementation() == "CPython"
+              and sys.version_info[:2] == (3, 11)
+              and pytest_exit_code == 0
+              and parse_error is None
+              and sorted(names) == sorted(expected)
+              and all(item["result"] == "passed" for item in results)
+          )
+          passed_count = sum(item["result"] == "passed" for item in results)
+          skipped_count = sum(item["result"] == "skipped" for item in results)
+          failed_count = sum(item["result"] == "failed" for item in results)
+          payload = {
+              "schema_version": 1,
+              "status": "PASSED" if valid else "FAILED",
+              "execution_performed": True,
+              "scope": "iteration41_posix_runtime_directory_filesystem",
+              "runner_image": "ubuntu-22.04",
+              "interpreter": {
+                  "implementation": platform.python_implementation(),
+                  "version": platform.python_version(),
+                  "executable": sys.executable,
+                  "system": platform.system(),
+                  "platform": platform.platform(),
+              },
+              "pytest_command": [
+                  "python",
+                  "-m",
+                  "pytest",
+                  "-q",
+                  "-p",
+                  "no:asyncio",
+                  "--junitxml=" + str(junit_path),
+                  *targets,
+              ],
+              "included_test_targets": targets,
+              "test_results": results,
+              "passed_count": passed_count,
+              "skipped_count": skipped_count,
+              "failed_count": failed_count,
+              "pytest_exit_code": pytest_exit_code,
+              "junit_parse_error": parse_error,
+          }
+          summary_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          if not valid:
+              raise SystemExit(1)
+          PY
+      - name: Require complete POSIX filesystem evidence
+        if: always()
+        shell: bash
+        run: |
+          test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory.log"
+          test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory-junit.xml"
+          test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory.json"
+      - name: Upload POSIX runtime-directory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration41-posix-runtime-directory-ubuntu-22.04
+          path: |
+            ${{ runner.temp }}/iteration41-posix-runtime-directory.log
+            ${{ runner.temp }}/iteration41-posix-runtime-directory-junit.xml
+            ${{ runner.temp }}/iteration41-posix-runtime-directory.json
+          if-no-files-found: error
+
+  iteration41-ctp-private-windows-smoke:
+    name: Iteration 41 CTP Private Synthetic Windows Smoke
+    runs-on: windows-2022
+    needs: lint
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up CPython 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only synthetic CLI smoke dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-deps -e .
+          python -m pip install "PyYAML>=5.4,<7" "pytest>=8.2,<9" "pytest-asyncio>=0.24,<1"
+      - name: Run synthetic fail-closed CLI smoke
+        shell: pwsh
+        env:
+          PYTEST_ADDOPTS: ''
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP 'iteration41-ctp-private-windows-smoke'
+          python scripts/ci/run_iteration41_ctp_private_windows_smoke.py --output-dir $outputDir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require complete Windows smoke evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP 'iteration41-ctp-private-windows-smoke'
+          $files = @(
+            'iteration41-ctp-private-windows-smoke.log',
+            'iteration41-ctp-private-windows-smoke.junit.xml',
+            'iteration41-ctp-private-windows-smoke.json'
+          )
+          foreach ($file in $files) {
+            $path = Join-Path $outputDir $file
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -eq 0) {
+              throw "Required Iteration 41 Windows smoke evidence is missing or empty: $path"
+            }
+          }
+      - name: Upload Windows smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration41-ctp-private-windows-smoke-windows-2022
+          path: ${{ runner.temp }}/iteration41-ctp-private-windows-smoke/
+          if-no-files-found: error
+
   sdk:
     name: Optional SDK Contracts
     runs-on: ubuntu-latest
@@ -345,13 +586,13 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [test, sdk, performance, wheel-consumer]
+    needs: [test, iteration41-cpython38-core-runtime, iteration41-posix-runtime-directory, iteration41-ctp-private-windows-smoke, sdk, performance, wheel-consumer]
     if: always()
     steps:
       - name: Check test results
         run: |
-          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.sdk.result }}" == "success" ] && [ "${{ needs.performance.result }}" == "success" ] && [ "${{ needs.wheel-consumer.result }}" == "success" ]; then
-            echo "All matrix tests, serial performance contracts and wheel consumers passed."
+          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs['iteration41-cpython38-core-runtime'].result }}" == "success" ] && [ "${{ needs['iteration41-posix-runtime-directory'].result }}" == "success" ] && [ "${{ needs['iteration41-ctp-private-windows-smoke'].result }}" == "success" ] && [ "${{ needs.sdk.result }}" == "success" ] && [ "${{ needs.performance.result }}" == "success" ] && [ "${{ needs['wheel-consumer'].result }}" == "success" ]; then
+            echo "All matrix tests, Iteration 41 CPython 3.8, POSIX filesystem, Windows CTP fail-closed smoke gates, serial performance contracts and wheel consumers passed."
           else
             echo "At least one matrix test job failed"
             exit 1

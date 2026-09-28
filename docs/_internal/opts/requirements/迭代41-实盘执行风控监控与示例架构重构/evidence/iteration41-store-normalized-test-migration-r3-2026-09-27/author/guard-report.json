@@ -1,0 +1,17 @@
+{
+  "exitstatus": 0,
+  "blocked_prefixes": [
+    "bt_api_ctp",
+    "bt_api_py",
+    "bt_api_base",
+    "vnpy",
+    "ctp"
+  ],
+  "provider_import_attempts": [],
+  "blocked_external_socket_attempts": [],
+  "allowed_local_loopback_socketpair_attempts": [
+    "socket.connect",
+    "socket.connect",
+    "socket.connect"
+  ]
+}

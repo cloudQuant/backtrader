@@ -1,0 +1,79 @@
+{
+  "created_utc": "2026-09-27T00:44:23.629102+00:00",
+  "frozen_inputs": {
+    "manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+    "archive_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+    "zip_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46"
+  },
+  "source_checks": [
+    {
+      "root": "execution-project",
+      "manifest_file_count": 36,
+      "manifest_bytes": 1711438,
+      "all_manifest_hashes_match": true,
+      "unmanifested_file_count_in_live_candidate_dir": 0,
+      "unmanifested_top_level_counts": {},
+      "unmanifested_samples": []
+    },
+    {
+      "root": "main-overlay",
+      "manifest_file_count": 631,
+      "manifest_bytes": 10169283,
+      "all_manifest_hashes_match": true,
+      "unmanifested_file_count_in_live_candidate_dir": 472,
+      "unmanifested_top_level_counts": {
+        ".pytest_cache": 6,
+        "backtrader": 415,
+        "backtrader_runtime": 24,
+        "examples": 8,
+        "tests": 19
+      },
+      "unmanifested_samples": [
+        ".pytest_cache/.gitignore",
+        ".pytest_cache/CACHEDIR.TAG",
+        ".pytest_cache/README.md",
+        ".pytest_cache/v/cache/lastfailed",
+        ".pytest_cache/v/cache/nodeids",
+        ".pytest_cache/v/cache/stepwise",
+        "backtrader/__pycache__/__init__.cpython-311.pyc",
+        "backtrader/__pycache__/analyzer.cpython-311.pyc",
+        "backtrader/__pycache__/broker.cpython-311.pyc",
+        "backtrader/__pycache__/cerebro.cpython-311.pyc",
+        "backtrader/__pycache__/channel.cpython-311.pyc",
+        "backtrader/__pycache__/comminfo.cpython-311.pyc"
+      ]
+    },
+    {
+      "root": "parent-source",
+      "manifest_file_count": 156,
+      "manifest_bytes": 17235087,
+      "all_manifest_hashes_match": true,
+      "unmanifested_file_count_in_live_candidate_dir": 0,
+      "unmanifested_top_level_counts": {},
+      "unmanifested_samples": []
+    },
+    {
+      "root": "source-only-metadata",
+      "manifest_file_count": 20,
+      "manifest_bytes": 6731,
+      "all_manifest_hashes_match": true,
+      "unmanifested_file_count_in_live_candidate_dir": 0,
+      "unmanifested_top_level_counts": {},
+      "unmanifested_samples": []
+    }
+  ],
+  "zip": {
+    "indexed_member_count": 1015,
+    "total_member_count": 1016,
+    "unindexed_self_index_member": "ARCHIVE-INDEX.json",
+    "self_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+    "testzip": null,
+    "all_indexed_hashes_match": true,
+    "all_candidate_manifest_paths_match_source_manifest": true
+  },
+  "extracted_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\extracted",
+  "status": "FROZEN INPUTS VERIFIED; all four isolated suites complete; declared source payloads reverified unchanged",
+  "post_test_source_files_unchanged": true,
+  "archive_member_count_explanation": "1,015 externally indexed payload members plus one unindexed self-index ARCHIVE-INDEX.json whose bytes equal the external index",
+  "live_candidate_extra_note": "The frozen live author candidate directory had 472 unmanifested main-overlay bytecode/pytest-cache files at input capture; these are excluded from its 843-file source manifest and not counted as frozen source."
+}

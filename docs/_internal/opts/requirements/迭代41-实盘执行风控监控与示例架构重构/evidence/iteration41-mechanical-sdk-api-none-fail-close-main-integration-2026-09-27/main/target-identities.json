@@ -1,0 +1,61 @@
+{
+  "added_test": {
+    "bytes": 5595,
+    "cr_only": 0,
+    "crlf": 0,
+    "lf_only": 153,
+    "path": "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py",
+    "sha256": "3f462651e3cc5f66b990b495be2bfc50913bb60e11d17d28f02f215e67998783"
+  },
+  "candidate_decision": "NO_WRITE / LIVE_NO_GO",
+  "evidence": {
+    "main_guard_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "main_junit_sha256": "43da7b57120229dd9eebc7bd8e2cf228fdee506f451de9c09137652307cf52e7",
+    "main_ruff_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "source_patch_sha256": "299cd0215a8636f25c7e3b74f70cd05c30372059efc1150e9bb96a47f668b70c",
+    "test_patch_sha256": "5db64e45c19c63f060786740242b081998ed079e2e4d7086b4c7a99201e453f7"
+  },
+  "outcome": {
+    "failed": 0,
+    "guard_events": 0,
+    "passed": 29,
+    "ruff": "PASS",
+    "skipped": 0,
+    "tests": 29
+  },
+  "schema": "iteration41-mechanical-sdk-api-none-main-target-identities-v1",
+  "source": {
+    "author_candidate_sha256": "549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f",
+    "author_preimage_sha256": "aa4292252d86e560a733b1030ce3c1438bc37fd99cd5b66518c853fd87ccfa19",
+    "core_autocrlf": "true",
+    "main_HEAD_blob": {
+      "bytes": 61090,
+      "cr_only": 0,
+      "crlf": 0,
+      "lf_only": 1491,
+      "sha256": "976dedc206d4ca475c9982d40168ddcab2f986210485601f754e2a1f73411ba1"
+    },
+    "main_index_blob": {
+      "bytes": 61090,
+      "cr_only": 0,
+      "crlf": 0,
+      "lf_only": 1491,
+      "sha256": "976dedc206d4ca475c9982d40168ddcab2f986210485601f754e2a1f73411ba1"
+    },
+    "main_worktree": {
+      "bytes": 62600,
+      "cr_only": 0,
+      "crlf": 1491,
+      "lf_only": 0,
+      "sha256": "549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f"
+    },
+    "main_worktree_lf_normalized": {
+      "bytes": 61109,
+      "cr_only": 0,
+      "crlf": 0,
+      "lf_only": 1491,
+      "sha256": "25fc952327c2189665b9f287f766385fe2348fa299fa52674a219cbebe55ea64"
+    },
+    "path": "examples/ctp_options_simnow_mechanical_operator.py"
+  }
+}

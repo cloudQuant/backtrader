@@ -1,0 +1,317 @@
+{
+  "artifacts": {
+    "brepro_a": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-a\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 3106748225,
+        "coff_timestamp_utc": "2068-06-12T17:37:05Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649716,
+            "size": 848,
+            "timestamp": 3106748225,
+            "type": 13
+          },
+          {
+            "file_offset": 10644588,
+            "pointer": 10650564,
+            "size": 36,
+            "timestamp": 3106748225,
+            "type": 16
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 56,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889664,
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "zip_test": "passed"
+    },
+    "brepro_b": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-b\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 3106748225,
+        "coff_timestamp_utc": "2068-06-12T17:37:05Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649716,
+            "size": 848,
+            "timestamp": 3106748225,
+            "type": 13
+          },
+          {
+            "file_offset": 10644588,
+            "pointer": 10650564,
+            "size": 36,
+            "timestamp": 3106748225,
+            "type": 16
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 56,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889664,
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "zip_test": "passed"
+    },
+    "pin": {
+      "path": "D:\\c41sdki2_audit\\wheels\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 1790261581,
+        "coff_timestamp_utc": "2026-09-24T14:53:01Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649588,
+            "size": 848,
+            "timestamp": 1790261581,
+            "type": 13
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 28,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47",
+      "wheel_bytes": 5401654,
+      "wheel_sha256": "988c52a91a12d3256caadf27df2ae1f1eb45e54fc6c4f63b7abba0363f34c4ff",
+      "zip_test": "passed"
+    },
+    "prior_a": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-a\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 1790507052,
+        "coff_timestamp_utc": "2026-09-27T11:04:12Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649588,
+            "size": 848,
+            "timestamp": 1790507052,
+            "type": 13
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 28,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+      "wheel_bytes": 5401616,
+      "wheel_sha256": "7759a11487ddb0067e3fb755366c989b1fe55a965f3d712526d59b6bb228817d",
+      "zip_test": "passed"
+    },
+    "prior_b": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-b\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 1790507225,
+        "coff_timestamp_utc": "2026-09-27T11:07:05Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649588,
+            "size": 848,
+            "timestamp": 1790507225,
+            "type": 13
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 28,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+      "wheel_bytes": 5401615,
+      "wheel_sha256": "1de546d5c18b439d77d26dd0039e08b4facbbeaf1b0b865a38eafa211c2d46f8",
+      "zip_test": "passed"
+    },
+    "strict_c": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-c\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "pe": {
+        "coff_timestamp": 1790511591,
+        "coff_timestamp_utc": "2026-09-27T12:19:51Z",
+        "debug_entries": [
+          {
+            "file_offset": 10644560,
+            "pointer": 10649588,
+            "size": 848,
+            "timestamp": 1790511591,
+            "type": 13
+          }
+        ],
+        "debug_raw_offset": 10644560,
+        "debug_rva": 10647632,
+        "debug_size": 28,
+        "optional_magic": 523,
+        "pe_offset": 280
+      },
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "06a4e2b158eed8c2766678a69476eb0601593efdbe1979f13383ab7ce0488539",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "7dad3140ab8a700939022282a78f75b165a612637bac90da5caa7df06f4d64f7",
+      "zip_test": "passed"
+    }
+  },
+  "comparisons": {
+    "pin_vs_brepro_a": {
+      "coff_timestamp_bytes_other": "41372db9",
+      "coff_timestamp_bytes_pin": "4d39b56a",
+      "debug_timestamp_bytes_other": "41372db9",
+      "debug_timestamp_bytes_pin": "4d39b56a",
+      "diff_count_common_prefix": 627253,
+      "diff_offsets_hex": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0x123",
+        "0x139",
+        "0x1a0",
+        "0x1a1",
+        "0x1a8",
+        "0x1a9",
+        "0x1d4",
+        "0x1e8",
+        "0x1e9",
+        "0x250",
+        "0x251",
+        "0x259",
+        "0x285",
+        "0xb569f0",
+        "0xb569f1",
+        "0xb569f2",
+        "0xb569f3",
+        "0xb569f4",
+        "0xb569f5",
+        "0xb569f6",
+        "0xb569f7",
+        "0xb569f8",
+        "0xb569f9",
+        "0xb569fa",
+        "0xb569fb",
+        "0xb569fc",
+        "0xb569fd",
+        "0xb569fe",
+        "0xb569ff"
+      ],
+      "diff_offsets_truncated": true,
+      "equal_length": false
+    },
+    "pin_vs_brepro_b": {
+      "coff_timestamp_bytes_other": "41372db9",
+      "coff_timestamp_bytes_pin": "4d39b56a",
+      "debug_timestamp_bytes_other": "41372db9",
+      "debug_timestamp_bytes_pin": "4d39b56a",
+      "diff_count_common_prefix": 627253,
+      "diff_offsets_hex": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0x123",
+        "0x139",
+        "0x1a0",
+        "0x1a1",
+        "0x1a8",
+        "0x1a9",
+        "0x1d4",
+        "0x1e8",
+        "0x1e9",
+        "0x250",
+        "0x251",
+        "0x259",
+        "0x285",
+        "0xb569f0",
+        "0xb569f1",
+        "0xb569f2",
+        "0xb569f3",
+        "0xb569f4",
+        "0xb569f5",
+        "0xb569f6",
+        "0xb569f7",
+        "0xb569f8",
+        "0xb569f9",
+        "0xb569fa",
+        "0xb569fb",
+        "0xb569fc",
+        "0xb569fd",
+        "0xb569fe",
+        "0xb569ff"
+      ],
+      "diff_offsets_truncated": true,
+      "equal_length": false
+    },
+    "pin_vs_prior_a": {
+      "coff_timestamp_bytes_other": "2cf8b86a",
+      "coff_timestamp_bytes_pin": "4d39b56a",
+      "debug_timestamp_bytes_other": "2cf8b86a",
+      "debug_timestamp_bytes_pin": "4d39b56a",
+      "diff_count_common_prefix": 6,
+      "diff_offsets_hex": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ],
+      "diff_offsets_truncated": false,
+      "equal_length": true
+    },
+    "pin_vs_prior_b": {
+      "coff_timestamp_bytes_other": "d9f8b86a",
+      "coff_timestamp_bytes_pin": "4d39b56a",
+      "debug_timestamp_bytes_other": "d9f8b86a",
+      "debug_timestamp_bytes_pin": "4d39b56a",
+      "diff_count_common_prefix": 6,
+      "diff_offsets_hex": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ],
+      "diff_offsets_truncated": false,
+      "equal_length": true
+    },
+    "pin_vs_strict_c": {
+      "coff_timestamp_bytes_other": "e709b96a",
+      "coff_timestamp_bytes_pin": "4d39b56a",
+      "debug_timestamp_bytes_other": "e709b96a",
+      "debug_timestamp_bytes_pin": "4d39b56a",
+      "diff_count_common_prefix": 6,
+      "diff_offsets_hex": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ],
+      "diff_offsets_truncated": false,
+      "equal_length": true
+    }
+  },
+  "member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "scope": "Offline standard-library zip/PE byte inspection; no wheel installation or native import/load.",
+  "site_loaded": false
+}

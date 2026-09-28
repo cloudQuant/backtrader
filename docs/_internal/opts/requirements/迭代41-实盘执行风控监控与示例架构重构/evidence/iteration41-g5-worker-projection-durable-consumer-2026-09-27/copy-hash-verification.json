@@ -1,0 +1,175 @@
+{
+  "format": "iteration41-g5-worker-projection-durable-copy-verification.v1",
+  "file_count": 21,
+  "verified_at_local": "2026-09-27T10:01:37.2624067+08:00",
+  "files": [
+    {
+      "source_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+      "match": true,
+      "archived": "candidate.zip",
+      "archived_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate.zip",
+      "bytes": 570569
+    },
+    {
+      "source_sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf",
+      "match": true,
+      "archived": "output-manifest.json",
+      "archived_sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\final-output-manifest.json",
+      "bytes": 25155
+    },
+    {
+      "source_sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827",
+      "match": true,
+      "archived": "frozen-input-manifest.json",
+      "archived_sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\frozen-input-manifest.json",
+      "bytes": 9691
+    },
+    {
+      "source_sha256": "a64175be7ca4c855c7cffdfee727463962ff00def4fdc1ca4b18e2839b5c95a6",
+      "match": true,
+      "archived": "candidate.patch",
+      "archived_sha256": "a64175be7ca4c855c7cffdfee727463962ff00def4fdc1ca4b18e2839b5c95a6",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\implementation\\sdk_patch\\G5_TYPED_TARGET_PROJECTION_DURABLE_CONSUMER.patch",
+      "bytes": 83113
+    },
+    {
+      "source_sha256": "2115263914267daa5bd259de1e8a802dd225890a6092c7041407e34c0840f379",
+      "match": true,
+      "archived": "author-candidate-README.md",
+      "archived_sha256": "2115263914267daa5bd259de1e8a802dd225890a6092c7041407e34c0840f379",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\README.md",
+      "bytes": 9414
+    },
+    {
+      "source_sha256": "4b0d0db4b4aebdff906862a38244f22a4ab9766755fa3af4ddc14aef72f757ee",
+      "match": true,
+      "archived": "v21-projection-contract-audit.md",
+      "archived_sha256": "4b0d0db4b4aebdff906862a38244f22a4ab9766755fa3af4ddc14aef72f757ee",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\v21-projection-contract-audit.md",
+      "bytes": 6313
+    },
+    {
+      "source_sha256": "2ac3c4e61c9f417f3a873410303ae49b446bb5fba738063efd5293fa862abc54",
+      "match": true,
+      "archived": "author-focus-tests.log",
+      "archived_sha256": "2ac3c4e61c9f417f3a873410303ae49b446bb5fba738063efd5293fa862abc54",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-focus-final.log",
+      "bytes": 101
+    },
+    {
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "archived": "author-focus-tests.exit",
+      "archived_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-focus-final.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "d6841350087a6da759f528cf838572c078c73e1d06918abcc0cb2fecea186079",
+      "match": true,
+      "archived": "author-sdk-candidate-tests.log",
+      "archived_sha256": "d6841350087a6da759f528cf838572c078c73e1d06918abcc0cb2fecea186079",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-sdk-tests-candidate-source.log",
+      "bytes": 2101
+    },
+    {
+      "source_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "match": true,
+      "archived": "author-sdk-candidate-tests.exit",
+      "archived_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-sdk-tests-candidate-source.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "aab3d9bfb33c6f3efff84c0d0a17d6c4c8961ece12965acb8b765e21cdd8b393",
+      "match": true,
+      "archived": "author-sdk-frozen-source-tests.log",
+      "archived_sha256": "aab3d9bfb33c6f3efff84c0d0a17d6c4c8961ece12965acb8b765e21cdd8b393",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-sdk-tests-frozen-source.log",
+      "bytes": 101
+    },
+    {
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "archived": "author-sdk-frozen-source-tests.exit",
+      "archived_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-sdk-tests-frozen-source.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "match": true,
+      "archived": "author-ruff-changed-files.log",
+      "archived_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-ruff-final.log",
+      "bytes": 20
+    },
+    {
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "archived": "author-ruff-changed-files.exit",
+      "archived_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-ruff-final.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "fd4556c9f2ba4eac11a5246690ca9d10702fcbb0410fa38e634a23f5c2ff8c99",
+      "match": true,
+      "archived": "author-ruff-full-scope.log",
+      "archived_sha256": "fd4556c9f2ba4eac11a5246690ca9d10702fcbb0410fa38e634a23f5c2ff8c99",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-ruff-full-sdk-scope-known-failures.log",
+      "bytes": 2267
+    },
+    {
+      "source_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "match": true,
+      "archived": "author-ruff-full-scope.exit",
+      "archived_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-ruff-full-sdk-scope-known-failures.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "68103e1ac4c8b6d752363f83ff4f57e37aa982123e12951eac2260661fcc5666",
+      "match": true,
+      "archived": "author-pycompile.log",
+      "archived_sha256": "68103e1ac4c8b6d752363f83ff4f57e37aa982123e12951eac2260661fcc5666",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-pycompile-final.log",
+      "bytes": 47
+    },
+    {
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "archived": "author-pycompile.exit",
+      "archived_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-pycompile-final.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "b854467cde89b16437a778cf68995f7f9064ba138a43f92d6b5a36cc694d0ac3",
+      "match": true,
+      "archived": "author-frozen-input-integrity.log",
+      "archived_sha256": "b854467cde89b16437a778cf68995f7f9064ba138a43f92d6b5a36cc694d0ac3",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-frozen-input-integrity-final.log",
+      "bytes": 88
+    },
+    {
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "archived": "author-frozen-input-integrity.exit",
+      "archived_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-frozen-input-integrity-final.exit",
+      "bytes": 3
+    },
+    {
+      "source_sha256": "202b0ec5b9ea93ec3b40fbb0c74f8ea9de298866fdb079ab10e1faaefb1aef96",
+      "match": true,
+      "archived": "author-patch-apply-check.log",
+      "archived_sha256": "202b0ec5b9ea93ec3b40fbb0c74f8ea9de298866fdb079ab10e1faaefb1aef96",
+      "source": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\evidence\\g5-projection-patch-apply-check.log",
+      "bytes": 2148
+    }
+  ]
+}

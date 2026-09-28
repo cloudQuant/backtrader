@@ -1,0 +1,315 @@
+{
+  "schema": "iteration41-parent-r4-r3r3-independent-qa.v1",
+  "status": "ACCEPTED_WITH_LIMITS_FOR_FAKE_LOCAL_CONTRACT_ONLY",
+  "candidate_root": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1",
+  "independent_copy_root": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927",
+  "archive_index": {
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\parent-r4-r3r3-composite-qa-2026-09-27\\ARCHIVE-INDEX.json",
+    "expected_sha256": "7d28aee603b06896711cb83cbdb68041a05f44e9b50a1e9d28216f866a3d1b6c",
+    "actual_sha256": "7d28aee603b06896711cb83cbdb68041a05f44e9b50a1e9d28216f866a3d1b6c",
+    "entries": 118,
+    "all_hashes_sizes_match": true,
+    "exact_inventory_match": true
+  },
+  "candidate_source_manifest": {
+    "path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-source-manifest.json",
+    "sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131",
+    "parent_listed_files": 156,
+    "parent_mismatches": 0,
+    "main_overlay_listed_files": 629,
+    "main_overlay_mismatches": 0
+  },
+  "r3r3_original": {
+    "snapshot_manifest_sha256": "50b0d8b99afdacdaf2055246010e5766bbe630bc66d71c2aeeaca117baf3ce7a",
+    "files": {
+      "src/fake_dispatch_authority.py": {
+        "expected": "D902A376CB28FD40BBAB6A13542491D1080F2D8E477F695345E06BACD3349BA5",
+        "actual": "d902a376cb28fd40bbab6a13542491d1080f2d8e477f695345e06bacd3349ba5",
+        "match": true
+      },
+      "tests/fixtures/fake_dispatch_authority_v2.py": {
+        "expected": "BF6B2DB7A65463D8F3DDC3B55232961103DF75EDC2BDB8CC20080C6034EE0058",
+        "actual": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058",
+        "match": true
+      },
+      "tests/test_cancel_dispatch_resolution_proof.py": {
+        "expected": "AB1CCC88BCBDDC05812EC56F5CB9FC3BD7BF46B1A3944354CF85C8A79C639EE0",
+        "actual": "ab1ccc88bcbddc05812ec56f5cb9fc3bd7bf46b1a3944354cf85c8a79c639ee0",
+        "match": true
+      },
+      "tests/test_cancel_dispatch_resolution_proof_store.py": {
+        "expected": "39EBC5BF0404A7D76CFFBF737C83E56ABA67AD904687E19A186DB06BD3E135C9",
+        "actual": "39ebc5bf0404a7d76cffbf737c83e56aba67ad904687e19a186db06bd3e135c9",
+        "match": true
+      }
+    },
+    "r3r3_authority_reused": false,
+    "r3r3_authority_to_r4_diff": {
+      "path": "candidate/provenance\\r3r3-authority-to-r4-stricter-source.diff",
+      "sha256": "5a61c362ecb7c902291d8bdb590468e038444ced095a5241409ddaf9b7adf6d9",
+      "bytes": 3995
+    },
+    "proof_test_adaptation_diff": {
+      "path": "candidate/provenance\\r3r3-issuer-proof-adapted-to-r4.diff",
+      "sha256": "ea265dda57039cf98e04aecb6cf18bed048d06be05456fd64348ea9a3d3b9112",
+      "bytes": 3003
+    },
+    "store_test_adaptation_diff": {
+      "path": "candidate/provenance\\r3r3-issuer-store-adapted-to-r4.diff",
+      "sha256": "7fc8579197c7c8b5cfb7ff50f175349d343b9089e0e1f26a28ad1b66d20bb8e5",
+      "bytes": 4773
+    },
+    "wrong_policy_negative_diff": {
+      "path": "candidate/provenance\\r4-wrong-policy-negative-test.diff",
+      "sha256": "0f7a7a059b7edb1c7a9a567ba10d59620374d43f2ed3ed0ecd3b1312d00a5fb2",
+      "bytes": 1869
+    }
+  },
+  "r4_fake_authority": {
+    "source_sha256": "ff31893935aed8ac7944c5f720eb46553298cf593553dbbe64ad74583b89dc06",
+    "r3r3_source_sha256": "d902a376cb28fd40bbab6a13542491d1080f2d8e477f695345e06bacd3349ba5",
+    "allowlist": "exact code-owned strategy/provider/account/policy tuples; requires simulation/replay/offline/managed_execution and matching offline fake risk scope",
+    "negative_cases": [
+      "ctp_provider",
+      "wrong_account",
+      "wrong_strategy",
+      "wrong_policy"
+    ],
+    "database_created_on_rejected_binding": false
+  },
+  "independent_test_groups": [
+    {
+      "name": "parent_r4_final_guarded",
+      "result": {
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 14.509
+      },
+      "junit": {
+        "path": "qa\\ind-parent-r4-final.xml",
+        "sha256": "14f5970227b20590c06acfd0274dfa72bc1576f5cf223bce95f9e040b454465c",
+        "bytes": 7220
+      },
+      "log": {
+        "path": "qa\\ind-parent-r4-final.log",
+        "sha256": "7a8785ba99090b13dc9fec4fec434ab7e004bb7ff1f0118abd516ddd24082c7a",
+        "bytes": 773
+      },
+      "exit": {
+        "path": "qa\\ind-parent-r4-final.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "guard": {
+        "log_files": 4,
+        "events": 140,
+        "kind_counts": {
+          "guard-started": 4,
+          "source-import": 135,
+          "source-namespace": 1
+        },
+        "denials": 0,
+        "top_package_imports": [
+          "bt_api_base",
+          "bt_api_execution",
+          "bt_api_monitor",
+          "bt_api_py",
+          "bt_api_risk"
+        ],
+        "parent_origins": [
+          "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source\\bt_api_py\\__init__.py"
+        ]
+      }
+    },
+    {
+      "name": "main_bridge_three",
+      "result": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 14.065
+      },
+      "junit": {
+        "path": "qa\\ind-main-three-rerun.xml",
+        "sha256": "2651fd561077077522e286a278ebc9bb3bf492ea76d786730e5c8968085dca5d",
+        "bytes": 791
+      },
+      "log": {
+        "path": "qa\\ind-main-three-rerun.log",
+        "sha256": "fee051c51eb928e9fecac3cfdd05df2402bb08c20c15bb245bed3326e0d380d1",
+        "bytes": 693
+      },
+      "exit": {
+        "path": "qa\\ind-main-three-rerun.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "guard": {
+        "log_files": 5,
+        "events": 401,
+        "kind_counts": {
+          "guard-started": 5,
+          "source-import": 393,
+          "source-namespace": 3
+        },
+        "denials": 0,
+        "top_package_imports": [
+          "bt_api_base",
+          "bt_api_execution",
+          "bt_api_monitor",
+          "bt_api_py",
+          "bt_api_risk"
+        ],
+        "parent_origins": [
+          "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source\\bt_api_py\\__init__.py"
+        ]
+      }
+    },
+    {
+      "name": "main_bridge_five_file",
+      "result": {
+        "tests": 73,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 20.393
+      },
+      "junit": {
+        "path": "qa\\ind-main-five.xml",
+        "sha256": "a93451552a032246a61e086d858e8c2ee09ac37e97868eb9b5ea4106affd83e9",
+        "bytes": 13569
+      },
+      "log": {
+        "path": "qa\\ind-main-five.log",
+        "sha256": "5073ff6460431603c0cf46ae9a37cccfd0f5612644e0f72ef88b5aca434fc9ee",
+        "bytes": 768
+      },
+      "exit": {
+        "path": "qa\\ind-main-five.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "guard": {
+        "log_files": 7,
+        "events": 773,
+        "kind_counts": {
+          "guard-started": 7,
+          "source-import": 761,
+          "source-namespace": 5
+        },
+        "denials": 0,
+        "top_package_imports": [
+          "bt_api_base",
+          "bt_api_execution",
+          "bt_api_monitor",
+          "bt_api_py",
+          "bt_api_risk"
+        ],
+        "parent_origins": [
+          "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source\\bt_api_py\\__init__.py"
+        ]
+      }
+    },
+    {
+      "name": "main_cancel_control_extra",
+      "result": {
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 11.426
+      },
+      "junit": {
+        "path": "qa\\ind-main-control-rerun.xml",
+        "sha256": "cce91117960307b90ca13ca78f9d4ccce342cbf90e8c129a24521cd99e3e266b",
+        "bytes": 3474
+      },
+      "log": {
+        "path": "qa\\ind-main-control-rerun.log",
+        "sha256": "9b51dd1fa8577c88413093147065b2b71227ef2d6c1328a08f34944d63eccf77",
+        "bytes": 216
+      },
+      "exit": {
+        "path": "qa\\ind-main-control-rerun.exit.txt",
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "bytes": 3
+      },
+      "guard": {
+        "log_files": 4,
+        "events": 140,
+        "kind_counts": {
+          "guard-started": 4,
+          "source-import": 135,
+          "source-namespace": 1
+        },
+        "denials": 0,
+        "top_package_imports": [
+          "bt_api_base",
+          "bt_api_execution",
+          "bt_api_monitor",
+          "bt_api_py",
+          "bt_api_risk"
+        ],
+        "parent_origins": [
+          "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source\\bt_api_py\\__init__.py"
+        ]
+      }
+    }
+  ],
+  "group_execution_total": 140,
+  "harness_failures_preserved": [
+    {
+      "run": "ind-parent-r4.log",
+      "reason": "44 passed before isolated guard module was copied; superseded by final guarded run"
+    },
+    {
+      "run": "ind-parent-r4-guarded.log",
+      "reason": "external hard-coded execution/risk source roots rejected by source guard; only QA-copy test paths were adapted"
+    },
+    {
+      "run": "ind-main-three.log",
+      "reason": "guard root absent in independent copy; tests failed before bodies; guard copied with exact SHA and rerun"
+    },
+    {
+      "run": "ind-main-control.log",
+      "reason": "hard-coded external source root rejected during collection; only QA-copy test path constants were adapted"
+    }
+  ],
+  "test_only_path_adaptation": {
+    "diff": {
+      "path": "qa\\test-path-adaptations.diff",
+      "sha256": "56c5460e1fe6f9d877499642fd8c10156119c5448bf518463b73760c386e2e67",
+      "bytes": 3433
+    },
+    "source_paths_only": true,
+    "candidate_and_main_production_source_unchanged": true
+  },
+  "guard": {
+    "sitecustomize_sha256": "c8ee9716718b69f61cb79241fbf2115fc87dacd47563d97ea48b2f82769703df",
+    "success_run_denials_total": 0,
+    "scope": "explicit source roots; native CTP import denied; non-loopback network denied; private CTP config read denied; synthetic temp fixture paths only"
+  },
+  "version_identity": {
+    "candidate_version": "0.15.5",
+    "source_only_metadata_version": "0.15.5",
+    "baseline_parent_version": "0.15.5",
+    "candidate_pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+    "base_parent_pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+    "pyproject_bytes_identical_to_base": true,
+    "baseline_authority_sha256": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058",
+    "r4_authority_sha256": "ff31893935aed8ac7944c5f720eb46553298cf593553dbbe64ad74583b89dc06",
+    "same_version_different_source": true,
+    "wheel_built_or_installed": false,
+    "release_pin_authorized": false
+  },
+  "limitations": [
+    "Fake/source-only acceptance only; no real provider cancellation or live route.",
+    "No SDK/native/provider/account/private config/non-loopback network.",
+    "Version 0.15.5 collision blocks release/pin identity.",
+    "G6-P, G6-S and G7-S not accepted.",
+    "Four dirty nested parent gitlinks were outside the captured parent archive; package inputs were separately source-root mapped and verified."
+  ]
+}

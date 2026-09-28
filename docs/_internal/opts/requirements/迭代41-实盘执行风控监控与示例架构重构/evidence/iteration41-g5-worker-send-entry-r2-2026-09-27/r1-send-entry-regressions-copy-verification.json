@@ -1,0 +1,39 @@
+{
+  "format": "g5-r1-regression-evidence-copy.v1",
+  "copied": 4,
+  "all_match": true,
+  "files": [
+    {
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\tests\\test_r2_sender_entry_boundary.py",
+      "destination": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.py",
+      "bytes": 6127,
+      "source_sha256": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b",
+      "destination_sha256": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\evidence\\r1-boundary-regressions.log",
+      "destination": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.log",
+      "bytes": 2820,
+      "source_sha256": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6",
+      "destination_sha256": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\evidence\\r1-boundary-regressions.junit.xml",
+      "destination": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.junit.xml",
+      "bytes": 3517,
+      "source_sha256": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2",
+      "destination_sha256": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\evidence\\r1-boundary-regressions.exit",
+      "destination": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.exit",
+      "bytes": 3,
+      "source_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "destination_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "match": true
+    }
+  ]
+}

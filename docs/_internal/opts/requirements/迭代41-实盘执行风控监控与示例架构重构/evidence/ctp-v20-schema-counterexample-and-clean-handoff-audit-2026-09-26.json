@@ -1,0 +1,96 @@
+{
+  "schema": "iteration41.v20_schema_handoff.root_archive.v1",
+  "status": "V20_R0_SCHEMA_REJECTED_HANDOFF_DESIGN_ONLY",
+  "root_executed_schema_probe": true,
+  "interpreter": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "schema_probe": {
+    "schema": "iteration41.v20.root_schema_probe.v1",
+    "store_source": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r0_20260926\\src\\bt_api_execution\\store.py",
+    "store_sha256": "f6d00212e6cbbc90144544996c9a6a7cf83571ae1466c4b2a896da02b7a7a117",
+    "database": "D:\\temp\\iteration41_v20_root_schema_probe_r1_20260926\\same-name-wrong-trigger.sqlite3",
+    "database_sha256_before_inspect": "cbcee28fc96613ecaa38c487b34c083004912c63ce49ddfb5581481b7ee81238",
+    "database_sha256_after_open": "b49a5807768f7b808e7dc0b1ed0141a87e8d66ae0378b8cc53f42b8b80e57181",
+    "original_trigger_sql": "CREATE TRIGGER ctp_account_store_identity_immutable_update\n                BEFORE UPDATE ON ctp_account_store_identity\n                BEGIN\n                    SELECT RAISE(ABORT, 'CTP account store identity is immutable');\n                END",
+    "inspection_kind": "CTP_EXECUTION_STORE",
+    "factory_open_accepted": true,
+    "identity_unchanged": true,
+    "native_calls": 0,
+    "scope": "Synthetic temporary SQLite only; unchanged names conceal an incorrect trigger definition. All connections closed explicitly before DB hashes. This is a schema-validation counterexample, not a filesystem attacker isolation claim."
+  },
+  "handoff_review": {
+    "status": "DESIGN_ONLY_NO_SOURCE_CHANGES",
+    "store_v19_r1": {
+      "path": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+      "manifest_sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10",
+      "store_py_sha256": "0e4b48443a9672df662e0799def92fe2442ebb3d5427f2bfb93a5049b4fe16c8",
+      "callback_session_sha256": "1e348a6f1be695f1042645a49094bbc253b143eed72668cd89a4763d89510d69"
+    },
+    "sdk": {
+      "path": "D:\\q\\e",
+      "head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+      "clean": true,
+      "client_py_sha256": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+      "callback_ingress_py_sha256": "a49465dc36ad4a60ab6a81cde58fd8963ab230be740d3832a792dc0184f48002"
+    },
+    "main_lifecycle_candidate": {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_i9_account_session_candidate.py",
+      "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "tracked": false
+    },
+    "findings": [
+      "V19 family owner ACTIVE/POISONED is permanent; no close or handoff API; callback owner is PREPARED/ACTIVE/POISONED, monotonic and non-deletable.",
+      "Main candidate stop poisons before an abstract stop_client returning None; no typed close fact is consumed or committed.",
+      "SDK CtpNativeStopReceipt is constructible, process-local and not bound to Store owner/session/source identities or callback-drain watermark; current fields do not prove full account handoff."
+    ],
+    "proposed_steps": [
+      "Atomic begin-close that fences all new account-family dispatch while permitting already-produced callback ingress.",
+      "Drain actor/SDK calls and apply ingress to a source-issued final high-watermark.",
+      "Store-owned terminal/unknown/cancel-postcondition/trade-versus-order reconciliation under one transaction.",
+      "Code-owned typed lifecycle proof bound to exact owner, API/source generations, Join/Release, successful callback detach, zero in-flight references and final source sequence.",
+      "Atomic immutable CLOSED evidence plus old lease tombstone and monotonic next owner generation; crashes/ambiguity remain fenced."
+    ],
+    "missing_trust_source": "No production lifecycle supervisor or SDK issuer-bound close/drain proof exists. Process-death recovery needs a trusted external supervisor; do not accept caller booleans.",
+    "evidence_md": "clean-handoff-design.md"
+  },
+  "archive": {
+    "file": "ctp-v20-schema-counterexample-and-clean-handoff-audit-2026-09-26.raw.zip",
+    "sha256": "eb0a03087a3e702c47449d5463b41b94d315a83f01688e45b70aadcc1b984fbf",
+    "entries": 7
+  },
+  "files": [
+    {
+      "path": "handoff-review/clean-handoff-design.json",
+      "sha256": "1de9fda2db135b6a21b6a944c4aee9d4a80dcdac3846f7452a43d8f439b2cbb7"
+    },
+    {
+      "path": "handoff-review/clean-handoff-design.md",
+      "sha256": "46e74c3535b6237d705b18d420a08b880ba9e3eda5475ac9e7b9337447e4b4b7"
+    },
+    {
+      "path": "initial-probe-diagnostic/repro.py",
+      "sha256": "87bd060f2a99be3a4cec7f297ef67d24989f8a9467c34cb502f9d4b770fdc495"
+    },
+    {
+      "path": "initial-probe-diagnostic/result.json",
+      "sha256": "c81f0d8c9e3b27418813458827cf26eef2b79912e95ad94b07beec734a1a793f"
+    },
+    {
+      "path": "root-probe/repro.py",
+      "sha256": "5c2f1da70851673ee06c007b2a1cfc75e8d8889d80b7f9217b1075838791e66b"
+    },
+    {
+      "path": "root-probe/result.json",
+      "sha256": "28a8523ff24a53d6b8afd1c74fb7027acc76cf38e133b444c85d909b2e6c3efa"
+    },
+    {
+      "path": "root-probe/same-name-wrong-trigger.sqlite3",
+      "sha256": "b49a5807768f7b808e7dc0b1ed0141a87e8d66ae0378b8cc53f42b8b80e57181"
+    }
+  ],
+  "limits": [
+    "Synthetic temporary database; no actual account or SDK native call",
+    "No hostile filesystem or process isolation conclusion",
+    "V20 r1 fix and main factory acceptance pending",
+    "Clean restart requires new bound lifecycle/ingress proof; current permanent owner fence remains"
+  ]
+}

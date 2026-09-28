@@ -1,0 +1,41 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer_candidate_receipt.v1",
+  "disposition": "FAKE_ONLY / NO_RELEASE / G6-S CLOSED / G7-S CLOSED",
+  "source_candidate": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927",
+  "implementation": "ctp_simnow_settlement_consumer.py",
+  "tests": {
+    "path": "tests/test_ctp_simnow_settlement_consumer.py",
+    "command_evidence": "evidence/test-command.txt",
+    "output": "evidence/pytest-output.txt",
+    "exit_code_file": "evidence/pytest-exit.txt",
+    "result": "35 passed, exit 0",
+    "py_compile": "exit 0"
+  },
+  "exact_probe_sdk_pin": {
+    "distribution": "bt_api_ctp",
+    "version": "2.0.4+g4r2.settlement.probe.20260927",
+    "wheel_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "clean_g4r2_settlement_source_manifest_sha256": "da9d20d35d0b5680267f1a95c5b7fff54f25e9f57f0dfda270b55eb7f251ebe9",
+    "accepted_production_pin": false
+  },
+  "scope": {
+    "production_source_modified": false,
+    "default_inventory_or_cli_connected": false,
+    "real_sdk_imported": false,
+    "native_imported_or_called": false,
+    "provider_or_network_used": false,
+    "credentials_or_private_config_read": false,
+    "write_methods_exposed": false,
+    "fallback_pair_selection": false,
+    "snapshot_authority_proven": false,
+    "os_writer_fence_proven": false,
+    "provider_source_trusted": false,
+    "execution_authorized": false,
+    "g6s_accepted": false,
+    "g7s_accepted": false
+  },
+  "known_gap": "The clean G4-r2 evidence builder does not emit the callback source, selected-pair binding, exact installed wheel/source pin, or attestor-issued runtime seal required here. Query history digest is in-process, not durable provider-origin proof. The candidate is not wired into the main managed runtime; its current promoted-SDK-result trust gap remains open.",
+  "official_pair_rule": "Consume the already selected exact pair only. Missing current settlement evidence means fail closed with zero write; no time/set fallback or pair retry.",
+  "snapshot_and_session_authority": "Separate from this contract; not established.",
+  "main_source_checkout_observation": "Three inspected runtime source files were untracked at capture; no tracked diff was emitted. Candidate code wrote only in the isolated D:\\temp tree and snapshots matched observed bytes. This does not infer who created the untracked files."
+}

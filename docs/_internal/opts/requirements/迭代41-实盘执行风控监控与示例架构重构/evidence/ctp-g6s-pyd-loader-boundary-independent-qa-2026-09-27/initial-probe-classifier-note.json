@@ -1,0 +1,10 @@
+{
+  "kind": "qa_harness_iteration_note",
+  "first_fake_probe_exit": 1,
+  "initial_classifier": "counted write-denied only for winerror 32/33; Python actually reported PermissionError errno=13 and winerror absent",
+  "replace_error": "PermissionError winerror=5 (access denied)",
+  "followup_debug": "direct CreateFileW write open returned invalid handle with GetLastError=32; target bytes remained unchanged",
+  "corrected_probe": "passes after asserting observed PermissionError/errno=13 and access-denied 5 semantics; rename works after releasing retained handle",
+  "loaded_pyd": false,
+  "significance": "initial harness expectation was too narrow; no product failure is inferred"
+}

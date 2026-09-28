@@ -1,0 +1,12 @@
+{
+  "pytest_exit": 0,
+  "junit": "focus.xml",
+  "passed": 7,
+  "failed": 0,
+  "skipped": 0,
+  "warnings": ["one pre-existing PytestConfigWarning: unknown asyncio_default_fixture_loop_scope"],
+  "ruff": "PASS",
+  "git_diff_check": "PASS",
+  "guard_events": [],
+  "native_modules_loaded": []
+}

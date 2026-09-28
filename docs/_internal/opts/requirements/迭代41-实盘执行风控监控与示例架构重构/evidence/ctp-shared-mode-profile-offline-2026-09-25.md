@@ -1,0 +1,15 @@
+# CTP 同配置模式绑定与 SimNow profile 会话离线切片（2026-09-25）
+
+状态：`LOCAL_FAKE_CONTRACT / DEFAULT_CTP_WRITE_DENIED / LIVE_NO_GO`。操作者目标仍是同一个受保护 `examples/013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml`、同一个 canonical `ctp:` 字段和未来同一个 CTP runner；本页只记录合成配置与 fake native 的局部代码证据。
+
+`backtrader_runtime/runner.py` 的通用 profile dispatch 已经独立复核，只接受无 secrets、网络、外部写、managed execution、capabilities 或审批的 `simulation/replay` 与 `backtest/local_backtest`。默认 013_3 `simulation/sandbox` profile 的 write policy 是 `deny`，没有 runner；live profile unavailable，二者都不能从该离线 dispatch 获得 CTP 写入。
+
+新 `backtrader_runtime/ctp_mode_scope.py` 是未登记、非授权的模式绑定 DTO。它要求受信注册表中 `simulation/sandbox` 和 `live/managed_live_direct` 两个 code-owned profile 指向相同 runner module/entrypoint，从同一 freshly sealed canonical `ctp:` 文件绑定 mode/profile/receipt、config/effective digest、账号摘要、合约、按配置顺序的完整 MD/TD 候选集与精确选中 pair。DTO 的 credentials、provider、execution、外部/生产写、报单、撤单和 arming 权限全部固定为 false；它不能充当 session registration。默认 013_3 因无共享 runner 提前拒绝，live 仍由 resolver 拒绝；旧 `ctp_production` 和混用 legacy alias 不进入该绑定。合成同路径 simulation/live、stale/forged/缺 runner/错 pair 等定向测试通过；它没有接 CLI、SDK 或 runner。独立审查指出无盐账号摘要不应作为公开投影，现 `as_public_dict()` 已省去账号摘要与可用于枚举比对的完整 scope digest，默认 `repr` 也不输出 DTO 字段；内部完整 digest 仍用于完整性核验。未来消费者不得直接 `dataclasses.asdict()` 后写入不可信日志。
+
+`ctp_simnow_managed_operator.py` 与 `ctp_simulation_execution.py` 的另一个未登记切片允许**合成** `receipt_required` sandbox profile 产生 profile digest/receipt 绑定的 registration，并在所有依赖由测试显式注入时打开 fake native session。session admission 会重读 canonical `ctp:`，核对账号、合约、候选/选中前置、profile 和 config/effective seal；legacy 顶层策略字段保持 inert。`submit`/`cancel` 在 journal reserve 前、授权回调后及原生 dispatch 前 fresh revalidate；配置切 mode、账号、前置、合约或 receipt 时，在 fake SDK 写调用前拒绝，reserve 后失效的 intent 冻结为 `UNKNOWN`。独立 reviewer 复核此主问题已关闭；定向审查集 `105 passed`，完整主仓 runtime suite 在此切片后为 `1683 passed, 26 skipped, 1 existing PytestConfigWarning in 66.36s`。
+
+**仍未通过的 P2：** 最后一次 fresh config 检查返回到 native submit/cancel 之间存在并发修改窗口。若另一个进程恰在此窗口切换同一文件，旧 session 仍可能越过最后检查。正式写入前需让配置写入与原生 dispatch 共用可线性化文件 lease/锁，或由外部可信逐动作 grant 证明同等时序；本页的多次重读不能代替它。一次临时 Windows 目录/文件 share-mode 租约试验虽然拒绝了 config 写入、替换和 runtime 目录重命名，仍允许取得目录的 `FILE_WRITE_ATTRIBUTES` 句柄；[Microsoft 的 `CreateFile` 文档](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilea)说明 share flags 不限制属性访问，[`FSCTL_SET_REPARSE_POINT` 文档](https://learn.microsoft.com/windows/win32/api/winioctl/ni-winioctl-fsctl_set_reparse_point)列明该操作可凭 `FILE_WRITE_ATTRIBUTES` 权限执行。故该试验未能证明路径不可改写，已从运行代码与测试中撤回，不能作为 F14 准入。恢复后的相关聚焦测试为 `104 passed`，Ruff 与 `py_compile` 通过。后续方案须证明目录 reparse/路径身份在检查至原生调用期间也不可变。
+
+默认 inventory、共享 CTP 写入 runner、live dispatch、真实密码/SDK 制品 pin、原生登录/关闭、外部账户级 writer fence、共同账户快照及真实逐动作审批均未完成。本地 fake factory 可被显式注入不等于默认 SimNow 可下单，更不等于改 `config.yaml` 后生产可下单；两种模式都维持 `NO_WRITE / LIVE_NO_GO`。
+
+对当前受保护配置，离线 `doctor` 返回 `diagnostic simulation/sandbox`；默认 `preflight` 和 `run` 均在凭据、SDK 与 provider I/O 前输出 `PRESET_POLICY_VIOLATION`。通过 Python 子进程直接读取退出状态，两条命令均为 exit 2，错误只在 stderr、stdout 为空。PowerShell 工具包装器本身曾将外部进程的退出状态显示为 0；该包装器值不能作为 CLI 验收证据。

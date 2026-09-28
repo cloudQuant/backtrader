@@ -1,0 +1,1102 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="6" time="8.210" timestamp="2026-09-27T14:49:29.031420" hostname="yun"><testcase classname="tests.unit.stores.test_btapistore" name="test_placeholder_provider_raises[futu]" time="0.002"><failure message="backtrader.stores.btapistore.BtApiStoreError: store provider unsupported">self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f7040c190&gt;
+provider = 'futu', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'futu', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='futu', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='futu', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+&gt;           actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+
+backtrader\stores\btapistore.py:3848: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+route = StoreRouteDescriptor(provider='futu', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+actor_port = None
+
+    def require_account_actor_before_local_client(
+        route: StoreRouteDescriptor,
+        actor_port: Optional[CtpAccountActorPort],  # noqa: UP045 - Python 3.8 compatibility
+    ) -&gt; CtpAccountActorPort:
+        """Reject CTP/ambiguous routes before any local API, SDK or gateway creation."""
+    
+        kind = classify_store_route(route)
+        if kind is RouteKind.NON_CTP:
+            return actor_port if actor_port is not None else UnavailableCtpAccountActorPort()
+    
+        if kind is RouteKind.UNSUPPORTED:
+&gt;           raise AccountActorGateError("store_provider_unsupported")
+E           backtrader.stores.ctp_account_actor_port.AccountActorGateError: store provider unsupported
+
+backtrader\stores\ctp_account_actor_port.py:453: AccountActorGateError
+
+The above exception was the direct cause of the following exception:
+
+provider = 'futu'
+
+    @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
+    def test_placeholder_provider_raises(provider):
+        """Providers not yet implemented in bt_api_py should fail explicitly."""
+&gt;       store = BtApiStore(provider=provider)
+
+tests\unit\stores\test_btapistore.py:3678: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f7040c190&gt;
+provider = 'futu', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'futu', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='futu', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='futu', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+            actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+        except AccountActorGateError as error:
+&gt;           raise BtApiStoreError(str(error)) from error
+E           backtrader.stores.btapistore.BtApiStoreError: store provider unsupported
+
+backtrader\stores\btapistore.py:3850: BtApiStoreError</failure></testcase><testcase classname="tests.unit.stores.test_btapistore" name="test_placeholder_provider_raises[oanda]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: store provider unsupported">self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f5a447450&gt;
+provider = 'oanda', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'oanda', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='oanda', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='oanda', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+&gt;           actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+
+backtrader\stores\btapistore.py:3848: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+route = StoreRouteDescriptor(provider='oanda', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+actor_port = None
+
+    def require_account_actor_before_local_client(
+        route: StoreRouteDescriptor,
+        actor_port: Optional[CtpAccountActorPort],  # noqa: UP045 - Python 3.8 compatibility
+    ) -&gt; CtpAccountActorPort:
+        """Reject CTP/ambiguous routes before any local API, SDK or gateway creation."""
+    
+        kind = classify_store_route(route)
+        if kind is RouteKind.NON_CTP:
+            return actor_port if actor_port is not None else UnavailableCtpAccountActorPort()
+    
+        if kind is RouteKind.UNSUPPORTED:
+&gt;           raise AccountActorGateError("store_provider_unsupported")
+E           backtrader.stores.ctp_account_actor_port.AccountActorGateError: store provider unsupported
+
+backtrader\stores\ctp_account_actor_port.py:453: AccountActorGateError
+
+The above exception was the direct cause of the following exception:
+
+provider = 'oanda'
+
+    @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
+    def test_placeholder_provider_raises(provider):
+        """Providers not yet implemented in bt_api_py should fail explicitly."""
+&gt;       store = BtApiStore(provider=provider)
+
+tests\unit\stores\test_btapistore.py:3678: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f5a447450&gt;
+provider = 'oanda', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'oanda', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='oanda', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='oanda', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+            actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+        except AccountActorGateError as error:
+&gt;           raise BtApiStoreError(str(error)) from error
+E           backtrader.stores.btapistore.BtApiStoreError: store provider unsupported
+
+backtrader\stores\btapistore.py:3850: BtApiStoreError</failure></testcase><testcase classname="tests.unit.stores.test_btapistore" name="test_placeholder_provider_raises[vc]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: store provider unsupported">self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f5a41ee50&gt;
+provider = 'vc', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'vc', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='vc', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='vc', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+&gt;           actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+
+backtrader\stores\btapistore.py:3848: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+route = StoreRouteDescriptor(provider='vc', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+actor_port = None
+
+    def require_account_actor_before_local_client(
+        route: StoreRouteDescriptor,
+        actor_port: Optional[CtpAccountActorPort],  # noqa: UP045 - Python 3.8 compatibility
+    ) -&gt; CtpAccountActorPort:
+        """Reject CTP/ambiguous routes before any local API, SDK or gateway creation."""
+    
+        kind = classify_store_route(route)
+        if kind is RouteKind.NON_CTP:
+            return actor_port if actor_port is not None else UnavailableCtpAccountActorPort()
+    
+        if kind is RouteKind.UNSUPPORTED:
+&gt;           raise AccountActorGateError("store_provider_unsupported")
+E           backtrader.stores.ctp_account_actor_port.AccountActorGateError: store provider unsupported
+
+backtrader\stores\ctp_account_actor_port.py:453: AccountActorGateError
+
+The above exception was the direct cause of the following exception:
+
+provider = 'vc'
+
+    @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
+    def test_placeholder_provider_raises(provider):
+        """Providers not yet implemented in bt_api_py should fail explicitly."""
+&gt;       store = BtApiStore(provider=provider)
+
+tests\unit\stores\test_btapistore.py:3678: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;[AttributeError("'BtApiStore' object has no attribute 'provider'") raised in repr()] BtApiStore object at 0x29f5a41ee50&gt;
+provider = 'vc', api = None, api_cls = None, config = None, api_kwargs = None
+cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0
+open_orders_cache_ttl = 0.0, positions = None, historical_bars = None
+live_bars = None, contract_metadata = None, backend = None
+managed_execution_adapter = None, autostart = False, account_actor_port = None
+account_actor_context = None, account_actor_test_ledger = None, kwargs = {}
+explicit_provider = 'vc', explicit_api_kwargs = {}
+explicit_route = StoreRouteDescriptor(provider='vc', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+explicit_route_facts = StoreRouteDescriptor(provider='btapi', backend='direct', config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+initial_route = StoreRouteDescriptor(provider='vc', backend=None, config={}, api_kwargs={}, api=None, api_cls=None, environment_provider=None, environment_exchange_type=None)
+route_kind = &lt;RouteKind.UNSUPPORTED: 'unsupported'&gt;, adapter_only_route = False
+
+    def __init__(
+        self,
+        provider: str = "btapi",
+        api: Any = None,
+        api_cls: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+        api_kwargs: Optional[Dict[str, Any]] = None,
+        cash: float = 0.0,
+        value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
+        positions: Optional[Iterable[Dict[str, Any]]] = None,
+        historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+        autostart: bool = False,
+        account_actor_port: Optional[CtpAccountActorPort] = None,
+        account_actor_context: Optional[ActorCommandContextV1] = None,
+        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+        **kwargs: Any,
+    ):
+        """Initialize the BtApiStore.
+    
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
+            account_actor_port: Explicit candidate AccountActorPort seam. It has
+                no default implementation and does not grant runtime authority.
+            account_actor_context: Caller-supplied local binding for offline
+                intent/receipt comparison; it does not authenticate an actor.
+            account_actor_test_ledger: Required fake in-memory replay ledger for
+                this isolated wiring candidate, never a production fence.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
+        explicit_provider = provider.strip().lower() if type(provider) is str else ""
+        if explicit_provider in {"ctp", "ctp_gateway"}:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
+        explicit_route = _candidate_route_descriptor(
+            provider, backend, config, explicit_api_kwargs, api, api_cls,
+        )
+        # Reclassify only the frozen route maps with a neutral provider so
+        # explicit nested CTP selectors fail before consulting environment.
+        # The route snapshot helpers accept exact built-in dictionaries and
+        # scalar strings only; opaque caller objects remain ambiguous.
+        explicit_route_facts = StoreRouteDescriptor(
+            provider="btapi", backend="direct",
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+        )
+        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
+            raise BtApiStoreError("external account actor unavailable")
+    
+        initial_route = StoreRouteDescriptor(
+            provider=explicit_route.provider, backend=explicit_route.backend,
+            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
+            api=explicit_route.api, api_cls=explicit_route.api_cls,
+            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
+            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+        )
+        route_kind = classify_store_route(initial_route)
+        self._candidate_adapter_only = False
+        adapter_only_route = (
+            route_kind is RouteKind.AMBIGUOUS
+            and type(provider) is str
+            and provider.strip().lower() == "btapi"
+            and (
+                backend is None
+                or (type(backend) is str and backend.strip().lower() == "direct")
+            )
+            and api is not None
+            and api_cls is None
+            and (config is None or (type(config) is dict and len(config) == 0))
+            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
+            and len(kwargs) == 0
+            and os.environ.get("BT_STORE_PROVIDER") is None
+            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
+            and managed_execution_adapter is not None
+            and account_actor_port is None
+            and account_actor_context is None
+            and account_actor_test_ledger is None
+            and autostart is False
+        )
+        if adapter_only_route:
+            adapter = require_managed_execution_adapter(managed_execution_adapter)
+            if adapter is None:
+                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
+            self.provider = "btapi"
+            self.backend = "direct"
+            self._managed_execution_adapter = adapter
+            self._api = None
+            self._api_cls = None
+            self._config = {}
+            self._api_kwargs = {}
+            self._candidate_route_kind = RouteKind.AMBIGUOUS
+            self._candidate_input_provider = provider
+            self._candidate_input_backend = backend
+            adapter_route = _candidate_route_descriptor(
+                provider, "direct", {}, {}, None, None, None, None
+            )
+            self._candidate_route_descriptor = adapter_route
+            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
+            self._candidate_actor_only = False
+            self._candidate_adapter_only = True
+            self._candidate_actor_port = None
+            self._candidate_actor_context = None
+            self._candidate_actor_ledger = None
+            self._sdk_mode = False
+            self._sdk_exchanges = {}
+            self._sdk_routes = {}
+            self._started = False
+            self._connected = False
+            return
+        if route_kind is RouteKind.CTP:
+            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            route_provider = provider.strip().lower() if type(provider) is str else ""
+            actor_route_providers = {
+                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
+            }
+            environment_provider = os.environ.get("BT_STORE_PROVIDER")
+            if route_provider not in actor_route_providers or (
+                environment_provider
+                and environment_provider.strip().lower() != route_provider
+            ):
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
+            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
+                raise BtApiStoreError("store route ambiguous for account actor handoff")
+        try:
+            actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+        except AccountActorGateError as error:
+&gt;           raise BtApiStoreError(str(error)) from error
+E           backtrader.stores.btapistore.BtApiStoreError: store provider unsupported
+
+backtrader\stores\btapistore.py:3850: BtApiStoreError</failure></testcase><testcase classname="tests.unit.stores.test_ctp_account_actor_store_wiring_candidate" name="test_ctp_forwarding_env_rewrite_and_secret_traps_reject_before_any_local_boundary" time="0.001" /><testcase classname="tests.unit.stores.test_ctp_account_actor_store_wiring_candidate" name="test_explicit_ctp_rejects_before_route_environment_or_caller_object_reads[direct_ctp]" time="0.001" /><testcase classname="tests.unit.stores.test_ctp_account_actor_store_wiring_candidate" name="test_nested_ctp_routes_reject_before_sdk_or_forwarding_construction" time="0.001" /></testsuite></testsuites>

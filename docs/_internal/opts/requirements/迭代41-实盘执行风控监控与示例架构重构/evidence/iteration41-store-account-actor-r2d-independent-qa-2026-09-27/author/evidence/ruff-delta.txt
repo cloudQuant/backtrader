@@ -1,0 +1,2 @@
+baseline diagnostics=591; candidate diagnostics=591
+new diagnostic code/message groups=0; removed=0

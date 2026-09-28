@@ -1,0 +1,40 @@
+{
+  "packet": "iteration41-g6s-pyd-loader-boundary-20260927",
+  "decision": "NO_G4_NO_G6S",
+  "scope": "Read-only CPython 3.11.5 and Windows loader feasibility check; no CTP/native SDK import, no provider/network/account, no main source mutation.",
+  "environment": {
+    "python": "CPython 3.11.5 | packaged by Anaconda, Inc. | 64-bit AMD64",
+    "os": "Windows NT 10.0.26200.0",
+    "local_bootstrap_external_sha256": "5B7F704FD3198CB474FEA0E74CB21DF2D159CEB6BDE78AAD5DB3EB5EFA883CCF"
+  },
+  "r2_reference": {
+    "archive": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-artifact-first-sdk-binding-r2-author-candidate-2026-09-27",
+    "source_manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+    "zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+    "binder_sha256": "A7A27A318D4C3EFEB5CC781C4C6479D56439DA579D46DA669C6F9349F96FB049",
+    "custody_sha256": "EAF794FCEED98ED18BC23D21BC9D1D962575D27CEEE9B78BFD84D86B2003F421",
+    "custody_test_sha256": "14A643DECA3AA8F259FCA54D3C6066DC77817C4537E2E8A0ECCBB034685DB841"
+  },
+  "probe": {
+    "path": "probe_extension_loader.py",
+    "result": "PATH_ONLY_LOADER_SURFACE",
+    "constructor": "(name, path)",
+    "create_module": "(self, spec)",
+    "exec_module": "(self, module)",
+    "assertions": ["loader source delegates to _imp.create_dynamic(spec)", "loader source delegates to _imp.exec_dynamic(module)", "no handle parameter"],
+    "native_extension_loaded": false
+  },
+  "custody_test": {
+    "test_file": "R2 candidate/tests/unit/runtime/test_ctp_windows_artifact_custody.py",
+    "result": "3 passed, 1 existing unknown pytest config warning",
+    "scope_limit": "Tests source-file custody and ACL behavior; no .pyd is loaded and no mapped native image/file-ID identity is observed.",
+    "initial_setup_failure": "One collection attempt from the main repository CWD resolved the main repo backtrader_runtime package instead of R2 candidate and raised ModuleNotFoundError for ctp_windows_artifact_custody. Rerun from candidate CWD passed; this was invocation/path selection only."
+  },
+  "primary_sources": [
+    "https://docs.python.org/3.11/library/importlib.html#importlib.machinery.ExtensionFileLoader",
+    "https://github.com/python/cpython/blob/v3.11.5/Lib/importlib/_bootstrap_external.py",
+    "https://github.com/python/cpython/blob/v3.11.5/Python/dynload_win.c",
+    "https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw"
+  ],
+  "conclusion": "Standard CPython 3.11.5 Windows extension loading accepts a path; its LoadLibraryExW call passes NULL hFile, and Microsoft documents hFile as reserved and required NULL. Retained file/directory handles and protected ACLs can make pathname loading race-resistant under a stated threat model, but this packet does not claim direct handle-bound image loading or prove a mapped image file ID. Keep default artifact pin None and G4/G6-S closed."
+}

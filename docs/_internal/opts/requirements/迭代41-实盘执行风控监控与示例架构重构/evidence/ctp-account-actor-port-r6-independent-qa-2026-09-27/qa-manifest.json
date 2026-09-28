@@ -1,0 +1,121 @@
+{
+  "schema": "iteration41-account-actor-port-r6-independent-qa.v1",
+  "candidate_manifest_sha256": "c410b68aa39f476818afe517a0974bbbf428497236c20174d1d61a0830440d59",
+  "candidate_r5_base_manifest_sha256": "73521009058983a0e34172c4ca0020c5f32f4cbf25da7b1fb554f4d68baaa4bd",
+  "verdict": "LOCAL_FAKE_CONTRACT_PASS_WITH_LIMITS",
+  "unit_tests": "44 passed",
+  "pytest": "44 passed, 0 failed, 0 skipped",
+  "ruff": "All checks passed",
+  "limits": [
+    "No callback confinement: transient route mutation restored before post-callback sample is not detected",
+    "Gateway factory side effects cannot be rolled back; only result publication and subsequent API factory are prevented",
+    "No production Store integration or external Actor authority"
+  ],
+  "files": [
+    {
+      "path": "evidence/guard/sitecustomize.py",
+      "size_bytes": 700,
+      "sha256": "5b5308571df9c3c43a52a4bd9ed5f37e3ba1536ee475906d0e7432ee02c77b51"
+    },
+    {
+      "path": "independent-evidence/adversarial-probe.log",
+      "size_bytes": 1451,
+      "sha256": "4294bd2f1c9bb00d253ab52245d3811ab54de04598e9d815576e3e5336f0558e"
+    },
+    {
+      "path": "independent-evidence/independent-junit.xml",
+      "size_bytes": 6942,
+      "sha256": "969fd435340a324bbfef454bbecc4fccad30bc706935dfeeaa12bad152385889"
+    },
+    {
+      "path": "independent-evidence/input-verification.txt",
+      "size_bytes": 314,
+      "sha256": "7ecafa3d68f333738929e89205d2bf21cbc5a2578bb869d5eea537bd666b2223"
+    },
+    {
+      "path": "independent-evidence/main-source-testonly-reference-search.log",
+      "size_bytes": 20,
+      "sha256": "8f192cc42a7949db867b7588409007d213ad87033908c7bca017bf206f2796e4"
+    },
+    {
+      "path": "independent-evidence/origin-tripwire.log",
+      "size_bytes": 702,
+      "sha256": "1b906f2389070ef106114df9583a06d86a75b5f6627ae3110480bb0ffc2edd7b"
+    },
+    {
+      "path": "independent-evidence/origin-tripwire.py",
+      "size_bytes": 1110,
+      "sha256": "cac777cb4218b7bb24a4f30f0bf7cd8ec5fb840ccc5db9bd5cc93c4e5d4c0c30"
+    },
+    {
+      "path": "independent-evidence/pytest-command.txt",
+      "size_bytes": 244,
+      "sha256": "67590479773c528235ade34cdf1233bb828763426d6ecc2b43577148d518936d"
+    },
+    {
+      "path": "independent-evidence/pytest.log",
+      "size_bytes": 239,
+      "sha256": "f433d5972be95864027e68c9c4f4d5e748112f3c6a5aa4fd9f74eba185162d44"
+    },
+    {
+      "path": "independent-evidence/python-version.txt",
+      "size_bytes": 15,
+      "sha256": "e3fd4bfb3c954d29f1264d70c82ede1933aab3231c59ea163cda544fb2131085"
+    },
+    {
+      "path": "independent-evidence/r6_adversarial_probe.py",
+      "size_bytes": 5060,
+      "sha256": "3eb3e7ae9e722477d7c20792c0a70a97ffb180ddd527b0372a5766c018015717"
+    },
+    {
+      "path": "independent-evidence/receipt.md",
+      "size_bytes": 4347,
+      "sha256": "f1c14a6978b51dd5b78829abfcec31e8343b37535359435a3a320250fc8d0dea"
+    },
+    {
+      "path": "independent-evidence/ruff.log",
+      "size_bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "independent-evidence/unittest.log",
+      "size_bytes": 7982,
+      "sha256": "98e9fac4a4f3326c85620944487a3bfea1e2f1693c2bcb9269b89eb3917ae7b0"
+    },
+    {
+      "path": "source/account_actor_port.py",
+      "size_bytes": 30975,
+      "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492"
+    },
+    {
+      "path": "source/INTEGRATION_CONTRACT.md",
+      "size_bytes": 6924,
+      "sha256": "d4371e9d80ed34509597068c504c74a526d3440edbf508ff1eca92fccf1afe09"
+    },
+    {
+      "path": "source/MAIN_SOURCE_INVENTORY.md",
+      "size_bytes": 2730,
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+    },
+    {
+      "path": "source/README.md",
+      "size_bytes": 2260,
+      "sha256": "36f0d6b8a9640b8236ca4b81e75aa42f0253518fcccf1200c432b01911770836"
+    },
+    {
+      "path": "source/store_boundary_harness_testonly.py",
+      "size_bytes": 1970,
+      "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05"
+    },
+    {
+      "path": "source/store_boundary_harness.py",
+      "size_bytes": 6871,
+      "sha256": "fe8b053c5dd1f687f2d89da58b3f33e3c57995409109b3dd8fdd2fed25de85e9"
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "size_bytes": 43028,
+      "sha256": "c4099c8f60313d4fceddee4bb57f9eb51ad7ea612cf2df4f85922844e173f287"
+    }
+  ]
+}

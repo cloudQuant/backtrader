@@ -1,0 +1,220 @@
+{
+  "schema": "iteration41-independent-qa-archive.v1",
+  "status": "SAFE_LOCAL_TEST_MIGRATION_WITH_COVERAGE_LIMIT",
+  "zip_path": "raw-qa.zip",
+  "zip_sha256": "fe7fa90abd915303bc2049aec452e2d183e57b153684c63f166d9c59c832d1dd",
+  "source_qa_manifest_sha256": "09056f9c9f562027aff786d560442b7be6cf20f9f9dfeefb17b55e8e261f6398",
+  "payload_count": 42,
+  "files": [
+    {
+      "path": "raw-qa/after-migration-file.junit.xml",
+      "bytes": 1231,
+      "sha256": "763e6e435e7df0fc38000c862a80e3f08c2a9236daaecd10fa72c5d3bad7b042"
+    },
+    {
+      "path": "raw-qa/after-migration-file.log",
+      "bytes": 677,
+      "sha256": "0fbd931ade9fb23fbb3de07c16e3ccc83fe1af98c00fc273a16cdf6e904bc0a0"
+    },
+    {
+      "path": "raw-qa/after-migration-focused.junit.xml",
+      "bytes": 558,
+      "sha256": "cc6fc8f21080467689529816178c939f6b0b86fda181cc40f143337517e5b98d"
+    },
+    {
+      "path": "raw-qa/after-migration-focused.log",
+      "bytes": 680,
+      "sha256": "964ace78040c2886859b0fe208eabb7fa6d0d09c8de6355ba6f441d8b265564c"
+    },
+    {
+      "path": "raw-qa/after-r2b-before-migration.junit.xml",
+      "bytes": 2664,
+      "sha256": "cbbe023e88f3b7a7af0005cb3f97592ec5173ac0a1368741e4055616ebb9c9df"
+    },
+    {
+      "path": "raw-qa/after-r2b-before-migration.log",
+      "bytes": 2568,
+      "sha256": "fcea88a8085cdeb592cba57ba0784e0946047f11bb34354bcc040c67455132d5"
+    },
+    {
+      "path": "raw-qa/before-r2b-rerun.log",
+      "bytes": 667,
+      "sha256": "f032b6ddd17363be6c7894cdd93f8c10a69dffaea39cdf212df880abdfe8f5bb"
+    },
+    {
+      "path": "raw-qa/before-r2b.junit.xml",
+      "bytes": 1092,
+      "sha256": "35dd2883d51ed6037bb9a33443204ab2b49f8b0233e92e42494f030a5fb57c21"
+    },
+    {
+      "path": "raw-qa/before-r2b.log",
+      "bytes": 592,
+      "sha256": "3519abaff519e7a23f93e1f6126567a68179bc3b62e24d5dbe6005581451d613"
+    },
+    {
+      "path": "raw-qa/guard-events-candidate.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw-qa/guard/sitecustomize.py",
+      "bytes": 1036,
+      "sha256": "b4515614449902e596cbc532d346e0e3ab93e199daecce63353b4871da8fc585"
+    },
+    {
+      "path": "raw-qa/guarded-after-migration-candidate.junit.xml",
+      "bytes": 1231,
+      "sha256": "8faf314b150cdcf067c1ceeddc71e68a126358e65525460aa4729a2b8ee37258"
+    },
+    {
+      "path": "raw-qa/guarded-after-migration-candidate.log",
+      "bytes": 690,
+      "sha256": "f484e46c89fab928fb896ce19e900bf2c7f3129bb2a2d8af75152fdba0307082"
+    },
+    {
+      "path": "raw-qa/guarded-after-migration.junit.xml",
+      "bytes": 1092,
+      "sha256": "0486e6ca0db265dfc2159eb34f46f37f5ef9f26d73ccd0a4d105fa64814b650c"
+    },
+    {
+      "path": "raw-qa/guarded-after-migration.log",
+      "bytes": 680,
+      "sha256": "6e706f871c3974dd92f6920d9ef2826ffbd20ac08819bd11942461769df9287b"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/after-file.junit.xml",
+      "bytes": 1231,
+      "sha256": "df8c31de8a70848bebe9547ebe3ce0f26a0c7962af16ae1a9285ec2b08205cc2"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/after-focused.junit.xml",
+      "bytes": 558,
+      "sha256": "216fd2cd45ca61982ae417dfccad9250ef4cbc8403d53bc731813bd99613e429"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/artifacts.sha256",
+      "bytes": 638,
+      "sha256": "bd3ad7e73f2506d36c72794f9c0e8f8bfc866e7d09df7e9d761aa037c808a597"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/author-migration-report.md",
+      "bytes": 2415,
+      "sha256": "d33317b2c85912afb6055d04322131d369c36330412c11c93f7ca2b8a0136575"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/before.junit.xml",
+      "bytes": 1092,
+      "sha256": "54da1975c2990d8d2043c438e159ec069a6c799b02cbc708a442ebaf96e9cdef"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/credential-safety-migration.patch",
+      "bytes": 4479,
+      "sha256": "cce753315dc4b23f1baf6c644962b5ae479af6377255e067512c9b6a976a7657"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/overlay-before.sha256",
+      "bytes": 435,
+      "sha256": "c587abbcea1d00b636aa47b7700f0ad098b92a26b5144686e510d49c5377e7d3"
+    },
+    {
+      "path": "raw-qa/inputs/credential-safety/r2b-before-migration.junit.xml",
+      "bytes": 2664,
+      "sha256": "e81501cb53e496029a13954c706dedaa14826c2cc184ef51bc8d87dcfcf2b522"
+    },
+    {
+      "path": "raw-qa/inputs/projection-bridge/author-migration-report.md",
+      "bytes": 6970,
+      "sha256": "3cb57b68b33bae58018886513cd37cdc76f4f7066cf6ec3e6f6d3ca326004554"
+    },
+    {
+      "path": "raw-qa/inputs/projection-bridge/author-r2b-qa-report.md",
+      "bytes": 3437,
+      "sha256": "a3f0a271758cbe30a7d06cc2810c1742dd85d4bff0c1056b8b0daf413de9d937"
+    },
+    {
+      "path": "raw-qa/inputs/projection-bridge/projection-bridge-after.junit.xml",
+      "bytes": 5967,
+      "sha256": "3a2c8ee61bc39a88e43f43730d9e79c3c5a4ce40080be67ca605f28b65928a22"
+    },
+    {
+      "path": "raw-qa/inputs/projection-bridge/projection-bridge-before.junit.xml",
+      "bytes": 16518,
+      "sha256": "040d5fe264be6e856e20f0a39889f01476c956045df8e574bcc16556637bc3ae"
+    },
+    {
+      "path": "raw-qa/inputs/projection-bridge/projection-bridge-store-gate-migration.patch",
+      "bytes": 9054,
+      "sha256": "ced276afc091ecede150eeac956d3ebd87e0975db54443ffb2268a34437119b1"
+    },
+    {
+      "path": "raw-qa/projection-bridge/after-independent-guarded.junit.xml",
+      "bytes": 5967,
+      "sha256": "db57f3ea82cae49c1b7a25d76463e0b9c8d56c16ac42daa81437912cc49e7a5d"
+    },
+    {
+      "path": "raw-qa/projection-bridge/after-independent-guarded.log",
+      "bytes": 736,
+      "sha256": "c681370ef32f56baf8b5d1ba456a2096dbb11c3da4ada5d187644ad1e6cdc811"
+    },
+    {
+      "path": "raw-qa/projection-bridge/before-independent.junit.xml",
+      "bytes": 21998,
+      "sha256": "e8990131ee4c72355e4c6d8b2275abcebbea412c08f6929e2acbb1b8bd9df231"
+    },
+    {
+      "path": "raw-qa/projection-bridge/before-independent.log",
+      "bytes": 18130,
+      "sha256": "3cf4327844ee9dec76f2a87319b24c01a2578d75b76932823c9d21fbe56d7304"
+    },
+    {
+      "path": "raw-qa/projection-bridge/sitecustomize.py",
+      "bytes": 2722,
+      "sha256": "286b14b1820164fab5f3fb1c252db76eab97b29a02c3c9e9baf008b8ecd27c1d"
+    },
+    {
+      "path": "raw-qa/REPORT.md",
+      "bytes": 5837,
+      "sha256": "51c0b8b39683512caacd7e525a4347f8be3c7b7544955f68252b27d4433d7f5e"
+    },
+    {
+      "path": "raw-qa/source-snapshots/credential-safety/after/test_credential_safety.py",
+      "bytes": 6177,
+      "sha256": "d686cac6e024b9f87b2097b45000c37124276229f4f65baccdb84eab32092902"
+    },
+    {
+      "path": "raw-qa/source-snapshots/credential-safety/before/test_credential_safety.py",
+      "bytes": 5096,
+      "sha256": "7dc568424debe6bf6d8dd5a2e1e283a2021f9ccde16b6a7ca18cb2fdbec5b234"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/after/test_ctp_managed_projection_bridge.py",
+      "bytes": 24983,
+      "sha256": "885d6b2e2163939057ad4f1bd50f5337885414141ecd14335560ef1b2a28e1cc"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/before/test_ctp_managed_projection_bridge.py",
+      "bytes": 24928,
+      "sha256": "08095b558369f1c9674f10f0994e1344fc91a5a2bc6aed8a9aceec98872832bb"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/r2b/btapistore.py",
+      "bytes": 804142,
+      "sha256": "24f8199e199bbe84bbb113c3edbbee9e71d4736fdd8573297e24ead3298f2518"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/r2b/ctp_account_actor_port.py",
+      "bytes": 25332,
+      "sha256": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/r2b/ctp_managed_projection_bridge.py",
+      "bytes": 16764,
+      "sha256": "bb1c81335505b8f59edaedced6424a4bdd7671bdeb59ba9f34c16ffc56feebd4"
+    },
+    {
+      "path": "raw-qa/source-snapshots/projection-bridge/r2b/managed_execution.py",
+      "bytes": 36603,
+      "sha256": "1c31f89412e8e1177eb2e27389c62b50e074361ef808098846c06704f18440c5"
+    }
+  ]
+}

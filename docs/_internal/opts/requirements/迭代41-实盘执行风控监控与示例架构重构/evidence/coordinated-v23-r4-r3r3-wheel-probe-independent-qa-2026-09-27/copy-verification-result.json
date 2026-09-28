@@ -1,0 +1,14 @@
+{
+  "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27",
+  "copied_payload_count": 25,
+  "copied_payloads_identical": true,
+  "raw_zip_sha256": "6f90ed890e0eb638f3e4b141fa0433c1cce854cc25661bf07fcccfbfb2ac9ddd",
+  "raw_zip_bytes": 7203230,
+  "raw_zip_testzip": null,
+  "index_sha256": "f0d3db483b402ab440a09badb6969ab384dc3ca3c845b1e3a91b3c6b05a8fcd4",
+  "receipt_sha256": "a7111b1c3709828287195e0e64678700a7760e351cd8fc9de03eec7a078951e3",
+  "review_sha256": "c4f75cf8c7bfefd4110c7e93ef8c213238ef98916681f948cd131e347c813bb3",
+  "readme_sha256": "1a8f34a13e59464a01775a7a59956ae2944b9f4352a040229be8eaca65d6b5a0",
+  "copy_receipt_sha256": "79f9fb85e391d1d11a23f7da1af9e4cda23c23ed49d36f32a813d7f663c84372",
+  "scope": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED"
+}

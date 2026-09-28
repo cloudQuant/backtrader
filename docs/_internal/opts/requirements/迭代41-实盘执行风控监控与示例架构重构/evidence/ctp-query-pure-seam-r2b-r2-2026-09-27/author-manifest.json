@@ -1,0 +1,92 @@
+{
+  "indexed_payload_count": 15,
+  "payloads": [
+    {
+      "path": "report.md",
+      "sha256": "92D7E5C7B5F6728459A42BE7793DA451215B14D06041E7B66C9185E01A04858E",
+      "size_bytes": 4938
+    },
+    {
+      "path": "query-evidence-test-seam.patch",
+      "sha256": "6AAB9A66A328A545A5E724BADCC03C31C606F84E985F4EF5F8A8E754151F88A7",
+      "size_bytes": 5058
+    },
+    {
+      "path": "apply_slice.py",
+      "sha256": "1156412A93C54BBC0F1020EFD433CE10C7FD9EC6D0E560A14653A79C48552797",
+      "size_bytes": 1912
+    },
+    {
+      "path": "pure-test-source.py",
+      "sha256": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "size_bytes": 2986
+    },
+    {
+      "path": "qa_guarded_runner.py",
+      "sha256": "74E3FF7ECE57DFC9ABCCC89139C7B6203CBA598C3CE499DCEF96F631D7E9C575",
+      "size_bytes": 2923
+    },
+    {
+      "path": "qa-guarded-run.log",
+      "sha256": "3BF0324F6CDBBE9688F897C0540946DF5C8FFDAA245A12987889DEF855055FC6",
+      "size_bytes": 1425
+    },
+    {
+      "path": "qa-autoload-failure.log",
+      "sha256": "C85C346284B985829FE2F12B0D1654D32FAD125C84BE20A2808E27EB802376D3",
+      "size_bytes": 917
+    },
+    {
+      "path": "verify_slice.py",
+      "sha256": "EAF2DBB3C4BAD4654D7E3B2534D62725D2149C720C60792D98EB2DDE73277719",
+      "size_bytes": 3397
+    },
+    {
+      "path": "verify-slice.log",
+      "sha256": "5485E65803BC9C78C4C873C936885F2F2813E241B8C7A99C8605127B2D1836DE",
+      "size_bytes": 633
+    },
+    {
+      "path": "remaining-157-unmigrated-nodeids.csv",
+      "sha256": "440ADC4499AA7446A73DAED09F67D679372E69C8541E2C0B8C59ABEA95B5FBEE",
+      "size_bytes": 20734
+    },
+    {
+      "path": "isolated/test_btapistore_iteration22.py",
+      "sha256": "C04745DE3D1FF2B42B425F9F3CFEA7C9B4A1F60C651C5ACA626964121944123E",
+      "size_bytes": 173553
+    },
+    {
+      "path": "isolated/test_btapistore_ctp_query_evidence_pure.py",
+      "sha256": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "size_bytes": 2986
+    },
+    {
+      "path": "base/main-test-btapistore-iteration22.py",
+      "sha256": "30EEAA2C9816E6D0792E801A6EA2A8960CC1BCAA3728679111318E5178AFA49D",
+      "size_bytes": 173308
+    },
+    {
+      "path": "base/r2b-btapistore.py",
+      "sha256": "24F8199E199BBE84BBB113C3EDBBEE9E71D4736FDD8573297E24EAD3298F2518",
+      "size_bytes": 804142
+    },
+    {
+      "path": "base/r2b-analysis-summary.json",
+      "sha256": "EE60B8A12C5C76035EF7A4A649F50261D17A7B68FF60A3668C28C49528EEB9D0",
+      "size_bytes": 114214
+    }
+  ],
+  "purpose": "Self-contained repackaging of the r1 QA evidence; payload contents are unchanged.",
+  "r1_sha256sums_sha256": "41387433B6F0997991711059C5CC0456EE3643C11AE6EA2812D39F1730569014",
+  "schema": "iteration41-query-pure-seam-independent-qa-r2",
+  "sha256sums_sha256": "41387433B6F0997991711059C5CC0456EE3643C11AE6EA2812D39F1730569014",
+  "support_files": [
+    {
+      "path": "verify_r2_package.py",
+      "sha256": "991E040FAAE636009FAE43AD636AA7A3821195FDB48F3B7DD3E54222D8E94759",
+      "size_bytes": 2840
+    }
+  ],
+  "zip_member_policy": "15 indexed payloads + SHA256SUMS.txt + package-manifest.json + verify_r2_package.py"
+}

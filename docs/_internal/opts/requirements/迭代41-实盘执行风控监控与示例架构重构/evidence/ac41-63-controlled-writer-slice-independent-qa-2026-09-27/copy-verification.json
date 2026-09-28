@@ -1,0 +1,40 @@
+{
+  "schema": "ac41-63-controlled-writer-slice-canonical-copy-verification-v1",
+  "result": "PASS",
+  "source_root": "D:\\temp\\ac41-63-controlled-writer-slice-20260927",
+  "canonical_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ac41-63-controlled-writer-slice-independent-qa-2026-09-27",
+  "archive_sha256": "8250D63B8110E450BB20385BD2DD2C006D3C070FBD4121243EF2B8406764FDEF",
+  "zip_testzip": null,
+  "archive_payload_members": 25,
+  "zip_members": 27,
+  "sha256sum_entries": 26,
+  "archive_manifest_sha256": "769AEFC6C89AF472053881429CBACE8FA0A4DCCD50F739F925DCA8EAEDE2B0FD",
+  "report_sha256": "4AECD2BB57CF1FB6257352928E5A5BE0C5F1FC252F86BA84013DF0F0D4BDFDB2",
+  "probe_sha256": "F541163077A68F899206080529DECB33BD3CF320AAB8154DFFF6B0CF62B6B23C",
+  "copied_artifacts": {
+    "REPORT.md": {
+      "sha256": "4AECD2BB57CF1FB6257352928E5A5BE0C5F1FC252F86BA84013DF0F0D4BDFDB2",
+      "matches_frozen_source": true
+    },
+    "receipt.json": {
+      "sha256": "CA01DF5BC9740B021438302173F6ADB7453D8C084F891C7CA2CAD404DF328237",
+      "matches_frozen_source": true
+    },
+    "archive-manifest.json": {
+      "sha256": "769AEFC6C89AF472053881429CBACE8FA0A4DCCD50F739F925DCA8EAEDE2B0FD",
+      "matches_frozen_source": true
+    },
+    "SHA256SUMS.txt": {
+      "sha256": "369C3128A90F6F71846A8735D097D7FDC9193678998A7ED8B2D9CD142541C73B",
+      "matches_frozen_source": true
+    },
+    "run_slice_probe.py": {
+      "sha256": "F541163077A68F899206080529DECB33BD3CF320AAB8154DFFF6B0CF62B6B23C",
+      "matches_frozen_source": true
+    },
+    "ac41-63-controlled-writer-slice-20260927.zip": {
+      "sha256": "8250D63B8110E450BB20385BD2DD2C006D3C070FBD4121243EF2B8406764FDEF",
+      "matches_frozen_source": true
+    }
+  }
+}

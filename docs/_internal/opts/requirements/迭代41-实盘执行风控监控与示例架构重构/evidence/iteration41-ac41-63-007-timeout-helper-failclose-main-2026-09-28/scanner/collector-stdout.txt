@@ -1,0 +1,1 @@
+{"counts": {"dynamic_execution_candidates": 97, "files_scanned": 355, "parse_errors": 0, "writer_candidates": 363}, "output": "C:\\Users\\yunji\\AppData\\Local\\Temp\\ac41-inventory-007-timeout-4d0067373739469ab64182de9cd526b6.json", "source_path_coverage_status": "BASELINE_CLASSIFIED", "status": "CANDIDATE_DISCOVERY_ONLY", "unclassified_paths": 0}

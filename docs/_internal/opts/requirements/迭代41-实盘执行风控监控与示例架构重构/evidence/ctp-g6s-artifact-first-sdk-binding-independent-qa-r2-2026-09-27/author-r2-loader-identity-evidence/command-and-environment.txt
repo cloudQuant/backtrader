@@ -1,0 +1,12 @@
+R2 frozen-test command (run from candidate root):
+$env:PYTHONPATH='D:\temp\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2'
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+$env:PYTHONDONTWRITEBYTECODE='1'
+& 'C:\anaconda3\python.exe' -m pytest --noconftest tests\unit\runtime\test_ctp_sdk_artifact_binding.py tests\unit\runtime\test_ctp_windows_artifact_custody.py tests\unit\runtime\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml='evidence\r2-loader-identity\pytest-focus.junit.xml'
+Result: 52 passed, 0 skipped, exit 0.
+
+Static checks:
+& 'C:\anaconda3\python.exe' -m ruff check backtrader_runtime\ctp_sdk_artifact_binding.py tests\unit\runtime\test_ctp_sdk_artifact_binding.py
+& 'C:\anaconda3\python.exe' -m ruff format --check backtrader_runtime\ctp_sdk_artifact_binding.py tests\unit\runtime\test_ctp_sdk_artifact_binding.py
+& 'C:\anaconda3\python.exe' -c "from pathlib import Path; paths=[Path('backtrader_runtime/ctp_sdk_artifact_binding.py'),Path('tests/unit/runtime/test_ctp_sdk_artifact_binding.py')]; [compile(p.read_bytes(), str(p), 'exec') for p in paths]; print('compile: 2 files passed')"
+All passed.

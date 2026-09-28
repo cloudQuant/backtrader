@@ -1,0 +1,154 @@
+{
+  "schema": "iteration41.g4_fake_stop_job.root_review.v1",
+  "status": "ACCEPTED_HOST_FAKE_CONTAINMENT_ONLY_G4_STILL_BLOCKED",
+  "original_manifest_sha256": "29627b9afb35dc310ad5b4f32c4bc38a8f61b3b12b46ce8eb6eba46918e93258",
+  "independent_qa_receipt_sha256": "4984fc9f907a4fe5ddc76e069e444804282aa362d57392393b8b74e73eb68123",
+  "original_fake_sdk_focus": "28 passed; wider 62 passed, 1 failed, 1 deselected",
+  "independent_windows_job_rerun": "2 timed out; Job termination, process exit and Job empty observed",
+  "limitation": "No native CTP extension, real provider session, clean Join/Release receipt, service deployment or real account access",
+  "archive": {
+    "file": "ctp-g4-fake-stop-job-containment-independent-review-2026-09-27.raw.zip",
+    "sha256": "aafcd870ba307b2e29a3ac4e60bca547640c8c98f66549a0adde18d7e3639a87",
+    "entries": 23
+  },
+  "files": [
+    {
+      "path": "probe/manifest.json",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\manifest.json",
+      "sha256": "29627b9afb35dc310ad5b4f32c4bc38a8f61b3b12b46ce8eb6eba46918e93258",
+      "bytes": 5117
+    },
+    {
+      "path": "qa/independent-qa-receipt-v2.json",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\independent-qa-receipt-v2.json",
+      "sha256": "4984fc9f907a4fe5ddc76e069e444804282aa362d57392393b8b74e73eb68123",
+      "bytes": 12535
+    },
+    {
+      "path": "source/00-ThostFtdcTraderApi.h",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\api\\6.7.7\\windows\\ThostFtdcTraderApi.h",
+      "sha256": "e52c2cb7a8c17571d47848ea0a946679f9c2e12b5c9f4057188707a15d1546b0",
+      "bytes": 51263
+    },
+    {
+      "path": "source/01-ctp_wrap.cpp",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\ctp_wrap.cpp",
+      "sha256": "5b985c12976a406ae3ebe0084693cace584615b69cd4f2d48af57ff5995a031b",
+      "bytes": 20377289
+    },
+    {
+      "path": "source/02-run_fake_stop_job.py",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\run_fake_stop_job.py",
+      "sha256": "80bcf01751d947d86ad6b1cbc799a517b05912b92d17dd58c8217060c705bd96",
+      "bytes": 2362
+    },
+    {
+      "path": "source/03-thostmduserapi_se.dll",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\api\\6.7.7\\windows\\thostmduserapi_se.dll",
+      "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b",
+      "bytes": 3044352
+    },
+    {
+      "path": "source/04-ctp_i13_i15_outer_watchdog.py",
+      "source": "D:\\source_code\\backtrader\\scripts\\ctp_i13_i15_outer_watchdog.py",
+      "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "bytes": 24746
+    },
+    {
+      "path": "source/05-thosttraderapi_se.dll",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\api\\6.7.7\\windows\\thosttraderapi_se.dll",
+      "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad",
+      "bytes": 3428864
+    },
+    {
+      "path": "source/06-client.py",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\client.py",
+      "sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09",
+      "bytes": 351481
+    },
+    {
+      "path": "source/07-job_results.json",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\job_results.json",
+      "sha256": "449917f5b2612c73dba17b776576612089113601f0803056dd59dd81d2969fd3",
+      "bytes": 1017
+    },
+    {
+      "path": "source/08-test_md_client_identity.py",
+      "source": "D:\\q\\g4-md-id-zero-e75\\tests\\test_md_client_identity.py",
+      "sha256": "60c384bedbf0e23a2e8af6fdf0596fdb84a2031b6368cd5ae732b8f3556d0744",
+      "bytes": 10745
+    },
+    {
+      "path": "source/09-ctp_i13_i15_windows_job_backend.py",
+      "source": "D:\\source_code\\backtrader\\scripts\\ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "bytes": 46080
+    },
+    {
+      "path": "source/10-pytest_focus.log",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\pytest_focus.log",
+      "sha256": "e3620aa7c429ff091732429858146704f7dc3f657cfdee86e9f93f9c69ff2e4d",
+      "bytes": 1227
+    },
+    {
+      "path": "source/11-fake_stop_child.py",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\fake_stop_child.py",
+      "sha256": "295665d94a505a9fcce367f4ae205b87780b4602430578e62b59edd200ce0284",
+      "bytes": 900
+    },
+    {
+      "path": "source/12-ThostFtdcMdApi.h",
+      "source": "D:\\q\\g4-md-id-zero-e75\\src\\bt_api_ctp\\ctp\\api\\6.7.7\\windows\\ThostFtdcMdApi.h",
+      "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8",
+      "bytes": 6558
+    },
+    {
+      "path": "source/13-pytest.log",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\pytest.log",
+      "sha256": "0240c187d30c4a5f39a2db2822a283a8345ab734bf24acb3025d00db9a1e77a2",
+      "bytes": 3893
+    },
+    {
+      "path": "source/14-pytest_runtime_shutdown.log",
+      "source": "D:\\temp\\iteration41_g4_fake_stop_job_20260927\\pytest_runtime_shutdown.log",
+      "sha256": "8e3c9b477241f4eb6a695f94fad0262509e2854f476da783572ee4ff56d4af37",
+      "bytes": 1226
+    },
+    {
+      "path": "qa/rerun/00-blocked_call_child.py",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\blocked_call_child.py",
+      "sha256": "39671cde2f4c6c761bcbc14ee2781fa9cc127b5334d317a074c9ec4b91dc6ba0",
+      "bytes": 330
+    },
+    {
+      "path": "qa/rerun/01-run_equivalent_fake_stop_job.py",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\run_equivalent_fake_stop_job.py",
+      "sha256": "33682a2a3780b1a09a9b2c6c34cb8974dd705ce005d31cf138a7cbc17fef5495",
+      "bytes": 3060
+    },
+    {
+      "path": "qa/rerun/02-job_results.json",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\job_results.json",
+      "sha256": "449917f5b2612c73dba17b776576612089113601f0803056dd59dd81d2969fd3",
+      "bytes": 1017
+    },
+    {
+      "path": "qa/rerun/03-job-rerun.log",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\job-rerun.log",
+      "sha256": "13e11bd251c1b7b007e14e01387f65acc2aa4bd784d68679492206cb31e0ef28",
+      "bytes": 1019
+    },
+    {
+      "path": "qa/rerun/04-job-rerun.exit",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\job-rerun.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "qa/rerun/05-runtime.json",
+      "source": "D:\\temp\\iteration41-g4-fake-stop-independent-qa-20260927\\runtime.json",
+      "sha256": "2b7858144493a8c43862eb2a6a24eac28bb22717ebff311bb3d035f4f4b6dfcb",
+      "bytes": 227
+    }
+  ]
+}

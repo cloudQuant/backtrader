@@ -1,0 +1,38 @@
+{
+  "database": "temporary local SQLite; deleted after run",
+  "distinct_worker_pids": [
+    10560,
+    21032,
+    25740,
+    37128,
+    39632,
+    40700,
+    45128,
+    46048
+  ],
+  "processes": 8,
+  "provider_sdk_network_credentials": "not used",
+  "restart_readback_refs": [
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50
+  ],
+  "status": "PASS",
+  "unique_action_refs": [
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50
+  ],
+  "unknown_reclaim_after_parent_reopen": null,
+  "unknown_reclaim_from_child": null
+}

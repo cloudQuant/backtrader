@@ -1,0 +1,117 @@
+{
+  "title": "R2b route-test migration candidate QA revision 2",
+  "date": "2026-09-27",
+  "scope": "test-only patch; no production source edits",
+  "r2b_base_patch": {
+    "path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2b\\r2b-main-base-apply.patch",
+    "sha256": "1A16AADB94EDB99924553D6472BF72DCB02BD04C7F994276816D91991A729F37"
+  },
+  "captured_original_test_inputs": [
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "sha256": "E7E7B985130F010DEED84B920FD0F91712BFE54AC24B5EF8BF1C8FC687BCA6B1"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_normalized.py",
+      "sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397"
+    }
+  ],
+  "files": [
+    {
+      "path": "route-test-migration-r2.patch",
+      "role": "r2_migration_patch",
+      "sha256": "38A7615F760803D140DAB3546355CF20733D3B6A2410E210D456114EF1F2096A"
+    },
+    {
+      "path": "route-test-migration-r1.patch",
+      "role": "superseded_r1_patch",
+      "sha256": "93BD64374B156CBDE9A2D2F62793A736EBBDF015C5BA01F6D0C55032F1DC31B1"
+    },
+    {
+      "path": "baseline-original/tests/unit/stores/test_btapistore.py",
+      "role": "captured_original_test_input",
+      "sha256": "E7E7B985130F010DEED84B920FD0F91712BFE54AC24B5EF8BF1C8FC687BCA6B1"
+    },
+    {
+      "path": "baseline-original/tests/unit/stores/test_btapistore_normalized.py",
+      "role": "captured_original_test_input",
+      "sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "role": "r2_tested_test_file",
+      "sha256": "6012D6F77AF1C97F2F5156EAF0D0CE82A4757E634BB09EE3F178F7003D110163"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_normalized.py",
+      "role": "r2_tested_test_file",
+      "sha256": "8C706BA73995D90608A384182221373F1CA4862A5D064841E3B1DDDE3DBD0B70"
+    },
+    {
+      "path": "focused-route-migration-r2.junit.xml",
+      "role": "r2_junit",
+      "sha256": "25CDBDE8F7050F2A0522CEF7B19C29DEF936745D086E002922285C6DBF1DA0B8"
+    },
+    {
+      "path": "pytest-r2.stdout.log",
+      "role": "r2_stdout",
+      "sha256": "C0C6341707AC499DFF86F63534DF43A33A3BE5CC71FC7F3B92EF8FC0B00A16C3"
+    },
+    {
+      "path": "pytest-r2.stderr.log",
+      "role": "r2_stderr",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "path": "pytest-r2.exit-code.txt",
+      "role": "r2_exit_code",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+    },
+    {
+      "path": "guard-summary-r2.json",
+      "role": "r2_import_network_guard",
+      "sha256": "682083F8427AD1A49000C932C08A618081041513CD0FF9ABB44446B252B3797C"
+    },
+    {
+      "path": "test-command-r2.json",
+      "role": "r2_replay_command",
+      "sha256": "C817AA855595ED6A64AA3D67A2F58DD38342182D5BA8FEDD6FE85E789B13457D"
+    },
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "role": "r2b_candidate_store_source",
+      "sha256": "24F8199E199BBE84BBB113C3EDBBEE9E71D4736FDD8573297E24EAD3298F2518"
+    },
+    {
+      "path": "backtrader/stores/ctp_account_actor_port.py",
+      "role": "r2b_candidate_actor_port_source",
+      "sha256": "2E4B04D00C45BA9C6524C5AD0364273E6ECC1A1F653F595D21C3891BE2644EE3"
+    },
+    {
+      "path": "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+      "role": "r2b_route_candidate_tests",
+      "sha256": "FC675D30A1CD3E303357406E81EDC067AF0B7559D2230AC6A2EE3732466CC2C6"
+    },
+    {
+      "path": "tests/unit/stores/test_ctp_non_authorizing_contracts.py",
+      "role": "r2b_non_authorizing_tests",
+      "sha256": "A61C8B0070A41C813D7C3ADB1165F9AD38EA5B63986A9293E868E38D78F3B5CF"
+    },
+    {
+      "path": "README-r2.md",
+      "role": "r2_report",
+      "sha256": "102773B6CB967A9B437533AD33929291669C16F28A6DFF871972CE108931929E"
+    }
+  ],
+  "result": {
+    "tests": 35,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "ruff": "passed",
+    "provider_imports": 0,
+    "real_provider_modules": 0,
+    "network_attempts": 0,
+    "main_patch_check": "passed"
+  }
+}

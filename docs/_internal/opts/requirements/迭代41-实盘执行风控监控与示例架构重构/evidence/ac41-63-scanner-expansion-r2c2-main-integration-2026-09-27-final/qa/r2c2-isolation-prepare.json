@@ -1,0 +1,28 @@
+{
+  "actual_private_files_copied": 0,
+  "analysis_inputs": {
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json": "95116e8866a50d645664764856f1ceb6e855b3d05e540f7e38d59f30ea65c7fd",
+    "scripts/collect_iteration41_writer_inventory.py": "54af45de1c4d14aaf1c3849c9b820f505edb7a4c34c344b8e4157f490c9e0ed5",
+    "scripts/iteration41_writer_inventory_scope.json": "c473b4390d70477978c0eb9673e267244d78a57d0acb2e8df6d5f7d3bfa60dd7",
+    "scripts/verify_iteration41_writer_dispositions.py": "633ad4749eaebf54e8a6be257a6dbbe1900326992122eedd5c161b3485ee42e1",
+    "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": "d35d7d99e89ca56472405fe3123aacf1a12d44a9e0ee5a8a5ff3ea70d3435629"
+  },
+  "checklist_bytes": 454683,
+  "checklist_crlf_count": 0,
+  "checklist_lf_count": 9837,
+  "core_autocrlf": false,
+  "git_apply": "PASS",
+  "git_apply_check": "PASS",
+  "isolated_source_root": "D:\\temp\\iteration41-ac41-63-scanner-expansion-qa-20260927\\isolated-source-r2c2",
+  "manifest_sha256": "58dd6bc0301696ab41d8ce2663e1e8361707b95857e7ad0ae59fe1045f5345fd",
+  "patch_sha256": "0222705fd2898c3cf2eded9f8bb7591d0a4a4ad6ace4577ed0450a1bc8788bd5",
+  "preimage_mismatches": [],
+  "source_file_count": 349,
+  "synthetic_private_sentinel_only": true,
+  "target_hashes": {
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json": "e6ece21e16af6c6a6220431dd0c2669d81206a136b500dfd5214ca766818e841",
+    "scripts/collect_iteration41_writer_inventory.py": "b37ed7a309c057b4f97ab8e96fe20d3e840d54084b6bca8edbef3491230ab6e3",
+    "tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py": "be777538ac686463edf07c96d3848715b714d368126a160e42888c4331931db6",
+    "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": "e1e9a96a040ac510b4bb48a13195651d71199d9c4b7071083eb617b14f3b3f49"
+  }
+}

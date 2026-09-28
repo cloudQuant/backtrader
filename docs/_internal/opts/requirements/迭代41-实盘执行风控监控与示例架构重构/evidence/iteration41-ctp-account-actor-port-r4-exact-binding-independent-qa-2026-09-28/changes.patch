@@ -1,0 +1,1008 @@
+--- a/account_actor_port.py
++++ b/account_actor_port.py
+@@ -6,6 +6,9 @@
+ """
+ from __future__ import annotations
+ 
++import hashlib
++import json
++import threading
+ from abc import ABC, abstractmethod
+ from collections.abc import Mapping
+ from dataclasses import dataclass, field
+@@ -36,8 +39,54 @@
+ 
+ 
+ @dataclass(frozen=True)
+-class CtpSubmitIntentV1:
+-    """Logical order intent. Native OrderRef/RequestID are never caller fields."""
++class ActorCommandContextV1:
++    """Caller-supplied local binding context; not authenticated actor authority."""
++
++    account_ref: str
++    runtime_id: str
++    mode: str
++    config_digest: str
++    session_id: str
++    front_id: int
++    native_session_id: int
++    session_generation: int
++    actor_epoch: int
++
++    def __post_init__(self) -> None:
++        for name in ("account_ref", "runtime_id", "session_id"):
++            _required_text(getattr(self, name), name)
++        if type(self.mode) is not str or self.mode not in {"simulation", "live"}:
++            raise ValueError("mode must be simulation or live")
++        if type(self.config_digest) is not str or len(self.config_digest) != 64:
++            raise ValueError("config_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.config_digest):
++            raise ValueError("config_digest must be a lowercase SHA-256 digest")
++        if type(self.session_generation) is not int or self.session_generation <= 0:
++            raise ValueError("session_generation must be a positive exact integer")
++        if type(self.front_id) is not int or self.front_id <= 0:
++            raise ValueError("front_id must be a positive exact integer")
++        if type(self.native_session_id) is not int or self.native_session_id <= 0:
++            raise ValueError("native_session_id must be a positive exact integer")
++        if type(self.actor_epoch) is not int or self.actor_epoch <= 0:
++            raise ValueError("actor_epoch must be a positive exact integer")
++
++    def to_payload(self) -> dict[str, Any]:
++        return {
++            "account_ref": self.account_ref,
++            "runtime_id": self.runtime_id,
++            "mode": self.mode,
++            "config_digest": self.config_digest,
++            "session_id": self.session_id,
++            "front_id": self.front_id,
++            "native_session_id": self.native_session_id,
++            "session_generation": self.session_generation,
++            "actor_epoch": self.actor_epoch,
++        }
++
++
++@dataclass(frozen=True)
++class CtpSubmitIntentV2:
++    """Context-bound logical order intent; no native identity is caller input."""
+ 
+     intent_id: str
+     instrument_id: str
+@@ -47,11 +96,15 @@
+     hedge_flag: str
+     quantity: int
+     limit_price: Decimal
++    context: ActorCommandContextV1
+ 
+     def __post_init__(self) -> None:
+         _required_text(self.intent_id, "intent_id")
+         _required_text(self.instrument_id, "instrument_id")
+         _required_text(self.exchange_id, "exchange_id")
++        _required_text(self.side, "side")
++        _required_text(self.offset, "offset")
++        _required_text(self.hedge_flag, "hedge_flag")
+         if self.side not in {"BUY", "SELL"}:
+             raise ValueError("side must be BUY or SELL")
+         if self.offset not in {"OPEN", "CLOSE", "CLOSE_TODAY", "CLOSE_YESTERDAY"}:
+@@ -64,11 +117,38 @@
+             raise ValueError("limit_price must be a finite Decimal")
+         if self.limit_price <= 0:
+             raise ValueError("limit_price must be positive")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++
++    @property
++    def command_id(self) -> str:
++        return self.intent_id
++
++    @property
++    def operation(self) -> str:
++        return "SUBMIT"
++
++    @property
++    def command_digest(self) -> str:
++        return _command_digest(
++            self.operation,
++            self.command_id,
++            self.context,
++            {
++                "instrument_id": self.instrument_id,
++                "exchange_id": self.exchange_id,
++                "side": self.side,
++                "offset": self.offset,
++                "hedge_flag": self.hedge_flag,
++                "quantity": self.quantity,
++                "limit_price": format(self.limit_price, "f"),
++            },
++        )
+ 
+ 
+ @dataclass(frozen=True)
+-class CtpCancelIntentV1:
+-    """Logical cancel intent. Native OrderActionRef/RequestID are never fields."""
++class CtpCancelIntentV2:
++    """Context-bound logical cancel intent; native refs are never caller fields."""
+ 
+     cancel_intent_id: str
+     runtime_order_id: str
+@@ -77,6 +157,7 @@
+     session_id: int
+     exchange_id: str
+     order_sys_id: str
++    context: ActorCommandContextV1
+ 
+     def __post_init__(self) -> None:
+         for name in (
+@@ -91,44 +172,138 @@
+             raise ValueError("front_id must be a positive exact integer")
+         if type(self.session_id) is not int or self.session_id <= 0:
+             raise ValueError("session_id must be a positive exact integer")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if self.front_id != self.context.front_id or self.session_id != self.context.native_session_id:
++            raise ValueError("cancel target must match the expected native front/session")
++
++    @property
++    def command_id(self) -> str:
++        return self.cancel_intent_id
++
++    @property
++    def operation(self) -> str:
++        return "CANCEL"
++
++    @property
++    def command_digest(self) -> str:
++        return _command_digest(
++            self.operation,
++            self.command_id,
++            self.context,
++            {
++                "runtime_order_id": self.runtime_order_id,
++                "order_ref": self.order_ref,
++                "front_id": self.front_id,
++                "session_id": self.session_id,
++                "exchange_id": self.exchange_id,
++                "order_sys_id": self.order_sys_id,
++            },
++        )
+ 
+ 
+ @dataclass(frozen=True)
+-class ActorCommandReceiptV1:
+-    """Actor queue disposition; it is deliberately not a provider acknowledgement."""
+-
++class ActorCommandReceiptV2:
++    """Locally comparable actor receipt; never a provider acknowledgement."""
++
++    operation: str
+     command_id: str
+     state: ActorCommandState
+-    actor_epoch: int
++    context: ActorCommandContextV1
++    command_digest: str
+ 
+     def __post_init__(self) -> None:
++        if type(self.operation) is not str or self.operation not in {"SUBMIT", "CANCEL"}:
++            raise ValueError("operation must be SUBMIT or CANCEL")
+         _required_text(self.command_id, "command_id")
+         if type(self.state) is not ActorCommandState:
+             raise ValueError("state must be ActorCommandState")
+-        if type(self.actor_epoch) is not int or self.actor_epoch <= 0:
+-            raise ValueError("actor_epoch must be a positive exact integer")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if type(self.command_digest) is not str or len(self.command_digest) != 64:
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.command_digest):
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++
++
++@dataclass(frozen=True)
++class ActorCommandExpectationV2:
++    """Exact locally expected receipt binding derived from one typed intent."""
++
++    operation: str
++    command_id: str
++    context: ActorCommandContextV1
++    command_digest: str
++
++    @classmethod
++    def from_intent(cls, intent: Any) -> ActorCommandExpectationV2:
++        if type(intent) not in {CtpSubmitIntentV2, CtpCancelIntentV2}:
++            raise AccountActorGateError("typed_actor_intent_required")
++        try:
++            intent.context.__post_init__()
++            intent.__post_init__()
++        except (AttributeError, TypeError, ValueError):
++            raise AccountActorGateError("actor_intent_invalid") from None
++        return cls(
++            operation=intent.operation,
++            command_id=intent.command_id,
++            context=intent.context,
++            command_digest=intent.command_digest,
++        )
++
++    def __post_init__(self) -> None:
++        if type(self.operation) is not str or self.operation not in {"SUBMIT", "CANCEL"}:
++            raise ValueError("operation must be SUBMIT or CANCEL")
++        _required_text(self.command_id, "command_id")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if type(self.command_digest) is not str or len(self.command_digest) != 64:
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.command_digest):
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++
++
++class FakeLocalActorReplayLedger:
++    """In-memory replay guard for offline tests only; not durable or authoritative."""
++
++    def __init__(self) -> None:
++        self._seen: dict[str, tuple[str, ActorCommandContextV1]] = {}
++        self._lock = threading.Lock()
++
++    def claim_once(self, intent: Any) -> None:
++        if type(intent) not in {CtpSubmitIntentV2, CtpCancelIntentV2}:
++            raise AccountActorGateError("typed_actor_intent_required")
++        try:
++            intent.context.__post_init__()
++            intent.__post_init__()
++        except (AttributeError, TypeError, ValueError):
++            raise AccountActorGateError("actor_intent_invalid") from None
++        with self._lock:
++            if intent.command_id in self._seen:
++                raise AccountActorGateError("actor_intent_replay")
++            self._seen[intent.command_id] = (intent.command_digest, intent.context)
+ 
+ 
+ class CtpAccountActorPort(ABC):
+     """Typed remote-owner client seam; methods never accept local native callbacks."""
+ 
+     @abstractmethod
+-    def submit_order(self, intent: CtpSubmitIntentV1) -> ActorCommandReceiptV1:
++    def submit_order(self, intent: CtpSubmitIntentV2) -> ActorCommandReceiptV2:
+         """Submit one logical intent to the external account actor."""
+ 
+     @abstractmethod
+-    def cancel_order(self, intent: CtpCancelIntentV1) -> ActorCommandReceiptV1:
++    def cancel_order(self, intent: CtpCancelIntentV2) -> ActorCommandReceiptV2:
+         """Submit one logical cancel intent to the external account actor."""
+ 
+ 
+ class UnavailableCtpAccountActorPort(CtpAccountActorPort):
+     """Default port. No external account actor is installed in this candidate."""
+ 
+-    def submit_order(self, intent: CtpSubmitIntentV1) -> ActorCommandReceiptV1:
++    def submit_order(self, intent: CtpSubmitIntentV2) -> ActorCommandReceiptV2:
+         del intent
+         raise AccountActorGateError("external_account_actor_unavailable")
+ 
+-    def cancel_order(self, intent: CtpCancelIntentV1) -> ActorCommandReceiptV1:
++    def cancel_order(self, intent: CtpCancelIntentV2) -> ActorCommandReceiptV2:
+         del intent
+         raise AccountActorGateError("external_account_actor_unavailable")
+ 
+@@ -294,14 +469,31 @@
+ 
+ 
+ def validate_actor_receipt(
+-    receipt: object, *, expected_command_id: str
+-) -> ActorCommandReceiptV1:
+-    """Validate local receipt shape without elevating it to provider acknowledgement."""
+-
+-    if type(receipt) is not ActorCommandReceiptV1:
++    receipt: object, *, expected: ActorCommandExpectationV2
++) -> ActorCommandReceiptV2:
++    """Compare every local binding field; this still proves no external authority."""
++
++    if type(expected) is not ActorCommandExpectationV2:
++        raise AccountActorGateError("actor_expectation_type_invalid")
++    if type(receipt) is not ActorCommandReceiptV2:
+         raise AccountActorGateError("actor_receipt_type_invalid")
+-    if receipt.command_id != expected_command_id:
++    try:
++        receipt.context.__post_init__()
++        receipt.__post_init__()
++        expected.context.__post_init__()
++        expected.__post_init__()
++    except (AttributeError, TypeError, ValueError):
++        raise AccountActorGateError("actor_receipt_binding_invalid") from None
++    if receipt.operation != expected.operation:
++        raise AccountActorGateError("actor_receipt_operation_mismatch")
++    if receipt.command_id != expected.command_id:
+         raise AccountActorGateError("actor_receipt_command_mismatch")
++    if type(receipt.context) is not ActorCommandContextV1:
++        raise AccountActorGateError("actor_receipt_context_invalid")
++    if receipt.context != expected.context:
++        raise AccountActorGateError("actor_receipt_context_mismatch")
++    if receipt.command_digest != expected.command_digest:
++        raise AccountActorGateError("actor_receipt_digest_mismatch")
+     return receipt
+ 
+ 
+@@ -449,13 +641,37 @@
+         raise ValueError(f"{name} is required")
+ 
+ 
++def _command_digest(
++    operation: str,
++    command_id: str,
++    context: ActorCommandContextV1,
++    intent_payload: dict[str, Any],
++) -> str:
++    canonical = json.dumps(
++        {
++            "schema": "ctp-account-actor-command.v2",
++            "operation": operation,
++            "command_id": command_id,
++            "context": context.to_payload(),
++            "intent": intent_payload,
++        },
++        sort_keys=True,
++        separators=(",", ":"),
++        ensure_ascii=True,
++    ).encode("ascii")
++    return hashlib.sha256(canonical).hexdigest()
++
++
+ __all__ = [
+     "AccountActorGateError",
+-    "ActorCommandReceiptV1",
++    "ActorCommandContextV1",
++    "ActorCommandExpectationV2",
++    "ActorCommandReceiptV2",
+     "ActorCommandState",
+     "CtpAccountActorPort",
+-    "CtpCancelIntentV1",
+-    "CtpSubmitIntentV1",
++    "CtpCancelIntentV2",
++    "CtpSubmitIntentV2",
++    "FakeLocalActorReplayLedger",
+     "RouteKind",
+     "StoreRouteDescriptor",
+     "UnavailableCtpAccountActorPort",
+--- a/store_boundary_harness.py
++++ b/store_boundary_harness.py
+@@ -6,10 +6,13 @@
+ 
+ from account_actor_port import (
+     AccountActorGateError,
+-    ActorCommandReceiptV1,
++    ActorCommandContextV1,
++    ActorCommandExpectationV2,
++    ActorCommandReceiptV2,
+     CtpAccountActorPort,
+-    CtpCancelIntentV1,
+-    CtpSubmitIntentV1,
++    CtpCancelIntentV2,
++    CtpSubmitIntentV2,
++    FakeLocalActorReplayLedger,
+     RouteKind,
+     StoreRouteDescriptor,
+     classify_store_route,
+@@ -25,6 +28,9 @@
+         route: StoreRouteDescriptor,
+         *,
+         actor_port: Optional[CtpAccountActorPort] = None,  # noqa: UP045 - Python 3.8
++        actor_context: Optional[ActorCommandContextV1] = None,  # noqa: UP045 - Python 3.8
++        receipt_ledger: Optional[FakeLocalActorReplayLedger] = None,  # noqa: UP045 - Python 3.8
++        validated_receipt_sink: Optional[Callable[[ActorCommandReceiptV2], Any]] = None,  # noqa: UP045 - Python 3.8
+         credential_resolver: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+         api_factory: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+         gateway_factory: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+@@ -33,6 +39,20 @@
+         # invoking any local API/API class/gateway factory.
+         self.route_kind = classify_store_route(route)
+         self.actor_port = require_account_actor_before_local_client(route, actor_port)
++        if validated_receipt_sink is not None and not callable(validated_receipt_sink):
++            raise AccountActorGateError("validated_receipt_sink_invalid")
++        self.validated_receipt_sink = validated_receipt_sink
++        if self.route_kind is RouteKind.CTP:
++            if type(actor_context) is not ActorCommandContextV1:
++                raise AccountActorGateError("actor_command_context_required")
++            if type(receipt_ledger) is FakeLocalActorReplayLedger:
++                self.receipt_ledger = receipt_ledger
++            else:
++                raise AccountActorGateError("fake_replay_ledger_required")
++            self.actor_context = actor_context
++        else:
++            self.receipt_ledger = receipt_ledger
++            self.actor_context = actor_context
+         self.api = None
+         self.legacy_calls = 0
+         # This ordering models the production boundary: classification and the
+@@ -50,21 +70,47 @@
+             # The gate above rejects these for an actor-owned CTP route.
+             raise AccountActorGateError("local_ctp_client_injection_forbidden")
+ 
+-    def submit_order(self, intent: object) -> ActorCommandReceiptV1:
+-        if self.route_kind is not RouteKind.NON_CTP:
+-            if type(intent) is not CtpSubmitIntentV1:
++    def submit_order(self, intent: object) -> Any:
++        if self.route_kind is RouteKind.CTP:
++            if type(intent) is not CtpSubmitIntentV2:
+                 raise AccountActorGateError("typed_submit_intent_required")
++            self._require_current_actor_context(intent)
++            expected = ActorCommandExpectationV2.from_intent(intent)
++            self.receipt_ledger.claim_once(intent)
+             receipt = self.actor_port.submit_order(intent)
+-            return validate_actor_receipt(receipt, expected_command_id=intent.intent_id)
++            receipt = validate_actor_receipt(receipt, expected=expected)
++            self._send_to_validated_receipt_sink(receipt)
++            return receipt
+         return self._submit_order_legacy(intent)
+ 
+-    def cancel_order(self, intent: object) -> ActorCommandReceiptV1:
+-        if self.route_kind is not RouteKind.NON_CTP:
+-            if type(intent) is not CtpCancelIntentV1:
++    def cancel_order(self, intent: object) -> Any:
++        if self.route_kind is RouteKind.CTP:
++            if type(intent) is not CtpCancelIntentV2:
+                 raise AccountActorGateError("typed_cancel_intent_required")
++            self._require_current_actor_context(intent)
++            expected = ActorCommandExpectationV2.from_intent(intent)
++            self.receipt_ledger.claim_once(intent)
+             receipt = self.actor_port.cancel_order(intent)
+-            return validate_actor_receipt(receipt, expected_command_id=intent.cancel_intent_id)
++            receipt = validate_actor_receipt(receipt, expected=expected)
++            self._send_to_validated_receipt_sink(receipt)
++            return receipt
+         return self._cancel_order_legacy(intent)
++
++    def _send_to_validated_receipt_sink(self, receipt: ActorCommandReceiptV2) -> None:
++        # This fake downstream consumer is called only after exact receipt checks.
++        if self.validated_receipt_sink is not None:
++            self.validated_receipt_sink(receipt)
++
++    def _require_current_actor_context(self, intent: Any) -> None:
++        if type(intent.context) is not ActorCommandContextV1:
++            raise AccountActorGateError("actor_intent_context_invalid")
++        try:
++            intent.context.__post_init__()
++            intent.__post_init__()
++        except (AttributeError, TypeError, ValueError):
++            raise AccountActorGateError("actor_intent_invalid") from None
++        if intent.context != self.actor_context:
++            raise AccountActorGateError("actor_intent_context_mismatch")
+ 
+     def _submit_order_legacy(self, value: object) -> str:
+         del value
+--- a/README.md
++++ b/README.md
+@@ -1,11 +1,11 @@
+-# External CTP Account Actor Port — offline candidate r3
++# External CTP Account Actor Port — offline candidate r4
+ 
+-This independent candidate models a fail-closed composition boundary and a small code-owned provider registry. It does not edit or import the main Backtrader package, does not implement a remote service, and must not be treated as a CTP write route. Unknown providers, ambiguous gateway selectors, and all raw `api`/`api_cls` injection are rejected without introspection.
++This independent candidate models a fail-closed composition boundary, a small code-owned provider registry, and locally checked intent/receipt bindings. It does not edit or import the main Backtrader package, implement a remote service, or enable a CTP write route. Unknown providers, ambiguous gateway selectors, and raw API/API-class injection remain rejected without client introspection.
+ 
+ Run the isolated fake harness with:
+ 
+-    python -m unittest discover -s tests -v
++    python -B -m unittest discover -s tests -v
+ 
+-The required result is zero API-class/gateway construction, connect, or ReqOrderInsert/ReqOrderAction calls for missing/default actor routes. The tests also cover CTP environment-downgrade attempts, nested route maps, unknown providers, and injected API objects with trap properties. An explicit FakeActorPort is test-only and proves DTO wiring, not external authority. Its receipt has no verified account binding, expected epoch, or replay defense.
++The tests cover nested CTP routing, unknown providers, environment downgrade attempts, and trap properties on injected clients. Stale account/epoch intents and replay IDs stop before the fake actor call. Returned receipts are checked before an optional downstream fake sink can consume them; a bad receipt is necessarily detected after the actor-port response. These are local test contracts, not authenticated or durable external authority.
+ 
+-See INTEGRATION_CONTRACT.md for the precise main Store call points, existing seam differences, and public-compatibility limitations.
++See INTEGRATION_CONTRACT.md for the main Store call points, compatibility limits, and authority boundary.
+--- a/INTEGRATION_CONTRACT.md
++++ b/INTEGRATION_CONTRACT.md
+@@ -40,12 +40,22 @@
+ candidate rules, not a claim that all historical BtApiStore paths have been
+ integrated.
+ 
+-## Receipt limit
++## r4 local binding contract and authority limit
+ 
+-`ActorCommandReceiptV1` is only a local DTO-shape/command-id check. It does not
+-verify actor account identity, expected actor epoch, transport identity, or
+-one-shot command replay. A stale epoch, wrong-account claim, or duplicate
+-command cannot be treated as authority by a future integration. No actor
+-implementation or authenticated receipt protocol exists in this candidate.
++`ActorCommandContextV1` carries account reference, runtime id, mode, config
++digest, session id, session generation, and expected actor epoch. The V2
++submit/cancel digest canonically binds this context, operation, command id, and
++all logical intent fields. `ActorCommandReceiptV2` must return the exact
++context, command id, and digest. The fake harness checks incoming intents against the expected account/session/epoch context and reserves each command id once before actor-port invocation. Context mismatch and replay reject before that fake actor call. A returned receipt is checked for exact operation, command id, context and digest before the optional downstream fake sink can consume it. Receipt mismatch is observable only after the actor-port response; it never falls back to a local client. The in-memory reservation remains consumed after an actor exception or invalid receipt.
++
++This is process-local test enforcement only. The context and actor epoch are
++caller-supplied local expectations, the digest is unkeyed, and the replay
++ledger is in-memory. They do not authenticate the actor, prove its current
++epoch, prevent replay across processes/hosts, establish an external account
++fence, or provide a common provider snapshot. A production protocol still
++needs authenticated actor identity, authoritative account/runtime/session
++bindings, a durable server-side idempotency ledger, cross-host fencing, and a
++read/callback snapshot contract. No actor implementation or authenticated
++receipt protocol exists in this candidate.
+ 
+ The fake actor in tests verifies only method/DTO plumbing and zero local calls. No real AccountActorPort implementation, credentials, service identity, deployment trust pin, external account fence, provider snapshot, callback feed, handoff or native API exists here. The candidate is fake-only and does not enable a default CTP route.
+--- a/tests/test_store_boundary_harness.py
++++ b/tests/test_store_boundary_harness.py
+@@ -1,13 +1,16 @@
+ import unittest
++from dataclasses import replace
+ from decimal import Decimal
+ 
+ from account_actor_port import (
+     AccountActorGateError,
+-    ActorCommandReceiptV1,
++    ActorCommandContextV1,
++    ActorCommandReceiptV2,
+     ActorCommandState,
+     CtpAccountActorPort,
+-    CtpCancelIntentV1,
+-    CtpSubmitIntentV1,
++    CtpCancelIntentV2,
++    CtpSubmitIntentV2,
++    FakeLocalActorReplayLedger,
+     RouteKind,
+     StoreRouteDescriptor,
+     UnavailableCtpAccountActorPort,
+@@ -45,27 +48,46 @@
+     def __init__(self):
+         self.submits = []
+         self.cancels = []
++        self.receipt_mutator = None
++
++    def _receipt(self, intent):
++        receipt = ActorCommandReceiptV2(
++            operation=intent.operation,
++            command_id=intent.command_id,
++            state=ActorCommandState.QUEUED,
++            context=intent.context,
++            command_digest=intent.command_digest,
++        )
++        return self.receipt_mutator(receipt) if self.receipt_mutator else receipt
+ 
+     def submit_order(self, intent):
+         self.submits.append(intent)
+-        return ActorCommandReceiptV1(
+-            command_id=intent.intent_id,
+-            state=ActorCommandState.QUEUED,
+-            actor_epoch=3,
+-        )
++        return self._receipt(intent)
+ 
+     def cancel_order(self, intent):
+         self.cancels.append(intent)
+-        return ActorCommandReceiptV1(
+-            command_id=intent.cancel_intent_id,
+-            state=ActorCommandState.QUEUED,
+-            actor_epoch=3,
+-        )
+-
+-
+-def submit_intent():
+-    return CtpSubmitIntentV1(
+-        intent_id="submit-1",
++        return self._receipt(intent)
++
++
++def actor_context(**overrides):
++    values = {
++        "account_ref": "ctp-account-ref.v1:account-test",
++        "runtime_id": "runtime-test",
++        "mode": "simulation",
++        "config_digest": "a" * 64,
++        "session_id": "session-test",
++        "front_id": 7,
++        "native_session_id": 11,
++        "session_generation": 4,
++        "actor_epoch": 3,
++    }
++    values.update(overrides)
++    return ActorCommandContextV1(**values)
++
++
++def submit_intent(*, context=None, intent_id="submit-1"):
++    return CtpSubmitIntentV2(
++        intent_id=intent_id,
+         instrument_id="IF2601",
+         exchange_id="CFFEX",
+         side="BUY",
+@@ -73,18 +95,31 @@
+         hedge_flag="SPECULATION",
+         quantity=1,
+         limit_price=Decimal("3000.5"),
++        context=context or actor_context(),
+     )
+ 
+ 
+-def cancel_intent():
+-    return CtpCancelIntentV1(
+-        cancel_intent_id="cancel-1",
++def cancel_intent(*, context=None, cancel_intent_id="cancel-1", front_id=None, session_id=None):
++    current = context or actor_context()
++    return CtpCancelIntentV2(
++        cancel_intent_id=cancel_intent_id,
+         runtime_order_id="runtime-order-1",
+         order_ref="123",
+-        front_id=7,
+-        session_id=11,
++        front_id=current.front_id if front_id is None else front_id,
++        session_id=current.native_session_id if session_id is None else session_id,
+         exchange_id="CFFEX",
+         order_sys_id="system-order-1",
++        context=current,
++    )
++
++
++def actor_store(actor, *, context=None, route=None, **kwargs):
++    kwargs.setdefault("receipt_ledger", FakeLocalActorReplayLedger())
++    return StoreBoundaryHarness(
++        route or StoreRouteDescriptor(provider="ctp", backend="direct"),
++        actor_port=actor,
++        actor_context=context or actor_context(),
++        **kwargs,
+     )
+ 
+ 
+@@ -190,7 +225,7 @@
+             StoreBoundaryHarness(route, actor_port=actor)
+         route = StoreRouteDescriptor(provider="ctp", api_cls=FakeNativeClient)
+         with self.assertRaisesRegex(AccountActorGateError, "local ctp client injection forbidden"):
+-            StoreBoundaryHarness(route, actor_port=actor, api_factory=lambda: FakeNativeClient(counters))
++            StoreBoundaryHarness(route, actor_port=actor, api_factory=lambda counters=counters: FakeNativeClient(counters))
+         self.assertEqual(counters.constructed, 1)
+         self.assertEqual(counters.native_calls, 0)
+         self.assertEqual(actor.submits, [])
+@@ -204,7 +239,7 @@
+         )
+         self.assertIs(classify_store_route(route), RouteKind.CTP)
+         with self.assertRaisesRegex(AccountActorGateError, "external account actor unavailable"):
+-            StoreBoundaryHarness(route, api_factory=lambda: FakeNativeClient(counters))
++            StoreBoundaryHarness(route, api_factory=lambda counters=counters: FakeNativeClient(counters))
+         self.assertEqual(counters.constructed, 0)
+         self.assertEqual(counters.native_calls, 0)
+ 
+@@ -216,7 +251,7 @@
+             StoreBoundaryHarness(
+                 route,
+                 credential_resolver=lambda: self.fail("credentials must not be resolved"),
+-                api_factory=lambda: FakeNativeClient(counters),
++                api_factory=lambda counters=counters: FakeNativeClient(counters),
+             )
+         self.assertEqual(counters.constructed, 0)
+         self.assertEqual(counters.native_calls, 0)
+@@ -396,7 +431,7 @@
+     def test_actor_only_typed_submit_and_cancel_have_no_local_native_client(self):
+         actor = FakeActorPort()
+         route = StoreRouteDescriptor(provider="ctp", backend="direct")
+-        store = StoreBoundaryHarness(route, actor_port=actor)
++        store = actor_store(actor, route=route)
+         submit_result = store.submit_order(submit_intent())
+         cancel_result = store.cancel_order(cancel_intent())
+         self.assertEqual(submit_result.state, ActorCommandState.QUEUED)
+@@ -408,10 +443,7 @@
+ 
+     def test_actor_route_rejects_legacy_private_fallback(self):
+         actor = FakeActorPort()
+-        store = StoreBoundaryHarness(
+-            StoreRouteDescriptor(provider="ctp", backend="direct"),
+-            actor_port=actor,
+-        )
++        store = actor_store(actor, route=StoreRouteDescriptor(provider="ctp", backend="direct"))
+         with self.assertRaisesRegex(AccountActorGateError, "ctp legacy dispatch forbidden"):
+             store._submit_order_legacy(submit_intent())
+         with self.assertRaisesRegex(AccountActorGateError, "ctp legacy dispatch forbidden"):
+@@ -420,10 +452,7 @@
+ 
+     def test_actor_route_requires_exact_typed_intents_and_no_dict_fallback(self):
+         actor = FakeActorPort()
+-        store = StoreBoundaryHarness(
+-            StoreRouteDescriptor(provider="ctp"),
+-            actor_port=actor,
+-        )
++        store = actor_store(actor, route=StoreRouteDescriptor(provider="ctp"))
+         with self.assertRaisesRegex(AccountActorGateError, "typed submit intent required"):
+             store.submit_order({"instrument_id": "IF2601"})
+         with self.assertRaisesRegex(AccountActorGateError, "typed cancel intent required"):
+@@ -438,17 +467,28 @@
+                 return True
+ 
+         actor = BadActor()
+-        store = StoreBoundaryHarness(StoreRouteDescriptor(provider="ctp"), actor_port=actor)
++        store = actor_store(actor, route=StoreRouteDescriptor(provider="ctp"))
+         with self.assertRaisesRegex(AccountActorGateError, "actor receipt type invalid"):
+             store.submit_order(submit_intent())
+         self.assertIsNone(store.api)
+         self.assertEqual(store.legacy_calls, 0)
+ 
++    def test_ctp_actor_requires_explicit_fake_replay_ledger(self):
++        actor = FakeActorPort()
++        with self.assertRaisesRegex(AccountActorGateError, "fake replay ledger required"):
++            StoreBoundaryHarness(
++                StoreRouteDescriptor(provider="ctp"),
++                actor_port=actor,
++                actor_context=actor_context(),
++                credential_resolver=lambda: self.fail("credentials must not be resolved"),
++            )
++        self.assertEqual(actor.submits, [])
++
+ 
+ class TypedIntentValidationTests(unittest.TestCase):
+     def test_bool_quantity_is_not_native_integer_quantity(self):
+         with self.assertRaisesRegex(ValueError, "positive exact integer"):
+-            CtpSubmitIntentV1(
++            CtpSubmitIntentV2(
+                 intent_id="i",
+                 instrument_id="x",
+                 exchange_id="e",
+@@ -457,11 +497,12 @@
+                 hedge_flag="SPECULATION",
+                 quantity=True,
+                 limit_price=Decimal(1),
++                context=actor_context(),
+             )
+ 
+     def test_bool_front_id_is_rejected(self):
+         with self.assertRaisesRegex(ValueError, "positive exact integer"):
+-            CtpCancelIntentV1(
++            CtpCancelIntentV2(
+                 cancel_intent_id="c",
+                 runtime_order_id="r",
+                 order_ref="o",
+@@ -469,6 +510,7 @@
+                 session_id=1,
+                 exchange_id="e",
+                 order_sys_id="s",
++                context=actor_context(),
+             )
+ 
+     def test_unavailable_default_does_not_claim_authority(self):
+@@ -477,5 +519,255 @@
+             unavailable.submit_order(submit_intent())
+ 
+ 
++class ActorReceiptBindingTests(unittest.TestCase):
++    def test_intent_digest_binds_context_and_all_logical_fields(self):
++        baseline = submit_intent()
++        self.assertEqual(len(baseline.command_digest), 64)
++        self.assertNotEqual(
++            baseline.command_digest,
++            submit_intent(context=actor_context(actor_epoch=baseline.context.actor_epoch + 1)).command_digest,
++        )
++        self.assertNotEqual(
++            baseline.command_digest,
++            submit_intent(intent_id="submit-other").command_digest,
++        )
++
++    def test_stale_epoch_wrong_account_or_wrong_session_intent_reject_before_actor(self):
++        expected = actor_context()
++        adversarial_contexts = (
++            actor_context(actor_epoch=expected.actor_epoch + 1),
++            actor_context(account_ref="ctp-account-ref.v1:other"),
++            actor_context(session_id="different-session"),
++            actor_context(front_id=expected.front_id + 1),
++            actor_context(native_session_id=expected.native_session_id + 1),
++            actor_context(session_generation=expected.session_generation + 1),
++            actor_context(runtime_id="other-runtime"),
++            actor_context(mode="live"),
++            actor_context(config_digest="b" * 64),
++        )
++        for wrong_context in adversarial_contexts:
++            with self.subTest(context=wrong_context):
++                actor = FakeActorPort()
++                counters = Counters()
++                store = actor_store(
++                    actor,
++                    context=expected,
++                    api_factory=lambda counters=counters: FakeNativeClient(counters),
++                    gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++                )
++                with self.assertRaisesRegex(AccountActorGateError, "intent context mismatch"):
++                    store.submit_order(submit_intent(context=wrong_context))
++                self.assertEqual(actor.submits, [])
++                self.assertEqual(actor.cancels, [])
++                self.assertIsNone(store.api)
++                self.assertEqual(store.legacy_calls, 0)
++                self.assertEqual(counters.constructed, 0)
++                self.assertEqual(counters.native_calls, 0)
++
++        for wrong_context in (
++            actor_context(front_id=expected.front_id + 1),
++            actor_context(native_session_id=expected.native_session_id + 1),
++        ):
++            actor = FakeActorPort()
++            counters = Counters()
++            store = actor_store(
++                actor,
++                context=expected,
++                api_factory=lambda counters=counters: FakeNativeClient(counters),
++                gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++            )
++            with self.assertRaisesRegex(AccountActorGateError, "intent context mismatch"):
++                store.cancel_order(cancel_intent(context=wrong_context))
++            self.assertEqual(actor.cancels, [])
++            self.assertEqual(store.legacy_calls, 0)
++            self.assertEqual(counters.constructed, 0)
++            self.assertEqual(counters.native_calls, 0)
++
++    def test_cancel_native_front_and_session_must_match_context(self):
++        with self.assertRaisesRegex(ValueError, "match the expected native front/session"):
++            cancel_intent(session_id=999)
++        with self.assertRaisesRegex(ValueError, "match the expected native front/session"):
++            cancel_intent(front_id=999)
++
++    def test_stale_account_and_epoch_intents_reject_before_actor_or_fake_sink(self):
++        expected = actor_context()
++        for wrong_context in (
++            actor_context(actor_epoch=expected.actor_epoch - 1),
++            actor_context(account_ref="ctp-account-ref.v1:other"),
++        ):
++            actor = FakeActorPort()
++            accepted = []
++            store = actor_store(
++                actor,
++                context=expected,
++                validated_receipt_sink=accepted.append,
++            )
++            with self.subTest(context=wrong_context):
++                with self.assertRaisesRegex(AccountActorGateError, "intent context mismatch"):
++                    store.submit_order(submit_intent(context=wrong_context))
++                self.assertEqual(actor.submits, [])
++                self.assertEqual(accepted, [])
++
++    def test_invalid_receipts_never_reach_downstream_fake_sink(self):
++        context = actor_context()
++        mutations = (
++            lambda receipt: replace(receipt, context=actor_context(actor_epoch=context.actor_epoch - 1)),
++            lambda receipt: replace(receipt, context=actor_context(account_ref="ctp-account-ref.v1:other")),
++            lambda receipt: replace(receipt, command_id="other-intent"),
++            lambda receipt: replace(receipt, command_digest="f" * 64),
++        )
++        expected_errors = (
++            "receipt context mismatch",
++            "receipt context mismatch",
++            "receipt command mismatch",
++            "receipt digest mismatch",
++        )
++        for mutate, expected_error in zip(mutations, expected_errors):
++            actor = FakeActorPort()
++            actor.receipt_mutator = mutate
++            accepted = []
++            store = actor_store(
++                actor,
++                context=context,
++                validated_receipt_sink=accepted.append,
++            )
++            with self.subTest(expected_error=expected_error):
++                with self.assertRaisesRegex(AccountActorGateError, expected_error):
++                    store.submit_order(submit_intent(context=context))
++                # Receipt mismatches are known only after the actor-port response.
++                self.assertEqual(len(actor.submits), 1)
++                self.assertEqual(accepted, [])
++                self.assertEqual(store.legacy_calls, 0)
++
++    def test_duplicate_intent_is_claimed_once_before_actor_call(self):
++        actor = FakeActorPort()
++        ledger = FakeLocalActorReplayLedger()
++        counters = Counters()
++        accepted = []
++        first = actor_store(
++            actor,
++            receipt_ledger=ledger,
++            validated_receipt_sink=accepted.append,
++            api_factory=lambda counters=counters: FakeNativeClient(counters),
++        )
++        second = actor_store(
++            actor,
++            receipt_ledger=ledger,
++            validated_receipt_sink=accepted.append,
++            api_factory=lambda counters=counters: FakeNativeClient(counters),
++        )
++        first.submit_order(submit_intent())
++        with self.assertRaisesRegex(AccountActorGateError, "actor intent replay"):
++            second.submit_order(replace(submit_intent(), quantity=2))
++        self.assertEqual(len(actor.submits), 1)
++        self.assertEqual(len(accepted), 1)
++        self.assertEqual(counters.constructed, 0)
++        self.assertEqual(counters.native_calls, 0)
++        self.assertEqual(first.legacy_calls + second.legacy_calls, 0)
++
++    def test_receipt_wrong_command_is_rejected_without_local_fallback(self):
++        actor = FakeActorPort()
++        actor.receipt_mutator = lambda receipt: replace(receipt, command_id="forged-command")
++        counters = Counters()
++        store = actor_store(
++            actor,
++            api_factory=lambda counters=counters: FakeNativeClient(counters),
++            gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++        )
++        with self.assertRaisesRegex(AccountActorGateError, "receipt command mismatch"):
++            store.submit_order(submit_intent())
++        self.assertEqual(len(actor.submits), 1)
++        self.assertEqual(counters.constructed, 0)
++        self.assertEqual(counters.native_calls, 0)
++        self.assertEqual(store.legacy_calls, 0)
++
++    def test_receipt_wrong_operation_is_rejected_without_local_fallback(self):
++        actor = FakeActorPort()
++        actor.receipt_mutator = lambda receipt: replace(receipt, operation="CANCEL")
++        counters = Counters()
++        store = actor_store(
++            actor,
++            api_factory=lambda counters=counters: FakeNativeClient(counters),
++            gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++        )
++        with self.assertRaisesRegex(AccountActorGateError, "receipt operation mismatch"):
++            store.submit_order(submit_intent())
++        self.assertEqual(len(actor.submits), 1)
++        self.assertEqual(counters.constructed, 0)
++        self.assertEqual(counters.native_calls, 0)
++        self.assertEqual(store.legacy_calls, 0)
++
++    def test_receipt_rejects_stale_epoch_wrong_account_and_wrong_session(self):
++        context = actor_context()
++        mutations = (
++            {"actor_epoch": context.actor_epoch + 1},
++            {"account_ref": "ctp-account-ref.v1:other"},
++            {"session_id": "other-session"},
++            {"front_id": context.front_id + 1},
++            {"native_session_id": context.native_session_id + 1},
++            {"session_generation": context.session_generation + 1},
++            {"runtime_id": "other-runtime"},
++            {"mode": "live"},
++            {"config_digest": "b" * 64},
++        )
++        for mutation in mutations:
++            actor = FakeActorPort()
++            actor.receipt_mutator = lambda receipt, mutation=mutation: replace(
++                receipt, context=actor_context(**mutation)
++            )
++            counters = Counters()
++            store = actor_store(
++                actor,
++                context=context,
++                api_factory=lambda counters=counters: FakeNativeClient(counters),
++                gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++            )
++            with self.subTest(mutation=mutation):
++                with self.assertRaisesRegex(AccountActorGateError, "receipt context mismatch"):
++                    store.submit_order(submit_intent(context=context))
++                self.assertEqual(len(actor.submits), 1)
++                self.assertIsNone(store.api)
++                self.assertEqual(store.legacy_calls, 0)
++                self.assertEqual(counters.constructed, 0)
++                self.assertEqual(counters.native_calls, 0)
++
++    def test_receipt_wrong_digest_and_untyped_receipt_are_rejected(self):
++        for mutator, expected_error in (
++            (
++                lambda receipt: replace(receipt, command_digest="f" * 64),
++                "receipt digest mismatch",
++            ),
++            (lambda _receipt: True, "receipt type invalid"),
++        ):
++            actor = FakeActorPort()
++            actor.receipt_mutator = mutator
++            counters = Counters()
++            store = actor_store(
++                actor,
++                api_factory=lambda counters=counters: FakeNativeClient(counters),
++                gateway_factory=lambda counters=counters: FakeNativeClient(counters),
++            )
++            with self.subTest(expected_error=expected_error):
++                with self.assertRaisesRegex(AccountActorGateError, expected_error):
++                    store.submit_order(submit_intent())
++                self.assertEqual(len(actor.submits), 1)
++                self.assertEqual(counters.constructed, 0)
++                self.assertEqual(counters.native_calls, 0)
++                self.assertEqual(store.legacy_calls, 0)
++
++    def test_receipt_failure_consumes_fake_local_replay_slot(self):
++        actor = FakeActorPort()
++        actor.receipt_mutator = lambda receipt: replace(receipt, command_id="wrong")
++        ledger = FakeLocalActorReplayLedger()
++        store = actor_store(actor, receipt_ledger=ledger)
++        with self.assertRaisesRegex(AccountActorGateError, "receipt command mismatch"):
++            store.submit_order(submit_intent())
++        actor.receipt_mutator = None
++        with self.assertRaisesRegex(AccountActorGateError, "actor intent replay"):
++            store.submit_order(submit_intent())
++        self.assertEqual(len(actor.submits), 1)
++        self.assertEqual(store.legacy_calls, 0)
++
++
+ if __name__ == "__main__":
+     unittest.main()

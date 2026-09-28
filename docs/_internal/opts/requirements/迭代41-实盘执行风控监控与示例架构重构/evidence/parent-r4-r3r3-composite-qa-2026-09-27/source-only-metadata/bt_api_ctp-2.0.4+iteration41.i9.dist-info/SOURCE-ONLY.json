@@ -1,0 +1,12 @@
+{
+  "package_key": "ctp",
+  "distribution": "bt_api_ctp",
+  "version": "2.0.4+iteration41.i9",
+  "source_root": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\src",
+  "project_file": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\pyproject.toml",
+  "project_sha256": "6295d10501ce71fd3aafcc2be2d2b28274bb82d6ca0e94230757d972976669a5",
+  "source_file_count": 154,
+  "source_tree_sha256": "cd7ff1375adfa8c5505f2a5bda1c704d233d8d825d9c98799ba640299e6e9006",
+  "metadata_sha256": "cd140a6a1b21bd49fecb0f7d0b38ca95d27da79d9edc22254c93a4f7608cbc15",
+  "classification": "SOURCE-ONLY metadata; no wheel built or installed"
+}

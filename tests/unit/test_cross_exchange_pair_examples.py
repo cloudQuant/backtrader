@@ -40,6 +40,10 @@ def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
     helper never mutates any manifest or enables a network/approval path.
     """
 
+    # Formula replay is bound to the self-contained candidate beside its
+    # runner.  The repository-wide manifest is the separate demo trust root;
+    # using it here would silently turn this zero-network fixture into a test
+    # of the demo admission binding.
     local_path = Path(runner.MANIFEST_PATH).resolve()
     assert local_path != Path(runner.REPO_CANONICAL_MANIFEST).resolve()
     manifest = json.loads(local_path.read_text(encoding="utf-8"))
@@ -61,7 +65,7 @@ def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
         pytest.fail("formula fixture must never read or use an approval")
 
     monkeypatch.setattr(runner, "load_candidate", load_test_only_candidate)
-    monkeypatch.setattr(runner, "build_store", unexpected_store)
+    monkeypatch.setattr(runner, "_build_store_impl", unexpected_store)
     monkeypatch.setattr(runner, "require_demo_approval", unexpected_approval)
 
 
@@ -77,14 +81,12 @@ def imports(path):
     return result, tree
 
 
-def test_examples_are_source_self_contained_and_have_no_path_mutation():
+def test_examples_are_source_self_contained_and_only_bootstrap_paths_for_direct_cli():
     forbidden = ("cross_exchange_arbitrage_support", "012_1_midfreq", "_btapi_")
     for directory in (MID, EVENT):
         for filename in ("run.py", "strategy.py"):
             path = directory / filename
             names, tree = imports(path)
-            source = path.read_text(encoding="utf-8")
-            assert "sys.path" not in source
             assert not any(token in name for name in names for token in forbidden)
             assert not any(
                 isinstance(node, ast.Call)
@@ -92,6 +94,38 @@ def test_examples_are_source_self_contained_and_have_no_path_mutation():
                 and node.func.id == "__import__"
                 for node in ast.walk(tree)
             )
+            main_guard = next(
+                (
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.If)
+                    and isinstance(node.test, ast.Compare)
+                    and isinstance(node.test.left, ast.Name)
+                    and node.test.left.id == "__name__"
+                    and len(node.test.comparators) == 1
+                    and isinstance(node.test.comparators[0], ast.Constant)
+                    and node.test.comparators[0].value == "__main__"
+                ),
+                None,
+            )
+            module_nodes = [node for node in tree.body if node is not main_guard]
+            assert not any(
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "sys"
+                and node.attr == "path"
+                for root in module_nodes
+                for node in ast.walk(root)
+            )
+            if filename == "run.py":
+                assert main_guard is not None
+                assert any(
+                    isinstance(node, ast.Attribute)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id.endswith("sys")
+                    and node.attr == "path"
+                    for node in ast.walk(main_guard)
+                )
 
 
 def test_cross_venue_planning_and_candidate_policy_do_not_live_in_backtrader_utils():
@@ -164,7 +198,7 @@ def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves
         interactions.append("approval")
         pytest.fail("untrusted runner source must fail before approval lookup")
 
-    monkeypatch.setattr(runner, "build_store", unexpected_store)
+    monkeypatch.setattr(runner, "_build_store_impl", unexpected_store)
     monkeypatch.setattr(runner, "require_demo_approval", unexpected_approval)
 
     # ``manifest_path`` is bound as a default argument at import time, so the
@@ -172,7 +206,7 @@ def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves
     with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
         runner.run_replay("no_edge", manifest_path=stale)
     with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
-        runner.run_network(mode, 1, manifest_path=stale)
+        runner._run_network_impl(mode, 1, manifest_path=stale)
 
     assert interactions == []
     assert MANIFEST.read_bytes() == canonical_before
@@ -186,10 +220,10 @@ def test_demo_requires_the_repository_canonical_manifest(strategy_id, monkeypatc
     runner = _runner(strategy_id)
     assert Path(runner.MANIFEST_PATH) != Path(runner.REPO_CANONICAL_MANIFEST)
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_a, **_k: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_a, **_k: calls.append("store"))
 
     with pytest.raises(runner.DemoApprovalError, match="repository-canonical manifest"):
-        runner.run_network("demo", 1)
+        runner._run_network_impl("demo", 1)
 
     assert calls == []
 
@@ -218,7 +252,7 @@ def test_runner_binds_account_maximum_loss_threshold_into_sdk_config(strategy_id
 
     monkeypatch.setattr(runner, "BtApiStore", fake_store)
 
-    store = runner.build_store("shadow", risk=risk)
+    store = runner._build_store_impl("shadow", risk=risk)
 
     assert store["config"]["account_maximum_loss_bps"] == "17.125"
 
@@ -233,7 +267,7 @@ def test_012_1_store_coalesces_bounded_orderbook_snapshots(monkeypatch):
 
     monkeypatch.setattr(runner, "BtApiStore", fake_store)
 
-    runner.build_store("shadow", risk=runner.MidFrequencyRisk())
+    runner._build_store_impl("shadow", risk=runner.MidFrequencyRisk())
 
     assert captured["config"]["book_queue_size"] == 64
     assert captured["config"]["coalesce_market_snapshots"] == ("orderbook",)

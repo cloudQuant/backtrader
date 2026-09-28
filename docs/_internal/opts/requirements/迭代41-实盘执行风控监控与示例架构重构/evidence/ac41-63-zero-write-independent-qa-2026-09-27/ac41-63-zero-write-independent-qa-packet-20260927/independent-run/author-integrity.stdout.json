@@ -1,0 +1,75 @@
+{
+  "manifest_sha256": "f025ca7ca0c0cfa927ff3d7694d581c85ceb1bece56d6ce7abef9242c94e3c7d",
+  "manifest_companion": "f025ca7ca0c0cfa927ff3d7694d581c85ceb1bece56d6ce7abef9242c94e3c7d  manifest.json",
+  "evidence_zip_sha256": "6ece5cc5f574248f7c488e164b9018a5bed316ff3dbdfdcee25ade10cabdf267",
+  "manifest_evidence_files": 12,
+  "folder_file_mismatches": [],
+  "zip_entries": 14,
+  "zip_test": null,
+  "zip_members_match": true,
+  "zip_member_mapping": [
+    {
+      "path": "development-audit-event-extract.json",
+      "member": "development-audit-event-extract.json",
+      "matches": true
+    },
+    {
+      "path": "focus-tests.stderr.log",
+      "member": "focus-tests.stderr.log",
+      "matches": true
+    },
+    {
+      "path": "focus-tests.stdout.log",
+      "member": "focus-tests.stdout.log",
+      "matches": true
+    },
+    {
+      "path": "probe_iteration41_zero_write_path.py",
+      "member": "probe_iteration41_zero_write_path.py",
+      "matches": true
+    },
+    {
+      "path": "probe.stderr.log",
+      "member": "probe.stderr.log",
+      "matches": true
+    },
+    {
+      "path": "probe.stdout.jsonl",
+      "member": "probe.stdout.jsonl",
+      "matches": true
+    },
+    {
+      "path": "README.md",
+      "member": "README.md",
+      "matches": true
+    },
+    {
+      "path": "ruff.stderr.log",
+      "member": "ruff.stderr.log",
+      "matches": true
+    },
+    {
+      "path": "ruff.stdout.log",
+      "member": "ruff.stdout.log",
+      "matches": true
+    },
+    {
+      "path": "static-candidate-inventory.json",
+      "member": "static-candidate-inventory.json",
+      "matches": true
+    },
+    {
+      "path": "test_probe_iteration41_zero_write_path.py",
+      "member": "test_probe_iteration41_zero_write_path.py",
+      "matches": true
+    },
+    {
+      "path": "unexercised-candidate-paths.json",
+      "member": "unexercised-candidate-paths.json",
+      "matches": true
+    }
+  ],
+  "candidate_source_rev": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+  "runtime_files": 109,
+  "candidate_inputs": 12
+}

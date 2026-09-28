@@ -1,0 +1,45 @@
+{
+  "candidate_root": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927",
+  "changes": {
+    "README.md": {
+      "sha256": "8f637c6c0da6358d876fc8259dee5b4ffce6450c9d51e71c9fce4bf8471201b3",
+      "size": 3381
+    },
+    "backtrader_runtime/ctp_sdk_artifact_binding.py": {
+      "sha256": "c151baab64428326a0494a4cbaf1bb4de1b242d95998da161afbb80a1d8055c5",
+      "size": 24081
+    },
+    "backtrader_runtime/ctp_simnow_td_trading_readiness.py": {
+      "sha256": "25ceb62fd9ec0aa2c9280f555e6c95b92e4a24c0d201ee7d4ffb92c3027bf48a",
+      "size": 31224
+    },
+    "tests/unit/runtime/test_ctp_sdk_artifact_binding.py": {
+      "sha256": "4b8c63c06a7795e3ac2115fb4e3bf57a12704e0bfb8b138ba71076a9e974b162",
+      "size": 16123
+    },
+    "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py": {
+      "sha256": "136e94204c418ad452cb67e155c827cfa0ef57697b77d4ae607c1fa109235377",
+      "size": 29235
+    }
+  },
+  "credentials_or_private_config_read": false,
+  "default_route_or_pin_changed": false,
+  "limitations": [
+    "No production SDK artifact policy is set; public pre-client route rejects before SDK import/client access.",
+    "Python path hashing uses ordinary filesystem reads and is not a protected-handle, ACL, signed-pin, or OS process trust boundary.",
+    "Synthetic extension bytes are inert placeholders; no native extension was loaded or executed.",
+    "G4 SDK independent QA and wheel/pin acceptance are pending; this is not G4 or G6-S acceptance."
+  ],
+  "main_repository_modified": false,
+  "native_loaded_or_called": false,
+  "provider_or_network_called": false,
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.freeze_receipt.v1",
+  "sdk_candidate_modified": false,
+  "source_manifest": {
+    "path": "candidate-source-manifest.json",
+    "payload_file_count": 139,
+    "sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4"
+  },
+  "status": "ISOLATED_SOURCE_FAKE_ONLY_CANDIDATE_NO_ACCEPTANCE",
+  "verification_result": "36 passed, 0 skipped, exit 0; fake-only source/installer fixtures"
+}

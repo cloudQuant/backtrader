@@ -1,0 +1,10 @@
+# LOCAL_REPLAY_ONLY: copy to config.yaml in this registered directory.
+# This migration profile never imports a SimNow test, account, or provider.
+config_schema_version: 4
+strategy:
+  id: example.010_live_examples.simnow_legacy
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_action

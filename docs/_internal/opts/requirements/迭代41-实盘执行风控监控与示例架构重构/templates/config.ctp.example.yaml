@@ -1,0 +1,51 @@
+# Canonical Iteration 41 CTP private runtime example. It is not runnable or authorizing.
+# Prepare the protected registered config.yaml with `bt-runtime prepare-ctp-config`.
+# Keep that file untracked/ignored and restrict its filesystem permissions.
+# The same `ctp:` fields shown here are used for simulation and future live mode.
+# After the shared CTP runner live dispatch and mode-specific admission are accepted, the target
+# operator flow edits only the same config.yaml: mode/preset plus account/front/contract values.
+# This example demonstrates schema only; it does not grant a route or write permission.
+# The old tracked examples/013_3_sa_midfreq_simnow/config.yaml is strategy data,
+# not this schema-v4 runtime contract.
+config_schema_version: 4
+strategy:
+  id: "<REGISTERED_STRATEGY_ID>" # Replace with the exact registered ID; this placeholder is not registered.
+runtime:
+  mode: simulation
+  preset: sandbox
+parameters: {}
+secrets_ref: config_yaml
+ctp:
+  # The backward-compatible form below configures one TD/MD pair.
+  # For an explicitly configured ordered set of alternatives, replace both
+  # legacy front keys with `front_pairs` (1..8 exact pairs). Do not combine
+  # the two forms. The schema preserves every pair and its order; the runtime
+  # selects only among these configured candidates using bounded credential-
+  # free TCP samples. There is no time, set-name, or calendar selection.
+  # Entries are literal MD/TD endpoint pairs, without group/set/backend labels.
+  # Runtime probes only these candidates; ties use list order.
+  # front_pairs:
+  #   - md_front: "tcp://<md-host-1>:<port>"
+  #     td_front: "tcp://<td-host-1>:<port>"
+  #   - md_front: "tcp://<md-host-2>:<port>"
+  #     td_front: "tcp://<td-host-2>:<port>"
+  # A single configured pair is used as-is; no unconfigured fallback.
+  # Multi-pair selection uses the lowest pair score (max endpoint median RTT),
+  # with ties resolved by list order; incomplete pairs make the config invalid.
+  # A reviewed and artifact-pinned preflight runs read-only account queries, then uses this
+  # exact md_front for MD login and one-instrument subscription. Offline fake
+  # contract tests cover that path; real-account ticks remain NOT_RUN.
+  td_front: "tcp://<explicit-td-host>:<port>"
+  md_front: "tcp://<explicit-md-host>:<port>"
+  # Confirm the currently tradable SA month through native instrument query.
+  # Do not carry forward historical SA610 as a current contract by default.
+  instrument_id: "<review-current-SA-contract>"
+  exchange_id: CZCE
+  hedge_flag: "1"
+  # Public SimNow defaults used by the existing 007/013_3 examples; confirm
+  # them against the account's current terminal-auth settings before use.
+  broker_id: "<PLACEHOLDER_BROKER_ID>"
+  user_id: "<PLACEHOLDER_USER_ID>"
+  password: "<PLACEHOLDER_PASSWORD>"
+  app_id: "<PLACEHOLDER_APP_ID>"
+  auth_code: "<PLACEHOLDER_AUTH_CODE>"

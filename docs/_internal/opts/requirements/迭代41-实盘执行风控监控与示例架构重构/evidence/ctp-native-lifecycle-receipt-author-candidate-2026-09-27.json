@@ -1,0 +1,98 @@
+{
+  "schema": "iteration41.g4.native_lifecycle_receipt.author_candidate_archive.v1",
+  "status": "AUTHOR_CANDIDATE_INDEPENDENT_QA_PENDING",
+  "candidate_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "base_client_sha256": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+  "e75_client_sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09",
+  "test_result": "65 passed, 2 warnings, exit 0",
+  "test_command": "python -m pytest --noconftest tests/test_ctp_native_lifecycle_receipt.py tests/test_ctp_shutdown.py tests/test_md_startup_locking.py -q --tb=short --junitxml=\"D:\\temp\\iteration41_g4_native_lifecycle_receipt_evidence_20260927_r1\\junit.xml\"",
+  "native_guard_sha256": "57a5f39297f24caffd689b89bc3e06f4c8e8fb580fc684a789b2bbd4fe01ab5d",
+  "ruff": "passed",
+  "ruff_format_test": "passed",
+  "py_compile": "passed",
+  "git_diff_check": "passed",
+  "known_race": "One intermittent baseline-observed failure before receipt changes: test_stop_during_first_register_spi_blocks_all_later_startup_calls[trader]; no exclusion or test edit; final focused union passed.",
+  "limitations": [
+    "Not e75 source or wheel.",
+    "No native/provider/credential/network calls or wheel build.",
+    "No proof of clean close from real native CTP; G4 remains closed and independent QA is pending.",
+    "Synchronous native lifecycle calls may block; Job/process termination is not native clean-close proof."
+  ],
+  "archive": {
+    "file": "ctp-native-lifecycle-receipt-author-candidate-2026-09-27.raw.zip",
+    "sha256": "b7bda9269601492c04972c3446d443258269f802faabe2a8e38f4d6fb25e61dd",
+    "files": 12,
+    "total_entries": 14,
+    "testzip": null,
+    "index_sha256": "419216a56112ce87087043f44b22400ffa2b193092d30850f09b0830df0f1316",
+    "members": [
+      {
+        "path": "candidate/src/bt_api_ctp/ctp/client.py",
+        "sha256": "aa166baf87b391eeced45a503eff3b8772d4f17d1bd7e6ba8430a67ed39f80e3",
+        "bytes": 375948
+      },
+      {
+        "path": "candidate/tests/test_ctp_native_lifecycle_receipt.py",
+        "sha256": "b604849b6146d10e1133c58fc2c0e835b04546cd8db94cde9d948593a52b3247",
+        "bytes": 14735
+      },
+      {
+        "path": "guards/sitecustomize.py",
+        "sha256": "57a5f39297f24caffd689b89bc3e06f4c8e8fb580fc684a789b2bbd4fe01ab5d",
+        "bytes": 342
+      },
+      {
+        "path": "provenance/baseline-identity.json",
+        "sha256": "49e73b08c5eb19764ba4f66ac203eee8261c26a7b164c377929b11c832bf0f22",
+        "bytes": 530
+      },
+      {
+        "path": "provenance/client.py.patch",
+        "sha256": "ac1ec2a83879561067930cc5e12c04b0554037bcbbd7914902147105f1a2e6d1",
+        "bytes": 41648
+      },
+      {
+        "path": "provenance/freeze-manifest.json",
+        "sha256": "6571328ebbf41e7d168577be392b04f9fbf23f2a476dd73df2c6854ce0d82385",
+        "bytes": 4566
+      },
+      {
+        "path": "provenance/git-status.txt",
+        "sha256": "e5f0f7206808d5840dda8f775689c3f10a8ce2bf27b9f1a50659eb63b6fa7f09",
+        "bytes": 80
+      },
+      {
+        "path": "results/environment.txt",
+        "sha256": "307acb7dc89afdd4ec014c30b95108ca46d8d3c9cbc8ae73f9557f554f888408",
+        "bytes": 61
+      },
+      {
+        "path": "results/junit.xml",
+        "sha256": "75a24ab66473085cef780999b392f6fa0148e31330595cb5abf371a93c97353b",
+        "bytes": 9340
+      },
+      {
+        "path": "results/pytest.log",
+        "sha256": "ac3b4ef57eb1a07e9751fb0968f30c2bb547d5e3bb1743af643b150f5b8fa850",
+        "bytes": 1246
+      },
+      {
+        "path": "results/static-checks.log",
+        "sha256": "174680ff299a111fde8e2519675f61bd49f5139ff6d4b552b295af2fe4aa0102",
+        "bytes": 256
+      },
+      {
+        "path": "archive-index.json",
+        "sha256": "419216a56112ce87087043f44b22400ffa2b193092d30850f09b0830df0f1316",
+        "bytes": 1948
+      }
+    ]
+  },
+  "freeze_manifest_sha256": "6571328ebbf41e7d168577be392b04f9fbf23f2a476dd73df2c6854ce0d82385",
+  "evidence_paths": {
+    "pytest_log": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_evidence_20260927_r1\\pytest.log",
+    "junit": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_evidence_20260927_r1\\junit.xml",
+    "static_checks": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_evidence_20260927_r1\\static-checks.log"
+  }
+}

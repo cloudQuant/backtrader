@@ -1,0 +1,1 @@
+Stopped verified guarded pytest PID 32348 after >5 minutes without progress at 82%, CPU idle, zero child processes; partial failures were already observed. This is an interrupted run, not a pass.

@@ -1,0 +1,93 @@
+{
+  "counts": {
+    "dynamic_execution_candidates": 0,
+    "files_scanned": 2,
+    "parse_errors": 0,
+    "writer_candidates": 4
+  },
+  "dynamic_execution_candidates": [],
+  "files_scanned": [
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py"
+  ],
+  "generated_at": "2026-09-27T18:01:21.382641+00:00",
+  "historical_ctp_candidate_scopes": [],
+  "limitations": [
+    "AST candidates do not prove reachability, provider I/O, or a permitted route.",
+    "A static scan cannot prove that dynamically computed imports, subprocess commands, or reflection are complete.",
+    "Every candidate remains REVIEW_REQUIRED until its separate disposition record has an owner, route, test node, and trace/evidence disposition; an AST record is not fake/real trace proof.",
+    "The serialized source_root is a relative dot marker; the host-specific absolute path is intentionally omitted.",
+    "Historical CTP scope labels document separate entrypoint boundaries only; they do not prove candidate reachability or authorize a runtime route.",
+    "This collector never imports strategies, providers, SDK capability packages, or Backtrader runtime code."
+  ],
+  "parse_errors": [],
+  "schema_version": "iteration41.live-execution-inventory.v1",
+  "scope_paths": [
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py"
+  ],
+  "source_path_coverage": {
+    "classification_scope": "STATIC_SOURCE_PATH_COVERAGE_ONLY",
+    "counts": {
+      "discovered_paths": 0,
+      "missing_baseline_paths": 0,
+      "unclassified_paths": 0
+    },
+    "limitations": [
+      "Explicit --include/custom API scope is intentionally partial and does not load the repository-wide source-path baseline."
+    ],
+    "missing_baseline_paths": [],
+    "paths": [],
+    "schema_version": "iteration41.writer-inventory-surface-baseline.v1",
+    "status": "CUSTOM_SCOPE_NOT_CLASSIFIED",
+    "unclassified_paths": []
+  },
+  "source_root": ".",
+  "status": "CANDIDATE_DISCOVERY_ONLY",
+  "writer_candidates": [
+    {
+      "call": "self.buy",
+      "class_name": "ConfigurableFuturesStrategyBase",
+      "column": 16,
+      "function_name": "_submit_market",
+      "kind": "writer_call_candidate",
+      "line": 491,
+      "method": "buy",
+      "path": "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.sell",
+      "class_name": "ConfigurableFuturesStrategyBase",
+      "column": 57,
+      "function_name": "_submit_market",
+      "kind": "writer_call_candidate",
+      "line": 491,
+      "method": "sell",
+      "path": "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.buy",
+      "class_name": "ConfigurableFuturesStrategyBase",
+      "column": 16,
+      "function_name": "_submit_market",
+      "kind": "writer_call_candidate",
+      "line": 491,
+      "method": "buy",
+      "path": "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.sell",
+      "class_name": "ConfigurableFuturesStrategyBase",
+      "column": 57,
+      "function_name": "_submit_market",
+      "kind": "writer_call_candidate",
+      "line": 491,
+      "method": "sell",
+      "path": "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py",
+      "review_status": "REVIEW_REQUIRED"
+    }
+  ]
+}

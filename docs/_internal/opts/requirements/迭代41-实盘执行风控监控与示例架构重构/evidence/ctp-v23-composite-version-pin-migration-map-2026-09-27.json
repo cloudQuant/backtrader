@@ -1,0 +1,277 @@
+{
+  "blockers": [
+    "V23 declares bt_api_execution 0.2.0, which collides with the older Execution identity; no final stable or probe version is selected.",
+    "V22/V23 and the R4 parent review are source-only evidence. Fake native-owner attestation is not OS G1/G5 acceptance.",
+    "The frozen risk candidate is version 0.1.0; its source identity and exact version must be included in the final composite lock.",
+    "Parent R4 frozen payload excludes pyproject metadata, so its distribution version and final merged parent source identity are not established by that snapshot.",
+    "Parent R4 and risk/monitor use separate SQLite stores; no general cross-database atomic release guarantee is claimed.",
+    "The main runtime cancellation-resolution wiring and final source-consumer acceptance remain separate blockers.",
+    "No final composite wheels, installed RECORD/import-origin proof, or full consumer acceptance was performed for this map.",
+    "The final parent input must be a newly frozen combined source tree containing the reviewed R4 control plus the final issuer/control composition; do not assign metadata/version to the R4-only payload or reuse historical parent metadata."
+  ],
+  "captured_utc_date": "2026-09-27",
+  "changes_made": false,
+  "classification": "READ_ONLY_MAP_ONLY_NO_SOURCE_OR_PIN_CHANGES",
+  "composite_lock_must_bind": [
+    "artifact-set ID/schema and canonical distribution names with exact PEP 440 versions",
+    "per-package complete sorted source-file manifest SHA256, byte count, and payload path/size/SHA256 list",
+    "Git commit/tree SHA where source is committed; otherwise null plus immutable evidence reference, source archive hash, and source manifest SHA",
+    "pyproject/build metadata SHA256 and every merge-input manifest SHA256; reject same name/version with different source or wheel bytes",
+    "build backend/tool versions, Python/platform/wheel tags, and build-isolation inputs",
+    "direct/transitive dependency exact versions and wheel SHA256 values",
+    "wheel filename/SHA256, embedded METADATA fields, and RECORD content/hash verification",
+    "installed distribution metadata, import origins and RECORD verification for each package",
+    "per-package/composed test commands, JUnit/stdout hashes, skips, and source-lock input hash",
+    "Execution schema/migration lineage, V22/V23 store source identity, and explicit G1/G5 evidence status",
+    "default route/write guard assertions and provider/native/network counters for the exact test lane",
+    "V22-to-V23 store provenance: V22 store.py 813,051 bytes / SHA256 1c7edd065b0167d7c50442762f99a29e4972752bd77636eb7052f022dcefecb6; V23 store.py 843,956 bytes / SHA256 677d4edb5e3b768844117c40fc35dc991e9a6ef850cb94fd069e511c130b6328; bind the V22 composite manifest 00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd and V23 source manifest f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330."
+  ],
+  "excluded_matches": [
+    {
+      "path": "tests/unit/runtime/test_iteration41_review_evidence.py:68-73",
+      "reason": "0.2.0 is the producer version for backtrader-agent, not bt_api_execution."
+    },
+    {
+      "path": "tests/integration/test_iteration41_deployment_evidence_interop.py:69,269",
+      "reason": "producer_version is a deployment-evidence fixture, not an Execution distribution pin."
+    },
+    {
+      "path": "backtrader_runtime/ctp_artifact_provenance.py:117-121 and peer blocks",
+      "reason": "0.15.5 there identifies bt_api_base, not bt_api_py parent; do not bump with the parent version."
+    },
+    {
+      "path": "tests/integration/test_iteration41_managed_execution_composition.py:155-163 and tests/integration/test_iteration41_gateway_store_composition.py:159-174",
+      "reason": "synthetic CapabilityCatalog tests hardcode 0.1.0 and a constant fake version_getter; these are generic catalog fakes, not final artifact-set identity gates."
+    },
+    {
+      "path": "tests/unit/scripts/test_collect_iteration41_ai_producer_inventory.py and test_verify_iteration41_external_ai_wheel_interop.py",
+      "reason": "0.2.0 values describe external AI product fixtures, not the Execution distribution."
+    }
+  ],
+  "external_source_metadata_files": [
+    {
+      "action": "Do not edit frozen snapshot. Copy exact final merged source to a new immutable snapshot and assign only a manifest-keyed probe identity until release version allocation is confirmed.",
+      "current_version": "0.2.0",
+      "path": "D:\\temp\\iteration41_v23_g1_owner_binding_freeze_20260927-r3\\pyproject.toml",
+      "project": "V23 Execution source snapshot"
+    },
+    {
+      "action": "New version metadata must correspond to final frozen risk source; update lock and main L2/cancellation fixtures together.",
+      "current_version": "0.1.0",
+      "path": "bt_api_risk/pyproject.toml",
+      "project": "Risk cancel-resolution candidate",
+      "pyproject_sha256": "DB1EB4FEECED90358F2367CED58720C8C367663D8183FAE45F0362BA040FEAAB"
+    },
+    {
+      "action": "Use the frozen R4 source manifest as an input only. Its 154-file payload does not include pyproject metadata; obtain a final merged parent source snapshot with explicit pyproject/version before assigning a manifest-keyed dev probe. R4 alone does not establish a parent distribution version.",
+      "current_version": null,
+      "path": "D:\\temp\\iteration41-cancel-control-r4-freeze-r1-20260927\\payload-manifest.json",
+      "project": "Parent R4 source snapshot",
+      "source_manifest_sha256": "60B020202ED89169E24AFCA30B1B1B16680151A11C6F52C518D0F5BBFA7FAB0D",
+      "pyproject_in_payload": false,
+      "changed_module_sha256": "8B7D2B02654D0B4A9FBEA63F4BC359A0135DF6410CF4034EA069A41E32B898CD",
+      "changed_test_sha256": "0160907F5AE68EBA844BF39961B65EA09F038C3D0517A3FB0E432A142407C8D7"
+    },
+    {
+      "action": "The R4 frozen _execution_session.py still gates on Execution 0.2.0; update that exact guard and its tests only in the final merged parent source. Do not infer the parent distribution version from the old R2 0.15.5 metadata.",
+      "current_version": null,
+      "path": "D:\\temp\\iteration41-cancel-control-r4-freeze-r1-20260927\\bt_api_py\\_execution_session.py",
+      "project": "Parent R4 Execution-version consumer gate",
+      "source_sha256": "81a7fb8f8fd37f580aefb8b059a3d5684be0f2d199d2a30792e94879d26f448d",
+      "line_refs": [
+        115,
+        134
+      ],
+      "expected_execution_version_in_snapshot": "0.2.0"
+    }
+  ],
+  "local_collision_scan": {
+    "existing_local_execution_probe": "bt_api_execution-0.2.2.dev0+v22.8244038ab975-py3-none-any.whl",
+    "existing_local_execution_probe_sha256": "BFA0583BE8F97CC62F979B5848D7B798D440789617BF3DEC813BE53641D0702A",
+    "global_unallocated_proven": false,
+    "matching_local_tags_pyprojects_or_final_wheels_found": false,
+    "not_release_allocations": true,
+    "suggested_probe_patterns": {
+      "execution": "0.2.3.dev0+audit.<final-composite-manifest-prefix>",
+      "parent": "0.15.7.dev0+audit.<merged-parent-manifest-prefix>",
+      "risk": "0.1.1.dev0+audit.<final-risk-manifest-prefix>"
+    },
+    "target_stable_versions_reviewed": [
+      "bt_api_execution 0.2.2",
+      "bt_api_risk 0.1.1",
+      "bt_api_py 0.15.7"
+    ],
+    "use_only_manifest_keyed_dev_probe_versions": true,
+    "note": "Local scan did not find these stable versions in reviewed tags, pyprojects or final wheels; global allocation is unproven. Probe strings are suggestions only and require exact manifest binding. Existing local Execution 0.2.2.dev0+v22 wheel is a distinct version and remains recorded above.",
+    "local_v23_probe_plan": {
+      "version": "0.2.3.dev0+audit.v23.f94b924e1e20",
+      "source_manifest_sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+      "status": "disposable local V23 probe requested by native_contract; not a release allocation and not the final V22+V23 composite identity"
+    }
+  },
+  "main_repo_files": [
+    {
+      "current_sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a",
+      "line_refs": "119-124",
+      "migration_action": "Refresh artifact-set ID/schema and the Execution entry: final version, source/evidence manifest, wheel filename/hash/RECORD, dependency tuple and recomputed aggregate lock. Do not retain V23 0.2.0 identity.",
+      "path": "backtrader_runtime/ctp_i9_candidate_artifact_set.py"
+    },
+    {
+      "current_sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461",
+      "line_refs": "97,434",
+      "migration_action": "Exact bt_api_execution metadata-version checks.",
+      "path": "backtrader_runtime/ctp_managed_action_scope_resolver.py"
+    },
+    {
+      "current_sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "line_refs": "123,153",
+      "migration_action": "Exact bt_api_execution version gates before lazy Store type imports.",
+      "path": "backtrader_runtime/ctp_managed_action_authority.py"
+    },
+    {
+      "current_sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "line_refs": "248",
+      "migration_action": "Exact execution distribution version gate.",
+      "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py"
+    },
+    {
+      "current_sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "line_refs": "62",
+      "migration_action": "Exact execution module metadata version gate.",
+      "path": "backtrader_runtime/ctp_i9_account_session_candidate.py"
+    },
+    {
+      "current_sha256": "62b518900d132f83d3abf402485ddfbc78178519c98ee8b0ee5fe03068287b26",
+      "line_refs": "47-49",
+      "migration_action": "L2 execution/risk/monitor source-version map; update execution/risk only if final tuple uses their new versions.",
+      "path": "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py"
+    },
+    {
+      "current_sha256": "c24ede60544af5ad054dde7d91efe4e4e94034277df8322d18a5059b27707685",
+      "line_refs": "53-55",
+      "migration_action": "Mechanical L2 execution/risk/monitor source-version map; same conditional update.",
+      "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py"
+    },
+    {
+      "current_sha256": "4c83abe0f8db3dfc1522c411df5b27f9d27bbc887838cb78ee69dd2b9c3a98ec",
+      "line_refs": "217-219,814-816",
+      "migration_action": "Update exact execution/risk catalog pins from final locked versions; preserve the monitor version if its source identity is unchanged, otherwise bind its own new identity.",
+      "path": "tests/integration/test_iteration41_managed_cancellation_composition.py"
+    },
+    {
+      "current_sha256": "8e96384a24eb37c4d6e2b8d7b4aba14d39f9b4fd19436bbf5dda534d962ccd84",
+      "line_refs": "35-55",
+      "migration_action": "Update expected exact artifact tuple and regenerate composite manifest assertions only from final wheel/source evidence; include artifact-set ID/schema change.",
+      "path": "tests/unit/runtime/test_ctp_i9_candidate_artifact_set.py"
+    },
+    {
+      "current_sha256": "d32c168099e20465397045e385e9697ba25d48f7e310f1a31d56b2dec301d1a7",
+      "line_refs": "14-19",
+      "migration_action": "Optional-source exact version skip gate.",
+      "path": "tests/unit/runtime/test_ctp_managed_action_scope_resolver.py"
+    },
+    {
+      "current_sha256": "6a6435bc8857016204c75e0a45e402b4ba2f1a89ac1d347284b65b6a2acf16ab",
+      "line_refs": "922-930",
+      "migration_action": "Optional-source exact version skip gate.",
+      "path": "tests/unit/runtime/test_ctp_managed_action_authority.py"
+    },
+    {
+      "current_sha256": "1e2f0294fa9f59beb56a1f64110caaaa3d3cf0a5f77cdc1a38a1c32282414588",
+      "line_refs": "85-87,111-127",
+      "migration_action": "Expected exact L2 source package versions and pin objects.",
+      "path": "tests/unit/runtime/test_iteration41_l2_fixture_package.py"
+    },
+    {
+      "current_sha256": "83c50a5860e95edbf79f45230f460149cc718283f3c45c72a1afbb5221780240",
+      "line_refs": "20-25",
+      "migration_action": "Update the joint Execution/parent exact-version gate and source map after the final merged parent metadata and Execution identity exist; retain wrong-version rejection tests.",
+      "path": "tests/unit/stores/test_ctp_i9_parent_request_builder.py"
+    },
+    {
+      "current_sha256": "697cf8cb65c2ac383c501d4ec5bf612b80c4eaf7c8f037a8f247458b7de0bfb9",
+      "line_refs": "336-359",
+      "migration_action": "Update selected Execution source-version assertion and injected getter from the exact final source-only package metadata; do not claim installed-wheel acceptance.",
+      "path": "tests/unit/stores/test_ctp_i9_managed_dispatch_bridge.py"
+    }
+  ],
+  "no_routes_or_default_pins_changed": true,
+  "related_evidence": [
+    "ctp-version-collision-source-identity-audit-2026-09-27.md/.json",
+    "ctp-release-version-cascade-audit-2026-09-27.md",
+    "ctp-execution-r3r3-release-identity-gate-2026-09-27.md/.json",
+    "ctp-parent-cancel-control-r4-independent-review-2026-09-27.md/.json",
+    "ctp-v23-composite-version-pin-migration-map-2026-09-27.md"
+  ],
+  "schema": "iteration41-v23-composite-version-pin-migration-map.v1",
+  "v23_review_receipt": "ctp-execution-v23-g1-owner-binding-independent-review-2026-09-27.md",
+  "version_status": {
+    "execution": {
+      "current": "0.2.0",
+      "pyproject_sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+      "source_manifest_sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+      "status": "V23 0.2.0 is a same-version/different-source collision; no stable release version selected",
+      "v22_source_manifest_sha256": "V22 candidate manifest: 8244038ab975f30de6c0ba56c140f033ddd5b5ce5fb3cabc9e60abb7bf24066d",
+      "v22_composite_manifest_sha256": "00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd",
+      "v22_store_py": {
+        "bytes": 813051,
+        "sha256": "1c7edd065b0167d7c50442762f99a29e4972752bd77636eb7052f022dcefecb6"
+      },
+      "v23_store_py": {
+        "bytes": 843956,
+        "sha256": "677d4edb5e3b768844117c40fc35dc991e9a6ef850cb94fd069e511c130b6328"
+      }
+    },
+    "parent_execution_consumer_gate": {
+      "source_sha256": "81a7fb8f8fd37f580aefb8b059a3d5684be0f2d199d2a30792e94879d26f448d",
+      "source_path": "bt_api_py/_execution_session.py in R4 snapshot",
+      "line_refs": [
+        115,
+        134
+      ],
+      "expected_execution_version_in_snapshot": "0.2.0",
+      "status": "must be updated with tests in the final merged parent source and exact Execution identity"
+    },
+    "risk": {
+      "current": "0.1.0",
+      "pyproject_sha256": "DB1EB4FEECED90358F2367CED58720C8C367663D8183FAE45F0362BA040FEAAB",
+      "source_manifest_sha256": "B5B066E901E656E3CE42599E0701B731DF16BE742121A43604B58D69E35DED5D",
+      "status": "frozen cancel-resolution source candidate; 0.1.0 metadata is present in its own source manifest, but it must be re-locked with final composite inputs"
+    },
+    "parent_control_r4": {
+      "distribution_version": null,
+      "distribution_metadata_in_snapshot": false,
+      "payload_count": 154,
+      "manifest_sha256": "60B020202ED89169E24AFCA30B1B1B16680151A11C6F52C518D0F5BBFA7FAB0D",
+      "changed_module_sha256": "8B7D2B02654D0B4A9FBEA63F4BC359A0135DF6410CF4034EA069A41E32B898CD",
+      "bridge_focus": "73 passed, 0 skipped; offline fake/source only",
+      "status": "R4 independent bridge focus passed, release not accepted; frozen snapshot lacks pyproject and is not a final merged parent distribution identity",
+      "required_final_composition": "R4 control + final cancel issuer/control source in a newly immutable combined parent tree; assign pyproject metadata/version only on that combined tree and record its complete manifest."
+    }
+  },
+  "parent_r4_review": {
+    "review_receipt": "ctp-parent-cancel-control-r4-independent-review-2026-09-27.json",
+    "status": "OFFLINE_FAKE_FOCUS_PASS_RELEASE_NOT_ACCEPTED",
+    "receipt_sha256": "see linked receipt file; this map does not duplicate a mutable self-reference",
+    "tests": {
+      "focus": "73 passed",
+      "original_nodes": "3 passed"
+    },
+    "limitations": [
+      "source-only, not installed wheels",
+      "cooperative SQLite only",
+      "no general atomic guarantee across risk/monitor databases",
+      "23 Ruff findings reported by author; independent bridge review did not rerun Ruff",
+      "no real CTP or production cancel-release acceptance"
+    ]
+  },
+  "capture_note": "This is a version/pin planning map from frozen evidence, not a release allocation or acceptance. The only named 0.2.3.dev0 tag is a disposable local V23 probe keyed to the V23 source manifest; final composite version must be separately keyed to its own immutable manifest. The required parent artifact is a newly frozen R4-plus-final-issuer combined tree with new explicit metadata. No source, wheel, default pin, or route was changed by this map.",
+  "historical_superseded_parent_r2": {
+    "status": "superseded history only; not an input to the final version lock",
+    "previous_declared_version": "0.15.5",
+    "previous_control_manifest_sha256": "B52E918A07195847B4011D1F68B476486AB4FB17E6DCFF8E49EAAABE1BABAE3D",
+    "previous_issuer_manifest_sha256": "50B0D8B99AFDACDAF2055246010E5766BBE630BC66D71C2AEEACA117BAF3CE7A",
+    "previous_pyproject_sha256": "7AA5FAD4C7C5408199457836FD659E19EC85445460EFE5F867359C5E6E28AA39",
+    "reason_not_reused": "R4 is a later frozen control source; its payload omits pyproject, and parent source/issuer composition must be finalized and versioned together in a new immutable tree."
+  }
+}

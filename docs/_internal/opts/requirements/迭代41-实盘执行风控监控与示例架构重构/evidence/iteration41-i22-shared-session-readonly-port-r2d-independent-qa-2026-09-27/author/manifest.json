@@ -1,0 +1,216 @@
+{
+  "disposition": "FAKE_READ_PORT_CONTRACT_ONLY",
+  "entries": [
+    {
+      "path": "baseline/r2c-stores-runtime.xml",
+      "sha256": "51f35498dba01b95684bc7dc2a63c2e3d68028e714649ba3476a1b253514cddb",
+      "size_bytes": 662374
+    },
+    {
+      "path": "evidence/build_r2d_author_archive_final.py",
+      "sha256": "b923cf2dd7a2c1669b078406cd1f4da623bda46e882bd7b72b6bec61135784e9",
+      "size_bytes": 5306
+    },
+    {
+      "path": "evidence/candidate-focused.junit.xml",
+      "sha256": "8825a44a334d4c0c58766b6ccea87e1e0c915ffeae7f384d5f29600b47deff25",
+      "size_bytes": 1302
+    },
+    {
+      "path": "evidence/capture_verification_r2d.ps1",
+      "sha256": "299c22eee8d5a42795ed861b0c24487f55c55149892230799f8de1e79a5e4d4c",
+      "size_bytes": 1153
+    },
+    {
+      "path": "evidence/fix_request_exact_text.py",
+      "sha256": "d1255154af6bd8fe98bf463cc311df3492d0e1a3be33234efb14f06d3a7fccad",
+      "size_bytes": 2515
+    },
+    {
+      "path": "evidence/fix_timeout_validator.py",
+      "sha256": "d4f9a57365faf52bbcc327e18251a4f463688ce9dc0b2ce545a6178fffea7024",
+      "size_bytes": 1770
+    },
+    {
+      "path": "evidence/focused-guard-report.json",
+      "sha256": "cb2fd4273dc2e2f76b09f4aef5acec89f8397cf2715c48e569d4497969c1cee5",
+      "size_bytes": 874
+    },
+    {
+      "path": "evidence/freeze_r2d_reporting.py",
+      "sha256": "141e66cd0aa8f32427a8e688759a4e2c7ad2c46c99ecd7f87962f07412fe798c",
+      "size_bytes": 5910
+    },
+    {
+      "path": "evidence/guarded-focus.log",
+      "sha256": "1517f981b22d3b7eaaffefa9c2096a2a79220e73ff99c716ae717f5e07560db0",
+      "size_bytes": 1392
+    },
+    {
+      "path": "evidence/make_r2d_patch.py",
+      "sha256": "ec258ffb53633351e62486c30671bb21783c80d7b64f28f1f9c6603b8bc6314d",
+      "size_bytes": 1259
+    },
+    {
+      "path": "evidence/patch-replay.log",
+      "sha256": "7fd392dcd5a595c398ea5b72374f703c7a01dd27f333f0be5bf51c37a7916fba",
+      "size_bytes": 1928
+    },
+    {
+      "path": "evidence/py-compile.log",
+      "sha256": "58cf8b8f6ef25f670a079ae49a554ac939de2d533009d954a0f846012c24f6db",
+      "size_bytes": 74
+    },
+    {
+      "path": "evidence/r2c-i22-nodeid-classification.csv",
+      "sha256": "53ecf82ed01d57ba07fb668e46161081b548f98151d9a6d513aa075540b6c264",
+      "size_bytes": 36692
+    },
+    {
+      "path": "evidence/r2c-input-and-nodeid-classification.json",
+      "sha256": "818da01725a12dbc1061a4741c2970cdf84b7cba054be010cd7b4aa30b631c21",
+      "size_bytes": 65557
+    },
+    {
+      "path": "evidence/r2d-artifact-hashes.json",
+      "sha256": "ba5b4ff8a98dce029ccebfb75b7266ccca1e7c1d4cfc87e224e514f859a41fee",
+      "size_bytes": 2657
+    },
+    {
+      "path": "evidence/r2d-nodeid-baseline-candidate.json",
+      "sha256": "030f065c35d1def1c6b9b7d161d16df261feed84aff148744fe2ed5c19078279",
+      "size_bytes": 23876
+    },
+    {
+      "path": "evidence/report.md",
+      "sha256": "4ae04b9ce4cc0db9b6c612e98407cb953340bab10d5d9a906daf610db9157459",
+      "size_bytes": 5495
+    },
+    {
+      "path": "evidence/ruff-check.log",
+      "sha256": "e783ab0d9638dc40a8972e02bf2b5f68682edf44a4c0f7d5e26a8b5a98cd0bbb",
+      "size_bytes": 84
+    },
+    {
+      "path": "evidence/run_guarded_r2d.py",
+      "sha256": "0be13fdf8df652c093d293f55bc76cacb623b72c9a5da5c045ca974bf753dc76",
+      "size_bytes": 3020
+    },
+    {
+      "path": "evidence/update_final_hashes.py",
+      "sha256": "e059bf1302b9ed4125cb8df78d68d0afe39d3acf391912c19ee9073db931326a",
+      "size_bytes": 744
+    },
+    {
+      "path": "evidence/update_final_report.py",
+      "sha256": "cef212cb912032a58331613768d43c7c755b0a72fa7273c38cc09d31c41357a1",
+      "size_bytes": 1607
+    },
+    {
+      "path": "evidence/update_hash_manifest.py",
+      "sha256": "206e0685f7fbbfb15b2d89ccf292b276869535bdfb1eade228f42e727e11ba3e",
+      "size_bytes": 890
+    },
+    {
+      "path": "evidence/verify_final_composite_replay_r3.py",
+      "sha256": "a3821c5a51fc6a31a0cd98329ab8b1c3ee96e81b64eb0a6e66e226d251e79171",
+      "size_bytes": 2510
+    },
+    {
+      "path": "inputs/parent-patches/query-evidence-test-seam.patch",
+      "sha256": "6aab9a66a328a545a5e724badcc03c31c606f84e985f4ef5f8a8e754151f88a7",
+      "size_bytes": 5058
+    },
+    {
+      "path": "inputs/parent-patches/r2b-main-base-apply.patch",
+      "sha256": "1a16aadb94edb99924553d6472bf72dcb02bd04c7f994276816d91991a729f37",
+      "size_bytes": 120107
+    },
+    {
+      "path": "inputs/parent-patches/r2c-store-safety.patch",
+      "sha256": "4eeab367c80d1d4b5545892db56376dcb170557dd3098bc4787a5ac5bd8b14fc",
+      "size_bytes": 42755
+    },
+    {
+      "path": "output/backtrader/stores/btapistore.py",
+      "sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "size_bytes": 814230
+    },
+    {
+      "path": "output/backtrader/stores/ctp_account_actor_port.py",
+      "sha256": "78018de4cb880e14893309da8293cfb03749eae17753b1fbdb699e4d404b5367",
+      "size_bytes": 36275
+    },
+    {
+      "path": "output/tests/unit/stores/test_btapistore_iteration22.py",
+      "sha256": "cf2433f1c21d91534223fdf79c8d9dd2f10b38d88bec7be25939c6b8169e187d",
+      "size_bytes": 171089
+    },
+    {
+      "path": "output/tests/unit/stores/test_ctp_shared_session_read_port.py",
+      "sha256": "4037175778a868ab370c769752956f3ba74af19006423ddd063d70549ea78240",
+      "size_bytes": 6968
+    },
+    {
+      "path": "patch/r2d-shared-session-readonly-port.patch",
+      "sha256": "423111adfbfb47eb56e5303e917815c4f4594760c203d18930c44cf6b800094c",
+      "size_bytes": 27340
+    },
+    {
+      "path": "preimage/backtrader/stores/btapistore.py",
+      "sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "size_bytes": 814230
+    },
+    {
+      "path": "preimage/backtrader/stores/ctp_account_actor_port.py",
+      "sha256": "efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846",
+      "size_bytes": 26006
+    },
+    {
+      "path": "preimage/new-file-state.json",
+      "sha256": "430b4293a040c5a909190f11c472adb19d35e17186c285ca718dff7bdf07cacf",
+      "size_bytes": 120
+    },
+    {
+      "path": "preimage/tests/unit/stores/test_btapistore_iteration22.py",
+      "sha256": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d",
+      "size_bytes": 173308
+    }
+  ],
+  "explicit_absences": [
+    "private config",
+    "SDK/native binaries or modules",
+    "credentials",
+    "real CTP Store/SDK session",
+    "network or orders",
+    "account/session identity",
+    "common snapshot",
+    "settlement authority",
+    "Store runtime wiring"
+  ],
+  "main_tree_modified": false,
+  "name": "iteration41-r2d-shared-session-readonly-port-author-bundle-final",
+  "output_hashes": {
+    "backtrader/stores/btapistore.py": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+    "backtrader/stores/ctp_account_actor_port.py": "78018de4cb880e14893309da8293cfb03749eae17753b1fbdb699e4d404b5367",
+    "tests/unit/stores/test_btapistore_iteration22.py": "cf2433f1c21d91534223fdf79c8d9dd2f10b38d88bec7be25939c6b8169e187d",
+    "tests/unit/stores/test_ctp_shared_session_read_port.py": "4037175778a868ab370c769752956f3ba74af19006423ddd063d70549ea78240"
+  },
+  "parent_patch_sha256": {
+    "query-evidence-test-seam.patch": "6aab9a66a328a545a5e724badcc03c31c606f84e985f4ef5f8a8e754151f88a7",
+    "r2b-main-base-apply.patch": "1a16aadb94edb99924553d6472bf72dcb02bd04c7f994276816d91991a729f37",
+    "r2c-store-safety.patch": "4eeab367c80d1d4b5545892db56376dcb170557dd3098bc4787a5ac5bd8b14fc"
+  },
+  "patch_sha256": "423111adfbfb47eb56e5303e917815c4f4594760c203d18930c44cf6b800094c",
+  "preimage_hashes": {
+    "backtrader/stores/btapistore.py": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+    "backtrader/stores/ctp_account_actor_port.py": "efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846",
+    "tests/unit/stores/test_btapistore_iteration22.py": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d"
+  },
+  "scope": {
+    "candidate_focused_tests_passed": 7,
+    "original_i22_migrated": 3,
+    "original_i22_unchanged": 197
+  },
+  "source_root": "frozen r2c independent-QA source; r2d is not directly applicable to current main"
+}

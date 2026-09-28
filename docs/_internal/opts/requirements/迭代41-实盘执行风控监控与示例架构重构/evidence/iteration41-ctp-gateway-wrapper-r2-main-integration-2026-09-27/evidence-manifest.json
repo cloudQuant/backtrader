@@ -1,0 +1,51 @@
+{
+  "schema": "iteration41-evidence-copy-manifest.v1",
+  "created_utc": "2026-09-27",
+  "files": {
+    "author/REPORT.md": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\REPORT.md",
+      "sha256": "A205F85DBFF119F32FFD8F01F477B9F26CE2708BEBEA0D67C6BC9582F1499183",
+      "size_bytes": 2528
+    },
+    "author/manifest.json": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\manifest.json",
+      "sha256": "7DE39D43443B35C2A5346E1560AC681640FB9927C9A325052332F3BB2637F230",
+      "size_bytes": 3648
+    },
+    "author/r2.patch": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\r2.patch",
+      "sha256": "DCD748DBF2D1041F5B524278F32E2CE696BDC9080980BB3430415D6F1BFF1451",
+      "size_bytes": 5491
+    },
+    "author/candidate-btapistore.py": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\candidate\\backtrader\\stores\\btapistore.py",
+      "sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+      "size_bytes": 780202
+    },
+    "author/test_ctp_gateway_wrapper_guard.py": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\tests\\test_ctp_gateway_wrapper_guard.py",
+      "sha256": "7CFB514C466A300A0A47339748F6D0ECF88B2A409B114373A131F2B7B2101BE9",
+      "size_bytes": 7308
+    },
+    "independent/receipt.md": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-independent-qa-20260927\\receipt.md",
+      "sha256": "FC4607FEBE29094BCC402FC7ED101DBF20BE671227076BA88BC67CDC9C64DFAB",
+      "size_bytes": 2935
+    },
+    "independent/focused-tests.log": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-independent-qa-20260927\\focused-tests.log",
+      "sha256": "E44A7F70B0413AB04785EC25D54D0E0955C1B4A924462E2A35A6335CDDE664B7",
+      "size_bytes": 1247
+    },
+    "independent/allowlist_probe.py": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-independent-qa-20260927\\allowlist_probe.py",
+      "sha256": "A79ED5C1F22194C614D21C4A76B1671CD9D246B4D6F076209045F00C2272A55A",
+      "size_bytes": 1817
+    },
+    "independent/allowlist-probe.log": {
+      "source_path": "D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-independent-qa-20260927\\allowlist-probe.log",
+      "sha256": "B762792A912286B05788B1852B3E0507819BAA5B8B4482E83BEFC6C2395EDF8A",
+      "size_bytes": 275
+    }
+  }
+}

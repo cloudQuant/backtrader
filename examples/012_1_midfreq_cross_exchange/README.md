@@ -1,5 +1,32 @@
 # 012_1 中低频跨所永续合约套利
 
+## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+
+新入口 `run_runtime.py` 必须读取本目录下 `runtime/config.yaml`（schema v4），仅支持
+`simulation/replay`。在仓库根目录、已安装本地 Backtrader/SDK 的环境中依次执行：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
+bt-runtime run --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
+```
+
+`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。唯一可选参数是 `parameters.scenario`：
+`profitable/loss/no_edge/partial/unknown/gap`，默认 `no_edge`。这些名称仅表示合成公式
+分支；报告保留 `R0_FORMULA_FIXTURE`、零订单/成交及无盈利结论，不属于原生执行链验收。
+
+缺配置（`CONFIG_REQUIRED`）、错误 mode/preset、未登记目录及 CLI 模式覆盖会在加载旧策略前拒绝。
+复制 runtime 或整个示例目录不会自动取得登记，需部署阶段独立评审中央 inventory。
+新入口不读取凭据，不支持 shadow、paper、sandbox 或 live；外部网络和 provider 写入均为零。
+原有 tracked `config.yaml` 仍是 hash-bound 研究参数，不再选择执行模式。旧 `run.py` 的
+`--mode shadow/demo`、直接导入的 `main()` 和公开 `run_network()` 现已封闭；无参数调用只转发到
+已登记的 replay runtime。只读 shadow 暂不可直接运行，恢复前需要独立评审并登记 v4
+`simulation/shadow` runtime。
+
+兼容边界：直接执行旧 `run.py` 时，历史参数会在导入策略、Backtrader 和 SDK 前拒绝；通过
+Python 导入 `run.py` 仍会在模块加载期间导入 Backtrader 和 SDK，只有调用 `main()`、
+`run_network()` 或 `build_store()` 时才由旧入口拒绝。请用 `run_runtime.py` 作为配置优先入口。
+下文 `.env`、shadow 和 demo 的操作细节仅记录历史实现，不代表当前可运行入口。
+
 本例独立实现 OKX `BTC-USDT-SWAP` 与 Binance `BTCUSDT` 的中低频均值回归策略。
 行情和订单只通过 `BtApiStore.getdata()`、`BtApiFeed`、`bt.Strategy.buy/sell` 与
 `BtApiBroker` 进入 `bt_api_py` 公共接口；本目录不包含交易所私有请求映射，也不依赖
@@ -28,33 +55,13 @@ TTL 的本地缓存；策略在每次盘口事件、开仓确认和每条腿提�
 只按已确认成交量对冲；拒单或部分成交会把所有已确认暴露有界平掉。无法确定远端状态时
 停止新订单并标记 `reconciliation_required`，由 SDK 的持久执行会话完成查询与对账。
 
-运行模式：
+历史网络运行细节记录策略实现背景，不是可用入口。当前只能通过 Iteration 41 v4 replay
+runtime 运行；旧 shadow、demo 和 paper-live 入口均已关闭。
 
-```bash
-# 六种确定性公式夹具：profitable/loss/no_edge/partial/unknown/gap
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_1_midfreq_cross_exchange.run --mode replay --scenario profitable
+## Windows 验收
 
-# 生产公共盘口；shadow 严格不下单、不产生 fill/PnL
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_1_midfreq_cross_exchange.run --mode shadow
-
-# 只读 demo 账户预检
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_1_midfreq_cross_exchange.run --mode demo --preflight
-
-# 显式请求一次机械性 demo 开仓 smoke（仅 012_1，不是研究/OOS 证据）
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_1_midfreq_cross_exchange.run --mode demo \
-  --allow-rejected-demo-simulation --demo-execution-smoke
-```
-
-## Windows 验收与长期只读运行
-
-当前冻结候选是 `RESEARCH_REJECTED`，因此这里可持续运行的只有 `replay` 与 **只读**
-`shadow`。`shadow` 连接两所生产公共盘口，但 SDK 被强制为 `market_data_only`：不会提交订单、
-不会生成成交或 PnL。`paper-live` 与 demo 下单不应用于这个被否决的候选，也不能用短期观测
-恢复策略准入或宣称盈利。
+当前冻结候选是 `RESEARCH_REJECTED`。已登记的 v4 runtime 只开放 `replay`；旧只读 `shadow`
+暂停，直到完成独立的 v4 shadow 注册和验收。`paper-live` 与 demo 下单也没有当前运行入口。
 
 首次在 Windows 上使用时，从两个源码目录安装并确认本地 manifest 与源码绑定一致：
 
@@ -69,25 +76,11 @@ python scripts/refresh_cross_exchange_local_manifests.py --check
 `replay` 是无网络、零订单的公式/拒绝分支检查：
 
 ```powershell
-python -m examples.012_1_midfreq_cross_exchange.run --mode replay --scenario profitable `
-  --output .\examples\012_1_midfreq_cross_exchange\reports\replay-profitable.json
+bt-runtime run --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
 ```
 
-先用 `--duration 0` 做 SDK/公共行情元数据探针；它成功时报告为
-`SHADOW_ONE_SHOT_COMPLETE`，但命令退出码为 `2`，因为尚未达到持续观测窗口。正式 shadow
-至少需要 435 秒（120 秒统计窗口 + 300 秒最大持仓 + 15 秒停机缓冲）。下面是可直接运行
-一天的安全观察命令；每次生成独立报告，且不需要 `.env` 或任何 API 凭据：
-
-```powershell
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$report = ".\examples\012_1_midfreq_cross_exchange\reports\shadow-$stamp.json"
-python -m examples.012_1_midfreq_cross_exchange.run --mode shadow --duration 86400 --output $report
-```
-
-运行成功须同时看到报告中的 `status: SHADOW_PASS`、`orders_submitted: 0`、`fills: 0`、
-`execution_status: NOT_RUN` 与 `store_stop_proven: true`。报告记录盘口健康度、可执行边际、
-资金费快照、拒绝原因及关机守恒；它不是交易结果、模拟收益或实盘表现。若失败，优先查看
-`shadow_failure.stage` 和 `shadow_failure.exception_type`，不要在命令行、配置或报告中加入凭据。
+shadow 的持续观测步骤当前不可执行。未来恢复时必须由独立评审的 v4
+`simulation/shadow` 注册提供配置入口，并验证零订单、零成交、零 PnL 和安全停机。
 
 策略的完整决策链是：接收两所 L2 盘口 → sequence/时钟/陈旧度对齐 → 同数量格点的多档
 可执行 VWAP → 仅历史样本的 median/MAD z-score → 连续三次确认 → 扣除四次 taker fee、深度、

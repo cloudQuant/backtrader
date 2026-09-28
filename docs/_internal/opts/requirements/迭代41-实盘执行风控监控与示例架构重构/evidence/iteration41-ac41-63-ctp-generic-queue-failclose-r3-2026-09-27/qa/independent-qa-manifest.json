@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_R3_NARROW_QA_PASS_WITH_CONDITIONAL_RESIDUAL",
+  "qa_root": "D:\\temp\\ac41-63-store-generic-ctp-queue-failclose-r3-independent-qa-20260927",
+  "packet_root": "D:\\temp\\ac41-63-store-generic-ctp-queue-failclose-r3-trust-boundary-20260927",
+  "packet_manifest_sha256": "A37388BA20649D7C402E119F0E74838A45F84830BE8AC1597EFA6619F7F34D6F",
+  "packet_sums_sha256": "30EA0B87D5276117542B1618331E50A7A87077950648CCEC4A9103619E77FA98",
+  "verified_packet_sum_entries": 15,
+  "source_preimage_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+  "source_target_sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+  "patch_sha256": "C1550368359A159F18CE6777F6377CCA83DA7F948DE81B99D8DE86BEEE6CCAD3",
+  "candidate_test_sha256": "3201896CBC984054BB8124CBBB1489A207DB349AE6CEB74CEB701DA08F21D29A",
+  "r2_target_sha256": "9800DC64BB21A8E6506DD14723ADA76588378F262E7C48AB9C6803DEA0B156E7",
+  "r2_r3_diff": "Only `_is_ctp_write_provider` docstring changed; normalized AST is identical.",
+  "outcomes": {
+    "exact_base_replay": "PASS",
+    "candidate_focus": "12 passed",
+    "baseline_probe": "2 passed",
+    "extra_adversarial_routes": "4 passed",
+    "stale_snapshot_residual": "1 passed (conditional bypass reproduced)",
+    "ruff": "PASS with repository pyproject.toml",
+    "py_compile": "PASS",
+    "guard": "only loopback IPC observed; no CTP/native import or non-loopback network event"
+  },
+  "limits": [
+    "not writer closure or authorization",
+    "btapi `_sdk_exchanges` may originate from injected API metadata; stale/inconsistent snapshot can misclassify a CTP helper command",
+    "_execute_sdk_command managed-CTP dispatcher branch precedes _invoke_sdk_command and is outside this patch",
+    "official statuses remain REVIEW_REQUIRED / NOT_AVAILABLE"
+  ]
+}

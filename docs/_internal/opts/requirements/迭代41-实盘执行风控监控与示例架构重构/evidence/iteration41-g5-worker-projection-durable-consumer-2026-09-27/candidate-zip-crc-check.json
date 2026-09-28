@@ -1,0 +1,12 @@
+{
+  "archive": "candidate.zip",
+  "archive_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+  "bad_crc_member": null,
+  "file_set_matches_manifest_plus_manifest": true,
+  "format": "iteration41-g5-candidate-zip-crc-verification.v1",
+  "manifest_output_count": 116,
+  "manifest_output_hash_mismatches": [],
+  "manifest_plus_self_expected_members": 117,
+  "passed": true,
+  "zip_members": 117
+}

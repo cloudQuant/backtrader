@@ -1,0 +1,9 @@
+{
+  "zip": "SCANNER-R2C2-EVIDENCE.zip",
+  "sha256": "49adee85c4c6b9e4a727d0b9193394649ddb05cdfe4cc05e6508534bfad22bd7",
+  "bytes": 186244,
+  "member_count": 46,
+  "crc_test": "clean",
+  "all_indexed_copy_members_sha256_match": true,
+  "main_target_member_hashes_match": true
+}

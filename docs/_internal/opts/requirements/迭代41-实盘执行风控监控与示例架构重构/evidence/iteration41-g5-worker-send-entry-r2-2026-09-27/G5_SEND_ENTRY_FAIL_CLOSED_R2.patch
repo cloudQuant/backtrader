@@ -1,0 +1,1564 @@
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,163 +1,44 @@
+-# Iteration 41 G5 typed durable target consumer follow-on
++# Iteration 41 G5 send-entry R2 follow-on
+ 
+-**Status: `TYPED_DURABLE_CONSUMER_ONLY / BLOCKED / G5 NOT ACCEPTED`.**
++**Status: `R2_FAIL_CLOSED / G5 NOT ACCEPTED`.** This is an isolated candidate under `D:\temp`; it does not change the main repository, production/default route, protected configuration, credentials, or a real account. It imports no provider module and performs no network or native SDK call.
+ 
+-This isolated candidate is under `D:\temp`. It edits no main-repository
+-production/default-route files, protected config, credentials, or real account.
+-It opens no provider/session and contains no real SDK dispatch. The previous
+-worker handoff candidate remains the base at
+-`D:\temp\iteration41-g5-order-authority-20260927-candidate`; this follow-on
+-adds a typed durable projection consumer and connects that row to the worker
+-handoff. It does not supply the trusted native-query producer required to make
+-the consumer usable for G5.
++R2 removes the caller-supplied `sender` from `CtpManagedSingleWorkerCandidate.dispatch_managed_command`. The signature is now `(command_id, binding)`. Passing a callback raises Python `TypeError` before the callback body can run. After a durable claim, the worker enters one code-owned synchronous port. That port has no callable injection and always rejects because this candidate lacks a reviewed SDK pin, trusted time authority, and complete session/connection/process generation binding. The worker persists a local `REJECTED` receipt and the handoff state stays `REJECTED`; the Store command's `COMPLETED` status only means that the local rejection receipt was durably recorded. A duplicate dispatch returns the same rejection and cannot enter a native call.
+ 
+-## Audited projection and identity contracts
++For cancellation, the code-owned port performs a fresh same-Store durable projection-row read after claim. A deterministic test clock proves a projection that is fresh at claim but expires at this final read rejects with zero native entry. The Store's local monotonic clock is useful for the row TTL check, but it is not a trusted native-query/time authority. This port makes no actual native send and therefore does not claim a successful send-entry implementation. If the claim is lost to process death, restart recovery fences it to `UNKNOWN`; dispatch will not replay it.
+ 
+-The referenced V21 SDK source is
+-`D:\temp\g5-v21-execution-wheel-build-20260927\source\src\bt_api_execution\store.py`
+-(SHA-256 `1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a`,
+-schema version 21). It contains `CtpVerifiedOrderTargetProjection`, durable
+-`ctp_order_target_projections` and one-use
+-`ctp_order_target_projection_consumptions` tables, same-Store row readback,
+-immutable-row triggers, and a rejecting default verifier. Its verifier is a
+-Protocol only; there is no native query implementation. Its worker's
+-`stage_prepared_dispatch` does not accept `action_identity`, and its separate
+-per-account ActionRef allocator begins at 1. The frozen author worker
+-handoff's `action_identity` cannot be passed to that V21 worker, and the two
+-ActionRef authorities must not be mixed. V21's Store schema is version 21;
+-this candidate is an isolated adaptation to the frozen author's schema 6,
+-not a V21 Store pin or a direct database-compatibility claim.
++## Evidence and exact commands
+ 
+-The worker's typed identity maps without loss to the projection's reservation
+-and native target identity fields: account, scope, trading day, intent, runtime
+-order ID, OrderRef, query FrontID/SessionID, and instrument/exchange/order
+-system/front/session target. `OrderActionRef` is a separate action identity;
+-the candidate's `CtpUnifiedOrderActionAuthority` is its only allocator. Its
+-legacy maximum is still caller-supplied and unverified. Store staging now
+-rejects a CANCEL unless that candidate authority has durably issued the exact
+-ActionRef for the same reserved order. The V21 allocator is not imported or
+-accepted here.
++R2 focus is the four cases in `implementation/tests/test_g5_worker_send_entry_r2.py`: sender-parameter removal and pre-body rejection; final projection expiry check; missing generation/time/SDK authority default rejection; and claim-crash/reopen `UNKNOWN` with no replay. The complete isolated implementation tests passed **18/18**. The frozen SDK test comparison against candidate source reports **53 passed / 4 failed**; the same **57 tests passed** against untouched frozen SDK source. The four candidate failures are recorded in `evidence/r2-sdk-tests-candidate-source.log`: three legacy schema-version-5 assertions see schema 6, and one legacy direct CANCEL fixture omits the required typed projection. These are not suppressed or represented as accepted tests.
+ 
+-The projection-only evidence fields (account fingerprint, registration
+-digest, query filter/record/source digests, query completion and uniqueness,
+-provider state, total/traded/remaining quantities, verifier identity and
+-freshness) cannot be recovered from the worker's prepared request. They must
+-come from a trusted verifier over a native query result and current SDK-owned
+-readback. `session_generation_id` is a query/session label bound to the
+-prepared dispatch session in this candidate; it is not OS `process_generation`
+-and does not prove process lifecycle ownership.
++The original three red R1 cases remain under the parent research tree's `tests/test_r2_sender_entry_boundary.py`. The source, log, JUnit, and exit marker are copied into this candidate as `evidence/r1-send-entry-regressions.*`; `evidence/r1-send-entry-regressions-copy-verification.json` records matching before/after SHA-256 for all four. The cases showed (1) R1 exposed a caller sender, (2) a synchronous wrapper entered before returning an awaitable, and (3) R1 could cross TTL inside that arbitrary callback before fake native-entry. The original R1 worker focus test file is preserved verbatim as `evidence/r1-worker-focus-original.py`; R2 focus remains separate.
+ 
+-## Candidate behavior
++From PowerShell, rerun the R2 checks:
+ 
+-The SDK Store adds the V21-shaped typed projection contract and durable row
+-layout to its isolated schema version 6. `issue_ctp_order_target_projection`
+-accepts only an exact typed verifier result, rechecks the OrderRef reservation
+-inside the write transaction, persists canonical JSON plus a digest and query
+-identity, then reads it back through an ephemeral handle issued by that exact
+-Store object. The projection and consumption rows are immutable. Cancel
+-staging checks target and dispatch-session identity and atomically writes the
+-command plus one-use projection consumption. Claim rechecks the consumed row,
+-reservation, target, session binding and freshness. A reopened Store does not
+-revive a prior in-memory handle; a claimed crash/uncertain sender is `UNKNOWN`
+-and never replayed.
+-
+-The worker retains this call shape:
+-
+-```python
+-stage_prepared_dispatch(
+-    prepared,
+-    *,
+-    cancel_target_projection=<CtpOrderTargetProjectionHandle>,
+-    action_identity=<CtpActionIdentityReservation>,
+-)
++```powershell
++$candidate = 'D:\temp\iteration41-g5-worker-projection-r2-boundary-20260927\r2-candidate'
++$env:PYTHONPATH = "$candidate\implementation\sdk\src;$candidate\implementation"
++python -m pytest "$candidate\implementation\tests" -q --tb=short
++python -m ruff check --config "$candidate\inputs\sdk\pyproject.toml" '--select=E4,E7,E9,F,I' `
++  "$candidate\implementation\sdk\src\bt_api_execution\ctp_single_worker_candidate.py" `
++  "$candidate\implementation\tests\test_g5_worker_send_entry_r2.py" `
++  "$candidate\implementation\tests\_g5_worker_test_support.py"
++python -m py_compile `
++  "$candidate\implementation\sdk\src\bt_api_execution\ctp_single_worker_candidate.py" `
++  "$candidate\implementation\tests\test_g5_worker_send_entry_r2.py" `
++  "$candidate\implementation\tests\_g5_worker_test_support.py"
+ ```
+ 
+-The existing submit call remains
+-`stage_prepared_dispatch(prepared)`. After claim, the worker rechecks the
+-projection immediately before entering the synchronous sender. If that
+-short-lived row expires after claim, it persists `UNKNOWN` and does not call
+-the sender. Awaitable senders are rejected before claim because this candidate
+-has no guarded asynchronous SDK-entry callback; it will not treat a delayed
+-coroutine as a valid handoff. The only sender tests use an injected local fake.
++The SDK comparison commands use the frozen `inputs\sdk\tests` folder and are recorded in `evidence/r2-sdk-tests-*.log`; `PYTHONDONTWRITEBYTECODE=1` and `-p no:cacheprovider` were set. The exact R2 delta from the frozen R1 author candidate is `implementation/sdk_patch/G5_SEND_ENTRY_FAIL_CLOSED_R2.patch`.
+ 
+-`_RejectCtpOrderTargetProjectionVerifier` is the default. The repository has
+-no trusted producer for a native query result, query-completion/readback
+-port, exact account/registration binding, or externally verified freshness.
+-Tests inject a verifier over a test-only synthetic evidence object solely to
+-exercise persistence, readback, one-use, and worker failure paths. A caller
+-mapping cannot be converted into a projection. That fake issuer is not a
+-native source, not an SDK pin, and not G5 evidence.
++## Frozen artifacts
+ 
+-## Verification
++The file-level SHA-256 manifest and its checksum are `candidate-output-manifest.json` and `candidate-output-manifest.sha256`. The frozen package ZIP is `D:\temp\iteration41-g5-worker-projection-r2-boundary-20260927\r2-candidate.zip`; its CRC/SHA verification receipt is stored in the parent research evidence directory.
+ 
+-The candidate focus suite covers typed Store→worker→SDK-fake handoff, retained
+-one-argument submit, default rejection of caller mappings, durable projection
+-readback and hash tamper checks, immutable/one-use rows, unissued ActionRef
+-rejection, wrong target rejection, expiry after claim before sender entry,
+-awaitable sender rejection, queue receipt write failure, claimed crash, and
+-uncertain sender receipt across reopen. The full SDK frozen test folder run
+-against this candidate source is separately recorded; expected legacy failures
+-are not suppressed: 53 pass and four fail. Three still assert schema version 5
+-after this isolated schema-6 addition; one direct CANCEL fixture omits the
+-now-required typed projection and candidate ActionRef. The same 57-test suite
+-passes against the untouched frozen SDK source only as a baseline. Candidate
+-changed files pass Ruff `E4,E7,E9,F,I` and `py_compile`; a broader Ruff run
+-also reports pre-existing import formatting in untouched frozen
+-`cancellation.py` and `facade.py`. Frozen source integrity checks 27 non-cache
+-manifest entries; the manifest also listed 23 generated `__pycache__` entries,
+-which are excluded because Python mutates/removes bytecode during imports.
+-See the [V21 contract audit](evidence/v21-projection-contract-audit.md).
++## Blocking limits
+ 
+-Reproduce the candidate-focused tests from PowerShell:
+-
+-```powershell
+-$candidate = 'D:\temp\iteration41-g5-worker-projection-durable-20260927-candidate'
+-$env:PYTHONPATH = "$candidate\implementation\sdk\src;$candidate\implementation"
+-python -m pytest "$candidate\implementation\tests" -q --tb=short
+-python -m ruff check --config "$candidate\inputs\sdk\pyproject.toml" `
+-  --select E4,E7,E9,F,I `
+-  "$candidate\implementation\sdk\src\bt_api_execution\store.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\ctp_identity_authority.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\ctp_single_worker_candidate.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\__init__.py" `
+-  "$candidate\implementation\backtrader_bridge\ctp_order_action_bridge.py" `
+-  "$candidate\implementation\tests\test_g5_single_worker_action_handoff.py" `
+-  "$candidate\implementation\tests\test_g5_unified_order_action_authority.py" `
+-  "$candidate\implementation\tests\test_g5_store_order_action_bridge.py"
+-python -m py_compile `
+-  "$candidate\implementation\sdk\src\bt_api_execution\store.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\ctp_identity_authority.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\ctp_single_worker_candidate.py" `
+-  "$candidate\implementation\sdk\src\bt_api_execution\__init__.py" `
+-  "$candidate\implementation\backtrader_bridge\ctp_order_action_bridge.py" `
+-  "$candidate\implementation\tests\test_g5_single_worker_action_handoff.py" `
+-  "$candidate\implementation\tests\test_g5_unified_order_action_authority.py" `
+-  "$candidate\implementation\tests\test_g5_store_order_action_bridge.py"
+-```
+-
+-For the frozen SDK comparison runs, set
+-`$env:PYTHONDONTWRITEBYTECODE='1'` and pass `-p no:cacheprovider` so test
+-execution does not touch archived interpreter caches. With the candidate
+-source first on `PYTHONPATH`, `inputs\sdk\tests` reports 53 passed / 4 failed
+-as listed above. With `inputs\sdk\src` first, the same 57 tests pass against
+-the untouched source baseline.
+-
+-Patch delta from the prior worker handoff candidate:
+-`implementation/sdk_patch/G5_TYPED_TARGET_PROJECTION_DURABLE_CONSUMER.patch`.
+-Application/hash evidence is `evidence/g5-projection-patch-apply-check.log`;
+-test and static-check logs are in `evidence/`. The output manifest records
+-hashes of the changed source, patch and logs; its own hash is excluded.
+-
+-## Blocking conditions and limits
+-
+-- **G5 is not accepted.** The trusted SDK target-projection producer and
+-  current-query readback port are missing, so the default verifier rejects.
+-- The candidate OrderRef and ActionRef seed values are caller assertions; no
+-  native `MaxOrderRef`/`MaxOrderActionRef` snapshot or account cutover proof is
+-  integrated.
+-- The ActionRef allocator here is distinct from V21's allocator and cannot be
+-  combined with it. Candidate Store schema 6 is not V21 schema 21.
+-- The query session label is not bound to OS process-generation/lifecycle
+-  ownership, and local monotonic expiry is not a trusted native query clock.
+-- No real SDK, session, account, provider, runner, default route or live write
+-  was exercised or authorized. No real order or cancel was accepted.
++- **G5 remains NOT ACCEPTED.** There is no trusted native target-projection producer or native query/readback port. The default V21-shaped verifier remains Reject; the test-only synthetic verifier proves persistence/readback mechanics only and is not native provenance.
++- Caller-supplied seed assertions remain non-authorizing. The isolated worker ActionRef allocator is its sole candidate allocator; V21 has a separate allocator beginning at 1. They must not be combined. There is no trusted `MaxOrderActionRef` snapshot/cutover.
++- `session_generation_id` does not prove OS process generation. The durable projection lacks a trusted current connection/process generation source. The prepared binding currently contains session generation and dispatch FrontID/SessionID, but no connection/process generations.
++- There is no trusted current-time authority. Store-local monotonic expiry is not enough to authorize a native call.
++- The existing Backtrader caller bridge/main-repository patch still reflects the R1 sender-taking API and is not adapted or integrated in this R2 slice. A mismatch fails closed with `TypeError`; no default route is changed.
++- There is no real SDK pin, account/session, network, native send, order, or cancel. R2 supplies a safe disabled boundary, not a G5 acceptance or trading authorization.
+diff --git a/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py b/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py
+--- a/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py
++++ b/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py
+@@ -1,20 +1,12 @@
+-"""Offline CTP single-worker handoff candidate for the G5 ActionRef seam.
+-
+-This is a fake-only adapter over the exact same ``SqliteExecutionStore`` and
+-``CtpUnifiedOrderActionAuthority`` used by the OrderRef/ActionRef candidate.
+-It has no provider imports, does not start a worker thread, and is not wired to
+-the SDK facade or a runtime registry.
+-
+-The worker keyword contract deliberately keeps ``cancel_target_projection``
+-and adds the typed ``action_identity``. A caller-supplied ActionRef is never
+-accepted in the logical request. The worker verifies the durable ActionRef,
+-stages the matching command, persists a separate local handoff receipt, then
+-claims the command before calling the injected fake sender. A claimed command
+-that loses its writer generation becomes UNKNOWN and is never replayed.
++"""Offline CTP worker handoff candidate for the G5 ActionRef seam.
++
++This isolated worker stages typed ActionRef identity into the same durable Store.
++Its only send port is code-owned and intentionally rejects: no reviewed/pinned
++SDK call, trusted time authority, or complete generation binding is available.
++No provider import, worker thread, runtime registry, session, or route is used.
+ """
+ from __future__ import annotations
+ 
+-import inspect
+ import json
+ import re
+ import time
+@@ -22,7 +14,7 @@
+ from dataclasses import dataclass
+ from hashlib import sha256
+ from types import MappingProxyType
+-from typing import Any, Literal, Protocol
++from typing import Any, Literal
+ 
+ from .contracts import ExecutionScope, canonical_json, payload_sha256
+ from .ctp_identity_authority import (
+@@ -282,25 +274,50 @@
+             raise ContractValidationError("invalid typed local queue receipt")
+ 
+ 
+-@dataclass(frozen=True, slots=True)
+-class CtpNativeDispatchResult:
+-    """Fake sender result; this is never a native provider acknowledgement."""
+-
+-    outcome: Literal["QUEUED", "REJECTED", "UNKNOWN"]
+-    receipt_payload: Mapping[str, Any]
+-
+-    def __post_init__(self) -> None:
+-        if self.outcome not in {"QUEUED", "REJECTED", "UNKNOWN"}:
+-            raise ContractValidationError("invalid fake CTP sender outcome")
+-        if not isinstance(self.receipt_payload, Mapping):
+-            raise ContractValidationError("fake CTP sender receipt must be a mapping")
+-
+-
+-class CtpNativeDispatchSender(Protocol):
+-    def __call__(
+-        self, command: CtpDispatchCommand
+-    ) -> CtpNativeDispatchResult:
+-        """Observe one already-claimed command in the SDK fake."""
++class _NativeSendUnavailable(Exception):
++    """The isolated candidate has no trusted SDK send-entry binding."""
++
++
++class _CtpSynchronousNativeSendPort:
++    """Code-owned fail-closed port; no callback or real SDK method is accepted.
++
++    This candidate has no reviewed SDK pin, trusted UTC source, or complete
++    session/connection/process generation authority. For cancels it still does
++    an exact durable same-Store target re-read at the port boundary, then
++    rejects before any native method could be entered.
++    """
++
++    def dispatch(
++        self,
++        store: SqliteExecutionStore,
++        scope: ExecutionScope,
++        command: CtpDispatchCommand,
++    ) -> None:
++        if type(store) is not SqliteExecutionStore or type(scope) is not ExecutionScope:
++            raise _NativeSendUnavailable("exact same-Store send binding is required")
++        if type(command) is not CtpDispatchCommand:
++            raise _NativeSendUnavailable("typed durable command is required")
++        if command.operation == "CANCEL":
++            # Re-read the consumed row at the synchronous port boundary. This
++            # uses Store-local monotonic time only; it is not trusted time.
++            try:
++                store.require_fresh_ctp_cancel_target_for_dispatch(scope, command.command_id)
++            except Exception:  # noqa: BLE001 - no verified same-Store readback
++                raise _NativeSendUnavailable("fresh target projection is unavailable") from None
++        binding = command.session_binding
++        required_generation_keys = (
++            "session_generation_id",
++            "connection_generation",
++            "process_generation",
++        )
++        if any(type(binding.get(key)) is not str or not binding.get(key)
++               for key in required_generation_keys[:1]):
++            raise _NativeSendUnavailable("session generation is unavailable")
++        if any(key not in binding for key in required_generation_keys[1:]):
++            raise _NativeSendUnavailable("connection/process generation is unavailable")
++        # No trusted time authority or reviewed/pinned native SDK binding is
++        # present in this candidate. Do not introduce an arbitrary callable.
++        raise _NativeSendUnavailable("trusted time and pinned SDK send port are unavailable")
+ 
+ 
+ @dataclass(frozen=True, slots=True)
+@@ -309,11 +326,11 @@
+ 
+     command: CtpDispatchCommand
+     worker_state: Literal["READY", "QUEUED", "REJECTED", "CLAIMED", "COMPLETED", "UNKNOWN"]
+-    sender_called: bool
++    native_call_entered: bool
+ 
+ 
+ class CtpManagedSingleWorkerCandidate:
+-    """Same-store fake worker with a strict typed ActionRef keyword contract."""
++    """Same-store offline worker with a strict typed ActionRef keyword contract."""
+ 
+     def __init__(
+         self,
+@@ -335,6 +352,9 @@
+         self._scope = scope
+         self._writer_lease = writer_lease
+         self._identity_authority = identity_authority
++        # The isolated candidate cannot safely send. This exact code-owned
++        # synchronous port intentionally has no caller-supplied sender hook.
++        self._native_send_port = _CtpSynchronousNativeSendPort()
+         with store._transaction() as cursor:
+             cursor.execute(
+                 """
+@@ -621,7 +641,7 @@
+         binding: CtpManagedDispatchBinding,
+         queue_receipt: CtpManagedQueueReceipt,
+     ) -> CtpManagedDispatchBinding:
+-        """Persist local receipt before any sender call; duplicates must echo."""
++        """Persist local receipt before the code-owned port; duplicates must echo."""
+ 
+         command, prepared, reservation, action = self._read_and_require_binding(
+             command_id, binding
+@@ -693,27 +713,26 @@
+         self,
+         command_id: str,
+         binding: CtpManagedDispatchBinding,
+-        sender: CtpNativeDispatchSender,
+     ) -> CtpWorkerDispatchResult:
+-        """Claim once, send to the injected fake, and make uncertainty terminal."""
++        """Claim once, then fail closed at the code-owned synchronous port.
++
++        No sender callable is accepted. Without a trusted projection producer,
++        trusted clock, complete session/connection/process generations, and a
++        reviewed SDK pin, the port durably rejects before native entry.
++        """
+ 
+         command, _prepared, _reservation, _action = self._read_and_require_binding(
+             command_id, binding
+         )
+-        if not callable(sender):
+-            raise ContractValidationError("one SDK fake sender is required")
+-        if inspect.iscoroutinefunction(sender) or inspect.iscoroutinefunction(
+-            getattr(sender, "__call__", None)
+-        ):
+-            raise ContractValidationError(
+-                "awaitable SDK sender is unsupported without a send-entry fence"
+-            )
+         handoff = self._read_handoff(command)
+         state = str(handoff["state"])
+         if command.status == "UNKNOWN":
+             self._set_state(command_id, "UNKNOWN")
+             return CtpWorkerDispatchResult(command, "UNKNOWN", False)
+         if command.status == "COMPLETED":
++            if state == "REJECTED":
++                self._set_state(command_id, "REJECTED")
++                return CtpWorkerDispatchResult(command, "REJECTED", False)
+             self._set_state(command_id, "COMPLETED")
+             return CtpWorkerDispatchResult(command, "COMPLETED", False)
+         if state in {"REJECTED", "UNKNOWN", "COMPLETED", "CLAIMED"}:
+@@ -734,51 +753,28 @@
+                     self._set_state(command_id, current_state)
+                 return CtpWorkerDispatchResult(latest, current_state, False)
+             raise InvalidStateTransition("worker could not claim staged command")
+-        # A crash after the SQLite claim but before this marker is still safe:
+-        # recovery fences the Store row to UNKNOWN, and no sender was called.
++        # A crash after the SQLite claim is fenced to UNKNOWN on restart.
+         self._set_state(command_id, "CLAIMED", from_states={"QUEUED"})
+-        if claimed.operation == "CANCEL":
+-            try:
+-                self._store.require_fresh_ctp_cancel_target_for_dispatch(
+-                    self._scope, command_id
+-                )
+-            except Exception:  # noqa: BLE001 - fail closed after the durable claim
+-                completed = self._complete_receipt(
+-                    claimed, "UNKNOWN", "target_projection_expired_before_sender"
+-                )
+-                self._set_state(command_id, "UNKNOWN", from_states={"CLAIMED"})
+-                return CtpWorkerDispatchResult(completed, "UNKNOWN", False)
+-        outcome = "UNKNOWN"
+         try:
+-            result = sender(claimed)
+-            if inspect.isawaitable(result):
+-                close = getattr(result, "close", None)
+-                if callable(close):
+-                    close()
+-                raise ContractValidationError(
+-                    "awaitable SDK sender is unsupported without a send-entry fence"
+-                )
+-            if type(result) is not CtpNativeDispatchResult:
+-                raise ContractValidationError("SDK fake returned an untyped dispatch receipt")
+-            if result.outcome == "QUEUED":
+-                outcome = "QUEUED"
+-                # Validate, then discard arbitrary sender data. The durable
+-                # receipt stores only the fixed local outcome marker below.
+-                self._safe_receipt_payload(result.receipt_payload)
+-            else:
+-                # Sender rejection after the claim cannot prove zero native send.
+-                outcome = "UNKNOWN"
+-        except Exception:  # noqa: BLE001 - after claim, sender errors are ambiguous
+-            # Do not persist exception text: it may contain sensitive details.
++            self._native_send_port.dispatch(self._store, self._scope, claimed)
++            # The current code-owned port always rejects. Reaching this line
++            # would mean a future port silently fell through without a receipt.
++            raise _NativeSendUnavailable("native port did not authorize an entry")
++        except _NativeSendUnavailable:
++            completed = self._complete_receipt(
++                claimed, "REJECTED", "native_send_port_unavailable"
++            )
++            self._set_state(command_id, "REJECTED", from_states={"CLAIMED"})
++            return CtpWorkerDispatchResult(completed, "REJECTED", False)
++        except Exception:  # noqa: BLE001 - after port entry, preserve no-replay ambiguity
+             outcome = "UNKNOWN"
+-        self._complete_receipt(claimed, outcome, "sdk_fake_dispatch")
++        self._complete_receipt(claimed, outcome, "native_sdk_dispatch")
+         state_after = "UNKNOWN" if outcome == "UNKNOWN" else "COMPLETED"
+         self._set_state(command_id, state_after, from_states={"CLAIMED"})
+         completed = self._store.read_ctp_dispatch_command(self._scope, command_id)
+         if completed is None:
+-            raise ContractValidationError("durable command disappeared after sender receipt")
+-        return CtpWorkerDispatchResult(completed, state_after, True)
+-
++            raise ContractValidationError("durable command disappeared after native receipt")
++        return CtpWorkerDispatchResult(completed, state_after, outcome == "QUEUED")
+     def recover_claimed_after_restart(self) -> tuple[CtpDispatchCommand, ...]:
+         """Convert old-generation claims into UNKNOWN and prohibit replay."""
+ 
+@@ -1012,8 +1008,6 @@
+     "CtpManagedPreparedDispatch",
+     "CtpManagedQueueReceipt",
+     "CtpManagedSingleWorkerCandidate",
+-    "CtpNativeDispatchResult",
+-    "CtpNativeDispatchSender",
+     "CtpWorkerDispatchResult",
+     "stable_managed_command_id",
+ ]
+diff --git a/implementation/tests/test_g5_single_worker_action_handoff.py b/implementation/tests/test_g5_single_worker_action_handoff.py
+deleted file mode 100644
+--- a/implementation/tests/test_g5_single_worker_action_handoff.py
++++ /dev/null
+@@ -1,715 +0,0 @@
+-from __future__ import annotations
+-
+-import inspect
+-import json
+-from dataclasses import dataclass, replace
+-from hashlib import sha256
+-from itertools import count
+-
+-import pytest
+-from bt_api_execution import (
+-    CtpCancelTarget,
+-    CtpOrderRefSeedProof,
+-    CtpOrderTargetProjectionHandle,
+-    CtpVerifiedOrderTargetProjection,
+-    ExecutionScope,
+-    SqliteExecutionStore,
+-)
+-from bt_api_execution.ctp_identity_authority import (
+-    CtpActionRefSeedProof,
+-    CtpUnifiedOrderActionAuthority,
+-)
+-from bt_api_execution.ctp_single_worker_candidate import (
+-    CtpManagedPreparedDispatch,
+-    CtpManagedQueueReceipt,
+-    CtpManagedSingleWorkerCandidate,
+-    CtpNativeDispatchResult,
+-    stable_managed_command_id,
+-)
+-from bt_api_execution.errors import ContractValidationError, DurableStoreError
+-
+-
+-@dataclass(frozen=True)
+-class _SyntheticNativeOrderQueryEvidence:
+-    """Test-only opaque stand-in; this is not evidence from a native SDK query."""
+-
+-    instrument_id: str
+-    exchange_id: str
+-    order_sys_id: str
+-    session_generation_id: str
+-    query_front_id: int
+-    query_session_id: int
+-    query_request_id: int
+-    front_id: int
+-    session_id: int
+-    provider_state: str = "OPEN"
+-    quantity: int = 1
+-    traded_quantity: int = 0
+-
+-
+-class _SyntheticOrderQueryVerifier:
+-    """Test-only fake verifier used to exercise the durable consumer contract."""
+-
+-    def verify_order_target(self, scope, reservation, evidence, *, now_ns):
+-        if type(evidence) is not _SyntheticNativeOrderQueryEvidence:
+-            raise ContractValidationError("synthetic typed query evidence required")
+-        return CtpVerifiedOrderTargetProjection(
+-            account_key=reservation.account_key,
+-            scope_key=reservation.scope_key,
+-            trading_day=reservation.trading_day,
+-            managed_intent_id=reservation.managed_intent_id,
+-            runtime_order_id=reservation.runtime_order_id,
+-            order_ref=reservation.order_ref,
+-            account_fingerprint_sha256=sha256(b"synthetic account fingerprint").hexdigest(),
+-            registration_digest=sha256(b"synthetic registration").hexdigest(),
+-            instrument_id=evidence.instrument_id,
+-            exchange_id=evidence.exchange_id,
+-            session_generation_id=evidence.session_generation_id,
+-            connection_generation=1,
+-            query_front_id=evidence.query_front_id,
+-            query_session_id=evidence.query_session_id,
+-            query_request_id=evidence.query_request_id,
+-            query_filters_sha256=sha256(b"synthetic query filters").hexdigest(),
+-            query_records_sha256=sha256(b"synthetic query records").hexdigest(),
+-            source_evidence_sha256=sha256(b"synthetic source evidence").hexdigest(),
+-            query_record_count=1,
+-            query_match_count=1,
+-            query_complete=True,
+-            query_terminal=True,
+-            query_timed_out=False,
+-            query_error_id=0,
+-            late_callback_count=0,
+-            order_sys_id=evidence.order_sys_id,
+-            front_id=evidence.front_id,
+-            session_id=evidence.session_id,
+-            provider_state=evidence.provider_state,
+-            quantity=evidence.quantity,
+-            traded_quantity=evidence.traded_quantity,
+-            remaining_quantity=evidence.quantity - evidence.traded_quantity,
+-            verifier_id="test-only.synthetic-order-query-verifier",
+-            verified_at_ns=now_ns,
+-            expires_at_ns=now_ns + 5_000_000_000,
+-        )
+-
+-
+-_QUERY_REQUEST_IDS = count(11)
+-
+-
+-def _scope() -> ExecutionScope:
+-    return ExecutionScope("CTP", "simulation", "g5-worker", "strategy.worker", "20260927")
+-
+-
+-def _runtime_id(value: str) -> str:
+-    return "bt-managed-v1:" + sha256(value.encode("ascii")).hexdigest()
+-
+-
+-def _open(path, owner: str = "worker-owner"):
+-    store = SqliteExecutionStore(path)
+-    authority = CtpUnifiedOrderActionAuthority(store)
+-    scope = _scope()
+-    lease = store.acquire_or_renew_lease(scope, owner, ttl_ns=120_000_000_000)
+-
+-    return store, authority, scope, lease
+-
+-
+-def _seed_order(authority, scope, lease):
+-    return authority.reserve_submit_order_identity(
+-        scope,
+-        CtpOrderRefSeedProof(
+-            "20260927",
+-            "000000000010",
+-            "000000000012",
+-            sha256(b"synthetic order seed").hexdigest(),
+-        ),
+-        "worker-intent",
+-        _runtime_id("worker-intent"),
+-        writer_lease=lease,
+-    )
+-
+-
+-def _prepared(order):
+-    target = CtpCancelTarget(order.order_ref, "SHFE", "SYS-WORKER", 17, 29)
+-    payload = {
+-        "InstrumentID": "rb2710",
+-        "OrderRef": target.order_ref,
+-        "ExchangeID": target.exchange_id,
+-        "OrderSysID": target.order_sys_id,
+-        "FrontID": target.front_id,
+-        "SessionID": target.session_id,
+-        "ActionFlag": "0",
+-        "LimitPrice": 0.0,
+-        "VolumeChange": 0,
+-    }
+-    action_id = "cancel-worker"
+-    return CtpManagedPreparedDispatch(
+-        operation="cancel",
+-        command_id=stable_managed_command_id(
+-            "cancel", "worker-intent", order.runtime_order_id, action_id
+-        ),
+-        managed_intent_id="worker-intent",
+-        runtime_order_id=order.runtime_order_id,
+-        order_ref=order.order_ref,
+-        request_payload=payload,
+-        order_ref_reservation=order,
+-        approval_use_id="approval-worker",
+-        approval_digest=sha256(b"synthetic approval").hexdigest(),
+-        session_binding={
+-            "session_generation_id": "generation-1",
+-            "dispatch_front_id": 17,
+-            "dispatch_session_id": 29,
+-        },
+-        session_generation_id="generation-1",
+-        dispatch_front_id=17,
+-        dispatch_session_id=29,
+-        native_request_id=5,
+-        local_queue_receipt_id="0123456789abcdef0123456789abcdef",
+-        managed_cancel_intent_id=action_id,
+-        cancel_target_exchange_id=target.exchange_id,
+-        cancel_target_order_sys_id=target.order_sys_id,
+-        cancel_target_front_id=target.front_id,
+-        cancel_target_session_id=target.session_id,
+-    )
+-
+-
+-def _prepared_submit(order):
+-    return CtpManagedPreparedDispatch(
+-        operation="submit",
+-        command_id=stable_managed_command_id(
+-            "submit", "worker-intent", order.runtime_order_id
+-        ),
+-        managed_intent_id="worker-intent",
+-        runtime_order_id=order.runtime_order_id,
+-        order_ref=order.order_ref,
+-        request_payload={"InstrumentID": "rb2710", "OrderRef": order.order_ref},
+-        order_ref_reservation=order,
+-        approval_use_id="approval-submit-worker",
+-        approval_digest=sha256(b"synthetic submit approval").hexdigest(),
+-        session_binding={
+-            "session_generation_id": "generation-1",
+-            "dispatch_front_id": 17,
+-            "dispatch_session_id": 29,
+-        },
+-        session_generation_id="generation-1",
+-        dispatch_front_id=17,
+-        dispatch_session_id=29,
+-        native_request_id=6,
+-        local_queue_receipt_id="1123456789abcdef0123456789abcdef",
+-    )
+-
+-
+-def _reserve_action(authority, scope, lease, order):
+-    return authority.reserve_cancel_action_identity(
+-        scope,
+-        "cancel-worker",
+-        "worker-intent",
+-        order.runtime_order_id,
+-        order.order_ref,
+-        legacy_seed=CtpActionRefSeedProof(
+-            "20260927", 41, sha256(b"synthetic action seed").hexdigest()
+-        ),
+-        writer_lease=lease,
+-    )
+-
+-
+-def _queue(binding, command):
+-    return CtpManagedQueueReceipt(
+-        command_id=command.command_id,
+-        request_payload_sha256=command.request_payload_sha256,
+-        operation=command.operation,
+-        receipt_id=binding.local_queue_receipt_id,
+-        queued=True,
+-    )
+-
+-
+-def _target_projection(store, order, prepared, *, exchange_id=None):
+-    evidence = _SyntheticNativeOrderQueryEvidence(
+-        instrument_id=prepared.request_payload["InstrumentID"],
+-        exchange_id=exchange_id or prepared.cancel_target_exchange_id,
+-        order_sys_id=prepared.cancel_target_order_sys_id,
+-        session_generation_id=prepared.session_generation_id,
+-        query_front_id=prepared.dispatch_front_id,
+-        query_session_id=prepared.dispatch_session_id,
+-        query_request_id=next(_QUERY_REQUEST_IDS),
+-        front_id=prepared.cancel_target_front_id,
+-        session_id=prepared.cancel_target_session_id,
+-    )
+-    return store.issue_ctp_order_target_projection(
+-        _scope(), order.managed_intent_id, evidence, verifier=_SyntheticOrderQueryVerifier()
+-    )
+-
+-
+-def test_action_identity_is_typed_staged_and_echoed_through_worker_to_sdk_fake(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "worker.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-
+-        signature = inspect.signature(worker.stage_prepared_dispatch)
+-        assert "cancel_target_projection" in signature.parameters
+-        assert "action_identity" in signature.parameters
+-        projection_handle = _target_projection(store, order, prepared)
+-        assert type(projection_handle) is CtpOrderTargetProjectionHandle
+-        projection_row = store._connection.execute(
+-            "SELECT projection_payload_json, projection_sha256 FROM ctp_order_target_projections "
+-            "WHERE account_key = ? AND projection_id = ?",
+-            (scope.account_key, projection_handle.projection_id),
+-        ).fetchone()
+-        assert projection_row is not None
+-        assert json.loads(projection_row["projection_payload_json"]) == (
+-            projection_handle.projection.to_payload()
+-        )
+-        assert projection_row["projection_sha256"] == projection_handle.projection_sha256
+-        binding = worker.stage_prepared_dispatch(
+-            prepared,
+-            cancel_target_projection=projection_handle,
+-            action_identity=action,
+-        )
+-        staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert staged is not None
+-        assert staged.request_payload["OrderActionRef"] == action.native_action_ref
+-        assert staged.request_payload["OrderRef"] == order.order_ref
+-        assert staged.request_payload_sha256 == sha256(
+-            json.dumps(
+-                dict(staged.request_payload),
+-                sort_keys=True,
+-                separators=(",", ":"),
+-                ensure_ascii=True,
+-                allow_nan=False,
+-            ).encode("ascii")
+-        ).hexdigest()
+-        assert binding.native_action_ref == action.native_action_ref
+-        assert binding.native_request_payload["OrderActionRef"] == action.native_action_ref
+-        handoff = store._connection.execute(
+-            "SELECT action_identity_json, action_ref, state FROM g5_ctp_worker_handoffs "
+-            "WHERE account_key = ? AND command_id = ?",
+-            (scope.account_key, prepared.command_id),
+-        ).fetchone()
+-        assert json.loads(handoff["action_identity_json"])["native_action_ref"] == (
+-            action.native_action_ref
+-        )
+-        assert handoff["action_ref"] == action.native_action_ref
+-        assert handoff["state"] == "STAGED"
+-        consumption = store._connection.execute(
+-            "SELECT projection_id, command_id FROM ctp_order_target_projection_consumptions "
+-            "WHERE account_key = ? AND command_id = ?",
+-            (scope.account_key, prepared.command_id),
+-        ).fetchone()
+-        assert consumption["projection_id"] == projection_handle.projection_id
+-
+-        queued_binding = worker.record_managed_queue_receipt(
+-            prepared.command_id, binding, _queue(binding, staged)
+-        )
+-        seen = []
+-
+-        def sdk_fake(command):
+-            seen.append(dict(command.request_payload))
+-            return CtpNativeDispatchResult(
+-                "QUEUED", {"queue_code": 0, "provider_ack": False}
+-            )
+-
+-        result = worker.dispatch_managed_command(
+-            prepared.command_id, queued_binding, sdk_fake
+-        )
+-        assert result.worker_state == "COMPLETED"
+-        assert result.sender_called is True
+-        assert seen == [dict(staged.request_payload)]
+-        assert seen[0]["OrderActionRef"] == action.native_action_ref
+-        assert result.command.native_receipt_payload == {
+-            "kind": "sdk_fake_dispatch",
+-            "outcome": "QUEUED",
+-        }
+-        assert "provider_ack" not in result.command.native_receipt_payload
+-        assert worker.dispatch_managed_command(
+-            prepared.command_id, queued_binding, sdk_fake
+-        ).sender_called is False
+-        assert len(seen) == 1
+-    finally:
+-        store.close()
+-
+-
+-def test_submit_keeps_one_argument_worker_call_and_has_no_action_identity(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "submit-one-argument.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        prepared = _prepared_submit(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-        binding = worker.stage_prepared_dispatch(prepared)
+-        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert command is not None
+-        assert command.operation == "SUBMIT"
+-        assert command.request_payload == dict(prepared.request_payload)
+-        assert "OrderActionRef" not in command.request_payload
+-        assert binding.native_action_ref is None
+-        row = store._connection.execute(
+-            "SELECT action_identity_json, action_ref FROM g5_ctp_worker_handoffs "
+-            "WHERE account_key = ? AND command_id = ?",
+-            (scope.account_key, prepared.command_id),
+-        ).fetchone()
+-        assert row["action_identity_json"] is None
+-        assert row["action_ref"] is None
+-    finally:
+-        store.close()
+-
+-
+-def test_reserved_action_without_stage_is_retryable_only_as_same_identity(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "reserved-before-stage.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-        with pytest.raises(ContractValidationError, match="typed Store-issued ActionRef"):
+-            worker.stage_prepared_dispatch(
+-                prepared,
+-                cancel_target_projection=_target_projection(store, order, prepared),
+-                action_identity=None,
+-            )
+-        assert store.read_ctp_dispatch_command(scope, prepared.command_id) is None
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM g5_ctp_worker_handoffs"
+-        ).fetchone()[0] == 0
+-
+-        current_action = authority.read_cancel_action_identity(scope, action.managed_action_id)
+-        assert current_action == action
+-        binding = worker.stage_prepared_dispatch(
+-            prepared,
+-            cancel_target_projection=_target_projection(store, order, prepared),
+-            action_identity=current_action,
+-        )
+-        staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert staged is not None and staged.status == "READY"
+-        assert staged.request_payload["OrderActionRef"] == action.native_action_ref
+-        assert binding.native_action_ref == action.native_action_ref
+-    finally:
+-        store.close()
+-
+-
+-def test_cancel_target_requires_exact_fields_and_same_store_handle_readback(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "target-projection.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-
+-        issued = _target_projection(store, order, prepared)
+-        forged = replace(issued)
+-        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
+-            worker.stage_prepared_dispatch(
+-                prepared,
+-                cancel_target_projection=forged,
+-                action_identity=action,
+-            )
+-        assert store.read_ctp_dispatch_command(scope, prepared.command_id) is None
+-
+-        wrong_target = _target_projection(store, order, prepared, exchange_id="DCE")
+-        with pytest.raises(ContractValidationError, match="projection differs: exchange_id"):
+-            worker.stage_prepared_dispatch(
+-                prepared,
+-                cancel_target_projection=wrong_target,
+-                action_identity=action,
+-            )
+-        assert store.read_ctp_dispatch_command(scope, prepared.command_id) is None
+-    finally:
+-        store.close()
+-
+-
+-def test_default_target_verifier_rejects_caller_mapping_and_persists_nothing(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "reject-untrusted-query.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        with pytest.raises(ContractValidationError, match="query verification failed"):
+-            store.issue_ctp_order_target_projection(
+-                scope,
+-                order.managed_intent_id,
+-                {"OrderRef": order.order_ref, "OrderStatus": "OPEN"},
+-            )
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_order_target_projections"
+-        ).fetchone()[0] == 0
+-    finally:
+-        store.close()
+-
+-
+-def test_store_rejects_cancel_action_ref_without_candidate_authority_row(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "reject-unissued-action-ref.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        prepared = _prepared(order)
+-        handle = _target_projection(store, order, prepared)
+-        target = CtpCancelTarget(
+-            order.order_ref,
+-            prepared.cancel_target_exchange_id,
+-            prepared.cancel_target_order_sys_id,
+-            prepared.cancel_target_front_id,
+-            prepared.cancel_target_session_id,
+-        )
+-        with pytest.raises(
+-            ContractValidationError,
+-            match="not issued by the candidate same-Store authority",
+-        ):
+-            store.stage_ctp_dispatch_command(
+-                scope,
+-                "cancel-with-unissued-ref",
+-                "CANCEL",
+-                {**dict(prepared.request_payload), "OrderActionRef": 2_147_000_000},
+-                approval_use_id="approval-unissued-ref",
+-                approval_digest=sha256(b"test approval").hexdigest(),
+-                session_binding=dict(prepared.session_binding),
+-                writer_lease=lease,
+-                cancel_target=target,
+-                cancel_target_projection=handle,
+-            )
+-        assert store.read_ctp_dispatch_command(scope, "cancel-with-unissued-ref") is None
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_order_target_projection_consumptions"
+-        ).fetchone()[0] == 0
+-    finally:
+-        store.close()
+-
+-
+-def test_projection_row_tamper_fails_hash_and_reopen_does_not_revive_handle(tmp_path):
+-    path = tmp_path / "projection-reopen.sqlite3"
+-    store, authority, scope, lease = _open(path)
+-    order = _seed_order(authority, scope, lease)
+-    prepared = _prepared(order)
+-    handle = _target_projection(store, order, prepared)
+-    assert store.read_ctp_order_target_projection(scope, handle) == handle.projection
+-    with pytest.raises(DurableStoreError, match="transaction failed"):
+-        with store._transaction() as cursor:
+-            cursor.execute(
+-                "UPDATE ctp_order_target_projections SET projection_payload_json = ? "
+-                "WHERE account_key = ? AND projection_id = ?",
+-                ("{}", scope.account_key, handle.projection_id),
+-            )
+-    # Exercise the reader's hash/schema defense after simulating out-of-band
+-    # schema-owner tampering that bypasses the immutability trigger.
+-    store._connection.execute("DROP TRIGGER ctp_order_target_projections_immutable_update")
+-    with store._transaction() as cursor:
+-        cursor.execute(
+-            "UPDATE ctp_order_target_projections SET projection_payload_json = ? "
+-            "WHERE account_key = ? AND projection_id = ?",
+-            ("{}", scope.account_key, handle.projection_id),
+-        )
+-    with pytest.raises(ContractValidationError, match="projection payload is invalid"):
+-        store.read_ctp_order_target_projection(scope, handle)
+-    store.close()
+-
+-    reopened = SqliteExecutionStore(path)
+-    scope2 = _scope()
+-    try:
+-        assert reopened._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_order_target_projections WHERE account_key = ?",
+-            (scope2.account_key,),
+-        ).fetchone()[0] == 1
+-        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
+-            reopened.read_ctp_order_target_projection(scope2, handle)
+-    finally:
+-        reopened.close()
+-
+-
+-def test_projection_expiry_after_claim_blocks_sender_and_fences_unknown(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "expires-before-send.sqlite3")
+-    try:
+-        clock = {"now": 1_000_000_000}
+-        store._monotonic_now_ns = lambda: clock["now"]
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-        handle = _target_projection(store, order, prepared)
+-        expires_at_ns = handle.projection.expires_at_ns
+-        binding = worker.stage_prepared_dispatch(
+-            prepared, cancel_target_projection=handle, action_identity=action
+-        )
+-        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert command is not None
+-        binding = worker.record_managed_queue_receipt(
+-            prepared.command_id, binding, _queue(binding, command)
+-        )
+-
+-        set_state = worker._set_state
+-
+-        def expire_after_claim(command_id, state, *, from_states=None):
+-            result = set_state(command_id, state, from_states=from_states)
+-            if state == "CLAIMED":
+-                clock["now"] = expires_at_ns
+-            return result
+-
+-        worker._set_state = expire_after_claim
+-        sender_calls = []
+-        result = worker.dispatch_managed_command(
+-            prepared.command_id, binding, lambda value: sender_calls.append(value)
+-        )
+-        assert result.worker_state == "UNKNOWN"
+-        assert result.sender_called is False
+-        assert result.command.status == "UNKNOWN"
+-        assert sender_calls == []
+-        retry = worker.dispatch_managed_command(
+-            prepared.command_id, binding, lambda value: sender_calls.append(value)
+-        )
+-        assert retry.worker_state == "UNKNOWN"
+-        assert retry.sender_called is False
+-        assert sender_calls == []
+-    finally:
+-        store.close()
+-
+-
+-def test_awaitable_sender_is_rejected_before_claim_and_not_entered(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "awaitable-sender-rejected.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-        binding = worker.stage_prepared_dispatch(
+-            prepared,
+-            cancel_target_projection=_target_projection(store, order, prepared),
+-            action_identity=action,
+-        )
+-        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert command is not None
+-        binding = worker.record_managed_queue_receipt(
+-            prepared.command_id, binding, _queue(binding, command)
+-        )
+-        sender_calls = []
+-
+-        async def delayed_sender(value):
+-            sender_calls.append(value)
+-            return CtpNativeDispatchResult("QUEUED", {"queued": True})
+-
+-        with pytest.raises(ContractValidationError, match="awaitable SDK sender is unsupported"):
+-            worker.dispatch_managed_command(prepared.command_id, binding, delayed_sender)
+-        assert sender_calls == []
+-        persisted = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert persisted is not None and persisted.status == "READY"
+-    finally:
+-        store.close()
+-
+-
+-def test_uncertain_sender_receipt_is_unknown_and_never_replayed_after_reopen(tmp_path):
+-    path = tmp_path / "uncertain.sqlite3"
+-    store, authority, scope, lease = _open(path)
+-    order = _seed_order(authority, scope, lease)
+-    action = _reserve_action(authority, scope, lease, order)
+-    prepared = _prepared(order)
+-    worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-    binding = worker.stage_prepared_dispatch(
+-        prepared,
+-        cancel_target_projection=_target_projection(store, order, prepared),
+-        action_identity=action,
+-    )
+-    command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-    assert command is not None
+-    binding = worker.record_managed_queue_receipt(
+-        prepared.command_id, binding, _queue(binding, command)
+-    )
+-    sender_calls = []
+-
+-    def uncertain_send(_command):
+-        sender_calls.append("possibly sent")
+-        raise TimeoutError("fake SDK lost its local receipt")
+-
+-    try:
+-        first = worker.dispatch_managed_command(prepared.command_id, binding, uncertain_send)
+-        assert first.worker_state == "UNKNOWN"
+-        assert first.sender_called is True
+-        assert first.command.status == "UNKNOWN"
+-        assert sender_calls == ["possibly sent"]
+-        assert store.release_lease(scope, lease.owner_id, fencing_token=lease.fencing_token)
+-    finally:
+-        store.close()
+-
+-    reopened, authority2, scope2, lease2 = _open(path, "worker-restarted")
+-    try:
+-        worker2 = CtpManagedSingleWorkerCandidate(reopened, scope2, lease2, authority2)
+-        persisted = reopened.read_ctp_dispatch_command(scope2, prepared.command_id)
+-        assert persisted is not None and persisted.status == "UNKNOWN"
+-        second = worker2.dispatch_managed_command(
+-            prepared.command_id, binding, lambda command: sender_calls.append("replayed")
+-        )
+-        assert second.worker_state == "UNKNOWN"
+-        assert second.sender_called is False
+-        assert sender_calls == ["possibly sent"]
+-    finally:
+-        reopened.close()
+-
+-
+-def test_claimed_crash_recovers_to_unknown_before_new_worker_can_send(tmp_path):
+-    path = tmp_path / "crash-after-claim.sqlite3"
+-    store, authority, scope, lease = _open(path)
+-    order = _seed_order(authority, scope, lease)
+-    action = _reserve_action(authority, scope, lease, order)
+-    prepared = _prepared(order)
+-    worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-    binding = worker.stage_prepared_dispatch(
+-        prepared,
+-        cancel_target_projection=_target_projection(store, order, prepared),
+-        action_identity=action,
+-    )
+-    command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-    assert command is not None
+-    binding = worker.record_managed_queue_receipt(
+-        prepared.command_id, binding, _queue(binding, command)
+-    )
+-    claimed = store.claim_ctp_dispatch_command(scope, prepared.command_id, writer_lease=lease)
+-    assert claimed is not None and claimed.status == "CLAIMED"
+-    # This models process death after the durable claim but before sender entry.
+-    assert store.release_lease(scope, lease.owner_id, fencing_token=lease.fencing_token)
+-    store.close()
+-
+-    reopened, authority2, scope2, lease2 = _open(path, "worker-restarted")
+-    try:
+-        worker2 = CtpManagedSingleWorkerCandidate(reopened, scope2, lease2, authority2)
+-        recovered = worker2.recover_claimed_after_restart()
+-        assert len(recovered) == 1
+-        assert recovered[0].command_id == prepared.command_id
+-        assert recovered[0].status == "UNKNOWN"
+-        calls = []
+-        result = worker2.dispatch_managed_command(
+-            prepared.command_id,
+-            binding,
+-            lambda value: calls.append(value),
+-        )
+-        assert result.worker_state == "UNKNOWN"
+-        assert result.sender_called is False
+-        assert calls == []
+-    finally:
+-        reopened.close()
+-
+-
+-def test_queue_receipt_write_failure_keeps_sender_unentered(tmp_path):
+-    store, authority, scope, lease = _open(tmp_path / "receipt-failure.sqlite3")
+-    try:
+-        order = _seed_order(authority, scope, lease)
+-        action = _reserve_action(authority, scope, lease, order)
+-        prepared = _prepared(order)
+-        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
+-        binding = worker.stage_prepared_dispatch(
+-            prepared,
+-            cancel_target_projection=_target_projection(store, order, prepared),
+-            action_identity=action,
+-        )
+-        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert command is not None
+-        store._connection.execute(
+-            """CREATE TRIGGER reject_g5_queue_receipt
+-               BEFORE UPDATE OF queue_receipt_json ON g5_ctp_worker_handoffs
+-               BEGIN SELECT RAISE(ABORT, 'receipt persistence rejected'); END"""
+-        )
+-        with pytest.raises(DurableStoreError, match="transaction failed"):
+-            worker.record_managed_queue_receipt(
+-                prepared.command_id, binding, _queue(binding, command)
+-            )
+-        calls = []
+-        with pytest.raises(ContractValidationError, match="not durably accepted"):
+-            worker.dispatch_managed_command(
+-                prepared.command_id, binding, lambda value: calls.append(value)
+-            )
+-        assert calls == []
+-        durable = store.read_ctp_dispatch_command(scope, prepared.command_id)
+-        assert durable is not None and durable.status == "READY"
+-    finally:
+-        store.close()
+diff --git a/implementation/tests/_g5_worker_test_support.py b/implementation/tests/_g5_worker_test_support.py
+new file mode 100644
+--- /dev/null
++++ b/implementation/tests/_g5_worker_test_support.py
+@@ -0,0 +1,236 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from hashlib import sha256
++from itertools import count
++
++from bt_api_execution import (
++    CtpCancelTarget,
++    CtpOrderRefSeedProof,
++    CtpVerifiedOrderTargetProjection,
++    ExecutionScope,
++    SqliteExecutionStore,
++)
++from bt_api_execution.ctp_identity_authority import (
++    CtpActionRefSeedProof,
++    CtpUnifiedOrderActionAuthority,
++)
++from bt_api_execution.ctp_single_worker_candidate import (
++    CtpManagedPreparedDispatch,
++    CtpManagedQueueReceipt,
++    stable_managed_command_id,
++)
++from bt_api_execution.errors import ContractValidationError
++
++
++@dataclass(frozen=True)
++class _SyntheticNativeOrderQueryEvidence:
++    """Test-only opaque stand-in; this is not evidence from a native SDK query."""
++
++    instrument_id: str
++    exchange_id: str
++    order_sys_id: str
++    session_generation_id: str
++    query_front_id: int
++    query_session_id: int
++    query_request_id: int
++    front_id: int
++    session_id: int
++    provider_state: str = "OPEN"
++    quantity: int = 1
++    traded_quantity: int = 0
++
++
++class _SyntheticOrderQueryVerifier:
++    """Test-only fake verifier used to exercise the durable consumer contract."""
++
++    def verify_order_target(self, scope, reservation, evidence, *, now_ns):
++        if type(evidence) is not _SyntheticNativeOrderQueryEvidence:
++            raise ContractValidationError("synthetic typed query evidence required")
++        return CtpVerifiedOrderTargetProjection(
++            account_key=reservation.account_key,
++            scope_key=reservation.scope_key,
++            trading_day=reservation.trading_day,
++            managed_intent_id=reservation.managed_intent_id,
++            runtime_order_id=reservation.runtime_order_id,
++            order_ref=reservation.order_ref,
++            account_fingerprint_sha256=sha256(b"synthetic account fingerprint").hexdigest(),
++            registration_digest=sha256(b"synthetic registration").hexdigest(),
++            instrument_id=evidence.instrument_id,
++            exchange_id=evidence.exchange_id,
++            session_generation_id=evidence.session_generation_id,
++            connection_generation=1,
++            query_front_id=evidence.query_front_id,
++            query_session_id=evidence.query_session_id,
++            query_request_id=evidence.query_request_id,
++            query_filters_sha256=sha256(b"synthetic query filters").hexdigest(),
++            query_records_sha256=sha256(b"synthetic query records").hexdigest(),
++            source_evidence_sha256=sha256(b"synthetic source evidence").hexdigest(),
++            query_record_count=1,
++            query_match_count=1,
++            query_complete=True,
++            query_terminal=True,
++            query_timed_out=False,
++            query_error_id=0,
++            late_callback_count=0,
++            order_sys_id=evidence.order_sys_id,
++            front_id=evidence.front_id,
++            session_id=evidence.session_id,
++            provider_state=evidence.provider_state,
++            quantity=evidence.quantity,
++            traded_quantity=evidence.traded_quantity,
++            remaining_quantity=evidence.quantity - evidence.traded_quantity,
++            verifier_id="test-only.synthetic-order-query-verifier",
++            verified_at_ns=now_ns,
++            expires_at_ns=now_ns + 5_000_000_000,
++        )
++
++
++_QUERY_REQUEST_IDS = count(11)
++
++
++def _scope() -> ExecutionScope:
++    return ExecutionScope("CTP", "simulation", "g5-worker", "strategy.worker", "20260927")
++
++
++def _runtime_id(value: str) -> str:
++    return "bt-managed-v1:" + sha256(value.encode("ascii")).hexdigest()
++
++
++def _open(path, owner: str = "worker-owner"):
++    store = SqliteExecutionStore(path)
++    authority = CtpUnifiedOrderActionAuthority(store)
++    scope = _scope()
++    lease = store.acquire_or_renew_lease(scope, owner, ttl_ns=120_000_000_000)
++
++    return store, authority, scope, lease
++
++
++def _seed_order(authority, scope, lease):
++    return authority.reserve_submit_order_identity(
++        scope,
++        CtpOrderRefSeedProof(
++            "20260927",
++            "000000000010",
++            "000000000012",
++            sha256(b"synthetic order seed").hexdigest(),
++        ),
++        "worker-intent",
++        _runtime_id("worker-intent"),
++        writer_lease=lease,
++    )
++
++
++def _prepared(order):
++    target = CtpCancelTarget(order.order_ref, "SHFE", "SYS-WORKER", 17, 29)
++    payload = {
++        "InstrumentID": "rb2710",
++        "OrderRef": target.order_ref,
++        "ExchangeID": target.exchange_id,
++        "OrderSysID": target.order_sys_id,
++        "FrontID": target.front_id,
++        "SessionID": target.session_id,
++        "ActionFlag": "0",
++        "LimitPrice": 0.0,
++        "VolumeChange": 0,
++    }
++    action_id = "cancel-worker"
++    return CtpManagedPreparedDispatch(
++        operation="cancel",
++        command_id=stable_managed_command_id(
++            "cancel", "worker-intent", order.runtime_order_id, action_id
++        ),
++        managed_intent_id="worker-intent",
++        runtime_order_id=order.runtime_order_id,
++        order_ref=order.order_ref,
++        request_payload=payload,
++        order_ref_reservation=order,
++        approval_use_id="approval-worker",
++        approval_digest=sha256(b"synthetic approval").hexdigest(),
++        session_binding={
++            "session_generation_id": "generation-1",
++            "dispatch_front_id": 17,
++            "dispatch_session_id": 29,
++        },
++        session_generation_id="generation-1",
++        dispatch_front_id=17,
++        dispatch_session_id=29,
++        native_request_id=5,
++        local_queue_receipt_id="0123456789abcdef0123456789abcdef",
++        managed_cancel_intent_id=action_id,
++        cancel_target_exchange_id=target.exchange_id,
++        cancel_target_order_sys_id=target.order_sys_id,
++        cancel_target_front_id=target.front_id,
++        cancel_target_session_id=target.session_id,
++    )
++
++
++def _prepared_submit(order):
++    return CtpManagedPreparedDispatch(
++        operation="submit",
++        command_id=stable_managed_command_id(
++            "submit", "worker-intent", order.runtime_order_id
++        ),
++        managed_intent_id="worker-intent",
++        runtime_order_id=order.runtime_order_id,
++        order_ref=order.order_ref,
++        request_payload={"InstrumentID": "rb2710", "OrderRef": order.order_ref},
++        order_ref_reservation=order,
++        approval_use_id="approval-submit-worker",
++        approval_digest=sha256(b"synthetic submit approval").hexdigest(),
++        session_binding={
++            "session_generation_id": "generation-1",
++            "dispatch_front_id": 17,
++            "dispatch_session_id": 29,
++        },
++        session_generation_id="generation-1",
++        dispatch_front_id=17,
++        dispatch_session_id=29,
++        native_request_id=6,
++        local_queue_receipt_id="1123456789abcdef0123456789abcdef",
++    )
++
++
++def _reserve_action(authority, scope, lease, order):
++    return authority.reserve_cancel_action_identity(
++        scope,
++        "cancel-worker",
++        "worker-intent",
++        order.runtime_order_id,
++        order.order_ref,
++        legacy_seed=CtpActionRefSeedProof(
++            "20260927", 41, sha256(b"synthetic action seed").hexdigest()
++        ),
++        writer_lease=lease,
++    )
++
++
++def _queue(binding, command):
++    return CtpManagedQueueReceipt(
++        command_id=command.command_id,
++        request_payload_sha256=command.request_payload_sha256,
++        operation=command.operation,
++        receipt_id=binding.local_queue_receipt_id,
++        queued=True,
++    )
++
++
++def _target_projection(store, order, prepared, *, exchange_id=None):
++    evidence = _SyntheticNativeOrderQueryEvidence(
++        instrument_id=prepared.request_payload["InstrumentID"],
++        exchange_id=exchange_id or prepared.cancel_target_exchange_id,
++        order_sys_id=prepared.cancel_target_order_sys_id,
++        session_generation_id=prepared.session_generation_id,
++        query_front_id=prepared.dispatch_front_id,
++        query_session_id=prepared.dispatch_session_id,
++        query_request_id=next(_QUERY_REQUEST_IDS),
++        front_id=prepared.cancel_target_front_id,
++        session_id=prepared.cancel_target_session_id,
++    )
++    return store.issue_ctp_order_target_projection(
++        _scope(), order.managed_intent_id, evidence, verifier=_SyntheticOrderQueryVerifier()
++    )
++
++
++
++__test__ = False
+diff --git a/implementation/tests/test_g5_worker_send_entry_r2.py b/implementation/tests/test_g5_worker_send_entry_r2.py
+new file mode 100644
+--- /dev/null
++++ b/implementation/tests/test_g5_worker_send_entry_r2.py
+@@ -0,0 +1,146 @@
++from __future__ import annotations
++
++import inspect
++
++import pytest
++from _g5_worker_test_support import (
++    _open,
++    _prepared,
++    _prepared_submit,
++    _queue,
++    _reserve_action,
++    _seed_order,
++    _target_projection,
++)
++from bt_api_execution.ctp_single_worker_candidate import CtpManagedSingleWorkerCandidate
++
++
++def test_r2_dispatch_has_no_caller_sender_and_rejects_before_native_entry(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "r2-no-sender.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        prepared = _prepared_submit(order)
++        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++        signature = inspect.signature(worker.dispatch_managed_command)
++        assert list(signature.parameters) == ["command_id", "binding"]
++        binding = worker.stage_prepared_dispatch(prepared)
++        staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert staged is not None
++        binding = worker.record_managed_queue_receipt(
++            prepared.command_id, binding, _queue(binding, staged)
++        )
++        entered = []
++
++        def sync_wrapper(_command):
++            entered.append("wrapper")
++            return object()
++
++        # A caller callback is rejected by Python's signature before it can run.
++        with pytest.raises(TypeError):
++            worker.dispatch_managed_command(prepared.command_id, binding, sync_wrapper)
++        assert entered == []
++        persisted = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert persisted is not None and persisted.status == "READY"
++
++        result = worker.dispatch_managed_command(prepared.command_id, binding)
++        assert result.worker_state == "REJECTED"
++        assert result.native_call_entered is False
++        assert result.command.status == "COMPLETED"
++        again = worker.dispatch_managed_command(prepared.command_id, binding)
++        assert again.worker_state == "REJECTED"
++        assert again.native_call_entered is False
++        assert entered == []
++    finally:
++        store.close()
++
++
++def test_r2_cancel_projection_is_rechecked_after_claim_and_expiry_rejects(tmp_path, monkeypatch):
++    store, authority, scope, lease = _open(tmp_path / "r2-expired-projection.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        action = _reserve_action(authority, scope, lease, order)
++        prepared = _prepared(order)
++        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++        projection_handle = _target_projection(store, order, prepared)
++        binding = worker.stage_prepared_dispatch(
++            prepared,
++            cancel_target_projection=projection_handle,
++            action_identity=action,
++        )
++        staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert staged is not None
++        binding = worker.record_managed_queue_receipt(
++            prepared.command_id, binding, _queue(binding, staged)
++        )
++        expiry_ns = projection_handle.projection.expires_at_ns
++        # Claim sees a fresh row; the code-owned port's final durable read
++        # then sees equality as expired.
++        reads = iter((expiry_ns - 1, expiry_ns))
++        monkeypatch.setattr(store, "_monotonic_now_ns", lambda: next(reads))
++        result = worker.dispatch_managed_command(prepared.command_id, binding)
++        assert result.worker_state == "REJECTED"
++        assert result.native_call_entered is False
++        assert result.command.status == "COMPLETED"
++        row = store._connection.execute(
++            "SELECT state FROM g5_ctp_worker_handoffs WHERE account_key = ? AND command_id = ?",
++            (scope.account_key, prepared.command_id),
++        ).fetchone()
++        assert row["state"] == "REJECTED"
++    finally:
++        store.close()
++
++
++def test_r2_missing_trusted_generation_time_and_sdk_pin_default_reject(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "r2-missing-authorities.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        prepared = _prepared_submit(order)
++        assert "connection_generation" not in prepared.session_binding
++        assert "process_generation" not in prepared.session_binding
++        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++        binding = worker.stage_prepared_dispatch(prepared)
++        staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert staged is not None
++        binding = worker.record_managed_queue_receipt(
++            prepared.command_id, binding, _queue(binding, staged)
++        )
++        result = worker.dispatch_managed_command(prepared.command_id, binding)
++        assert result.worker_state == "REJECTED"
++        assert result.native_call_entered is False
++        assert result.command.native_receipt_payload == {
++            "kind": "native_send_port_unavailable",
++            "outcome": "REJECTED",
++        }
++    finally:
++        store.close()
++
++
++def test_r2_claim_crash_reopens_as_unknown_and_never_reenters_port(tmp_path):
++    path = tmp_path / "r2-crash-after-claim.sqlite3"
++    store, authority, scope, lease = _open(path)
++    order = _seed_order(authority, scope, lease)
++    prepared = _prepared_submit(order)
++    worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++    binding = worker.stage_prepared_dispatch(prepared)
++    staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
++    assert staged is not None
++    binding = worker.record_managed_queue_receipt(
++        prepared.command_id, binding, _queue(binding, staged)
++    )
++    claimed = store.claim_ctp_dispatch_command(scope, prepared.command_id, writer_lease=lease)
++    assert claimed is not None and claimed.status == "CLAIMED"
++    assert store.release_lease(scope, lease.owner_id, fencing_token=lease.fencing_token)
++    store.close()
++
++    reopened, authority2, scope2, lease2 = _open(path, "r2-worker-restarted")
++    try:
++        worker2 = CtpManagedSingleWorkerCandidate(reopened, scope2, lease2, authority2)
++        recovered = worker2.recover_claimed_after_restart()
++        assert len(recovered) == 1 and recovered[0].status == "UNKNOWN"
++        result = worker2.dispatch_managed_command(prepared.command_id, binding)
++        assert result.worker_state == "UNKNOWN"
++        assert result.native_call_entered is False
++        persisted = reopened.read_ctp_dispatch_command(scope2, prepared.command_id)
++        assert persisted is not None and persisted.status == "UNKNOWN"
++    finally:
++        reopened.close()

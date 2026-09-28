@@ -1,0 +1,9 @@
+D:/temp/iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2b/evidence/r2b-test-migration.patch:700: new blank line at EOF.
++
+warning: 1 line adds whitespace errors.
+base_test_sha256=2b5f929cac960ed6a7105eb2cc0b7401961fdb7c7b97761288d279b415b15e3f
+patch_sha256=51d2081058bc6e3cf3a4b2782de3e26a1a9a6ebf7320434c08158b39588bd5c9
+tests/unit/stores/test_managed_ctp_store_adapter.py_sha256=15d93e165ea817b5ba484adac52658baf67f89fb83d30eff142c3e1ba4203ae3
+tests/unit/stores/test_ctp_non_authorizing_contracts.py_sha256=a61c8b0070a41c813d7c3adb1165f9ad38ea5b63986a9293e868e38d78f3b5cf
+core.autocrlf=false
+R2B_TEST_PATCH_REPLAY_PASS

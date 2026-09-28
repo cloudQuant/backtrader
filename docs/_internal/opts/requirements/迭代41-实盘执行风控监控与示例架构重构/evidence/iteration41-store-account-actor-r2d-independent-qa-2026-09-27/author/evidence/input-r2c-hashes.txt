@@ -1,0 +1,10 @@
+Frozen r2c source integrity recheck (SHA-256)
+
+backtrader/stores/btapistore.py  53cd937a7202990df883fa071c210d31573f11df83937c05880abb3cbc50e90b  MATCH
+backtrader/stores/ctp_account_actor_port.py  efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846  MATCH
+tests/unit/stores/test_btapistore.py  694887fc723367e04e5ad339a24649fe22cff1877d4e48190bd7e7f14dc4a075  MATCH
+tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py  dac659e7c252330ce03c3af87d21107b12d419facb40b9f16ad52e824140211b  MATCH
+
+patch replay target SHA-256  57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae
+candidate source SHA-256      57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae
+replay equals candidate: True

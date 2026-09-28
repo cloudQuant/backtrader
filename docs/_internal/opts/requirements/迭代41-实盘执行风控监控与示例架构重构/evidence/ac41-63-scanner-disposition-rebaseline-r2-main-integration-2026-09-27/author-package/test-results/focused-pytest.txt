@@ -1,0 +1,2 @@
+Command: python -m pytest -p no:asyncio tests/unit/scripts/test_verify_iteration41_writer_dispositions.py -q
+Result: 6 passed in 8.05s

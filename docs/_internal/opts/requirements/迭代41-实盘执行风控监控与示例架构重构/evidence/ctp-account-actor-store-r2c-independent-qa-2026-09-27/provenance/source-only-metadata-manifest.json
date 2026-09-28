@@ -1,0 +1,229 @@
+{
+  "classification": "SOURCE-ONLY test metadata; not an installed SDK artifact, wheel, or release acceptance",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "source_map": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-roots-reviewed-r2c-v2.json",
+  "source_map_sha256": "a3deb75160ef16fb286e52ae1f2e69f5c8a77b04fb9681945a7a06016aacf712",
+  "metadata_root": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3",
+  "packages": {
+    "parent": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "parent",
+      "distribution_name": "bt_api_py",
+      "version": "0.15.5",
+      "source_root": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\parent",
+      "source_package": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\parent\\bt_api_py",
+      "source_package_file_count": 151,
+      "source_package_tree_sha256": "ccd69de522b7fd47b9bce143d7e206f20261c9fd683423295315ff121b5674d2",
+      "pyproject_snapshot": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\parent\\pyproject.toml",
+      "pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\parent\\pyproject.toml",
+        "sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39"
+      },
+      "metadata_sha256": "ab926ef3ba76c3b5155635e0dbe87d3e30ffbe0b7422e9a7882fc6fa733590ee",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_py-0.15.5.dist-info",
+      "dist_info_metdata_sha256": "ab926ef3ba76c3b5155635e0dbe87d3e30ffbe0b7422e9a7882fc6fa733590ee"
+    },
+    "base": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "base",
+      "distribution_name": "bt_api_base",
+      "version": "0.15.4",
+      "source_root": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+      "source_package": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src\\bt_api_base",
+      "source_package_file_count": 228,
+      "source_package_tree_sha256": "1656612a0938e89fdd31e0ede7560ad51d380572d43bc208f0c88073a131601c",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\base\\pyproject.toml",
+      "pyproject_sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\base\\pyproject.toml",
+        "sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5"
+      },
+      "metadata_sha256": "f2d82c69ddfc77823b4c95387f31c13beb9f45fbe49ec5238ab9b72e55e68361",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_base-0.15.4.dist-info",
+      "dist_info_metdata_sha256": "f2d82c69ddfc77823b4c95387f31c13beb9f45fbe49ec5238ab9b72e55e68361"
+    },
+    "ctp": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "ctp",
+      "distribution_name": "bt_api_ctp",
+      "version": "2.0.4+iteration41.i9",
+      "source_root": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\ctp\\src",
+      "source_package": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\ctp\\src\\bt_api_ctp",
+      "source_package_file_count": 154,
+      "source_package_tree_sha256": "f8e0b844a7c72df1516266eb676ef00e259ea655633424edbfab8699ca1914c6",
+      "pyproject_snapshot": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\ctp\\pyproject.toml",
+      "pyproject_sha256": "6295d10501ce71fd3aafcc2be2d2b28274bb82d6ca0e94230757d972976669a5",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\ctp\\pyproject.toml",
+        "sha256": "6295d10501ce71fd3aafcc2be2d2b28274bb82d6ca0e94230757d972976669a5"
+      },
+      "metadata_sha256": "8783acd3dd641f39bf6b4a6045cd1bbd67c254f4a3804eea5222a4e09a44c161",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_ctp-2.0.4+iteration41.i9.dist-info",
+      "dist_info_metdata_sha256": "8783acd3dd641f39bf6b4a6045cd1bbd67c254f4a3804eea5222a4e09a44c161"
+    },
+    "execution": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "execution",
+      "distribution_name": "bt_api_execution",
+      "version": "0.2.0",
+      "source_root": "D:\\temp\\iteration41_v17_execution_review_20260926_r3_migration_integrity\\src",
+      "source_package": "D:\\temp\\iteration41_v17_execution_review_20260926_r3_migration_integrity\\src\\bt_api_execution",
+      "source_package_file_count": 27,
+      "source_package_tree_sha256": "d764da5ac9e22e0ba96b3be4a289148c73677888082a711ecbfc03fdaba70361",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\execution\\pyproject.toml",
+      "pyproject_sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\execution\\pyproject.toml",
+        "sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1"
+      },
+      "metadata_sha256": "52401977ac43edd407b2fab8fe39529c26bcf1152d7cf2edae5994f2ae6df946",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_execution-0.2.0.dist-info",
+      "dist_info_metdata_sha256": "52401977ac43edd407b2fab8fe39529c26bcf1152d7cf2edae5994f2ae6df946"
+    },
+    "risk": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "risk",
+      "distribution_name": "bt_api_risk",
+      "version": "0.1.0",
+      "source_root": "D:\\bt_api_risk_ac41_48_candidate_20260926\\src",
+      "source_package": "D:\\bt_api_risk_ac41_48_candidate_20260926\\src\\bt_api_risk",
+      "source_package_file_count": 48,
+      "source_package_tree_sha256": "bccc90872adf051f014d15d29261c7a8a863261adc8a683306e90dabe7530eef",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\risk\\pyproject.toml",
+      "pyproject_sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\risk\\pyproject.toml",
+        "sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab"
+      },
+      "metadata_sha256": "60946c704f4f78bfe6a1cbcecb34efd7fc16f1fe349bd46b0c48cedca4817f78",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_risk-0.1.0.dist-info",
+      "dist_info_metdata_sha256": "60946c704f4f78bfe6a1cbcecb34efd7fc16f1fe349bd46b0c48cedca4817f78"
+    },
+    "monitor": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "monitor",
+      "distribution_name": "bt_api_monitor",
+      "version": "0.1.0",
+      "source_root": "D:\\bt_api_monitor_ac41_53_candidate_20260926\\src",
+      "source_package": "D:\\bt_api_monitor_ac41_53_candidate_20260926\\src\\bt_api_monitor",
+      "source_package_file_count": 26,
+      "source_package_tree_sha256": "ee2f7e986646cb7ebd868461bad68071ea5da94f2b0f731d8108e6e050e9f9ff",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\monitor\\pyproject.toml",
+      "pyproject_sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\monitor\\pyproject.toml",
+        "sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2"
+      },
+      "metadata_sha256": "24c74857724abbaa2288ab8da287266610da3cf8c618fbffd28cdd0b77bff4ad",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_monitor-0.1.0.dist-info",
+      "dist_info_metdata_sha256": "24c74857724abbaa2288ab8da287266610da3cf8c618fbffd28cdd0b77bff4ad"
+    },
+    "gateway": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "gateway",
+      "distribution_name": "bt_api_gateway",
+      "version": "0.1.0",
+      "source_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\gateway\\src",
+      "source_package": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\gateway\\src\\bt_api_gateway",
+      "source_package_file_count": 12,
+      "source_package_tree_sha256": "3449ed185d91820fef46b754b5ce954b3af5e476c815dbdfdea267026b730207",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\gateway\\pyproject.toml",
+      "pyproject_sha256": "804504c79822657f09a46bda33db44068733652e8a00db7e25bdd5a06b62a45c",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\gateway\\pyproject.toml",
+        "sha256": "804504c79822657f09a46bda33db44068733652e8a00db7e25bdd5a06b62a45c"
+      },
+      "metadata_sha256": "0dc5ed327eb93a0793c0d8b006d3f1c25423f051ae9429830faa6431c7775e93",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_gateway-0.1.0.dist-info",
+      "dist_info_metdata_sha256": "0dc5ed327eb93a0793c0d8b006d3f1c25423f051ae9429830faa6431c7775e93"
+    },
+    "transport_zmq": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "transport_zmq",
+      "distribution_name": "bt_api_transport_zmq",
+      "version": "0.1.0",
+      "source_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\transport_zmq\\src",
+      "source_package": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\transport_zmq\\src\\bt_api_transport_zmq",
+      "source_package_file_count": 10,
+      "source_package_tree_sha256": "03a7c43acb06e689be64a217f6e52c5756e2795252504d81450e334745579eda",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\transport_zmq\\pyproject.toml",
+      "pyproject_sha256": "c6773ff62a93fade8bb4ce765b646702df7f69375ddda45aa2592af8fae77f2f",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\transport_zmq\\pyproject.toml",
+        "sha256": "c6773ff62a93fade8bb4ce765b646702df7f69375ddda45aa2592af8fae77f2f"
+      },
+      "metadata_sha256": "47d1a195b633b2782fd421a9554be981240eb2aad507c283d9084cca818fc581",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\bt_api_transport_zmq-0.1.0.dist-info",
+      "dist_info_metdata_sha256": "47d1a195b633b2782fd421a9554be981240eb2aad507c283d9084cca818fc581"
+    },
+    "agent": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "agent",
+      "distribution_name": "backtrader-agent",
+      "version": "0.2.0",
+      "source_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\agent\\src",
+      "source_package": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\agent\\src\\backtrader_agent",
+      "source_package_file_count": 71,
+      "source_package_tree_sha256": "00c200bcb711622940f3819ea14b44dba46e9be345671896a9f521a5b0d617db",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\agent\\pyproject.toml",
+      "pyproject_sha256": "b4cd76350f73c35c43bbaec23f57a56a30138cfa63a025a893e739736301197f",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\agent\\pyproject.toml",
+        "sha256": "b4cd76350f73c35c43bbaec23f57a56a30138cfa63a025a893e739736301197f"
+      },
+      "metadata_sha256": "f3e8740d7a8295fb9ec1cd8006e55351906b9eba939c06d2dcaf8baffe065e51",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\backtrader_agent-0.2.0.dist-info",
+      "dist_info_metdata_sha256": "f3e8740d7a8295fb9ec1cd8006e55351906b9eba939c06d2dcaf8baffe065e51"
+    },
+    "skills": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "skills",
+      "distribution_name": "backtrader-skills",
+      "version": "0.2.0",
+      "source_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\skills\\src",
+      "source_package": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\skills\\src\\backtrader_skills",
+      "source_package_file_count": 33,
+      "source_package_tree_sha256": "c0e69b47b69f5ee3bb7eab7853b96f6d07560d5de792ede41fc7e574865f7a30",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\skills\\pyproject.toml",
+      "pyproject_sha256": "ddd6d323e07a22f4103d529b8d93f13459021e6d300a61822470a937c4e5490f",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\skills\\pyproject.toml",
+        "sha256": "ddd6d323e07a22f4103d529b8d93f13459021e6d300a61822470a937c4e5490f"
+      },
+      "metadata_sha256": "54b0c59552b9557fc27b1511812f49aba55a041267797a5469666e157a840146",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\backtrader_skills-0.2.0.dist-info",
+      "dist_info_metdata_sha256": "54b0c59552b9557fc27b1511812f49aba55a041267797a5469666e157a840146"
+    },
+    "mcp": {
+      "classification": "SOURCE-ONLY metadata shim; no wheel built or installed",
+      "package_key": "mcp",
+      "distribution_name": "backtrader-mcp",
+      "version": "0.2.0",
+      "source_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\mcp\\src",
+      "source_package": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\mcp\\src\\backtrader_mcp",
+      "source_package_file_count": 40,
+      "source_package_tree_sha256": "40e7f4d20f03cc075fb496aacbd471e1487f7ea6932dc91153f8c7bc98681ebc",
+      "pyproject_snapshot": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\mcp\\pyproject.toml",
+      "pyproject_sha256": "dbd64bb527569696706556efe9267ebabf8ba6ced94c3450d91f6d2cad4d2cd9",
+      "version_source": {
+        "kind": "pyproject",
+        "path": "D:\\temp\\iteration41-main-source-qa-20260926\\metadata-inputs-r3\\mcp\\pyproject.toml",
+        "sha256": "dbd64bb527569696706556efe9267ebabf8ba6ced94c3450d91f6d2cad4d2cd9"
+      },
+      "metadata_sha256": "70dd1e99bbad406714edb42401a82cdfd3bb8506255144a76d3505005aefd434",
+      "dist_info": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\source-only-metadata-reviewed-r2c-v3\\backtrader_mcp-0.2.0.dist-info",
+      "dist_info_metdata_sha256": "70dd1e99bbad406714edb42401a82cdfd3bb8506255144a76d3505005aefd434"
+    }
+  }
+}

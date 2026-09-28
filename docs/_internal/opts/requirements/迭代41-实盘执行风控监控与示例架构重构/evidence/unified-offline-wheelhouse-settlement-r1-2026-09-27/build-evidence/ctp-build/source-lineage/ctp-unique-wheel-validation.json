@@ -1,0 +1,23 @@
+{
+  "new_wheel": "D:\\temp\\i41outa\\bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+  "new_sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D",
+  "new_size": 5435756,
+  "old_g4_wheel_sha256": "00E0C0C56574F60013115EE6010E531F72A8C811780F27DFCBA3249CDAFB5384",
+  "new_zip_members": 90,
+  "old_zip_members": 90,
+  "new_native_payload_files": {
+    "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd": "E6D4E32740646962C35D96223682F4DB0F1B8082398055A88F58ED45EC1ECD78",
+    "bt_api_ctp/ctp/thostmduserapi_se.dll": "72A833786836CE6E6026BC0C19A06BD3C1B0279CB1EA9DF0297B1C2916CAD98B",
+    "bt_api_ctp/ctp/thosttraderapi_se.dll": "D79CC036FC90733A30CEE8E8E30BDEA17B346333C69413F33D44EBC7A96B1FAD"
+  },
+  "native_payload_matches_original_g4": true,
+  "required_source_payload_hashes": {
+    "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+    "src/bt_api_ctp/__init__.py": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+    "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF"
+  },
+  "metadata_version": "2.0.4+g4r2.settlement.probe.20260927",
+  "old_collision_sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF",
+  "build_a_b_equal": true,
+  "native_import_guard_log_files": []
+}

@@ -1,0 +1,26 @@
+{
+  "events": [
+    "fake_optional_sdk_stub:bt_api_py",
+    "local_loopback_only:('127.0.0.1', 62887)",
+    "local_loopback_only:('127.0.0.1', 62889)",
+    "local_loopback_only:('127.0.0.1', 62891)",
+    "local_loopback_only:('127.0.0.1', 62893)",
+    "local_loopback_only:('127.0.0.1', 62895)",
+    "local_loopback_only:('127.0.0.1', 62897)",
+    "local_loopback_only:('127.0.0.1', 62899)",
+    "local_loopback_only:('127.0.0.1', 62901)",
+    "local_loopback_only:('127.0.0.1', 62903)",
+    "local_loopback_only:('127.0.0.1', 62905)",
+    "local_loopback_only:('127.0.0.1', 62907)",
+    "local_loopback_only:('127.0.0.1', 62909)",
+    "local_loopback_only:('127.0.0.1', 62912)",
+    "local_loopback_only:('127.0.0.1', 62914)",
+    "local_loopback_only:('127.0.0.1', 62916)",
+    "local_loopback_only:('127.0.0.1', 62919)",
+    "local_loopback_only:('127.0.0.1', 62921)",
+    "local_loopback_only:('127.0.0.1', 62923)",
+    "local_loopback_only:('127.0.0.1', 62925)",
+    "local_loopback_only:('127.0.0.1', 62927)",
+    "local_loopback_only:('127.0.0.1', 62929)"
+  ]
+}

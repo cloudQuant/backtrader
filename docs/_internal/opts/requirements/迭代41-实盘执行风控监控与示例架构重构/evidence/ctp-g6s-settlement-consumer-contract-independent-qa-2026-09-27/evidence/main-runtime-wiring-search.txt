@@ -1,0 +1,2 @@
+rg_exit=1
+meaning: exit 1 = no matching production references

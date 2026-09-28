@@ -1,0 +1,80 @@
+{
+  "setuptools_65_manifest": {
+    "external_tools": [
+      {
+        "path": "C:\\anaconda3\\python.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\python311.dll",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\vcruntime140.dll",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\cl.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\link.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\dumpbin.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\Include\\Python.h",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\Include\\pyconfig.h",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\libs\\python311.lib",
+        "result": "match"
+      }
+    ],
+    "package_changed_paths": [],
+    "package_mismatch_count": 0,
+    "recorded_package_files": 1992
+  },
+  "setuptools_75_manifest": {
+    "external_tools": [
+      {
+        "path": "C:\\anaconda3\\python.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\python311.dll",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\vcruntime140.dll",
+        "result": "match"
+      },
+      {
+        "path": "C:\\anaconda3\\Lib\\ensurepip\\_bundled\\pip-23.2.1-py3-none-any.whl",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\cl.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\link.exe",
+        "result": "match"
+      },
+      {
+        "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\dumpbin.exe",
+        "result": "match"
+      }
+    ],
+    "package_changed_paths": [],
+    "package_mismatch_count": 0,
+    "recorded_package_files": 1978
+  }
+}

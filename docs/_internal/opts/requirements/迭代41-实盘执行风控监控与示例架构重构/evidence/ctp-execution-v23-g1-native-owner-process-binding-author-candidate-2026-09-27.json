@@ -1,0 +1,190 @@
+{
+  "schema": "iteration41-v23-g1-author-candidate-evidence.v1",
+  "status": "AUTHOR_CANDIDATE_LOCAL_TESTS_PASS_INDEPENDENT_REVIEW_PENDING",
+  "candidate_manifest": {
+    "path": "D:\\temp\\iteration41_v23_g1_owner_binding_freeze_20260927-r3\\V23-SOURCE-MANIFEST.json",
+    "sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+    "source_only": true,
+    "package_version": "0.2.0",
+    "store_schema_version": 23
+  },
+  "lineage": {
+    "v22_candidate_manifest_sha256": "8244038ab975f30de6c0ba56c140f033ddd5b5ce5fb3cabc9e60abb7bf24066d",
+    "v22_candidate_manifest_in_payload": "input-manifests/V22-CANDIDATE-MANIFEST.json",
+    "v22_candidate_path": "D:\\temp\\iteration41_v22_g5_crash_recovery_r3r3_candidate_20260927",
+    "v22_base_status": "SOURCE_ONLY_CANDIDATE_NOT_G5_ACCEPTANCE",
+    "v22_schema_version": "22",
+    "v22_delta_entries_verified_against_source": 7,
+    "v22_verified_delta_paths": [
+      "src/bt_api_execution/store.py",
+      "tests/test_ctp_account_family_owner.py",
+      "tests/test_ctp_callback_session_router.py",
+      "tests/test_ctp_callback_source_bridge.py",
+      "tests/test_ctp_dispatch_commands.py",
+      "tests/test_execution_store.py",
+      "tests/test_ctp_process_exit_recovery_v22.py"
+    ],
+    "underlying_composite_manifest_sha256": "00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd",
+    "cancel_input_manifest_sha256": "7655307fb90c959dabf5dc14786d02c60edd3fcf3d1fc3cefc32f2512e34eeec",
+    "v21_handoff_input_manifest_sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+    "base_source_commit": "33d132d6f9d16f64cc229f576435b0fafc6bfab1"
+  },
+  "changed_source_test_files": [
+    {
+      "path": "src/bt_api_execution/ctp_single_worker_candidate.py",
+      "change": "modified",
+      "base_v22_sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3",
+      "bytes": 25848,
+      "sha256": "ee2e3649d398c1aa4a01b675231c48e4f34b669661dc5f81b5f1f6c83b6e91bc"
+    },
+    {
+      "path": "src/bt_api_execution/store.py",
+      "change": "modified",
+      "base_v22_sha256": "1c7edd065b0167d7c50442762f99a29e4972752bd77636eb7052f022dcefecb6",
+      "bytes": 843956,
+      "sha256": "677d4edb5e3b768844117c40fc35dc991e9a6ef850cb94fd069e511c130b6328"
+    },
+    {
+      "path": "tests/test_ctp_account_family_owner.py",
+      "change": "modified",
+      "base_v22_sha256": "e2e44694c9f6816fe15b5a717451fd3a5e9f43a894cfc360917a51e13be897cc",
+      "bytes": 9718,
+      "sha256": "397f5d16781bce40df14f06e814c64f2df86c3c8461c12d67d1aab57780aecc8"
+    },
+    {
+      "path": "tests/test_ctp_account_owner_handoff.py",
+      "change": "modified",
+      "base_v22_sha256": "3ae9076992c6485bc6f85b13c5a593f33f73e634aff68c69bac9261752a89d59",
+      "bytes": 16786,
+      "sha256": "09bb19f02317e8931447f11165d0e621c37b131beab1bfa017e07691404a95c9"
+    },
+    {
+      "path": "tests/test_ctp_callback_session_owner.py",
+      "change": "modified",
+      "base_v22_sha256": "ee1852afd45ed9b618df3ff890178b2d92abe0999bc8e19beeeb5871266ea433",
+      "bytes": 19433,
+      "sha256": "802813b7061c2a59fb167496777af2d4f2c9c0a802b41e16556bce84f39d9971"
+    },
+    {
+      "path": "tests/test_ctp_callback_session_router.py",
+      "change": "modified",
+      "base_v22_sha256": "b676a41313053d03faae9f96c04d2f3207f22ec7671b00214ae74d08163d3ff0",
+      "bytes": 79007,
+      "sha256": "204a8e3531d026949b440b76449f264b900d2d0333c8446c0aea29d8cb51ca5f"
+    },
+    {
+      "path": "tests/test_ctp_callback_source_bridge.py",
+      "change": "modified",
+      "base_v22_sha256": "8d2be8767833e8d318db7d2044852737c27b87b683d054cb9c0aa157e14ebfee",
+      "bytes": 81860,
+      "sha256": "b115bf3370f518b82f2b2c5645930e2108e021eca1f190d9bfd6e361e7c1f343"
+    },
+    {
+      "path": "tests/test_ctp_dispatch_commands.py",
+      "change": "modified",
+      "base_v22_sha256": "7bd8b58ae01a7e7c76f818eaccbab50d9ee8ce3f3cdaeafa335918c8978aba05",
+      "bytes": 171141,
+      "sha256": "cc5fff9288997f3586f146346f25256338f2c2b6a032d465ec4d735d127b2f0e"
+    },
+    {
+      "path": "tests/test_ctp_native_owner_process_binding_v23.py",
+      "change": "added",
+      "base_v22_sha256": null,
+      "bytes": 11395,
+      "sha256": "a982870baf03650f5dc7ef71eebf681c997cb41e5ebed6483212edb5a30e064d"
+    },
+    {
+      "path": "tests/test_ctp_process_exit_recovery_v22.py",
+      "change": "modified",
+      "base_v22_sha256": "05194d5d1dd6627add8cc9d0fc9cbe9786c9df6337aef383266f49a892c1b4d1",
+      "bytes": 35155,
+      "sha256": "5796ce86bc762fdae767b0cb6deed71aa3613a7a2659c7f779d77ca3c0639eb2"
+    },
+    {
+      "path": "tests/test_execution_store.py",
+      "change": "modified",
+      "base_v22_sha256": "2335af0b3ee9a251b648b5f67ad9ef385869ff1157d8191aea72cd3c50c9debe",
+      "bytes": 21649,
+      "sha256": "9d3ee9bd8beeaca97e2a0bbd4c1d2d98c2f4bbd70dc84dd2f05b8c97bed0ae1f"
+    },
+    {
+      "path": "tests/v23_native_owner_fake.py",
+      "change": "added",
+      "base_v22_sha256": null,
+      "bytes": 2631,
+      "sha256": "ed267318344220465ff81fb382895d1e68de235c79199112a83ac6d17d5355b8"
+    }
+  ],
+  "tests": {
+    "focused": {
+      "passed": 186,
+      "skipped": 2,
+      "failed": 0,
+      "junit_sha256": "089beb4613e9e3afb97a3058ed91c02e6215c0adad1c7eb619ea80c24c056b8a"
+    },
+    "full_package": {
+      "passed": 322,
+      "skipped": 2,
+      "failed": 0,
+      "junit_sha256": "290ba9785b98904ada6b3f8b29df490041ca74995828b40beefbf553a81bdf36"
+    },
+    "skip_names": [
+      "tests/test_ctp_callback_source_bridge.py::test_close_wakes_real_trader_client_poll_and_discards_its_result",
+      "tests/test_ctp_callback_source_bridge.py::test_close_discards_real_sdk_event_dequeued_before_close_wins"
+    ],
+    "pytest_warning": "one existing pytest-asyncio default fixture loop-scope deprecation"
+  },
+  "quality": {
+    "ruff_changed_files": "passed",
+    "compileall": "passed",
+    "ruff_format": "11 files would be reformatted; no broad rewrite applied"
+  },
+  "source_origin": {
+    "separate_fresh_process_not_pytest": true,
+    "python": "3.11.5",
+    "bt_api_execution_origin": "D:\\temp\\iteration41_v23_g1_owner_binding_candidate_20260927\\src\\bt_api_execution\\__init__.py",
+    "bt_api_ctp_loaded": false,
+    "only_ctp_named_loaded_module": "bt_api_execution.ctp_native_callbacks (pure Python candidate helper; no bt_api_ctp SDK/native package loaded)",
+    "log": {
+      "path": "D:\\temp\\iteration41_v23_g1_owner_binding_qa_20260927\\source-origin-probe.log",
+      "bytes": 213,
+      "sha256": "81b8e6d9d16081db9931c5e19c15fa20cba9489c57c2ac70bad453646bdf002d"
+    }
+  },
+  "dispatch_scope": {
+    "candidate": "No ReqOrderInsert/ReqOrderAction/send_order/send_cancel/provider-enqueue symbol appears in V23 execution source. Generic Store claim can persist CLAIMED with native_call_inflight=0 but is ledger-only; the only candidate sender consumer does not call sender. Queued READY V2 dispatch without owner adapter atomically sets UNKNOWN and poisons owner/account family before sender. Trigger-injected rollback leaves READY/ACTIVE; retry and DB reopen preserve UNKNOWN/POISONED.",
+    "main_repository_boundary": "No generic claim_ctp_dispatch_command() call appears in main backtrader/backtrader_runtime. The opt-in account-session candidate calls claim_ctp_dispatch_command_for_session at backtrader_runtime/ctp_i9_account_session_candidate.py:589. Separate raw CTP methods remain at backtrader/stores/btapistore.py:1941 (ReqOrderInsert) and :1949 (ReqOrderAction); these are outside the isolated V23 package and are not closed by this result."
+  },
+  "security_limitations": {
+    "default_native_owner_process_attestor": "None; callback-owner creation and session-bound native claim fail closed.",
+    "test_attestor": "Injected fake only; a Python-private protocol/type or injected policy is not an OS security boundary.",
+    "default_process_exit_verifier": "None; V22 crash recovery stays unavailable without independently trusted Windows process/Job proof.",
+    "provider_route": "Not enabled or wired by this candidate.",
+    "wheel": "Not built or installed; source-only 0.2.0 metadata.",
+    "no_native_sdk_provider_credentials_private_config_network_real_account": true
+  },
+  "author_qa_receipt": {
+    "path": "D:\\temp\\iteration41_v23_g1_owner_binding_qa_20260927\\V23-QA-RECEIPT.json",
+    "sha256": "84f0bb05a700c34f1c3a5b3c25658d54a970722c3e308033bd722cb1a36a6ffd"
+  },
+  "raw_bundle": {
+    "path": "ctp-execution-v23-g1-owner-binding-author-candidate-2026-09-27.raw.zip",
+    "bytes": 371882,
+    "sha256": "dcd3385cae0590196c99856ec41616483bb1b737a29b104805af42d7ed76e7f0",
+    "zip_testzip": "PASS",
+    "indexed_entries_verified": 56,
+    "index_path": "ctp-execution-v23-g1-owner-binding-author-candidate-2026-09-27.raw.zip.index.json",
+    "index_sha256": "134c0d2c1c913fba847876158b96e4526eef15a96bf2635c6fd0cded5308a043"
+  },
+  "independent_review": {
+    "status": "PENDING",
+    "scope": "read-only call graph, generic zero-inflight claim cannot reach sender, V22 UNKNOWN/POISON persistence and rollback/reopen negative tests"
+  },
+  "not_claimed": [
+    "G5 acceptance",
+    "production Windows verifier/attestor",
+    "native/provider readiness",
+    "real account authority",
+    "wheel install acceptance"
+  ]
+}

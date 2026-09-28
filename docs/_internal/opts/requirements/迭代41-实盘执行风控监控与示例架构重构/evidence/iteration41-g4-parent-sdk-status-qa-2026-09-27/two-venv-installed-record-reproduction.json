@@ -1,0 +1,40 @@
+{
+  "schema": "iteration41-g4-parent-record-repro-two-new-venvs-v1",
+  "results": [
+    {
+      "label": "record-install-a",
+      "python_base_version": "Python 3.11.5",
+      "pip_version": "pip 23.2.1 from D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-a\\venv\\Lib\\site-packages\\pip (python 3.11)",
+      "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "installed_record_sha256": "2157c78969a17576397cd05828264111f79e793e6bb653532effb13b41ddf036",
+      "installed_record_rows": 286,
+      "record_hashed_rows": 146,
+      "record_blank_hash_rows": 140,
+      "blank_hash_suffix_counts": {
+        "<none>": 1,
+        ".pyc": 139
+      },
+      "venv_no_system_site_packages": true,
+      "wheel_install_exit": 0,
+      "package_import_performed": false
+    },
+    {
+      "label": "record-install-b",
+      "python_base_version": "Python 3.11.5",
+      "pip_version": "pip 23.2.1 from D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-b\\venv\\Lib\\site-packages\\pip (python 3.11)",
+      "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "installed_record_sha256": "2157c78969a17576397cd05828264111f79e793e6bb653532effb13b41ddf036",
+      "installed_record_rows": 286,
+      "record_hashed_rows": 146,
+      "record_blank_hash_rows": 140,
+      "blank_hash_suffix_counts": {
+        "<none>": 1,
+        ".pyc": 139
+      },
+      "venv_no_system_site_packages": true,
+      "wheel_install_exit": 0,
+      "package_import_performed": false
+    }
+  ],
+  "record_sha_match": true
+}

@@ -1,0 +1,2 @@
+C:\anaconda3\python.exe -I -S -B D:\temp\iteration41-g6s-pyd-loader-boundary-independent-qa-20260927\fake_pyd_custody_probe.py
+Result: fake non-PE .pyd-suffix placeholder only; ordinary write/replace denied while retained read handle is open; rename succeeds after handle close; no extension loaded.

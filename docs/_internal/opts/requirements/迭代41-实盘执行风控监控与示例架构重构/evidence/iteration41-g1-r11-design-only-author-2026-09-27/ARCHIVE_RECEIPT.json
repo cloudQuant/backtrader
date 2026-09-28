@@ -1,0 +1,20 @@
+{
+  "archive_checksums": "ARCHIVE_SHA256SUMS.txt",
+  "archive_checksums_sha256": "eb67b09758b5d255ba2d29cbb6ea81e6768db4b0b0db9961812e6970d3a2c5dd",
+  "archive_index": "ARCHIVE_INDEX.json",
+  "archive_index_sha256": "73f9810916b51cc895689d486d26df8f3b788723e2d586dc1a0490a4c57a6869",
+  "composite_report": "R11_G1_HARD_DEADLINE_AUDIT.md",
+  "composite_report_sha256": "cb100aa79f695124c87e1ccdd228090227e557eec2c4f40b02f2104f38f98401",
+  "frozen_r10_cpp_sha256": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+  "frozen_r11_source_checksums_sha256": "75a154c0dd43d3c0bc38f55bee90c7751fc4eccd7647cbd71614c01dbfdd235a",
+  "frozen_r11_source_manifest_sha256": "904d96df52ee70ed89fed059072f8184413744060a3721a25e244a16b2416ad8",
+  "raw_zip": "r11_design_raw.zip",
+  "raw_zip_sha256": "bc191c1210810ba75a74f0916a956f7e1f9112b5423109a2859c0a9d098d5fb3",
+  "raw_zip_size_bytes": 45845,
+  "scope": "No production route or G1 matrix changed. Static addendum is not a dynamic P14 reproduction; no CTP/provider/credentials/private config/network/SCM.",
+  "static_review_addendum": "R10_STATIC_REVIEW_ADDENDUM.md",
+  "static_review_addendum_sha256": "eb99753855c3a435da986581c6fb5a3e5a6ebce7ec6bf722d27546587b392fc5",
+  "status": "R11_DESIGN_ARCHIVE_ONLY_G1_CLOSED",
+  "verification": "Frozen R11 manifest/checksum list validated before byte-exact copy; frozen R10 C++ source hash verified; ZIP CRC, membership, and indexed member hashes verified.",
+  "zip_member_count": 9
+}

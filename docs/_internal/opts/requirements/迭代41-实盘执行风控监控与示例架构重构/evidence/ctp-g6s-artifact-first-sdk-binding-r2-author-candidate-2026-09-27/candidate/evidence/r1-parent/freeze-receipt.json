@@ -1,0 +1,120 @@
+{
+  "candidate_root": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1",
+  "findings": {
+    "positive": [
+      "Held handles block source overwrite and rename on the tested Windows filesystem.",
+      "SDK Python source code is compiled from bytes read through retained handles.",
+      "The specified import-context and module-cache mutations are rejected before cached evidence use."
+    ],
+    "residual": [
+      "Creating a new child under a retained directory is possible; exact manifest module map rejects unlisted SDK source imports but this is not full tree immutability.",
+      "Native _ctp remains path-based ExtensionFileLoader; no real load or handle-bound OS image mapping was attempted/proven.",
+      "Same-process Python import state is not a security boundary against hostile concurrent code.",
+      "No code-owned SDK pin, approved wheel/signature, protected deployment root, or full dependency closure."
+    ]
+  },
+  "key_files": [
+    {
+      "path": "README.md",
+      "sha256": "c20732d988994fa1986dfb0540a202bdd9f44ee88398bcb7a8a5d5a21c807936",
+      "size": 3282
+    },
+    {
+      "path": "backtrader_runtime/ctp_sdk_artifact_binding.py",
+      "sha256": "3a47e5ddd9dff239f45546991e881ba7dff25f64254783e9386b1a63ac393713",
+      "size": 45248
+    },
+    {
+      "path": "backtrader_runtime/ctp_windows_artifact_custody.py",
+      "sha256": "eaf794fceed98ed18bc23d21bc9d1d962575d27ceee9b78bfd84d86b2003f421",
+      "size": 21798
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "sha256": "25ceb62fd9ec0aa2c9280f555e6c95b92e4a24c0d201ee7d4ffb92c3027bf48a",
+      "size": 31224
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_sdk_artifact_binding.py",
+      "sha256": "89d5622615dc93db8eac63e84437e1ba9a2b8a45e09e57d771757dbd44a96a73",
+      "size": 24240
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_windows_artifact_custody.py",
+      "sha256": "14a643deca3aa8f259fca54d3c6066dc77817c4537e2e8a0eccbb034685db841",
+      "size": 4411
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "sha256": "136e94204c418ad452cb67e155c827cfa0ef57697b77d4ae607c1fa109235377",
+      "size": 29235
+    }
+  ],
+  "manifest_path": "candidate-source-manifest.json",
+  "manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "parent_r0_manifest_sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+  "payload_file_count": 141,
+  "safety": {
+    "G4_accepted": false,
+    "G6S_accepted": false,
+    "credentials_or_private_config_read": false,
+    "default_pin_changed": false,
+    "main_repository_modified": false,
+    "native_loaded_or_called": false,
+    "provider_or_network_called": false,
+    "sdk_candidate_modified": false
+  },
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.r1_freeze_receipt.v1",
+  "status": "AUTHOR_CANDIDATE_PARTIAL_CUSTODY_NO_ACCEPTANCE",
+  "verification": {
+    "calibration_failure": {
+      "disposition": "kept; first direct test assertion expected pathlib PermissionError.winerror=32, which pathlib did not expose; tightened test now asserts PermissionError on write and exact Win32 sharing violation 32 on rename",
+      "path": "evidence/r1-custody-attempt/overwrite-assertion-calibration.txt",
+      "sha256": "12f9148740ce75adaec63b078dd421040f3211af933cc8cfd23ccae46a421956"
+    },
+    "cwd": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1",
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1"
+    },
+    "interpreter": {
+      "path": "C:\\anaconda3\\python.exe",
+      "version": "CPython 3.11.5"
+    },
+    "limitations": [
+      "No real SDK/native import or execution.",
+      "No wheel/pin/release signature or protected deployment trust root.",
+      "No proof ExtensionFileLoader consumes the inspected retained file handle.",
+      "Python in-process checks are not an isolation boundary against hostile concurrent code.",
+      "Not G4 or G6-S acceptance."
+    ],
+    "pytest": {
+      "cases": [
+        "retained-handle overwrite and rename blocked through fake source import",
+        "pre-custody replacement rejected before marker import",
+        "unlisted child module rejected before marker execution",
+        "sys.path/meta_path/path_hooks/importer_cache mutation rejected before cached use",
+        "sys.modules SDK package replacement rejected before cached use",
+        "retained-directory new-child limitation measured"
+      ],
+      "command": "python -m pytest --noconftest tests\\unit\\runtime\\test_ctp_sdk_artifact_binding.py tests\\unit\\runtime\\test_ctp_windows_artifact_custody.py tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml=evidence\\r1-custody-attempt\\pytest-focus.junit.xml",
+      "junit_path": "evidence/r1-custody-attempt/pytest-focus.junit.xml",
+      "junit_sha256": "0da83c1c9c3d8a863c534f87d89029680531808a8f1e1db4369381cb57789c9d",
+      "result": "47 passed, 0 skipped, exit 0",
+      "stdout_path": "evidence/r1-custody-attempt/pytest-focus.stdout.txt",
+      "stdout_sha256": "f6785e7c9a0d12f4ed9ff6a9661cc41786de8b933a4e1129cb013af528ccc992"
+    },
+    "source_delta": {
+      "path": "evidence/r1-custody-attempt/source-diff-from-r0.patch",
+      "sha256": "5f1a72033146b8962067e94b91dd5f0bf0fef5911909f5d02b1fa27e058da608"
+    },
+    "static_checks": {
+      "compile": "compile() passed for 4 changed files; no bytecode emitted",
+      "ruff_check": "passed for 4 changed Python source/test files",
+      "ruff_format_check": "passed for 4 changed Python source/test files",
+      "stdout_path": "evidence/r1-custody-attempt/static-checks.stdout.txt",
+      "stdout_sha256": "448afd9f3eea30a08b185becaee8e3497e30dfdf3bad406f9b02eaece4304e17"
+    }
+  }
+}

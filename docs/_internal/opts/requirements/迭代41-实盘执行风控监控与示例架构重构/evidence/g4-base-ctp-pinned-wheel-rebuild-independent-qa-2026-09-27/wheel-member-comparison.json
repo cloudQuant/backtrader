@@ -1,0 +1,8018 @@
+{
+  "artifacts": {
+    "base_A": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-a\\wheelhouse\\bt_api_base-0.15.5-py3-none-any.whl",
+      "wheel_size": 153721,
+      "wheel_sha256": "0d16a7770ea6e17c862b88a085c71b88e60649c549a87d95a5cf9c751c5dec8a",
+      "record_sha256": "db6239c41b62b1f8f88b26160c4ba12a88c02f6d0f7f5b2d22a417be5c495845"
+    },
+    "base_B": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-b\\wheelhouse\\bt_api_base-0.15.5-py3-none-any.whl",
+      "wheel_size": 153721,
+      "wheel_sha256": "3c09d7d9b6ba6421cf9f9c683cca34a47358e9df9cbb313b88f858916058c779",
+      "record_sha256": "db6239c41b62b1f8f88b26160c4ba12a88c02f6d0f7f5b2d22a417be5c495845"
+    },
+    "base_pinned": {
+      "path": "D:\\c41sdkf_audit\\wheels\\bt_api_base-0.15.5-py3-none-any.whl",
+      "wheel_size": 153721,
+      "wheel_sha256": "1c1129444d8659f4dfe7b72f716872a63dddf13c1c935865e1d2568800d0d64d",
+      "record_sha256": "db6239c41b62b1f8f88b26160c4ba12a88c02f6d0f7f5b2d22a417be5c495845"
+    },
+    "ctp_A": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-a\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_size": 5401616,
+      "wheel_sha256": "7759a11487ddb0067e3fb755366c989b1fe55a965f3d712526d59b6bb228817d",
+      "record_sha256": "540dd03b6c50aa88a793a2e257cbf3f687736e090504d2ce30621cef98b24a57"
+    },
+    "ctp_B": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-b\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_size": 5401615,
+      "wheel_sha256": "1de546d5c18b439d77d26dd0039e08b4facbbeaf1b0b865a38eafa211c2d46f8",
+      "record_sha256": "8a5e68450f62d1b851f7c6e97a965836a8525601448cf948bf2560ec7620f108"
+    },
+    "ctp_pinned": {
+      "path": "D:\\c41sdki2_audit\\wheels\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_size": 5401654,
+      "wheel_sha256": "988c52a91a12d3256caadf27df2ae1f1eb45e54fc6c4f63b7abba0363f34c4ff",
+      "record_sha256": "c44efa0370f246ebaf329a5f4a8f6624c6ad7545970ee90cfa902da166413236"
+    }
+  },
+  "comparisons": {
+    "base_A vs base_B": {
+      "same_names": true,
+      "count_a": 110,
+      "count_b": 110,
+      "different_payload": [],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_base-0.15.5.dist-info/LICENSE",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            36
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ]
+        }
+      ]
+    },
+    "base_A vs base_pinned": {
+      "same_names": true,
+      "count_a": 110,
+      "count_b": 110,
+      "different_payload": [],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_base-0.15.5.dist-info/LICENSE",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            36
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            3,
+            34
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_compat.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_plugin_shims.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_version.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/auth_config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/balance_utils.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/cache.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/config_loader.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/connection_pool.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/accounts/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/accounts/account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/auto_init_mixin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/balances/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/balances/balance.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/bars/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/bars/bar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/exchanges/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/exchanges/exchange_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/fundingrates/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/fundingrates/funding_rate.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/greeks/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/greeks/greeks.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/incomes/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/incomes/income.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/instrument.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/liquidations/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/liquidations/liquidation.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/markprices/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/markprices/mark_price.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orderbooks/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orderbooks/orderbook.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orders/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orders/order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/positions/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/positions/position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/requestdatas/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/requestdatas/request_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/symbols/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/symbols/symbol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/tickers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/tickers/ticker.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/timers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/timers/timer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/trades/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/trades/trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/async_context.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/dependency_injection.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/interfaces.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/services.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/deployment_evidence.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/error.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/event_bus.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/event_clock.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/exceptions.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/abstract_feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/base_stream.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/capability.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/connection_mixin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/http_client.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/my_websocket_app.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/transport_safety.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/async_base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/calculate_time.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/log_message.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/rate_limiters.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/signers.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/timestamps.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/utils.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/plugin_adapter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/health.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/models.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/order_identity_map.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/order_ref_allocator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/protocol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/registrar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/runtime.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/runtime_remote.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/storage/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/storage/tick_writer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/subscription_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/instrument_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/logging_factory.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/errors.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/loader.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/protocol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/rate_limiter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/registry.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/security.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/testing/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/testing/fixtures.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/utils/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/utils/time.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket/exchange_adapters.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        }
+      ]
+    },
+    "base_B vs base_pinned": {
+      "same_names": true,
+      "count_a": 110,
+      "count_b": 110,
+      "different_payload": [],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_base-0.15.5.dist-info/LICENSE",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base-0.15.5.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            6,
+            30
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            12,
+            0,
+            32
+          ]
+        },
+        {
+          "name": "bt_api_base/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_compat.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_plugin_shims.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/_version.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/auth_config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/balance_utils.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/cache.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/config_loader.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/connection_pool.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/accounts/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/accounts/account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/auto_init_mixin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/balances/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/balances/balance.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/bars/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/bars/bar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/exchanges/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/exchanges/exchange_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/fundingrates/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/fundingrates/funding_rate.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/greeks/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/greeks/greeks.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/incomes/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/incomes/income.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/instrument.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/liquidations/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/liquidations/liquidation.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/markprices/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/markprices/mark_price.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orderbooks/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orderbooks/orderbook.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orders/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/orders/order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/positions/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/positions/position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/requestdatas/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/requestdatas/request_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/symbols/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/symbols/symbol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/tickers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/tickers/ticker.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/timers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/timers/timer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/trades/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/containers/trades/trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/async_context.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/dependency_injection.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/interfaces.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/core/services.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/deployment_evidence.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/error.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/event_bus.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/event_clock.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/exceptions.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/abstract_feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/base_stream.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/capability.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/connection_mixin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/http_client.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/my_websocket_app.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/feeds/transport_safety.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/async_base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/calculate_time.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/log_message.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/rate_limiters.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/signers.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/timestamps.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/functions/utils.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/adapters/plugin_adapter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/health.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/models.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/order_identity_map.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/order_ref_allocator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/protocol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/registrar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/runtime.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/runtime_remote.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/storage/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/storage/tick_writer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/gateway/subscription_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/instrument_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/logging_factory.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/errors.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/loader.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/plugins/protocol.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/rate_limiter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/registry.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/security.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/testing/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/testing/fixtures.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/utils/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/utils/time.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket/exchange_adapters.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_base/websocket_manager.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            13,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            11,
+            57,
+            42
+          ]
+        }
+      ]
+    },
+    "ctp_A vs ctp_B": {
+      "same_names": true,
+      "count_a": 87,
+      "count_b": 87,
+      "different_payload": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_size": 7882,
+          "b_size": 7882,
+          "a_sha256": "540dd03b6c50aa88a793a2e257cbf3f687736e090504d2ce30621cef98b24a57",
+          "b_sha256": "8a5e68450f62d1b851f7c6e97a965836a8525601448cf948bf2560ec7620f108",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_size": 11889152,
+          "b_size": 11889152,
+          "a_sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+          "b_sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ]
+        }
+      ],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/entry_points.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ]
+        }
+      ]
+    },
+    "ctp_A vs ctp_pinned": {
+      "same_names": true,
+      "count_a": 87,
+      "count_b": 87,
+      "different_payload": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_size": 7882,
+          "b_size": 7882,
+          "a_sha256": "540dd03b6c50aa88a793a2e257cbf3f687736e090504d2ce30621cef98b24a57",
+          "b_sha256": "c44efa0370f246ebaf329a5f4a8f6624c6ad7545970ee90cfa902da166413236",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp/__init__.py",
+          "a_size": 1161,
+          "b_size": 1160,
+          "a_sha256": "352c4d700c0950edda96a0c10e83e69fc5b489424888745f3508166cfa63ca46",
+          "b_sha256": "c3758458271221bcd8abef6b09f05435785a2e0ba76f3fe707ae2b5ebae641a0",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            48
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_size": 11889152,
+          "b_size": 11889152,
+          "a_sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+          "b_sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/client.py",
+          "a_size": 289335,
+          "b_size": 289213,
+          "a_sha256": "d9a0916c61b48fc4ae909416e5ec6568fc7bd73188d948b08dc56b0e2aba0341",
+          "b_sha256": "0fb42599f080cfc57b1c461a0fdf6a67b5c42e03fe142f32b0be3b250f1cda96",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            48,
+            42
+          ]
+        }
+      ],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            14
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/entry_points.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            48
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/__main__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/cli.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/contracts.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/aggregator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/build.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/schema.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/writer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/manifest.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/merge.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pipeline.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/local_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/rsync_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/sftp_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/reclaim.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/report.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/verify.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner_ctp/symbols.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/__main__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/buffer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/cli.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/engine.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/health.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/protocols.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/schedule.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/shard.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/sink.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/instrument_provider.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/normalizer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/subscriber.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/configs/ctp.yaml",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/_normalization.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_bar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_ticker.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            4,
+            12
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp_base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/client.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            48,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_constants.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_md_api.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_common.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_market.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_query.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_risk.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_transfer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_trader_api.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/thostmduserapi_se.dll",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/thosttraderapi_se.dll",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp_env_selector.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/errors/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/errors/ctp_translator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/exchange_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/base_stream.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/live_ctp_feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/gateway/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/gateway/adapter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/instrument.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/order_action.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/plugin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/query.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        }
+      ]
+    },
+    "ctp_B vs ctp_pinned": {
+      "same_names": true,
+      "count_a": 87,
+      "count_b": 87,
+      "different_payload": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_size": 7882,
+          "b_size": 7882,
+          "a_sha256": "8a5e68450f62d1b851f7c6e97a965836a8525601448cf948bf2560ec7620f108",
+          "b_sha256": "c44efa0370f246ebaf329a5f4a8f6624c6ad7545970ee90cfa902da166413236",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp/__init__.py",
+          "a_size": 1161,
+          "b_size": 1160,
+          "a_sha256": "352c4d700c0950edda96a0c10e83e69fc5b489424888745f3508166cfa63ca46",
+          "b_sha256": "c3758458271221bcd8abef6b09f05435785a2e0ba76f3fe707ae2b5ebae641a0",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            48
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_size": 11889152,
+          "b_size": 11889152,
+          "a_sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+          "b_sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/client.py",
+          "a_size": 289335,
+          "b_size": 289213,
+          "a_sha256": "d9a0916c61b48fc4ae909416e5ec6568fc7bd73188d948b08dc56b0e2aba0341",
+          "b_sha256": "0fb42599f080cfc57b1c461a0fdf6a67b5c42e03fe142f32b0be3b250f1cda96",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            48,
+            42
+          ]
+        }
+      ],
+      "different_zip_metadata": [
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/METADATA",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/RECORD",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            4
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/WHEEL",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            6
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/entry_points.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp-2.0.3+iteration41.i2.dist-info/top_level.txt",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            48
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/__main__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/cli.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/config.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/contracts.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/aggregator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/build.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/schema.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/kline/writer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/manifest.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/merge.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pipeline.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/local_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/rsync_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/pull/sftp_backend.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/reclaim.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/report.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner/verify.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/cleaner_ctp/symbols.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/__main__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/buffer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/cli.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/engine.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/health.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/protocols.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/schedule.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/shard.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector/sink.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/instrument_provider.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/normalizer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/collector_ctp/subscriber.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/configs/ctp.yaml",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/_normalization.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_bar.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_ticker.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/containers/ctp/ctp_trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "a_date_time": [
+            2026,
+            9,
+            27,
+            11,
+            7,
+            4
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            53,
+            0
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/_ctp_base.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/client.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            48,
+            42
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_constants.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_md_api.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_account.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_common.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_market.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_order.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_position.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_query.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_risk.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_trade.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_structs_transfer.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/ctp_trader_api.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/thostmduserapi_se.dll",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp/thosttraderapi_se.dll",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/ctp_env_selector.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/errors/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/errors/ctp_translator.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/exchange_data.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/base_stream.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/feeds/live_ctp_feed.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/gateway/__init__.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/gateway/adapter.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/instrument.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/order_action.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/plugin.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        },
+        {
+          "name": "bt_api_ctp/query.py",
+          "a_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            51,
+            54
+          ],
+          "b_date_time": [
+            2026,
+            9,
+            24,
+            14,
+            40,
+            2
+          ]
+        }
+      ]
+    }
+  }
+}

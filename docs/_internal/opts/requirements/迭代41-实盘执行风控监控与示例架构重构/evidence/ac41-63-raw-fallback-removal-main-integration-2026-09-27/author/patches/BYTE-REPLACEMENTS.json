@@ -1,0 +1,68 @@
+{
+  "base_path": "backtrader/stores/btapistore.py",
+  "base_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "base_bytes": 780123,
+  "base_crlf_count": 15583,
+  "base_lf_count": 17045,
+  "base_bare_lf_count": 1462,
+  "target_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+  "target_bytes": 780464,
+  "target_crlf_count": 15593,
+  "target_lf_count": 17055,
+  "target_bare_lf_count": 1462,
+  "exact_expected_bytes_match": true,
+  "unchanged_prefix_between_and_suffix_asserted": true,
+  "no_other_path_mutation_assertion": {
+    "before_file_count": 1,
+    "after_file_count": 1,
+    "changed_paths": [
+      "backtrader/stores/btapistore.py"
+    ],
+    "passed": true
+  },
+  "standard_git_patch": {
+    "path": "PATCH-GIT.diff",
+    "sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+    "strict_apply_check_passed_core_autocrlf_false": true,
+    "strict_apply_passed_core_autocrlf_false": true,
+    "applied_output_sha256_matches_target": true,
+    "current_main_read_only_apply_check_passed": true,
+    "current_main_source_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826"
+  },
+  "test_migration": {
+    "path": "TEST-MIGRATION.diff",
+    "sha256": "da5f239fbbda3686f63682c8d26fed7be6126147871d7babd7716bc0d8d902c5",
+    "preserves_existing_nodeid": "test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref",
+    "adds_nodeid": "test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access",
+    "git_apply_check_on_current_main_tree": "PASS (read-only; no apply)",
+    "current_main_test_sha256": "e7e7b985130f010deed84b920fd0f91712bfe54ac24b5ef8bf1c8fc687bca6b1"
+  },
+  "replacements": [
+    {
+      "old_offset": 63953,
+      "old_length": 636,
+      "old_sha256": "c718ee511a7ffa925419e20fbe0e28e30e48226626219a0c561abde3420c4e08",
+      "old_base64": "ICAgICAgICBkZWYgX3NlbmRfbmF0aXZlX29yZGVyX2luc2VydChzZWxmLCBmaWVsZCwgcmVxX2lkKToNCiAgICAgICAgICAgICIiIlJvdXRlIG9uZSBvcmRlciBpbnNlcnQgdGhyb3VnaCB0aGUgdHlwZWQgZXhlY3V0aW9uIGdhdGUuIiIiDQogICAgICAgICAgICB0eXBlZCA9IGdldGF0dHIoc2VsZi50cmFkZXJfY2xpZW50LCAic3VibWl0X29yZGVyX2luc2VydCIsIE5vbmUpDQogICAgICAgICAgICBjYXBhYmlsaXR5ID0gc2VsZi5fZXhlY3V0aW9uX2dhdGVfY2FwYWJpbGl0eQ0KICAgICAgICAgICAgaWYgY2FsbGFibGUodHlwZWQpIGFuZCBjYXBhYmlsaXR5IGlzIG5vdCBOb25lOg0KICAgICAgICAgICAgICAgIHJldHVybiB0eXBlZChmaWVsZCwgcmVxX2lkLCBleGVjdXRpb25fY2FwYWJpbGl0eT1jYXBhYmlsaXR5KQ0KICAgICAgICAgICAgIyBTREsgYnVpbGRzIHdpdGhvdXQgdGhlIGV4ZWN1dGlvbiBnYXRlIGtlZXAgdGhlIHJhdyBwYXRoOyBvbg0KICAgICAgICAgICAgIyBnYXRlZCBidWlsZHMgYW4gdW5hcm1lZCBmYWxsYmFjayBmYWlscyBjbG9zZWQgaW5zaWRlIHRoZSBTREsuDQogICAgICAgICAgICByZXR1cm4gc2VsZi50cmFkZXJfY2xpZW50LmFwaS5SZXFPcmRlckluc2VydChmaWVsZCwgcmVxX2lkKQ0K",
+      "new_offset": 63953,
+      "new_length": 730,
+      "new_sha256": "153781ff5cb1e93f8c4c5922e21692612af9e3486ecdfc3b36db89f4b0e38de2",
+      "new_base64": "ICAgICAgICBkZWYgX3NlbmRfbmF0aXZlX29yZGVyX2luc2VydChzZWxmLCBmaWVsZCwgcmVxX2lkKToNCiAgICAgICAgICAgICIiIlJlcXVpcmUgYSB0eXBlZCBTREsgbWV0aG9kIGFuZCBub24tbnVsbCBjYXBhYmlsaXR5IGZvciBuYXRpdmUgaW5zZXJ0cy4iIiINCiAgICAgICAgICAgIGNhcGFiaWxpdHkgPSBzZWxmLl9leGVjdXRpb25fZ2F0ZV9jYXBhYmlsaXR5DQogICAgICAgICAgICBpZiBjYXBhYmlsaXR5IGlzIE5vbmU6DQogICAgICAgICAgICAgICAgcmFpc2UgQnRBcGlTdG9yZUVycm9yKA0KICAgICAgICAgICAgICAgICAgICAiQ1RQIG9yZGVyIGluc2VydCByZXF1aXJlcyB0aGUgdHlwZWQgZXhlY3V0aW9uIGdhdGUgYW5kIGNhcGFiaWxpdHkiDQogICAgICAgICAgICAgICAgKQ0KICAgICAgICAgICAgdHlwZWQgPSBnZXRhdHRyKHNlbGYudHJhZGVyX2NsaWVudCwgInN1Ym1pdF9vcmRlcl9pbnNlcnQiLCBOb25lKQ0KICAgICAgICAgICAgaWYgbm90IGNhbGxhYmxlKHR5cGVkKToNCiAgICAgICAgICAgICAgICByYWlzZSBCdEFwaVN0b3JlRXJyb3IoDQogICAgICAgICAgICAgICAgICAgICJDVFAgb3JkZXIgaW5zZXJ0IHJlcXVpcmVzIHRoZSB0eXBlZCBleGVjdXRpb24gZ2F0ZSBhbmQgY2FwYWJpbGl0eSINCiAgICAgICAgICAgICAgICApDQogICAgICAgICAgICByZXR1cm4gdHlwZWQoZmllbGQsIHJlcV9pZCwgZXhlY3V0aW9uX2NhcGFiaWxpdHk9Y2FwYWJpbGl0eSkNCg=="
+    },
+    {
+      "old_offset": 64591,
+      "old_length": 483,
+      "old_sha256": "6bdc8c7c41ec9194478e97565dfb7f641279836aba304ddd1655171e9c98e6dd",
+      "old_base64": "ICAgICAgICBkZWYgX3NlbmRfbmF0aXZlX29yZGVyX2FjdGlvbihzZWxmLCBmaWVsZCwgcmVxX2lkKToNCiAgICAgICAgICAgICIiIlJvdXRlIG9uZSBvcmRlciBhY3Rpb24gKGNhbmNlbCkgdGhyb3VnaCB0aGUgdHlwZWQgZ2F0ZS4iIiINCiAgICAgICAgICAgIHR5cGVkID0gZ2V0YXR0cihzZWxmLnRyYWRlcl9jbGllbnQsICJzdWJtaXRfb3JkZXJfYWN0aW9uIiwgTm9uZSkNCiAgICAgICAgICAgIGNhcGFiaWxpdHkgPSBzZWxmLl9leGVjdXRpb25fZ2F0ZV9jYXBhYmlsaXR5DQogICAgICAgICAgICBpZiBjYWxsYWJsZSh0eXBlZCkgYW5kIGNhcGFiaWxpdHkgaXMgbm90IE5vbmU6DQogICAgICAgICAgICAgICAgcmV0dXJuIHR5cGVkKGZpZWxkLCByZXFfaWQsIGV4ZWN1dGlvbl9jYXBhYmlsaXR5PWNhcGFiaWxpdHkpDQogICAgICAgICAgICByZXR1cm4gc2VsZi50cmFkZXJfY2xpZW50LmFwaS5SZXFPcmRlckFjdGlvbihmaWVsZCwgcmVxX2lkKQ0K",
+      "new_offset": 64685,
+      "new_length": 730,
+      "new_sha256": "6eb258ea2bd67e4977939761a304c4786b20fa0fad13148c52c2ccaf3683e0e4",
+      "new_base64": "ICAgICAgICBkZWYgX3NlbmRfbmF0aXZlX29yZGVyX2FjdGlvbihzZWxmLCBmaWVsZCwgcmVxX2lkKToNCiAgICAgICAgICAgICIiIlJlcXVpcmUgYSB0eXBlZCBTREsgbWV0aG9kIGFuZCBub24tbnVsbCBjYXBhYmlsaXR5IGZvciBuYXRpdmUgY2FuY2Vscy4iIiINCiAgICAgICAgICAgIGNhcGFiaWxpdHkgPSBzZWxmLl9leGVjdXRpb25fZ2F0ZV9jYXBhYmlsaXR5DQogICAgICAgICAgICBpZiBjYXBhYmlsaXR5IGlzIE5vbmU6DQogICAgICAgICAgICAgICAgcmFpc2UgQnRBcGlTdG9yZUVycm9yKA0KICAgICAgICAgICAgICAgICAgICAiQ1RQIG9yZGVyIGFjdGlvbiByZXF1aXJlcyB0aGUgdHlwZWQgZXhlY3V0aW9uIGdhdGUgYW5kIGNhcGFiaWxpdHkiDQogICAgICAgICAgICAgICAgKQ0KICAgICAgICAgICAgdHlwZWQgPSBnZXRhdHRyKHNlbGYudHJhZGVyX2NsaWVudCwgInN1Ym1pdF9vcmRlcl9hY3Rpb24iLCBOb25lKQ0KICAgICAgICAgICAgaWYgbm90IGNhbGxhYmxlKHR5cGVkKToNCiAgICAgICAgICAgICAgICByYWlzZSBCdEFwaVN0b3JlRXJyb3IoDQogICAgICAgICAgICAgICAgICAgICJDVFAgb3JkZXIgYWN0aW9uIHJlcXVpcmVzIHRoZSB0eXBlZCBleGVjdXRpb24gZ2F0ZSBhbmQgY2FwYWJpbGl0eSINCiAgICAgICAgICAgICAgICApDQogICAgICAgICAgICByZXR1cm4gdHlwZWQoZmllbGQsIHJlcV9pZCwgZXhlY3V0aW9uX2NhcGFiaWxpdHk9Y2FwYWJpbGl0eSkNCg=="
+    }
+  ],
+  "no_other_path_mutation_full_tree": {
+    "evidence_path": "NO-OTHER-PATH-ASSERTION.json",
+    "full_tree_file_count": 1025,
+    "only_changed_path": "backtrader/stores/btapistore.py",
+    "passed": true
+  }
+}

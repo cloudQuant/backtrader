@@ -1,0 +1,33 @@
+{
+  "schema": "ac41-63-partition4-r2-addendum.v1",
+  "partition_manifest_sha256": "87410218795CA21C6F4A35ACEF5132EDFCB54572814C2EBDF705095BEC2D4946",
+  "partition_sha256": "92926362262076F1ADBB8A836E603DB97832466D23BA437A9A8A30D304339E60",
+  "candidate_manifest": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\candidate-manifest.json",
+  "candidate_manifest_sha256": "EA7D0A838CAF64C663EEE0D64084158A9FC2482D45892DA49F2B3E9B22094235",
+  "candidate_entries": [
+    {
+      "candidate_id": "i41-writer-e9aa9f07eb9a0f274802",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "path": "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py",
+      "line": 492,
+      "call": "self.sell",
+      "source_hash": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE",
+      "r2_note": "Candidate now removes top-level dotenv load and retains default-deny helper guards; official disposition remains unchanged."
+    },
+    {
+      "candidate_id": "i41-writer-f9e2647652496ba9a609",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "path": "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+      "line": 492,
+      "call": "self.sell",
+      "source_hash": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE",
+      "r2_note": "Candidate now removes top-level dotenv load and retains default-deny helper guards; official disposition remains unchanged."
+    }
+  ],
+  "official_dispositions_changed": false,
+  "verdict": "CANDIDATE_ONLY / NO_WRITE / LIVE_NO_GO / REVIEW_REQUIRED / NOT_AVAILABLE"
+}

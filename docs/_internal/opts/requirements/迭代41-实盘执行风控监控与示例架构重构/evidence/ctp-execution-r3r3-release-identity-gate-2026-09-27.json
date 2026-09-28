@@ -1,0 +1,117 @@
+{
+  "schema": "iteration41.execution_r3r3.release_identity.root_review.v1",
+  "status": "BLOCKED_EXACT_PARENT_AND_RUNTIME_PINS",
+  "audit_manifest_sha256": "9e3fd8c6dff7a7c0596c77a7bab61ef8c93188b7f73a8fca3dfa0115b84206e2",
+  "audit_receipt_sha256": "6e494c0611b811dfbeff3307c96c2b49c352bab16536b2e9769cde9ee33c3a31",
+  "root_verified": "11 audit artifacts plus exact parent project/session and five main runtime pin files",
+  "finding": "R3r2 and R3r3 both declare 0.2.0; unique 0.2.1 conflicts with exact parent/runtime version and wheel filename guards",
+  "scope": "No wheel built or installed; previous 284+2 result is source-only",
+  "next_step": "Coordinated unique distribution version and exact parent/runtime pin migration in isolated candidate",
+  "archive": {
+    "file": "ctp-execution-r3r3-release-identity-gate-2026-09-27.raw.zip",
+    "sha256": "df895745e0679df47de923cfec628822f6020454ad3ea6cb0c38a7f83f73d5a0",
+    "entries": 20
+  },
+  "files": [
+    {
+      "path": "audit/artifact-manifest.json",
+      "sha256": "9e3fd8c6dff7a7c0596c77a7bab61ef8c93188b7f73a8fca3dfa0115b84206e2",
+      "bytes": 2036
+    },
+    {
+      "path": "audit/README.txt",
+      "sha256": "e31d822004d01c9f3b5ffa803621e295d3e9ac6535704ff02f447f85cabdbd31",
+      "bytes": 270
+    },
+    {
+      "path": "audit/release-identity-audit.json",
+      "sha256": "6e494c0611b811dfbeff3307c96c2b49c352bab16536b2e9769cde9ee33c3a31",
+      "bytes": 5240
+    },
+    {
+      "path": "audit/source-manifest-r3r3.json",
+      "sha256": "7655307fb90c959dabf5dc14786d02c60edd3fcf3d1fc3cefc32f2512e34eeec",
+      "bytes": 5589
+    },
+    {
+      "path": "audit/source-qa-environment.json",
+      "sha256": "505cfba92f19e577bc9dc2bb5025a27f985398531ffa8abab90ebd9d90b88203",
+      "bytes": 2338
+    },
+    {
+      "path": "audit/source-qa-evidence-index.json",
+      "sha256": "f14a95bbdc046a19763322ff522c137eb22bf440eca678b9125240fb8a46112f",
+      "bytes": 5303
+    },
+    {
+      "path": "audit/source-qa-focused.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "audit/source-qa-focused.log",
+      "sha256": "0f8f1956b0eea0efdc4fc43e5e49a1abe418c6bc855f1d2616c1661481bd662b",
+      "bytes": 1283
+    },
+    {
+      "path": "audit/source-qa-focused.xml",
+      "sha256": "3a68cb4f02af8e98a5026fe8f54cd5e928c5ed04537672b94ded5dd0b77a63af",
+      "bytes": 5552
+    },
+    {
+      "path": "audit/source-qa-full.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "audit/source-qa-full.log",
+      "sha256": "a4f3570d13a227bab263d972971ceb22a10bea316f9a66a2e901a81d1fa1c197",
+      "bytes": 2400
+    },
+    {
+      "path": "audit/source-qa-full.xml",
+      "sha256": "4d3606e2973285b9d8e7766c2c795edea89effa140b5b57c0b80484ade30e172",
+      "bytes": 43649
+    },
+    {
+      "path": "parent/bt_api_py/_execution_session.py",
+      "sha256": "81a7fb8f8fd37f580aefb8b059a3d5684be0f2d199d2a30792e94879d26f448d",
+      "bytes": 451118
+    },
+    {
+      "path": "parent/pyproject.toml",
+      "sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+      "bytes": 9589
+    },
+    {
+      "path": "main/backtrader_runtime/ctp_i9_candidate_artifact_set.py",
+      "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a",
+      "bytes": 21033
+    },
+    {
+      "path": "main/backtrader_runtime/ctp_managed_action_scope_resolver.py",
+      "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461",
+      "bytes": 23058
+    },
+    {
+      "path": "main/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "bytes": 48077
+    },
+    {
+      "path": "main/backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "bytes": 31570
+    },
+    {
+      "path": "main/backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "bytes": 45968
+    },
+    {
+      "path": "independent/iteration41_archive_r3r3_identity_gate_20260927.py",
+      "sha256": "13d189b2f9fd644bba481e90df4e40d107d97b6abae2e0bb32a32bd9da69c0e6",
+      "bytes": 5713
+    }
+  ]
+}

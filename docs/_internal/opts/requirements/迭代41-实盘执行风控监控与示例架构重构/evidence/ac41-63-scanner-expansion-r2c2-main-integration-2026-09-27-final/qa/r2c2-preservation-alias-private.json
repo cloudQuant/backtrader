@@ -1,0 +1,100 @@
+{
+  "actual_private_files_copied": 0,
+  "all_445_review_required_not_available": true,
+  "base_candidate_count": 389,
+  "baseline_digest_preserved": true,
+  "baseline_id_digest": "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e",
+  "candidate_count": 445,
+  "candidate_counts": {
+    "dynamic_execution_candidates": 101,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 344
+  },
+  "candidate_files_count": 349,
+  "candidate_files_same_as_baseline": true,
+  "candidate_id_digest": "33ec3e5bcd575cab2bf63a4300c535016c0095d514c67d351c0d0af302c0a973",
+  "candidate_path_coverage": {
+    "discovered_paths": 211,
+    "missing_baseline_paths": 0,
+    "unclassified_paths": 0
+  },
+  "candidate_scan_status": "CANDIDATE_DISCOVERY_ONLY",
+  "checklist_candidate_digest_matches": true,
+  "fixture_conditional_getattr_writer_is_dynamic": true,
+  "fixture_direct_buy_sell_caught": true,
+  "fixture_read_only_getattr_false_positive": true,
+  "fixture_resource_close_false_positive": true,
+  "fixture_rows": [
+    {
+      "call": "method",
+      "dynamic_reason": "writer_alias_dispatch",
+      "kind": "writer_call_candidate",
+      "line": 4,
+      "method": "buy"
+    },
+    {
+      "call": "method",
+      "dynamic_reason": "writer_alias_dispatch",
+      "kind": "writer_call_candidate",
+      "line": 4,
+      "method": "sell"
+    },
+    {
+      "call": "writer",
+      "dynamic_reason": "writer_alias_dispatch",
+      "kind": "writer_call_candidate",
+      "line": 8,
+      "method": "cancel_order"
+    },
+    {
+      "call": "close",
+      "dynamic_reason": null,
+      "kind": "writer_call_candidate",
+      "line": 22,
+      "method": "close"
+    },
+    {
+      "call": "send",
+      "dynamic_reason": "writer_alias_dispatch",
+      "kind": "writer_call_candidate",
+      "line": 27,
+      "method": "submit_order"
+    },
+    {
+      "call": "getattr",
+      "dynamic_reason": "writer_reflection",
+      "kind": "dynamic_execution_candidate",
+      "line": 7,
+      "method": null
+    },
+    {
+      "call": "method",
+      "dynamic_reason": "indirect_callable_alias",
+      "kind": "dynamic_execution_candidate",
+      "line": 13,
+      "method": null
+    },
+    {
+      "call": "method",
+      "dynamic_reason": "indirect_callable_alias",
+      "kind": "dynamic_execution_candidate",
+      "line": 18,
+      "method": null
+    }
+  ],
+  "fixture_stale_alias_rebind_false_positive": true,
+  "new_56_review_required_not_available_unresolved": true,
+  "new_suffix_count": 56,
+  "new_suffix_ids_match_scanner": true,
+  "new_writer_alias_17_and_dynamic_alias_39": true,
+  "old_389_checklist_entries_semantically_exact_prefix": true,
+  "old_ids_exact_and_order_preserved": true,
+  "parse_errors": 0,
+  "private_read_attempts": [],
+  "private_state_source_entries": [],
+  "private_state_summary": [
+    "examples/013_3_sa_midfreq_simnow/runtime-ctp-private/state"
+  ],
+  "synthetic_private_sentinel_scanned": false
+}

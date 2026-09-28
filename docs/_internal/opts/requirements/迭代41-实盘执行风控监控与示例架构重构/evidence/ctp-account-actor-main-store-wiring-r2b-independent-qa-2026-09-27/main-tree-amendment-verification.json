@@ -1,0 +1,12 @@
+{
+  "zip_sha256": "3aed487b047ff1ce3353d609c00adbf51afef28dbd089885770d5915578c2689",
+  "zip_testzip": "clean",
+  "zip_member_count": 6,
+  "indexed_payload_count": 5,
+  "index_sha256": "2c94821fda76da900c971294a830927fac86ad555e32cc504b178d9fa2e4013b",
+  "current_main_tree_report_sha256": "EB262AE8FB391DE5933A536115D99C0739DAD7DFC06B4A99B600C43A6E019DD4",
+  "historical_r1_zip_sha256": "6b05af6e7ff28d1ce73f79852aae5db5d26599c1a29f59746a213516ecf2c271",
+  "historical_r1_index_sha256": "213ecf87f7374a2593330cced533a1ecc47df112ec2bc8edaa51000eaf090429",
+  "raw_main_tree_junit_not_duplicated": true,
+  "raw_main_tree_evidence": "../ctp-account-actor-r2b-main-integration-2026-09-27/"
+}

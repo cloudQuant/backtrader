@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'ctp_simnow_settlement_consumer'
+exit=1
+Diagnostic: first import-guard smoke omitted the candidate root from PYTHONPATH. The corrected command and successful output are recorded separately; this was a harness invocation error, not a candidate failure.

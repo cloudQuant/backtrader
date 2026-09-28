@@ -1,0 +1,12 @@
+# Copy to config.yaml in this directory. The example never searches the CWD.
+# Run: python examples/014_1_ctp_options_lowfreq/run_runtime.py
+# This entrypoint supports offline simulation/replay only. Its local synthetic
+# orders and fills are not external account facts or profitability evidence.
+config_schema_version: 4
+strategy:
+  id: example.014_1.ctp_options_lowfreq
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: eligible

@@ -1,0 +1,10 @@
+config_schema_version: 4
+
+strategy:
+  id: example.013_3.sa_midfreq_simnow
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}

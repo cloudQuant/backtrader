@@ -37,6 +37,19 @@ from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple, 
 from ..events import OrderBookSnapshot, TickEvent
 from ..utils.log_message import get_logger
 from .livestore import LiveStoreBase
+from .managed_execution import (
+    CtpManagedDispatchBinding,
+    CtpManagedCancelDispatch,
+    CtpManagedExecutionProjection,
+    CtpManagedOrderDispatch,
+    CtpManagedProjectionState,
+    ManagedExecutionAdapter,
+    ManagedExecutionAdapterError,
+    require_managed_cancel,
+    require_managed_execution_adapter,
+    require_ctp_runtime_execution_adapter,
+    require_ctp_managed_execution_projection,
+)
 
 logger = get_logger(__name__)
 
@@ -625,6 +638,19 @@ _CTP_QUERY_RECORD_FIELDS = tuple(
 
 class BtApiStoreError(Exception):
     """Base error for btapi store failures."""
+
+
+class ManagedCtpHandoffError(BtApiStoreError):
+    """A CTP managed action has no provider acknowledgement to project."""
+
+    def __init__(self, message: str, *, code: str, state: str = "UNKNOWN") -> None:
+        super().__init__(message)
+        self.code = code
+        self.managed_execution_state = state
+        self.managed_local_reject = state == "LOCAL_REJECTED"
+        self.managed_projection_pending = state in ("PENDING", "UNKNOWN")
+        self.execution_unknown = state == "UNKNOWN"
+        self.definite_reject = self.managed_local_reject
 
 
 class _ApprovalLeaseRejected(BtApiStoreError):
@@ -1877,48 +1903,18 @@ def _create_ctp_wrapper_class():
             execution_cycle_id,
             preflight_sha256,
         ):
-            """Arm typed native writes on a registered broker simulation front.
-
-            Delegates to the SDK's ``arm_execution_for_registered_sim`` typed
-            admission entry, which only arms when the session's TD front
-            matches a frozen registered simulation endpoint pair.
-            """
-            entry = getattr(self.trader_client, "arm_execution_for_registered_sim", None)
-            if not callable(entry):
-                raise BtApiStoreError("SDK does not expose registered-sim execution admission")
-            capability, state = entry(
-                instrument_id=instrument_id,
-                exchange_id=exchange_id,
-                md_front=md_front,
-                strategy_identity_sha256=strategy_identity_sha256,
-                execution_cycle_id=execution_cycle_id,
-                preflight_sha256=preflight_sha256,
+            """Reject legacy direct admission without touching the SDK."""
+            raise BtApiStoreError(
+                "CTP direct registered-sim execution admission is disabled"
             )
-            self._execution_gate_capability = capability
-            instrument, _ = _split_ctp_symbol(str(instrument_id))
-            if instrument and exchange_id:
-                # The execution gate binds writes to EXCHANGE.INSTRUMENT, so
-                # remember the resolved exchange for the order fields.
-                self._execution_instrument_exchanges[instrument.upper()] = str(exchange_id)
-            return state
 
         def _send_native_order_insert(self, field, req_id):
-            """Route one order insert through the typed execution gate."""
-            typed = getattr(self.trader_client, "submit_order_insert", None)
-            capability = self._execution_gate_capability
-            if callable(typed) and capability is not None:
-                return typed(field, req_id, execution_capability=capability)
-            # SDK builds without the execution gate keep the raw path; on
-            # gated builds an unarmed fallback fails closed inside the SDK.
-            return self.trader_client.api.ReqOrderInsert(field, req_id)
+            """Keep direct wrapper order submission disabled in this build."""
+            raise BtApiStoreError("CTP direct native order dispatch is disabled")
 
         def _send_native_order_action(self, field, req_id):
-            """Route one order action (cancel) through the typed gate."""
-            typed = getattr(self.trader_client, "submit_order_action", None)
-            capability = self._execution_gate_capability
-            if callable(typed) and capability is not None:
-                return typed(field, req_id, execution_capability=capability)
-            return self.trader_client.api.ReqOrderAction(field, req_id)
+            """Keep direct wrapper cancellation disabled in this build."""
+            raise BtApiStoreError("CTP direct native order dispatch is disabled")
 
         def connect(self):
             """Connect to CTP servers."""
@@ -3044,12 +3040,6 @@ def _create_ctp_wrapper_class():
 
 
 def _create_ctp_gateway_wrapper_class():
-    try:
-        from bt_api_py.gateway.client import GatewayClient
-    except ImportError as exc:
-        _safe_log("error", "btapistore:2866 re-raising ImportError")
-        raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
-
     class CtpGatewayClientWrapper:
         """Gateway-based wrapper for CTP trading via bt_api_py.
 
@@ -3069,9 +3059,50 @@ def _create_ctp_gateway_wrapper_class():
                 **kwargs: Gateway configuration parameters passed to GatewayClient.
             """
             self._kwargs = dict(kwargs)
+            store_ctp = self._kwargs.pop("_btapistore_ctp_session_provider", False) is True
+            raw_provider = self._kwargs.get("provider")
+            self._store_ctp_session_provider = store_ctp or (
+                isinstance(raw_provider, str)
+                and raw_provider.strip().lower() in {"ctp", "ctp_gateway"}
+            )
             self._kwargs.setdefault("exchange_type", "CTP")
             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
-            self._client = GatewayClient(**self._kwargs)
+            self._direct_ctp_writes_disabled = (
+                self._store_ctp_session_provider or not self._is_supported_non_ctp_exchange()
+            )
+            self._gateway_client = None
+            if not self._direct_ctp_writes_disabled:
+                self._gateway_client = self._load_gateway_client()(**self._kwargs)
+
+        def _is_supported_non_ctp_exchange(self):
+            exchange = self._kwargs.get("exchange_type")
+            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
+                exchange = self._kwargs.get("provider_exchange")
+            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
+                exchange = "CTP"
+            if not isinstance(exchange, str):
+                return False
+            normalized = exchange.strip().upper()
+            venue_prefix = normalized.split("___", 1)[0].strip()
+            if venue_prefix == "CTP":
+                return False
+            return normalized in {"BINANCE", "IB_WEB", "OKX", "MT5"}
+
+        def _load_gateway_client(self):
+            try:
+                from bt_api_py.gateway.client import GatewayClient
+            except ImportError as exc:
+                _safe_log("error", "btapistore:2866 re-raising ImportError")
+                raise BtApiMissingDependencyError(
+                    "bt_api_py gateway support is not available"
+                ) from exc
+            return GatewayClient
+
+        @property
+        def _client(self):
+            if self._gateway_client is None:
+                self._gateway_client = self._load_gateway_client()(**self._kwargs)
+            return self._gateway_client
 
         def connect(self):
             """Connect to the CTP gateway."""
@@ -3287,6 +3318,13 @@ def _create_ctp_gateway_wrapper_class():
                 None (bars not supported in this wrapper).
             """
 
+        def _ensure_direct_writes_allowed(self, operation):
+            if self._direct_ctp_writes_disabled:
+                raise BtApiStoreError(
+                    "Direct gateway order writes are disabled for this exchange "
+                    f"({operation})."
+                )
+
         def submit_order(self, payload):
             """Submit an order to the gateway.
 
@@ -3296,6 +3334,7 @@ def _create_ctp_gateway_wrapper_class():
             Returns:
                 Response from the gateway client.
             """
+            self._ensure_direct_writes_allowed("submit_order")
             response = self._client.submit_order(payload)
             if "data_name" in payload and "data_name" not in response:
                 response["data_name"] = payload["data_name"]
@@ -3310,6 +3349,7 @@ def _create_ctp_gateway_wrapper_class():
             Returns:
                 Response from submit_order.
             """
+            self._ensure_direct_writes_allowed("create_order")
             return self.submit_order(kwargs)
 
         def cancel_order(self, order_ref, dataname=None):
@@ -3322,6 +3362,7 @@ def _create_ctp_gateway_wrapper_class():
             Returns:
                 Response from the gateway client.
             """
+            self._ensure_direct_writes_allowed("cancel_order")
             return self._client.cancel_order(order_ref, dataname=dataname)
 
         def poll_broker_update(self):
@@ -3441,6 +3482,7 @@ class BtApiStore(LiveStoreBase):
         live_bars: Optional[Dict[str, Iterable[Any]]] = None,
         contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
         backend: Optional[str] = None,
+        managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
         autostart: bool = False,
         **kwargs: Any,
     ):
@@ -3462,11 +3504,17 @@ class BtApiStore(LiveStoreBase):
             live_bars: Pre-seeded live bars by symbol.
             contract_metadata: Contract metadata by symbol.
             backend: Runtime backend: direct, gateway or forwarding.
+            managed_execution_adapter: A trusted Iteration 41 adapter attached
+                only after configuration-first capability resolution.  The
+                Store never discovers or constructs this from user config.
             autostart: Whether to start the store on initialization.
             **kwargs: Additional provider-specific arguments.
         """
         self.provider = self._resolve_provider(provider)
         self.backend = _resolve_backend(self.provider, backend)
+        self._managed_execution_adapter = require_managed_execution_adapter(
+            managed_execution_adapter
+        )
         self._api = api
         self._api_cls = api_cls
         self._config = dict(config or {})
@@ -3503,6 +3551,11 @@ class BtApiStore(LiveStoreBase):
             sdk_options.get("exchange_kwargs") or getattr(api, "exchange_kwargs", {}) or {}
         )
         self._sdk_routes = dict(sdk_options.get("symbol_routes") or {})
+        if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+            try:
+                require_ctp_runtime_execution_adapter(self._managed_execution_adapter)
+            except ManagedExecutionAdapterError as error:
+                raise BtApiStoreError(str(error)) from error
         configured_execution = sdk_options.get("execution_config")
         if isinstance(configured_execution, Mapping):
             self._sdk_execution_config = dict(configured_execution)
@@ -3525,6 +3578,7 @@ class BtApiStore(LiveStoreBase):
         )
         self._last_account_risk_refresh_requested = 0.0
         self._account_risk_refresh_pending = False
+        self._account_risk_refresh_token = 0
         funding_max_age = float(sdk_options.get("funding_max_age_seconds", 30.0))
         if not math.isfinite(funding_max_age) or funding_max_age < 0:
             raise ValueError("funding_max_age_seconds must be finite and nonnegative")
@@ -3556,6 +3610,7 @@ class BtApiStore(LiveStoreBase):
         self._sdk_client_refs: Dict[Tuple[str, str], Any] = {}
         self._sdk_venue_refs: Dict[Tuple[str, str], Any] = {}
         self._sdk_local_refs: Dict[str, Any] = {}
+        self._sdk_runtime_refs: Dict[Tuple[str, str], Any] = {}
         queue_size = max(int(sdk_options.get("book_queue_size", 256)), 1)
         self._sdk_books: Dict[str, Any] = collections.defaultdict(
             lambda: collections.deque(maxlen=queue_size)
@@ -3763,13 +3818,13 @@ class BtApiStore(LiveStoreBase):
 
     @property
     def sdk_api(self) -> Any:
-        """Return the managed SDK API object for governed public-method calls.
+        """Return no raw client for CTP, gateway, or forwarding routes.
 
-        The returned object is the single managed client this Store owns; the
-        caller may only use it for the SDK's public contracts (approval
-        contexts, redemptions, budget reservations) and must never construct a
-        second native client.
+        Store query methods continue to use the managed client internally.
+        Non-CTP direct SDK behavior remains compatible.
         """
+        if self.backend in {"gateway", "forwarding"} or self._is_ctp_write_provider():
+            return None
         return self._api
 
     @property
@@ -3789,6 +3844,150 @@ class BtApiStore(LiveStoreBase):
     def requires_account_risk(self) -> bool:
         """Return whether startup must establish durable account-loss evidence."""
         return bool(self._sdk_mode and self._sdk_require_account_risk)
+
+    @property
+    def managed_execution_active(self) -> bool:
+        """Return whether this Store has an explicitly attached managed route.
+
+        The value describes the Store attachment only.  It does not certify
+        live approval, provider capability, or a successful account session;
+        those remain the responsibility of the validated runtime composition.
+        """
+
+        return self._managed_execution_adapter is not None
+
+    def attach_managed_execution_adapter(self, adapter: ManagedExecutionAdapter) -> None:
+        """Attach one already-composed managed route before Store startup.
+
+        Runtime composition may build the Store before all code-owned adapter
+        dependencies are ready.  This method keeps that setup explicit and
+        rejects route replacement after startup or after another adapter has
+        been attached; it never accepts a configuration dict or module name.
+        """
+
+        if self._started or self._connected:
+            raise BtApiStoreError("managed execution adapter must attach before Store startup")
+        if self._managed_execution_adapter is not None:
+            raise BtApiStoreError("managed execution adapter is already attached")
+        validated = require_managed_execution_adapter(adapter)
+        if self._is_ctp_session_provider():
+            try:
+                require_ctp_runtime_execution_adapter(validated)
+            except ManagedExecutionAdapterError as error:
+                raise BtApiStoreError(str(error)) from error
+        self._managed_execution_adapter = validated
+
+    def get_strategy_allocation(self, strategy_id: str):
+        """Read an attached managed adapter's allocation without starting the SDK.
+
+        The immutable SDK snapshot describes local reserved risk units. It
+        supplies sizing advice only; the writer must still reserve atomically.
+        """
+
+        reader = getattr(self._managed_execution_adapter, "get_strategy_allocation", None)
+        if not callable(reader):
+            raise BtApiStoreError("managed strategy allocation reader is unavailable")
+        return reader(strategy_id)
+
+    def validate_managed_framework_projection(self, response, order) -> bool:
+        """Ask the attached bridge whether a fill response owns a live receipt.
+
+        The Broker must not trust a response flag from a legacy/provider payload
+        as permission to replay a durable managed fill.  This narrow port stays
+        false for every historic adapter and becomes true only when the
+        configuration-bound bridge has retained the private receipt claim.
+        """
+
+        adapter = self._managed_execution_adapter
+        validate = getattr(adapter, "validate_framework_projection", None)
+        if not callable(validate):
+            return False
+        try:
+            return validate(response, order) is True
+        except Exception as exc:
+            _safe_log("warning", "btapistore:managed framework projection receipt invalid")
+            self.sanitize_exception(exc)
+            return False
+
+    def complete_managed_framework_projection(self, response, order) -> None:
+        """Commit a bridge receipt after normal Broker fill accounting succeeds."""
+
+        adapter = self._managed_execution_adapter
+        complete = getattr(adapter, "complete_framework_projection", None)
+        if not callable(complete):
+            raise BtApiStoreError("managed framework projection completion is unavailable")
+        complete(response, order)
+
+    def fail_managed_framework_projection(self, response, reason) -> None:
+        """Fence the attached bridge after a post-accounting receipt failure."""
+
+        fail = getattr(self._managed_execution_adapter, "fail_framework_projection", None)
+        if callable(fail):
+            try:
+                fail(response, reason)
+            except Exception as exc:
+                self.sanitize_exception(exc)
+
+    @property
+    def managed_provider_projection_enabled(self) -> bool:
+        """True only for a bridge with an explicitly injected source normalizer."""
+
+        return bool(
+            getattr(self._managed_execution_adapter, "managed_provider_projection_enabled", False)
+        )
+
+    @property
+    def managed_provider_projection_blocked(self) -> bool:
+        """Expose only the bridge's process-local fail-closed session latch."""
+
+        return bool(getattr(self._managed_execution_adapter, "_source_projection_blocked", False))
+
+    def prepare_managed_provider_projection(self, update, order):
+        """Durably persist and claim a provider event before Broker mutation."""
+
+        adapter = self._managed_execution_adapter
+        prepare = getattr(adapter, "prepare_managed_provider_projection", None)
+        if not callable(prepare):
+            raise BtApiStoreError("managed provider event preparation is unavailable")
+        try:
+            return prepare(update, order)
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            raise
+
+    def validate_managed_provider_projection(self, update, order) -> bool:
+        """Validate the private receipt for an immutable source event."""
+
+        validate = getattr(
+            self._managed_execution_adapter, "validate_managed_provider_projection", None
+        )
+        if not callable(validate):
+            return False
+        try:
+            return validate(update, order) is True
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            return False
+
+    def complete_managed_provider_projection(self, update, order) -> None:
+        """Persist the session high-water after the Broker applied a source event."""
+
+        complete = getattr(
+            self._managed_execution_adapter, "complete_managed_provider_projection", None
+        )
+        if not callable(complete):
+            raise BtApiStoreError("managed provider event completion is unavailable")
+        complete(update, order)
+
+    def fail_managed_provider_projection(self, update, reason) -> None:
+        """Fence the managed bridge session after uncertain Broker application."""
+
+        fail = getattr(self._managed_execution_adapter, "fail_managed_provider_projection", None)
+        if callable(fail):
+            try:
+                fail(update, reason)
+            except Exception as exc:
+                self.sanitize_exception(exc)
 
     def _require_async_sdk_commands(self) -> None:
         """Fail closed when an SDK trading session lacks any async operation."""
@@ -4499,6 +4698,7 @@ class BtApiStore(LiveStoreBase):
             self._last_account_risk_snapshot_generation = None
             self._last_account_risk_refresh_requested = 0.0
             self._account_risk_refresh_pending = False
+            self._account_risk_refresh_token += 1
         with self._sdk_identity_lock:
             self._sdk_identity_bindings.clear()
         self._sdk_books.clear()
@@ -4542,6 +4742,7 @@ class BtApiStore(LiveStoreBase):
         self._sdk_client_refs.clear()
         self._sdk_venue_refs.clear()
         self._sdk_local_refs.clear()
+        self._sdk_runtime_refs.clear()
         self._sdk_books.clear()
         self._sdk_ticks.clear()
         self._sdk_sequences.clear()
@@ -4921,8 +5122,9 @@ class BtApiStore(LiveStoreBase):
             self._command_health["risk_command_rejected"] += 1
             self._latch_risk_state_unknown(reason)
         if command.get("operation") == "account_risk":
-            with self._account_risk_lock:
-                self._account_risk_refresh_pending = False
+            self._clear_account_risk_refresh_pending(
+                command.get("account_risk_refresh_token")
+            )
         self._command_drop_records.append(
             {
                 "reason": str(reason),
@@ -5231,6 +5433,7 @@ class BtApiStore(LiveStoreBase):
                     self._sdk_client_refs.clear()
                     self._sdk_venue_refs.clear()
                     self._sdk_local_refs.clear()
+                    self._sdk_runtime_refs.clear()
                     self._sdk_books.clear()
                     self._sdk_ticks.clear()
                     self._clear_sdk_updates("store_stopped")
@@ -5275,6 +5478,7 @@ class BtApiStore(LiveStoreBase):
         self._sdk_client_refs.clear()
         self._sdk_venue_refs.clear()
         self._sdk_local_refs.clear()
+        self._sdk_runtime_refs.clear()
         self._sdk_books.clear()
         self._sdk_ticks.clear()
         self._clear_sdk_updates("store_stopped")
@@ -5835,6 +6039,18 @@ class BtApiStore(LiveStoreBase):
         if not self._connected:
             return None
 
+        replay_reader = getattr(
+            self._managed_execution_adapter, "poll_managed_provider_outbox_update", None
+        )
+        if callable(replay_reader):
+            try:
+                replay_update = replay_reader()
+            except Exception as exc:
+                self.sanitize_exception(exc)
+                return None
+            if isinstance(replay_update, Mapping):
+                return dict(replay_update)
+
         api = self._ensure_api_ready()
         if self._sdk_mode:
             self._drain_sdk_events()
@@ -6032,11 +6248,56 @@ class BtApiStore(LiveStoreBase):
         *,
         priority_name: str,
         emit_event: bool = True,
+        managed_ctp_binding: Optional[CtpManagedDispatchBinding] = None,
+        managed_ctp_receipt_writer: Optional[Callable[[Mapping[str, Any]], Any]] = None,
+        managed_ctp_dispatcher: Optional[Callable[[CtpManagedDispatchBinding], Any]] = None,
     ) -> Dict[str, Any]:
         """Insert one command without waiting for transport or the SDK worker."""
+        operation = str(command.get("operation") or "").strip().lower()
+        if operation in {"submit", "cancel"}:
+            self._assert_write_route_identity()
+        command_venue = self._public_sdk_venue(command.get("venue")).casefold()
+        managed_ctp_operation = bool(
+            self._managed_execution_adapter is not None
+            and operation in {"submit", "cancel"}
+            and (
+                command_venue == "ctp"
+                or (not command_venue and self._is_ctp_session_provider())
+            )
+        )
+        if managed_ctp_operation and (
+            type(managed_ctp_binding) is not CtpManagedDispatchBinding
+            or managed_ctp_binding.operation != operation
+            or managed_ctp_binding.local_queue_receipt_queued is not None
+            or not callable(managed_ctp_receipt_writer)
+            or not callable(managed_ctp_dispatcher)
+        ):
+            error = BtApiStoreError(
+                "managed CTP queue requires a complete v2 outbox binding and dispatch ports"
+            )
+            error.managed_local_reject = True
+            error.definite_reject = True
+            error.code = "managed_ctp_v2_outbox_binding_required"
+            raise error
+
         priority = _COMMAND_PRIORITY[priority_name]
         is_opening = priority_name == "open"
-        receipt_id = uuid.uuid4().hex
+        managed_ctp = managed_ctp_binding is not None
+        if managed_ctp:
+            if (
+                type(managed_ctp_binding) is not CtpManagedDispatchBinding
+                or managed_ctp_binding.local_queue_receipt_queued is not None
+                or not callable(managed_ctp_receipt_writer)
+                or not callable(managed_ctp_dispatcher)
+            ):
+                raise BtApiStoreError(
+                    "managed CTP queue requires a prepared outbox binding and dispatch port"
+                )
+            receipt_id = managed_ctp_binding.local_queue_receipt_id
+        else:
+            if managed_ctp_receipt_writer is not None or managed_ctp_dispatcher is not None:
+                raise BtApiStoreError("managed CTP queue ports require a typed dispatch binding")
+            receipt_id = uuid.uuid4().hex
         command.update(
             receipt_id=receipt_id,
             priority=priority_name,
@@ -6063,11 +6324,6 @@ class BtApiStore(LiveStoreBase):
                 rejection = "command_worker_stopping"
 
             if rejection:
-                self._command_health["rejected"] += 1
-                self._command_health[f"rejected_{priority_name}"] += 1
-                if not is_opening:
-                    self._command_health["risk_command_rejected"] += 1
-                    self._latch_risk_state_unknown(rejection)
                 receipt = {
                     "kind": "command_receipt",
                     "command": command["operation"],
@@ -6082,17 +6338,6 @@ class BtApiStore(LiveStoreBase):
                     "error_msg": "SDK command queue cannot safely accept this command",
                 }
             else:
-                heapq.heappush(
-                    self._command_heap,
-                    (priority, next(self._command_sequence), command),
-                )
-                depth = len(self._command_heap)
-                self._command_health["enqueued"] += 1
-                self._command_health[f"enqueued_{priority_name}"] += 1
-                self._command_health["max_queue_depth"] = max(
-                    self._command_health["max_queue_depth"], depth
-                )
-                self._command_condition.notify()
                 receipt = {
                     "kind": "command_receipt",
                     "command": command["operation"],
@@ -6102,8 +6347,50 @@ class BtApiStore(LiveStoreBase):
                     "status": "submitted",
                     "queued": True,
                     "priority": priority_name,
-                    "queue_depth": depth,
+                    "queue_depth": depth + 1,
                 }
+
+            if managed_ctp:
+                # This runs under the same condition lock used by the worker.
+                # A receipt-write failure leaves the command invisible to the
+                # worker; a successful write is durable before heap publication.
+                try:
+                    committed = managed_ctp_receipt_writer(receipt)
+                except Exception as exc:
+                    raise BtApiStoreError(
+                        "managed CTP queue receipt could not be committed before publication"
+                    ) from exc
+                if type(committed) is not CtpManagedDispatchBinding:
+                    raise BtApiStoreError("managed CTP receipt writer returned an untyped binding")
+                expected = managed_ctp_binding.to_store_payload()
+                actual = committed.to_store_payload()
+                expected["local_queue_receipt_queued"] = receipt["queued"]
+                if actual != expected:
+                    raise BtApiStoreError(
+                        "managed CTP durable receipt binding differs from the queued command"
+                    )
+                command["managed_ctp_binding"] = committed
+                command["managed_ctp_dispatcher"] = managed_ctp_dispatcher
+
+            if rejection:
+                self._command_health["rejected"] += 1
+                self._command_health[f"rejected_{priority_name}"] += 1
+                if not is_opening:
+                    self._command_health["risk_command_rejected"] += 1
+                    self._latch_risk_state_unknown(rejection)
+            else:
+                heapq.heappush(
+                    self._command_heap,
+                    (priority, next(self._command_sequence), command),
+                )
+                depth = len(self._command_heap)
+                receipt["queue_depth"] = depth
+                self._command_health["enqueued"] += 1
+                self._command_health[f"enqueued_{priority_name}"] += 1
+                self._command_health["max_queue_depth"] = max(
+                    self._command_health["max_queue_depth"], depth
+                )
+                self._command_condition.notify()
 
         if emit_event:
             self.emit_runtime_event(
@@ -6188,6 +6475,15 @@ class BtApiStore(LiveStoreBase):
         """Execute one typed SDK command and return a main-thread completion."""
         operation = command["operation"]
         request = command.get("request")
+        managed_ctp = bool(
+            command.get("managed_ctp_binding") is not None
+            or command.get("managed_ctp") is True
+            or (
+                self._managed_execution_adapter is not None
+                and self._is_ctp_session_provider()
+                and operation in {"submit", "cancel"}
+            )
+        )
         recovery_submit = bool(
             operation == "submit" and getattr(request, "execution_role", None) == "recovery_exit"
         )
@@ -6222,9 +6518,47 @@ class BtApiStore(LiveStoreBase):
                 result = await _run_in_thread(
                     self._read_account_risk_snapshot, self._ensure_api_ready()
                 )
+            elif managed_ctp:
+                self._assert_write_route_identity()
+                binding = command.get("managed_ctp_binding")
+                dispatcher = command.get("managed_ctp_dispatcher")
+                if (
+                    type(binding) is not CtpManagedDispatchBinding
+                    or not callable(dispatcher)
+                    or binding.operation != operation
+                    or binding.local_queue_receipt_id != command.get("receipt_id")
+                    or binding.local_queue_receipt_queued is not True
+                ):
+                    raise BtApiStoreError(
+                        "managed CTP worker requires a queued outbox binding and single dispatch port"
+                    )
+                projection = dispatcher(binding)
+                if inspect.isawaitable(projection):
+                    projection = await projection
+                if type(projection) is not CtpManagedExecutionProjection:
+                    raise BtApiStoreError(
+                        "managed CTP worker dispatch port did not read a typed outbox projection"
+                    )
+                if (
+                    projection.version != 2
+                    or projection.dispatch_binding != binding
+                    or projection.durable_projection_id != binding.command_id
+                    or projection.local_queue_receipt_id != command.get("receipt_id")
+                    or projection.operation != operation
+                    or projection.state
+                    not in (
+                        CtpManagedProjectionState.PENDING,
+                        CtpManagedProjectionState.UNKNOWN,
+                        CtpManagedProjectionState.LOCAL_REJECTED,
+                    )
+                ):
+                    raise BtApiStoreError(
+                        "managed CTP worker projection does not echo the queued outbox row"
+                    )
+                result = projection.to_store_response()
             else:
                 result = await self._invoke_sdk_command(operation, command)
-                if isinstance(result, Mapping):
+                if isinstance(result, Mapping) and not managed_ctp:
                     event = dict(result)
                     event.setdefault("symbol", command.get("symbol"))
                     event.setdefault("client_order_id", command.get("client_order_id"))
@@ -6253,9 +6587,10 @@ class BtApiStore(LiveStoreBase):
             with self._command_condition:
                 if operation == "execution_recovery_complete":
                     self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
-                if operation == "account_risk":
-                    with self._account_risk_lock:
-                        self._account_risk_refresh_pending = False
+            if operation == "account_risk":
+                self._clear_account_risk_refresh_pending(
+                    command.get("account_risk_refresh_token")
+                )
             raise
         except Exception as exc:
             _safe_log("warning", "btapistore:6063 fallback on Exception")
@@ -6310,11 +6645,41 @@ class BtApiStore(LiveStoreBase):
             with self._command_condition:
                 self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
         if operation == "account_risk":
-            with self._account_risk_lock:
-                self._account_risk_refresh_pending = False
+            self._clear_account_risk_refresh_pending(command.get("account_risk_refresh_token"))
         return completion
 
     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
+        if operation in {"submit", "cancel"}:
+            self._assert_write_route_identity()
+        if operation in {"submit", "cancel"} and self._is_ctp_write_provider():
+            raise BtApiStoreError("direct CTP SDK command dispatch is disabled")
+        if operation in {"submit", "cancel"}:
+            # A typed request was bound to an SDK identity before it entered
+            # this worker. Re-read that identity at the last write handoff;
+            # route equality alone does not fence an account/session swap.
+            venue = command.get("venue")
+            identity_getter = getattr(self._api, "get_execution_identity", None)
+            identity_bindings = getattr(self, "_sdk_identity_bindings", {})
+            identity_was_bound = (
+                isinstance(identity_bindings, Mapping) and venue in identity_bindings
+            )
+            if identity_was_bound and not callable(identity_getter):
+                raise BtApiStoreError("execution_identity_unavailable")
+            if callable(identity_getter):
+                identity = self._validated_sdk_identity(venue)
+                request_account_id = getattr(command.get("request"), "account_id", None)
+                if type(request_account_id) is not str or not request_account_id.strip():
+                    raise BtApiStoreError(
+                        "SDK write request account identity is unavailable"
+                    )
+                allowed_account_ids = {str(identity.get("account_id") or "").strip().casefold()}
+                account_alias = identity.get("account_alias")
+                if account_alias not in (None, ""):
+                    allowed_account_ids.add(str(account_alias).strip().casefold())
+                if request_account_id.strip().casefold() not in allowed_account_ids:
+                    raise BtApiStoreError(
+                        "The requested account_id does not match the SDK ledger"
+                    )
         if operation == "submit":
             self._validate_approval_lease_command(command)
         method_names = {
@@ -6833,15 +7198,37 @@ class BtApiStore(LiveStoreBase):
     def enqueue_order(self, order) -> Dict[str, Any]:
         """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
 
+        info = getattr(order, "info", {})
+        get_info = getattr(info, "get", lambda *_args: None)
+        recovery_exit = get_info("execution_role") == "recovery_exit"
+        try:
+            self._assert_write_route_identity()
+        except Exception:
+            if recovery_exit:
+                self.abort_execution_recovery("execution_recovery_dispatch_failed")
+            raise
+        is_ctp_write = self._is_ctp_write_provider()
+        if self._managed_execution_adapter is not None and is_ctp_write:
+            if recovery_exit:
+                self.abort_execution_recovery("execution_recovery_dispatch_failed")
+            raise BtApiStoreError(
+                "managed CTP orders must pass through the typed runtime adapter"
+            )
+
         if self._is_sdk_market_data_only():
+            if is_ctp_write and recovery_exit:
+                self.abort_execution_recovery("execution_recovery_dispatch_failed")
+                raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
             return self._reject_market_data_only_command(
                 "submit",
                 bt_order_ref=getattr(order, "ref", None),
             )
 
-        info = getattr(order, "info", {})
-        get_info = getattr(info, "get", lambda *_args: None)
-        recovery_exit = get_info("execution_role") == "recovery_exit"
+        if is_ctp_write:
+            if recovery_exit:
+                self.abort_execution_recovery("execution_recovery_dispatch_failed")
+            raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
+
         try:
             receipt = self._enqueue_order_command(order)
         except Exception:
@@ -6855,26 +7242,96 @@ class BtApiStore(LiveStoreBase):
             self.abort_execution_recovery("execution_recovery_dispatch_failed")
         return deepcopy(receipt)
 
-    def _enqueue_order_command(self, order) -> Dict[str, Any]:
+    @staticmethod
+    def _apply_ctp_managed_order_identity(
+        payload: Dict[str, Any], identity: CtpManagedOrderDispatch
+    ) -> None:
+        """Copy only the typed runtime identity into the immutable SDK payload."""
+
+        order_info = getattr(identity.order, "info", {})
+        get_info = getattr(order_info, "get", lambda *_args: None)
+        forbidden = (
+            "client_order_id",
+            "ctp_order_ref",
+            "order_ref",
+            "front_id",
+            "session_id",
+            "runtime_action_id",
+            "action_id",
+        )
+        if any(get_info(name) not in (None, "") for name in forbidden):
+            raise BtApiStoreError("managed CTP order contains caller-supplied provider identifiers")
+        for name, expected in (
+            ("managed_intent_id", identity.managed_intent_id),
+            ("runtime_order_id", identity.runtime_order_id),
+            ("hedge_flag", identity.hedge_flag),
+        ):
+            current = get_info(name)
+            if current not in (None, "") and current != expected:
+                raise BtApiStoreError("managed CTP order identity differs from its runtime projection")
+        payload.update(
+            managed_intent_id=identity.managed_intent_id,
+            runtime_order_id=identity.runtime_order_id,
+            hedge_flag=identity.hedge_flag,
+        )
+
+    def _enqueue_order_command(
+        self, order, *, ctp_managed_identity: Optional[CtpManagedOrderDispatch] = None
+    ) -> Dict[str, Any]:
         """Build and queue one typed SDK order."""
+        self._assert_write_route_identity()
+        if ctp_managed_identity is not None:
+            error = BtApiStoreError(
+                "managed CTP dispatch is closed until the single execution outbox owns the OrderRef reservation"
+            )
+            error.managed_local_reject = True
+            error.definite_reject = True
+            error.code = "managed_ctp_shared_orderref_authority_unavailable"
+            raise error
+        payload = self._order_to_payload(order)
+        if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+            if type(ctp_managed_identity) is not CtpManagedOrderDispatch:
+                raise BtApiStoreError(
+                    "managed CTP order lacks its typed runtime identity projection"
+                )
+            self._apply_ctp_managed_order_identity(payload, ctp_managed_identity)
+            self._require_sdk_request_model_fields(
+                self._warm_sdk_command_types()["OrderRequest"],
+                ("managed_intent_id", "runtime_order_id", "hedge_flag"),
+                "OrderRequest",
+            )
+        elif ctp_managed_identity is not None:
+            raise BtApiStoreError("CTP managed identity supplied outside the CTP SDK route")
         self._ensure_api_ready()
         self._require_async_sdk_commands()
         self._start_command_worker()
-        payload = self._order_to_payload(order)
         venue = self._sdk_exchange(payload["symbol"])
-        request = self._sdk_order_request(venue, payload)
+        order_info = getattr(order, "info", {})
+        get_info = getattr(order_info, "get", lambda *_args: None)
+        budget_capability = get_info("budget_capability")
+        recovery_action = get_info("execution_role") == "recovery_exit"
+        request = self._sdk_order_request(
+            venue,
+            payload,
+            framework_order=order,
+            budget_capability=budget_capability,
+            recovery_action=recovery_action,
+        )
         client_id = request.client_order_id
         binding = self._sdk_client_refs.get((venue, str(client_id)), {})
         execution_contract = deepcopy(binding.get("execution_contract") or {})
         if hasattr(order, "addinfo"):
             order.addinfo(
                 client_order_id=client_id,
+                runtime_order_id=getattr(request, "runtime_order_id", None),
                 sdk_execution_contract=execution_contract,
                 quantity_unit=execution_contract.get("quantity_unit"),
                 position_mode=execution_contract.get("position_mode"),
             )
         elif isinstance(getattr(order, "info", None), dict):
             order.info["client_order_id"] = client_id
+            if getattr(request, "runtime_order_id", None):
+                order.info["runtime_order_id"] = request.runtime_order_id
             order.info["sdk_execution_contract"] = execution_contract
             order.info["quantity_unit"] = execution_contract.get("quantity_unit")
             order.info["position_mode"] = execution_contract.get("position_mode")
@@ -6884,7 +7341,6 @@ class BtApiStore(LiveStoreBase):
             or str(payload.get("offset") or "open").lower() != "open"
             else "open"
         )
-        order_info = getattr(order, "info", {})
         approval_fields = {
             key: getattr(order_info, "get", lambda *_args: None)(key)
             for key in (
@@ -6894,7 +7350,6 @@ class BtApiStore(LiveStoreBase):
                 "approval_risk_reducing",
             )
         }
-        budget_capability = getattr(order_info, "get", lambda *_args: None)("budget_capability")
         command = {
             "operation": "submit",
             "venue": venue,
@@ -6918,11 +7373,21 @@ class BtApiStore(LiveStoreBase):
 
     def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
         """Queue a typed cancellation while preserving its reserved capacity."""
+        self._assert_write_route_identity()
+        if (
+            self._managed_execution_adapter is not None
+            and self._is_ctp_write_provider()
+        ):
+            raise BtApiStoreError(
+                "managed CTP cancellations cannot use the generic SDK queue"
+            )
         if self._is_sdk_market_data_only():
             return self._reject_market_data_only_command(
                 "cancel",
                 bt_order_ref=order_ref,
             )
+        if self._is_ctp_write_provider():
+            raise BtApiStoreError("direct CTP SDK cancel enqueue is disabled")
         self._ensure_api_ready()
         self._require_async_sdk_commands()
         self._start_command_worker()
@@ -6944,6 +7409,22 @@ class BtApiStore(LiveStoreBase):
             },
             priority_name="cancel",
         )
+
+    def _enqueue_ctp_managed_cancel(
+        self, identity: CtpManagedCancelDispatch, dataname: Optional[str]
+    ) -> Dict[str, Any]:
+        """Queue one typed managed CTP cancel using only its durable identity."""
+
+        self._assert_write_route_identity()
+        if type(identity) is not CtpManagedCancelDispatch:
+            raise BtApiStoreError("managed CTP adapter returned an untyped cancel projection")
+        error = BtApiStoreError(
+            "managed CTP cancel is closed until the single execution outbox owns the OrderRef and action binding"
+        )
+        error.managed_local_reject = True
+        error.definite_reject = True
+        error.code = "managed_ctp_shared_orderref_authority_unavailable"
+        raise error
 
     def _cancel_queued_opening_before_send(
         self,
@@ -7158,32 +7639,70 @@ class BtApiStore(LiveStoreBase):
                 )
                 raise
 
+    def _prepare_account_risk_refresh_locked(
+        self, now: float
+    ) -> Tuple[bool, Dict[str, Any], Optional[int]]:
+        """Reserve one refresh while the callback cache lock is held."""
+        if not self.requires_account_risk:
+            return False, {"queued": False, "status": "not_required"}, None
+        if not self._started or not self._connected:
+            return False, {"queued": False, "status": "store_not_running"}, None
+        if self._account_risk_refresh_pending:
+            return False, {"queued": True, "status": "already_pending"}, None
+        if (
+            self._last_account_risk_refresh_requested
+            and now - self._last_account_risk_refresh_requested < self._account_risk_refresh_interval
+        ):
+            return False, {"queued": False, "status": "refresh_interval"}, None
+        self._account_risk_refresh_pending = True
+        self._last_account_risk_refresh_requested = now
+        self._account_risk_refresh_token += 1
+        refresh_token = self._account_risk_refresh_token
+        return True, {"queued": True, "status": "refresh_reserved"}, refresh_token
+
+    def _prepare_account_risk_refresh(self) -> Tuple[bool, Dict[str, Any], Optional[int]]:
+        """Reserve one callback-safe account-risk refresh without dispatching it."""
+
+        with self._account_risk_lock:
+            return self._prepare_account_risk_refresh_locked(time.monotonic())
+
+    def _clear_account_risk_refresh_pending(self, refresh_token: Any) -> None:
+        """Clear only the matching refresh reservation from a Store worker."""
+
+        if type(refresh_token) is not int:
+            return
+        with self._account_risk_lock:
+            if refresh_token == self._account_risk_refresh_token:
+                self._account_risk_refresh_pending = False
+
+    def _dispatch_prepared_account_risk_refresh(self, refresh_token: int) -> Dict[str, Any]:
+        """Queue an already-reserved refresh and undo only its own failed lease."""
+
+        try:
+            receipt = self._enqueue_sdk_command(
+                {"operation": "account_risk", "account_risk_refresh_token": refresh_token},
+                priority_name="reconcile",
+            )
+        except Exception:
+            _safe_log("warning", "btapistore:account-risk refresh queue failed")
+            self._clear_account_risk_refresh_pending(refresh_token)
+            raise
+        if not isinstance(receipt, Mapping) or receipt.get("queued") is not True:
+            self._clear_account_risk_refresh_pending(refresh_token)
+            if isinstance(receipt, Mapping):
+                return dict(receipt)
+            return {"queued": False, "status": "invalid_refresh_queue_receipt"}
+        return dict(receipt)
+
     def enqueue_account_risk_refresh(self) -> Dict[str, Any]:
         """Queue a non-blocking SDK account-risk refresh for strategy callbacks."""
-        if not self.requires_account_risk:
-            return {"queued": False, "status": "not_required"}
-        if not self._started or not self._connected:
-            return {"queued": False, "status": "store_not_running"}
-        now = time.monotonic()
-        with self._account_risk_lock:
-            if self._account_risk_refresh_pending:
-                return {"queued": True, "status": "already_pending"}
-            if (
-                self._last_account_risk_refresh_requested
-                and now - self._last_account_risk_refresh_requested
-                < self._account_risk_refresh_interval
-            ):
-                return {"queued": False, "status": "refresh_interval"}
-            self._account_risk_refresh_pending = True
-            self._last_account_risk_refresh_requested = now
-        receipt = self._enqueue_sdk_command(
-            {"operation": "account_risk"},
-            priority_name="reconcile",
-        )
-        if receipt.get("queued") is not True:
-            with self._account_risk_lock:
-                self._account_risk_refresh_pending = False
-        return receipt
+
+        should_dispatch, reservation, refresh_token = self._prepare_account_risk_refresh()
+        if not should_dispatch:
+            return reservation
+        if refresh_token is None:  # pragma: no cover - guarded by the reservation contract
+            raise BtApiStoreError("account-risk refresh reservation has no token")
+        return self._dispatch_prepared_account_risk_refresh(refresh_token)
 
     def get_command_health(self) -> Dict[str, Any]:
         """Return queue and worker health without exposing command payloads."""
@@ -7262,7 +7781,281 @@ class BtApiStore(LiveStoreBase):
         return result
 
     def submit_order(self, order):
-        """Submit a backtrader order through the unified API."""
+        """Submit through the sealed managed adapter or the legacy Store path.
+
+        A managed adapter receives the private legacy dispatcher as an
+        injected port.  The Store never catches an adapter failure and retries
+        it directly: that would turn a missing journal, permit, or monitor
+        fact into an accidental provider write.
+        """
+
+        self._assert_write_route_identity()
+        adapter = self._managed_execution_adapter
+        if adapter is None:
+            if self._is_ctp_write_provider():
+                raise BtApiStoreError("direct CTP Store order writes are disabled")
+            return self._submit_order_legacy(order)
+        self._require_typed_ctp_managed_route(operation="order")
+        if self._is_ctp_session_provider():
+            return self._submit_ctp_managed_order(order, adapter)
+        order_ref = getattr(order, "ref", None)
+        self.emit_runtime_event(
+            "managed_execution_intent_requested",
+            order_ref=order_ref,
+            status="admission_pending",
+        )
+        try:
+            response = adapter.submit_order(order, self._submit_order_legacy)
+        except Exception as exc:
+            _safe_log("error", "btapistore:managed execution adapter rejected submit")
+            self.sanitize_exception(exc)
+            self.emit_runtime_event(
+                "managed_execution_submit_rejected",
+                level="ERROR",
+                order_ref=order_ref,
+                status="rejected",
+                error_code=self._safe_exception_code(exc, "managed_execution_submit_failed"),
+                error_msg="Managed execution rejected the order before a direct fallback.",
+            )
+            raise
+        if response is None:
+            error = BtApiStoreError("managed execution adapter returned no submission projection")
+            self.emit_runtime_event(
+                "managed_execution_submit_rejected",
+                level="ERROR",
+                order_ref=order_ref,
+                status="rejected",
+                error_code="managed_execution_projection_missing",
+                error_msg="Managed execution did not return a submission projection.",
+            )
+            raise error
+        self.emit_runtime_event(
+            "managed_execution_submit_projected",
+            order_ref=order_ref,
+            status="projected",
+        )
+        return response
+
+    def _submit_ctp_managed_order(self, order, adapter):
+        """Project an admitted managed CTP intent only onto the typed SDK queue."""
+
+        self._assert_write_route_identity()
+        if not self._sdk_mode:
+            raise BtApiStoreError(
+                "managed CTP execution requires the SDK command route; native Store writes are closed"
+            )
+        if self._is_sdk_market_data_only():
+            raise BtApiStoreError("SDK CTP session is market-data-only")
+        try:
+            ctp_adapter = require_ctp_runtime_execution_adapter(adapter)
+        except ManagedExecutionAdapterError as error:
+            raise BtApiStoreError(str(error)) from error
+
+        info = getattr(order, "info", {})
+        get_info = getattr(info, "get", lambda *_args: None)
+        unsafe = (
+            "client_order_id",
+            "runtime_order_id",
+            "ctp_order_ref",
+            "order_ref",
+            "front_id",
+            "session_id",
+            "runtime_action_id",
+            "action_id",
+            "hedge_flag",
+        )
+        if any(get_info(name) not in (None, "") for name in unsafe):
+            raise BtApiStoreError("managed CTP order contains caller-supplied provider identifiers")
+
+        order_ref = getattr(order, "ref", None)
+        self.emit_runtime_event(
+            "managed_execution_intent_requested",
+            order_ref=order_ref,
+            status="admission_pending",
+        )
+
+        dispatched_identity: List[CtpManagedOrderDispatch] = []
+        dispatch_attempted = False
+        local_queue_receipts: List[Any] = []
+
+        def sdk_dispatch(identity: CtpManagedOrderDispatch) -> Any:
+            nonlocal dispatch_attempted
+            if type(identity) is not CtpManagedOrderDispatch:
+                raise BtApiStoreError("managed CTP adapter returned an untyped order projection")
+            if dispatch_attempted:
+                raise BtApiStoreError("managed CTP order dispatch may be queued only once")
+            dispatch_attempted = True
+            receipt = self._enqueue_order_command(
+                identity.order,
+                ctp_managed_identity=identity,
+            )
+            dispatched_identity.append(identity)
+            local_queue_receipts.append(receipt)
+            return receipt
+
+        try:
+            response = ctp_adapter.submit_order(order, sdk_dispatch)
+        except Exception as exc:
+            _safe_log("error", "btapistore:managed CTP adapter rejected submit")
+            self.sanitize_exception(exc)
+            local_reject = not dispatched_identity and bool(
+                getattr(exc, "managed_local_reject", False)
+            )
+            if local_reject:
+                self.emit_runtime_event(
+                    "managed_execution_submit_rejected",
+                    level="ERROR",
+                    order_ref=order_ref,
+                    status="rejected",
+                    error_code=self._safe_exception_code(
+                        exc, "managed_ctp_write_composition_unavailable"
+                    ),
+                    error_msg="Managed CTP execution rejected the order before SDK dispatch.",
+                )
+                raise
+            error = ManagedCtpHandoffError(
+                "managed CTP submit outcome is unknown after adapter handoff failure",
+                code="managed_ctp_submit_handoff_unknown",
+            )
+            self.emit_runtime_event(
+                "managed_execution_submit_unconfirmed",
+                level="WARNING",
+                order_ref=order_ref,
+                status="unknown",
+                error_code=error.code,
+                error_msg="Managed CTP submit outcome is unresolved; no native acknowledgement was observed.",
+            )
+            raise error from exc
+        if response is None:
+            self.emit_runtime_event(
+                "managed_execution_submit_unconfirmed",
+                level="WARNING",
+                order_ref=order_ref,
+                status="unknown",
+                error_code="managed_ctp_submit_projection_missing",
+                error_msg="Managed CTP execution did not return a durable submission projection.",
+            )
+            raise ManagedCtpHandoffError(
+                "managed CTP adapter returned no durable submission projection",
+                code="managed_ctp_submit_projection_missing",
+            )
+        try:
+            projection_identity = dispatched_identity[0] if dispatched_identity else None
+            order_intent_id = get_info("managed_intent_id")
+            if (
+                type(order_intent_id) is not str
+                or not order_intent_id
+                or (
+                    projection_identity is not None
+                    and projection_identity.managed_intent_id != order_intent_id
+                )
+            ):
+                raise ManagedExecutionAdapterError(
+                    "managed CTP dispatch intent differs from the framework order"
+                )
+            managed_projection = require_ctp_managed_execution_projection(
+                response,
+                operation="submit",
+                managed_intent_id=order_intent_id,
+                runtime_order_id=(
+                    projection_identity.runtime_order_id
+                    if projection_identity is not None
+                    else getattr(response, "runtime_order_id", None)
+                ),
+                local_queue_receipt=(local_queue_receipts[0] if local_queue_receipts else None),
+            )
+        except ManagedExecutionAdapterError as error:
+            raise ManagedCtpHandoffError(
+                "managed CTP submit outcome is unknown because its projection is invalid",
+                code="managed_ctp_submit_projection_invalid",
+            ) from error
+        response = managed_projection.to_store_response()
+        self.emit_runtime_event(
+            "managed_execution_submit_projected",
+            order_ref=order_ref,
+            status=managed_projection.state.value.lower(),
+        )
+        return response
+
+    def _require_typed_ctp_managed_route(self, *, operation: str) -> None:
+        """Reject explicit CTP routes without a snapshot-backed typed session.
+
+        This check reads only Store-owned route snapshots and configuration
+        mappings. It deliberately avoids consulting an injected API object
+        while deciding whether a generic managed adapter may run.
+        """
+        provider = str(getattr(self, "provider", "") or "").strip().lower()
+        is_ctp_provider = provider in {"ctp", "ctp_gateway"}
+        if is_ctp_provider and self.backend != "forwarding":
+            return
+
+        config = getattr(self, "_config", {})
+        api_kwargs = getattr(self, "_api_kwargs", {})
+        sdk_exchanges = getattr(self, "_sdk_exchanges", {})
+        sdk_routes = getattr(self, "_sdk_routes", {})
+        if not all(
+            isinstance(value, Mapping) for value in (config, api_kwargs, sdk_exchanges, sdk_routes)
+        ):
+            self._raise_untyped_ctp_managed_route(operation)
+
+        candidates = list(sdk_exchanges) + list(sdk_routes.values())
+        for values in (config, api_kwargs):
+            candidates.extend((values.get("exchange"), values.get("exchange_type")))
+            exchange_kwargs = values.get("exchange_kwargs")
+            if isinstance(exchange_kwargs, Mapping):
+                candidates.extend(exchange_kwargs)
+            elif exchange_kwargs is not None:
+                self._raise_untyped_ctp_managed_route(operation)
+        has_ctp_route = is_ctp_provider or any(
+            str(value or "").strip().upper().partition("___")[0] == "CTP"
+            for value in candidates
+            if value not in (None, "")
+        )
+        if self.backend == "gateway" and not any(value not in (None, "") for value in candidates):
+            # A gateway with no explicit exchange defaults to the CTP wrapper.
+            has_ctp_route = True
+        if not has_ctp_route:
+            return
+
+        # Match the typed-session recognition using only the immutable Store
+        # snapshot. A live API property cannot promote an alias into that path.
+        ctp_venues = {
+            str(value).strip()
+            for value in list(sdk_exchanges) + list(sdk_routes.values())
+            if str(value or "").strip().upper().partition("___")[0] == "CTP"
+        }
+        if provider == "btapi" and self.backend != "forwarding" and len(ctp_venues) == 1:
+            return
+        if self.backend == "gateway":
+            exchange = (
+                api_kwargs.get("exchange_type")
+                or api_kwargs.get("exchange")
+                or config.get("exchange_type")
+                or config.get("exchange")
+                or "CTP"
+            )
+            if str(exchange or "").strip().upper() == "CTP":
+                return
+        self._raise_untyped_ctp_managed_route(operation)
+
+    @staticmethod
+    def _raise_untyped_ctp_managed_route(operation: str) -> None:
+        action = "order writes are" if operation == "order" else "cancellation is"
+        raise BtApiStoreError(
+            f"direct CTP Store {action} disabled for a generic managed execution adapter"
+        )
+
+    def _submit_order_legacy(self, order):
+        """Submit through the historic Store-to-provider mapping only.
+
+        This private method is supplied to an already attached managed adapter
+        after it makes its durable admission decision.  No public route calls
+        it following a managed-adapter failure.
+        """
+        api_was_missing = getattr(self, "_api", None) is None
+        self._assert_write_route_identity()
+        if self._is_ctp_write_provider():
+            raise BtApiStoreError("direct CTP Store order writes are disabled")
         if self._sdk_mode:
             if self._is_sdk_market_data_only():
                 return self._reject_market_data_only_command(
@@ -7283,6 +8076,7 @@ class BtApiStore(LiveStoreBase):
         )
 
         try:
+            self._assert_write_route_identity(require_live_route=api_was_missing)
             if hasattr(api, "submit_order"):
                 response = api.submit_order(payload)
             elif hasattr(api, "create_order"):
@@ -7338,14 +8132,30 @@ class BtApiStore(LiveStoreBase):
         return response
 
     def cancel_order(self, order):
-        """Cancel a submitted order through the unified API."""
+        """Cancel through the managed route when one is attached."""
+        if self._managed_execution_adapter is None and self._is_ctp_write_provider():
+            raise BtApiStoreError("direct CTP Store cancellation is disabled")
+        info = getattr(order, "info", None)
+        info_get = getattr(info, "get", None)
+        if callable(info_get):
+            external_order_id = info_get("external_order_id")
+            ctp_order_ref = info_get("ctp_order_ref")
+        else:
+            external_order_id = getattr(info, "external_order_id", None)
+            ctp_order_ref = getattr(info, "ctp_order_ref", None)
         order_ref = (
-            getattr(order.info, "external_order_id", None)
-            or getattr(order.info, "ctp_order_ref", None)
+            external_order_id
+            or ctp_order_ref
             or getattr(order, "ref", None)
         )
-        dataname = self._extract_dataname(order.data)
-        return self.cancel_order_ref(order_ref, dataname=dataname)
+        dataname = self._extract_dataname(getattr(order, "data", None))
+        if self._managed_execution_adapter is None:
+            return self._cancel_order_ref_legacy(order_ref, dataname=dataname)
+        # A managed cancellation needs the original immutable intent metadata
+        # carried by the framework order.  Passing only ``order_ref`` here
+        # would let a legacy/external reference bypass the scoped durable
+        # identity check in the adapter.
+        return self._cancel_managed(order, dataname=dataname)
 
     def arm_registered_sim_execution(
         self,
@@ -7356,44 +8166,176 @@ class BtApiStore(LiveStoreBase):
         execution_cycle_id: str,
         preflight_sha256: str,
     ) -> Dict[str, Any]:
-        """Arm typed CTP order writes on a registered broker simulation front.
-
-        Only the legacy direct CTP adapter exposes this entry, and the SDK
-        arms only when the session's TD front matches a frozen registered
-        simulation endpoint pair (see ``bt_api_ctp.ctp_env_selector``).
-
-        The execution gate binds writes to exchange-qualified instrument
-        identities, so a bare symbol such as ``rb2701`` is resolved to its
-        exchange here (the adapter then reuses it for order fields).
-        """
-        api = self._ensure_api_ready()
-        arm = getattr(api, "arm_registered_sim_execution", None)
-        if not callable(arm):
-            raise BtApiStoreError("CTP adapter does not support registered-sim execution admission")
-        if not exchange_id:
-            _, exchange_id = _split_ctp_symbol(str(instrument_id))
-        if not exchange_id:
-            getter = getattr(self, "get_symbol_info", None)
-            info: Dict[str, Any] = {}
-            if callable(getter):
-                try:
-                    info = getter(instrument_id) or {}
-                except Exception as exc:
-                    _safe_log("warning", "btapistore:arm_registered_sim_exchange_lookup")
-                    _safe_log("debug", "symbol exchange lookup failed: %s", exc)
-                    info = {}
-            exchange_id = str(info.get("exchange_id") or info.get("exchange") or "")
-        return arm(
-            instrument_id,
-            exchange_id,
-            md_front=getattr(api, "md_front", "") or "",
-            strategy_identity_sha256=strategy_identity_sha256,
-            execution_cycle_id=execution_cycle_id,
-            preflight_sha256=preflight_sha256,
+        """Reject direct Store callers before API readiness or SDK access."""
+        raise BtApiStoreError(
+            "CTP direct registered-sim execution admission is disabled"
         )
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
-        """Cancel a provider order by reference without requiring a local Order."""
+        """Cancel through managed execution or, when absent, the legacy Store path."""
+
+        adapter = self._managed_execution_adapter
+        if adapter is None:
+            return self._cancel_order_ref_legacy(order_ref, dataname=dataname)
+        return self._cancel_managed(order_ref, dataname=dataname)
+
+    def _cancel_managed(self, order_or_ref, dataname: Optional[str] = None):
+        """Delegate one managed cancellation without any direct fallback."""
+
+        self._assert_write_route_identity()
+        self._require_typed_ctp_managed_route(operation="cancel")
+        adapter = self._managed_execution_adapter
+        if adapter is None:
+            raise BtApiStoreError("managed execution adapter is not attached")
+        order_ref = getattr(order_or_ref, "ref", order_or_ref)
+        is_ctp = self._is_ctp_session_provider()
+        dispatched_identity: List[CtpManagedCancelDispatch] = []
+        dispatch_attempted = False
+        local_queue_receipts: List[Any] = []
+        self.emit_runtime_event(
+            "managed_execution_cancel_requested",
+            order_ref=order_ref,
+            status="admission_pending",
+        )
+        try:
+            if self._is_ctp_session_provider():
+                if not self._sdk_mode:
+                    raise ManagedExecutionAdapterError(
+                        "managed CTP cancellation requires the SDK command route"
+                    )
+                cancel = require_ctp_runtime_execution_adapter(adapter).cancel_order
+
+                def dispatch_cancel(identity):
+                    nonlocal dispatch_attempted
+                    if type(identity) is not CtpManagedCancelDispatch:
+                        raise BtApiStoreError(
+                            "managed CTP adapter returned an untyped cancel projection"
+                        )
+                    if dispatch_attempted:
+                        raise BtApiStoreError("managed CTP cancellation may be queued only once")
+                    dispatch_attempted = True
+                    receipt = self._enqueue_ctp_managed_cancel(identity, dataname)
+                    dispatched_identity.append(identity)
+                    local_queue_receipts.append(receipt)
+                    return receipt
+
+            else:
+                cancel = require_managed_cancel(adapter)
+                dispatch_cancel = self._cancel_order_ref_legacy
+        except ManagedExecutionAdapterError as error:
+            self.emit_runtime_event(
+                "managed_execution_cancel_rejected",
+                level="ERROR",
+                order_ref=order_ref,
+                status="rejected",
+                error_code="managed_execution_cancel_not_supported",
+                error_msg="Managed execution has no cancellation projection.",
+            )
+            raise BtApiStoreError("managed_execution_cancel_not_supported") from error
+        try:
+            response = cancel(order_or_ref, dataname, dispatch_cancel)
+        except Exception as exc:
+            _safe_log("error", "btapistore:managed execution adapter rejected cancel")
+            self.sanitize_exception(exc)
+            local_reject = is_ctp and not dispatched_identity and bool(
+                getattr(exc, "managed_local_reject", False)
+            )
+            if is_ctp and not local_reject:
+                error = ManagedCtpHandoffError(
+                    "managed CTP cancel outcome is unknown after adapter handoff failure",
+                    code="managed_ctp_cancel_handoff_unknown",
+                )
+                self.emit_runtime_event(
+                    "managed_execution_cancel_unconfirmed",
+                    level="WARNING",
+                    order_ref=order_ref,
+                    status="unknown",
+                    error_code=error.code,
+                    error_msg="Managed CTP cancel outcome is unresolved; no native acknowledgement was observed.",
+                )
+                raise error from exc
+            self.emit_runtime_event(
+                "managed_execution_cancel_rejected",
+                level="ERROR",
+                order_ref=order_ref,
+                status="rejected",
+                error_code=self._safe_exception_code(
+                    exc,
+                    "managed_ctp_write_composition_unavailable"
+                    if is_ctp
+                    else "managed_execution_cancel_failed",
+                ),
+                error_msg="Managed execution rejected cancellation before a direct fallback.",
+            )
+            raise
+        if response is None:
+            if is_ctp:
+                raise ManagedCtpHandoffError(
+                    "managed CTP adapter returned no durable cancellation projection",
+                    code="managed_ctp_cancel_projection_missing",
+                )
+            self.emit_runtime_event(
+                "managed_execution_cancel_rejected",
+                level="ERROR",
+                order_ref=order_ref,
+                status="rejected",
+                error_code="managed_execution_cancel_projection_missing",
+                error_msg="Managed execution did not return a cancellation projection.",
+            )
+            raise BtApiStoreError("managed execution adapter returned no cancellation projection")
+        if is_ctp:
+            try:
+                order_info = getattr(order_or_ref, "info", {})
+                get_info = getattr(order_info, "get", lambda *_args: None)
+                order_intent_id = get_info("managed_intent_id")
+                if dispatched_identity:
+                    identity = dispatched_identity[0]
+                    if order_intent_id not in (None, "") and order_intent_id != identity.managed_intent_id:
+                        raise ManagedExecutionAdapterError(
+                            "managed CTP cancel intent differs from the framework order"
+                        )
+                    expected_intent_id = identity.managed_intent_id
+                    expected_runtime_order_id = identity.runtime_order_id
+                    expected_cancel_intent_id = identity.managed_cancel_intent_id
+                else:
+                    expected_intent_id = order_intent_id
+                    expected_runtime_order_id = getattr(response, "runtime_order_id", None)
+                    expected_cancel_intent_id = getattr(
+                        response, "managed_cancel_intent_id", None
+                    )
+                managed_projection = require_ctp_managed_execution_projection(
+                    response,
+                    operation="cancel",
+                    managed_intent_id=expected_intent_id,
+                    runtime_order_id=expected_runtime_order_id,
+                    managed_cancel_intent_id=expected_cancel_intent_id,
+                    local_queue_receipt=(
+                        local_queue_receipts[0] if local_queue_receipts else None
+                    ),
+                )
+            except ManagedExecutionAdapterError as error:
+                raise ManagedCtpHandoffError(
+                    "managed CTP cancel outcome is unknown because its projection is invalid",
+                    code="managed_ctp_cancel_projection_invalid",
+                ) from error
+            response = managed_projection.to_store_response()
+        self.emit_runtime_event(
+            "managed_execution_cancel_projected",
+            order_ref=order_ref,
+            status=(
+                managed_projection.state.value.lower()
+                if is_ctp
+                else "projected"
+            ),
+        )
+        return response
+
+    def _cancel_order_ref_legacy(self, order_ref, dataname: Optional[str] = None):
+        """Run the historic provider cancellation mapping for a managed adapter port."""
+        api_was_missing = getattr(self, "_api", None) is None
+        self._assert_write_route_identity()
+        if self._is_ctp_write_provider():
+            raise BtApiStoreError("direct CTP Store cancellation is disabled")
         if self._sdk_mode:
             if self._is_sdk_market_data_only():
                 return self._reject_market_data_only_command(
@@ -7413,6 +8355,7 @@ class BtApiStore(LiveStoreBase):
         )
 
         try:
+            self._assert_write_route_identity(require_live_route=api_was_missing)
             if hasattr(api, "cancel_order"):
                 response = api.cancel_order(order_ref, dataname=dataname)
             else:
@@ -7531,6 +8474,232 @@ class BtApiStore(LiveStoreBase):
         if len(venues) != 1:
             raise BtApiStoreError("Exactly one configured CTP SDK exchange is required")
         return venues[0]
+
+    @staticmethod
+    def _write_route_names(routes):
+        """Return normalized exchange roots from route keys or route values."""
+        try:
+            if isinstance(routes, Mapping):
+                routes = routes.keys()
+            if isinstance(routes, str):
+                routes = (routes,)
+            return {
+                str(route or "").strip().upper().partition("___")[0]
+                for route in routes
+                if str(route or "").strip()
+            }
+        except Exception as exc:
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            ) from exc
+
+    @staticmethod
+    def _write_route_keys(routes):
+        """Return normalized full route keys for snapshot comparison."""
+        try:
+            if isinstance(routes, Mapping):
+                routes = routes.keys()
+            if isinstance(routes, str):
+                routes = (routes,)
+            return {str(route or "").strip().upper() for route in routes if str(route or "").strip()}
+        except Exception as exc:
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            ) from exc
+
+    def _expected_write_route_names(self):
+        """Resolve the Store route identity without consulting an API object."""
+        provider = str(getattr(self, "provider", "") or "").strip().lower()
+        config = getattr(self, "_config", {})
+        api_kwargs = getattr(self, "_api_kwargs", {})
+        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+            raise BtApiStoreError("Store/API route identity is unavailable; write dispatch is disabled")
+        if getattr(self, "backend", "") == "gateway":
+            route = (
+                api_kwargs.get("exchange_type") or api_kwargs.get("exchange")
+                or config.get("exchange_type") or config.get("exchange")
+                or (provider[:-8] if provider.endswith("_gateway") else provider) or "CTP"
+            )
+            return self._write_route_names((route,))
+        if getattr(self, "backend", "") == "forwarding":
+            route = (
+                api_kwargs.get("exchange") or api_kwargs.get("exchange_type")
+                or config.get("exchange") or config.get("exchange_type") or "SIM"
+            )
+            return self._write_route_names((route,))
+        if provider == "btapi":
+            sdk_exchanges = getattr(self, "_sdk_exchanges", {})
+            sdk_routes = getattr(self, "_sdk_routes", {})
+            if not isinstance(sdk_exchanges, Mapping) or not isinstance(
+                sdk_routes, Mapping
+            ):
+                raise BtApiStoreError(
+                    "Store/API route identity is unavailable; write dispatch is disabled"
+                )
+            try:
+                symbol_routes = sdk_routes.values()
+            except Exception as exc:
+                raise BtApiStoreError(
+                    "Store/API route identity is unavailable; write dispatch is disabled"
+                ) from exc
+            return (
+                self._write_route_names(sdk_exchanges)
+                | self._write_route_names(symbol_routes)
+            )
+        if provider.endswith("_gateway"):
+            provider = provider[:-8]
+        return self._write_route_names((provider,))
+
+    def _assert_write_route_identity(self, *, require_live_route: bool = False) -> None:
+        """Reject a Store/API route mismatch before any provider write handoff.
+
+        The live check reads only a plain mapping found by static attribute
+        lookup. It does not invoke API properties or treat route metadata as
+        authority.
+        """
+        expected = self._expected_write_route_names()
+        sdk_exchanges = getattr(self, "_sdk_exchanges", {})
+        if not isinstance(sdk_exchanges, Mapping):
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            )
+        snapshot = self._write_route_names(sdk_exchanges)
+        snapshot_keys = self._write_route_keys(sdk_exchanges)
+        api = getattr(self, "_api", None)
+        live_routes = None
+        live_keys = None
+        if api is not None:
+            try:
+                api_dict = object.__getattribute__(api, "__dict__")
+            except Exception:
+                api_dict = None
+            missing_route = object()
+            try:
+                static_routes = inspect.getattr_static(
+                    api, "exchange_kwargs", missing_route
+                )
+            except Exception as exc:
+                raise BtApiStoreError(
+                    "Store/API route identity is unavailable; write dispatch is disabled"
+                ) from exc
+            has_plain_routes = type(api_dict) is dict and "exchange_kwargs" in api_dict
+            if static_routes is missing_route and not snapshot:
+                try:
+                    dynamic_getattr = inspect.getattr_static(
+                        type(api), "__getattr__", missing_route
+                    )
+                except Exception as exc:
+                    raise BtApiStoreError(
+                        "Store/API route identity is unavailable; write dispatch is disabled"
+                    ) from exc
+                if dynamic_getattr is not missing_route:
+                    raise BtApiStoreError(
+                        "Store/API route identity is unavailable; write dispatch is disabled"
+                    )
+            if has_plain_routes and static_routes is not api_dict["exchange_kwargs"]:
+                raise BtApiStoreError(
+                    "Store/API route identity is unavailable; write dispatch is disabled"
+                )
+            if has_plain_routes:
+                value = api_dict.get("exchange_kwargs")
+                if not isinstance(value, Mapping):
+                    raise BtApiStoreError(
+                        "Store/API route identity is unavailable; write dispatch is disabled"
+                    )
+                live_routes = self._write_route_names(value)
+                live_keys = self._write_route_keys(value)
+            elif static_routes is not missing_route:
+                if not isinstance(static_routes, Mapping):
+                    raise BtApiStoreError(
+                        "Store/API route identity is unavailable; write dispatch is disabled"
+                    )
+                live_routes = self._write_route_names(static_routes)
+                live_keys = self._write_route_keys(static_routes)
+        if (
+            require_live_route
+            and api is not None
+            and not snapshot
+            and not live_routes
+        ):
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            )
+        if live_routes is not None:
+            if (snapshot_keys or live_keys) and snapshot_keys != live_keys:
+                raise BtApiStoreError(
+                    "Store/API route identity changed; write dispatch is disabled"
+                )
+            if expected and expected != live_routes:
+                raise BtApiStoreError(
+                    "Store/API route identity mismatch; write dispatch is disabled"
+                )
+        elif require_live_route and api is not None and not snapshot:
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            )
+        elif snapshot and expected and snapshot != expected:
+            raise BtApiStoreError(
+                "Store/API route identity mismatch; write dispatch is disabled"
+            )
+
+    def _is_ctp_write_provider(self) -> bool:
+        """Fail-close CTP writes from Store route/config snapshots.
+
+        The SDK route snapshot may fall back to injected API exchange_kwargs at
+        initialization. These route hints are not authorization; this method
+        itself does not dereference _api.
+        """
+
+        provider = str(self.provider or "").strip().lower()
+        if provider in {"ctp", "ctp_gateway"}:
+            return True
+        config = getattr(self, "_config", {})
+        api_kwargs = getattr(self, "_api_kwargs", {})
+        if self.backend == "forwarding":
+            if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+                return True
+            try:
+                kwargs = dict(config)
+                kwargs.update(api_kwargs)
+                exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
+            except Exception:
+                return True
+            return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
+        if provider == "btapi":
+            sdk_exchanges = getattr(self, "_sdk_exchanges", {})
+            sdk_routes = getattr(self, "_sdk_routes", {})
+            if not all(
+                isinstance(value, Mapping)
+                for value in (config, api_kwargs, sdk_exchanges, sdk_routes)
+            ):
+                return True
+            candidates = list(sdk_exchanges) + list(sdk_routes.values())
+            for values in (config, api_kwargs):
+                candidates.extend((values.get("exchange"), values.get("exchange_type")))
+                exchange_kwargs = values.get("exchange_kwargs")
+                if isinstance(exchange_kwargs, Mapping):
+                    candidates.extend(exchange_kwargs)
+                elif exchange_kwargs is not None:
+                    return True
+            candidates = [value for value in candidates if value not in (None, "")]
+            if not candidates:
+                return True
+            return any(
+                str(value or "").strip().upper().partition("___")[0] == "CTP"
+                for value in candidates
+            )
+        if self.backend != "gateway":
+            return False
+        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+            return True
+        exchange = (
+            api_kwargs.get("exchange_type")
+            or api_kwargs.get("exchange")
+            or config.get("exchange_type")
+            or config.get("exchange")
+            or "CTP"
+        )
+        return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
 
     def _is_ctp_session_provider(self) -> bool:
         if self.backend == "forwarding":
@@ -12494,6 +13663,7 @@ class BtApiStore(LiveStoreBase):
                     "exchange_name": venue,
                     "account_id": self._sdk_account_id(venue),
                     "client_order_id": client_order_id,
+                    "runtime_order_id": action.get("runtime_order_id"),
                     "bt_order_ref": local_ref,
                     "order_id": order_id,
                     "order_ref": order_ref,
@@ -12504,6 +13674,8 @@ class BtApiStore(LiveStoreBase):
                 self._sdk_local_refs[reference] = binding
                 if client_order_id not in (None, ""):
                     self._sdk_client_refs[(venue, str(client_order_id))] = binding
+                if binding["runtime_order_id"] not in (None, ""):
+                    self._sdk_runtime_refs[(venue, str(binding["runtime_order_id"]))] = binding
                 if order_id not in (None, ""):
                     self._sdk_venue_refs[(venue, str(order_id))] = binding
                 receipt = self.enqueue_cancel(reference, dataname=None)
@@ -13842,11 +15014,56 @@ class BtApiStore(LiveStoreBase):
     def get_execution_summary(self):
         """Read the active session, or its stop snapshot without reconnecting."""
         if self._last_execution_summary is not None:
-            return deepcopy(self._last_execution_summary)
-        api = self._ensure_api_ready()
-        if not hasattr(api, "get_execution_summary"):
-            raise BtApiStoreError("The provider does not expose execution audit counts")
-        return deepcopy(api.get_execution_summary())
+            source_summary = self._last_execution_summary
+        else:
+            api = self._ensure_api_ready()
+            if not hasattr(api, "get_execution_summary"):
+                raise BtApiStoreError("The provider does not expose execution audit counts")
+            source_summary = api.get_execution_summary()
+        # The public SDK boundary permits read-only Mapping implementations,
+        # including nested diagnostic mappings.  Normalize mappings recursively
+        # before copying so the local marker never mutates a provider object and
+        # ``deepcopy`` never attempts to pickle a nested mapping proxy.
+        summary = self._copy_execution_summary_value(source_summary)
+
+        # A callback read queues account-risk refresh work on the Store worker.
+        # It must not wait for that work or imply that the old snapshot remains
+        # complete while the authoritative read is unsettled.  Publish the
+        # local pending state as a separate field instead of mutating the SDK's
+        # evidence-error shape; the broker converts it to a fail-closed risk
+        # result for strategy callbacks.
+        with self._account_risk_lock:
+            account_risk_refresh_pending = bool(self._account_risk_refresh_pending)
+        if isinstance(summary, Mapping) and account_risk_refresh_pending:
+            # The SDK may return a read-only Mapping.  The pending marker is
+            # Store-local diagnostic state, so never mutate that provider object.
+            summary = dict(summary)
+            summary["account_risk_refresh_in_progress"] = True
+        return summary
+
+    @staticmethod
+    def _copy_execution_summary_value(value: Any) -> Any:
+        """Copy a public summary while normalizing nested read-only mappings.
+
+        Execution summaries are normalized SDK data, but the public boundary
+        permits any ``Mapping`` implementation.  Preserve non-mapping leaves
+        with ``deepcopy`` so this diagnostic read retains its historic values.
+        """
+
+        if isinstance(value, Mapping):
+            return {
+                deepcopy(key): BtApiStore._copy_execution_summary_value(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [BtApiStore._copy_execution_summary_value(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(BtApiStore._copy_execution_summary_value(item) for item in value)
+        if isinstance(value, set):
+            return {BtApiStore._copy_execution_summary_value(item) for item in value}
+        if isinstance(value, frozenset):
+            return frozenset(BtApiStore._copy_execution_summary_value(item) for item in value)
+        return deepcopy(value)
 
     def _cache_account_risk_snapshot_before_shutdown(self) -> None:
         """Retain an existing safe view without starting shutdown-time network I/O.
@@ -13921,8 +15138,17 @@ class BtApiStore(LiveStoreBase):
             "error_code": "account_risk_cache_unavailable",
         }
 
-    def get_cached_account_risk_snapshot(self) -> Dict[str, Any]:
-        """Return callback-safe risk evidence and schedule refresh without network I/O."""
+    def get_callback_account_risk_state(self) -> Dict[str, Any]:
+        """Return a local risk snapshot and its refresh state without SDK I/O.
+
+        The cached snapshot and refresh reservation are read and created under
+        one lock.  This deliberately makes a callback conservative: if the
+        worker completes immediately after that critical section, callers still
+        observe ``refresh_pending`` for this read instead of accepting an older
+        complete snapshot.  Queue dispatch happens after the lock is released
+        and never calls an SDK method on the strategy callback thread.
+        """
+
         with self._account_risk_lock:
             snapshot = (
                 deepcopy(self._last_account_risk_snapshot)
@@ -13930,8 +15156,52 @@ class BtApiStore(LiveStoreBase):
                 and self._last_account_risk_snapshot_generation == self._stream_generation
                 else None
             )
-        self.enqueue_account_risk_refresh()
-        return snapshot if snapshot is not None else self._cached_account_risk_unavailable()
+            should_dispatch, reservation, refresh_token = self._prepare_account_risk_refresh_locked(
+                time.monotonic()
+            )
+            refresh_status = str(reservation.get("status") or "refresh_unavailable")
+            if should_dispatch or refresh_status == "already_pending":
+                refresh_state = "refresh_pending"
+            elif refresh_status in {"not_required", "refresh_interval"}:
+                refresh_state = "current"
+            else:
+                refresh_state = "refresh_unavailable"
+
+        if should_dispatch:
+            if refresh_token is None:  # pragma: no cover - guarded by reservation contract
+                refresh_state = "refresh_failed"
+            else:
+                try:
+                    receipt = self._dispatch_prepared_account_risk_refresh(refresh_token)
+                except Exception:
+                    # The queue failure is already logged and the matching
+                    # reservation cleared.  The callback must nevertheless
+                    # fail closed for this read instead of returning its cache
+                    # as current evidence.
+                    refresh_state = "refresh_failed"
+                else:
+                    if receipt.get("queued") is not True:
+                        refresh_state = "refresh_rejected"
+
+        safe_snapshot = snapshot if snapshot is not None else self._cached_account_risk_unavailable()
+        return {
+            "snapshot": safe_snapshot,
+            "refresh_state": refresh_state,
+            # This is intentionally an explicit callback-local admission
+            # signal.  It cannot override the broker's independent risk
+            # checks, but prevents users of this API from treating an active
+            # refresh as a complete entry decision.
+            "entry_allowed": bool(
+                refresh_state == "current"
+                and safe_snapshot.get("evidence_complete") is True
+                and safe_snapshot.get("trading_blocked") is False
+            ),
+        }
+
+    def get_cached_account_risk_snapshot(self) -> Dict[str, Any]:
+        """Return callback-safe risk evidence and schedule refresh without network I/O."""
+
+        return self.get_callback_account_risk_state()["snapshot"]
 
     def get_account_risk_snapshot(self) -> Dict[str, Any]:
         """Return SDK-owned durable account-loss evidence or an explicit blocker.
@@ -14386,11 +15656,65 @@ class BtApiStore(LiveStoreBase):
             )
         return self._sdk_command_types
 
+    @staticmethod
+    def _require_sdk_request_model_fields(model, fields, model_name: str) -> None:
+        """Fail before SDK/provider startup if a public model lacks typed fields."""
+
+        try:
+            parameters = inspect.signature(model).parameters
+        except (TypeError, ValueError) as exc:
+            raise BtApiStoreError(f"SDK {model_name} contract cannot be inspected") from exc
+        missing = tuple(field for field in fields if field not in parameters)
+        if missing:
+            raise BtApiStoreError(
+                f"SDK {model_name} lacks managed CTP identity fields: {', '.join(missing)}"
+            )
+
+    def _validate_managed_ctp_identity_scope(self, venue, account_id):
+        """Bind the managed runtime namespace to the authenticated CTP ledger."""
+        runtime = getattr(self._managed_execution_adapter, "runtime", None)
+        scope = getattr(runtime, "scope", None)
+        if scope is None:
+            raise BtApiStoreError("managed CTP runtime scope is unavailable")
+
+        expected_provider = str(venue).partition("___")[0].upper()
+        if str(getattr(scope, "provider", "")).strip().upper() != expected_provider:
+            raise BtApiStoreError("managed CTP provider scope differs from SDK venue")
+
+        identity = self._validated_sdk_identity(venue)
+        strategy_id = str(self._sdk_execution_config.get("strategy_id") or "").strip()
+        if (
+            not strategy_id
+            or getattr(scope, "strategy_id", None) != strategy_id
+            or identity.get("strategy_id") != strategy_id
+        ):
+            raise BtApiStoreError("managed CTP strategy scope differs from SDK identity")
+
+        scope_environment = str(getattr(scope, "environment", "")).strip().lower()
+        if not scope_environment or identity.get("environment") != scope_environment:
+            raise BtApiStoreError("managed CTP environment scope differs from SDK identity")
+
+        scope_account_ref = str(getattr(scope, "account_ref", "")).strip().casefold()
+        allowed_account_refs = {str(account_id).strip().casefold()}
+        account_alias = identity.get("account_alias")
+        if account_alias not in (None, ""):
+            allowed_account_refs.add(str(account_alias).strip().casefold())
+        if not scope_account_ref or scope_account_ref not in allowed_account_refs:
+            raise BtApiStoreError("managed CTP account scope differs from SDK identity")
+
     def get_symbol_routes(self) -> Dict[str, str]:
         """Return a copy of the framework symbol-to-SDK venue bindings."""
         return dict(self._sdk_routes)
 
-    def _sdk_order_request(self, venue, payload):
+    def _sdk_order_request(
+        self,
+        venue,
+        payload,
+        *,
+        framework_order=None,
+        budget_capability=None,
+        recovery_action=False,
+    ):
         """Convert a framework Order and bind its reference before the SDK call."""
         command_types = self._warm_sdk_command_types()
         OrderRequest = command_types["OrderRequest"]
@@ -14398,7 +15722,200 @@ class BtApiStore(LiveStoreBase):
         Side = command_types["Side"]
 
         account_id = self._sdk_account_id(venue)
-        client_id = str(payload.get("client_order_id") or self._api.new_client_order_id(venue))
+        is_ctp = str(venue).partition("___")[0].upper() == "CTP"
+        runtime_order_id = payload.get("runtime_order_id")
+        managed_ctp = bool(is_ctp and self._managed_execution_adapter is not None)
+        managed_intent_id = payload.get("managed_intent_id")
+        hedge_flag = payload.get("hedge_flag")
+        client_id = payload.get("client_order_id")
+        if is_ctp:
+            if managed_ctp:
+                if (
+                    type(managed_intent_id) is not str
+                    or not managed_intent_id
+                    or managed_intent_id != managed_intent_id.strip()
+                    or len(managed_intent_id) > 256
+                    or not managed_intent_id.isascii()
+                    or any(
+                        not (character.isalnum() or character in "._:-")
+                        for character in managed_intent_id
+                    )
+                ):
+                    raise BtApiStoreError("managed CTP managed_intent_id is invalid")
+                if type(hedge_flag) is not str or hedge_flag not in ("1", "2", "3"):
+                    raise BtApiStoreError("managed CTP hedge_flag is invalid")
+                if client_id not in (None, ""):
+                    raise BtApiStoreError(
+                        "managed CTP client_order_id is owned by the SDK durable binding"
+                    )
+            if client_id and not runtime_order_id:
+                raise BtApiStoreError(
+                    "CTP client_order_id has no persisted runtime_order_id binding"
+                )
+            if managed_ctp:
+                if runtime_order_id is None:
+                    raise BtApiStoreError(
+                        "managed CTP order requires an explicit stable runtime_order_id"
+                    )
+                if (
+                    type(runtime_order_id) is not str
+                    or not runtime_order_id.startswith("bt-managed-v1:")
+                    or len(runtime_order_id) != len("bt-managed-v1:") + 64
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in runtime_order_id[14:]
+                    )
+                ):
+                    raise BtApiStoreError("managed CTP runtime_order_id is invalid")
+                self._validate_managed_ctp_identity_scope(venue, account_id)
+                raise BtApiStoreError(
+                    "managed CTP OrderRef must come from the single execution outbox reservation; "
+                    "the Store will not allocate a second SDK OrderRef"
+                )
+            list_bindings = getattr(self._api, "get_runtime_order_bindings", None)
+            reserve_binding = getattr(self._api, "new_runtime_order_binding", None)
+            if not callable(list_bindings) or not callable(reserve_binding):
+                raise BtApiStoreError("SDK durable CTP runtime OrderRef binding is unavailable")
+            if runtime_order_id is None:
+                if self._managed_execution_adapter is not None:
+                    raise BtApiStoreError(
+                        "managed CTP order requires an explicit stable runtime_order_id"
+                    )
+                runtime_order_id = uuid.uuid4().hex
+                if framework_order is not None:
+                    if hasattr(framework_order, "addinfo"):
+                        framework_order.addinfo(runtime_order_id=runtime_order_id)
+                    elif isinstance(getattr(framework_order, "info", None), dict):
+                        framework_order.info["runtime_order_id"] = runtime_order_id
+            elif self._managed_execution_adapter is not None:
+                self._validate_managed_ctp_identity_scope(venue, account_id)
+            try:
+                durable_bindings = list_bindings(venue, unresolved_only=False)
+            except Exception as exc:
+                _safe_log("error", "btapistore:CTP runtime OrderRef recovery list failed")
+                self.sanitize_exception(exc)
+                raise BtApiStoreError("CTP runtime OrderRef recovery list is unavailable") from None
+            if not isinstance(durable_bindings, (list, tuple)):
+                raise BtApiStoreError("SDK CTP runtime OrderRef recovery list is malformed")
+            recovered_match = None
+            for row in durable_bindings:
+                if not isinstance(row, Mapping):
+                    raise BtApiStoreError("SDK CTP runtime OrderRef recovery row is malformed")
+                runtime_id = row.get("runtime_order_id")
+                native_ref = row.get("ctp_order_ref")
+                if (
+                    not isinstance(runtime_id, str)
+                    or not runtime_id
+                    or not isinstance(native_ref, str)
+                    or not native_ref.isascii()
+                    or not native_ref.isdigit()
+                    or len(native_ref) != 12
+                ):
+                    raise BtApiStoreError("SDK CTP runtime OrderRef recovery row is invalid")
+                recovered_intent_id = row.get("managed_intent_id")
+                if managed_ctp and (
+                    type(recovered_intent_id) is not str
+                    or not recovered_intent_id
+                    or recovered_intent_id != recovered_intent_id.strip()
+                    or len(recovered_intent_id) > 256
+                    or not recovered_intent_id.isascii()
+                    or any(
+                        not (character.isalnum() or character in "._:-")
+                        for character in recovered_intent_id
+                    )
+                ):
+                    raise BtApiStoreError(
+                        "SDK CTP runtime binding lacks managed intent identity"
+                    )
+                binding = {
+                    "symbol": row.get("symbol"),
+                    "exchange_name": venue,
+                    "account_id": account_id,
+                    "client_order_id": native_ref,
+                    "ctp_order_ref": native_ref,
+                    "runtime_order_id": runtime_id,
+                    "managed_intent_id": recovered_intent_id,
+                    "connection_generation": row.get("connection_generation"),
+                    "bt_order_ref": None,
+                }
+                self._sdk_client_refs[(venue, native_ref)] = binding
+                self._sdk_runtime_refs[(venue, runtime_id)] = binding
+                if row.get("recovery_required") is True:
+                    raise BtApiStoreError(
+                        "CTP runtime OrderRef recovery requires reviewed reconciliation"
+                    )
+                if runtime_id == runtime_order_id:
+                    if managed_ctp and recovered_intent_id != managed_intent_id:
+                        raise BtApiStoreError(
+                            "CTP runtime_order_id is bound to another managed intent"
+                        )
+                    recovered_match = binding
+            if runtime_order_id is not None:
+                if not isinstance(runtime_order_id, str) or not runtime_order_id.strip():
+                    raise BtApiStoreError("CTP runtime_order_id is invalid")
+                if client_id:
+                    if (
+                        recovered_match is None
+                        or recovered_match.get("client_order_id") != str(client_id)
+                    ):
+                        raise BtApiStoreError(
+                            "CTP runtime_order_id and client_order_id binding is ambiguous"
+                        )
+                    durable = {
+                        "runtime_order_id": runtime_order_id,
+                        "client_order_id": str(client_id),
+                        "ctp_order_ref": str(client_id),
+                    }
+                else:
+                    durable = reserve_binding(
+                        venue,
+                        symbol=payload["symbol"],
+                        account_id=account_id,
+                        runtime_order_id=runtime_order_id,
+                        **({"managed_intent_id": managed_intent_id} if managed_ctp else {}),
+                        budget_capability=budget_capability,
+                        recovery_action=recovery_action,
+                    )
+                client_id = durable.get("client_order_id")
+                runtime_order_id = durable.get("runtime_order_id")
+            else:
+                if client_id:
+                    raise BtApiStoreError("CTP OrderRef cannot be accepted without runtime identity")
+                durable = reserve_binding(
+                    venue,
+                    symbol=payload["symbol"],
+                    account_id=account_id,
+                    runtime_order_id=runtime_order_id,
+                    **({"managed_intent_id": managed_intent_id} if managed_ctp else {}),
+                    budget_capability=budget_capability,
+                    recovery_action=recovery_action,
+                )
+                client_id = durable.get("client_order_id")
+                runtime_order_id = durable.get("runtime_order_id")
+            if (
+                not isinstance(client_id, str)
+                or not client_id.isascii()
+                or not client_id.isdigit()
+                or len(client_id) != 12
+                or not isinstance(runtime_order_id, str)
+                or not runtime_order_id
+            ):
+                raise BtApiStoreError("SDK CTP runtime OrderRef reservation is malformed")
+            if managed_ctp and durable.get("managed_intent_id") != managed_intent_id:
+                raise BtApiStoreError(
+                    "SDK CTP runtime binding does not preserve managed intent identity"
+                )
+            if framework_order is not None:
+                if hasattr(framework_order, "addinfo"):
+                    framework_order.addinfo(
+                        client_order_id=client_id,
+                        runtime_order_id=runtime_order_id,
+                    )
+                elif isinstance(getattr(framework_order, "info", None), dict):
+                    framework_order.info["client_order_id"] = client_id
+                    framework_order.info["runtime_order_id"] = runtime_order_id
+        else:
+            client_id = str(client_id or self._api.new_client_order_id(venue))
         strategy_identity_sha256 = str(
             self._sdk_execution_config.get("strategy_identity_sha256") or ""
         )
@@ -14410,6 +15927,9 @@ class BtApiStore(LiveStoreBase):
             "exchange_name": venue,
             "account_id": account_id,
             "client_order_id": client_id,
+            "runtime_order_id": runtime_order_id,
+            "managed_intent_id": managed_intent_id if managed_ctp else None,
+            "hedge_flag": hedge_flag if managed_ctp else None,
             "bt_order_ref": payload.get("bt_order_ref"),
         }
         previous = self._sdk_client_refs.get((venue, client_id))
@@ -14466,6 +15986,8 @@ class BtApiStore(LiveStoreBase):
             "execution_role": getattr(request, "execution_role", None),
         }
         self._sdk_client_refs[(venue, client_id)] = binding
+        if runtime_order_id:
+            self._sdk_runtime_refs[(venue, runtime_order_id)] = binding
         self._sdk_local_refs[str(binding["bt_order_ref"])] = binding
         return request
 
@@ -14473,8 +15995,13 @@ class BtApiStore(LiveStoreBase):
         """Attach framework identity without interpreting execution state or fees."""
         result = dict(event)
         client_id = str(result.get("client_order_id") or result.get("order_ref") or "")
+        runtime_order_id = str(result.get("runtime_order_id") or "")
         order_id = str(result.get("order_id") or "")
-        binding = self._sdk_client_refs.get((venue, client_id)) or (
+        binding = (
+            self._sdk_runtime_refs.get((venue, runtime_order_id))
+            if runtime_order_id
+            else None
+        ) or self._sdk_client_refs.get((venue, client_id)) or (
             self._sdk_venue_refs.get((venue, order_id)) if order_id else None
         )
         if binding is None:
@@ -14483,6 +16010,7 @@ class BtApiStore(LiveStoreBase):
                 "exchange_name": venue,
                 "account_id": self._sdk_account_id(venue),
                 "client_order_id": client_id,
+                "runtime_order_id": runtime_order_id or None,
                 "bt_order_ref": None,
             }
         for key in ("order_id", "order_ref", "exchange_id", "front_id", "session_id"):
@@ -14490,11 +16018,14 @@ class BtApiStore(LiveStoreBase):
                 binding[key] = result[key]
         if client_id:
             self._sdk_client_refs[(venue, client_id)] = binding
+        if runtime_order_id:
+            self._sdk_runtime_refs[(venue, runtime_order_id)] = binding
         if order_id:
             self._sdk_venue_refs[(venue, order_id)] = binding
         result.update(
             data_name=binding["symbol"],
             bt_order_ref=binding.get("bt_order_ref"),
+            runtime_order_id=binding.get("runtime_order_id"),
             external_order_id=f"{venue}:{order_id}" if order_id else None,
             venue_order_id=order_id,
         )
@@ -15259,6 +16790,10 @@ class BtApiStore(LiveStoreBase):
                     api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
                 kwargs = dict(self._config)
                 kwargs.update(self._api_kwargs)
+                if self.backend == "gateway" and self._api_cls is None:
+                    kwargs["_btapistore_ctp_session_provider"] = (
+                        self._is_ctp_session_provider()
+                    )
                 self._api = api_cls(**kwargs)
 
         if (
@@ -15456,6 +16991,9 @@ class BtApiStore(LiveStoreBase):
             "time_in_force",
             "reduce_only",
             "client_order_id",
+            "runtime_order_id",
+            "managed_intent_id",
+            "hedge_flag",
             "quantity_unit",
             "position_id",
             "position_mode",

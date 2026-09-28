@@ -1,0 +1,15 @@
+{
+  "archive": "D:\\temp\\iteration41-g1-r10-independent-qa-20260927\\iteration41-g1-r10-independent-qa-2026-09-27.raw.zip",
+  "archive_sha256": "1e980039f85f95b4f778fe4b568f95eb90a984f4d36582e89e2f4f8393164d24",
+  "archive_bytes": 1655348,
+  "zip_member_count": 77,
+  "testzip": null,
+  "bundle_index_sha256": "b2a30e13f0c31c4673a07fc1d2df3e104eba694cf1936390436309ae9baba0f4",
+  "sha256sums_file_sha256": "4e01c9da6b0c35b8e6a14b00d5fa62aa9e25900b571298e39d2d23a0b878c101",
+  "all_sha256sum_entries_verified": true,
+  "all_index_members_verified": true,
+  "author_manifest_sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+  "author_payloads": 23,
+  "independent_checks": "9/9 passed",
+  "disposition": "ASYNC_TICKET_PROTOTYPE_ONLY_G1_CLOSED"
+}

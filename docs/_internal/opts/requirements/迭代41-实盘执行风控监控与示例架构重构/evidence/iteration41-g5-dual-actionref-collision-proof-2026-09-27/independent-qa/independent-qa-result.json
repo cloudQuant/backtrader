@@ -1,0 +1,65 @@
+{
+  "schema": "iteration41-g5-actionref-independent-qa.v1",
+  "verdict": "STRUCTURAL_COLLISION_REPRODUCED / FAKE_ONLY_LOCAL_REPRO / NO_PROVIDER_CLAIM",
+  "candidate_artifact_hashes_verified": {
+    "script": "23033D685FF63B4D28F9FA9E3C306F9018B7424A0299F9F7EE7E7F9714315659",
+    "readme": "FC528230DF14AE8690EB4FED7AAECB7AEAAF668ED0C7597B191A8A3E69B42CE2",
+    "report": "7EF2FE1099567431FBEE07B1858A2B8F887C7F55298BF078020B6ECBB236C2CB",
+    "sqlite_schema": "B84B7A60F218D8B6B529BB0F57B662C9C4A253D6B0DB93FF606236D74EFBE16F",
+    "run_output": "3398221E80066083124D57EA86AF38E2D2B606DA24F2330564D2232727808AC7",
+    "run_output_second": "3398221E80066083124D57EA86AF38E2D2B606DA24F2330564D2232727808AC7"
+  },
+  "frozen_source_hashes_verified": {
+    "v21_manifest": "B3A614D62B2A4CF1B0DBDFEFEE463015157DEE38BF4C9C5119C64EF2D71D6D24",
+    "v21_store": "1F01EDA8466873B90359C25AAD2B61CB378D7A9FEB477FA8EC77A97FB2478E6A",
+    "v21_worker": "5E378EE77AD5C6E640AD2ECA0DACF154849E6FCFE0D04D73E9DA6EB2554087B3",
+    "v21_facade": "5B0F4086D2E900823B93ABB4E7887EA2CA2523DC62591846EA53EE4458BA438A",
+    "v21_contracts": "4CEE90AE9C8B414877E7A7B917AF85D518D45E6074418DC5B0F4BC713FAD8219",
+    "g5_authority": "8E7ABDD2819F66B6EC3D5FF1D5A049FCBB91AE8E71327665EE925098D35F647D"
+  },
+  "review_time_main_source_hashes_verified": {
+    "main_store": "05268B4953A20FA0699639F7E05EE354A4BCAFC4B47915DD4BA352B26276E0D9",
+    "main_store_test": "0EBF16764D232DBD34A98720560C55B3EB21F8AEAFC87221B1B53625000C2BBA",
+    "acceptance_matrix": "8F425BA0BCF93308412FE0C794B9417788D318B28FDD79650E035E080E413A87",
+    "acceptance_cases": "7D07E4876372B2A9549B9F40B4A8D640CA617C12FBCE4C39FBA2C4C98B569299",
+    "v21_prereview": "8C961F01E015B815D6342100952B9E2BF05B7E386125577BC9CD14287DBAFC1C",
+    "g5_qa": "362A64EB31DC41A032E3B8D02E6475061E02E66F6C55B04237FBCA37B8DA1D05"
+  },
+  "reproduction": {
+    "fresh_temp_copy": "D:\\temp\\iteration41-g5-dual-actionref-independent-qa-20260927",
+    "interpreter": "CPython 3.12.10",
+    "runs": 2,
+    "outputs_identical": true,
+    "both_match_candidate_run_output_json": true,
+    "same_synthetic_account_key": true,
+    "fresh_sqlite_database": ":memory:",
+    "order_ref": "000000000001",
+    "g5_action_ref": 1,
+    "v21_action_ref": 1,
+    "g5_actionref_row_count": 1,
+    "v21_counter_last_actionref": 1,
+    "v21_command_mapping_rows": 0,
+    "result": "STRUCTURAL_COLLISION_REPRODUCED"
+  },
+  "scope_caveat": "The repro calls V21 _allocate_ctp_native_action_ref directly in its own transaction. It does not stage a full V21 cancel command or create a V21 command-to-ActionRef mapping; this is a separate allocator collision, not an end-to-end cancel or provider event.",
+  "setup_caveat": "Both allocators use caller-supplied synthetic zero watermarks and an empty synthetic legacy mapping inventory. These are not trusted native MaxOrderRef/MaxOrderActionRef observations.",
+  "guards": {
+    "sdk_native_import_attempts": 0,
+    "network_attempts": 0,
+    "credentials_or_private_config_read": false,
+    "provider_send": false
+  },
+  "interpretation": "Two independent durable ActionRef allocator schemas in one in-memory SQLite store can each issue 1 for the same synthetic account. This is a structural single-authority blocker only; it proves no provider received, accepted, or observed a duplicate.",
+  "non_actions": {
+    "main_tree_modified": false,
+    "file_backed_database_used": false,
+    "provider_or_sdk_used": false,
+    "native_api_used": false
+  },
+  "qa_artifacts": {
+    "adapted_repro_script_sha256": "41ADF7A4A0BEF5C2E0D36EC425399BEDDF32872B127BADCA2D22FABDACDB52F1",
+    "run_1_sha256": "3398221E80066083124D57EA86AF38E2D2B606DA24F2330564D2232727808AC7",
+    "run_2_sha256": "3398221E80066083124D57EA86AF38E2D2B606DA24F2330564D2232727808AC7",
+    "guard_log_empty": true
+  }
+}

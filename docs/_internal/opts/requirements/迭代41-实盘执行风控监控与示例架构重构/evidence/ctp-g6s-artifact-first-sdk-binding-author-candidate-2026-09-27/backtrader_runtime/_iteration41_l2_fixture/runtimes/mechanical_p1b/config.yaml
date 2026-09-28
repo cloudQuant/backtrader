@@ -1,0 +1,10 @@
+config_schema_version: 4
+
+strategy:
+  id: example.ctp_options_simnow.mechanical_managed_replay_l2
+
+runtime:
+  mode: simulation
+  preset: replay
+
+parameters: {}

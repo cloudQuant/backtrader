@@ -3,6 +3,23 @@
 
 from __future__ import annotations
 
+# This must run before pytest, Backtrader, BtApiStore, dotenv, or a provider
+# import. The historical ``--subprocess-case`` flag used to be a direct SimNow
+# write route; it can no longer select a child that reaches an account.
+import sys as _iteration41_sys
+from pathlib import Path as _Iteration41Path
+
+_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parent / "runtime"
+_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
+if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+
+from backtrader_runtime.legacy import run_legacy_config_first_cli as _iteration41_run_cli
+
+
+if __name__ == "__main__":
+    raise SystemExit(_iteration41_run_cli(_ITERATION41_RUNTIME_DIR))
+
 import argparse
 import json
 import os
@@ -14,6 +31,12 @@ import traceback
 from pathlib import Path
 
 import pytest
+
+pytest.skip(
+    "Iteration 41 disables legacy direct SimNow test execution; managed sandbox admission "
+    "is not implemented for this module",
+    allow_module_level=True,
+)
 
 _TEST_FILE = Path(__file__).resolve()
 _REPO_ROOT = _TEST_FILE.parents[2]
@@ -355,7 +378,9 @@ def test_simnow_trade_logger_local_error_audit():
     _run_live_case("local_error_audit")
 
 
-if __name__ == "__main__":
+# Iteration 41 retains this historical body for review only; direct execution is disabled.
+if False:  # pragma: no cover - retired direct entrypoint
+
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--subprocess-case")
     args, passthrough = parser.parse_known_args()

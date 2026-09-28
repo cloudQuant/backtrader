@@ -1,0 +1,284 @@
+{
+  "counts": {
+    "dynamic_execution_candidates": 1,
+    "files_scanned": 6,
+    "parse_errors": 0,
+    "writer_candidates": 20
+  },
+  "dynamic_execution_candidates": [
+    {
+      "call": "subprocess.Popen",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 24,
+      "dynamic_reason": "dynamic_execution",
+      "function_name": "__init__",
+      "kind": "dynamic_execution_candidate",
+      "line": 147,
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    }
+  ],
+  "files_scanned": [
+    "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py",
+    "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py",
+    "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+    "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+    "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py",
+    "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py"
+  ],
+  "generated_at": "2026-09-27T09:42:35.767801+00:00",
+  "historical_ctp_candidate_scopes": [],
+  "limitations": [
+    "AST candidates do not prove reachability, provider I/O, or a permitted route.",
+    "A static scan cannot prove that dynamically computed imports, subprocess commands, or reflection are complete.",
+    "Every candidate remains REVIEW_REQUIRED until its separate disposition record has an owner, route, test node, and trace/evidence disposition; an AST record is not fake/real trace proof.",
+    "The serialized source_root is a relative dot marker; the host-specific absolute path is intentionally omitted.",
+    "Historical CTP scope labels document separate entrypoint boundaries only; they do not prove candidate reachability or authorize a runtime route.",
+    "This collector never imports strategies, providers, SDK capability packages, or Backtrader runtime code."
+  ],
+  "parse_errors": [],
+  "schema_version": "iteration41.live-execution-inventory.v1",
+  "scope_paths": [
+    "backtrader_runtime/_local_fake_account_actor_candidate"
+  ],
+  "source_path_coverage": {
+    "classification_scope": "STATIC_SOURCE_PATH_COVERAGE_ONLY",
+    "counts": {
+      "discovered_paths": 0,
+      "missing_baseline_paths": 0,
+      "unclassified_paths": 0
+    },
+    "limitations": [
+      "Explicit --include/custom API scope is intentionally partial and does not load the repository-wide source-path baseline."
+    ],
+    "missing_baseline_paths": [],
+    "paths": [],
+    "schema_version": "iteration41.writer-inventory-surface-baseline.v1",
+    "status": "CUSTOM_SCOPE_NOT_CLASSIFIED",
+    "unclassified_paths": []
+  },
+  "source_root": ".",
+  "status": "CANDIDATE_DISCOVERY_ONLY",
+  "writer_candidates": [
+    {
+      "call": "connection.close",
+      "class_name": "AccountActorServerCoreV1",
+      "column": 12,
+      "function_name": "_initialize_schema",
+      "kind": "writer_call_candidate",
+      "line": 1113,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.connection.close",
+      "class_name": "_Transaction",
+      "column": 16,
+      "function_name": "__enter__",
+      "kind": "writer_call_candidate",
+      "line": 1237,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.connection.close",
+      "class_name": "_Transaction",
+      "column": 16,
+      "function_name": "__exit__",
+      "kind": "writer_call_candidate",
+      "line": 1255,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "__init__",
+      "kind": "writer_call_candidate",
+      "line": 183,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_exchange_locked",
+      "kind": "writer_call_candidate",
+      "line": 372,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_exchange_locked",
+      "kind": "writer_call_candidate",
+      "line": 378,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_exchange_locked",
+      "kind": "writer_call_candidate",
+      "line": 381,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 391,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 394,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 397,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 400,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 403,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 406,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 411,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 12,
+      "function_name": "_read_response",
+      "kind": "writer_call_candidate",
+      "line": 414,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "process.stdin.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 20,
+      "function_name": "close",
+      "kind": "writer_call_candidate",
+      "line": 491,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "stream.close",
+      "class_name": "SubprocessFakeActorPort",
+      "column": 24,
+      "function_name": "close",
+      "kind": "writer_call_candidate",
+      "line": 528,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "core.close",
+      "class_name": null,
+      "column": 4,
+      "function_name": "main",
+      "kind": "writer_call_candidate",
+      "line": 299,
+      "method": "close",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.actor_port.submit_order",
+      "class_name": "StoreBoundaryHarness",
+      "column": 22,
+      "function_name": "submit_order",
+      "kind": "writer_call_candidate",
+      "line": 75,
+      "method": "submit_order",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "self.actor_port.cancel_order",
+      "class_name": "StoreBoundaryHarness",
+      "column": 22,
+      "function_name": "cancel_order",
+      "kind": "writer_call_candidate",
+      "line": 86,
+      "method": "cancel_order",
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py",
+      "review_status": "REVIEW_REQUIRED"
+    }
+  ]
+}

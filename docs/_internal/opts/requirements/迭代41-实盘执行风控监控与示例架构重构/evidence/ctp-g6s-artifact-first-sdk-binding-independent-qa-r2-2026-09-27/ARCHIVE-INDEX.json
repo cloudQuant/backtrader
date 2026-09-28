@@ -1,0 +1,29 @@
+{
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.independent_qa_archive.r2.v1",
+  "disposition": "PARTIAL_CUSTODY_NO_G4_NO_G6S",
+  "candidate": {
+    "frozen_directory": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2",
+    "manifest": "candidate-source-manifest.json",
+    "manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+    "payload_count": 191,
+    "freeze_receipt": "candidate-freeze-receipt.json",
+    "freeze_receipt_sha256": "624ba96440e9099dc667fe840b5d73b0fac8aec28d88355506302fe5944b90ee",
+    "original_zip": "original-candidate-r2.zip",
+    "original_zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+    "author_sidecar_sha256": "7b1bc78ab5e0159fa30698b95b20ad41d4f132b0ce3e2641aadab7859010eedb"
+  },
+  "independent_qa": {
+    "copy": "D:\\temp\\iteration41-g6s-r2-independent-qa-20260927",
+    "interpreter": "C:\\anaconda3\\python.exe (CPython 3.11.5)",
+    "focus": "52 passed, 0 skipped; import-loader guard 5 passed; fake probes rejected mutations before callbacks; no real SDK/native/config/account/network access",
+    "limitations": [
+      "CPython ExtensionFileLoader remains pathname-based; no retained-handle image mapping proof.",
+      "No real _ctp or SDK load; policy pin remains None; no accepted G4/G6-S trust root/runtime closure."
+    ]
+  },
+  "primary_report": "QA-REPORT.md",
+  "independent_archive_zip": "g6s-artifact-first-r2-independent-qa.zip",
+  "original_candidate_zip": "original-candidate-r2.zip",
+  "tree_file_count_before_index_and_sums": 27,
+  "sha256sums_sha256": "7f13dd15bc07b92e01e30151cc378eb75b12d274933999ef69e45fbabf15e355"
+}

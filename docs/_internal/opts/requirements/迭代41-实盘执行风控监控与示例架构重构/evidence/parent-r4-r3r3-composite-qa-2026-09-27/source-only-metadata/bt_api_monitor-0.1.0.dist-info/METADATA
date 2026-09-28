@@ -1,0 +1,12 @@
+Metadata-Version: 2.3
+Name: bt_api_monitor
+Version: 0.1.0
+Summary: SOURCE-ONLY metadata for isolated Iteration 41 bridge tests; not installed
+X-Iteration41-Source-Only: true
+X-Iteration41-Source-Root: D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_monitor\src
+X-Iteration41-Source-Tree-SHA256: a9df89868c878997ef6c55c3ad149dc8a935ead5f505b34e80a4f6cdf729812e
+Requires-Dist: bt_api_base>=0.15.4,<0.16
+Requires-Dist: psutil>=5.9.0
+Requires-Dist: aiohttp>=3.9.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: typing-extensions>=4.8.0

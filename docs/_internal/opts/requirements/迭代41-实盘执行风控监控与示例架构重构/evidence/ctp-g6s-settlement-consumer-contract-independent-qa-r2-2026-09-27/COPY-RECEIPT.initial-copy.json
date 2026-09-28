@@ -1,0 +1,95 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.r2_independent_qa_copy_receipt.v1",
+  "source_root": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2",
+  "canonical_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-r2-2026-09-27",
+  "qa_zip_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+  "index_sha256": "d01a611e46b59933a9052404af0118e8c425f2fc5d6d6ca2745a629ada1224f4",
+  "copied_file_count": 14,
+  "all_hashes_match": true,
+  "files": [
+    {
+      "path": "REPORT.md",
+      "source_sha256": "0028eb20836d7f6daed20e919ca3ccc203a104963923685f6d0229d6c1cc2246",
+      "copy_sha256": "0028eb20836d7f6daed20e919ca3ccc203a104963923685f6d0229d6c1cc2246",
+      "matched": true
+    },
+    {
+      "path": "QA-RECEIPT.json",
+      "source_sha256": "20a36c6c93cb72c04f60143ee0b28301b2d919d2a0c01e96c7198e9544436c9c",
+      "copy_sha256": "20a36c6c93cb72c04f60143ee0b28301b2d919d2a0c01e96c7198e9544436c9c",
+      "matched": true
+    },
+    {
+      "path": "independent-qa.raw.zip",
+      "source_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+      "copy_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+      "matched": true
+    },
+    {
+      "path": "archive-index.json",
+      "source_sha256": "d01a611e46b59933a9052404af0118e8c425f2fc5d6d6ca2745a629ada1224f4",
+      "copy_sha256": "d01a611e46b59933a9052404af0118e8c425f2fc5d6d6ca2745a629ada1224f4",
+      "matched": true
+    },
+    {
+      "path": "SHA256SUMS.txt",
+      "source_sha256": "42cef7ebf09f1330f4e94028c836b3f84de750d4ae392dcc6dcbcc7e189ba915",
+      "copy_sha256": "42cef7ebf09f1330f4e94028c836b3f84de750d4ae392dcc6dcbcc7e189ba915",
+      "matched": true
+    },
+    {
+      "path": "archive-verification.json",
+      "source_sha256": "2c207afad22bc514c2a16cc815a263737b4004ec9f1cc8afbc1ffa4081f31514",
+      "copy_sha256": "2c207afad22bc514c2a16cc815a263737b4004ec9f1cc8afbc1ffa4081f31514",
+      "matched": true
+    },
+    {
+      "path": "COMMANDS.txt",
+      "source_sha256": "cde5beb664d57cbb947de1923a0bd92e1361fc7ab3512b1c5333458e8acc5109",
+      "copy_sha256": "cde5beb664d57cbb947de1923a0bd92e1361fc7ab3512b1c5333458e8acc5109",
+      "matched": true
+    },
+    {
+      "path": "pytest-r2-focus.stdout.txt",
+      "source_sha256": "5a68e10192627a1b454a52d4ead53baa93d78d0184e65feeb92d800de4219126",
+      "copy_sha256": "5a68e10192627a1b454a52d4ead53baa93d78d0184e65feeb92d800de4219126",
+      "matched": true
+    },
+    {
+      "path": "pytest-r2-focus.junit.xml",
+      "source_sha256": "ea10d1256833616f270b6cf9ff120edd5e9a7e1e1f494c49ddd643d481db9418",
+      "copy_sha256": "ea10d1256833616f270b6cf9ff120edd5e9a7e1e1f494c49ddd643d481db9418",
+      "matched": true
+    },
+    {
+      "path": "pytest-r2-adversarial.stdout.txt",
+      "source_sha256": "4dbf1f068698b1033cb3e86b88d6c5140ade62a6ac9b488f27e248ca5ca76c46",
+      "copy_sha256": "4dbf1f068698b1033cb3e86b88d6c5140ade62a6ac9b488f27e248ca5ca76c46",
+      "matched": true
+    },
+    {
+      "path": "pytest-r2-adversarial.junit.xml",
+      "source_sha256": "3beb04b4f916b7294bc0fa501c7a8c7ad81e6f26393c6bcdddcc01e84cf2011c",
+      "copy_sha256": "3beb04b4f916b7294bc0fa501c7a8c7ad81e6f26393c6bcdddcc01e84cf2011c",
+      "matched": true
+    },
+    {
+      "path": "test_independent_r2_adversarial.py",
+      "source_sha256": "06cc1f603b8c86c7495dfdec76fd0a6bdd5bcf386a8ed5144fa5af827cae7ebe",
+      "copy_sha256": "06cc1f603b8c86c7495dfdec76fd0a6bdd5bcf386a8ed5144fa5af827cae7ebe",
+      "matched": true
+    },
+    {
+      "path": "r1-r2-consumer.diff.txt",
+      "source_sha256": "3c92cc51d3e7ee1f31890d2ec81e0f2895869773ccea93e80ef2776b069dc4d1",
+      "copy_sha256": "3c92cc51d3e7ee1f31890d2ec81e0f2895869773ccea93e80ef2776b069dc4d1",
+      "matched": true
+    },
+    {
+      "path": "r1-r2-test.diff.txt",
+      "source_sha256": "acff6813cafd8c5a007a95eb7f52fb88e605e31bf0d27b831c5fa119c13a2edc",
+      "copy_sha256": "acff6813cafd8c5a007a95eb7f52fb88e605e31bf0d27b831c5fa119c13a2edc",
+      "matched": true
+    }
+  ]
+}

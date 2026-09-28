@@ -1,0 +1,45 @@
+{
+  "schema": "iteration41.ensure-api-ready-lazy-connect-audit.v1",
+  "date": "2026-09-27",
+  "verdict": "NO_MERGE_PATCH / BLOCKED_BY_SHARED_I22_LIFECYCLE",
+  "candidate_patch": null,
+  "repository_source_preimage": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D"
+  },
+  "artifacts": {
+    "report": {"path": "report.md", "sha256": "F799E48F20783B964B63B164E77D19DAEE85E39349A3F82CA36F9917F1695481"},
+    "probe": {"path": "probe.py", "sha256": "ACBF902955331F577B5B5667801C91AB34A8E9C47A89A60485C0621178D21DAC"},
+    "fake_callpath_output": {"path": "fake-callpath-repro.json", "sha256": "DCBCDA4D75B20D259B82E2DF553B9D4FF09ECD69B2368A45519B17701BC32928"},
+    "guard_and_test_status": {"path": "guard-and-test-status.log", "sha256": "293305596BF43F0E0E399AAFAED238E9049A8A0581A4C1E8990B61324B47C6C6"}
+  },
+  "probe_run": {
+    "command": "BTAPISTORE_AUDIT_REPO_ROOT=<repo-root> python docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ensure-api-ready-lazy-connect-audit-2026-09-27/probe.py",
+    "source_hash_assertion": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "optional_sdk_native_import_guard": [],
+    "network_guard": [],
+    "fake_order_cancel_writes": 0,
+    "default_vendor_construction_exercised": false,
+    "private_config_copied_or_read": false,
+    "full_source_tree_copied": false
+  },
+  "observations": [
+    "Cold public get_balance(force=True), get_symbol_info(), and start() reached fake connect through _ensure_api_ready().",
+    "CTP gateway and CTP forwarding fake start() also reached connect; sdk_api remained None.",
+    "Example-shaped btapi/direct CTP start and typed read reached the fake client with market_data_only=true; no fake writes occurred.",
+    "A blanket CTP start/_ensure_api_ready deny conflicts with the current Store-owned I22 read-only lifecycle; an in-process probe exception does not contain native lifecycle calls."
+  ],
+  "i22_test_impact": {
+    "repository_path": "tests/unit/stores/test_btapistore_iteration21.py",
+    "sha256": "AF4E258CFC7F4F81AEB9119A8ADD91FB379ECC3318B44C89EADD0403F59F2BDB",
+    "bounded_metadata_probe_test_functions": 14,
+    "suite_executed": false,
+    "impact": "Positive Store-owned read-only lifecycle and fail-closed timeout/shutdown contracts depend on the shared start/_ensure_api_ready path."
+  },
+  "example_references": [
+    {"repository_path": "examples/013_3_sa_midfreq_simnow/run.py", "sha256": "1C3D37A7485C05EC4EBB82BA1A66218B6B739063E04819D7B327BA4D8847B58E"},
+    {"repository_path": "examples/013_3_sa_midfreq_simnow/README.md", "sha256": "EC6D8DBDBC41DDE076B12D6EE53BE683C76DA50D0D35F88D35E9770767773ABB"}
+  ],
+  "runtime_status": "Ordinary CTP native preflight remains fail-closed pending a bounded Windows Job supervisor and independent acceptance; no real session, query, order, cancel, SimNow, production, or authority claim is made.",
+  "migration_dependency": "Move read-only CTP startup/query/close behind a bounded killable process and typed IPC, then default Store CTP lazy-connect/start can fail closed without deleting the query contract."
+}

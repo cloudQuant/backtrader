@@ -1,0 +1,7 @@
+Metadata-Version: 2.3
+Name: bt_api_execution
+Version: 0.2.0
+Summary: SOURCE-ONLY metadata for isolated Iteration 41 bridge tests; not installed
+X-Iteration41-Source-Only: true
+X-Iteration41-Source-Root: D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src
+X-Iteration41-Source-Tree-SHA256: 4cf3d09272a74c73a3d92ff9f41be7b3a6770432e3e77f036b3b09bd93c03b97

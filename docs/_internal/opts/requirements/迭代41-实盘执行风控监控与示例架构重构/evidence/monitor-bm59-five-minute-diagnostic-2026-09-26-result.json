@@ -1,0 +1,130 @@
+{
+  "acceptance": "NOT_ACCEPTED_FULL_MATRIX",
+  "benchmark": "BM59-M",
+  "checks": {
+    "complete_unique_count": true,
+    "cpu_single_core_le_5pct": true,
+    "drained_within_30s": true,
+    "lag_p99_le_1s": true,
+    "no_network_or_native_attempt": true,
+    "peak_rss_le_256mib": true,
+    "persistent_growth_le_1gib_day": true,
+    "producer_kept_rate": false,
+    "resource_sampling_complete": true
+  },
+  "environment": {
+    "module_origin": "D:\\temp\\iteration41-capability-risk-version-fix-20260926\\consumer-venv-final\\Lib\\site-packages\\bt_api_monitor\\durable.py",
+    "module_sha256": "8a72fbdf2c0bb8bcce3fbe4d3a4c9d30a3fa6759424ebb692f6ed03f0eb10f23",
+    "physical_cpu_count": 24,
+    "platform": "Windows-10-10.0.26100-SP0",
+    "psutil": "5.9.0",
+    "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "ram_bytes": 34049220608,
+    "sqlite": "3.41.2",
+    "sqlite_storage_baseline": {
+      "freelist_count": 0,
+      "journal_mode": "wal",
+      "last_sequence": 1000,
+      "page_count": 71,
+      "page_size": 4096,
+      "phase_counts": {
+        "warmup": 1000
+      },
+      "rows": 1000,
+      "unique_rows": 1000
+    },
+    "sqlite_storage_final": {
+      "freelist_count": 0,
+      "journal_mode": "wal",
+      "last_sequence": 7000,
+      "page_count": 584,
+      "page_size": 4096,
+      "phase_counts": {
+        "measurement": 6000,
+        "warmup": 1000
+      },
+      "rows": 7000,
+      "unique_rows": 7000
+    }
+  },
+  "limitations": [
+    "one run, one platform, synthetic nonblocking sink",
+    "storage device, filesystem and power mode need operator evidence",
+    "RSS and database sizes sampled every 50ms; Windows also uses peak_wset",
+    "process-local I/O guard is not OS isolation",
+    "no fsync syscall counter; WAL/FULL implementation is source evidence",
+    "lag includes committed checkpoint and conservative batch completion",
+    "resource samples and raw CSV instrumentation are separate from product DB growth",
+    "persistent growth uses allocated SQLite pages; peak file bytes additionally include WAL/SHM",
+    "CPU is a conservative bound over fixed injection duration; drain cannot dilute it"
+  ],
+  "measured_thresholds_pass": false,
+  "metrics": {
+    "audit_blocked_attempts": 0,
+    "checkpoint": 7000,
+    "consume_calls_including_warmup": 2765,
+    "cpu_cutoff_observed_ns": 183378769301100,
+    "cpu_delta_process_time_ns": 12078125000,
+    "cpu_end_process_time_ns": 12781250000,
+    "cpu_measurement_basis": "conservative_upper_bound_over_fixed_injection_duration",
+    "cpu_single_core_percent": 4.026041666666667,
+    "cpu_start_observed_monotonic_ns": 183078659993200,
+    "cpu_start_offset_from_planned_ns": -68019500,
+    "cpu_start_process_time_ns": 703125000,
+    "drain_cpu_ns": 0,
+    "drain_seconds": 0.0415413,
+    "duplicates": 0,
+    "durable_counts_match": true,
+    "durable_rows": 7000,
+    "empty_consume_calls_including_warmup": 2,
+    "end_ns": 183378769554000,
+    "expected": 6000,
+    "growth_bytes_per_day": 605159424.0,
+    "lag_ns": {
+      "max": 219932400,
+      "p50": 73932200,
+      "p95": 126115100,
+      "p99": 135247100
+    },
+    "maximum_resource_gap_ns": 172174100,
+    "peak_database_bytes": 2441344,
+    "peak_rss_bytes": 46268416,
+    "pid": 42340,
+    "planned_end_cutoff_overshoot_ns": 41288400,
+    "process_time_clock": {
+      "adjustable": false,
+      "implementation": "GetProcessTimes()",
+      "monotonic": true,
+      "nominal_resolution_seconds": 1e-07,
+      "resolution_note": "nominal clock metadata; it does not establish observed process-CPU accounting granularity"
+    },
+    "producer_append_latency_ns": {
+      "max": 89952200,
+      "p50": 7271200,
+      "p95": 15119100,
+      "p99": 23275600
+    },
+    "producer_finished_before_drain": true,
+    "producer_lateness_ns": {
+      "max": 93395500,
+      "p50": 349500,
+      "p95": 812500,
+      "p99": 2988700
+    },
+    "received": 6000,
+    "status": "complete"
+  },
+  "profile": {
+    "consumer_batch_limit": 32,
+    "consumer_poll_interval_ns": 100000000,
+    "duration_seconds": 300,
+    "events_per_second": 20,
+    "producer_lateness_tolerance_ns": 50000000,
+    "resource_sample_interval_ns": 50000000,
+    "retention": "no deletion; all warmup and measured rows retained",
+    "scope": "benchmark:synthetic-account:monitor",
+    "scope_count": 1,
+    "warmup_events": 1000
+  },
+  "status": "SMOKE_ONLY"
+}

@@ -1,0 +1,31 @@
+{
+  "all_445_rows_not_available": true,
+  "all_445_rows_review_required": true,
+  "all_new_rows_review_required": true,
+  "base_checklist_count": 389,
+  "base_checklist_sha256": "95116e8866a50d645664764856f1ceb6e855b3d05e540f7e38d59f30ea65c7fd",
+  "baseline_digest": "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e",
+  "candidate_checklist_count": 445,
+  "candidate_digest": "33ec3e5bcd575cab2bf63a4300c535016c0095d514c67d351c0d0af302c0a973",
+  "candidate_id_new_56_same_as_r1": true,
+  "candidate_inventory_counts": {
+    "dynamic_execution_candidates": 101,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 344
+  },
+  "candidate_status": "CANDIDATE_DISCOVERY_ONLY",
+  "checklist_digest_matches_candidate": true,
+  "new_candidate_count": 56,
+  "new_suffix_count": 56,
+  "old_389_entries_byte_semantic_prefix_equal": true,
+  "path_coverage": {
+    "discovered_paths": 211,
+    "missing_baseline_paths": 0,
+    "unclassified_paths": 0
+  },
+  "preserved_ids_match_exactly": true,
+  "r2b_checklist_lf_normalized_sha256": "e6ece21e16af6c6a6220431dd0c2669d81206a136b500dfd5214ca766818e841",
+  "r2b_crlf_checklist_sha256": "163c247e2011572bbfd12fe3e0e7e334792f9f2e1916d8ad13337cb27618fdad",
+  "suffix_ids_match_new_candidate_ids": true
+}

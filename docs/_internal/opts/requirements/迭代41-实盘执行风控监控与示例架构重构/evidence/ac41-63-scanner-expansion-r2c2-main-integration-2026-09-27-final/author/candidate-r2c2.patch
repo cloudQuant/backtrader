@@ -1,0 +1,1597 @@
+--- a/scripts/collect_iteration41_writer_inventory.py
++++ b/scripts/collect_iteration41_writer_inventory.py
+@@ -129,6 +129,8 @@
+         self.dynamic_candidates: List[Dict[str, object]] = []
+         self._class_stack: List[str] = []
+         self._function_stack: List[str] = []
++        self._writer_alias_scopes: list[dict[str, tuple[str, ...]]] = []
++        self._callable_alias_scopes: list[dict[str, bool]] = []
+ 
+     def visit_ClassDef(self, node: ast.ClassDef) -> None:
+         self._class_stack.append(node.name)
+@@ -137,13 +139,128 @@
+ 
+     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+         self._function_stack.append(node.name)
++        self._writer_alias_scopes.append({})
++        self._callable_alias_scopes.append({})
+         self.generic_visit(node)
++        self._callable_alias_scopes.pop()
++        self._writer_alias_scopes.pop()
+         self._function_stack.pop()
+ 
+     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+         self._function_stack.append(node.name)
++        self._writer_alias_scopes.append({})
++        self._callable_alias_scopes.append({})
+         self.generic_visit(node)
++        self._callable_alias_scopes.pop()
++        self._writer_alias_scopes.pop()
+         self._function_stack.pop()
++
++    @staticmethod
++    def _target_names(target: ast.AST) -> tuple[str, ...]:
++        if isinstance(target, ast.Name):
++            return (target.id,)
++        if isinstance(target, (ast.Tuple, ast.List)):
++            return tuple(
++                name
++                for item in target.elts
++                for name in _CandidateVisitor._target_names(item)
++            )
++        return ()
++
++    def _lookup_writer_alias(self, name: str) -> tuple[str, ...]:
++        for scope in reversed(self._writer_alias_scopes):
++            if name in scope:
++                return scope[name]
++        return ()
++
++    def _lookup_callable_alias(self, name: str) -> bool:
++        return any(name in scope for scope in reversed(self._callable_alias_scopes))
++
++    def _is_callable_alias_source(self, node: ast.AST) -> bool:
++        if isinstance(node, ast.Name):
++            return self._lookup_callable_alias(node.id)
++        if (
++            isinstance(node, ast.Call)
++            and _qualified_name(node.func) == "getattr"
++            and len(node.args) >= 2
++            and not (
++                isinstance(node.args[1], ast.Constant)
++                and isinstance(node.args[1].value, str)
++            )
++        ):
++            return True
++        if isinstance(node, ast.IfExp):
++            return self._is_callable_alias_source(node.body) or self._is_callable_alias_source(
++                node.orelse
++            )
++        if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
++            return any(self._is_callable_alias_source(item) for item in node.elts)
++        return False
++
++    def _referenced_writer_methods(self, node: ast.AST) -> tuple[str, ...]:
++        """Resolve simple local aliases to public writer methods conservatively."""
++        if isinstance(node, ast.Attribute):
++            return (node.attr,) if node.attr in WRITER_METHODS else ()
++        if isinstance(node, ast.Name):
++            return self._lookup_writer_alias(node.id)
++        if isinstance(node, ast.Call) and _qualified_name(node.func) == "getattr":
++            if (
++                len(node.args) >= 2
++                and isinstance(node.args[1], ast.Constant)
++                and isinstance(node.args[1].value, str)
++                and node.args[1].value in WRITER_METHODS
++            ):
++                return (node.args[1].value,)
++            return ()
++        if isinstance(node, ast.IfExp):
++            return tuple(
++                sorted(
++                    set(self._referenced_writer_methods(node.body))
++                    | set(self._referenced_writer_methods(node.orelse))
++                )
++            )
++        if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
++            return tuple(
++                sorted(
++                    {
++                        method
++                        for item in node.elts
++                        for method in self._referenced_writer_methods(item)
++                    }
++                )
++            )
++        return ()
++
++    def _remember_writer_alias(self, targets: Iterable[ast.AST], value: ast.AST) -> None:
++        if not self._writer_alias_scopes:
++            return
++        target_names = tuple(
++            name for target in targets for name in self._target_names(target)
++        )
++        if not target_names:
++            return
++        if self._is_callable_alias_source(value):
++            callable_scope = self._callable_alias_scopes[-1]
++            for name in target_names:
++                callable_scope[name] = True
++        methods = self._referenced_writer_methods(value)
++        if methods:
++            scope = self._writer_alias_scopes[-1]
++            for name in target_names:
++                scope[name] = tuple(sorted(set(scope.get(name, ())) | set(methods)))
++
++    def visit_Assign(self, node: ast.Assign) -> None:
++        self._remember_writer_alias(node.targets, node.value)
++        self.generic_visit(node)
++
++    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
++        if node.value is not None:
++            self._remember_writer_alias((node.target,), node.value)
++        self.generic_visit(node)
++
++    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
++        self._remember_writer_alias((node.target,), node.value)
++        self.generic_visit(node)
+ 
+     def _location(self, node: ast.AST) -> Dict[str, object]:
+         return {
+@@ -181,10 +298,21 @@
+             and isinstance(node.args[1].value, str)
+             and node.args[1].value in WRITER_METHODS
+         )
++        is_dynamic_attribute_forwarder = (
++            terminal_name == "getattr"
++            and bool(self._function_stack)
++            and self._function_stack[-1] == "__getattr__"
++            and len(node.args) >= 2
++            and not (
++                isinstance(node.args[1], ast.Constant)
++                and isinstance(node.args[1].value, str)
++            )
++        )
+         is_dynamic = (
+             qualified_name in _DYNAMIC_QUALIFIED_CALLS
+             or terminal_name in _DYNAMIC_BARE_CALLS
+             or is_writer_reflection
++            or is_dynamic_attribute_forwarder
+         )
+         if is_dynamic:
+             candidate = self._location(node)
+@@ -192,13 +320,43 @@
+                 {
+                     "kind": "dynamic_execution_candidate",
+                     "call": qualified_name or terminal_name,
+-                    "dynamic_reason": "writer_reflection"
+-                    if is_writer_reflection
+-                    else "dynamic_execution",
++                    "dynamic_reason": (
++                        "writer_reflection"
++                        if is_writer_reflection
++                        else "dynamic_attribute_forwarder"
++                        if is_dynamic_attribute_forwarder
++                        else "dynamic_execution"
++                    ),
+                     "review_status": "REVIEW_REQUIRED",
+                 }
+             )
+             self.dynamic_candidates.append(candidate)
++
++        if isinstance(node.func, ast.Name) and terminal_name not in WRITER_METHODS:
++            alias_methods = self._lookup_writer_alias(node.func.id)
++            for method in alias_methods:
++                candidate = self._location(node)
++                candidate.update(
++                    {
++                        "kind": "writer_call_candidate",
++                        "call": node.func.id,
++                        "method": method,
++                        "dynamic_reason": "writer_alias_dispatch",
++                        "review_status": "REVIEW_REQUIRED",
++                    }
++                )
++                self.writer_candidates.append(candidate)
++            if not alias_methods and self._lookup_callable_alias(node.func.id):
++                candidate = self._location(node)
++                candidate.update(
++                    {
++                        "kind": "dynamic_execution_candidate",
++                        "call": node.func.id,
++                        "dynamic_reason": "indirect_callable_alias",
++                        "review_status": "REVIEW_REQUIRED",
++                    }
++                )
++                self.dynamic_candidates.append(candidate)
+ 
+         self.generic_visit(node)
+ 
+--- a/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-writer-dispositions.json
++++ b/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-writer-dispositions.json
+@@ -8555,6 +8555,1238 @@
+       "disposition": "REVIEW_REQUIRED",
+       "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+       "owner": "iteration41-writer-inventory-review",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "BtApiBroker",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "submit_leg",
++        "kind": "writer_call_candidate",
++        "line": 1656,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "backtrader/brokers/btapibroker.py"
++      },
++      "candidate_id": "i41-writer-3bd5417ed89f445101b9",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "BtApiBroker",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "submit_leg",
++        "kind": "writer_call_candidate",
++        "line": 1656,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "backtrader/brokers/btapibroker.py"
++      },
++      "candidate_id": "i41-writer-88d4bdece7f60298ea06",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "BtApiBroker",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "get_account_risk_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 2590,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/brokers/btapibroker.py"
++      },
++      "candidate_id": "i41-writer-280a687cba2e36e06a94",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 23,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_materialize_account_payload",
++        "kind": "dynamic_execution_candidate",
++        "line": 828,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-f86b86019b75aa5c42bb",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 22,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_materialize_contract_payload",
++        "kind": "dynamic_execution_candidate",
++        "line": 1149,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-48e13deee51f4ee909ff",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 26,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_query_contract_fee_metadata",
++        "kind": "dynamic_execution_candidate",
++        "line": 1508,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-1f8fc32339a2b1446e32",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 30,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_query_contract_metadata_from_api",
++        "kind": "dynamic_execution_candidate",
++        "line": 1560,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-45d6e197feec3f8cf998",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "typed",
++        "class_name": "CtpClientWrapper",
++        "column": 19,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_send_native_order_insert",
++        "kind": "writer_call_candidate",
++        "line": 1945,
++        "method": "submit_order_insert",
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-d23e870f6f57d76a755e",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "CtpClientWrapper",
++        "column": 19,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_query_result",
++        "kind": "dynamic_execution_candidate",
++        "line": 2068,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-3fa45474d8968ecda9b8",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "CtpClientWrapper",
++        "column": 23,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_safe_trader_query",
++        "kind": "dynamic_execution_candidate",
++        "line": 2390,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-5a8d261baaa567847338",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "CtpClientWrapper",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_safe_trader_query",
++        "kind": "dynamic_execution_candidate",
++        "line": 2394,
++        "method": null,
++        "ordinal": 1,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-9a8f932c39e86bb88928",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getter",
++        "class_name": "CtpGatewayClientWrapper",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "get_symbol_info",
++        "kind": "dynamic_execution_candidate",
++        "line": 3295,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-e77e764e1e1a4c880cb6",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "async_method",
++        "class_name": "BtApiStore",
++        "column": 17,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_invoke_sdk_command",
++        "kind": "dynamic_execution_candidate",
++        "line": 6665,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-a5104365b2d37af86d15",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "cancel",
++        "class_name": "BtApiStore",
++        "column": 23,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_cancel_managed",
++        "kind": "writer_call_candidate",
++        "line": 8132,
++        "method": "cancel_order",
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-716fa6d57bd60cca1c95",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "BtApiStore",
++        "column": 15,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_invoke_ctp_query",
++        "kind": "dynamic_execution_candidate",
++        "line": 8550,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-ac0fac881bc6f88dd163",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getter",
++        "class_name": "BtApiStore",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_ctp_query_record_to_public",
++        "kind": "dynamic_execution_candidate",
++        "line": 8652,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader/stores/btapistore.py"
++      },
++      "candidate_id": "i41-writer-a444fb606af377b395c1",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "core-execution-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": null,
++        "column": 16,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 142,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/__init__.py"
++      },
++      "candidate_id": "i41-writer-a914aa7d33d4079f95fe",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "MechanicalCycle",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 254,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py"
++      },
++      "candidate_id": "i41-writer-ad67be2e4340ed22917c",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "MechanicalCycle",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 254,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py"
++      },
++      "candidate_id": "i41-writer-53b2dbc6e7248eb43faf",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "acquire_family",
++        "class_name": "CtpManagedAccountRuntimeCandidate",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "start",
++        "kind": "dynamic_execution_candidate",
++        "line": 336,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py"
++      },
++      "candidate_id": "i41-writer-442fd5f8b0b7ab97667c",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "acquire_lease",
++        "class_name": "CtpManagedAccountRuntimeCandidate",
++        "column": 27,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "start",
++        "kind": "dynamic_execution_candidate",
++        "line": 343,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py"
++      },
++      "candidate_id": "i41-writer-b0700111f256fbf92eb7",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpProductionSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 710,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_production_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-e04577d4a2ee7dd6d6f9",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpProductionSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 716,
++        "method": null,
++        "ordinal": 1,
++        "path": "backtrader_runtime/ctp_production_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-4baf2bf8b092fb341d38",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpProductionSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 723,
++        "method": null,
++        "ordinal": 2,
++        "path": "backtrader_runtime/ctp_production_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-9e8dc13292b59de7b25a",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpProductionSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 729,
++        "method": null,
++        "ordinal": 3,
++        "path": "backtrader_runtime/ctp_production_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-78d83f5e39f2a85c95f9",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 673,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-3ca9440a3cc3ec51bdbe",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 679,
++        "method": null,
++        "ordinal": 1,
++        "path": "backtrader_runtime/ctp_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-6c766c557d2d8210fb8e",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 686,
++        "method": null,
++        "ordinal": 2,
++        "path": "backtrader_runtime/ctp_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-e45b461d0e240abbc1d7",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "_CtpSdkReadOnlySession",
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read_query_snapshot",
++        "kind": "dynamic_execution_candidate",
++        "line": 692,
++        "method": null,
++        "ordinal": 3,
++        "path": "backtrader_runtime/ctp_sdk_readonly.py"
++      },
++      "candidate_id": "i41-writer-63c155b164619159edf6",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": "_OwnedNativePort",
++        "column": 15,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 208,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_simnow_managed_runtime.py"
++      },
++      "candidate_id": "i41-writer-28104eb61ac0ef2e7d2a",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "CtpTraderClientSimulationPort",
++        "column": 21,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "submit_order_insert",
++        "kind": "writer_call_candidate",
++        "line": 1030,
++        "method": "submit_order_insert",
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_trader_client_port.py"
++      },
++      "candidate_id": "i41-writer-3aa2b21a25a9172074c6",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "CtpTraderClientSimulationPort",
++        "column": 21,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_query",
++        "kind": "dynamic_execution_candidate",
++        "line": 1181,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/ctp_trader_client_port.py"
++      },
++      "candidate_id": "i41-writer-4a9e69b850581106c787",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": "_PrivateInventoryImportlib",
++        "column": 15,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 966,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/runner.py"
++      },
++      "candidate_id": "i41-writer-4a05dff0817a77c64c5a",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "runner",
++        "class_name": null,
++        "column": 29,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "dispatch_registered_runtime",
++        "kind": "dynamic_execution_candidate",
++        "line": 1278,
++        "method": null,
++        "ordinal": 0,
++        "path": "backtrader_runtime/runner.py"
++      },
++      "candidate_id": "i41-writer-dcad18790eda82487a58",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "runner",
++        "class_name": null,
++        "column": 37,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "dispatch_registered_runtime",
++        "kind": "dynamic_execution_candidate",
++        "line": 1291,
++        "method": null,
++        "ordinal": 1,
++        "path": "backtrader_runtime/runner.py"
++      },
++      "candidate_id": "i41-writer-964c1057f70d011d491d",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "runner",
++        "class_name": null,
++        "column": 37,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "dispatch_registered_runtime",
++        "kind": "dynamic_execution_candidate",
++        "line": 1298,
++        "method": null,
++        "ordinal": 2,
++        "path": "backtrader_runtime/runner.py"
++      },
++      "candidate_id": "i41-writer-9ddf345e833006d68b3a",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "PairArbitrageStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 248,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "examples/013_1_midfreq_cross_arbitrage/strategy.py"
++      },
++      "candidate_id": "i41-writer-7e1a6ae7fd929a929f0f",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "PairArbitrageStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 248,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "examples/013_1_midfreq_cross_arbitrage/strategy.py"
++      },
++      "candidate_id": "i41-writer-1e7092818f4754e8711b",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "PairArbitrageStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 248,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "examples/013_2_highfreq_calendar_arbitrage/strategy.py"
++      },
++      "candidate_id": "i41-writer-86a78e4047db7a949547",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "PairArbitrageStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit",
++        "kind": "writer_call_candidate",
++        "line": 248,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "examples/013_2_highfreq_calendar_arbitrage/strategy.py"
++      },
++      "candidate_id": "i41-writer-b7f2bc9e4e47d48990e5",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 21,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_mapping",
++        "kind": "dynamic_execution_candidate",
++        "line": 341,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/run.py"
++      },
++      "candidate_id": "i41-writer-841ce77504eb57b22567",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 19,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_invoke_public",
++        "kind": "dynamic_execution_candidate",
++        "line": 1653,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/run.py"
++      },
++      "candidate_id": "i41-writer-5a0d60560cdcb1c29762",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 15,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_invoke_public",
++        "kind": "dynamic_execution_candidate",
++        "line": 1654,
++        "method": null,
++        "ordinal": 1,
++        "path": "examples/013_3_sa_midfreq_simnow/run.py"
++      },
++      "candidate_id": "i41-writer-789b41c0cf462a818954",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "SAMidFrequencyStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit_entry",
++        "kind": "writer_call_candidate",
++        "line": 1158,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/strategy.py"
++      },
++      "candidate_id": "i41-writer-422e374e4f23c76ebda0",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "SAMidFrequencyStrategy",
++        "column": 16,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit_entry",
++        "kind": "writer_call_candidate",
++        "line": 1158,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/strategy.py"
++      },
++      "candidate_id": "i41-writer-988027ec7d512dc65538",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "SAMidFrequencyStrategy",
++        "column": 20,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_request_exit",
++        "kind": "writer_call_candidate",
++        "line": 1266,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/strategy.py"
++      },
++      "candidate_id": "i41-writer-132baf7ba05dab5bc101",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "SAMidFrequencyStrategy",
++        "column": 20,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_request_exit",
++        "kind": "writer_call_candidate",
++        "line": 1266,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "examples/013_3_sa_midfreq_simnow/strategy.py"
++      },
++      "candidate_id": "i41-writer-2758b24193ff9b87cf1e",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "CtpOptionsLowfreqStrategy",
++        "column": 20,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit_next_leg",
++        "kind": "writer_call_candidate",
++        "line": 1056,
++        "method": "buy",
++        "ordinal": 0,
++        "path": "examples/014_1_ctp_options_lowfreq/ctp_options_lowfreq_strategy.py"
++      },
++      "candidate_id": "i41-writer-0174287b6dc36b5e378b",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "submit",
++        "class_name": "CtpOptionsLowfreqStrategy",
++        "column": 20,
++        "dynamic_reason": "writer_alias_dispatch",
++        "function_name": "_submit_next_leg",
++        "kind": "writer_call_candidate",
++        "line": 1056,
++        "method": "sell",
++        "ordinal": 0,
++        "path": "examples/014_1_ctp_options_lowfreq/ctp_options_lowfreq_strategy.py"
++      },
++      "candidate_id": "i41-writer-c06e097a18f22a865289",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": "_ObservationReadOnlyApi",
++        "column": 16,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 167,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/014_1_ctp_options_lowfreq/simnow_adapter.py"
++      },
++      "candidate_id": "i41-writer-480311d7bf6b05330cf4",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": null,
++        "column": 21,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_mapping",
++        "kind": "dynamic_execution_candidate",
++        "line": 254,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/014_1_ctp_options_lowfreq/simnow_adapter.py"
++      },
++      "candidate_id": "i41-writer-4263c11dc1f62dd96fe0",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "SimNowOptionsAdapter",
++        "column": 23,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_query",
++        "kind": "dynamic_execution_candidate",
++        "line": 1462,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/014_1_ctp_options_lowfreq/simnow_adapter.py"
++      },
++      "candidate_id": "i41-writer-4ad404b7fd8fb37a891a",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "callback",
++        "class_name": "CTPOptionsMidFrequencyStrategy",
++        "column": 45,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "_provider_calendar",
++        "kind": "dynamic_execution_candidate",
++        "line": 808,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/014_2_ctp_options_midfreq/ctp_options_midfreq_strategy.py"
++      },
++      "candidate_id": "i41-writer-3f0afc435761c63537d1",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": "_ObservationReadOnlyApi",
++        "column": 16,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 171,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/014_2_ctp_options_midfreq/simnow_adapter.py"
++      },
++      "candidate_id": "i41-writer-a42acf4d96a966d3992f",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "getattr",
++        "class_name": "_ObservationReadOnlyApi",
++        "column": 16,
++        "dynamic_reason": "dynamic_attribute_forwarder",
++        "function_name": "__getattr__",
++        "kind": "dynamic_execution_candidate",
++        "line": 161,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/015_ctp_options_highfreq/engineering_smoke.py"
++      },
++      "candidate_id": "i41-writer-e906e725265b8714d4a0",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
++      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
++      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
++      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
++    },
++    {
++      "availability": "NOT_AVAILABLE",
++      "candidate": {
++        "call": "method",
++        "class_name": "SimNowLiveRunner",
++        "column": 24,
++        "dynamic_reason": "indirect_callable_alias",
++        "function_name": "read",
++        "kind": "dynamic_execution_candidate",
++        "line": 662,
++        "method": null,
++        "ordinal": 0,
++        "path": "examples/ctp_options_simnow_live_runner.py"
++      },
++      "candidate_id": "i41-writer-1853de8f743be7e99dc6",
++      "disposition": "REVIEW_REQUIRED",
++      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
++      "owner": "example-runtime-maintainers",
+       "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+       "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+       "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+@@ -8593,12 +9825,12 @@
+     "A passing checklist verifier does not grant replay, sandbox, production, or live admission."
+   ],
+   "schema_version": "iteration41.writer-disposition-checklist.v1",
+-  "source_inventory_candidate_digest": "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e",
++  "source_inventory_candidate_digest": "33ec3e5bcd575cab2bf63a4300c535016c0095d514c67d351c0d0af302c0a973",
+   "source_inventory_counts": {
+-    "dynamic_execution_candidates": 62,
++    "dynamic_execution_candidates": 101,
+     "files_scanned": 349,
+     "parse_errors": 0,
+-    "writer_candidates": 327
++    "writer_candidates": 344
+   },
+   "source_inventory_schema_version": "iteration41.live-execution-inventory.v1",
+   "status": "REVIEW_REQUIRED"
+--- a/tests/unit/scripts/test_verify_iteration41_writer_dispositions.py
++++ b/tests/unit/scripts/test_verify_iteration41_writer_dispositions.py
+@@ -2,12 +2,12 @@
+ 
+ from __future__ import annotations
+ 
++import hashlib
+ import importlib.util
+ import json
+ import sys
+ from copy import deepcopy
+ from pathlib import Path
+-
+ 
+ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+ SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "verify_iteration41_writer_dispositions.py"
+@@ -142,3 +142,45 @@
+     assert result["checklist_entry_count"] == expected_count
+     assert result["review_required_count"] == expected_count
+     assert result["evidence_boundary"].endswith("NOT_LIVE_ADMISSION")
++
++def test_expanded_dispositions_preserve_old_389_and_fence_new_candidates() -> None:
++    verifier = _verifier_module()
++    checklist = json.loads(CHECKLIST_PATH.read_text(encoding="utf-8"))
++    collector = verifier._load_inventory_collector()
++    inventory = collector.collect_inventory(REPOSITORY_ROOT)
++    records = verifier.candidate_records(inventory)
++
++    old_entries = checklist["entries"][:389]
++    old_ids = [entry["candidate_id"] for entry in old_entries]
++    assert len(old_entries) == 389
++    assert verifier._records_digest([{"candidate_id": value} for value in old_ids]) == (
++        "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e"
++    )
++    old_payload = json.dumps(
++        old_entries, ensure_ascii=False, separators=(",", ":"), sort_keys=True
++    ).encode("utf-8")
++    assert hashlib.sha256(old_payload).hexdigest() == (
++        "aec51e6b4e4c186fe959c86868a96bdfb8e14c5bbf1da539793ee48b89d54d27"
++    )
++
++    added_entries = checklist["entries"][389:]
++    old_id_set = set(old_ids)
++    expected_new_ids = [
++        record["candidate_id"]
++        for record in records
++        if record["candidate_id"] not in old_id_set
++    ]
++    assert [entry["candidate_id"] for entry in added_entries] == expected_new_ids
++    assert len(added_entries) == 56
++    assert all(
++        entry["disposition"] == "REVIEW_REQUIRED"
++        and entry["availability"] == "NOT_AVAILABLE"
++        and entry["route"] == verifier.UNRESOLVED_LIVE_ROUTE
++        for entry in added_entries
++    )
++    assert checklist["source_inventory_counts"] == inventory["counts"]
++    assert checklist["source_inventory_candidate_digest"] == verifier._records_digest(records)
++
++    result = verifier.validate_disposition_checklist(inventory, checklist)
++    assert result["status"] == "PASS", result["reason_codes"]
++    assert result["review_required_count"] == 445
+--- /dev/null
++++ b/tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py
+@@ -0,0 +1,66 @@
++"""Contract tests for static writer method aliases; no example is imported."""
++
++from __future__ import annotations
++
++import importlib.util
++import sys
++from pathlib import Path
++
++REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
++SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "collect_iteration41_writer_inventory.py"
++
++
++def _collector_module():
++    name = "iteration41_writer_alias_inventory_test_module"
++    spec = importlib.util.spec_from_file_location(name, SCRIPT_PATH)
++    assert spec is not None and spec.loader is not None
++    module = importlib.util.module_from_spec(spec)
++    sys.modules[name] = module
++    spec.loader.exec_module(module)
++    return module
++
++
++def test_collector_finds_injected_broker_method_alias_dispatch(tmp_path: Path) -> None:
++    source_root = tmp_path / "source"
++    fixture_dir = source_root / "fixture"
++    fixture_dir.mkdir(parents=True)
++    (fixture_dir / "runner.py").write_text(
++        "class Runner:\n"
++        "    def submit(self, broker, leg, order_kwargs):\n"
++        "        method = broker.buy if leg.side == 'buy' else broker.sell\n"
++        "        return method(**order_kwargs)\n"
++        "\n"
++        "    def cancel(self, broker, order_ref):\n"
++        "        cancel = getattr(broker, 'cancel_order', None)\n"
++        "        return cancel(order_ref)\n"
++        "\n"
++        "    def sdk_dispatch(self, api, async_name, request):\n"
++        "        writer = getattr(api, async_name, None)\n"
++        "        return writer(request)\n"
++        "\n"
++        "class Proxy:\n"
++        "    def __getattr__(self, name):\n"
++        "        return getattr(self.api, name)\n",
++        encoding="utf-8",
++    )
++    collector = _collector_module()
++
++    report = collector.collect_inventory(source_root, ("fixture",))
++
++    assert report["counts"]["writer_candidates"] == 3
++    assert [
++        (row["call"], row["method"], row["dynamic_reason"])
++        for row in report["writer_candidates"]
++    ] == [
++        ("method", "buy", "writer_alias_dispatch"),
++        ("method", "sell", "writer_alias_dispatch"),
++        ("cancel", "cancel_order", "writer_alias_dispatch"),
++    ]
++    assert [
++        (row["call"], row["dynamic_reason"])
++        for row in report["dynamic_execution_candidates"]
++    ] == [
++        ("getattr", "writer_reflection"),
++        ("writer", "indirect_callable_alias"),
++        ("getattr", "dynamic_attribute_forwarder"),
++    ]

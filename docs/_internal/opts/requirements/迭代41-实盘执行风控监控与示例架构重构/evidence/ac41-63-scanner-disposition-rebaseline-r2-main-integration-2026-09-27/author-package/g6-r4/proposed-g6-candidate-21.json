@@ -1,0 +1,497 @@
+{
+  "schema": "ac41-63-proposed-g6-candidate-21.v2",
+  "decision": "NO_WRITE / LIVE_NO_GO",
+  "status": "PROPOSED_SUPPLEMENTAL_NOT_IN_445_BASELINE",
+  "candidate_count": 21,
+  "writer_candidate_count": 20,
+  "dynamic_execution_candidate_count": 1,
+  "candidate_ids_sha256_sorted_newline": "E26BE8D85EDACDFAAC78A77CC6F3B7AC109E6F9BF21C5906BC672B419FE24866",
+  "current_445_overlap_count": 0,
+  "tombstone_overlap_count": 0,
+  "source_artifact_identity": {
+    "candidate_manifest_sha256": "8BFCFB67C5D8DE21D56E3D03D63478F81375E65F86B0F8C98E144A197B7F994F",
+    "candidate_patch_sha256": "E9C3996CC836C2D7628BA92C569060CFA78C140768CF612DB7F395F66CF2CA22",
+    "candidate_delta_inventory_sha256": "6D91F4474CDF69C5F776442EA23C3F87C3122447F83970ABA348A1953CDAC337",
+    "candidate_source_preimages_are_absent_from_main_per_manifest": true,
+    "default_path_boundary": {
+      "btapistore_imports_or_constructs_candidate": false,
+      "cli_imports_candidate": false,
+      "fake_child_imports_runtime_root_or_provider": false,
+      "local_fallback": false,
+      "package_imports_candidate": false,
+      "runtime_registry_contains_candidate": false
+    },
+    "authority": "LOCAL_FAKE_ONLY_NO_G6_P_F14_ACCEPTANCE",
+    "r4_independent_qa_result": "65 passed",
+    "r4_qa_scope": "local process-separated fake protocol only; no CTP/G6-P/F14/SimNow/production authority",
+    "source_hashes": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": {
+        "sha256": "74e1d790cfc3157ae54adfbd918244bba6bb311b719e775ab7e797e68a5aaf26",
+        "size_bytes": 218
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": {
+        "sha256": "1cb3cfa6534da6974e7ec656ac54c413445401c819b3efd48e57c6be54cb7409",
+        "size_bytes": 25738
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": {
+        "sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "size_bytes": 63111
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": {
+        "sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "size_bytes": 21723
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": {
+        "sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c",
+        "size_bytes": 10622
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": {
+        "sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1",
+        "size_bytes": 5114
+      }
+    }
+  },
+  "candidate_rows": [
+    {
+      "candidate_id": "i41-writer-033a6d3492e283a6cab0",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_exchange_locked",
+        "kind": "writer_call_candidate",
+        "line": 381,
+        "method": "close",
+        "ordinal": 2,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-0839d47b1ee5e48be7f4",
+      "candidate": {
+        "call": "self.connection.close",
+        "class_name": "_Transaction",
+        "column": 16,
+        "dynamic_reason": null,
+        "function_name": "__exit__",
+        "kind": "writer_call_candidate",
+        "line": 1255,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+      },
+      "target_source_sha256": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-1026c45e4c9156f811ba",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 406,
+        "method": "close",
+        "ordinal": 5,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-1ea0d830505fd8dc9cc5",
+      "candidate": {
+        "call": "connection.close",
+        "class_name": "AccountActorServerCoreV1",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_initialize_schema",
+        "kind": "writer_call_candidate",
+        "line": 1113,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+      },
+      "target_source_sha256": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-4ca5fc53348f1f008a7a",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_exchange_locked",
+        "kind": "writer_call_candidate",
+        "line": 372,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-5f5016356e1caeee411f",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 411,
+        "method": "close",
+        "ordinal": 6,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-698985163dc6a866fbaa",
+      "candidate": {
+        "call": "self.connection.close",
+        "class_name": "_Transaction",
+        "column": 16,
+        "dynamic_reason": null,
+        "function_name": "__enter__",
+        "kind": "writer_call_candidate",
+        "line": 1237,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+      },
+      "target_source_sha256": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-6b8d23074a58e4a3a228",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 394,
+        "method": "close",
+        "ordinal": 1,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-6c0a36772443adc4bac6",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 414,
+        "method": "close",
+        "ordinal": 7,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-71930b2c039462578bbf",
+      "candidate": {
+        "call": "subprocess.Popen",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 24,
+        "dynamic_reason": "dynamic_execution",
+        "function_name": "__init__",
+        "kind": "dynamic_execution_candidate",
+        "line": 147,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-7efb437579fca2e99980",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 391,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-7f73319f511d87e45de3",
+      "candidate": {
+        "call": "stream.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 24,
+        "dynamic_reason": null,
+        "function_name": "close",
+        "kind": "writer_call_candidate",
+        "line": 528,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-8b49231c5a71f5759c11",
+      "candidate": {
+        "call": "self.actor_port.submit_order",
+        "class_name": "StoreBoundaryHarness",
+        "column": 22,
+        "dynamic_reason": null,
+        "function_name": "submit_order",
+        "kind": "writer_call_candidate",
+        "line": 75,
+        "method": "submit_order",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py"
+      },
+      "target_source_sha256": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-8c75f3ada8308e550962",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "__init__",
+        "kind": "writer_call_candidate",
+        "line": 183,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-b1d03654fed3c00d68a4",
+      "candidate": {
+        "call": "core.close",
+        "class_name": null,
+        "column": 4,
+        "dynamic_reason": null,
+        "function_name": "main",
+        "kind": "writer_call_candidate",
+        "line": 299,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py"
+      },
+      "target_source_sha256": "A268127F1E9D0A04CD1C326C0C72EFC6372E5B0B643D87E4D2B71878D603DC0C",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-baf12e0c3aa8e5672a67",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 400,
+        "method": "close",
+        "ordinal": 3,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-d9cb3917dfd979c14f07",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_exchange_locked",
+        "kind": "writer_call_candidate",
+        "line": 378,
+        "method": "close",
+        "ordinal": 1,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-e23724e1fbe73d86b09c",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 397,
+        "method": "close",
+        "ordinal": 2,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-e7052d2b9d1eda1be714",
+      "candidate": {
+        "call": "process.stdin.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 20,
+        "dynamic_reason": null,
+        "function_name": "close",
+        "kind": "writer_call_candidate",
+        "line": 491,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-ea3b383559b59127b2f0",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "SubprocessFakeActorPort",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "_read_response",
+        "kind": "writer_call_candidate",
+        "line": 403,
+        "method": "close",
+        "ordinal": 4,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+      },
+      "target_source_sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    },
+    {
+      "candidate_id": "i41-writer-fbc7eb19201080da507e",
+      "candidate": {
+        "call": "self.actor_port.cancel_order",
+        "class_name": "StoreBoundaryHarness",
+        "column": 22,
+        "dynamic_reason": null,
+        "function_name": "cancel_order",
+        "kind": "writer_call_candidate",
+        "line": 86,
+        "method": "cancel_order",
+        "ordinal": 0,
+        "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py"
+      },
+      "target_source_sha256": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "in_frozen_445": false,
+      "scope": "PROPOSED_G6_LOCAL_FAKE_ACTOR_CANDIDATE_ONLY"
+    }
+  ]
+}

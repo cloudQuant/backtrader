@@ -1,0 +1,33 @@
+{
+  "baseline_candidate_count": 389,
+  "baseline_entries_canonical_sha256": "aec51e6b4e4c186fe959c86868a96bdfb8e14c5bbf1da539793ee48b89d54d27",
+  "baseline_entries_preserved_exactly": true,
+  "baseline_id_digest_sha256": "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e",
+  "candidate_checklist_entries": 445,
+  "candidate_checklist_status": "PASS",
+  "candidate_counts": {
+    "dynamic_execution_candidates": 101,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 344
+  },
+  "candidate_id_digest_sha256": "33ec3e5bcd575cab2bf63a4300c535016c0095d514c67d351c0d0af302c0a973",
+  "candidate_target_raw_hashes_sha256": {
+    "checklist_sha256": "e6ece21e16af6c6a6220431dd0c2669d81206a136b500dfd5214ca766818e841",
+    "collector_sha256": "b37ed7a309c057b4f97ab8e96fe20d3e840d54084b6bca8edbef3491230ab6e3",
+    "scanner_contract_sha256": "be777538ac686463edf07c96d3848715b714d368126a160e42888c4331931db6",
+    "verifier_contract_sha256": "e1e9a96a040ac510b4bb48a13195651d71199d9c4b7071083eb617b14f3b3f49"
+  },
+  "captured_at_utc": "2026-09-27T07:21:25Z",
+  "exact_base_apply_raw_hash_replay": "PENDING_INDEPENDENT_QA",
+  "main_tree_edited": false,
+  "new_candidate_count": 56,
+  "patch_sha256": "0222705fd2898c3cf2eded9f8bb7591d0a4a4ad6ace4577ed0450a1bc8788bd5",
+  "private_path_reads": 0,
+  "project_config_ruff": "PASS",
+  "py_compile": "PASS",
+  "ruff_i001_delta": -1,
+  "ruff_up006_delta": 0,
+  "strict_autocrlf_false_apply_check": "PASS",
+  "tests": "6 passed"
+}

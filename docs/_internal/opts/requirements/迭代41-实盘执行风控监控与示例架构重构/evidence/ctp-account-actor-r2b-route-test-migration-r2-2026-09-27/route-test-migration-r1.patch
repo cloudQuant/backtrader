@@ -1,0 +1,160 @@
+--- a/tests/unit/stores/test_btapistore.py
++++ b/tests/unit/stores/test_btapistore.py
+@@ -13,7 +13,6 @@
+ from backtrader.feeds.btapifeed import BtApiFeed
+ from backtrader.stores.btapistore import (
+     BtApiMissingDependencyError,
+-    BtApiProviderNotImplementedError,
+     BtApiStore,
+     BtApiStoreError,
+     _build_ctp_tick_datetime,
+@@ -1693,7 +1692,14 @@
+     class DummyFeed(BtApiFeed):
+         """Dummy feed for testing."""
+ 
+-    store = make_store(api=fake_client, provider="btapi")
++    store = make_store(
++        api=fake_client,
++        provider="btapi",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     data = store.getdata(dataname=DEFAULT_SYMBOL, data_cls=DummyFeed)
+ 
+     assert isinstance(data, DummyFeed)
+@@ -1704,7 +1710,14 @@
+ 
+ def test_store_getdata_preserves_explicit_store_and_provider_arguments(fake_client):
+     """Test that getdata preserves explicit store and provider arguments."""
+-    outer_store = make_store(api=fake_client, provider="outer")
++    outer_store = make_store(
++        api=fake_client,
++        provider="okx",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     explicit_store = object()
+ 
+     data = outer_store.getdata(
+@@ -1725,7 +1738,14 @@
+     class DummyBroker(BtApiBroker):
+         """Dummy broker for testing."""
+ 
+-    store = make_store(api=fake_client, provider="btapi")
++    store = make_store(
++        api=fake_client,
++        provider="btapi",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     broker = store.getbroker(broker_cls=DummyBroker)
+ 
+     assert isinstance(broker, DummyBroker)
+@@ -3654,10 +3674,8 @@
+ @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
+ def test_placeholder_provider_raises(provider):
+     """Providers not yet implemented in bt_api_py should fail explicitly."""
+-    store = BtApiStore(provider=provider)
+-
+-    with pytest.raises(BtApiProviderNotImplementedError):
+-        store.start()
++    with pytest.raises(BtApiStoreError, match="store provider unsupported"):
++        BtApiStore(provider=provider)
+ 
+ 
+ def test_missing_dependency_raises_without_api(monkeypatch):
+--- a/tests/unit/stores/test_btapistore_normalized.py
++++ b/tests/unit/stores/test_btapistore_normalized.py
+@@ -22,6 +22,14 @@
+ CTP = "CTP___FUTURE"
+ MT5 = "MT5___FOREX"
+ ROUTES = {"BTC-USDT-SWAP": OKX, "BTCUSDT": BINANCE}
++
++
++def _explicit_okx_route_config(symbol="BTC-USDT-SWAP"):
++    """Declare the offline non-CTP route instead of inferring it from a client."""
++    return {
++        "exchange_kwargs": {OKX: {"environment": "demo"}},
++        "symbol_routes": {symbol: OKX},
++    }
+ 
+ 
+ class FakeSdk:
+@@ -378,7 +386,11 @@
+         clock[0] += 3.0
+         return {"venue": {"currency": "USD", "cash": len(calls), "value": len(calls)}}
+ 
+-    store = BtApiStore(provider="btapi", account_cache_ttl=5)
++    store = BtApiStore(
++        provider="okx",
++        config=_explicit_okx_route_config(),
++        account_cache_ttl=5,
++    )
+     monkeypatch.setattr(
+         store, "_ensure_api_ready", lambda: SimpleNamespace(get_venue_balances=get_balances)
+     )
+@@ -395,12 +407,18 @@
+ def test_public_source_stop_callback_hook_does_not_expose_the_private_client():
+     callbacks = []
+     api = SimpleNamespace(set_stop_callback=callbacks.append)
+-    store = BtApiStore(provider="btapi", api=api)
++    store = BtApiStore(
++        provider="okx",
++        api=api,
++        config=_explicit_okx_route_config(),
++    )
+     callback = lambda: None
+ 
+     assert store.set_source_stop_callback(callback) is True
+     assert callbacks == [callback]
+-    assert BtApiStore(provider="btapi").set_source_stop_callback(callback) is False
++    assert BtApiStore(
++        provider="okx", config=_explicit_okx_route_config()
++    ).set_source_stop_callback(callback) is False
+ 
+ 
+ def test_store_holds_the_supplied_sdk_directly_and_configures_execution(tmp_path):
+@@ -1396,15 +1414,30 @@
+ 
+ 
+ def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it():
+-    optional_sdk()
++    execution = {"order_journal": "existing-session.orders", "account_currency": "CNY"}
++    sdk = FakeSdk(exchange_kwargs={OKX: {}}, execution_config=execution)
++    store = BtApiStore(
++        provider="btapi",
++        api=sdk,
++        config=_explicit_okx_route_config(),
++    )
++    data = store.getdata(dataname="BTC-USDT-SWAP", backfill_start=False)
++    assert data.islive() and store.supports_position_mode("dual_side")
++    assert store._ensure_api_ready() is sdk
++    assert store._api is sdk and sdk.execution_config is execution
++    assert not any(call[0] == "configure_execution" for call in sdk.calls)
++
++
++def test_explicit_ctp_route_hidden_in_sdk_configuration_is_rejected_before_store_use():
+     execution = {"order_journal": "existing-session.orders", "account_currency": "CNY"}
+     sdk = FakeSdk(exchange_kwargs={CTP: {}}, execution_config=execution)
+-    store = BtApiStore(provider="btapi", api=sdk)
+-    data = store.getdata(dataname="IF2609", backfill_start=False)
+-    assert data.islive() and store.supports_position_mode("dual_side")
+-    store.start()
+-    assert store._api is sdk and sdk.execution_config is execution
+-    assert not any(call[0] == "configure_execution" for call in sdk.calls)
++    config = {"exchange_kwargs": {CTP: {}}, "symbol_routes": {"IF2609": CTP}}
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(provider="btapi", api=sdk, config=config)
++
++    assert sdk.execution_config is execution
++    assert sdk.calls == []
+ 
+ 
+ def test_constructor_defaults_debug_off_without_overriding_an_explicit_choice():

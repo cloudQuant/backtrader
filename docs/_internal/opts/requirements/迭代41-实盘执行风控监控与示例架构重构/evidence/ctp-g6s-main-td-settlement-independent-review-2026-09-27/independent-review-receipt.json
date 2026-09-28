@@ -1,0 +1,84 @@
+{
+  "schema": "iteration41.g6s.main_td_settlement_independent_review.v1",
+  "status": "INDEPENDENT_FAKE_ONLY_REVIEW_NOT_ACCEPTED",
+  "review_date": "2026-09-27",
+  "candidate_root": "D:\\temp\\iteration41-g6s-main-td-settlement-candidate-20260927",
+  "candidate_source_manifest_sha256": "1FD47CFF2514FA25E4298EFE7051989AD97427C8056693374004791D6B983661",
+  "candidate_freeze_receipt_sha256": "C9EC14DE8E8E3CD9608D445FBB5F9DE805E20677C0386BBC0DB1FA57F01C1F11",
+  "payload_files_verified": 117,
+  "candidate_test_result": "22 passed, 0 skipped; frozen author log and isolated independent rerun",
+  "independent_test_result": "22 passed in 1.64s from isolated source copy",
+  "independent_negative_test_result": "7 passed in 1.05s; tests live only in QA copy/archive review",
+  "independent_import_guard": "passed; readiness source imported from isolated QA copy; bt_api_ctp imports blocked; zero SDK modules loaded",
+  "changed_paths_vs_main_base": [
+    {
+      "path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "candidate_sha256": "368446CE5A8972AF7360039A7C79C42AAA10BA413CEB58F6FFEFF3D03F1F0D41",
+      "base_and_main_after_sha256": "F016783A6817D858A03CDA6E3F78ABEB43E769C0626D55757EE2DEBB7502D09D"
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "candidate_sha256": "2FE41CB9B271F5817B14D6319493D4152786B2F1FABA82866F20216967478794",
+      "base_and_main_after_sha256": "B7CBA6AC34626726340565AD5BA002750EFE87EA668E3419035357D071C276F3"
+    },
+    {
+      "path": "README.md",
+      "candidate_sha256": "BDC2FEC80EA86C47713C09ED4DAD0028B0BFF2CDC15B02C0C8FF177AD5B43003",
+      "note": "candidate-specific frozen README; not a production source file"
+    }
+  ],
+  "negative_contracts": [
+    "missing request_filters_sha256 rejected before any write",
+    "missing terminal_callback_history_sha256 rejected before any write",
+    "missing evidence connection_generation rejected before any write",
+    "missing evidence_sha256 rejected before any write",
+    "missing SDK source-manifest digest rejected before settlement query",
+    "fake evidence public projection raising on seal check rejected before any write",
+    "wrong-day ConfirmDate-only native row rejected before verifier completion and before any write"
+  ],
+  "positive_scope": [
+    "candidate fake contract accepts one current matching ConfirmDate-only row, reflecting native CTP SettlementInfoConfirm field shape",
+    "active trading day is supplied by the current sealed session/query scope and must match ConfirmDate",
+    "same exact selected TD front, account fingerprints, request filters, query request ID, callback-history digest, generation, expiry and terminal status are rechecked"
+  ],
+  "trust_limitations": [
+    "source_manifest_sha256 is an injected verifier attribute checked as a string; it is not an OS trust anchor or proof of loaded SDK bytes",
+    "nominal type module/name checks can be mimicked; successful fake tests do not authenticate the SDK evidence class",
+    "the verifier injection and as_public_dict seal check form an unimplemented trusted integration seam; no production verifier is installed",
+    "SDK callback-history digest is in-process evidence, not durable cross-process/provider proof",
+    "native CTP response row has ConfirmDate, not TradingDay; the session TradingDay must remain separately sealed"
+  ],
+  "scope_limits": {
+    "native_provider_network_or_credentials_used": false,
+    "private_config_read": false,
+    "frozen_candidate_edited": false,
+    "main_production_source_edited": false,
+    "sdk_or_wheel_installed": false,
+    "production_verifier_wired": false,
+    "official_7x24_pair_change_or_fallback": false,
+    "g2_accepted": false,
+    "g4_accepted": false,
+    "g6s_accepted": false,
+    "default_route_or_write_authority_enabled": false
+  },
+  "hashes": {
+    "candidate_manifest_sha256": "1FD47CFF2514FA25E4298EFE7051989AD97427C8056693374004791D6B983661",
+    "candidate_receipt_sha256": "C9EC14DE8E8E3CD9608D445FBB5F9DE805E20677C0386BBC0DB1FA57F01C1F11",
+    "readiness_candidate_sha256": "368446CE5A8972AF7360039A7C79C42AAA10BA413CEB58F6FFEFF3D03F1F0D41",
+    "readiness_base_sha256": "F016783A6817D858A03CDA6E3F78ABEB43E769C0626D55757EE2DEBB7502D09D",
+    "readiness_main_after_sha256": "F016783A6817D858A03CDA6E3F78ABEB43E769C0626D55757EE2DEBB7502D09D",
+    "test_candidate_sha256": "2FE41CB9B271F5817B14D6319493D4152786B2F1FABA82866F20216967478794",
+    "test_base_sha256": "B7CBA6AC34626726340565AD5BA002750EFE87EA668E3419035357D071C276F3",
+    "test_main_after_sha256": "B7CBA6AC34626726340565AD5BA002750EFE87EA668E3419035357D071C276F3",
+    "candidate_readme_sha256": "BDC2FEC80EA86C47713C09ED4DAD0028B0BFF2CDC15B02C0C8FF177AD5B43003",
+    "candidate_payload_files_verified": 117,
+    "candidate_test_log_sha256": "3D31684BEB0F27C3A47960AF38E8694A27F86937D84D0BD718CEAC248CD92BC3",
+    "candidate_junit_sha256": "41224A6D6811EED3A5ABC2F98F6FA058FAD0DBDF47FB99D94E013FCCD2BA732B",
+    "independent_22_test_log_sha256": "517CA5570CCA8230C6BA6F6CA1531097277F19A344510AA4013EBEF3857B2396",
+    "independent_22_junit_sha256": "858E8E7B88F3413C580C30A456DF844C93140052703899F18D071078978B67BA",
+    "independent_7_negative_test_log_sha256": "AB8D3FAD83580741022F43A5A027292D4FEB24A00AE4C7A3E29687F441CCFF3B",
+    "independent_7_negative_junit_sha256": "94850B08D9203DE77C3C55D53802B1ACD353AA6364178C88C987A712BE936D98",
+    "independent_import_guard_log_sha256": "9937CCBAA4DF16603DFA12E03367508C07E9C0C226AC4783302E680BCCFEAC48",
+    "independent_negative_tests_sha256": "3D06793F248BDB7C88642421BBA270290469EC71F3845391901CBAC02F474E40"
+  }
+}

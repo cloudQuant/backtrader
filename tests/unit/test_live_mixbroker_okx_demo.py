@@ -1,9 +1,14 @@
 """Regression tests for the public OKX MixBroker live demo."""
 
 import asyncio
+import builtins
 import importlib.util
 import sys
 from pathlib import Path
+
+import pytest
+
+from backtrader_runtime.errors import RuntimeConfigError
 
 _EXAMPLE_PATH = (
     Path(__file__).resolve().parents[2]
@@ -18,21 +23,33 @@ sys.modules[_SPEC.name] = demo
 _SPEC.loader.exec_module(demo)
 
 
-def test_public_config_ignores_credentials_and_unavailable_proxy(monkeypatch, capsys):
-    """A stale developer proxy must not prevent the public demo from starting."""
+def test_public_config_is_fixed_and_does_not_read_credentials_or_proxy(monkeypatch, capsys):
+    """The retired demo has no environment-driven credential or proxy path."""
     monkeypatch.setenv("OKX_API_KEY", "api-key")
     monkeypatch.setenv("OKX_SECRET", "secret")
     monkeypatch.setenv("OKX_PASSWORD", "password")
     monkeypatch.setenv("HTTPS_PROXY", "http://user:password@127.0.0.1:15732")
-    monkeypatch.setattr(demo, "_proxy_is_reachable", lambda proxy_url: False)
-
-    config, proxy_url = demo._build_exchange_config()
+    config = demo._build_exchange_config()
 
     assert config == {"enableRateLimit": True, "options": {"defaultType": "swap"}}
-    assert proxy_url is None
-    output = capsys.readouterr().out
-    assert "credentials found but ignored" in output
-    assert "user:password" not in output
+    assert capsys.readouterr().out == ""
+
+
+def test_imported_network_entry_rejects_before_ccxt_import(monkeypatch):
+    """An imported caller cannot reach the old websocket route without registration."""
+    original_import = builtins.__import__
+
+    def reject_ccxt(name, *args, **kwargs):
+        if name == "ccxt.pro" or name == "ccxt":
+            raise AssertionError("the retired route imported CCXT before its runtime gate")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_ccxt)
+
+    with pytest.raises(RuntimeConfigError) as failure:
+        asyncio.run(demo.run_live_stream(object(), ["BTC/USDT:USDT"], 1.0))
+
+    assert failure.value.reason == "shadow_dispatch_required"
 
 
 def test_create_exchange_retries_directly_after_proxy_startup_failure():

@@ -1,0 +1,74 @@
+{
+  "schema": "iteration41-ctp-preflight-supervisor-independent-qa-manifest-v1",
+  "verdict": "NO_GO_IMPLEMENTATION_FOR_CURRENT_G1_WORDING",
+  "g1": "CLOSED",
+  "ordinary_preflight": "FAIL_CLOSED",
+  "write_authority": "NO_WRITE",
+  "live": "LIVE_NO_GO",
+  "author_package_root": "D:\\temp\\iteration41-ctp-preflight-supervisor-review-20260927",
+  "qa_root": "D:\\temp\\iteration41-ctp-preflight-supervisor-independent-qa-20260927",
+  "author_package": {
+    "zip_sha256": "3EF6D18F4CE3E1F2F28391176C75706ACF2E7018A6EA6C0AC66C2605FB9D2B67",
+    "package_manifest_sha256": "A1495A4E01C7134472696D94521E8608CD906047EB7B4D79EE07FCFEC6853060",
+    "source_manifest_sha256": "5BED3EB4197F25EA79AF58B5D06801C004F65112E249EC346D91F3CD409FC654",
+    "readme_sha256": "EAC8CC77123BE84BFC59F4452836F843E558CBDBC26F1D2BF1FC8D68E1E89F7B",
+    "receipt_sha256": "F0B1217862A42BC751FC7EFB2AB3827D6B6BDD4FB7655B92476BB1303F0CFCFD",
+    "payload_manifest_records": 29,
+    "zip_members": 30,
+    "extra_member": "qa-package-manifest.json",
+    "payload_mismatches": 0,
+    "source_manifest_records": 15,
+    "source_mismatches": 0,
+    "zip_testzip": null
+  },
+  "readme_evidence_sha256": [
+    "A80531C392B0B8DB660BE7BB0E3D7295068F48D5EF65AC56383F32F5F1CD6C2E",
+    "CB100AA79F695124C87E1CCDD228090227E557EEC2C4F40B02F2104F38F98401",
+    "B3A510F78702C62F93CC538771C484929F1D7551E6428CEDF99A2090ECF37B12"
+  ],
+  "runtime_replay": {
+    "python": "3.11.5",
+    "tests_from_verified_zip": true,
+    "current_main_tests_used": false,
+    "supervisor_contract_tests": {
+      "passed": 65,
+      "failed": 0,
+      "skipped": 0,
+      "log": "supervisor-complete.log",
+      "junit": "supervisor-complete.junit.xml",
+      "exit_code": 0
+    },
+    "cli_failclose_test": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "log": "cli-gate-complete.log",
+      "junit": "cli-gate-complete.junit.xml",
+      "exit_code": 0
+    },
+    "sdk_or_network_guard_events": 0,
+    "private_config_or_credentials_read": false,
+    "main_tree_modified_by_this_qa": false
+  },
+  "source_freeze_limit": {
+    "complete_replay_from_zip_alone": false,
+    "unmanifested_direct_helpers": [
+      {
+        "path": "scripts/ctp_i13_i15_windows_guardian.py",
+        "sha256": "70FAA6DA08B6CEAA0D2B618ACECDD5B62E72E77133BA0B61E19558DB79150641"
+      },
+      {
+        "path": "scripts/ctp_i13_i15_inert_parent.py",
+        "sha256": "FD0A0E35EA34A2C3BE9FC26902AEA49593A470E3025C1AA9DD8798B3ED025117"
+      }
+    ],
+    "support_python_files_not_bound_by_source_manifest": 105,
+    "support_copy_hashes": "replay-source-verification.json",
+    "note": "Replay used all frozen code/test payloads exactly and supplemented missing runtime/script .py dependencies in a separate temp copy; no configs or credentials copied."
+  },
+  "requirement": {
+    "strict_deadline": "whole-command T0 must precede externally visible CLI launch; include Python bootstrap, worker, cleanup, Job-empty/exit evidence and receipt delivery",
+    "request_only_sla": "prewarmed READY-service request-only SLA would start T0 at request admission and is a requirement change; it cannot satisfy or relabel current G1"
+  },
+  "review_limits": "Inert fake/local OS supervision evidence only; no real CTP SDK/native provider session/network/account. Does not establish hard whole-command deadline or authorize preflight."
+}

@@ -1,0 +1,222 @@
+--- a/examples/007_ctp/ctp_example_support.py
++++ b/examples/007_ctp/ctp_example_support.py
+@@ -23,7 +23,7 @@
+ 
+ from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker
+ from backtrader.channel import DataChannel
+-from backtrader.feeds.btapifeed import BtApiFeed
++from backtrader.feeds.btapifeed import BtApiFeed as BtApiFeed
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ EXAMPLES_ROOT = Path(__file__).resolve().parent
+@@ -713,34 +713,11 @@
+ 
+ 
+ def add_live_feeds(cerebro, store, config):
+-    """Add live feeds to cerebro from configuration.
+-
+-    Args:
+-        cerebro: Cerebro instance.
+-        store: BtApiStore instance.
+-        config: Configuration dictionary with feed and symbols settings.
+-
+-    Returns:
+-        List of added data feeds.
+-    """
+-    feed_config = dict(config.get("feed") or {})
+-    timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
+-    compression = int(feed_config.pop("compression", 1))
+-    backfill_start = bool(feed_config.pop("backfill_start", False))
+-
+-    feeds = []
+-    for symbol in config.get("symbols") or []:
+-        data = BtApiFeed(
+-            store=store,
+-            dataname=symbol,
+-            timeframe=timeframe,
+-            compression=compression,
+-            backfill_start=backfill_start,
+-            **feed_config,
+-        )
+-        cerebro.adddata(data, name=symbol)
+-        feeds.append(data)
+-    return feeds
++    """Reject the retired direct feed route before inspecting caller inputs."""
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++
++    del cerebro, store, config
++    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py live feeds")
+ 
+ 
+ def run_cerebro_with_timeout(cerebro, timeout_seconds=60):
+--- /dev/null
++++ b/tests/unit/test_iteration41_007_live_feed_failclose.py
+@@ -0,0 +1,168 @@
++"""Offline contracts for the retired 007 direct live-feed helper."""
++
++from __future__ import annotations
++
++import builtins
++import importlib.util
++import io
++import os
++import socket
++import sys
++from pathlib import Path
++
++import pytest
++
++from backtrader_runtime.errors import RuntimeConfigError
++
++REPO = Path(__file__).resolve().parents[2]
++SUPPORT_PATH = REPO / "examples" / "007_ctp" / "ctp_example_support.py"
++SDK_PREFIXES = (
++    "bt_api_py",
++    "bt_api_ctp",
++    "bt_api_execution",
++    "thosttrader",
++    "thostmduserapi",
++    "ctpbee",
++    "ctp_api",
++    "_ctp",
++    "vnpy_ctp",
++)
++
++
++def _load_support_under_guards(monkeypatch, module_name):
++    """Load the real 007 helper with provider, credential, and socket guards."""
++    sdk_imports = []
++    environment_reads = []
++    env_file_reads = []
++    network_calls = []
++    original_import = builtins.__import__
++
++    def guarded_import(name, *args, **kwargs):
++        if any(name == prefix or name.startswith(prefix + ".") for prefix in SDK_PREFIXES):
++            sdk_imports.append(name)
++            raise AssertionError("provider/native import blocked")
++        return original_import(name, *args, **kwargs)
++
++    monkeypatch.setattr(builtins, "__import__", guarded_import)
++
++    def guarded_getenv(name, default=None):
++        environment_reads.append(name)
++        raise AssertionError("helper read process environment")
++
++    monkeypatch.setattr(os, "getenv", guarded_getenv)
++
++    def guard_open(original):
++        def guarded(file, *args, **kwargs):
++            try:
++                name = Path(os.fsdecode(os.fspath(file))).name.casefold()
++            except (TypeError, ValueError, OSError):
++                name = ""
++            if name == ".env":
++                env_file_reads.append(os.fsdecode(os.fspath(file)))
++                raise AssertionError("helper read .env")
++            return original(file, *args, **kwargs)
++
++        return guarded
++
++    monkeypatch.setattr(builtins, "open", guard_open(builtins.open))
++    monkeypatch.setattr(io, "open", guard_open(io.open))
++    monkeypatch.setattr(os, "open", guard_open(os.open))
++
++    def denied(name):
++        def deny(*args, **kwargs):
++            network_calls.append(name)
++            raise AssertionError("network operation blocked")
++
++        return deny
++
++    for name in ("getaddrinfo", "create_connection"):
++        monkeypatch.setattr(socket, name, denied("socket." + name))
++    for name in (
++        "connect",
++        "connect_ex",
++        "send",
++        "sendall",
++        "sendto",
++        "bind",
++        "listen",
++        "accept",
++        "sendfile",
++    ):
++        monkeypatch.setattr(socket.socket, name, denied("socket.socket." + name))
++
++    spec = importlib.util.spec_from_file_location(module_name, SUPPORT_PATH)
++    assert spec is not None and spec.loader is not None
++    support = importlib.util.module_from_spec(spec)
++    monkeypatch.setitem(sys.modules, module_name, support)
++    spec.loader.exec_module(support)
++
++    trackers = {
++        "sdk_imports": sdk_imports,
++        "environment_reads": environment_reads,
++        "env_file_reads": env_file_reads,
++        "network_calls": network_calls,
++    }
++    assert all(not events for events in trackers.values())
++    return support, trackers
++
++
++def test_007_add_live_feeds_rejects_before_inspecting_any_caller_input(monkeypatch):
++    """No config read, Store access, feed construction, or Cerebro call is allowed."""
++    support, trackers = _load_support_under_guards(
++        monkeypatch, "iteration41_007_live_feed_failclose_bombs"
++    )
++    input_reads = []
++
++    class InputBomb:
++        def __getattribute__(self, name):
++            input_reads.append(name)
++            raise AssertionError("helper inspected a caller-supplied object")
++
++    constructor_calls = []
++
++    def forbidden_feed(*args, **kwargs):
++        constructor_calls.append((args, kwargs))
++        raise AssertionError("helper reached BtApiFeed construction")
++
++    monkeypatch.setattr(support, "BtApiFeed", forbidden_feed)
++
++    with pytest.raises(RuntimeConfigError) as failure:
++        support.add_live_feeds(InputBomb(), InputBomb(), InputBomb())
++
++    assert failure.value.reason == "legacy_direct_execution_not_supported"
++    assert input_reads == []
++    assert constructor_calls == []
++    assert all(not events for events in trackers.values())
++
++
++def test_007_add_live_feeds_rejects_ordinary_config_and_injected_store(monkeypatch):
++    """A normal config cannot add a caller-supplied Store feed to Cerebro."""
++    support, trackers = _load_support_under_guards(
++        monkeypatch, "iteration41_007_live_feed_failclose_injected_store"
++    )
++    calls = []
++
++    class CerebroSpy:
++        def adddata(self, data, name=None):
++            calls.append(("adddata", data, name))
++
++    class ConfigSpy(dict):
++        def get(self, name, default=None):
++            calls.append(("config.get", name))
++            return super().get(name, default)
++
++    def record_feed(*args, **kwargs):
++        calls.append(("BtApiFeed", args, kwargs))
++        return object()
++
++    monkeypatch.setattr(support, "BtApiFeed", record_feed)
++    with pytest.raises(RuntimeConfigError) as failure:
++        support.add_live_feeds(
++            CerebroSpy(),
++            object(),
++            ConfigSpy({"symbols": ["rb2701"], "feed": {"backfill_start": True}}),
++        )
++
++    assert failure.value.reason == "legacy_direct_execution_not_supported"
++    assert calls == []
++    assert all(not events for events in trackers.values())

@@ -1,0 +1,41 @@
+{
+  "schema": "iteration41.unified_offline_wheelhouse_settlement.independent_qa_archive.r1.v1",
+  "classification": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED",
+  "candidate": {
+    "source_directory": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1",
+    "candidate_manifest": "candidate-inputs/candidate-files-manifest.json",
+    "candidate_manifest_sha256": "cc356f2238cf1d57d076e8a87152cb4e42d48d9f179ca12212238dcd0009f491",
+    "manifest_entries": 150,
+    "candidate_zip": "unified-offline-wheelhouse-settlement-evidence-r1.zip",
+    "candidate_zip_sha256": "c140d4c3ac902d4cd5fe51320285467c15d9be2b58b98d11d8ddcb355aaf568b",
+    "candidate_zip_entries": 151,
+    "requirements_hash_lock_sha256": "856971d73bec6b6951fa3c5bb88ee6fefe1e716ab21d3b9712ed251d2e2c1bcd",
+    "wheelhouse_manifest_sha256": "1b89cc1096e4d52145faa404da8a47a56e2779ed1b6b54d59e01f27980cb9fdc",
+    "candidate_receipt_sha256": "9901a15b328c4b8c72ca8aafa213022fe4f2a7b07081de7dfd2c653360d24896"
+  },
+  "independent_qa": {
+    "report": "independent-qa/QA-REPORT.md",
+    "report_sha256": "11218b6130eccf3c088177201e0487fe823aff72532ff9667ef467e45a11f480",
+    "receipt": "independent-qa/QA-RECEIPT.json",
+    "receipt_sha256": "cdf57198c0560608f04d39e43dc0f1a0fe8e5d96ed06ea466b0c6847f7e42871",
+    "packet_zip": "independent-qa-r1-packet.zip",
+    "packet_zip_sha256": "027b6680fdab5316addb14f38fe629e6d35f5472bd6da6868bba1674b0adbc41",
+    "wheel_count": 52,
+    "installed_record_rows_checked": 13147,
+    "pip_check": "No broken requirements found.",
+    "native_or_sdk_loaded": false,
+    "network_or_private_config_used": false
+  },
+  "findings": {
+    "ctp_final_version": "2.0.4+g4r2.settlement.probe.20260927",
+    "ctp_a_b_and_final_wheel_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "old_same_version_collision_excluded": true,
+    "base_source_match": "104/104 exact Python files; clean source commit 3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+    "binance_core_reference_extra_present": false,
+    "settlement_not_wired_to_main_readiness": true,
+    "ctp_confirmation_row_uses_ConfirmDate_not_TradingDay": true
+  },
+  "sha256sums": "SHA256SUMS",
+  "sha256sums_sha256": "1dce3f4f3f931999df94a03414187774df577aaba09c86470aff9c93d022c0b9",
+  "indexed_file_count_before_index_and_sums": 62
+}

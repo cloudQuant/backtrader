@@ -1,0 +1,126 @@
+{
+  "base_manifest_sha256": "73521009058983a0e34172c4ca0020c5f32f4cbf25da7b1fb554f4d68baaa4bd",
+  "base_candidate": "ctp-account-actor-port-r5-local-fake",
+  "candidate": "ctp-account-actor-port-r6-local-fake",
+  "r4_original_manifest_sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8",
+  "r5_independent_qa_receipt_sha256": "823190e5647a33a38ed2d9da615be8f5a39f5e5ed107b275a8ba0dbdfebf59fb",
+  "files": [
+    {
+      "path": "patch/r5.patch",
+      "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c",
+      "size_bytes": 31903
+    },
+    {
+      "path": "patch/r6.patch",
+      "sha256": "9fc5cd468a686eff10f7669123b472c5d7a21dec6d18116c82a1eb8b09b2a5ad",
+      "size_bytes": 14318
+    },
+    {
+      "path": "source/account_actor_port.py",
+      "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492",
+      "size_bytes": 30975
+    },
+    {
+      "path": "source/INTEGRATION_CONTRACT.md",
+      "sha256": "d4371e9d80ed34509597068c504c74a526d3440edbf508ff1eca92fccf1afe09",
+      "size_bytes": 6924
+    },
+    {
+      "path": "source/MAIN_SOURCE_INVENTORY.md",
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2",
+      "size_bytes": 2730
+    },
+    {
+      "path": "source/README.md",
+      "sha256": "36f0d6b8a9640b8236ca4b81e75aa42f0253518fcccf1200c432b01911770836",
+      "size_bytes": 2260
+    },
+    {
+      "path": "source/store_boundary_harness.py",
+      "sha256": "fe8b053c5dd1f687f2d89da58b3f33e3c57995409109b3dd8fdd2fed25de85e9",
+      "size_bytes": 6871
+    },
+    {
+      "path": "source/store_boundary_harness_testonly.py",
+      "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05",
+      "size_bytes": 1970
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "sha256": "c4099c8f60313d4fceddee4bb57f9eb51ad7ea612cf2df4f85922844e173f287",
+      "size_bytes": 43028
+    },
+    {
+      "path": "JUnit/r5-results.xml",
+      "sha256": "5b0c0477cca008a3637d47cd823043748bb09b328cc42ff5b2ab653ed72fb284",
+      "size_bytes": 6562
+    },
+    {
+      "path": "JUnit/r6-results.xml",
+      "sha256": "96019ee605fe5c0ec82893a886b5d28ef2417348b32ace0660ba2b2d6e245e4a",
+      "size_bytes": 7206
+    },
+    {
+      "path": "evidence/BASE-VERIFICATION.txt",
+      "sha256": "a10438c58381fa4fe1b963be38fcc24750fbb2667bf1af5e545f279fa608ffaa",
+      "size_bytes": 521
+    },
+    {
+      "path": "evidence/commands.txt",
+      "sha256": "9ece15deb73beea9aad230adac2ab16429061ed6e0758b1f97be12c5f0ae41db",
+      "size_bytes": 856
+    },
+    {
+      "path": "evidence/compile-results.txt",
+      "sha256": "4d7ebfacdb563c3396495ecac14ebc3b9d1f5e2c3d847068517d8135d1ffb42c",
+      "size_bytes": 40
+    },
+    {
+      "path": "evidence/guard/sitecustomize.py",
+      "sha256": "5b5308571df9c3c43a52a4bd9ed5f37e3ba1536ee475906d0e7432ee02c77b51",
+      "size_bytes": 700
+    },
+    {
+      "path": "evidence/main-testonly-reference-search.txt",
+      "sha256": "435c63c2938b8e825f2fe9a5142a73a71351079cf3f892a82593f1f5a921f0de",
+      "size_bytes": 60
+    },
+    {
+      "path": "evidence/patch-application-check.txt",
+      "sha256": "18f46558bbb6b04662de68683889beab5ffd825f0f6a2c6cb41b9133a55e64a2",
+      "size_bytes": 144
+    },
+    {
+      "path": "evidence/pytest-junit.log",
+      "sha256": "bb403fdff1e720110b1d906da77458a396224f8db8342ebeb9568fe2b861fc44",
+      "size_bytes": 213
+    },
+    {
+      "path": "evidence/python-version.txt",
+      "sha256": "8824746295e47c8be9c2f2b86f74d6de10cb478177d6cbf8d2fff2d16983f16c",
+      "size_bytes": 8
+    },
+    {
+      "path": "evidence/R4-INPUT-VERIFICATION.md",
+      "sha256": "795ef7b964502b77023804f01dcad334ff43cc16863470a7ade7a67592f058a7",
+      "size_bytes": 798
+    },
+    {
+      "path": "evidence/REPORT.md",
+      "sha256": "32c949654e67eee15edb1c9674508b07acee9fa7722ff0960772d454caa9f3eb",
+      "size_bytes": 4832
+    },
+    {
+      "path": "evidence/ruff-results.txt",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "size_bytes": 20
+    },
+    {
+      "path": "evidence/unittest.log",
+      "sha256": "98e9fac4a4f3326c85620944487a3bfea1e2f1693c2bcb9269b89eb3917ae7b0",
+      "size_bytes": 7982
+    }
+  ],
+  "result": "LOCAL_FAKE_CONTRACT_PASS",
+  "schema": "iteration41-account-actor-port-r6-freeze.v1"
+}

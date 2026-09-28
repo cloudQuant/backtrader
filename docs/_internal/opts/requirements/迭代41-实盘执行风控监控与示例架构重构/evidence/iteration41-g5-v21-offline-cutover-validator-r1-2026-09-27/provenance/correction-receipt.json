@@ -1,0 +1,23 @@
+{
+  "schema": "iteration41.g5.v21.offline-cutover-validator-r1-manifest-correction-recheck.v1",
+  "verdict": "PROVENANCE_POINTER_CORRECTED_ALL_PRIOR_QA_INPUTS_UNCHANGED",
+  "corrected_manifest_sha256": "39f4922be5ed43bc021b0813ae84ef0e99fa2b8c5c2e0352b6a3a595502bffd9",
+  "prior_manifest_sha256": "ff9b2ac5e8e688c10fb22d95328b923d8f4c7dc972db2068c1a6106d5254f7ef",
+  "patch_sha256": "339c8450722f18c9061d4960377ca0939032c2dc7f0453592d05674f18f093a4",
+  "author_junit_sha256": "79fe3a868619062271fbbd8c0c0d02f4d8a0bcee9b704a4261c8404630a5cc27",
+  "r0_head": "103facd51aebf2e47cccb2d22640dec091d23030",
+  "r0_head_commit_object_type": "commit",
+  "obsolete_declared_commit": "213574e",
+  "obsolete_commit_lookup_exit": 128,
+  "r0_manifest_sha256": "9252f88150efafe055dbaf4a134bfa056a651150d785b8cc1c2490669a60f2df",
+  "non_provenance_manifest_differences": 0,
+  "payload_hashes": {
+    "docs/CANDIDATE.md": "a21998d6c73ec42db5ebcf86ffa45c36c0d1f11677de9402c993006b1d4b2b6d",
+    "src/offline_cutover_validator.py": "ce13d2ca96c028e7bbe304082ef693d28caaf89fc65ad3086a0074584285b95a",
+    "docs/LIMITATIONS.md": "ea7404497a6bf7c7804346ac14d832a14926e68a85effc6b32e9bbe00f87113f",
+    "tests/test_offline_cutover_validator.py": "1a49521e7387de6a0ed634685ef0c94c683255cc6bc5e12da7b7630bdc2b61bd"
+  },
+  "prior_independent_qa_receipt_sha256": "d730c692b34f8b08bfb63c6282d45863a2cc64b10b56e460da950db5f4881876",
+  "tests_rerun": false,
+  "scope": "LOCAL_TYPED_CONTRACT_ONLY; no migration or authority"
+}

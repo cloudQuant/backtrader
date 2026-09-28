@@ -1,0 +1,69 @@
+{
+  "record": "iteration41-g6-p-account-actor-server-core-r1-independent-qa",
+  "record_date": "2026-09-27",
+  "status": "G6-P BLOCKED",
+  "scope": "frozen local SQLite/fake-authority source candidate only; no main production edits, SDK/native/provider/network/credentials/account access",
+  "source_revision": "r1",
+  "separate_work_excluded": "r6 in-progress work is not included or evaluated",
+  "frozen_input": {
+    "path": "D:\\temp\\iteration41-g6-account-actor-server-core-freeze-20260927-r1",
+    "manifest_sha256": "925a72915cca210431a25d7db1993d6290025f241b6d76fe170b0cbe8f9b0420",
+    "payload_entries_verified": 11,
+    "payload_entries_total": 11
+  },
+  "independent_qa": {
+    "copy": "D:\\temp\\iteration41-g6-account-actor-server-core-r1-independent-qa-20260927",
+    "packet_manifest_sha256": "9dd201cff9325765a08169a251e3026519b024a9afa550e78259abbef07ca6e7",
+    "python": "3.11.5",
+    "command": "python -B -m unittest discover -s tests -v",
+    "environment": "PYTHONDONTWRITEBYTECODE=1",
+    "passed": 50,
+    "failed": 0,
+    "exit_code": 0,
+    "module_origins_verified_in_qa_copy": true
+  },
+  "covered_local_contracts": [
+    "two-process same-account writer claim contention; one winner",
+    "process death leaves ACTIVE writer unreclaimable",
+    "revocation blocks old writer epoch",
+    "cross-reopen same-intent replay",
+    "exact four-domain/account/version/source validation",
+    "snapshot update between intent reservation and initial authorization",
+    "malformed existing schema rejected without repair",
+    "removing one snapshot domain after reservation blocks authorization and leaves zero outbox rows"
+  ],
+  "counterexamples": [
+    {
+      "id": "v77-v78-repeated-authorization",
+      "result": "After authorization at snapshot v77 and publication of v78, repeated authorize_dispatch returned the same prior v77 DispatchAuthorizationV1. Current snapshot was 78; command stayed AUTHORIZED with expected_snapshot_version 77; one local outbox row remained.",
+      "classification": "replay of a previously committed local decision; not a fresh current-snapshot proof and not provider dispatch",
+      "provider_dispatch_observed": false
+    },
+    {
+      "id": "caller-injected-fake-hmac-authority",
+      "result": "Injected fake HMAC authority signed a valid-shape four-domain v77 snapshot with synthetic CNY funds 999999999999999999.99; core accepted AUTHORIZED_LOCAL_OUTBOX.",
+      "classification": "local fake signer is not external provider/account authority"
+    },
+    {
+      "id": "same-host-sqlite-writer",
+      "result": "Direct SQLite file writer replaced local writer row/token hash and then used matching local WriterEpochV1; core accepted fake snapshot and AUTHORIZED_LOCAL_OUTBOX.",
+      "classification": "database-file ACL is inside trust boundary; no tamper-resistant or cross-host authority demonstrated"
+    }
+  ],
+  "provider_dispatch_surface": {
+    "dispatch_method_present": false,
+    "DispatchAuthorizationV1_is_provider_receipt": false,
+    "real_provider_or_native_called": false
+  },
+  "artifacts": {
+    "report": "g6-p-account-actor-server-core-r1-independent-qa-2026-09-27.md",
+    "raw_zip": {
+      "path": "g6-p-account-actor-server-core-r1-independent-qa-2026-09-27.raw.zip",
+      "sha256": "86BC3A91FAA325C69CC9FAA6D940A95150CF099E028DADC7DCA6D88D1A496D63"
+    },
+    "raw_zip_index": {
+      "path": "g6-p-account-actor-server-core-r1-independent-qa-2026-09-27.raw.zip.index.json",
+      "sha256": "1CB71432EA54AF0FFEFE24595834FB09482F6F9C1C3F64185ECAB8E90AD54A07"
+    }
+  }
+}

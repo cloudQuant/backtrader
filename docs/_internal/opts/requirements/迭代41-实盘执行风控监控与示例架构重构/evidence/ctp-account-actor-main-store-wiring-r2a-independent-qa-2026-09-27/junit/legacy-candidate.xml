@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="21" skipped="0" tests="30" time="8.760" timestamp="2026-09-27T10:26:46.644639" hostname="yun"><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_delegates_to_explicit_managed_adapter_without_direct_provider_write" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_submit_failure_never_retries_through_direct_provider_path" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_missing_managed_projection_is_rejected_without_direct_provider_write" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_cancel_without_explicit_port_is_rejected_without_direct_fallback" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_passes_the_full_order_to_the_explicit_managed_cancel_port" time="0.000" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_cancel_failure_never_retries_through_direct_provider_path" time="0.000" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_rejects_an_object_that_is_not_a_managed_adapter" time="0.001" /><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_submission_projects_typed_identity_to_sdk_only" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:526: in test_managed_ctp_submission_projects_typed_identity_to_sdk_only
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10; Regex: 'typed runtime adapter'&#10; Input: 'external account actor unavailable'">tests\unit\stores\test_managed_ctp_store_adapter.py:559: in test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write
+    BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+
+During handling of the above exception, another exception occurred:
+tests\unit\stores\test_managed_ctp_store_adapter.py:558: in test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write
+    with pytest.raises(BtApiStoreError, match="typed runtime adapter"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'typed runtime adapter'
+E    Input: 'external account actor unavailable'</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_placeholder_is_a_local_rejection_before_queueing" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:575: in test_managed_ctp_placeholder_is_a_local_rejection_before_queueing
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:601: in test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:681: in test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:714: in test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:788: in test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:788: in test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:825: in test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:836: in test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:870: in test_managed_ctp_real_queue_fails_before_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification]" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:870: in test_managed_ctp_real_queue_fails_before_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_order_request_refuses_a_second_orderref_allocator" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:891: in test_managed_ctp_order_request_refuses_a_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields" time="0.001" /><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:927: in test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:960: in test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:988: in test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:1038: in test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_managed_ctp_store_adapter.py:1061: in test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3695: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.runtime.test_runtime_live_dispatch_guard" name="test_synthetic_live_registration_and_confirmation_cannot_import_a_runner" time="0.030" /></testsuite></testsuites>

@@ -1,0 +1,104 @@
+{
+  "candidate_manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+  "candidate_receipt_sha256": "833939ba976f9ea6474ca9c67e4b33a1cdf91022c6003816c8c00ceb004a0709",
+  "entries": [
+    {
+      "bytes": 16163,
+      "path": "R9_DESIGN_INPUT.md",
+      "sha256": "77500a63eabd0df5673b923458893fbd44c0d3ca1ec22c403dff95b98d869bd0"
+    },
+    {
+      "bytes": 4508,
+      "path": "R9_FINDINGS.md",
+      "sha256": "ceb6ba5d9d1347adde84f4b71a3a9910fb15bcd2d2500183cc010f94cd5bb839"
+    },
+    {
+      "bytes": 41869,
+      "path": "r8_baseline_custodian.cpp",
+      "sha256": "c843712eb3e999b88790f0adb18848cd6d2341db5f2efeb19a8eee3a32a80dce"
+    },
+    {
+      "bytes": 1356,
+      "path": "r8_baseline_manifest.json",
+      "sha256": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb"
+    },
+    {
+      "bytes": 85616,
+      "path": "r8_baseline_trials.json",
+      "sha256": "4c412a14af1cb5fe5ea5f6ff39f23d7952187e5f60bc2015f70d0098af6cf58a"
+    },
+    {
+      "bytes": 366,
+      "path": "r9_build.bat",
+      "sha256": "677625c538f39ace1a13f820bde1170a391353e9c86472b23c39e71a1bb8843b"
+    },
+    {
+      "bytes": 18,
+      "path": "r9_build.log",
+      "sha256": "9009c74c1975ed680e217a4152120f93b06c4501c37fd070211adc5f3f6785d9"
+    },
+    {
+      "bytes": 27672,
+      "path": "r9_custodian.cpp",
+      "sha256": "92c3bc3a2a85399473059e36f23572f48442778326dbd5cd2917413f1f740b2a"
+    },
+    {
+      "bytes": 272896,
+      "path": "r9_custodian.exe",
+      "sha256": "6db48747e23fd766af659b37511c9c010b1849c8836f45e7d0564a93d59e8891"
+    },
+    {
+      "bytes": 582825,
+      "path": "r9_custodian.obj",
+      "sha256": "ae84831785f40635368836475e672ebfe0ca24f52c92a808a1f40d5840905836"
+    },
+    {
+      "bytes": 3482,
+      "path": "r9_design_manifest.json",
+      "sha256": "ad6fb53200789e051fc93d76d073c54c6f2d7d9bfaea4b3e288da0bd055765c0"
+    },
+    {
+      "bytes": 5403,
+      "path": "r9_manifest.json",
+      "sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81"
+    },
+    {
+      "bytes": 84,
+      "path": "r9_manifest.sha256",
+      "sha256": "96e96922737690777fd66e321c58139a3d5a6e5e3683be14e99906a90b6f0ae6"
+    },
+    {
+      "bytes": 515,
+      "path": "r9_receipt.json",
+      "sha256": "833939ba976f9ea6474ca9c67e4b33a1cdf91022c6003816c8c00ceb004a0709"
+    },
+    {
+      "bytes": 83,
+      "path": "r9_receipt.sha256",
+      "sha256": "d4e9df0ed54cba68ff451a5782ef980ae9a664e76215aa14227d138560bd15de"
+    },
+    {
+      "bytes": 2375,
+      "path": "r9_sacrificial_popen.py",
+      "sha256": "b32e39c3c10e31947ad879cdc9ff10d7aecbc48a59668cca10f3ed1d17fc53ea"
+    },
+    {
+      "bytes": 32038,
+      "path": "r9_trials.json",
+      "sha256": "c848ab2f51360399a399a16a441e66821eb3368ee36bdd44c17d2018dbd50dc7"
+    },
+    {
+      "bytes": 29086,
+      "path": "r9_trials_initial.json",
+      "sha256": "e2addd9c7f16f6fe3a3c83ded4034b9eb4ff447e4340c0731e9e0914147485f1"
+    },
+    {
+      "bytes": 27356,
+      "path": "run_r9_trials.py",
+      "sha256": "3aa986085830f68d9191abf3a0b237e66e287495dcc8d2e03279d4c293508bb4"
+    }
+  ],
+  "schema": "iteration41_g1_r9_author_archive_entries.v1",
+  "scope": "Candidate artifacts copied byte-for-byte from the frozen isolated R9 directory.",
+  "self_hash_note": "This index is included as a ZIP member but intentionally omits its own hash; the outer archive receipt binds its SHA-256."
+}

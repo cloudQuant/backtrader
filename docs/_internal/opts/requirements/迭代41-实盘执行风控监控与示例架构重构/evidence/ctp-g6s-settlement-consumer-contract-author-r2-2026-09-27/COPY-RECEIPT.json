@@ -1,0 +1,239 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer_author_copy_receipt.v1",
+  "source_root": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927-r2",
+  "canonical_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-author-r2-2026-09-27",
+  "manifest_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+  "archive_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+  "copied_file_count": 38,
+  "all_hashes_match": true,
+  "files": [
+    {
+      "path": "README.md",
+      "source_sha256": "6ad71c9dfc156b89baa8a9c37cfabf8139315a0ca8f3e70381c27273ee04c5cb",
+      "copy_sha256": "6ad71c9dfc156b89baa8a9c37cfabf8139315a0ca8f3e70381c27273ee04c5cb",
+      "matched": true
+    },
+    {
+      "path": "ctp_simnow_settlement_consumer.py",
+      "source_sha256": "24816a2c71ba617224c9efdae1b963bc14ad4ef723a75e2df8ee233bbfa9b516",
+      "copy_sha256": "24816a2c71ba617224c9efdae1b963bc14ad4ef723a75e2df8ee233bbfa9b516",
+      "matched": true
+    },
+    {
+      "path": "tests/test_ctp_simnow_settlement_consumer.py",
+      "source_sha256": "b16bae1e2dbefb74f2a37c74b44e99266e5b9cee6457ac4d929c6379fbb76328",
+      "copy_sha256": "b16bae1e2dbefb74f2a37c74b44e99266e5b9cee6457ac4d929c6379fbb76328",
+      "matched": true
+    },
+    {
+      "path": "candidate-manifest.json",
+      "source_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+      "copy_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+      "matched": true
+    },
+    {
+      "path": "candidate-manifest.sha256",
+      "source_sha256": "0df8764a13ef908f48e6e845ddd97dfe7f7c43ae979996e373f9affc7d7d7781",
+      "copy_sha256": "0df8764a13ef908f48e6e845ddd97dfe7f7c43ae979996e373f9affc7d7d7781",
+      "matched": true
+    },
+    {
+      "path": "candidate-evidence.zip",
+      "source_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+      "copy_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+      "matched": true
+    },
+    {
+      "path": "candidate-receipt.json",
+      "source_sha256": "6f46061bf82b23febd443ade4bee2cc1bee23ecf9ed8735777b6e60c79dbd221",
+      "copy_sha256": "6f46061bf82b23febd443ade4bee2cc1bee23ecf9ed8735777b6e60c79dbd221",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-test-command.txt",
+      "source_sha256": "05df0b38196c7569dd4b3e008472f1642b79a4cf1cd0247dfbcccd153385a4ee",
+      "copy_sha256": "05df0b38196c7569dd4b3e008472f1642b79a4cf1cd0247dfbcccd153385a4ee",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pytest.stdout.txt",
+      "source_sha256": "c54da19f6e85e17db0d1e7f3cc96a64aa96ae08783f76001db0dd1e8dc447148",
+      "copy_sha256": "c54da19f6e85e17db0d1e7f3cc96a64aa96ae08783f76001db0dd1e8dc447148",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pytest.junit.xml",
+      "source_sha256": "50455db5d24ff9dd53cfba225b463452dd6aa08e822725bd8129abd03e7c6a87",
+      "copy_sha256": "50455db5d24ff9dd53cfba225b463452dd6aa08e822725bd8129abd03e7c6a87",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pytest.exit.txt",
+      "source_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "copy_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pycompile-command.txt",
+      "source_sha256": "d99da034e9a7ff992d8afe966a75796bae9501f2aa6f6c8450223428fd7bbe3f",
+      "copy_sha256": "d99da034e9a7ff992d8afe966a75796bae9501f2aa6f6c8450223428fd7bbe3f",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pycompile.stdout.txt",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copy_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-pycompile.exit.txt",
+      "source_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "copy_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-import-guard-command.txt",
+      "source_sha256": "d05ef0f0d0ad9bc52627752ca1ed1ef80256fa31242fce5a617ad70abca9ab7c",
+      "copy_sha256": "d05ef0f0d0ad9bc52627752ca1ed1ef80256fa31242fce5a617ad70abca9ab7c",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-import-guard.stdout.txt",
+      "source_sha256": "c2cd9fbb50cd775ed0c6c8355897c82b48e1b4db78186f419cecfc0c1d9db9b5",
+      "copy_sha256": "c2cd9fbb50cd775ed0c6c8355897c82b48e1b4db78186f419cecfc0c1d9db9b5",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-import-guard.exit.txt",
+      "source_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "copy_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-import-guard-harness-error.stdout.txt",
+      "source_sha256": "a00268d3a4180047644a4ab19ec2c5e6a43ab7d524f0fdf3333c3cb281174a14",
+      "copy_sha256": "a00268d3a4180047644a4ab19ec2c5e6a43ab7d524f0fdf3333c3cb281174a14",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-import-guard-harness-error.exit.txt",
+      "source_sha256": "5dae72a737750057776cc6551d222d7a5b70e71940b313cd2fc9a1aca1f4a9f4",
+      "copy_sha256": "5dae72a737750057776cc6551d222d7a5b70e71940b313cd2fc9a1aca1f4a9f4",
+      "matched": true
+    },
+    {
+      "path": "evidence/r2-freeze-command.txt",
+      "source_sha256": "7efa64ba172e9f1eb0255bf4e5a7317b88158072192eef680c943ec053e6c5a9",
+      "copy_sha256": "7efa64ba172e9f1eb0255bf4e5a7317b88158072192eef680c943ec053e6c5a9",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-candidate-manifest.json",
+      "source_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+      "copy_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-candidate-manifest.sha256",
+      "source_sha256": "a5e94d748b1e9fa5e130b6f3e4010f6247358c02dd97da26ffec141f4f3c3b57",
+      "copy_sha256": "a5e94d748b1e9fa5e130b6f3e4010f6247358c02dd97da26ffec141f4f3c3b57",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-candidate-evidence.zip",
+      "source_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "copy_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-candidate-receipt.json",
+      "source_sha256": "1b784742e16d3b8c0db8f567ffb28f173c8b883992dd69c7f725689f6d75bb3e",
+      "copy_sha256": "1b784742e16d3b8c0db8f567ffb28f173c8b883992dd69c7f725689f6d75bb3e",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-author-pytest-output.txt",
+      "source_sha256": "427f27e36b2a6ffcc57fe08b935f88c0c0dcbab104252e454d12099bf5298842",
+      "copy_sha256": "427f27e36b2a6ffcc57fe08b935f88c0c0dcbab104252e454d12099bf5298842",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-author-pytest-exit.txt",
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "copy_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-author-test-command.txt",
+      "source_sha256": "c5f787894a92fa9e3e5137fb9e80cd6fb7ca1b35214f6b1ffb23e343487aba32",
+      "copy_sha256": "c5f787894a92fa9e3e5137fb9e80cd6fb7ca1b35214f6b1ffb23e343487aba32",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/REPORT.md",
+      "source_sha256": "978ae967539b5c1104259ef28d5aff556e646b374c33e8e131f92de5807926fe",
+      "copy_sha256": "978ae967539b5c1104259ef28d5aff556e646b374c33e8e131f92de5807926fe",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/QA-RECEIPT.json",
+      "source_sha256": "7d7acaefda29a809f3d21177432020e4a65181f98f0c0fd3853865079820ea9a",
+      "copy_sha256": "7d7acaefda29a809f3d21177432020e4a65181f98f0c0fd3853865079820ea9a",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/candidate-evidence.zip",
+      "source_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "copy_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/test_independent_adversarial.py",
+      "source_sha256": "28d04163538cb4e1f88e1ccd6309dbf8f68f28a3a5bd7400570c107e00a8a7c6",
+      "copy_sha256": "28d04163538cb4e1f88e1ccd6309dbf8f68f28a3a5bd7400570c107e00a8a7c6",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/pytest-focus.stdout.txt",
+      "source_sha256": "ed6500e8eb8733ee31b2dca153f80acf91a3de38acaa224468637c28dffa3332",
+      "copy_sha256": "ed6500e8eb8733ee31b2dca153f80acf91a3de38acaa224468637c28dffa3332",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/pytest-adversarial.stdout.txt",
+      "source_sha256": "b42782d9a0cc7b7156f3acdf46be9d3571981a36a68a1e584e27aa2decf9fb5a",
+      "copy_sha256": "b42782d9a0cc7b7156f3acdf46be9d3571981a36a68a1e584e27aa2decf9fb5a",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/pytest-adversarial.junit.xml",
+      "source_sha256": "f514ae2c339b93fc6db4611c95567d7431c368b811fdc9e3b1be1eaf74fcceae",
+      "copy_sha256": "f514ae2c339b93fc6db4611c95567d7431c368b811fdc9e3b1be1eaf74fcceae",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/pytest-adversarial-harness-error.stdout.txt",
+      "source_sha256": "6eb7a17765f991f2e71ebc86484f1febf7f9f208607da39c3c5d2569acb030cc",
+      "copy_sha256": "6eb7a17765f991f2e71ebc86484f1febf7f9f208607da39c3c5d2569acb030cc",
+      "matched": true
+    },
+    {
+      "path": "lineage/r1-independent-qa/pytest-adversarial-harness-error.junit.xml",
+      "source_sha256": "e062b87b114f4630692efd55ce4d625c7d6d20d8f3611085e00685b573ffcba4",
+      "copy_sha256": "e062b87b114f4630692efd55ce4d625c7d6d20d8f3611085e00685b573ffcba4",
+      "matched": true
+    },
+    {
+      "path": "evidence/final-archive-verification.txt",
+      "source_sha256": "325496a10032644a3f423afc948cfb0d9f3c38a9dda19b43112ebc061aa545d4",
+      "copy_sha256": "325496a10032644a3f423afc948cfb0d9f3c38a9dda19b43112ebc061aa545d4",
+      "matched": true
+    },
+    {
+      "path": "evidence/final-archive-verification.exit.txt",
+      "source_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "copy_sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8",
+      "matched": true
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "acceptance_status": "NOT_ACCEPTED",
+  "benchmark": "BM58",
+  "checks": {
+    "all_accepted_intents_completed": true,
+    "all_planned_intents_accepted": true,
+    "authority_backlog_drained": true,
+    "expected_duplicate_retries_observed": true,
+    "fake_provider_calls_match_completions": true,
+    "sqlite_wal_enabled": true,
+    "two_clients_started": true,
+    "zero_lost_intents": true
+  },
+  "clients": [
+    {
+      "client_id": 0,
+      "counters": {
+        "accepted_unique_intents": 10,
+        "claimed_intents": 8,
+        "completed_intents": 8,
+        "duplicate_attempts": 2,
+        "fake_provider_calls": 8,
+        "producer_done": 1,
+        "producer_expected_intents": 10
+      },
+      "kind": "complete"
+    },
+    {
+      "client_id": 1,
+      "counters": {
+        "accepted_unique_intents": 10,
+        "claimed_intents": 12,
+        "completed_intents": 12,
+        "fake_provider_calls": 12,
+        "producer_done": 1,
+        "producer_expected_intents": 10
+      },
+      "kind": "complete"
+    }
+  ],
+  "environment": {
+    "database_journal_mode": "wal",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "sqlite": "3.49.1"
+  },
+  "limitations": [
+    "two local spawned clients sharing one SQLite database only",
+    "uses the benchmark's own SQLite admission/claim tables, not a registered runtime or actor-server API",
+    "fake provider work is a configurable local sleep and deterministic receipt hash",
+    "no real provider, SDK, native API, account, credentials, or network is accessed",
+    "process-local benchmark evidence is not OS isolation or a live authority guarantee",
+    "a single run is FAKE_LOCAL_DIAGNOSTIC and does not establish AC41-58 acceptance"
+  ],
+  "metrics": {
+    "accepted_but_incomplete_intents": 0,
+    "accepted_unique_intents": 20,
+    "actual_elapsed_seconds": 1.941,
+    "backpressure_events": 0,
+    "backpressure_polls": 0,
+    "backpressure_wait_ns": 0,
+    "completed_intents": 20,
+    "drain_seconds_after_both_producers_finished": 0,
+    "duplicate_attempts": 2,
+    "expected_duplicate_attempts": 2,
+    "fake_provider_calls": 20,
+    "input_attempts_recorded": 22,
+    "input_intents_planned": 20,
+    "last_completion_ns": 230494156000000,
+    "lost_intents": 0,
+    "native_api_calls": 0,
+    "network_calls": 0,
+    "outstanding_at_end": 0,
+    "peak_backlog": 1,
+    "planned_end_ns": 230494246000000,
+    "producers_finished_ns": 230494156000000,
+    "production_extension_seconds": 0,
+    "provider_dispatches": 0,
+    "sqlite_busy_retries": 0
+  },
+  "profile": {
+    "acceptance_status": "NOT_ACCEPTED",
+    "duplicate_every": 10,
+    "duration_seconds": 2,
+    "max_outstanding": 256,
+    "process_count": 2,
+    "profile": "smoke",
+    "provider_latency_ms": 2.0,
+    "rate_per_second": 10,
+    "status": "FAKE_LOCAL_DIAGNOSTIC"
+  },
+  "raw_outputs": [
+    "authority.sqlite3",
+    "intent-samples.csv",
+    "request-attempts.csv",
+    "backpressure-samples.csv",
+    "backpressure-client-0.csv",
+    "backpressure-client-1.csv"
+  ],
+  "run_status": "PASS",
+  "schema": "iteration41.bm58_actor_capacity.v1",
+  "status": "FAKE_LOCAL_DIAGNOSTIC"
+}

@@ -1,0 +1,230 @@
+{
+  "archive": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27",
+  "archive_SHA256SUMS_sha256": "9b5a3ddaeedf53239c59129d2db1423f5158fce53ee63485dd450cf1c557f57e",
+  "archive_SHA256SUMS_rows": 37,
+  "archive_rows_ok": 37,
+  "subset_manifest_sha256": "e46b6da3b1540632e4b0830893b88e34ba4ba7c5651d4b450fefd0f6fae39b82",
+  "subset_payload_rows": 36,
+  "subset_payload_rows_ok": 35,
+  "subset_payload_mismatches": [
+    {
+      "path": "README.md",
+      "expected": "70ac6456a5fc51d4b0d7b8b5659a4ffb24cd213ca21cef92c9ac79652288f807",
+      "actual": "c724a966bbf1dd079a60b3540a18127b628b06ea767f06ece749df724ed9d028",
+      "ok": false
+    }
+  ],
+  "archive_report_sha256": "e20890730e61d301e569b740374547677786167ea5506c69519507ec36e5d801",
+  "artifacts": {
+    "pin": {
+      "path": "D:\\c41sdki2_audit\\wheels\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401654,
+      "wheel_sha256": "988c52a91a12d3256caadf27df2ae1f1eb45e54fc6c4f63b7abba0363f34c4ff",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0x6ab5394d",
+        "debug_rva": "0xa27850",
+        "debug_size": 28,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0x6ab5394d",
+            "type": 13,
+            "size": 848
+          }
+        ]
+      }
+    },
+    "prior_A": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-a\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401616,
+      "wheel_sha256": "7759a11487ddb0067e3fb755366c989b1fe55a965f3d712526d59b6bb228817d",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0x6ab8f82c",
+        "debug_rva": "0xa27850",
+        "debug_size": 28,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0x6ab8f82c",
+            "type": 13,
+            "size": 848
+          }
+        ]
+      },
+      "pin_diff_count": 6,
+      "pin_diff_offsets": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ]
+    },
+    "prior_B": {
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-b\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401615,
+      "wheel_sha256": "1de546d5c18b439d77d26dd0039e08b4facbbeaf1b0b865a38eafa211c2d46f8",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0x6ab8f8d9",
+        "debug_rva": "0xa27850",
+        "debug_size": 28,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0x6ab8f8d9",
+            "type": 13,
+            "size": 848
+          }
+        ]
+      },
+      "pin_diff_count": 6,
+      "pin_diff_offsets": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ]
+    },
+    "strict_C": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-c\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "7dad3140ab8a700939022282a78f75b165a612637bac90da5caa7df06f4d64f7",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889152,
+      "pyd_sha256": "06a4e2b158eed8c2766678a69476eb0601593efdbe1979f13383ab7ce0488539",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0x6ab909e7",
+        "debug_rva": "0xa27850",
+        "debug_size": 28,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0x6ab909e7",
+            "type": 13,
+            "size": 848
+          }
+        ]
+      },
+      "pin_diff_count": 6,
+      "pin_diff_offsets": [
+        "0x120",
+        "0x121",
+        "0x122",
+        "0xa26c54",
+        "0xa26c55",
+        "0xa26c56"
+      ]
+    },
+    "brepro_A": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-a\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889664,
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0xb92d3741",
+        "debug_rva": "0xa27850",
+        "debug_size": 56,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0xb92d3741",
+            "type": 13,
+            "size": 848
+          },
+          {
+            "file_offset": "0xa26c6c",
+            "timestamp_offset": "0xa26c70",
+            "timestamp": "0xb92d3741",
+            "type": 16,
+            "size": 36
+          }
+        ]
+      }
+    },
+    "brepro_B": {
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-b\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "wheel_bytes": 5401614,
+      "wheel_sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "native_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "pyd_bytes": 11889664,
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "pe": {
+        "pe_offset": "0x118",
+        "coff_timestamp_offset": "0x120",
+        "coff_timestamp": "0xb92d3741",
+        "debug_rva": "0xa27850",
+        "debug_size": 56,
+        "debug_file_offset": "0xa26c50",
+        "debug_entries": [
+          {
+            "file_offset": "0xa26c50",
+            "timestamp_offset": "0xa26c54",
+            "timestamp": "0xb92d3741",
+            "type": 13,
+            "size": 848
+          },
+          {
+            "file_offset": "0xa26c6c",
+            "timestamp_offset": "0xa26c70",
+            "timestamp": "0xb92d3741",
+            "type": 16,
+            "size": 36
+          }
+        ]
+      }
+    }
+  },
+  "brepro_A_B_wheel_bytes_identical": true,
+  "brepro_A_B_pyd_bytes_identical": true,
+  "strict_recipe_clears_CL_LINK_SOURCE_DATE_EPOCH": true,
+  "package_file_hash_mismatch_counts": {
+    "setuptools65": 0,
+    "setuptools75": 0
+  },
+  "external_toolchain_includes_unlocked_host_paths": [
+    "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\cl.exe",
+    "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\dumpbin.exe",
+    "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\link.exe",
+    "C:\\anaconda3\\Include\\Python.h",
+    "C:\\anaconda3\\Include\\pyconfig.h",
+    "C:\\anaconda3\\libs\\python311.lib",
+    "C:\\anaconda3\\python.exe",
+    "C:\\anaconda3\\python311.dll",
+    "C:\\anaconda3\\vcruntime140.dll"
+  ],
+  "scope": "Read-only archive/hash verification and inert ZIP/PE byte parsing. No SDK/native import/load, install, build, provider/network/account/private-config access, or repository test-tree access."
+}

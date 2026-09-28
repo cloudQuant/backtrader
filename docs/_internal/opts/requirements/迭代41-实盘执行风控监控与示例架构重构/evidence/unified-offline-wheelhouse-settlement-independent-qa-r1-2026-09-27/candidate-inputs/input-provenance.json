@@ -1,0 +1,67 @@
+{
+  "schema": "iteration41.unified_wheelhouse_provenance.settlement.v1",
+  "classification": "offline disposable consumer candidate; FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED; no runtime or account authority",
+  "parent_execution": {
+    "source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+    "build_input_manifest_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+    "bt_api_py": {
+      "version": "0.15.7.dev0+r4r3r3.67e54513",
+      "sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+    },
+    "bt_api_execution": {
+      "version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+      "sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+    },
+    "core_requires_dist": [
+      "bt_api_base>=0.15.4",
+      "numpy>=1.26.0",
+      "python-dotenv>=1.0.0",
+      "requests>=2.31.0",
+      "websocket-client>=1.6.0",
+      "pyyaml>=6.0",
+      "pandas>=2.0.0",
+      "aiohttp>=3.9.0",
+      "spdlog>=2.0.0",
+      "pytz>=2023.3",
+      "python-rapidjson>=1.10",
+      "httpx>=0.27.0",
+      "pyzmq>=26.0.0",
+      "pydantic>=2.0.0",
+      "websockets>=12.0",
+      "typing-extensions>=4.8.0"
+    ],
+    "optional_core_reference_extra": "bt_api_binance>=2.0.0 and bt_api_ctp>=2.0.2,<3.0; bt_api_binance absent, no optional extras selected"
+  },
+  "base": {
+    "source_checkout": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base",
+    "git_head": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+    "git_status": "clean detached checkout at inspection time",
+    "wheel": "bt_api_base-0.15.4-py3-none-any.whl",
+    "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+    "source_files_match": "104/104 packaged Python files",
+    "source_snapshot_sha256": "b3b726bcd757e127be00133dc91afe66192e54ebb1cf4bd9f66b72b218ad8fcf",
+    "limitation": "selected base wheel/source comparison only; not independently A/B rebuilt in this candidate"
+  },
+  "ctp": {
+    "settlement_source_manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+    "base_g4_source_manifest_sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A",
+    "settlement_query_focus": "48 passed, fake-only; no consumer or readiness promotion",
+    "source_build_overlay": "metadata-only version change to 2.0.4+g4r2.settlement.probe.20260927 plus frozen settlement query evidence files",
+    "source_copies_sha256": "9aa7870d91d91d7b63cc0bded2c1f562f41915e0b2ffafde6d11c780ead04e2f",
+    "builds": "two independent copied source trees and two no-index/no-build-isolation builds; exact wheel bytes equal",
+    "wheel": "bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+    "wheel_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "original_g4_probe_wheel_sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384",
+    "old_same_version_overlay_collision_sha256": "76dadbce12b5ac469b5b791af65c9195fa848cc76fa9e762d7c17932bef45baf",
+    "collision_resolution": "Old differing bytes under identical 2.0.4+g4r2.probe.20260927 are preserved as diagnostic-only. Installed wheel has distinct local version and filename.",
+    "native_payload": "opaque _ctp and vendor DLL payload is present; not imported, loaded, or called",
+    "main_readiness": "Main readiness continues to trust promoted SDK result; settlement-specific source seal/callback history evidence is not consumed by main validator. Exact official 7x24 selected pair stays zero-write when exact native settlement provenance is unproved; no time/set fallback."
+  },
+  "dependency_lock": {
+    "wheel_count": 52,
+    "hash_lock_sha256": "856971d73bec6b6951fa3c5bb88ee6fefe1e716ab21d3b9712ed251d2e2c1bcd",
+    "scope": "enumerated exact four root distributions plus 48 dependency wheels; exact hashes replace broad Requires-Dist ranges for this candidate only",
+    "all_wheels_local": true
+  },
+  "authority": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED; no default pin change; no provider/network/credential use; no native module load"
+}

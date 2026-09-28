@@ -1,0 +1,174 @@
+{
+  "purpose": "Read-only local frozen startup bytecode review, not a trusted deployment or registry-mutation test",
+  "python_executable": "C:\\anaconda3\\python.exe",
+  "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "flags": {
+    "isolated": 1,
+    "ignore_environment": 1,
+    "no_site": 1,
+    "no_user_site": 1,
+    "safe_path": true,
+    "dont_write_bytecode": 1
+  },
+  "getpath_marshaled_code_sha256": "5c78356b5b634db99aa670623b7853255b3fa9b67d57d89a25d7bc1951a64701",
+  "code_filename": "<frozen getpath>",
+  "registry_branch": [
+    {
+      "offset": 4290,
+      "opcode": "LOAD_NAME",
+      "argument": "os_name",
+      "line": 677
+    },
+    {
+      "offset": 4292,
+      "opcode": "LOAD_CONST",
+      "argument": "'nt'",
+      "line": 677
+    },
+    {
+      "offset": 4294,
+      "opcode": "COMPARE_OP",
+      "argument": "==",
+      "line": 677
+    },
+    {
+      "offset": 4300,
+      "opcode": "EXTENDED_ARG",
+      "argument": "",
+      "line": 677
+    },
+    {
+      "offset": 4302,
+      "opcode": "POP_JUMP_FORWARD_IF_FALSE",
+      "argument": "to 4930",
+      "line": 677
+    },
+    {
+      "offset": 4304,
+      "opcode": "LOAD_NAME",
+      "argument": "use_environment",
+      "line": 677
+    },
+    {
+      "offset": 4306,
+      "opcode": "EXTENDED_ARG",
+      "argument": "",
+      "line": 677
+    },
+    {
+      "offset": 4308,
+      "opcode": "POP_JUMP_FORWARD_IF_FALSE",
+      "argument": "to 4930",
+      "line": 677
+    },
+    {
+      "offset": 4310,
+      "opcode": "LOAD_NAME",
+      "argument": "winreg",
+      "line": 677
+    },
+    {
+      "offset": 4312,
+      "opcode": "EXTENDED_ARG",
+      "argument": "",
+      "line": 677
+    },
+    {
+      "offset": 4314,
+      "opcode": "POP_JUMP_FORWARD_IF_FALSE",
+      "argument": "to 4930",
+      "line": 677
+    },
+    {
+      "offset": 4316,
+      "opcode": "LOAD_NAME",
+      "argument": "ENV_CONDA_PY_ALLOW_REG_PATHS",
+      "line": 677
+    },
+    {
+      "offset": 4318,
+      "opcode": "EXTENDED_ARG",
+      "argument": "",
+      "line": 677
+    },
+    {
+      "offset": 4320,
+      "opcode": "POP_JUMP_FORWARD_IF_FALSE",
+      "argument": "to 4930",
+      "line": 677
+    },
+    {
+      "offset": 4322,
+      "opcode": "LOAD_NAME",
+      "argument": "ENV_CONDA_PY_ALLOW_REG_PATHS",
+      "line": 677
+    },
+    {
+      "offset": 4324,
+      "opcode": "LOAD_CONST",
+      "argument": "'0'",
+      "line": 677
+    },
+    {
+      "offset": 4326,
+      "opcode": "COMPARE_OP",
+      "argument": "!=",
+      "line": 677
+    },
+    {
+      "offset": 4332,
+      "opcode": "EXTENDED_ARG",
+      "argument": "",
+      "line": 677
+    },
+    {
+      "offset": 4334,
+      "opcode": "POP_JUMP_FORWARD_IF_FALSE",
+      "argument": "to 4930",
+      "line": 677
+    },
+    {
+      "offset": 4336,
+      "opcode": "LOAD_NAME",
+      "argument": "winreg",
+      "line": 682
+    },
+    {
+      "offset": 4338,
+      "opcode": "LOAD_ATTR",
+      "argument": "HKEY_CURRENT_USER",
+      "line": 682
+    },
+    {
+      "offset": 4348,
+      "opcode": "LOAD_NAME",
+      "argument": "winreg",
+      "line": 682
+    },
+    {
+      "offset": 4350,
+      "opcode": "LOAD_ATTR",
+      "argument": "HKEY_LOCAL_MACHINE",
+      "line": 682
+    },
+    {
+      "offset": 4360,
+      "opcode": "BUILD_TUPLE",
+      "argument": "",
+      "line": 682
+    },
+    {
+      "offset": 4362,
+      "opcode": "GET_ITER",
+      "argument": "",
+      "line": 682
+    }
+  ],
+  "python_dll_sha256": "162e8557fbed5f39ae24983ee62b2d435b4796c937d9c1a34371888c7e43af00",
+  "interpretation": "The exact Anaconda frozen getpath conditions registry lookup on use_environment, followed by additional CONDA_PY_ALLOW_REG_PATHS conditions. -I reports ignore_environment=1. Generic docs do not establish a registry path bypass for this launch.",
+  "limitations": [
+    "Current base is user-writable and remains unsuitable as accepted runtime",
+    "No registry keys changed",
+    "No protected config, provider or SDK accessed"
+  ]
+}

@@ -1,0 +1,248 @@
+{
+  "archive": "ctp-g1-two-stage-r4-independent-qa-2026-09-27.raw.zip",
+  "archive_sha256": "3bfee569699ca599a438adc200bec8b1cdbc37e7f8949901874ff9cbf1e02633",
+  "file_count": 48,
+  "files": [
+    {
+      "bytes": 256988,
+      "path": "evidence/generated-readonly-bootstrap.py",
+      "sha256": "76514e602065754500583f77b97862101744ec87ed37a036e3903535721e82e7"
+    },
+    {
+      "bytes": 13018,
+      "path": "evidence/r3-base-manifest.json",
+      "sha256": "e30f2f21ab714f90c82ce33bdf9c290a533477f19fcd59f5b8d931238c38b399"
+    },
+    {
+      "bytes": 66,
+      "path": "evidence/r3-base-manifest.sha256",
+      "sha256": "a69a53eceb59d3d694be515f327843fd401afe38256d986cb5c21e01bceeaeb7"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r4-py-compile.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 0,
+      "path": "evidence/r4-py-compile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r4-ruff-check.exit",
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "bytes": 1057,
+      "path": "evidence/r4-ruff-check.log",
+      "sha256": "8644ac098f0c5b3ec452b7ceeee41b586d667024e1852af4c0d48546cb8047ae"
+    },
+    {
+      "bytes": 568,
+      "path": "evidence/r4-size-and-validation.txt",
+      "sha256": "738dc390d2438a73e8eeb7ae85714c0a1c3b59bd9f0a43007aab5c7f14a75a19"
+    },
+    {
+      "bytes": 15071,
+      "path": "evidence/r4-suite-junit.xml",
+      "sha256": "c667dd3e589616eb4638111269e14fc81222662b75fbaffad7be75d4132b6482"
+    },
+    {
+      "bytes": 271,
+      "path": "evidence/r4-suite.log",
+      "sha256": "2000f5c8b2d6a8e46793d4db73471c1ff63cd6674876763362e3bd03423b8057"
+    },
+    {
+      "bytes": 1,
+      "path": "qa/ast-tamper-probe.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 298,
+      "path": "qa/ast-tamper-probe.log",
+      "sha256": "797ed14e5a64a4b361d20a0c2a33ee80da6a469a44f3d8f50361496622be32fe"
+    },
+    {
+      "bytes": 10998,
+      "path": "qa/independent-manifest-audit.json",
+      "sha256": "baa5447b07ef4179435ad764783fd4f8deb68b9e4a3bb483d3f543c05747bd7f"
+    },
+    {
+      "bytes": 10597,
+      "path": "qa/postrun-payload-audit.json",
+      "sha256": "48db9917bc13481af3032fe497aaeed1ae0c40e44989ca0012c133bf6497b553"
+    },
+    {
+      "bytes": 1,
+      "path": "qa/py_compile.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 0,
+      "path": "qa/py_compile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1478,
+      "path": "qa/pytest-7-target.junit.xml",
+      "sha256": "3905548a466439e6ea6f30a763722f9c617e4400e77a243e80064367f6515f26"
+    },
+    {
+      "bytes": 226,
+      "path": "qa/pytest-7-target.log",
+      "sha256": "a0ab411f6f5d30a41b6050897a5ac3a93b57ed147f5eee0e5777a3f5f985021e"
+    },
+    {
+      "bytes": 15071,
+      "path": "qa/pytest-85.junit.xml",
+      "sha256": "d331992c98f58738e23a2af346677e86404491054c5d8dc6e29b587cb3028864"
+    },
+    {
+      "bytes": 303,
+      "path": "qa/pytest-85.log",
+      "sha256": "43795840f79627b2d9186744b6febcf54bee6f09619b1e353a70c76e00e3b909"
+    },
+    {
+      "bytes": 400,
+      "path": "qa/pytest-forged-exit2.junit.xml",
+      "sha256": "f2adf7b928631d666f453bdd6f00b1ba2449dc7245461e5212adfa8390c45db8"
+    },
+    {
+      "bytes": 230,
+      "path": "qa/pytest-forged-exit2.log",
+      "sha256": "b1971ecbb74b8cb9a672a0d0a19ab1c64444324b6afacb75aab70f9978d891b9"
+    },
+    {
+      "bytes": 3947,
+      "path": "qa/r4_ast_tamper_probe.py",
+      "sha256": "b20d221b81df32e6ff757b2d66101bc8d70a42946dab61861f06d76b2d2d8be3"
+    },
+    {
+      "bytes": 2129,
+      "path": "qa/R4-QA-receipt.json",
+      "sha256": "b5b4a7fa30d9e90826bfa11a13def45334c56e86c965a9033229d1e74cff26e7"
+    },
+    {
+      "bytes": 0,
+      "path": "source/tests/",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 53,
+      "path": "source/scripts/__init__.py",
+      "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+    },
+    {
+      "bytes": 92086,
+      "path": "source/scripts/ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "10ddd4f7a600d63bdcc42c55366e89f0cb543943c472364235b0b348924c79e0"
+    },
+    {
+      "bytes": 24746,
+      "path": "source/scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+    },
+    {
+      "bytes": 45162,
+      "path": "source/scripts/ctp_i13_i15_parent_launcher.py",
+      "sha256": "22ee37556aeb9f3070f65ab67f60859bcc5f208232d49a87e224ad43fd8150fc"
+    },
+    {
+      "bytes": 1450,
+      "path": "source/scripts/ctp_i13_i15_readonly_preflight_worker.py",
+      "sha256": "f3368648c05cfd9234e02d0d8d6f78d15993c4e7108a8e6e5f8dfed4102bc282"
+    },
+    {
+      "bytes": 20438,
+      "path": "source/scripts/ctp_i13_i15_readonly_receipt_writer.py",
+      "sha256": "02ee9f4499cdd22e0d1602a577c041a6c8ba1416864005ace2a327c64d5c2697"
+    },
+    {
+      "bytes": 44735,
+      "path": "source/scripts/ctp_i13_i15_readonly_request_coordinator.py",
+      "sha256": "293e34de3b4cf893d4526f824c1cd0acd43f829fe887c66e4e7eae94b760ef6a"
+    },
+    {
+      "bytes": 39849,
+      "path": "source/scripts/ctp_i13_i15_readonly_token_bootstrap.py",
+      "sha256": "56af3861ab8eb22cec9a96444a39e13b96f1180e8b6dfefafef1cc8a5b7c6054"
+    },
+    {
+      "bytes": 49611,
+      "path": "source/scripts/ctp_i13_i15_runtime_closure.py",
+      "sha256": "1f46e45460e5ccdbab284729ddcba8acf6678e201f10da6bac6b5f163071db97"
+    },
+    {
+      "bytes": 125575,
+      "path": "source/scripts/ctp_i13_i15_sealed_import.py",
+      "sha256": "6c2532c1c481c8bc36bc168dc0352203e48d60d830e99787f39ceabc98b92e64"
+    },
+    {
+      "bytes": 180159,
+      "path": "source/scripts/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "03628b0613ecc9f49ff07f299c6f39162cd64bfd90c396c324473cd4f6104339"
+    },
+    {
+      "bytes": 7732,
+      "path": "source/scripts/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+    },
+    {
+      "bytes": 46080,
+      "path": "source/scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+    },
+    {
+      "bytes": 49473,
+      "path": "source/scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "c32dbe7c850e07fde6a3e57f5b29ca45803cfa5b8f3bea103d5e0582b4656222"
+    },
+    {
+      "bytes": 78461,
+      "path": "source/scripts/ctp_i13_source_manifest_candidate.py",
+      "sha256": "afe04afa6af4cd60712a2986827443c1aca70b56743d78605d4609d1ef7fa504"
+    },
+    {
+      "bytes": 0,
+      "path": "source/tests/unit/",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31230,
+      "path": "source/tests/unit/scripts/test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+      "sha256": "6fa19a330ecdb3dd3a62dfad468432ddb63e27e40e9484268eb0ef795de37634"
+    },
+    {
+      "bytes": 29005,
+      "path": "source/tests/unit/scripts/test_ctp_i13_i15_readonly_roles.py",
+      "sha256": "802dd048879891c1391b746fe66c1285aa4ed12632a70107bb92bf464da3c56e"
+    },
+    {
+      "bytes": 29548,
+      "path": "source/tests/unit/scripts/test_ctp_i13_i15_two_stage_process_r2.py",
+      "sha256": "e7cc526caedc47b130a44b9aca5377bbead453cf345b7cd7b10ccead1383c275"
+    },
+    {
+      "bytes": 136195,
+      "path": "source/tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "ae8346057d1b85f50899f2451d862f3dbf38ab6d760c9fe5bdcd95b06e2fe8fe"
+    },
+    {
+      "bytes": 9721,
+      "path": "candidate-manifest-r4.json",
+      "sha256": "805d066b74ec7eee0519993395d2078605ef46fbe2b1a2e63ff11aafd82dc4a1"
+    },
+    {
+      "bytes": 66,
+      "path": "candidate-manifest-r4.sha256",
+      "sha256": "08a98904ee8a2b73583d92d3a09d07a41953d254d691474f4d662870a2314bdc"
+    },
+    {
+      "bytes": 1866,
+      "path": "README.md",
+      "sha256": "db1e0f0b3f6c600b82d534d08f3074936396199fe0e471610804e5c628528d5c"
+    }
+  ],
+  "zip_testzip": "passed"
+}

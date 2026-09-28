@@ -1,0 +1,19 @@
+{
+  "close_handle_succeeded": true,
+  "fake_suffix": ".pyd",
+  "hash_after_denied_attempts": "6b342cf5da16781c6ca56601a577e449662dde0fd027c3d158aec89d65e63347",
+  "loaded_native_module": false,
+  "original_sha256": "6b342cf5da16781c6ca56601a577e449662dde0fd027c3d158aec89d65e63347",
+  "pass": true,
+  "payload_kind": "plain-text placeholder; not valid PE; never loaded",
+  "python": "3.11.5",
+  "rename_after_release_succeeded": true,
+  "replace_blocked": true,
+  "replace_errno": 13,
+  "replace_error_type": "PermissionError",
+  "replace_winerror": 5,
+  "write_blocked": true,
+  "write_errno": 13,
+  "write_error_type": "PermissionError",
+  "write_winerror": null
+}

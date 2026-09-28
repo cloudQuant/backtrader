@@ -1,0 +1,734 @@
+diff --git a/backtrader/stores/ctp_account_actor_port.py b/backtrader/stores/ctp_account_actor_port.py
+--- a/backtrader/stores/ctp_account_actor_port.py
++++ b/backtrader/stores/ctp_account_actor_port.py
+@@ -4,17 +4,20 @@
+ It contains no transport, credential resolver, SDK import, native API, or actor
+ implementation. A typed fake port proves wiring only; it is not authority.
+ """
++
+ from __future__ import annotations
+ 
+ import hashlib
+ import json
++import math
+ import threading
+ from abc import ABC, abstractmethod
+ from collections.abc import Mapping
+ from dataclasses import dataclass, field
+ from decimal import Decimal
+ from enum import Enum
+-from typing import Any, Optional
++from types import MappingProxyType
++from typing import Any, Optional, Protocol
+ 
+ 
+ class AccountActorGateError(RuntimeError):
+@@ -174,7 +177,10 @@
+             raise ValueError("session_id must be a positive exact integer")
+         if type(self.context) is not ActorCommandContextV1:
+             raise ValueError("context must be ActorCommandContextV1")
+-        if self.front_id != self.context.front_id or self.session_id != self.context.native_session_id:
++        if (
++            self.front_id != self.context.front_id
++            or self.session_id != self.context.native_session_id
++        ):
+             raise ValueError("cancel target must match the expected native front/session")
+ 
+     @property
+@@ -308,6 +314,276 @@
+         raise AccountActorGateError("external_account_actor_unavailable")
+ 
+ 
++def _required_read_text(value: Any, name: str) -> None:
++    _required_text(value, name)
++    if value != value.strip():
++        raise ValueError(f"{name} must be exact text without surrounding whitespace")
++
++
++def _validate_read_timeout(value: Any) -> None:
++    try:
++        valid = type(value) in {int, float} and value >= 0 and math.isfinite(float(value))
++    except (OverflowError, TypeError, ValueError):
++        valid = False
++    if not valid:
++        raise ValueError("timeout_seconds must be finite and nonnegative")
++
++
++class CtpReadPortContractError(ValueError):
++    """Local read-contract mismatch; never a provider or account admission result."""
++
++    def __init__(self, code: str) -> None:
++        self.code = code
++        super().__init__(code.replace("_", " "))
++
++
++class CtpReadQueryKindV1(str, Enum):
++    """The narrow read-query set exposed by this contract slice."""
++
++    POSITIONS = "positions"
++    TRADES = "trades"
++
++
++@dataclass(frozen=True)
++class CtpReadQueryScopeV1:
++    """Exact caller-requested wire scope, not an authenticated account binding."""
++
++    exchange_id: str
++    instrument_id: str
++    trading_day: str
++
++    def __post_init__(self) -> None:
++        for name in ("exchange_id", "instrument_id", "trading_day"):
++            _required_read_text(getattr(self, name), name)
++
++
++@dataclass(frozen=True)
++class CtpReadQueryRequestV1:
++    """Typed read request routed through one caller-held port instance."""
++
++    kind: CtpReadQueryKindV1
++    correlation_id: str
++    scope: CtpReadQueryScopeV1
++    timeout_seconds: float
++
++    def __post_init__(self) -> None:
++        if type(self.kind) is not CtpReadQueryKindV1:
++            raise ValueError("kind must be CtpReadQueryKindV1")
++        _required_read_text(self.correlation_id, "correlation_id")
++        if type(self.scope) is not CtpReadQueryScopeV1:
++            raise ValueError("scope must be CtpReadQueryScopeV1")
++        _validate_read_timeout(self.timeout_seconds)
++
++
++def _freeze_ctp_read_records(records: Any) -> tuple[Mapping[str, Any], ...]:
++    if type(records) is not tuple:
++        raise ValueError("records must be a tuple")
++    frozen = []
++    for row in records:
++        if type(row) not in {dict, MappingProxyType}:
++            raise ValueError("each read record must be an exact string-keyed mapping")
++        row = dict(row)
++        if any(type(key) is not str or not key for key in row):
++            raise ValueError("each read record must be an exact string-keyed mapping")
++        for value in row.values():
++            if type(value) not in {type(None), bool, int, float, str, Decimal}:
++                raise ValueError("read record values must be scalar data")
++            if type(value) is float and not math.isfinite(value):
++                raise ValueError("read record floats must be finite")
++            if type(value) is Decimal and not value.is_finite():
++                raise ValueError("read record decimals must be finite")
++        frozen.append(MappingProxyType(dict(row)))
++    return tuple(frozen)
++
++
++@dataclass(frozen=True)
++class CtpReadQueryReplyV1:
++    """Untrusted query observation from a port; it carries no session authority."""
++
++    kind: CtpReadQueryKindV1
++    correlation_id: str
++    complete: bool
++    terminal: bool
++    timed_out: bool
++    error_code: Optional[str]
++    records: tuple[Mapping[str, Any], ...]
++
++    def __post_init__(self) -> None:
++        if type(self.kind) is not CtpReadQueryKindV1:
++            raise ValueError("kind must be CtpReadQueryKindV1")
++        _required_read_text(self.correlation_id, "correlation_id")
++        for name in ("complete", "terminal", "timed_out"):
++            if type(getattr(self, name)) is not bool:
++                raise ValueError(f"{name} must be boolean")
++        if self.error_code is not None and type(self.error_code) is not str:
++            raise ValueError("error_code must be text or None")
++        object.__setattr__(self, "records", _freeze_ctp_read_records(self.records))
++
++
++@dataclass(frozen=True)
++class CtpQuoteRequestV1:
++    """Exact top-of-book request for the same shared-session port instance."""
++
++    correlation_id: str
++    exchange_id: str
++    instrument_id: str
++    timeout_seconds: float
++
++    def __post_init__(self) -> None:
++        _required_read_text(self.correlation_id, "correlation_id")
++        _required_read_text(self.exchange_id, "exchange_id")
++        _required_read_text(self.instrument_id, "instrument_id")
++        _validate_read_timeout(self.timeout_seconds)
++
++
++@dataclass(frozen=True)
++class CtpQuoteReplyV1:
++    """Untrusted quote observation; timestamps and prices are not freshness proof."""
++
++    correlation_id: str
++    exchange_id: str
++    instrument_id: str
++    sequence: int
++    observed_at_utc: str
++    bid_price: Decimal
++    ask_price: Decimal
++    bid_volume: int
++    ask_volume: int
++
++    def __post_init__(self) -> None:
++        for name in ("correlation_id", "exchange_id", "instrument_id", "observed_at_utc"):
++            _required_read_text(getattr(self, name), name)
++        if type(self.sequence) is not int or self.sequence <= 0:
++            raise ValueError("sequence must be a positive exact integer")
++        for name in ("bid_price", "ask_price"):
++            value = getattr(self, name)
++            if type(value) is not Decimal or not value.is_finite() or value <= 0:
++                raise ValueError(f"{name} must be a positive finite Decimal")
++        if self.bid_price > self.ask_price:
++            raise ValueError("bid_price cannot exceed ask_price")
++        for name in ("bid_volume", "ask_volume"):
++            value = getattr(self, name)
++            if type(value) is not int or value < 0:
++                raise ValueError(f"{name} must be a nonnegative exact integer")
++
++
++class CtpSharedSessionReadPortV1(Protocol):
++    """Read-only protocol shape for an externally owned shared MD/TD session.
++
++    Implementing this protocol does not establish actor identity, authenticated
++    account scope, a common snapshot, Store admission, or production readiness.
++    The method surface intentionally contains no connect, arm, submit, cancel,
++    settlement-confirm, or lifecycle operation. This candidate does not bind a
++    port into ``BtApiStore``.
++    """
++
++    def query_read_only(self, request: CtpReadQueryRequestV1) -> CtpReadQueryReplyV1:
++        """Return one untrusted terminal observation for a positions/trades read."""
++
++    def read_quote(self, request: CtpQuoteRequestV1) -> CtpQuoteReplyV1:
++        """Return one untrusted exact-scope quote observation."""
++
++
++@dataclass(frozen=True)
++class CtpReadQueryAssessmentV1:
++    """Local shape/scope assessment; never a preflight or authorization receipt."""
++
++    complete: bool
++    scope_valid: bool
++    error_code: Optional[str]
++    scope_validation_errors: tuple[str, ...]
++    records: tuple[Mapping[str, Any], ...]
++
++
++def assess_ctp_shared_session_query(
++    port: CtpSharedSessionReadPortV1, request: CtpReadQueryRequestV1
++) -> CtpReadQueryAssessmentV1:
++    """Call the read-only query surface and check local type/completion/scope.
++
++    A fake port can exercise this contract. Its return values remain caller-side
++    observations and cannot be promoted to account identity, shared-session
++    coherence, or runtime admission evidence.
++    """
++
++    if type(request) is not CtpReadQueryRequestV1:
++        raise CtpReadPortContractError("read_query_request_type_invalid")
++    try:
++        request.__post_init__()
++    except (TypeError, ValueError):
++        raise CtpReadPortContractError("read_query_request_invalid") from None
++    reply = port.query_read_only(request)
++    if type(reply) is not CtpReadQueryReplyV1:
++        raise CtpReadPortContractError("read_query_reply_type_invalid")
++    try:
++        reply.__post_init__()
++    except (TypeError, ValueError):
++        raise CtpReadPortContractError("read_query_reply_invalid") from None
++
++    scope_errors = set()
++    if request.kind is CtpReadQueryKindV1.TRADES:
++        for row in reply.records:
++            if (
++                type(row.get("ExchangeID")) is not str
++                or row.get("ExchangeID") != request.scope.exchange_id
++            ):
++                scope_errors.add("trades_response_exchange_scope_mismatch")
++            if (
++                type(row.get("InstrumentID")) is not str
++                or row.get("InstrumentID") != request.scope.instrument_id
++            ):
++                scope_errors.add("trades_response_instrument_scope_mismatch")
++            if (
++                type(row.get("TradingDay")) is not str
++                or row.get("TradingDay") != request.scope.trading_day
++            ):
++                scope_errors.add("trades_response_trading_day_scope_mismatch")
++
++    error_code = None
++    if reply.kind is not request.kind:
++        error_code = f"{request.kind.value}_request_type_mismatch"
++    elif reply.correlation_id != request.correlation_id:
++        error_code = "read_query_correlation_mismatch"
++    elif scope_errors:
++        error_code = "trade_scope_validation_failed"
++    elif reply.complete is not True or reply.terminal is not True or reply.timed_out is not False:
++        error_code = reply.error_code or f"{request.kind.value}_query_incomplete"
++    elif reply.error_code not in (None, ""):
++        error_code = reply.error_code
++
++    return CtpReadQueryAssessmentV1(
++        complete=error_code is None,
++        scope_valid=not scope_errors,
++        error_code=error_code,
++        scope_validation_errors=tuple(sorted(scope_errors)),
++        records=reply.records,
++    )
++
++
++def read_ctp_shared_session_quote(
++    port: CtpSharedSessionReadPortV1, request: CtpQuoteRequestV1
++) -> CtpQuoteReplyV1:
++    """Read and scope-check one quote; do not infer freshness or actor authority."""
++
++    if type(request) is not CtpQuoteRequestV1:
++        raise CtpReadPortContractError("quote_request_type_invalid")
++    try:
++        request.__post_init__()
++    except (TypeError, ValueError):
++        raise CtpReadPortContractError("quote_request_invalid") from None
++    reply = port.read_quote(request)
++    if type(reply) is not CtpQuoteReplyV1:
++        raise CtpReadPortContractError("quote_reply_type_invalid")
++    try:
++        reply.__post_init__()
++    except (TypeError, ValueError):
++        raise CtpReadPortContractError("quote_reply_invalid") from None
++    if reply.correlation_id != request.correlation_id:
++        raise CtpReadPortContractError("quote_correlation_mismatch")
++    if (reply.exchange_id, reply.instrument_id) != (request.exchange_id, request.instrument_id):
++        raise CtpReadPortContractError("quote_scope_mismatch")
++    return reply
++
++
+ @dataclass(frozen=True)
+ class StoreRouteDescriptor:
+     """Only non-secret routing facts used before Store SDK/client construction."""
+@@ -352,9 +628,8 @@
+     backend = _selector(route.backend)
+     env_provider = _selector(route.environment_provider)
+ 
+-    if (
+-        (route.backend is not None and type(route.backend) is not str)
+-        or (route.environment_provider is not None and type(route.environment_provider) is not str)
++    if (route.backend is not None and type(route.backend) is not str) or (
++        route.environment_provider is not None and type(route.environment_provider) is not str
+     ):
+         return RouteKind.AMBIGUOUS
+ 
+@@ -662,12 +937,23 @@
+     "ActorCommandState",
+     "CtpAccountActorPort",
+     "CtpCancelIntentV2",
++    "CtpQuoteReplyV1",
++    "CtpQuoteRequestV1",
++    "CtpReadPortContractError",
++    "CtpReadQueryAssessmentV1",
++    "CtpReadQueryKindV1",
++    "CtpReadQueryReplyV1",
++    "CtpReadQueryRequestV1",
++    "CtpReadQueryScopeV1",
++    "CtpSharedSessionReadPortV1",
+     "CtpSubmitIntentV2",
+     "FakeLocalActorReplayLedger",
+     "RouteKind",
+     "StoreRouteDescriptor",
+     "UnavailableCtpAccountActorPort",
++    "assess_ctp_shared_session_query",
+     "classify_store_route",
++    "read_ctp_shared_session_quote",
+     "reject_ctp_legacy_dispatch",
+     "require_account_actor_before_local_client",
+     "validate_actor_receipt",
+diff --git a/tests/unit/stores/test_btapistore_iteration22.py b/tests/unit/stores/test_btapistore_iteration22.py
+--- a/tests/unit/stores/test_btapistore_iteration22.py
++++ b/tests/unit/stores/test_btapistore_iteration22.py
+@@ -18,6 +18,13 @@
+ from tests.test_utils.optional_sdk import optional_sdk
+ 
+ from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, _create_ctp_wrapper_class
++from backtrader.stores.ctp_account_actor_port import (
++    CtpReadQueryKindV1,
++    CtpReadQueryReplyV1,
++    CtpReadQueryRequestV1,
++    CtpReadQueryScopeV1,
++    assess_ctp_shared_session_query,
++)
+ from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
+ 
+ 
+@@ -3335,15 +3342,36 @@
+ 
+ 
+ def test_empty_incomplete_query_is_not_interpreted_as_zero_records():
+-    client = CompleteQueryClient()
+-    client.incomplete.add("positions")
+-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+-
+-    snapshot = store.get_ctp_preflight_snapshot("SA609")
+-
+-    assert snapshot["positions"] == []
+-    assert snapshot["evidence_complete"] is False
+-    assert "positions_query_incomplete" in snapshot["evidence_errors"]
++    """An empty fake-actor reply is not a completed zero-position observation."""
++    request = CtpReadQueryRequestV1(
++        kind=CtpReadQueryKindV1.POSITIONS,
++        correlation_id="i22-empty-position-read",
++        scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++        timeout_seconds=0.0,
++    )
++    reply = CtpReadQueryReplyV1(
++        kind=CtpReadQueryKindV1.POSITIONS,
++        correlation_id=request.correlation_id,
++        complete=False,
++        terminal=False,
++        timed_out=False,
++        error_code=None,
++        records=(),
++    )
++
++    class FakeActorReadPort:
++        def query_read_only(self, current):
++            assert current is request
++            return reply
++
++        def read_quote(self, _request):
++            raise AssertionError("positions query must not call the quote feed")
++
++    assessment = assess_ctp_shared_session_query(FakeActorReadPort(), request)
++
++    assert assessment.records == ()
++    assert assessment.complete is False
++    assert assessment.error_code == "positions_query_incomplete"
+ 
+ 
+ def test_query_generation_mismatch_fails_closed():
+@@ -3404,14 +3432,35 @@
+ 
+ 
+ def test_query_request_type_mismatch_fails_closed():
+-    client = CompleteQueryClient()
+-    client.request_type_override["positions"] = "orders"
+-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+-
+-    snapshot = store.get_ctp_reconciliation_snapshot()
+-
+-    assert snapshot["evidence_complete"] is False
+-    assert "positions_request_type_mismatch" in snapshot["evidence_errors"]
++    """A fake shared-session port may test query typing, never Store admission."""
++    request = CtpReadQueryRequestV1(
++        kind=CtpReadQueryKindV1.POSITIONS,
++        correlation_id="i22-position-kind",
++        scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++        timeout_seconds=0.0,
++    )
++    reply = CtpReadQueryReplyV1(
++        kind=CtpReadQueryKindV1.TRADES,
++        correlation_id=request.correlation_id,
++        complete=True,
++        terminal=True,
++        timed_out=False,
++        error_code=None,
++        records=(),
++    )
++
++    class FakeActorReadPort:
++        def query_read_only(self, current):
++            assert current is request
++            return reply
++
++        def read_quote(self, _request):
++            raise AssertionError("positions query must not call the quote feed")
++
++    assessment = assess_ctp_shared_session_query(FakeActorReadPort(), request)
++
++    assert assessment.complete is False
++    assert assessment.error_code == "positions_request_type_mismatch"
+ 
+ 
+ def test_malformed_query_records_cannot_be_coerced_to_an_empty_success():
+@@ -3597,25 +3646,48 @@
+ 
+ 
+ def test_preflight_rejects_trade_rows_outside_the_requested_scope():
+-    client = CompleteQueryClient()
+-    client.rows["trades"] = [
+-        {"ExchangeID": "SHFE", "InstrumentID": "RB701", "TradingDay": "20260908"}
+-    ]
+-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+-
+-    snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
+-
+-    trades = snapshot["query_results"]["trades"]
+-    assert trades["complete"] is False
+-    assert trades["scope_valid"] is False
+-    assert trades["error_code"] == "trade_scope_validation_failed"
+-    assert set(trades["scope_validation_errors"]) == {
++    """Keep the raw trade-scope oracle below Store admission via a fake read port."""
++    request = CtpReadQueryRequestV1(
++        kind=CtpReadQueryKindV1.TRADES,
++        correlation_id="i22-trade-scope",
++        scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++        timeout_seconds=0.0,
++    )
++    reply = CtpReadQueryReplyV1(
++        kind=CtpReadQueryKindV1.TRADES,
++        correlation_id=request.correlation_id,
++        complete=True,
++        terminal=True,
++        timed_out=False,
++        error_code=None,
++        records=(
++            {"ExchangeID": "SHFE", "InstrumentID": "RB701", "TradingDay": "20260908"},
++        ),
++    )
++
++    class FakeActorReadPort:
++        def __init__(self):
++            self.requests = []
++
++        def query_read_only(self, current):
++            self.requests.append(current)
++            return reply
++
++        def read_quote(self, _request):
++            raise AssertionError("trade query must not call the quote feed")
++
++    port = FakeActorReadPort()
++    trades = assess_ctp_shared_session_query(port, request)
++
++    assert port.requests == [request]
++    assert trades.complete is False
++    assert trades.scope_valid is False
++    assert trades.error_code == "trade_scope_validation_failed"
++    assert set(trades.scope_validation_errors) == {
+         "trades_response_exchange_scope_mismatch",
+         "trades_response_instrument_scope_mismatch",
+         "trades_response_trading_day_scope_mismatch",
+     }
+-    assert snapshot["evidence_complete"] is False
+-    assert "trades_response_exchange_scope_mismatch" in snapshot["evidence_errors"]
+ 
+ 
+ def test_settlement_prepare_and_verify_expose_request_count_evidence():
+diff --git a/tests/unit/stores/test_ctp_shared_session_read_port.py b/tests/unit/stores/test_ctp_shared_session_read_port.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/stores/test_ctp_shared_session_read_port.py
+@@ -0,0 +1,208 @@
++"""Offline contracts for the externally owned CTP shared-session read port."""
++
++from decimal import Decimal
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
++from backtrader.stores.ctp_account_actor_port import (
++    CtpQuoteReplyV1,
++    CtpQuoteRequestV1,
++    CtpReadPortContractError,
++    CtpReadQueryKindV1,
++    CtpReadQueryReplyV1,
++    CtpReadQueryRequestV1,
++    CtpReadQueryScopeV1,
++    assess_ctp_shared_session_query,
++    read_ctp_shared_session_quote,
++)
++
++
++class _FakeSharedSessionReadPort:
++    """An in-memory protocol fake; it has no identity or admission authority."""
++
++    def __init__(self, query_reply=None, quote_reply=None):
++        self.query_reply = query_reply
++        self.quote_reply = quote_reply
++        self.calls = []
++
++    def query_read_only(self, request):
++        self.calls.append(("query", request))
++        return self.query_reply
++
++    def read_quote(self, request):
++        self.calls.append(("quote", request))
++        return self.quote_reply
++
++
++class _AttributeTrap:
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError("CTP admission read an injected client attribute")
++
++
++def _position_request():
++    return CtpReadQueryRequestV1(
++        kind=CtpReadQueryKindV1.POSITIONS,
++        correlation_id="r2d-position-1",
++        scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++        timeout_seconds=0.0,
++    )
++
++
++def _quote_request():
++    return CtpQuoteRequestV1(
++        correlation_id="r2d-quote-1",
++        exchange_id="CZCE",
++        instrument_id="SA609",
++        timeout_seconds=0.0,
++    )
++
++
++def test_one_typed_port_instance_exposes_position_query_and_exact_quote_reads():
++    position_request = _position_request()
++    quote_request = _quote_request()
++    port = _FakeSharedSessionReadPort(
++        query_reply=CtpReadQueryReplyV1(
++            kind=CtpReadQueryKindV1.POSITIONS,
++            correlation_id=position_request.correlation_id,
++            complete=True,
++            terminal=True,
++            timed_out=False,
++            error_code=None,
++            records=({"InstrumentID": "SA609", "Position": 0},),
++        ),
++        quote_reply=CtpQuoteReplyV1(
++            correlation_id=quote_request.correlation_id,
++            exchange_id="CZCE",
++            instrument_id="SA609",
++            sequence=9,
++            observed_at_utc="2026-09-09T01:02:03+00:00",
++            bid_price=Decimal("42.0"),
++            ask_price=Decimal("42.5"),
++            bid_volume=2,
++            ask_volume=3,
++        ),
++    )
++
++    positions = assess_ctp_shared_session_query(port, position_request)
++    quote = read_ctp_shared_session_quote(port, quote_request)
++
++    assert positions.complete is True
++    assert positions.scope_valid is True
++    assert positions.records[0]["InstrumentID"] == "SA609"
++    assert not hasattr(positions, "account_fingerprint")
++    assert not hasattr(positions, "session_generation")
++    assert not hasattr(positions, "read_only_safe")
++    with pytest.raises(TypeError):
++        positions.records[0]["Position"] = 1
++    assert quote.instrument_id == "SA609"
++    assert quote.sequence == 9
++    assert [(kind, request) for kind, request in port.calls] == [
++        ("query", position_request),
++        ("quote", quote_request),
++    ]
++    assert not any(callable(getattr(port, name, None)) for name in ("submit_order", "cancel_order"))
++
++
++def test_quote_reply_must_echo_exact_scope_and_correlation():
++    request = _quote_request()
++    port = _FakeSharedSessionReadPort(
++        quote_reply=CtpQuoteReplyV1(
++            correlation_id=request.correlation_id,
++            exchange_id="CZCE",
++            instrument_id="SA701",
++            sequence=10,
++            observed_at_utc="2026-09-09T01:02:03+00:00",
++            bid_price=Decimal("42.0"),
++            ask_price=Decimal("42.5"),
++            bid_volume=2,
++            ask_volume=3,
++        )
++    )
++
++    with pytest.raises(CtpReadPortContractError) as error:
++        read_ctp_shared_session_quote(port, request)
++
++    assert error.value.code == "quote_scope_mismatch"
++    assert port.calls == [("quote", request)]
++
++
++def test_typed_port_constructor_rejects_invalid_quote_and_query_shapes():
++    with pytest.raises(ValueError, match="surrounding whitespace"):
++        CtpReadQueryRequestV1(
++            kind=CtpReadQueryKindV1.POSITIONS,
++            correlation_id=" padded ",
++            scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++            timeout_seconds=0.0,
++        )
++    for field in ("correlation_id", "exchange_id", "instrument_id"):
++        values = {
++            "correlation_id": "quote",
++            "exchange_id": "CZCE",
++            "instrument_id": "SA609",
++            "timeout_seconds": 0.0,
++        }
++        values[field] = " padded "
++        with pytest.raises(ValueError, match="surrounding whitespace"):
++            CtpQuoteRequestV1(**values)
++
++    with pytest.raises(ValueError, match="timeout_seconds must be finite and nonnegative"):
++        CtpReadQueryRequestV1(
++            kind=CtpReadQueryKindV1.POSITIONS,
++            correlation_id="position",
++            scope=CtpReadQueryScopeV1("CZCE", "SA609", "20260909"),
++            timeout_seconds=10**10000,
++        )
++    with pytest.raises(ValueError, match="timeout_seconds must be finite and nonnegative"):
++        CtpQuoteRequestV1(
++            correlation_id="quote",
++            exchange_id="CZCE",
++            instrument_id="SA609",
++            timeout_seconds=10**10000,
++        )
++
++    with pytest.raises(ValueError, match="positive exact integer"):
++        CtpQuoteReplyV1(
++            correlation_id="quote",
++            exchange_id="CZCE",
++            instrument_id="SA609",
++            sequence=True,
++            observed_at_utc="2026-09-09T01:02:03+00:00",
++            bid_price=Decimal("42.0"),
++            ask_price=Decimal("42.5"),
++            bid_volume=2,
++            ask_volume=3,
++        )
++    with pytest.raises(ValueError, match="records must be a tuple"):
++        CtpReadQueryReplyV1(
++            kind=CtpReadQueryKindV1.POSITIONS,
++            correlation_id="position",
++            complete=True,
++            terminal=True,
++            timed_out=False,
++            error_code=None,
++            records=[],
++        )
++
++
++def test_read_only_port_cannot_authorize_default_ctp_store_construction(monkeypatch):
++    port = _FakeSharedSessionReadPort()
++    api = _AttributeTrap()
++    resolutions = []
++
++    def forbidden(*_args, **_kwargs):
++        resolutions.append("provider-resolution")
++        raise AssertionError("provider resolution ran before CTP fail-close")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    for actor_port in (None, port):
++        with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++            BtApiStore(provider="ctp", api=api, account_actor_port=actor_port)
++
++    assert port.calls == []
++    assert api.reads == []
++    assert resolutions == []

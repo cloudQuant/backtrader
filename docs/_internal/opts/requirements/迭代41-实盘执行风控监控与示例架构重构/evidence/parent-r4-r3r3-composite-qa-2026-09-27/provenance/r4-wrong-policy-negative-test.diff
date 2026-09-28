@@ -1,0 +1,40 @@
+--- frozen-r4/test_cancellation_dispatch_resolution_control.py
++++ candidate/test_cancellation_dispatch_resolution_control.py
+@@ -969,7 +969,9 @@
+         fixture.close()
+ 
+ 
+-@pytest.mark.parametrize("mismatch", ("ctp_provider", "wrong_account", "wrong_strategy"))
++@pytest.mark.parametrize(
++    "mismatch", ("ctp_provider", "wrong_account", "wrong_strategy", "wrong_policy")
++)
+ def test_fake_authority_constructor_rejects_unregistered_execution_scope(
+     tmp_path: Path, mismatch: str
+ ) -> None:
+@@ -984,13 +986,16 @@
+     try:
+         execution_scope = fixture.runtime.scope
+         risk_scope = fixture.runtime.risk_scope
++        policy_id = fixture.runtime.risk_gate.policy.policy_id
+         if mismatch == "ctp_provider":
+             execution_scope = replace(execution_scope, provider="ctp")
+         elif mismatch == "wrong_account":
+             execution_scope = replace(execution_scope, account_ref="unregistered-account")
+             risk_scope = replace(risk_scope, account_id="unregistered-account")
++        elif mismatch == "wrong_strategy":
++            execution_scope = replace(execution_scope, strategy_id="unregistered-strategy")
+         else:
+-            execution_scope = replace(execution_scope, strategy_id="unregistered-strategy")
++            policy_id = "unregistered-policy"
+         database_path = tmp_path / ("rejected-authority-" + mismatch + ".sqlite3")
+         with pytest.raises(FakeDispatchJournalError):
+             ManagedFakeProviderJournalAuthority(
+@@ -1001,7 +1006,7 @@
+                 facade=None,
+                 risk_types=risk,
+                 contract=fixture.runtime.contract,
+-                policy_id=fixture.runtime.risk_gate.policy.policy_id,
++                policy_id=policy_id,
+             )
+         assert not database_path.exists()
+         assert fixture.unknown_cause in fixture.active()

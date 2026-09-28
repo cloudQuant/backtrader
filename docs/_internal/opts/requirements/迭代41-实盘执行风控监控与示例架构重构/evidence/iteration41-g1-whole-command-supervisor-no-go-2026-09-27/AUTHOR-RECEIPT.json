@@ -1,0 +1,32 @@
+{
+  "schema": "iteration41.ctp.preflight-supervisor-review.receipt.v1",
+  "verdict": "NO_GO_IMPLEMENTATION_FOR_CURRENT_G1_WORDING",
+  "g1_status": "CLOSED",
+  "ordinary_preflight": "FAIL_CLOSED",
+  "package_root": "D:\\temp\\iteration41-ctp-preflight-supervisor-review-20260927",
+  "source_manifest_sha256": "5bed3eb4197f25ea79af58b5d06801c004f65112e249ec346d91f3cd409fc654",
+  "package_manifest_sha256": "a1495a4e01c7134472696d94521e8608cd906047eb7b4d79ee07fcfec6853060",
+  "package_zip_sha256": "3ef6d18f4ce3e1f2f28391176c75706acf2e7018a6ea6c0ac66c2605fb9d2b67",
+  "package_payload_count": 29,
+  "zip_member_count": 30,
+  "zip_testzip": "None",
+  "focused_tests": "65 passed, 0 failed, 0 skipped",
+  "focused_elapsed_seconds": 28.41,
+  "cli_gate_tests": "1 passed, 0 failed, 0 skipped",
+  "cli_gate_elapsed_seconds": 0.74,
+  "provider_or_sdk_touched": false,
+  "private_config_or_credentials_read": false,
+  "network_or_account_touched": false,
+  "main_tree_edited": false,
+  "raw_hashes": {
+    "raw/cli-gate.junit.xml": "9d4b455286df4cca7b2d6b0a90193f5c5c9cd043810d730da7c3f83f729feb11",
+    "raw/focused.exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "source-manifest.json": "5bed3eb4197f25ea79af58b5d06801c004f65112e249ec346d91f3cd409fc654",
+    "raw/cli-gate.exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "raw/focused.log": "2c78f881d496c8d3ff20ff496668e7a279d424dca3eb303b76d227c23234f9a0",
+    "qa-package.zip": "3ef6d18f4ce3e1f2f28391176c75706acf2e7018a6ea6c0ac66c2605fb9d2b67",
+    "raw/cli-gate.log": "7fda057547c3666c984840a775940ece2838f1bf72bf522aea60761dd3a80027",
+    "qa-package-manifest.json": "a1495a4e01c7134472696d94521e8608cd906047eb7b4d79ee07fcfec6853060",
+    "raw/focused.junit.xml": "d844c6addd7dec6df4e7a8bb684be9834f1d52831c7e4c695e4fd171015c0619"
+  }
+}

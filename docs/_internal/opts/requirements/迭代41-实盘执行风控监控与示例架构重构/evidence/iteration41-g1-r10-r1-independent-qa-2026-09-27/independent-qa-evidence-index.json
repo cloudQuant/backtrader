@@ -1,0 +1,119 @@
+{
+  "zip_file": "independent-qa-evidence.zip",
+  "zip_sha256": "f064f7bd214e03b31be896a701baba46a61ffa72be2ee8000f70600dc726f752",
+  "manifest_sha256": "460fe775cb79d0801d1e83e9863d497c56cbb0cfd54e4298c709481b3dfb6de4",
+  "source_candidate_manifest_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+  "member_count": 22,
+  "members": [
+    {
+      "path": "frozen-author-evidence.zip",
+      "size_bytes": 378255,
+      "sha256": "79e761efa7720cf377f2febea09782ac66f17e4dae4f14da5d270364cc4ddc60"
+    },
+    {
+      "path": "independent-qa-manifest.json",
+      "size_bytes": 4326,
+      "sha256": "460fe775cb79d0801d1e83e9863d497c56cbb0cfd54e4298c709481b3dfb6de4"
+    },
+    {
+      "path": "independent-qa-manifest.sha256",
+      "size_bytes": 96,
+      "sha256": "51c34e77d1fd94fb258778efef3a591f58ca9ab2d21401c561b6684e947a5afa"
+    },
+    {
+      "path": "independent-qa-receipt.md",
+      "size_bytes": 5659,
+      "sha256": "f2001aa10b9fd4d86669879a03e564dadf0204ad0dfef0c5312cd60848b4f1af"
+    },
+    {
+      "path": "pinned-binary-run/command.txt",
+      "size_bytes": 302,
+      "sha256": "ddfa6e9163bc1281187e02a68df57e1b5859717987baa260f610caaac3c46327"
+    },
+    {
+      "path": "pinned-binary-run/exit.txt",
+      "size_bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "pinned-binary-run/runner-shim.py",
+      "size_bytes": 567,
+      "sha256": "b7f155f2b8af42c3b841246c13692c8c4a802ad5bd46a6ca7699f133589766f4"
+    },
+    {
+      "path": "pinned-binary-run/stdout.txt",
+      "size_bytes": 250,
+      "sha256": "92429a20e5ea595b3670709ab6b15140a9593812493a812f5202f2e7bc1b1c6d"
+    },
+    {
+      "path": "pinned-binary-run/trials.json",
+      "size_bytes": 89146,
+      "sha256": "9c89f6d18570818424deb8adecf17a87bdffc1c4a0f36e6b3540070062747bf8"
+    },
+    {
+      "path": "probes/job1-duplicate-failure.exit.txt",
+      "size_bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "probes/job1-duplicate-failure.py",
+      "size_bytes": 1009,
+      "sha256": "091abc583faf4471302e604b704b8e2ce061c0a9c88f8632da754d0d3788a0dc"
+    },
+    {
+      "path": "probes/job1-duplicate-failure.stdout.txt",
+      "size_bytes": 141,
+      "sha256": "c3475abfd64da696aaa33f50260f5c1fae6001bdca502f008d40db58a517d566"
+    },
+    {
+      "path": "probes/outer-job-retained-cleanup.exit.txt",
+      "size_bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "probes/outer-job-retained-cleanup.py",
+      "size_bytes": 290,
+      "sha256": "29eac78f6ae7fab726a0008683231845226d4398d93137a64032b37417ebdedd"
+    },
+    {
+      "path": "probes/outer-job-retained-cleanup.stdout.txt",
+      "size_bytes": 1075,
+      "sha256": "6b643426f1cba5ef42f230e2aa7f383605b426c97ad3e182eb995014e4de4ba2"
+    },
+    {
+      "path": "source-rebuild-run/build.bat",
+      "size_bytes": 368,
+      "sha256": "d02b5d5ead376d548b9bdab9503a46a093166f6beef86a8ad2f525424a334b90"
+    },
+    {
+      "path": "source-rebuild-run/build.log",
+      "size_bytes": 19,
+      "sha256": "90b5c3f187c93315c3a970b2ffedbfdb60c0939b00e8c802ebc0ff48b0a156f4"
+    },
+    {
+      "path": "source-rebuild-run/command.txt",
+      "size_bytes": 150,
+      "sha256": "7e634ec3ad6e92e3e9c08324906b424554b4c16599c9d5972a501f1673ce7185"
+    },
+    {
+      "path": "source-rebuild-run/exit.txt",
+      "size_bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "source-rebuild-run/rebuilt.exe",
+      "size_bytes": 286720,
+      "sha256": "371b5e839bb7a69b4482dfb7f4482839aab3e4618be2928e72c76db61482e15f"
+    },
+    {
+      "path": "source-rebuild-run/stdout.txt",
+      "size_bytes": 248,
+      "sha256": "63e20c5a59ef928f0aa10d39a6fb19d26d87ff536a3ec5dafb39760c7df3d0d9"
+    },
+    {
+      "path": "source-rebuild-run/trials.json",
+      "size_bytes": 89101,
+      "sha256": "04402d768e611beef115a3d0d0b5945f2976c06b21460cfad9da8c14eba8776e"
+    }
+  ]
+}

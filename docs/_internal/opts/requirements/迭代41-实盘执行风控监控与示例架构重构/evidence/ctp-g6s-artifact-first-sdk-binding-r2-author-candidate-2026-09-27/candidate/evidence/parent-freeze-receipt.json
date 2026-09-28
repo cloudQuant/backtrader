@@ -1,0 +1,78 @@
+{
+  "schema": "iteration41.g6s.main_td_settlement_consumer.freeze_receipt.v1",
+  "status": "ISOLATED_SOURCE_FAKE_ONLY_CANDIDATE",
+  "candidate_root": "D:\\temp\\iteration41-g6s-main-td-settlement-candidate-20260927",
+  "source_manifest": {
+    "path": "candidate-source-manifest.json",
+    "sha256": "1fd47cff2514fa25e4298efe7051989ad97427c8056693374004791d6b983661",
+    "payload_file_count": 117
+  },
+  "base": {
+    "repository": "D:\\source_code\\backtrader",
+    "readiness_path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+    "readiness_sha256_before": "F016783A6817D858A03CDA6E3F78ABEB43E769C0626D55757EE2DEBB7502D09D",
+    "readiness_sha256_after": "F016783A6817D858A03CDA6E3F78ABEB43E769C0626D55757EE2DEBB7502D09D",
+    "test_path": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+    "test_sha256_before": "B7CBA6AC34626726340565AD5BA002750EFE87EA668E3419035357D071C276F3",
+    "test_sha256_after": "B7CBA6AC34626726340565AD5BA002750EFE87EA668E3419035357D071C276F3",
+    "main_repository_modified": false
+  },
+  "sdk_input": {
+    "candidate_root": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927",
+    "manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+    "settlement_evidence_source_sha256": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+    "public_export_source_sha256": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+    "sdk_candidate_independent_qa": "pending",
+    "wheel_or_installed_sdk_used": false
+  },
+  "candidate_files": {
+    "readiness_path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+    "readiness_sha256": "368446CE5A8972AF7360039A7C79C42AAA10BA413CEB58F6FFEFF3D03F1F0D41",
+    "test_path": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+    "test_sha256": "2FE41CB9B271F5817B14D6319493D4152786B2F1FABA82866F20216967478794"
+  },
+  "verification": {
+    "working_directory": "D:\\temp\\iteration41-g6s-main-td-settlement-candidate-20260927",
+    "python_executable": "C:\\anaconda3\\python.exe",
+    "python_version": "3.11.5",
+    "pytest_command": "python -m pytest --noconftest tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml=evidence\\run\\focused-junit.xml",
+    "pytest_result": "22 passed, 0 skipped, exit 0",
+    "pytest_log_sha256": "3D31684BEB0F27C3A47960AF38E8694A27F86937D84D0BD718CEAC248CD92BC3",
+    "junit_sha256": "41224A6D6811EED3A5ABC2F98F6FA058FAD0DBDF47FB99D94E013FCCD2BA732B",
+    "source_origin_import_guard": {
+      "script": "evidence/run/source_origin_sdk_block_guard.py",
+      "script_sha256": "6A1CD958A1412A84D6ACDDBD407200D74437351C0324774A3018744FEEDE7EF9",
+      "log_sha256": "45045A5E92602782608FBCC8537F72FF7A575DD31405BBA84AC3D90902B8059B",
+      "result": "candidate readiness source imported from candidate root while bt_api_ctp imports were blocked; zero SDK modules loaded"
+    },
+    "static_checks": {
+      "compile": "compile() passed for changed source and test files without writing bytecode",
+      "ruff": "I001 and UP035 selected checks passed",
+      "log_sha256": "544054A276925F2452CD159FF3B03277F273F6E0225A9BFD6F6846C306657414"
+    },
+    "superseded_wrong_cwd_attempt": "An initial pytest invocation from D:\\source_code\\backtrader imported the main checkout instead of the candidate due current-directory precedence; it failed with unexpected keyword errors. That was not a candidate run. The corrected run used the candidate as working directory and verified its origin separately."
+  },
+  "behavior": {
+    "missing_verifier_rejects_before_query": true,
+    "source_manifest_must_match_exact_g4r2_digest": true,
+    "exact_nominal_sdk_evidence_and_seal_api_required": true,
+    "evidence_digest_and_filter_digest_revalidated": true,
+    "account_request_day_generation_and_confirm_date_bound": true,
+    "utc_and_monotonic_freshness_checked": true,
+    "native_confirm_date_only_row_accepted_by_fake_contract": true,
+    "write_request_counters_remain_zero_in_fake_tests": true
+  },
+  "scope_limits": {
+    "production_verifier_present": false,
+    "injected_python_verifier_is_security_boundary": false,
+    "native_loaded_or_called": false,
+    "provider_or_network_called": false,
+    "credentials_or_private_config_read": false,
+    "default_route_or_pin_changed": false,
+    "wheel_built_or_installed": false,
+    "sdk_candidate_independent_qa_complete": false,
+    "g4_accepted": false,
+    "g6s_accepted": false,
+    "durable_callback_inbox_or_cross_process_signature_added": false
+  }
+}

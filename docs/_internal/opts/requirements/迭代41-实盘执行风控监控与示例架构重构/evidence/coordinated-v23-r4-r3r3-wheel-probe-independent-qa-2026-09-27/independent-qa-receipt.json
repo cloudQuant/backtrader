@@ -1,0 +1,129 @@
+{
+  "schema": "independent-coordinated-release-probe-qa-receipt-v1",
+  "created_utc": "2026-09-27T01:04:03.222827+00:00",
+  "candidate_source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+  "author_raw_archive_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+  "author_archive_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+  "independent_raw_qa_archive": {
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-evidence.zip",
+    "sha256": "6f90ed890e0eb638f3e4b141fa0433c1cce854cc25661bf07fcccfbfb2ac9ddd",
+    "size_bytes": 7203230,
+    "member_count": 486
+  },
+  "independent_archive_index": {
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-archive-index.json",
+    "sha256": "f0d3db483b402ab440a09badb6969ab384dc3ca3c845b1e3a91b3c6b05a8fcd4"
+  },
+  "review_page": {
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-review.md",
+    "sha256": "c4f75cf8c7bfefd4110c7e93ef8c213238ef98916681f948cd131e347c813bb3"
+  },
+  "test_summary": {
+    "schema": "independent-coordinated-probe-test-summary-v1",
+    "created_utc": "2026-09-27T01:04:01.303564+00:00",
+    "suite_results": [
+      {
+        "suite": "main-bridge",
+        "tests": 73,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "47e9d190bf13aac68b026303fdc7ea1ac5276dceb425032850ae9dc7971a8696",
+        "junit_sha256": "134249c98a4de1deff2029d8779109530fa34bdcc3e1402a9d2589a52768da76",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py"
+        },
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "main-cancel-control",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "01da13ede3891679814de5aeb591fc18bd185e30ab0b6d2df9019fa6710253ad",
+        "junit_sha256": "87ff88991f239ce0f838f93894ec60d58715d4552fe06bea1179c45dca51a502",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src\\bt_api_risk\\__init__.py"
+        },
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "main-artifact-set",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "d9d0e1bc172d8966a9327063f0b9536bb8a3daa520b9d6fb635d2ba715934902",
+        "junit_sha256": "e176d024b51252749dcafea87f911f607d817feeb3f7c681f8d7cee49f26680a",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {},
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "parent-issuer-control",
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "e1a994126bb1af7ae262cce50338bc364cee30c1495ef08a7031af83de2ebd70",
+        "junit_sha256": "cf7ea32f61f146c09b0d00e856ba71da443027ea0a05e9497e602769aaf18a81",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src\\bt_api_risk\\__init__.py"
+        },
+        "native_modules_loaded": []
+      }
+    ],
+    "total_executions": 143,
+    "total_failures": 0,
+    "total_errors": 0,
+    "total_skipped": 0,
+    "unique_node_ids": 123,
+    "duplicate_node_executions": 20,
+    "node_id_duplicates": {
+      "tests.test_cancellation_dispatch_resolution_control::test_typed_cancel_proof_resolves_dispatch_then_unknown_with_final_barrier": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_missing_authority_rejects_without_clearing_either_latch": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_proof_issuance_failure_reasserts_both_latches": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_restart_replays_exact_proof_after_risk_commit_before_unknown_clear": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_restart_finishes_last_latch_after_released_audit_commit": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_corrupt_replay_proof_reasserts_both_latches": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_released_replay_requires_exact_prepared_monitor_fact[delete]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_released_replay_requires_exact_prepared_monitor_fact[corrupt]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_authorization_callback_returned_after_expiry_is_rejected": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_expiry_after_release_audit_commit_reasserts_latches_and_marks_expired": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_first_release_rejects_monitor_event_deleted_after_append": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_release_holds_monitor_writer_boundary_against_cross_process_delete": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_same_user_schema_writer_can_bypass_sqlite_only_guard_after_commit": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_readback_connection_is_closed_after_exact_monitor_check": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_monitor_fact_readback_connection_is_closed": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_risk_write_failure_reasserts_latches_and_releases_monitor_lock": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_resolution_authority_rejects_ctp_labeled_execution_scope": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[ctp_provider]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_account]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_strategy]": 2
+    }
+  },
+  "guard_summary_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\guard-summary.json",
+  "guard_summary_sha256": "fa77b1568bffc759b336c6c0c68a3fb083b8d397abd9508af46d010450c7c255",
+  "input_audit_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\input-audit.json",
+  "input_audit_sha256": "7cf5b4c84c36f753d0ae010d86dd901d5280d528c703230f32f9164906b441a4",
+  "installation_audit_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\installation-audit.json",
+  "installation_audit_sha256": "a17267072d895568ac3f91820379441380fe5f232b840d418b1d6b1944c1633e",
+  "result": "LOCAL_FAKE_ONLY_QA_PASSED; NO G1/G4/G5 OR RELEASE ACCEPTANCE"
+}

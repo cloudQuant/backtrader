@@ -1,0 +1,26 @@
+{
+  "all_selected_tests_passed": true,
+  "archive_bytes": 5563019,
+  "archive_index_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\coordinated-probe-archive-index-v2.json",
+  "archive_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+  "archive_indexed_files": 1015,
+  "archive_mismatches": [],
+  "archive_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\coordinated-probe-final-evidence-v2.zip",
+  "archive_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+  "build_inputs_exact_match": true,
+  "diffs_sha256": "eea5a3574ce6cc4b14121e4735a66ac8485a24d9ccc160f23f749544df6b3a24",
+  "duplicate_executions": 20,
+  "final_clean_guard_events": {
+    "guard-started": 13,
+    "source-import": 1031,
+    "source-namespace": 7
+  },
+  "final_prohibited_guard_event_count": 0,
+  "receipt_sha256": "7f75a2a3b0ec293ec15613fd11c0b70b78471b42f759166e16bb009a04cba022",
+  "review_sha256": "c6c2c11656d8b78d4365e454a4e1ac9decf0ccd03a21b0ac513cda5d51511bb4",
+  "schema": "iteration41-coordinated-probe-final-freeze-v2",
+  "source_manifest_file_count": 843,
+  "source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+  "test_invocations": 143,
+  "unique_test_nodes": 123
+}

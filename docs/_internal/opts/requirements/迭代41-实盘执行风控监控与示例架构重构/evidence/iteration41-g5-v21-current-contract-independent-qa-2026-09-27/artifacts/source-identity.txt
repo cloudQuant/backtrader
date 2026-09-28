@@ -1,0 +1,18 @@
+Historical G5 candidate allocator:
+path=D:\temp\iteration41-g5-order-authority-20260927-candidate\implementation\sdk\src\bt_api_execution\ctp_identity_authority.py
+bytes=28615
+sha256=8E7ABDD2819F66B6EC3D5FF1D5A049FCBB91AE8E71327665EE925098D35F647D
+symbols=CtpUnifiedOrderActionAuthority, reserve_cancel_action_identity, ctp_action_ref_watermarks, ctp_action_identity_reservations
+
+Current active G5 adapter:
+path=D:\source_code\backtrader\backtrader_runtime\ctp_managed_action_authority.py
+bytes=48077
+sha256=7CAED2A83447173FF93755C5561713C2E2F8F410D21AE78E4A07CCCD3F681C66
+symbols=CtpManagedActionAuthorityAdapter, _action_digest; no historical allocator symbols/tables.
+Exact test fixture bytes match active adapter SHA.
+
+Current runtime candidates/inventory:
+managed_account_runtime_candidate.py sha256=765655CFBE1B4E92959D35B02D0C5D5C203E205816CBAFC50891238952D258DA
+ctp_i9_account_session_candidate.py sha256=E80E23200ACFB2F3148D914EF5D6076DDD077F39240644DF53F4780147D4F2B6
+inventory.py sha256=0EBC77EFD22E21B299E794E09C8CB879899B5DC4EFD3302E86D2D9C626B0F6CB; no ctp_managed_account_runtime_candidate registration reference.
+

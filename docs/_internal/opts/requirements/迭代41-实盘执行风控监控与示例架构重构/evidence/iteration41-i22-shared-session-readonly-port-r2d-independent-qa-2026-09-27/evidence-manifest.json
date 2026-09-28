@@ -1,0 +1,28 @@
+{
+  "schema": "iteration41-i22-shared-session-readonly-port-r2d-independent-evidence-v1",
+  "verdict": "FAKE_READ_PORT_CONTRACT_ONLY / NO_WRITE / LIVE_NO_GO",
+  "author_zip_sha256": "0160b69c0c91a046d2b47d5a55ddcfc2cdd6c979db5b0a023e69892d18f84a9b",
+  "author_manifest_sha256": "3e4b386ec95f52bb27d268a857aa4d5223d28ba2daf1952e2b6caf95eaf9f199",
+  "patch_sha256": "423111adfbfb47eb56e5303e917815c4f4594760c203d18930c44cf6b800094c",
+  "independent_receipt_sha256": "c315d20a2a900bf6c4ce5eac83cec9a210bfaaf5edbd3481464766e9d6872924",
+  "independent_focused_junit_sha256": "8825a44a334d4c0c58766b6ccea87e1e0c915ffeae7f384d5f29600b47deff25",
+  "candidate_focus": "7 passed",
+  "i22_migration": "3 of 200 migrated; 197 untouched",
+  "dependency": "unmerged r2c source; patch is not directly applicable to current main",
+  "stores_runtime_broad": "258 failures remain in r2c integration",
+  "source_and_tests": {
+    "btapistore": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+    "read_port_test": "4037175778a868ab370c769752956f3ba74af19006423ddd063d70549ea78240",
+    "i22_test": "cf2433f1c21d91534223fdf79c8d9dd2f10b38d88bec7be25939c6b8169e187d",
+    "account_actor_port": "78018de4cb880e14893309da8293cfb03749eae17753b1fbdb699e4d404b5367"
+  },
+  "author_zip_members": 36,
+  "author_payloads_verified": 35,
+  "zip_crc_clean": true,
+  "copied_files": 28,
+  "limitations": [
+    "FAKE_READ_PORT_CONTRACT_ONLY: no common snapshot proof, account/session authority, Store runtime binding, production admission, or write authority.",
+    "Depends on unmerged r2c; r2d patch is not directly applicable to current main.",
+    "NO_WRITE / LIVE_NO_GO; no production changes."
+  ]
+}

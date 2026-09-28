@@ -1,0 +1,119 @@
+{
+  "changed_payloads": [
+    {
+      "bytes": 13182,
+      "path": "src/offline_cutover_validator.py",
+      "preimage_sha256": "2760a43ede16b8bfc680a75ce16f4c83c5a75fad42db27729fdf3beaba86a4bf",
+      "replay_exact": true,
+      "replay_sha256": "ce13d2ca96c028e7bbe304082ef693d28caaf89fc65ad3086a0074584285b95a",
+      "target_sha256": "ce13d2ca96c028e7bbe304082ef693d28caaf89fc65ad3086a0074584285b95a"
+    },
+    {
+      "bytes": 9766,
+      "path": "tests/test_offline_cutover_validator.py",
+      "preimage_sha256": "7515ab2e78d61aaf15dd918e240e324d43ef7784d540825e10a231f7067ddddc",
+      "replay_exact": true,
+      "replay_sha256": "1a49521e7387de6a0ed634685ef0c94c683255cc6bc5e12da7b7630bdc2b61bd",
+      "target_sha256": "1a49521e7387de6a0ed634685ef0c94c683255cc6bc5e12da7b7630bdc2b61bd"
+    },
+    {
+      "bytes": 5224,
+      "path": "docs/CANDIDATE.md",
+      "preimage_sha256": "62f0d33cc88295ba623073a4993e88de5dc561497338413d6cc7ec17981a6428",
+      "replay_exact": true,
+      "replay_sha256": "a21998d6c73ec42db5ebcf86ffa45c36c0d1f11677de9402c993006b1d4b2b6d",
+      "target_sha256": "a21998d6c73ec42db5ebcf86ffa45c36c0d1f11677de9402c993006b1d4b2b6d"
+    },
+    {
+      "bytes": 2412,
+      "path": "docs/LIMITATIONS.md",
+      "preimage_sha256": "e4323bd0221e01786b3abfd3103fb1d8392d62f3bebbb51474e97cb40305754d",
+      "replay_exact": true,
+      "replay_sha256": "ea7404497a6bf7c7804346ac14d832a14926e68a85effc6b32e9bbe00f87113f",
+      "target_sha256": "ea7404497a6bf7c7804346ac14d832a14926e68a85effc6b32e9bbe00f87113f"
+    }
+  ],
+  "contract": {
+    "callback_policy": "validate exact types before digest/equality; digest does not invoke caller row serialization methods",
+    "compared_identity_fields": [
+      "account_key",
+      "trading_day",
+      "scope_key",
+      "managed_action_id",
+      "managed_intent_id",
+      "runtime_order_id",
+      "order_ref",
+      "native_action_ref"
+    ],
+    "digest_is_integrity_not_authenticity": true,
+    "input_type_policy": "exact CutoverBundle, SnapshotManifest, ActionRefEvidence and tuple rows with exact built-in primitive fields; arbitrary mappings/subclasses rejected",
+    "never_allocates_renumbers_deletes_or_coalesces": true,
+    "no_database_file_network_sdk_provider_or_runtime_io": true,
+    "snapshot_boundary_policy": "same explicit snapshot_boundary_id required; status comparison assumes both source projections represent that same cutover boundary; boundary identifier is unauthenticated caller data",
+    "state_policy": "only READY, CLAIMED, COMPLETED accepted; per-identity state must match exactly; UNKNOWN, missing, unsupported, or differing state rejects"
+  },
+  "created_utc": "2026-09-27T13:30:04.134682+00:00",
+  "disposition": "LOCAL_TYPED_CONTRACT_ONLY / NO_WRITE / NO_AUTHORITY / NOT_A_MIGRATION_TOOL / LIVE_NO_GO",
+  "independent_qa": "PENDING",
+  "limitations": [
+    "old G5 schema exists only in separate candidate source; no actual deployed schema or authenticated exporter is known",
+    "old G5 action reservation rows lack command ID and state; normalized legacy state requires a separately validated command join",
+    "V21 allocation needs command/correlation join to recover shared identity fields",
+    "same caller-supplied boundary ID does not authenticate simultaneous or complete capture",
+    "no authenticated native MaxOrderActionRef floor",
+    "no external authenticated account-wide writer epoch or old-writer fence",
+    "no real account migration, deployment, provider, or live evidence"
+  ],
+  "main_tree_changes_by_candidate": [],
+  "patch": {
+    "base": "r0 exact payloads",
+    "bytes": 24590,
+    "path": "OFFLINE-ACTIONREF-CUTOVER-CONSISTENCY-r1.patch",
+    "sha256": "339c8450722f18c9061d4960377ca0939032c2dc7f0453592d05674f18f093a4"
+  },
+  "replay": {
+    "git_apply_check": "passed with core.autocrlf=false",
+    "patched_payloads_exact": true,
+    "path": "D:\\temp\\iteration41-g5-v21-offline-cutover-validator-r1-replay-20260927"
+  },
+  "revision": "r1",
+  "revision_changes": [
+    "Reject source state mismatches for each identity even when account/action/reference match.",
+    "Require identical nonempty snapshot_boundary_id values for both projections; mismatch rejects.",
+    "Require exact dataclass/container and built-in primitive types before any source comparison or digest construction.",
+    "Canonical digest copies primitive dataclass fields and does not call supplied row.to_payload."
+  ],
+  "schema": "iteration41.g5-v21-actionref-offline-cutover-candidate.manifest.v2",
+  "source_basis": {
+    "current_main_g5_verifier": {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_managed_action_authority.py",
+      "role": "current verifier; not the historical allocator schema",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66"
+    },
+    "historical_g5_sdk_candidate": {
+      "path": "D:/temp/iteration41-g5-order-authority-20260927-candidate/implementation/sdk/src/bt_api_execution/ctp_identity_authority.py",
+      "role": "candidate schema evidence only; deployment schema unknown",
+      "sha256": "8e7abdd2819f66b6ec3d5ff1d5a049fcbb91ae8e71327665ee925098d35f647d"
+    },
+    "r0_candidate_base": {
+      "git_commit": "103facd",
+      "provenance_correction": "r0 repository HEAD verified as 103facd; 213574e was the r1 baseline commit, not present in r0 object database",
+      "manifest_sha256": "9252f88150efafe055dbaf4a134bfa056a651150d785b8cc1c2490669a60f2df",
+      "path": "D:\\temp\\iteration41-g5-v21-offline-cutover-validator-r0-20260927"
+    },
+    "v21_r3_store_preimage": {
+      "path": "D:/temp/iteration41_v21_ctp_account_handoff_freeze_r3_20260927/src/bt_api_execution/store.py",
+      "role": "frozen local V21 r3 source snapshot",
+      "sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a"
+    }
+  },
+  "tests": {
+    "command": "From the r1 replay directory: $env:PYTHONPATH=\"src\"; python -m pytest -q tests/test_offline_cutover_validator.py --junitxml=\"D:/temp/iteration41-g5-v21-offline-cutover-validator-r1-20260927/artifacts/author-r1-junit.xml\"",
+    "junit_artifact": "D:/temp/iteration41-g5-v21-offline-cutover-validator-r1-20260927/artifacts/author-r1-junit.xml",
+    "junit_bytes": 4444,
+    "junit_sha256": "79fe3a868619062271fbbd8c0c0d02f4d8a0bcee9b704a4261c8404630a5cc27",
+    "result": "28 passed",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed"
+  }
+}

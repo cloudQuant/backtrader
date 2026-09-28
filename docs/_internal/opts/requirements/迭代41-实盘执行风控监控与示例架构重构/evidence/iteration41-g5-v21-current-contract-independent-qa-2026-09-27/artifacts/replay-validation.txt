@@ -1,0 +1,11 @@
+Preimage snapshot: D:\temp\iteration41_v21_ctp_account_handoff_freeze_r3_20260927
+Independent copy/replay: D:\temp\iteration41-g5-v21-current-contract-independent-qa-20260927\replay
+SOURCE-MANIFEST: 32 rows verified.
+PREIMAGE-TARGET-MANIFEST: 10 changed payloads; each preimage matched, including absent paths.
+Patch SHA-256: AC5F984B6B49EC5E6EB5C99DD31F7E0B8D0A3548B68B8263D629AD71FCDC2B3A
+git apply --check: PASS (core.autocrlf=false, -p1)
+git apply: PASS
+All 10 post-apply target hashes: PASS.
+Candidate manifest label: manifest.json SHA 15C37A6CC5503127C63D6987B9DE0FD71A48181FC33DFF5A4E52F57A8FC5D129.
+Author packet manifest actually referenced in freeze message: PREIMAGE-TARGET-MANIFEST.json SHA 404EC9E4B21A0FBA776FFFAC2EBB4DE46BB25508340DC1214304D58FD66DFFD9.
+

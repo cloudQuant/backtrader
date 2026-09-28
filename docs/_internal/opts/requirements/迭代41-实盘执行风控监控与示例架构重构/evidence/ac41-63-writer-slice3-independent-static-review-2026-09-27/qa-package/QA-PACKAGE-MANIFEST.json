@@ -1,0 +1,43 @@
+{
+  "schema": "ac41-63-writer-slice3-independent-qa-v1",
+  "verdict": "PASS_STATIC_AUDIT_SCOPE_ONLY; NO_WRITE / LIVE_NO_GO retained",
+  "author_input_zip_sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000",
+  "artifact_count": 7,
+  "artifacts": [
+    {
+      "path": "author-input/slice3-r2.zip",
+      "bytes": 105515,
+      "sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000"
+    },
+    {
+      "path": "build-qa-package.py",
+      "bytes": 1714,
+      "sha256": "181d7faac68f49571c9248266484819d9f17771b1d90b9e521334b1f33b10048"
+    },
+    {
+      "path": "QA-RECEIPT.md",
+      "bytes": 3877,
+      "sha256": "0684063397ffb1cac4dd4a8d91b0bcd6cb2390c97930285ac5a2ad2fa3301442"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 1247,
+      "sha256": "4d24208f057a54dd2fda6c0e4ebef8ef9f1013afd7204626b98cb83ae2cf6601"
+    },
+    {
+      "path": "verify-slice3.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "verify-slice3.log",
+      "bytes": 1131,
+      "sha256": "74dffdc2e9b2039f9930fd13d9df80607c1f663c5cb873bcb7ceb63d00f8ed2e"
+    },
+    {
+      "path": "verify-slice3.py",
+      "bytes": 7806,
+      "sha256": "7844bf9b73cba7c00873eb7973513d0a1179917cde7f12274399bc4e6ad7f059"
+    }
+  ]
+}

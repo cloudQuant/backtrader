@@ -1,0 +1,13 @@
+{
+  "baseline_files": 498,
+  "candidate_files": 498,
+  "difference_count": 1,
+  "differences": [
+    {
+      "baseline_sha256": "53cd937a7202990df883fa071c210d31573f11df83937c05880abb3cbc50e90b",
+      "candidate_sha256": "57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae",
+      "kind": "content",
+      "path": "backtrader/stores/btapistore.py"
+    }
+  ]
+}

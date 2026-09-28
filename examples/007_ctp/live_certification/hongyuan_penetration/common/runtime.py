@@ -19,29 +19,53 @@ logger = logging.getLogger(__name__)
 _SUITE_DIR = Path(__file__).resolve().parent.parent
 _REPO_ROOT = _SUITE_DIR.parents[3]
 
+
+def _is_direct_legacy_case_process() -> bool:
+    """Return true only for ``python cases/<case>.py`` child invocations."""
+
+    try:
+        return Path(sys.argv[0]).resolve().parent == (_SUITE_DIR / "cases").resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
+if _is_direct_legacy_case_process():
+    # This is deliberately before Backtrader, BtApiStore, and all
+    # provider configuration. A copied case reaches the same gate but is not
+    # trusted by the central registry, so it cannot become a hidden route.
+    if str(_REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT))
+    from backtrader_runtime.legacy import run_legacy_config_first_cli
+
+    raise SystemExit(run_legacy_config_first_cli(_SUITE_DIR.parents[1] / "runtime"))
+
 for _p in (_SUITE_DIR, _REPO_ROOT):
     _sp = str(_p)
     if _sp not in sys.path:
         sys.path.insert(0, _sp)
 
-try:
-    from dotenv import load_dotenv
+import backtrader as bt  # noqa: E402
+from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402
+from backtrader.feeds.btapifeed import BtApiFeed  # noqa: E402
+from backtrader.stores.btapistore import BtApiStore  # noqa: E402
 
-    load_dotenv()
-except ImportError:
-    pass
-
-import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
-from backtrader.stores.btapistore import BtApiStore
-
-from common import config as cfg
-from common.evidence import attach_reconciliation, capture_store_snapshot
-from common.result import CaseTimer, save_result
+from common import config as cfg  # noqa: E402
+from common.evidence import attach_reconciliation, capture_store_snapshot  # noqa: E402
+from common.result import CaseTimer, save_result  # noqa: E402
 
 
 _LOGIN_READINESS_ERRORS = ("did not become ready within",)
+
+
+def _mask_investor_id(investor_id):
+    """Return a display value that never includes a complete investor ID."""
+    value = str(investor_id or "")
+    if not value:
+        return "<empty>"
+    if len(value) <= 4:
+        return next(mask for mask in ("****", "••••") if value not in mask)
+    masked = f"{value[:2]}***{value[-2:]}"
+    return "***" if value in masked else masked
 
 
 def start_store_with_retry(store, attempts=3, delay=1.0):
@@ -72,6 +96,13 @@ def start_store_with_retry(store, attempts=3, delay=1.0):
 @contextlib.contextmanager
 def started_store(env_key=None, stop_on_exit=True, case_id=None, report_dir=None):
     """Create a live BtApiStore in a subprocess-safe context."""
+    # Keep the retained helper from becoming a programmatic bypass of the
+    # direct-case CLI fence. A future managed certification profile must use a
+    # separately reviewed runtime and may not toggle this historical helper.
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+
+    raise legacy_direct_execution_error("007_ctp/hongyuan_penetration/started_store")
+
     env_key = env_key or cfg.get_env_key()
     hy_config = cfg.create_config(env_key)
     env_info = cfg.HONGYUAN_ENVIRONMENTS[env_key]
@@ -82,7 +113,7 @@ def started_store(env_key=None, stop_on_exit=True, case_id=None, report_dir=None
     print(f"\n使用宏源期货环境: {env_info['name']}")
     print(f"  交易前置: {hy_config['td_address']}")
     print(f"  行情前置: {hy_config['md_address']}")
-    print(f"  InvestorID: {hy_config['investor_id']}")
+    print(f"  InvestorID: {_mask_investor_id(hy_config['investor_id'])}")
 
     try:
         start_store_with_retry(store)
@@ -170,9 +201,7 @@ def create_cerebro(
     cerebro.adddata(data)
 
     if with_trade_logger and log_dir:
-        cerebro.addobserver(
-            bt.observers.TradeLogger, log_dir=log_dir, log_format="json"
-        )
+        cerebro.addobserver(bt.observers.TradeLogger, log_dir=log_dir, log_format="json")
     return cerebro
 
 
@@ -280,7 +309,7 @@ def ensure_ctp_trading_admission(store, symbol, timeout=30.0):
     health_getter = getattr(store, "get_ctp_query_health", None)
     preflight = getattr(store, "get_ctp_preflight_snapshot", None)
     if not callable(preflight):
-        return
+        raise RuntimeError("CTP preflight capability unavailable")
 
     def _health_is_complete() -> bool:
         if not callable(health_getter):
@@ -315,7 +344,7 @@ def ensure_ctp_trading_admission(store, symbol, timeout=30.0):
 
     arm = getattr(store, "arm_registered_sim_execution", None)
     if not callable(arm):
-        return
+        raise RuntimeError("CTP execution admission capability unavailable")
     snapshot_sha = snapshot.get("snapshot_sha256") if isinstance(snapshot, dict) else None
     if not snapshot_sha:
         # Health was already fresh; take a fresh snapshot to bind this arm.
@@ -356,9 +385,7 @@ def case_main(run_fn, meta: dict):
 
     case_id = meta["case_id"]
     report_dir = (
-        Path(args.report_dir)
-        if args.report_dir
-        else _SUITE_DIR / "reports" / "latest" / case_id
+        Path(args.report_dir) if args.report_dir else _SUITE_DIR / "reports" / "latest" / case_id
     )
     report_dir.mkdir(parents=True, exist_ok=True)
     old_report_dir = os.environ.get("CERTIFICATION_REPORT_DIR")

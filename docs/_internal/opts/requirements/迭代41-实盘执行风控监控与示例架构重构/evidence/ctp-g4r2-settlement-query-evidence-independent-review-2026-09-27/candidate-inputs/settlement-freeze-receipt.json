@@ -1,0 +1,50 @@
+{
+  "schema": "iteration41.g4r2.settlement_query_evidence.freeze_receipt.v1",
+  "status": "FOCUSED_READY_SOURCE_FAKE_ONLY",
+  "candidate_root": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927",
+  "source_manifest": {
+    "path": "settlement-source-manifest.json",
+    "sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9"
+  },
+  "source_files": {
+    "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+    "src/bt_api_ctp/__init__.py": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+    "tests/test_ctp_settlement_query_evidence.py": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65"
+  },
+  "test_evidence": {
+    "command": "python -m pytest --noconftest tests/test_ctp_settlement_query_evidence.py tests/test_ctp_native_query_certificate.py -q --tb=short",
+    "result": "48 passed, 2 warnings",
+    "log": {
+      "path": "settlement-focused-tests.log",
+      "sha256": "0E0BF148E29CEDDB80BB9B60DB5683C5C6D4ED6A989745FEF7E91F4A4A044015"
+    },
+    "static_log": {
+      "path": "static-checks.log",
+      "sha256": "BF8819EC215BF481380BF7DFF63C546B22E91538D4D4752ED6C5C88AC13910B6"
+    },
+    "source_origin_smoke": {
+      "path": "source-origin-smoke.log",
+      "sha256": "BA1879E522D2A2AA5A8A2CF9A719CFFFFC6E285A5B8E9B4A4584C2473DB016D4"
+    },
+    "native_import_guard_log": {
+      "path": "blocked-native-imports-final.jsonl",
+      "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508",
+      "entries": 2,
+      "meaning": "both bt_api_ctp.ctp._ctp import attempts were blocked before native module loading"
+    }
+  },
+  "scope": {
+    "wheel_built": false,
+    "main_readiness_modified": false,
+    "default_pin_or_route_modified": false,
+    "provider_or_credentials_used": false,
+    "native_api_called": false,
+    "g4_accepted": false,
+    "g2_or_g6s_accepted": false
+  },
+  "remaining_blockers": [
+    "Main readiness has no consumer/verifier for this SDK evidence and still lacks independent source/history/freshness checks.",
+    "The terminal history digest is derived from the in-process sealed query source and result metadata, not a durable ordered callback inbox or cross-process signature.",
+    "No actual native settlement callback/readback was exercised; the generated extension was explicitly blocked."
+  ]
+}

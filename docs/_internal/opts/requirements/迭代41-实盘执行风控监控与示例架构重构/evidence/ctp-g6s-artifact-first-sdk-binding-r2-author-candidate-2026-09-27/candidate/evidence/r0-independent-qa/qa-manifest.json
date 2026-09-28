@@ -1,0 +1,132 @@
+{
+  "candidate_manifest_sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+  "payload_count": 25,
+  "payload_files": [
+    {
+      "path": "candidate-source-manifest.json",
+      "sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+      "size": 32057
+    },
+    {
+      "path": "freeze-receipt.json",
+      "sha256": "79b633ff8bac9d9c18e3cfacd4c54382db1d9c8e999d133a7edc20080f4e0738",
+      "size": 2115
+    },
+    {
+      "path": "README.md",
+      "sha256": "8f637c6c0da6358d876fc8259dee5b4ffce6450c9d51e71c9fce4bf8471201b3",
+      "size": 3381
+    },
+    {
+      "path": "backtrader_runtime/ctp_sdk_artifact_binding.py",
+      "sha256": "c151baab64428326a0494a4cbaf1bb4de1b242d95998da161afbb80a1d8055c5",
+      "size": 24081
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "sha256": "25ceb62fd9ec0aa2c9280f555e6c95b92e4a24c0d201ee7d4ffb92c3027bf48a",
+      "size": 31224
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_sdk_artifact_binding.py",
+      "sha256": "4b8c63c06a7795e3ac2115fb4e3bf57a12704e0bfb8b138ba71076a9e974b162",
+      "size": 16123
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "sha256": "136e94204c418ad452cb67e155c827cfa0ef57697b77d4ae607c1fa109235377",
+      "size": 29235
+    },
+    {
+      "path": "tests/unit/runtime/test_g6s_adversarial.py",
+      "sha256": "e31371ea49407f795b2df782a0c60144752113e775a1b8f4fc0872ab1e7c2e68",
+      "size": 7866
+    },
+    {
+      "path": "evidence/independent-qa/test_g6s_adversarial.py",
+      "sha256": "e31371ea49407f795b2df782a0c60144752113e775a1b8f4fc0872ab1e7c2e68",
+      "size": 7866
+    },
+    {
+      "path": "evidence/independent-qa/qa-report.md",
+      "sha256": "c454618ac37c3396ca43db404de107c77c74213023a554f005c1ff549af51795",
+      "size": 5545
+    },
+    {
+      "path": "evidence/independent-qa/qa-receipt.json",
+      "sha256": "8e78277e58f4c94aa2076da4ba0b809e61f5ea496a514a37b28d4302dcf4b429",
+      "size": 2094
+    },
+    {
+      "path": "evidence/independent-qa/test-counts.json",
+      "sha256": "6a3b43b9a0b4f1645c6432dbec16eee3aea0cd85b27f59095d1826b4ee03d1c4",
+      "size": 424
+    },
+    {
+      "path": "evidence/independent-qa/command-and-environment.txt",
+      "sha256": "2d9d3552752a7f8aa092209980e98829fba3e809c122250e069fe64cce9fef2d",
+      "size": 588
+    },
+    {
+      "path": "evidence/independent-qa/candidate-manifest-validation.log",
+      "sha256": "c54f410432be81e5721ade16bdefa150e6c18c9e9d82ebdc5694e0ed45389865",
+      "size": 347
+    },
+    {
+      "path": "evidence/independent-qa/focused-pytest.log",
+      "sha256": "eaea65f03b6fc7163398041f7d349c048c33fbd894c2775d8cdade6c85a39f4b",
+      "size": 246
+    },
+    {
+      "path": "evidence/independent-qa/focused-junit.xml",
+      "sha256": "5d3d96864dcaa4e34f065456b83abc3ccd880ba72fa68e39ab09fa5eeb2c43fe",
+      "size": 6697
+    },
+    {
+      "path": "evidence/independent-qa/focused-exit-code.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "size": 1
+    },
+    {
+      "path": "evidence/independent-qa/adversarial-pytest.log",
+      "sha256": "6874946d16dcb2de5b8fd342f7bdc1cc5b48830786c70012dbfb1a6764d94769",
+      "size": 250
+    },
+    {
+      "path": "evidence/independent-qa/adversarial-junit.xml",
+      "sha256": "9e343f29df9c0bd14b56ed1595a2646af4a04ab43e3af939e803230fc7b77f32",
+      "size": 3716
+    },
+    {
+      "path": "evidence/independent-qa/adversarial-exit-code.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "size": 1
+    },
+    {
+      "path": "evidence/independent-qa/combined-pytest.log",
+      "sha256": "33e6cf82057a12b4041010c2f6b980b714c3bae0bd5880de4f110976c079e518",
+      "size": 247
+    },
+    {
+      "path": "evidence/independent-qa/combined-junit.xml",
+      "sha256": "82382f0280d6443fbf5022de714d6364aae760d79779ee5d4d506fa4a3152b6a",
+      "size": 8013
+    },
+    {
+      "path": "evidence/independent-qa/combined-exit-code.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "size": 1
+    },
+    {
+      "path": "evidence/independent-qa/fresh-process-gate.log",
+      "sha256": "2ff9ebda14f14445047730d56837d41f35cc83a8230f5595df4137966f395f11",
+      "size": 98
+    },
+    {
+      "path": "evidence/independent-qa/fresh-process-gate-exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "size": 1
+    }
+  ],
+  "schema": "iteration41.g6s.artifact_first_independent_qa_manifest.v1"
+}

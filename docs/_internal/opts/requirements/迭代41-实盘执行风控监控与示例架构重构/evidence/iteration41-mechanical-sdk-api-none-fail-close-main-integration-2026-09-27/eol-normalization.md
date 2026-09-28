@@ -1,0 +1,7 @@
+# EOL / raw-byte normalization note
+
+The repository has `core.autocrlf=true`. The mechanical operator's current main worktree target is byte-identical to the author candidate SHA `549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f`; the raw worktree file has 1,491 CRLF endings and SHA-256 `549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f`. Replacing CRLF with LF yields 1,491 LF-only endings, 61,109 bytes and SHA-256 `25fc952327c2189665b9f287f766385fe2348fa299fa52674a219cbebe55ea64`. This is the CRLF-to-LF clean/index normalization expected from `core.autocrlf=true`; raw worktree and normalized-content hashes are not interchangeable.
+
+The `HEAD`/index blob present at archive time is the pre-integration LF-only source (1,491 LF, 61,090 bytes, SHA-256 `976dedc206d4ca475c9982d40168ddcab2f986210485601f754e2a1f73411ba1`). It is distinct from the author manifest's source preimage SHA `aa4292252d86e560a733b1030ce3c1438bc37fd99cd5b66518c853fd87ccfa19`; this archive does not claim those preimages are byte-identical. `git diff --numstat` shows the semantic code change as one addition/one deletion under EOL normalization.
+
+The added test target is pure LF (153 linefeeds, no CRLF), 5,595 bytes, SHA-256 `3f462651e3cc5f66b990b495be2bfc50913bb60e11d17d28f02f215e67998783`. Its canonical tests-only patch is also LF-only; no existing test file was normalized. Archive copies preserve raw bytes. See `main/target-identities.json` for measured hashes/counts.

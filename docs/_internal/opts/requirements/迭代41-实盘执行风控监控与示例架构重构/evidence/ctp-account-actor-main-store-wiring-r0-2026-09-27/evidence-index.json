@@ -1,0 +1,128 @@
+{
+  "status": "AUTHOR_CANDIDATE / NO_WRITE",
+  "date": "2026-09-27",
+  "candidate_root": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r0",
+  "main_base_store_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "candidate_store_sha256": "e41dd9189059911a180e7fb27bde546cb90a1f7bd2a0c59df6ed624f12c3e179",
+  "candidate_actor_module_sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48",
+  "candidate_test_sha256": "19afe01afbe3679018a861ca00c16f5aa0ddd1f4c32823b52812bccce6ccfcdf",
+  "candidate_patch_sha256": "c1bab0ae9d94c7d428ffa436934c9cee91f51e94c8461e23d20f5a56269004f9",
+  "candidate_manifest_sha256": "ef68998d2b8b75a2125f85bb5720c2e8ba737c818b9d76217767b627cb8b6d14",
+  "candidate_payload_count": 613,
+  "candidate_archive_sha256": "9d3453faa8093d4b8e01fd14aeffb400b3e2e72a6d7de5babaa6f9f37b654ebf",
+  "candidate_archive_members": 615,
+  "focused_candidate_tests": "11 passed",
+  "main_related_regressions": "30 passed",
+  "archive_replay": "11 passed; Ruff pass; py_compile pass",
+  "compatibility_boundary": "Raw API/API class injection, unknown or ambiguous selectors, CTP forwarding/gateway, and actor-only start/legacy routes are intentionally rejected; full Store suite not run.",
+  "external_acceptance_blocker": "Requires external authenticated authoritative actor service with per-action current authority, durable idempotency, account-wide cross-host fence, and same-session read/callback contract.",
+  "production_acceptance": false,
+  "g1_g5_f14_acceptance": false,
+  "files": [
+    {
+      "path": "archive-smoke-pycompile.output.txt",
+      "size_bytes": 39,
+      "sha256": "ce4ca94f5ecfd22c90fe0bcb8c4b90bc812315804fa2c99053277854e575a47e"
+    },
+    {
+      "path": "archive-smoke-pytest.output.txt",
+      "size_bytes": 586,
+      "sha256": "fa9b7aad0c8457959928619a77a45d81b49e0ed150fed75e39669d58c6c934cf"
+    },
+    {
+      "path": "archive-smoke-ruff.output.txt",
+      "size_bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "candidate-focused.output.txt",
+      "size_bytes": 892,
+      "sha256": "d315a46224ea57e72ebbde94493413221ac94c640271bc1205e4814c18bc6d57"
+    },
+    {
+      "path": "candidate-manifest.json",
+      "size_bytes": 115033,
+      "sha256": "ef68998d2b8b75a2125f85bb5720c2e8ba737c818b9d76217767b627cb8b6d14"
+    },
+    {
+      "path": "candidate-manifest.sha256",
+      "size_bytes": 91,
+      "sha256": "be1a792e8f5411920e9d6a964fc31bcaa0e7f0ff0b5936273824506aa35bbee8"
+    },
+    {
+      "path": "candidate-qa-report.md",
+      "size_bytes": 6266,
+      "sha256": "c23034484f5049d44771539b6849a35d6f0aff4bbe3cc0a2f3028dbfdf244c9d"
+    },
+    {
+      "path": "candidate-r0.patch",
+      "size_bytes": 219334,
+      "sha256": "c1bab0ae9d94c7d428ffa436934c9cee91f51e94c8461e23d20f5a56269004f9"
+    },
+    {
+      "path": "candidate-r0.raw.zip",
+      "size_bytes": 2277083,
+      "sha256": "9d3453faa8093d4b8e01fd14aeffb400b3e2e72a6d7de5babaa6f9f37b654ebf"
+    },
+    {
+      "path": "candidate-ruff.output.txt",
+      "size_bytes": 383,
+      "sha256": "144dd352372c5c6e3854197be3eeba2026520eacb0a6ee62e29d1bac7d3c1f33"
+    },
+    {
+      "path": "candidate-static.output.txt",
+      "size_bytes": 246,
+      "sha256": "cae5f8328354e8a1b9dface0c10b41263de5d30a84a0ded54421ad180c37dff3"
+    },
+    {
+      "path": "candidate-test-ruff.output.txt",
+      "size_bytes": 257,
+      "sha256": "3c2c3b37ba575a0c22b84c6f7f65098b8f9cf6091d981ff9f145318c3e08ef95"
+    },
+    {
+      "path": "iteration41-ctp-account-actor-main-store-wiring-r0-archive-replay-receipt-final.md",
+      "size_bytes": 3480,
+      "sha256": "e4d4deec8a1c6e92dc36919c378eadf9847b4b894b20420a0038c0b0354b3ec4"
+    },
+    {
+      "path": "iteration41-ctp-account-actor-main-store-wiring-r0-archive-replay-receipt-final.md.sha256",
+      "size_bytes": 150,
+      "sha256": "1e9a410247e5de7f12ef1e85d28a14202346a7ba4ca5f799eaba0756b7b5def9"
+    },
+    {
+      "path": "main-related-tests.output.txt",
+      "size_bytes": 847,
+      "sha256": "2aeeb0fafd120c4ef826a5fabefa1e6c1e373dda6a21426acee8e35a52568b2c"
+    },
+    {
+      "path": "patch-apply-smoke.output.txt",
+      "size_bytes": 473,
+      "sha256": "5e3ab36c1b286404c73660a14f68c1081f0cae06724467b23108eb3215acec2b"
+    },
+    {
+      "path": "patch-format-comparison.md",
+      "size_bytes": 2813,
+      "sha256": "3d22fa299d0b2462313973ade8d12e8d07a0365854e29832e05800c64f5f3cd5"
+    },
+    {
+      "path": "patch-format-replay.output.txt",
+      "size_bytes": 3028,
+      "sha256": "a07706d8eef2779458b2a0c8f9e25283c9f5aa0ee0a6b10308e7459c1dcda916"
+    },
+    {
+      "path": "review.md",
+      "size_bytes": 5032,
+      "sha256": "8b22a02721da42294b4f5570dba296b2c7c2950eb6965e74323137c91e3b78ef"
+    },
+    {
+      "path": "upstream-r4-verification.output.txt",
+      "size_bytes": 1885,
+      "sha256": "f7b17c5469b20925e6f608b00462db5c012bb79a7b1c3939dabcc102bbe47141"
+    }
+  ],
+  "patch_hash_comparison": {
+    "text_normalized_patch_sha256": "4b208cc745f8d3fb153cb5dff65c92008d928bc38c06ae12acc559659a6258cb",
+    "preserved_eol_patch_sha256": "c1bab0ae9d94c7d428ffa436934c9cee91f51e94c8461e23d20f5a56269004f9",
+    "result": "normalized source content matches; raw bytes differ under autocrlf=true for 4b actor module; c1 reproduces exact candidate bytes under true and false"
+  }
+}

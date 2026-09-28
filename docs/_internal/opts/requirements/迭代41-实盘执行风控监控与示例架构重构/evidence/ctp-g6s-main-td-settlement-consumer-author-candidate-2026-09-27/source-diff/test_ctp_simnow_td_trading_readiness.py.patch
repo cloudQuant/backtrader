@@ -1,0 +1,441 @@
+diff --git "a/D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py" "b/D:\\temp\\iteration41-g6s-main-td-settlement-candidate-20260927\\tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py"
+index 8503373c..f32229fe 100644
+--- "a/D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py"
++++ "b/D:\\temp\\iteration41-g6s-main-td-settlement-candidate-20260927\\tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py"
+@@ -3,7 +3,10 @@
+ from __future__ import annotations
+ 
+ import hashlib
++import json
++import time
+ from dataclasses import dataclass
++from datetime import datetime, timedelta, timezone
+ from decimal import Decimal
+ from pathlib import Path
+ from types import SimpleNamespace
+@@ -23,7 +26,11 @@ from backtrader_runtime.ctp_simnow_td_trading_readiness import (
+     CtpSimNowTdTradingReadinessError,
+     verify_ctp_simnow_td_trading_readiness,
+ )
+-from backtrader_runtime.registry import RegisteredRuntime, RuntimeRegistry, validate_runtime_config
++from backtrader_runtime.registry import (
++    RegisteredRuntime,
++    RuntimeRegistry,
++    validate_runtime_config,
++)
+ 
+ RUNTIME_ID = "iteration41.ctp.simnow.td-readiness-test"
+ STRATEGY_ID = "iteration41.ctp.simnow.td_readiness_test"
+@@ -32,6 +39,10 @@ TD_FRONT = "tcp://127.0.0.1:12001"
+ BROKER_ID = "9999"
+ USER_ID = "offline-td-readiness-test"
+ TRADING_DAY = "20260924"
++SDK_SOURCE_MANIFEST_SHA256 = (
++    "da9d20d35d0b5680267f1a95c5b7fff54f25e9f57f0dfda270b55eb7f251ebe9"
++)
++SDK_EVIDENCE_MODULE = "bt_api_ctp.containers.ctp.ctp_native_query_certificate"
+ REQUEST_COUNTERS = (
+     "authenticate",
+     "login",
+@@ -173,7 +184,123 @@ class _QueryResult:
+     submit_code = 0
+ 
+     def __init__(self, *, broker: str = BROKER_ID, investor: str = USER_ID, day: str = TRADING_DAY):
+-        self.records = ({"BrokerID": broker, "InvestorID": investor, "TradingDay": day},)
++        self.records = (
++            {
++                "BrokerID": broker,
++                "InvestorID": investor,
++                "TradingDay": day,
++                "ConfirmDate": day,
++            },
++        )
++
++
++def _digest(value: Any) -> str:
++    return hashlib.sha256(
++        json.dumps(
++            value,
++            sort_keys=True,
++            separators=(",", ":"),
++            ensure_ascii=False,
++            allow_nan=False,
++        ).encode("utf-8")
++    ).hexdigest()
++
++
++class CtpSettlementConfirmationEvidence:
++    """Fake value with the SDK's nominal type name; no SDK/native is imported."""
++
++    __module__ = SDK_EVIDENCE_MODULE
++
++    def __init__(self, public: dict[str, Any], *, expires_at_monotonic: float) -> None:
++        self._public = dict(public)
++        self.expires_at_monotonic = expires_at_monotonic
++
++    @property
++    def evidence_sha256(self) -> str:
++        return self._public["evidence_sha256"]
++
++    def as_public_dict(self) -> dict[str, Any]:
++        return dict(self._public)
++
++
++class _FakeSettlementEvidenceVerifier:
++    source_manifest_sha256 = SDK_SOURCE_MANIFEST_SHA256
++
++    def __init__(
++        self,
++        *,
++        source_manifest_sha256: str = SDK_SOURCE_MANIFEST_SHA256,
++        mutation: tuple[str, Any] | None = None,
++        fail: bool = False,
++        monotonic_expired: bool = False,
++        wrong_type: bool = False,
++    ) -> None:
++        self.source_manifest_sha256 = source_manifest_sha256
++        self.mutation = mutation
++        self.fail = fail
++        self.monotonic_expired = monotonic_expired
++        self.wrong_type = wrong_type
++        self.calls = 0
++
++    def verify_current(self, _client: Any, result: Any) -> CtpSettlementConfirmationEvidence:
++        self.calls += 1
++        if self.fail:
++            raise ValueError("stale SDK source history")
++        if self.wrong_type:
++            return SimpleNamespace(as_public_dict=lambda: {})  # type: ignore[return-value]
++        now = datetime.now(timezone.utc)
++        record = result.records[0]
++        public: dict[str, Any] = {
++            "schema": "ctp_settlement_confirmation_evidence.v1",
++            "request_type": "settlement_confirmation",
++            "request_id": result.request_id,
++            "complete": True,
++            "is_last_seen": True,
++            "timed_out": False,
++            "unsupported": False,
++            "error_code": 0,
++            "submit_code": 0,
++            "late_callback_count": 0,
++            "account_fingerprint_sha256": hashlib.sha256(
++                _account_short().encode("utf-8")
++            ).hexdigest(),
++            "broker_id_sha256": hashlib.sha256(BROKER_ID.encode("utf-8")).hexdigest(),
++            "investor_id_sha256": hashlib.sha256(USER_ID.encode("utf-8")).hexdigest(),
++            "connection_generation": result.connection_generation,
++            "trading_day": TRADING_DAY,
++            "request_filter_names": ["BrokerID", "InvestorID"],
++            "request_filters_sha256": _digest(
++                {
++                    "filters": [["BrokerID", BROKER_ID], ["InvestorID", USER_ID]],
++                    "explicit_filters": [],
++                }
++            ),
++            "terminal_callback_records_sha256": hashlib.sha256(
++                repr(result.records).encode("utf-8")
++            ).hexdigest(),
++            "terminal_callback_history_sha256": hashlib.sha256(
++                b"fake-current-settlement-history"
++            ).hexdigest(),
++            "record_count": 1,
++            "confirmed_date": record.get("ConfirmDate", record.get("TradingDay")),
++            "started_at_utc": (now - timedelta(milliseconds=10)).isoformat(),
++            "completed_at_utc": now.isoformat(),
++            "expires_at_utc": (now + timedelta(seconds=30)).isoformat(),
++            "execution_authorized": False,
++        }
++        if self.mutation is not None:
++            field, value = self.mutation
++            public[field] = value
++        payload = {
++            key: value
++            for key, value in public.items()
++            if key not in {"execution_authorized", "evidence_sha256"}
++        }
++        public["evidence_sha256"] = _digest(payload)
++        monotonic_expiry = time.monotonic() - 1 if self.monotonic_expired else time.monotonic() + 30
++        return CtpSettlementConfirmationEvidence(
++            public, expires_at_monotonic=monotonic_expiry
++        )
+ 
+ 
+ class _Trader:
+@@ -314,6 +441,7 @@ def test_td_readiness_uses_one_settlement_query_and_grants_no_write_authority(
+         selection,
+         config,
+         native_readiness=prior,
++        settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
+         failure_cleanup=lambda: None,
+         timeout_seconds=4.0,
+     )
+@@ -330,6 +458,9 @@ def test_td_readiness_uses_one_settlement_query_and_grants_no_write_authority(
+     assert result.connection_generation == 1
+     assert result.trading_day == TRADING_DAY
+     assert result.settlement_query_request_id == 73
++    assert len(result.settlement_evidence_sha256) == 64
++    assert len(result.settlement_callback_history_sha256) == 64
++    assert result.settlement_sdk_source_manifest_sha256 == SDK_SOURCE_MANIFEST_SHA256
+     assert result.settlement_proof_source == "confirmation_query"
+     assert result.settlement_readback_verified is True
+     assert result.td_trading_ready is True
+@@ -344,6 +475,226 @@ def test_td_readiness_uses_one_settlement_query_and_grants_no_write_authority(
+     assert client.stop_calls == 0
+ 
+ 
++def _assert_no_write_requests(client: _Trader) -> None:
++    assert client.counts["settlement_confirm"] == 0
++    assert client.counts["order_insert"] == 0
++    assert client.counts["order_action"] == 0
++    assert client.write_method_calls == 0
++
++
++def test_td_readiness_without_verifier_fails_before_query_and_closes(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    cleanup_calls: list[str] = []
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            failure_cleanup=lambda: cleanup_calls.append("closed"),
++        )
++
++    assert raised.value.reason == "managed_simnow_td_settlement_evidence_verifier_required"
++    assert raised.value.close_state == "closed"
++    assert client.verify_calls == []
++    assert cleanup_calls == ["closed"]
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_rejects_stale_sdk_source_manifest_before_query(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    verifier = _FakeSettlementEvidenceVerifier(source_manifest_sha256="0" * 64)
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == "managed_simnow_td_settlement_evidence_source_mismatch"
++    assert client.verify_calls == []
++    assert verifier.calls == 0
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_rejects_current_source_history_verification_failure(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    verifier = _FakeSettlementEvidenceVerifier(fail=True)
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == "managed_simnow_td_settlement_evidence_verification_failed"
++    assert client.verify_calls == [5.0]
++    assert verifier.calls == 1
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_rejects_non_sdk_evidence_type(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    verifier = _FakeSettlementEvidenceVerifier(wrong_type=True)
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == "managed_simnow_td_settlement_evidence_type_invalid"
++    assert verifier.calls == 1
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_rejects_expired_monotonic_sdk_evidence(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    verifier = _FakeSettlementEvidenceVerifier(monotonic_expired=True)
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == "managed_simnow_td_settlement_evidence_stale"
++    assert verifier.calls == 1
++    _assert_no_write_requests(client)
++
++
++@pytest.mark.parametrize(
++    ("field", "value", "reason"),
++    [
++        (
++            "expires_at_utc",
++            (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(),
++            "managed_simnow_td_settlement_evidence_stale",
++        ),
++        (
++            "request_id",
++            74,
++            "managed_simnow_td_settlement_evidence_identity_mismatch",
++        ),
++        (
++            "account_fingerprint_sha256",
++            "0" * 64,
++            "managed_simnow_td_settlement_evidence_identity_mismatch",
++        ),
++        (
++            "connection_generation",
++            2,
++            "managed_simnow_td_settlement_evidence_identity_mismatch",
++        ),
++        (
++            "trading_day",
++            "20260923",
++            "managed_simnow_td_settlement_evidence_identity_mismatch",
++        ),
++        (
++            "confirmed_date",
++            "20260923",
++            "managed_simnow_td_settlement_evidence_identity_mismatch",
++        ),
++        (
++            "terminal_callback_history_sha256",
++            "not-a-digest",
++            "managed_simnow_td_settlement_evidence_digest_invalid",
++        ),
++    ],
++)
++def test_td_readiness_rejects_stale_or_mismatched_sdk_evidence(
++    tmp_path: Path,
++    field: str,
++    value: Any,
++    reason: str,
++) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    verifier = _FakeSettlementEvidenceVerifier(mutation=(field, value))
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == reason
++    assert client.verify_calls == [5.0]
++    assert verifier.calls == 1
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_accepts_actual_confirm_date_only_record_shape(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    client.record.records = (
++        {"BrokerID": BROKER_ID, "InvestorID": USER_ID, "ConfirmDate": TRADING_DAY},
++    )
++
++    result = verify_ctp_simnow_td_trading_readiness(
++        client,
++        selection,
++        config,
++        native_readiness=prior,
++        settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
++        failure_cleanup=lambda: None,
++    )
++
++    assert result.td_trading_ready is True
++    assert result.trading_day == TRADING_DAY
++    assert result.settlement_query_request_id == 73
++    assert client.counts["query_settlement_confirmation"] == 1
++    _assert_no_write_requests(client)
++
++
++def test_td_readiness_rejects_unselected_front_before_query(tmp_path: Path) -> None:
++    client, selection, config, prior = _inputs(tmp_path)
++    original_front = client.get_front_binding_state
++
++    def wrong_td_front() -> dict[str, Any]:
++        front = original_front()
++        front["registered_front"] = "tcp://127.0.0.1:12002"
++        return front
++
++    client.get_front_binding_state = wrong_td_front  # type: ignore[method-assign]
++    verifier = _FakeSettlementEvidenceVerifier()
++
++    with pytest.raises(CtpSimNowTdTradingReadinessError) as raised:
++        verify_ctp_simnow_td_trading_readiness(
++            client,
++            selection,
++            config,
++            native_readiness=prior,
++            settlement_evidence_verifier=verifier,
++            failure_cleanup=lambda: None,
++        )
++
++    assert raised.value.reason == "managed_simnow_td_identity_or_generation_mismatch"
++    assert client.verify_calls == []
++    assert verifier.calls == 0
++    _assert_no_write_requests(client)
++
++
+ @pytest.mark.parametrize(
+     "bad_result",
+     [
+@@ -365,6 +716,7 @@ def test_td_readiness_rejects_nonmatching_settlement_rows_and_closes(
+             selection,
+             config,
+             native_readiness=prior,
++            settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
+             failure_cleanup=lambda: cleanup_calls.append("closed"),
+         )
+ 
+@@ -388,6 +740,7 @@ def test_td_readiness_rejects_prior_native_write_count_before_query_and_closes(
+             selection,
+             config,
+             native_readiness=prior,
++            settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
+             failure_cleanup=lambda: cleanup_calls.append("closed"),
+         )
+ 
+@@ -421,6 +774,7 @@ def test_td_readiness_rejects_generation_change_after_query_and_runs_owner_clean
+             selection,
+             config,
+             native_readiness=prior,
++            settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
+             failure_cleanup=lambda: owner_cleanup_calls.append("closed"),
+         )
+ 
+@@ -467,6 +821,7 @@ def test_td_readiness_reports_owner_cleanup_failure_without_retrying_native_stop
+             selection,
+             config,
+             native_readiness=prior,
++            settlement_evidence_verifier=_FakeSettlementEvidenceVerifier(),
+             failure_cleanup=failed_owner_cleanup,
+         )
+ 

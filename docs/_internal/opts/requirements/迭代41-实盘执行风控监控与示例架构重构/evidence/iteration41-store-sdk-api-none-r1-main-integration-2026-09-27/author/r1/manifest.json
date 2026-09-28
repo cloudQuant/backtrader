@@ -1,0 +1,55 @@
+{
+  "artifact": "Iteration 41 Store public sdk_api all-CTP/gateway/forwarding denial r1",
+  "candidate_store_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+  "changes": [
+    "Replace sdk_api getter with a direct None return for every gateway and forwarding backend and every _is_ctp_write_provider() route.",
+    "Keep non-CTP direct backend behavior unchanged by returning the existing _api object.",
+    "Add fake-only tests covering direct CTP, configured CTP SDK, gateway, forwarding (CTP and non-CTP), no-client None, non-CTP direct identity, and internal read-only CTP query behavior."
+  ],
+  "expected_preimage_store_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "focused_test_sha256": "477225A7668DD10FE26A532EF49AAF018FE8FF4187C5446C42AD7D97A2AFD7D6",
+  "freeze_root": "D:\\temp\\iteration41-store-sdk-api-guard-only-20260927\\freeze-r1-none",
+  "hashes": {
+    "candidate_store": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "focused_test": "477225A7668DD10FE26A532EF49AAF018FE8FF4187C5446C42AD7D97A2AFD7D6",
+    "p4_example_candidate": "549276111279275BEB000D8104C4330A6D11B7C181AE66087079A555AF26D81F",
+    "p4_fake_test": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+    "p4_manifest": "09A430C20D684D6F24D6CB359519328AF65A552A7B9195B683F6D8FE4FD31C4E",
+    "p4_source_patch": "299CD0215A8636F25C7E3B74F70CD05C30372059EFC1150E9BB96A47F668B70C",
+    "p4_test_patch": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7",
+    "patch": "C4075E0395D312B476511365B1FFFE40D981BB1A42E22B2A6E282BE360917A65",
+    "preimage_store": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+    "r1_store_test_log": "06B632B6396AECF62E6D605EEF32DCB43D3289F31A5D91589311F64C02A28BF3"
+  },
+  "mechanical_compatibility": {
+    "default_status": "Default route remains fail-closed / NO_WRITE / LIVE_NO_GO.",
+    "effect": "For all CTP routes sdk_api is None, including after an API object exists. Combined with p4 mechanical fallback patch, the example blocks with STORE_SDK_API_NOT_READY before its private _ensure_api_ready fallback. Any future mechanical flow must use a separate reviewed Store-owned authority API; this patch does not enable or authorize it.",
+    "existing_method_need": "The old mechanical example consumes the four CTP authority methods through store.sdk_api."
+  },
+  "out_of_scope_unchanged": [
+    "BtApiStore.start",
+    "BtApiStore._ensure_api_ready"
+  ],
+  "p4_composition_inputs": {
+    "composition_expectation": "sdk_api None is preserved and the p4 patch prevents private lazy-connect fallback; there is no raw API handout through the public getter.",
+    "example_candidate_sha256": "549276111279275BEB000D8104C4330A6D11B7C181AE66087079A555AF26D81F",
+    "fake_test_sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+    "manifest": "D:\\temp\\iteration41-mechanical-sdk-api-failclose-r0-20260927\\manifest.json",
+    "manifest_sha256": "09A430C20D684D6F24D6CB359519328AF65A552A7B9195B683F6D8FE4FD31C4E",
+    "source_patch": "D:\\temp\\iteration41-mechanical-sdk-api-failclose-r0-20260927\\candidate.patch",
+    "source_patch_sha256": "299CD0215A8636F25C7E3B74F70CD05C30372059EFC1150E9BB96A47F668B70C",
+    "test_patch": "D:\\temp\\iteration41-mechanical-sdk-api-failclose-testpatch-r0-20260927\\tests-only.patch",
+    "test_patch_sha256": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7"
+  },
+  "patch_sha256": "C4075E0395D312B476511365B1FFFE40D981BB1A42E22B2A6E282BE360917A65",
+  "preimage_store_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "replay_root": "D:\\temp\\iteration41-store-sdk-api-guard-only-20260927\\replay-r1",
+  "source_root": "D:\\source_code\\backtrader",
+  "status": "TEMP_ONLY_FAIL_CLOSE_CANDIDATE",
+  "validation": {
+    "command": "python -m pytest -q tests/unit/stores/test_btapistore_sdk_api_none.py tests/unit/stores/test_btapistore.py tests/unit/stores/test_btapistore_iteration21.py",
+    "composition": "Separate temp replay applies this patch with the p4 example fail-close patch and its fake test patch; exact result recorded in composition manifest.",
+    "limitations": "Fake-only; no SDK/native import, credentials, network, provider, or broker construction. No Store.start or _ensure_api_ready source edits.",
+    "result": "274 passed, 1 existing pytest config warning."
+  }
+}

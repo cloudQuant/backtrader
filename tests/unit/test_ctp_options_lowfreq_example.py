@@ -54,9 +54,15 @@ def test_directory_is_a_direct_self_contained_strategy_entrypoint():
                 imported.append(node.module)
         assert not any(name == "examples" or name.startswith("examples.") for name in imported)
         source_text = source.read_text(encoding="utf-8")
-        assert "sys.path" not in source_text
         assert "importlib" not in source_text
         assert "pkgutil" not in source_text
+        if source.name == "run.py":
+            assert "backtrader_runtime.legacy" in source_text
+            assert source_text.index('if __name__ == "__main__":') < source_text.index(
+                "import backtrader"
+            )
+        else:
+            assert "sys.path" not in source_text
 
 
 def test_replay_runs_a_complete_local_basket_and_never_reports_external_writes(runner):
@@ -411,7 +417,7 @@ def test_partial_to_canceled_keeps_terminal_fact_and_ignores_late_duplicate(runn
     assert submitted == []
 
 
-def test_shadow_mode_blocks_before_any_external_client_is_constructed():
+def test_legacy_cli_flags_are_rejected_before_any_external_client_is_constructed():
     completed = subprocess.run(
         [sys.executable, "run.py", "--mode", "shadow"],
         cwd=EXAMPLE,
@@ -420,15 +426,18 @@ def test_shadow_mode_blocks_before_any_external_client_is_constructed():
         text=True,
     )
     assert completed.returncode == 2
-    report = json.loads(completed.stdout)
-    assert report["status"] == "BLOCKED"
-    assert report["external_request_counts"] == {"network": 0, "order_write": 0}
+    error = json.loads(completed.stderr)
+    assert error["error_code"] == "PRESET_POLICY_VIOLATION"
+    assert error["reason"] == "legacy_cli_arguments_not_supported"
 
 
-def test_cli_creates_an_explicit_output_parent_directory(tmp_path, runner):
-    output = tmp_path / "reports" / "lowfreq-replay.json"
+def test_public_legacy_main_delegates_only_to_the_config_first_cli(monkeypatch, runner):
+    calls = []
 
-    assert runner.main(["--mode", "replay", "--output", str(output)]) == 0
+    def reject_legacy_arguments(argv=None):
+        calls.append(tuple(argv or ()))
+        return 2
 
-    report = json.loads(output.read_text(encoding="utf-8"))
-    assert report["status"] == "LOCAL_REPLAY_PASS"
+    monkeypatch.setattr(runner, "_run_config_first_cli", reject_legacy_arguments)
+    assert runner.main(["--mode", "replay", "--output", "report.json"]) == 2
+    assert calls == [("--mode", "replay", "--output", "report.json")]

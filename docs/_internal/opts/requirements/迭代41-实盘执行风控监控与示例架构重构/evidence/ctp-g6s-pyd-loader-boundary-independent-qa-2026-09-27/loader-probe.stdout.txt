@@ -1,0 +1,9 @@
+python=3.11.5
+implementation=cpython
+loader_source=C:\anaconda3\Lib\importlib\_bootstrap_external.py
+constructor=(name, path)
+create_module=(self, spec)
+exec_module=(self, module)
+has_path_attribute=True
+has_handle_parameter=False
+result=PATH_ONLY_LOADER_SURFACE; no extension imported or loaded

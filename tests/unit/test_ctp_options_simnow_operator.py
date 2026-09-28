@@ -16,9 +16,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from backtrader_runtime import RuntimeConfigError
 from examples.ctp_options_simnow_operator import (
     OperatorBlocked,
     OperatorConfiguration,
+    _TEST_ONLY_INJECTION_TOKEN,
     build_live_store,
     collect_three_leg_evidence,
     load_operator_env,
@@ -40,40 +42,44 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 OPERATOR_SCRIPT = REPOSITORY_ROOT / "examples" / "ctp_options_simnow_operator.py"
 
 
-def test_operator_script_entrypoint_preserves_package_imports(tmp_path):
-    """``python examples/...py --help`` works outside the repository without a CTP session."""
+@pytest.mark.parametrize("entrypoint", ("script", "module"))
+def test_operator_standalone_entrypoint_fails_before_provider_or_network(tmp_path, entrypoint):
+    """Both CLI forms reject before importing a framework/provider or opening sockets."""
 
-    completed = subprocess.run(
-        [sys.executable, str(OPERATOR_SCRIPT), "--help"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        timeout=20,
-        check=False,
-    )
+    program = r"""
+import importlib.abc
+import runpy
+import socket
+import sys
 
-    assert completed.returncode == 0, completed.stderr
-    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
+def reject(*args, **kwargs):
+    raise AssertionError("retired operator attempted network I/O")
 
+class RejectTradingImports(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split(".")[0] in {"backtrader", "bt_api_py", "bt_api_ctp", "ctpbeebt"}:
+            raise AssertionError("retired operator imported a trading dependency")
 
-def test_operator_script_entrypoint_prioritizes_its_repository_root(tmp_path):
-    """Direct execution must ignore an earlier inherited package shadow."""
-
-    poison_root = tmp_path / "poison"
-    poison_package = poison_root / "backtrader"
-    poison_package.mkdir(parents=True)
-    (poison_package / "__init__.py").write_text(
-        "raise RuntimeError('poisoned backtrader package imported')\n",
-        encoding="utf-8",
-    )
+for name in ("getaddrinfo", "create_connection"):
+    setattr(socket, name, reject)
+socket.socket.connect = reject
+socket.socket.connect_ex = reject
+socket.socket.sendto = reject
+sys.meta_path.insert(0, RejectTradingImports())
+if sys.argv[1] == "script":
+    sys.argv = [sys.argv[2], "--confirm-settlement"]
+    runpy.run_path(sys.argv[0], run_name="__main__")
+else:
+    sys.argv = ["ctp_options_simnow_operator", "--confirm-settlement"]
+    runpy.run_module("examples.ctp_options_simnow_operator", run_name="__main__")
+"""
     env = os.environ.copy()
-    inherited_pythonpath = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = os.pathsep.join(
-        item for item in (str(poison_root), str(REPOSITORY_ROOT), inherited_pythonpath) if item
-    )
-
+    env["PYTHONPATH"] = str(REPOSITORY_ROOT)
+    command = [sys.executable, "-c", program, entrypoint]
+    if entrypoint == "script":
+        command.append(str(OPERATOR_SCRIPT))
     completed = subprocess.run(
-        [sys.executable, str(OPERATOR_SCRIPT), "--help"],
+        command,
         cwd=tmp_path,
         env=env,
         capture_output=True,
@@ -82,24 +88,11 @@ def test_operator_script_entrypoint_prioritizes_its_repository_root(tmp_path):
         check=False,
     )
 
-    assert completed.returncode == 0, completed.stderr
-    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
-
-
-def test_operator_module_entrypoint_preserves_package_imports():
-    """``python -m examples... --help`` remains a no-session entrypoint."""
-
-    completed = subprocess.run(
-        [sys.executable, "-m", "examples.ctp_options_simnow_operator", "--help"],
-        cwd=REPOSITORY_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=20,
-        check=False,
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
+    assert completed.returncode == 2, completed.stderr
+    report = json.loads(completed.stdout)
+    assert report["status"] == "BLOCKED"
+    assert report["error"]["reason"] == "legacy_direct_execution_not_supported"
+    assert report["external_request_counts"] == {"network": 0, "order_write": 0}
 
 
 def _env(**overrides):
@@ -155,6 +148,7 @@ def _identity(**changes):
 
 def _records():
     """Return the CZCE instrument records for one future and its call/put legs."""
+
     def row(instrument_id, product_id, product_class, **extra):
         row_value = {
             "InstrumentID": instrument_id,
@@ -467,7 +461,13 @@ def test_resolve_fronts_probes_sdk_when_no_overrides():
             profile="Set1_Group1", td_front="tcp://a:10201", md_front="tcp://a:10211"
         )
 
-    fronts = resolve_fronts(_env(CTP_TD_FRONT="", CTP_MD_FRONT=""), "first", selector=selector)
+    selector.__backtrader_test_double__ = True
+    fronts = resolve_fronts(
+        _env(CTP_TD_FRONT="", CTP_MD_FRONT=""),
+        "first",
+        selector=selector,
+        _test_only_injection=_TEST_ONLY_INJECTION_TOKEN,
+    )
     assert fronts["sdk_profile"] == "set1_group1"
     assert fronts["td_front"] == "tcp://a:10201"
 
@@ -476,6 +476,8 @@ def test_build_live_store_builds_read_only_managed_options(tmp_path):
     captured = {}
 
     class StoreStub:
+        __backtrader_test_double__ = True
+
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
@@ -486,6 +488,7 @@ def test_build_live_store_builds_read_only_managed_options(tmp_path):
         config,
         state_directory=tmp_path,
         store_cls=StoreStub,
+        _test_only_injection=_TEST_ONLY_INJECTION_TOKEN,
     )
     assert isinstance(store, StoreStub)
     assert captured["provider"] == "btapi"
@@ -499,6 +502,77 @@ def test_build_live_store_builds_read_only_managed_options(tmp_path):
     assert execution_config["strategy_identity_sha256"] == strategy_identity_sha256(config)
     # No secret ever reaches the non-exchange store options.
     assert "password" not in json.dumps(captured.get("api_kwargs", {}))
+
+
+def test_unconfigured_helpers_reject_before_sdk_store_or_network_imports(tmp_path):
+    """Default helper calls cannot probe fronts or construct a real Store."""
+
+    program = r"""
+import importlib.abc
+import importlib
+import socket
+import sys
+from pathlib import Path
+
+network_attempts = []
+def reject_network(*args, **kwargs):
+    network_attempts.append(True)
+    raise AssertionError('operator helper attempted network I/O')
+
+class RejectProviderImports(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'bt_api_py', 'bt_api_ctp', 'ctpbeebt'}:
+            raise AssertionError('operator helper imported a provider/SDK')
+
+socket.getaddrinfo = reject_network
+socket.create_connection = reject_network
+socket.socket.connect = reject_network
+socket.socket.connect_ex = reject_network
+socket.socket.sendto = reject_network
+sys.meta_path.insert(0, RejectProviderImports())
+
+from backtrader_runtime import RuntimeConfigError
+operator = importlib.import_module('examples.ctp_options_simnow_operator')
+
+def require_blocked(call):
+    try:
+        call()
+    except RuntimeConfigError as exc:
+        assert exc.reason == 'legacy_direct_execution_not_supported'
+    else:
+        raise AssertionError('unconfigured helper unexpectedly succeeded')
+
+require_blocked(lambda: operator.resolve_fronts({}, 'first'))
+require_blocked(lambda: operator.resolve_fronts(
+    {}, 'first', selector=lambda **kwargs: None,
+    _test_only_injection=operator._TEST_ONLY_INJECTION_TOKEN))
+require_blocked(lambda: operator.build_live_store({}, {}, None, state_directory=Path('.')))
+require_blocked(lambda: operator.build_live_store(
+    {}, {}, None, state_directory=Path('.'), store_cls=operator.BtApiStore,
+    _test_only_injection=operator._TEST_ONLY_INJECTION_TOKEN))
+class UnmarkedStore:
+    def __init__(self, **kwargs):
+        raise AssertionError('unmarked provider-like injection was invoked')
+require_blocked(lambda: operator.build_live_store(
+    {}, {}, None, state_directory=Path('.'), store_cls=UnmarkedStore,
+    _test_only_injection=operator._TEST_ONLY_INJECTION_TOKEN))
+assert not network_attempts
+print('helpers_blocked_before_provider_io')
+"""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPOSITORY_ROOT)
+    completed = subprocess.run(
+        [sys.executable, "-c", program],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "helpers_blocked_before_provider_io" in completed.stdout
 
 
 def exchange_keys_hidden(exchange_kwargs):
@@ -603,6 +677,22 @@ def test_engineering_smoke_reports_unconfirmed_settlement_without_writes():
     assert ("prepare_ctp_settlement", 30.0) not in store.calls
 
 
+def test_engineering_smoke_requires_an_injected_store_without_runtime_admission(
+    tmp_path, monkeypatch
+):
+    """The old helper cannot resolve credentials or create its own provider Store."""
+
+    def reject(*args, **kwargs):
+        pytest.fail("retired operator attempted credential or provider setup")
+
+    monkeypatch.setattr("examples.ctp_options_simnow_operator.resolve_credentials", reject)
+    monkeypatch.setattr("examples.ctp_options_simnow_operator.build_live_store", reject)
+    with pytest.raises(RuntimeConfigError) as failure:
+        run_engineering_smoke(_config(), {}, state_directory=tmp_path)
+
+    assert failure.value.reason == "legacy_direct_execution_not_supported"
+
+
 def test_engineering_smoke_confirms_settlement_once_when_requested():
     store = FakeStore(settlement_confirmed=False)
     report = run_engineering_smoke(
@@ -633,39 +723,8 @@ def test_engineering_smoke_requires_read_only_settlement_evidence():
 # ---------------------------------------------------------------------------
 
 
-def test_main_reports_blocked_without_env_file(tmp_path, capsys):
-    exit_code = main(["--env", str(tmp_path / "missing.env")])
+def test_imported_main_rejects_legacy_settlement_action(capsys):
+    exit_code = main(["--confirm-settlement"])
     report = json.loads(capsys.readouterr().out)
     assert exit_code == 2
     assert report["status"] == "BLOCKED"
-    assert report["reason"].startswith("ENV_FILE_MISSING")
-
-
-def test_main_emits_json_report(tmp_path, capsys, monkeypatch):
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        "\n".join(f"{key}={value}" for key, value in _env().items()) + "\n",
-        encoding="utf-8",
-    )
-    output = tmp_path / "report.json"
-
-    def fake_smoke(config, env, *, state_directory, **kwargs):
-        assert config.environment == "second_7x24"
-        assert env["CTP_USER_ID"] == "simnow-user"
-        return {"status": "ENGINEERING_SMOKE_PASS", "purpose": config.purpose}
-
-    monkeypatch.setattr("examples.ctp_options_simnow_operator.run_engineering_smoke", fake_smoke)
-    exit_code = main(
-        [
-            "--env",
-            str(env_file),
-            "--environment",
-            "second_7x24",
-            "--output",
-            str(output),
-        ]
-    )
-    report = json.loads(capsys.readouterr().out)
-    assert exit_code == 0
-    assert report["status"] == "ENGINEERING_SMOKE_PASS"
-    assert json.loads(output.read_text(encoding="utf-8")) == report

@@ -1,0 +1,160 @@
+{
+  "schema": "iteration41-ac41-63-ctp-generic-queue-r3-archive-verification-v1",
+  "historical_disposition": "MAIN_MERGE_REJECTED_BROAD_13_FAILURES",
+  "archive_scope": "R3 historical rejection evidence only; no present-main claim and no authorization.",
+  "historical_main_store_preimage": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "meaning": "Exact main source preimage recorded at the r3 rejection checkpoint; not current after the later r4 integration."
+  },
+  "r3_candidate": {
+    "source_target_sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+    "patch_sha256": "C1550368359A159F18CE6777F6377CCA83DA7F948DE81B99D8DE86BEEE6CCAD3",
+    "candidate_test_sha256": "3201896CBC984054BB8124CBBB1489A207DB349AE6CEB74CEB701DA08F21D29A",
+    "candidate_manifest_sha256": "A37388BA20649D7C402E119F0E74838A45F84830BE8AC1597EFA6619F7F34D6F"
+  },
+  "broad_rejection_run": {
+    "source_root": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927",
+    "artifacts": [
+      {
+        "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\pytest.log",
+        "archive_path": "qa/main-broad/pytest.log",
+        "size_bytes": 14010,
+        "source_sha256": "9CC55FB66D4F59325603C22864A37C19B69099BEDFE08FC797A92F91FE31BDD9",
+        "archive_sha256": "9CC55FB66D4F59325603C22864A37C19B69099BEDFE08FC797A92F91FE31BDD9",
+        "bytes_identical": true
+      },
+      {
+        "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\junit.xml",
+        "archive_path": "qa/main-broad/junit.xml",
+        "size_bytes": 497230,
+        "source_sha256": "68B5DCFC60275D189842E89C3F5EB1912A47B48F197C29192975108D4FA9C0E7",
+        "archive_sha256": "68B5DCFC60275D189842E89C3F5EB1912A47B48F197C29192975108D4FA9C0E7",
+        "bytes_identical": true
+      },
+      {
+        "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\exit.txt",
+        "archive_path": "qa/main-broad/exit.txt",
+        "size_bytes": 1,
+        "source_sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B",
+        "archive_sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B",
+        "bytes_identical": true
+      }
+    ],
+    "pytest_summary": "13 failed, 2724 passed, 43 skipped, 2 xfailed, 1 warning; exit code 1.",
+    "junit_aggregate": {
+      "tests": 2782,
+      "failures": 13,
+      "errors": 0,
+      "skipped": 45
+    },
+    "no_rerun_performed": true
+  },
+  "independent_narrow_qa": {
+    "source_report": "D:\\temp\\ac41-63-store-generic-ctp-queue-failclose-r3-independent-qa-20260927\\independent-qa-report.md",
+    "archive_report": "qa/independent-qa-report.md",
+    "source_sha256": "EB7A5D5A445B0DA1D7888B2AF53A6759AEF18B109F25B0A375C536E433953169",
+    "archive_sha256": "EB7A5D5A445B0DA1D7888B2AF53A6759AEF18B109F25B0A375C536E433953169",
+    "byte_identical": true,
+    "archive_qa_manifest_sha256": "F055D8EB74656F5AC15F395C200CD36DFEA88AAEE4889BBA46374909E8532C28",
+    "archive_qa_sums_sha256": "F1170536A0A83B5630ABA043D633BB9C94450BADBF7B337B34BD41F8E7E051FC",
+    "status": "INDEPENDENT_R3_NARROW_QA_PASS_WITH_CONDITIONAL_RESIDUAL"
+  },
+  "relative_markdown_links": {
+    "validation_scope": "All relative links in Markdown files under this archive.",
+    "count": 12,
+    "result": "PASS",
+    "links": [
+      {
+        "from": "README.md",
+        "target": "qa/independent-qa-report.md"
+      },
+      {
+        "from": "README.md",
+        "target": "qa/main-broad/pytest.log"
+      },
+      {
+        "from": "README.md",
+        "target": "qa/main-broad/junit.xml"
+      },
+      {
+        "from": "README.md",
+        "target": "qa/main-broad/exit.txt"
+      },
+      {
+        "from": "README.md",
+        "target": "archive-verification-manifest.json"
+      },
+      {
+        "from": "replay.md",
+        "target": "patch.diff"
+      },
+      {
+        "from": "replay.md",
+        "target": "tests/test_ctp_generic_sdk_queue_failclose.py"
+      },
+      {
+        "from": "replay.md",
+        "target": "candidate-manifest.json"
+      },
+      {
+        "from": "replay.md",
+        "target": "qa/main-broad/pytest.log"
+      },
+      {
+        "from": "replay.md",
+        "target": "qa/main-broad/junit.xml"
+      },
+      {
+        "from": "replay.md",
+        "target": "qa/main-broad/exit.txt"
+      },
+      {
+        "from": "replay.md",
+        "target": "qa/independent-qa-report.md"
+      }
+    ]
+  },
+  "limitations": [
+    "R3 narrow QA is fake/local only and does not establish authorization or writer closure.",
+    "Its conditional stale/inconsistent _sdk_exchanges snapshot residual remains; injected API exchange_kwargs are a route hint, not authority.",
+    "The generic _invoke_sdk_command guard does not cover the earlier managed typed _execute_sdk_command branch.",
+    "The archive does not duplicate full A028 baseline/candidate source trees; exact replay cannot be performed from this directory alone.",
+    "The broad run is historical rejection evidence; the current main Store hash is intentionally not asserted.",
+    "This archival update performed no provider, native, SDK, network, private-config, credential, account, order, or cancel operation."
+  ],
+  "copied_artifacts": [
+    {
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\pytest.log",
+      "archive_path": "qa/main-broad/pytest.log",
+      "size_bytes": 14010,
+      "source_sha256": "9CC55FB66D4F59325603C22864A37C19B69099BEDFE08FC797A92F91FE31BDD9",
+      "archive_sha256": "9CC55FB66D4F59325603C22864A37C19B69099BEDFE08FC797A92F91FE31BDD9",
+      "bytes_identical": true
+    },
+    {
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\junit.xml",
+      "archive_path": "qa/main-broad/junit.xml",
+      "size_bytes": 497230,
+      "source_sha256": "68B5DCFC60275D189842E89C3F5EB1912A47B48F197C29192975108D4FA9C0E7",
+      "archive_sha256": "68B5DCFC60275D189842E89C3F5EB1912A47B48F197C29192975108D4FA9C0E7",
+      "bytes_identical": true
+    },
+    {
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\exit.txt",
+      "archive_path": "qa/main-broad/exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B",
+      "archive_sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B",
+      "bytes_identical": true
+    },
+    {
+      "source_path": "D:\\temp\\ac41-63-store-generic-ctp-queue-failclose-r3-independent-qa-20260927\\independent-qa-report.md",
+      "archive_path": "qa/independent-qa-report.md",
+      "size_bytes": 4033,
+      "source_sha256": "EB7A5D5A445B0DA1D7888B2AF53A6759AEF18B109F25B0A375C536E433953169",
+      "archive_sha256": "EB7A5D5A445B0DA1D7888B2AF53A6759AEF18B109F25B0A375C536E433953169",
+      "bytes_identical": true
+    }
+  ]
+}

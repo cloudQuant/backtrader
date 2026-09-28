@@ -1,0 +1,168 @@
+{
+  "schema": "ac41-63-partition4-r2-independent-qa.v1",
+  "fresh_copy": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927",
+  "focused_tests": {
+    "run": 2,
+    "failures": 0,
+    "errors": 0
+  },
+  "unit_pytest_exit_code": 0,
+  "patched_source_sha256": {
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "E9BFE8EDD8854CEF1184082407BFE5EA2A81268923CBC7A27EB6EAC8F779BE50",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "37706DCA228382509581CD76C4D6B938C40E58A5BF6A5F3D44E843C7BBEAECB7"
+  },
+  "guards": {
+    "optional_import_attempts": [],
+    "credential_env_read_attempt_count_blocked_to_empty": 21,
+    "credential_env_values_read": false,
+    "direct_no_fake_dotenv_imports": [
+      "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\ctp_example_support.py",
+      "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\ctp_example_support.py"
+    ],
+    "native_loader_attempts": [],
+    "network_attempt_count": 0,
+    "env_read_attempts": [],
+    "forbidden_config_read_attempts": [],
+    "allowed_synthetic_yaml_reads": [
+      [
+        "io.open",
+        "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\config.yaml"
+      ],
+      [
+        "io.open",
+        "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\config.yaml"
+      ]
+    ],
+    "BtApiStore_constructor_attempts": 0,
+    "allowed_synthetic_ReplayClient_Store_constructions": [
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_1_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_1_midfreq_cross_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      },
+      {
+        "provider": "ctp",
+        "api_type": "ReplayClient",
+        "api_module": "ex013_2_run",
+        "api_source": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-qa-20260927\\examples\\013_2_highfreq_calendar_arbitrage\\run.py"
+      }
+    ],
+    "BtApiBroker_constructor_attempts": 0
+  },
+  "main_tree_modified_by_qa": false
+}

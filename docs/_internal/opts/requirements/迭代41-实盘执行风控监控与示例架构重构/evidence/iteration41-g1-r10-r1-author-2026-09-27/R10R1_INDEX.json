@@ -1,0 +1,165 @@
+{
+  "candidate": "R10-r1 QPC admission boundary + retained-I/O/bounded-join negative prototype",
+  "checks": 15,
+  "decision": "R10-r1 closes two local prototype gaps only; it is not whole-command G1 acceptance.",
+  "failed_checks": 0,
+  "limits": [
+    "The test deadline begins at the GO barrier; whole-command hard D is not proven.",
+    "P02/P03 true CreateProcessW kernel hangs, P14, higher-custodian failure, and SCM/service lifecycle are not tested.",
+    "Injected cancellation failure skips CancelIoEx and is not a real Win32 failure/delayed kernel completion.",
+    "Retained cases use external outer-Job termination after recording UNKNOWN; this is fixture teardown, not release proof.",
+    "No CTP/provider/SDK/credentials/private config/account/network/default preflight was used; G1 remains closed."
+  ],
+  "manifest_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+  "receipt_sha256": "f9c642657a06ddaa0752c539ea169caab46920e3a3f1f42db0bc0c9db8717aac",
+  "source_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+  "status": "AUTHOR_INERT_WINDOWS_PROTOTYPE_G1_CLOSED",
+  "trials_sha256": "4461d54bf0d938e6d7d2b0c5e40272b04f230d1085d2c9cfb710fe122e16f920",
+  "zip_members_sha256": [
+    {
+      "path": "payload/R10R1_FINDINGS.md",
+      "sha256": "be4e73ce2331246f9cb87bfbe79dbcea17eded3d742b064b9e1e6564a4349ef8",
+      "size": 5959
+    },
+    {
+      "path": "payload/R10_BASELINE/R10_FINDINGS.md",
+      "sha256": "0e6cb18d382c5f8ce4eadddd896f3178f58025d290d8c658963a677e909de0da",
+      "size": 2883
+    },
+    {
+      "path": "payload/R10_BASELINE/r10_custodian.cpp",
+      "sha256": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+      "size": 33662
+    },
+    {
+      "path": "payload/R10_BASELINE/r10_manifest.json",
+      "sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+      "size": 19738
+    },
+    {
+      "path": "payload/R10_BASELINE/r10_receipt.json",
+      "sha256": "deb34cbe0584710fa41f6623f0febcec0a2a2a71c5ff15e0c54f2fbf39c877c7",
+      "size": 540
+    },
+    {
+      "path": "payload/R10_BASELINE/r10_trials.json",
+      "sha256": "ba4ab18e585ff66a3af956b17fc84426ec055d4f5f6ae4916ed40fe2651894d5",
+      "size": 47374
+    },
+    {
+      "path": "payload/make_r10_r1_manifest.py",
+      "sha256": "4b7025997e8588d012cf21c2fbe193faa5677fcaa6055ebcc69d57da6d029895",
+      "size": 5271
+    },
+    {
+      "path": "payload/r10_build.bat",
+      "sha256": "8b71463158c1fbd1353e8baa4df894e0d79380f8dd42ec053c2b16e01b333c79",
+      "size": 358
+    },
+    {
+      "path": "payload/r10_build.log",
+      "sha256": "90b5c3f187c93315c3a970b2ffedbfdb60c0939b00e8c802ebc0ff48b0a156f4",
+      "size": 19
+    },
+    {
+      "path": "payload/r10_custodian.cpp",
+      "sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "size": 46073
+    },
+    {
+      "path": "payload/r10_custodian.exe",
+      "sha256": "829d7956c1acd2c70184d549bfcff39d4f107881189f256b83becebaa26368aa",
+      "size": 286720
+    },
+    {
+      "path": "payload/r10_custodian.obj",
+      "sha256": "a4a753591c856117f7387ac7dd8b275ec4034c7eae4a8eec793b554f6ea1afdd",
+      "size": 707522
+    },
+    {
+      "path": "payload/r10_r1_final_run.log",
+      "sha256": "4ea6e13c5510863399991d62e7883c55d6f4e495b6d551d8b63d0255a8edd54d",
+      "size": 1429
+    },
+    {
+      "path": "payload/r10_r1_trials.json",
+      "sha256": "4461d54bf0d938e6d7d2b0c5e40272b04f230d1085d2c9cfb710fe122e16f920",
+      "size": 89113
+    },
+    {
+      "path": "payload/r10_r1_trials_failure-late-admission-tick-mismatch.json",
+      "sha256": "fe4534a02117139f1abb20370755b8d7d5b2fbb4258153f89ce74eca396d744d",
+      "size": 90466
+    },
+    {
+      "path": "payload/r10_r1_trials_initial.json",
+      "sha256": "4d161abf0d92d3175b8ce167cac75f72d1e8e480537a3f7f206706a61ef9e902",
+      "size": 66956
+    },
+    {
+      "path": "payload/r10_sacrificial_popen.py",
+      "sha256": "b32e39c3c10e31947ad879cdc9ff10d7aecbc48a59668cca10f3ed1d17fc53ea",
+      "size": 2375
+    },
+    {
+      "path": "payload/r10r1_build.bat",
+      "sha256": "8b71463158c1fbd1353e8baa4df894e0d79380f8dd42ec053c2b16e01b333c79",
+      "size": 358
+    },
+    {
+      "path": "payload/r1_first_build_failure.log",
+      "sha256": "91b740524b108879bdf58e7172b9be459f9b420acea2683720b14dc19c54a386",
+      "size": 268
+    },
+    {
+      "path": "payload/r1_first_test_failure_late_admission.txt",
+      "sha256": "71eb30bb4b290f007e322c5cb6f6a4604b303bc48791062c6ec0474c37ac6a2c",
+      "size": 562
+    },
+    {
+      "path": "payload/r1_source_compile_failure.log",
+      "sha256": "9396adeeaa75c11819b8ab41295e146c9a4e6dd57b1c16d3e71e214530c54b7f",
+      "size": 289
+    },
+    {
+      "path": "payload/run_r10_r1_trials.py",
+      "sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "size": 15186
+    },
+    {
+      "path": "payload/run_r10_trials_r10_frozen.py",
+      "sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "size": 27823
+    },
+    {
+      "path": "payload/r10_r1_manifest.json",
+      "sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "size": 4416
+    },
+    {
+      "path": "payload/r10_r1_manifest.sha256",
+      "sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "size": 88
+    },
+    {
+      "path": "payload/r10_r1_receipt.json",
+      "sha256": "f9c642657a06ddaa0752c539ea169caab46920e3a3f1f42db0bc0c9db8717aac",
+      "size": 777
+    },
+    {
+      "path": "payload/r10_r1_receipt.sha256",
+      "sha256": "d679d4655f00317d90b9af3255b5501a223ea8bbcf58ae9be105b4c01a0391a3",
+      "size": 87
+    },
+    {
+      "path": "payload/SHA256SUMS.txt",
+      "sha256": "e47b81b95281c158b1ecbdd6e005d13be20dfdc284edc3e45789bd8197664d34",
+      "size": 2481
+    },
+    {
+      "path": "payload/SHA256SUMS.sha256",
+      "sha256": "c13341727bfd1af7ae4b8b038709d6def958126a913db6502e8d2879ab4beee0",
+      "size": 82
+    }
+  ]
+}

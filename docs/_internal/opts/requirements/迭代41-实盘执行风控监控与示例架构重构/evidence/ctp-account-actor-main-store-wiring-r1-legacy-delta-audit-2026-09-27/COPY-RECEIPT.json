@@ -1,0 +1,53 @@
+{
+  "audit": "r1 legacy CTP 30-test delta classification",
+  "base_exact_suite": "30 passed",
+  "copied_files": [
+    {
+      "path": "r1-test-delta-migration-review.md",
+      "sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+      "size_bytes": 11410
+    },
+    {
+      "path": "review-package.raw.zip",
+      "sha256": "4fa06de543221c3457088ee32a62ec81dbc25ab9359dbd85cd488e9a59891152",
+      "size_bytes": 342566
+    },
+    {
+      "path": "review-package.raw.zip.sha256",
+      "sha256": "3f6c81f3b0cc1b9c2693732213240069750ce5ae7fa78dae8424dd5cf681603e",
+      "size_bytes": 90
+    },
+    {
+      "path": "audit-inventory.json",
+      "sha256": "f5d221c489333ad0b4122d24e8d5b1cbdc67a4761639e16b84f9cc16a29e841d",
+      "size_bytes": 3517
+    },
+    {
+      "path": "audit-inventory.sha256",
+      "sha256": "df044cf50c9e0ca36c0b20c501b4332b4714ddbfe1f34ae5af67398d08c214c0",
+      "size_bytes": 88
+    },
+    {
+      "path": "archive-index.json",
+      "sha256": "1f44e9c9a574f5409a32b65f0caba03e7fe941a6cd3d2b1794e0ba29d2a22651",
+      "size_bytes": 461
+    },
+    {
+      "path": "archive-index.json.sha256",
+      "sha256": "7d71599f55f4cc12726a5a69681eddd2331b5eaefd274f784024547bb23df0a2",
+      "size_bytes": 86
+    }
+  ],
+  "dispositions": {
+    "EXTERNAL_ACTOR_MIGRATION": 13,
+    "FAIL_CLOSED_ASSERTION": 8,
+    "ORDINARY_NON_CTP_COMPATIBILITY_DEFECT": 0
+  },
+  "r1_candidate_suite": "9 passed, 21 failed; all 21 stopped at constructor actor-unavailable gate",
+  "r2_candidate_suite": "9 passed, 21 failed at intentional CTP actor-unavailable gate",
+  "review_report_sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+  "source_root": "D:\\temp\\iteration41-ctp-account-actor-r1-legacy-delta-audit-20260927",
+  "zip_member_count": 15,
+  "zip_sha256": "4fa06de543221c3457088ee32a62ec81dbc25ab9359dbd85cd488e9a59891152",
+  "zip_testzip": "passed"
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.independent_qa_receipt.v1",
+  "classification": "PARTIAL_CONSUMER_CONTRACT_ONLY / G6-S CLOSED / G7-S CLOSED",
+  "candidate_root": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927",
+  "candidate_manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+  "candidate_zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+  "manifest_verification": {
+    "source_snapshots": "9/9",
+    "zip_member_count": 26,
+    "payload_count": 24,
+    "zip_crc": "ok",
+    "source_references": "10/10",
+    "result": "pass"
+  },
+  "focused_tests": {
+    "failed": 0,
+    "forbidden_import_guard": "active",
+    "passed": 35,
+    "forbidden_modules_loaded": false
+  },
+  "adversarial_tests": {
+    "failed": 0,
+    "qa_only": true,
+    "passed": 21,
+    "important_observations": [
+      "bool True generation fields accepted when expected generation is 1",
+      "bool False error_code and submit_code accepted as zero",
+      "consumer_contract_satisfied does not set provider_source_trusted or execution_authorized"
+    ]
+  },
+  "main_runtime_wired": false,
+  "limitations": [
+    "Injected attestor is not authenticated by consumer",
+    "Digest values are shape-checked, not independently recomputed",
+    "No durable provider provenance",
+    "No SDK/native/provider/config/network/order"
+  ]
+}

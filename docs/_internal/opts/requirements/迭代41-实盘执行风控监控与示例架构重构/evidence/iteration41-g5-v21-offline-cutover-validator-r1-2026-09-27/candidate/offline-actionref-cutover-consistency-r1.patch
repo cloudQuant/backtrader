@@ -1,0 +1,527 @@
+diff --git a/docs/CANDIDATE.md b/docs/CANDIDATE.md
+index c1b0241..9b917cf 100644
+--- a/docs/CANDIDATE.md
++++ b/docs/CANDIDATE.md
+@@ -18,6 +18,10 @@ The old G5 action reservation table has no command ID or state column; command s
+ 
+ Both snapshots must be declared complete and readable; row count and digest must match their supplied content; source high-water must cover its rows; a positive high-water with no rows rejects; V21 high-water must not be below the old source high-water. Missing rows, duplicates, same-ref/different-action cases, moved action IDs, or any compared-field difference reject. Exact duplicate rows are rejected too; nothing is coalesced or deleted. A matching result only means these supplied projections are internally consistent.
+ 
++
++Both snapshots must carry the same explicit `snapshot_boundary_id`; records captured at different boundaries are rejected. For each matched action, source command state must also be exactly equal. Only `READY`, `CLAIMED`, and `COMPLETED` are recognized; `UNKNOWN`, absent, unsupported, or mismatched state rejects. This is intentionally strict and can make a real cutover impossible until the exporter proves a shared quiesced snapshot boundary.
++
++The API accepts exact `CutoverBundle`, `SnapshotManifest`, and `ActionRefEvidence` instances, an exact tuple for rows, and exact built-in primitive field types. It rejects arbitrary mappings, subclasses, and objects with custom comparison/serialization behavior. It validates these shapes before computing digests or comparing values; digest construction copies only primitive values and never calls a supplied row's `to_payload`. Exact Python types are an input-shape guard, not source authentication.
+ The SHA-256 is an integrity checksum over normalized payload, not source authentication. Caller-supplied `complete=True`, source names, checksums, and high-water marks are not trusted evidence. This code does not establish that an export contains every native action, authenticate an operator/provider snapshot, resolve historical UNKNOWN outcomes, or prove no other writer exists. It does not source a native `MaxOrderActionRef` floor.
+ 
+ ## Validation
+diff --git a/docs/LIMITATIONS.md b/docs/LIMITATIONS.md
+index 63eef1e..a71754d 100644
+--- a/docs/LIMITATIONS.md
++++ b/docs/LIMITATIONS.md
+@@ -4,6 +4,8 @@
+ 
+ This validator is pure in-memory logic over typed caller-provided evidence. It does not inspect a real database, establish snapshot provenance/completeness, authorize cutover, modify historical rows, allocate `max()+1`, renumber, delete, or merge identities. It cannot be registered in the main runtime because it is isolated under `D:\temp` and has no runtime adapter.
+ 
++
++The r1 contract requires both snapshots to declare the same boundary identifier and requires every matched action's source status to be exactly equal (`READY`, `CLAIMED`, or `COMPLETED`). It rejects `UNKNOWN` and state mismatch. The boundary identifier itself is caller-supplied and unauthenticated; the exporter/service must establish a genuinely shared quiesced boundary. Input classes and contained row/metadata fields are exact types, validated before canonical hashing/comparison; this guards Python callbacks but does not authenticate the exporter.
+ Before any operational offline cutover can be designed, the owner must provide an authenticated, read-only exporter contract for the actual deployed old G5 database and the exact V21 Store package/database version. The exporter must bind a verified account identity, source digests, high-water evidence, complete command-to-allocation joins, all UNKNOWN outcomes, and its snapshot boundary. Current G5 verifier SHA `7caed2a…3f681c66` does not define the old reservation schema; the old schema only appears in a separate SDK candidate SHA `8e7abdd…35f647d`. V21 r3 allocation rows need a command/correlation join to populate shared identity fields, while the old allocation table has no command ID or state. No compatibility or migration rule can be inferred safely from those sources alone.
+ 
+ Even successful offline consistency is not account authority. Separate external requirements remain: authenticated native account ActionRef floor evidence; explicit conflict-preserving inventory and reconciliation of every old writer/database; service-owned account-wide exclusive writer epoch across processes/hosts/store generations; sticky fencing for UNKNOWN, stale epoch, missing/unreadable source or identity conflict; package/API/schema rollout barriers; and independently authorized provider acceptance. Default runtime disposition remains NO_WRITE / LIVE_NO_GO.
+diff --git a/src/offline_cutover_validator.py b/src/offline_cutover_validator.py
+index 235f4ac..f829f53 100644
+--- a/src/offline_cutover_validator.py
++++ b/src/offline_cutover_validator.py
+@@ -1,4 +1,4 @@
+-"""Read-only consistency validator for explicit, normalized ActionRef snapshots.
++"""Read-only consistency validator for exact, normalized ActionRef snapshots.
+ 
+ This is a local offline design candidate. It does not read or write databases,
+ allocate identifiers, authorize migration, or provide account authority.
+@@ -18,6 +18,16 @@ V21_SOURCE = "v21_action_allocations_joined_commands"
+ MAX_ACTION_REF = 2_147_483_647
+ _ALLOWED_STATES = frozenset({"READY", "CLAIMED", "COMPLETED"})
+ _SHA256 = re.compile(r"^[0-9a-f]{64}$", re.ASCII)
++_ROW_TEXT_FIELDS = (
++    "account_key",
++    "trading_day",
++    "scope_key",
++    "managed_action_id",
++    "managed_intent_id",
++    "runtime_order_id",
++    "order_ref",
++    "state",
++)
+ 
+ 
+ class CutoverRejected(ValueError):
+@@ -30,13 +40,7 @@ class CutoverRejected(ValueError):
+ 
+ @dataclass(frozen=True)
+ class ActionRefEvidence:
+-    """Normalized join of one legacy reservation or V21 allocation + command.
+-
+-    ``state`` is exported from the source command ledger. It is required so an
+-    UNKNOWN or unavailable source state cannot silently pass the comparison.
+-    Allocation timestamps and source-local command IDs are deliberately not
+-    compared because they are not shared identity fields.
+-    """
++    """Normalized join of one legacy reservation or V21 allocation + command."""
+ 
+     account_key: str
+     trading_day: str
+@@ -49,17 +53,9 @@ class ActionRefEvidence:
+     state: str
+ 
+     def to_payload(self) -> dict[str, Any]:
+-        return {
+-            "account_key": self.account_key,
+-            "trading_day": self.trading_day,
+-            "scope_key": self.scope_key,
+-            "managed_action_id": self.managed_action_id,
+-            "managed_intent_id": self.managed_intent_id,
+-            "runtime_order_id": self.runtime_order_id,
+-            "order_ref": self.order_ref,
+-            "native_action_ref": self.native_action_ref,
+-            "state": self.state,
+-        }
++        """Convenience serialization; the validator deliberately never calls it."""
++
++        return _safe_row_payload(self)
+ 
+ 
+ @dataclass(frozen=True)
+@@ -71,6 +67,7 @@ class SnapshotManifest:
+         "v21_action_allocations_joined_commands",
+     ]
+     account_key: str
++    snapshot_boundary_id: str
+     snapshot_sha256: str
+     row_count: int
+     complete: bool
+@@ -92,6 +89,7 @@ class OfflineConsistencyReport:
+     """Pure comparison result; explicitly carries no authority or write grant."""
+ 
+     account_key: str
++    snapshot_boundary_id: str
+     matched_action_count: int
+     legacy_high_water_action_ref: int
+     v21_high_water_action_ref: int
+@@ -110,27 +108,53 @@ def _canonical_bytes(payload: Any) -> bytes:
+     ).encode("ascii")
+ 
+ 
++def _safe_row_payload(row: ActionRefEvidence) -> dict[str, Any]:
++    """Copy exact dataclass fields to builtins without invoking row callbacks."""
++
++    if type(row) is not ActionRefEvidence:
++        _reject("row_type_invalid")
++    payload: dict[str, Any] = {}
++    for name in _ROW_TEXT_FIELDS:
++        value = object.__getattribute__(row, name)
++        if type(value) is not str:
++            _reject("row_field_type_invalid")
++        payload[name] = value
++    action_ref = object.__getattribute__(row, "native_action_ref")
++    if type(action_ref) is not int:
++        _reject("row_field_type_invalid")
++    payload["native_action_ref"] = action_ref
++    return payload
++
++
+ def snapshot_digest(
+     *,
+     source: str,
+     account_key: str,
++    snapshot_boundary_id: str,
+     complete: bool,
+     high_water_action_ref: int,
+     rows: tuple[ActionRefEvidence, ...],
+     read_error: str | None = None,
+ ) -> str:
+-    """Return the integrity digest for a normalized snapshot payload.
+-
+-    This is deterministic integrity checking only. It cannot authenticate a
+-    source, prove snapshot completeness, or replace a trusted export process.
+-    """
+-
+-    row_payloads = [row.to_payload() for row in rows]
++    """Return a payload integrity digest, not source authentication."""
++
++    if type(source) is not str or type(account_key) is not str:
++        _reject("snapshot_digest_input_invalid")
++    if type(snapshot_boundary_id) is not str or type(rows) is not tuple:
++        _reject("snapshot_digest_input_invalid")
++    if type(complete) is not bool or type(high_water_action_ref) is not int:
++        _reject("snapshot_digest_input_invalid")
++    if not 0 <= high_water_action_ref <= MAX_ACTION_REF:
++        _reject("snapshot_digest_input_invalid")
++    if read_error is not None and type(read_error) is not str:
++        _reject("snapshot_digest_input_invalid")
++    row_payloads = [_safe_row_payload(row) for row in rows]
+     row_payloads.sort(key=_canonical_bytes)
+     payload = {
+         "schema": "iteration41.actionref-source-snapshot.v1",
+         "source": source,
+         "account_key": account_key,
++        "snapshot_boundary_id": snapshot_boundary_id,
+         "complete": complete,
+         "high_water_action_ref": high_water_action_ref,
+         "read_error": read_error,
+@@ -149,6 +173,7 @@ def make_snapshot(
+     account_key: str,
+     rows: tuple[ActionRefEvidence, ...],
+     high_water_action_ref: int,
++    snapshot_boundary_id: str = "synthetic-boundary-1",
+     complete: bool = True,
+     read_error: str | None = None,
+ ) -> SnapshotManifest:
+@@ -157,9 +182,11 @@ def make_snapshot(
+     return SnapshotManifest(
+         source=source,
+         account_key=account_key,
++        snapshot_boundary_id=snapshot_boundary_id,
+         snapshot_sha256=snapshot_digest(
+             source=source,
+             account_key=account_key,
++            snapshot_boundary_id=snapshot_boundary_id,
+             complete=complete,
+             high_water_action_ref=high_water_action_ref,
+             rows=rows,
+@@ -179,151 +206,165 @@ def _reject(code: str) -> None:
+ 
+ def _validate_snapshot(
+     snapshot: SnapshotManifest, *, expected_source: str, account_key: str
+-) -> None:
++) -> tuple[tuple[dict[str, Any], ...], str, int]:
+     if type(snapshot) is not SnapshotManifest:
+         _reject("snapshot_type_invalid")
+-    if snapshot.source != expected_source:
++
++    source = object.__getattribute__(snapshot, "source")
++    if type(source) is not str:
++        _reject("snapshot_source_type_invalid")
++    if source != expected_source:
+         _reject("snapshot_source_mismatch")
+-    if type(snapshot.account_key) is not str or snapshot.account_key != account_key:
++    snapshot_account = object.__getattribute__(snapshot, "account_key")
++    if type(snapshot_account) is not str or snapshot_account != account_key:
+         _reject("snapshot_account_mismatch")
+-    if type(snapshot.complete) is not bool or snapshot.complete is not True:
++    boundary_id = object.__getattribute__(snapshot, "snapshot_boundary_id")
++    if type(boundary_id) is not str or not boundary_id:
++        _reject("snapshot_boundary_invalid")
++    complete = object.__getattribute__(snapshot, "complete")
++    if type(complete) is not bool or complete is not True:
+         _reject("snapshot_incomplete")
+-    if snapshot.read_error is not None:
++    read_error = object.__getattribute__(snapshot, "read_error")
++    if read_error is not None:
+         _reject("snapshot_unreadable")
+-    if type(snapshot.rows) is not tuple:
++    rows = object.__getattribute__(snapshot, "rows")
++    if type(rows) is not tuple:
+         _reject("snapshot_rows_invalid")
+-    if type(snapshot.row_count) is not int or snapshot.row_count != len(snapshot.rows):
++
++    # Validate exact row/container types and all primitive field types before
++    # hashing, equality, sorting, or using any caller-supplied row behavior.
++    row_payloads = tuple(_safe_row_payload(row) for row in rows)
++    row_count = object.__getattribute__(snapshot, "row_count")
++    if type(row_count) is not int or row_count != len(row_payloads):
+         _reject("snapshot_row_count_mismatch")
+-    if (
+-        type(snapshot.high_water_action_ref) is not int
+-        or not 0 <= snapshot.high_water_action_ref <= MAX_ACTION_REF
+-    ):
++    high_water = object.__getattribute__(snapshot, "high_water_action_ref")
++    if type(high_water) is not int or not 0 <= high_water <= MAX_ACTION_REF:
+         _reject("snapshot_high_water_invalid")
+-    if type(snapshot.snapshot_sha256) is not str or not _SHA256.fullmatch(
+-        snapshot.snapshot_sha256
+-    ):
++    snapshot_sha256 = object.__getattribute__(snapshot, "snapshot_sha256")
++    if type(snapshot_sha256) is not str or not _SHA256.fullmatch(snapshot_sha256):
+         _reject("snapshot_digest_invalid")
+     expected_digest = snapshot_digest(
+-        source=snapshot.source,
+-        account_key=snapshot.account_key,
+-        complete=snapshot.complete,
+-        high_water_action_ref=snapshot.high_water_action_ref,
+-        rows=snapshot.rows,
+-        read_error=snapshot.read_error,
++        source=source,
++        account_key=snapshot_account,
++        snapshot_boundary_id=boundary_id,
++        complete=complete,
++        high_water_action_ref=high_water,
++        rows=rows,
++        read_error=read_error,
+     )
+-    if snapshot.snapshot_sha256 != expected_digest:
++    if snapshot_sha256 != expected_digest:
+         _reject("snapshot_digest_mismatch")
+ 
+     seen_refs: set[int] = set()
+     seen_actions: set[tuple[str, str]] = set()
+     max_row_ref = 0
+-    for row in snapshot.rows:
+-        if type(row) is not ActionRefEvidence:
+-            _reject("row_type_invalid")
+-        text_fields = (
+-            row.account_key,
+-            row.trading_day,
+-            row.scope_key,
+-            row.managed_action_id,
+-            row.managed_intent_id,
+-            row.runtime_order_id,
+-            row.order_ref,
+-        )
+-        if any(type(value) is not str or not value for value in text_fields):
++    for row in row_payloads:
++        text_fields = tuple(row[name] for name in _ROW_TEXT_FIELDS if name != "state")
++        if any(not value for value in text_fields):
+             _reject("row_identity_missing")
+-        if row.account_key != account_key:
++        if row["account_key"] != account_key:
+             _reject("row_account_mismatch")
++        trading_day = row["trading_day"]
+         if (
+-            len(row.trading_day) != 8
+-            or not row.trading_day.isascii()
+-            or not row.trading_day.isdigit()
++            len(trading_day) != 8
++            or not trading_day.isascii()
++            or not trading_day.isdigit()
+         ):
+             _reject("row_trading_day_invalid")
+-        if not row.runtime_order_id.startswith("bt-managed-v1:"):
++        if not row["runtime_order_id"].startswith("bt-managed-v1:"):
+             _reject("row_runtime_order_id_invalid")
+-        if (
+-            len(row.order_ref) != 12
+-            or not row.order_ref.isascii()
+-            or not row.order_ref.isdigit()
+-        ):
++        order_ref = row["order_ref"]
++        if len(order_ref) != 12 or not order_ref.isascii() or not order_ref.isdigit():
+             _reject("row_order_ref_invalid")
+-        if type(row.native_action_ref) is not int or not (
+-            1 <= row.native_action_ref <= MAX_ACTION_REF
+-        ):
++        action_ref = row["native_action_ref"]
++        if not 1 <= action_ref <= MAX_ACTION_REF:
+             _reject("row_action_ref_invalid")
+-        if type(row.state) is not str:
+-            _reject("row_state_missing_or_unrecognized")
+-        if row.state == "UNKNOWN":
++        state = row["state"]
++        if state == "UNKNOWN":
+             _reject("unknown_action_present")
+-        if row.state not in _ALLOWED_STATES:
++        if state not in _ALLOWED_STATES:
+             _reject("row_state_missing_or_unrecognized")
+-        ref_key = row.native_action_ref
+-        action_key = (row.scope_key, row.managed_action_id)
++        ref_key = action_ref
++        action_key = (row["scope_key"], row["managed_action_id"])
+         if ref_key in seen_refs or action_key in seen_actions:
+             _reject("duplicate_or_conflicting_source_identity")
+         seen_refs.add(ref_key)
+         seen_actions.add(action_key)
+-        max_row_ref = max(max_row_ref, row.native_action_ref)
+-    if snapshot.high_water_action_ref > 0 and not snapshot.rows:
++        max_row_ref = max(max_row_ref, action_ref)
++    if high_water > 0 and not row_payloads:
+         _reject("snapshot_high_water_without_rows")
+-    if snapshot.high_water_action_ref < max_row_ref:
++    if high_water < max_row_ref:
+         _reject("snapshot_high_water_below_rows")
++    return row_payloads, boundary_id, high_water
+ 
+ 
+-def _identity(row: ActionRefEvidence) -> tuple[str, ...] | tuple[str, int]:
++def _identity(row: dict[str, Any]) -> tuple[Any, ...]:
+     return (
+-        row.account_key,
+-        row.trading_day,
+-        row.scope_key,
+-        row.managed_action_id,
+-        row.managed_intent_id,
+-        row.runtime_order_id,
+-        row.order_ref,
+-        row.native_action_ref,
++        row["account_key"],
++        row["trading_day"],
++        row["scope_key"],
++        row["managed_action_id"],
++        row["managed_intent_id"],
++        row["runtime_order_id"],
++        row["order_ref"],
++        row["native_action_ref"],
+     )
+ 
+ 
+ def validate_cutover(bundle: CutoverBundle) -> OfflineConsistencyReport:
+     """Compare exact source identities without mutating either source."""
+ 
+-    if type(bundle) is not CutoverBundle or bundle.schema != SCHEMA:
+-        _reject("bundle_schema_or_type_invalid")
+-    if type(bundle.account_key) is not str or not bundle.account_key:
++    if type(bundle) is not CutoverBundle:
++        _reject("bundle_type_invalid")
++    schema = object.__getattribute__(bundle, "schema")
++    if type(schema) is not str:
++        _reject("bundle_schema_type_invalid")
++    if schema != SCHEMA:
++        _reject("bundle_schema_mismatch")
++    account_key = object.__getattribute__(bundle, "account_key")
++    if type(account_key) is not str or not account_key:
+         _reject("bundle_account_invalid")
+-    _validate_snapshot(
+-        bundle.legacy, expected_source=LEGACY_SOURCE, account_key=bundle.account_key
++    legacy = object.__getattribute__(bundle, "legacy")
++    v21 = object.__getattribute__(bundle, "v21")
++    legacy_rows, legacy_boundary, legacy_high_water = _validate_snapshot(
++        legacy, expected_source=LEGACY_SOURCE, account_key=account_key
+     )
+-    _validate_snapshot(
+-        bundle.v21, expected_source=V21_SOURCE, account_key=bundle.account_key
++    v21_rows, v21_boundary, v21_high_water = _validate_snapshot(
++        v21, expected_source=V21_SOURCE, account_key=account_key
+     )
+-    if bundle.v21.high_water_action_ref < bundle.legacy.high_water_action_ref:
++    if legacy_boundary != v21_boundary:
++        _reject("snapshot_boundary_mismatch")
++    if v21_high_water < legacy_high_water:
+         _reject("v21_high_water_below_legacy_source")
+ 
+-    legacy_by_ref = {row.native_action_ref: row for row in bundle.legacy.rows}
+-    v21_by_ref = {row.native_action_ref: row for row in bundle.v21.rows}
++    legacy_by_ref = {row["native_action_ref"]: row for row in legacy_rows}
++    v21_by_ref = {row["native_action_ref"]: row for row in v21_rows}
+     if legacy_by_ref.keys() != v21_by_ref.keys():
+         _reject("mapping_missing_from_one_source")
+     for action_ref, legacy_row in legacy_by_ref.items():
+         v21_row = v21_by_ref[action_ref]
++        if legacy_row["state"] != v21_row["state"]:
++            _reject("mapping_state_conflict")
+         if _identity(legacy_row) != _identity(v21_row):
+             _reject("mapping_field_conflict")
+ 
+     legacy_by_action = {
+-        (row.scope_key, row.managed_action_id): row.native_action_ref
+-        for row in bundle.legacy.rows
++        (row["scope_key"], row["managed_action_id"]): row["native_action_ref"]
++        for row in legacy_rows
+     }
+     v21_by_action = {
+-        (row.scope_key, row.managed_action_id): row.native_action_ref
+-        for row in bundle.v21.rows
++        (row["scope_key"], row["managed_action_id"]): row["native_action_ref"]
++        for row in v21_rows
+     }
+     if legacy_by_action != v21_by_action:
+         _reject("action_reference_conflict")
+ 
+     return OfflineConsistencyReport(
+-        account_key=bundle.account_key,
++        account_key=account_key,
++        snapshot_boundary_id=legacy_boundary,
+         matched_action_count=len(legacy_by_ref),
+-        legacy_high_water_action_ref=bundle.legacy.high_water_action_ref,
+-        v21_high_water_action_ref=bundle.v21.high_water_action_ref,
++        legacy_high_water_action_ref=legacy_high_water,
++        v21_high_water_action_ref=v21_high_water,
+     )
+ 
+ 
+diff --git a/tests/test_offline_cutover_validator.py b/tests/test_offline_cutover_validator.py
+index ee85ee1..28384a3 100644
+--- a/tests/test_offline_cutover_validator.py
++++ b/tests/test_offline_cutover_validator.py
+@@ -53,6 +53,8 @@ def bundle(
+     v21_complete: bool = True,
+     legacy_read_error: str | None = None,
+     v21_read_error: str | None = None,
++    legacy_boundary: str = "synthetic-boundary-1",
++    v21_boundary: str = "synthetic-boundary-1",
+ ) -> CutoverBundle:
+     legacy_rows = (row(),) if legacy_rows is None else legacy_rows
+     v21_rows = legacy_rows if v21_rows is None else v21_rows
+@@ -64,6 +66,7 @@ def bundle(
+             account_key=ACCOUNT,
+             rows=legacy_rows,
+             high_water_action_ref=legacy_high,
++            snapshot_boundary_id=legacy_boundary,
+             complete=legacy_complete,
+             read_error=legacy_read_error,
+         ),
+@@ -72,6 +75,7 @@ def bundle(
+             account_key=ACCOUNT,
+             rows=v21_rows,
+             high_water_action_ref=v21_high,
++            snapshot_boundary_id=v21_boundary,
+             complete=v21_complete,
+             read_error=v21_read_error,
+         ),
+@@ -239,6 +243,61 @@ def test_source_high_water_must_cover_every_observed_reference() -> None:
+     )
+ 
+ 
++def test_state_mismatch_at_same_boundary_fails_closed() -> None:
++    rejects(
++        "mapping_state_conflict",
++        bundle((row(state="READY"),), (row(state="COMPLETED"),)),
++    )
++
++
++def test_different_snapshot_boundaries_fail_closed() -> None:
++    rejects(
++        "snapshot_boundary_mismatch",
++        bundle(legacy_boundary="barrier-1", v21_boundary="barrier-2"),
++    )
++
++
++def test_hostile_schema_comparison_is_not_invoked() -> None:
++    calls: list[str] = []
++
++    class HostileSchema:
++        def __ne__(self, other: object) -> bool:
++            calls.append("ne")
++            return False
++
++    rejects("bundle_schema_type_invalid", replace(bundle(), schema=HostileSchema()))
++    assert calls == []
++
++
++def test_malformed_row_callback_is_not_invoked_before_rejection() -> None:
++    calls: list[str] = []
++
++    class HostileRow:
++        def to_payload(self) -> dict[str, object]:
++            calls.append("to_payload")
++            return {}
++
++    candidate = bundle()
++    malformed = replace(candidate.legacy, rows=(HostileRow(),))
++    rejects("row_type_invalid", replace(candidate, legacy=malformed))
++    assert calls == []
++
++
++def test_nonprimitive_row_field_is_rejected_without_comparison_callback() -> None:
++    calls: list[str] = []
++
++    class HostileText:
++        def __eq__(self, other: object) -> bool:
++            calls.append("eq")
++            return True
++
++    candidate = bundle()
++    malformed_row = replace(row(), account_key=HostileText())
++    malformed_snapshot = replace(candidate.legacy, rows=(malformed_row,))
++    rejects("row_field_type_invalid", replace(candidate, legacy=malformed_snapshot))
++    assert calls == []
++
++
+ def test_snapshot_source_identity_cannot_be_relabelled() -> None:
+     candidate = bundle()
+     wrong = make_snapshot(

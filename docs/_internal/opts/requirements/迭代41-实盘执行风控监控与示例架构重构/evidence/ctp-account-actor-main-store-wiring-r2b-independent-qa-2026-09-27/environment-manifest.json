@@ -1,0 +1,38 @@
+{
+  "recorded_utc_date": "2026-09-27",
+  "os": "Windows-10-10.0.26100-SP0",
+  "python_executable": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "python_version": {
+    "exit_code": 0,
+    "output": "Python 3.11.5"
+  },
+  "pytest_version": {
+    "exit_code": 0,
+    "output": "pytest 8.2.2"
+  },
+  "ruff_executable": "C:\\anaconda3\\Scripts\\ruff.exe",
+  "ruff_version": {
+    "exit_code": 0,
+    "output": "ruff 0.16.2"
+  },
+  "test_environment": {
+    "PYTHONPATH": "<isolated r2b candidate root only>",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPYCACHEPREFIX": "isolated QA temp directory",
+    "removed_environment_prefixes": [
+      "BT_",
+      "CTP_",
+      "PYTEST_"
+    ],
+    "removed_environment_names": [
+      "PYTHONPATH"
+    ],
+    "pytest_plugins": [
+      "no:asyncio",
+      "no:cacheprovider"
+    ]
+  },
+  "network_provider_native": "No real provider, native SDK, network, account, private runtime config, or order was used. Fake clients/traps only.",
+  "source_only": "Frozen candidate source payload, not installed wheel / release acceptance."
+}

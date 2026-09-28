@@ -1,0 +1,211 @@
+{
+  "schema": "iteration41-coordinated-wheel-independent-qa-copy-receipt-v1",
+  "created_utc": "2026-09-27T01:08:26.485478+00:00",
+  "source_qa_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927",
+  "destination_evidence_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27",
+  "copied_files": [
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-evidence.zip",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\independent-qa-evidence.zip",
+      "size_bytes": 7203230,
+      "source_sha256": "6f90ed890e0eb638f3e4b141fa0433c1cce854cc25661bf07fcccfbfb2ac9ddd",
+      "destination_sha256": "6f90ed890e0eb638f3e4b141fa0433c1cce854cc25661bf07fcccfbfb2ac9ddd",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-archive-index.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\independent-qa-archive-index.json",
+      "size_bytes": 101843,
+      "source_sha256": "f0d3db483b402ab440a09badb6969ab384dc3ca3c845b1e3a91b3c6b05a8fcd4",
+      "destination_sha256": "f0d3db483b402ab440a09badb6969ab384dc3ca3c845b1e3a91b3c6b05a8fcd4",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-receipt.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\independent-qa-receipt.json",
+      "size_bytes": 8948,
+      "source_sha256": "a7111b1c3709828287195e0e64678700a7760e351cd8fc9de03eec7a078951e3",
+      "destination_sha256": "a7111b1c3709828287195e0e64678700a7760e351cd8fc9de03eec7a078951e3",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\independent-qa-review.md",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\independent-qa-review.md",
+      "size_bytes": 2412,
+      "source_sha256": "c4f75cf8c7bfefd4110c7e93ef8c213238ef98916681f948cd131e347c813bb3",
+      "destination_sha256": "c4f75cf8c7bfefd4110c7e93ef8c213238ef98916681f948cd131e347c813bb3",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\input-audit.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\input-audit.json",
+      "size_bytes": 3376,
+      "source_sha256": "7cf5b4c84c36f753d0ae010d86dd901d5280d528c703230f32f9164906b441a4",
+      "destination_sha256": "7cf5b4c84c36f753d0ae010d86dd901d5280d528c703230f32f9164906b441a4",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\installation-audit.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\installation-audit.json",
+      "size_bytes": 4011,
+      "source_sha256": "a17267072d895568ac3f91820379441380fe5f232b840d418b1d6b1944c1633e",
+      "destination_sha256": "a17267072d895568ac3f91820379441380fe5f232b840d418b1d6b1944c1633e",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\test-summary.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\test-summary.json",
+      "size_bytes": 6801,
+      "source_sha256": "a1feb0d15d6e7e1ac4f021687981c900b2802f5e506556c767bcd44659452beb",
+      "destination_sha256": "a1feb0d15d6e7e1ac4f021687981c900b2802f5e506556c767bcd44659452beb",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\guard-summary.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\guard-summary.json",
+      "size_bytes": 4373,
+      "source_sha256": "fa77b1568bffc759b336c6c0c68a3fb083b8d397abd9508af46d010450c7c255",
+      "destination_sha256": "fa77b1568bffc759b336c6c0c68a3fb083b8d397abd9508af46d010450c7c255",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\qa-results.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\qa-results.json",
+      "size_bytes": 18607,
+      "source_sha256": "265f4ff950d600957899d7ed7e60a4abd7f941cc843b7fa367ca2ed129e01888",
+      "destination_sha256": "265f4ff950d600957899d7ed7e60a4abd7f941cc843b7fa367ca2ed129e01888",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\wheelhouse-manifest.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\wheelhouse-manifest.json",
+      "size_bytes": 18664,
+      "source_sha256": "aedd18781806733abd1ef354a73cadbb6c40fd63475baf57e9b501a6725bd4b6",
+      "destination_sha256": "aedd18781806733abd1ef354a73cadbb6c40fd63475baf57e9b501a6725bd4b6",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjunct-manifest.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\source-adjunct-manifest.json",
+      "size_bytes": 76162,
+      "source_sha256": "b96f2f702b601066620261e329c13b62ec3c962bb2716e0bed70f00699c11eb4",
+      "destination_sha256": "b96f2f702b601066620261e329c13b62ec3c962bb2716e0bed70f00699c11eb4",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-roots-independent.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\source-roots-independent.json",
+      "size_bytes": 1292,
+      "source_sha256": "9662ab83cf3fd3c79b5c2a4816aa0edf237a00301942c5ad8900d84311628728",
+      "destination_sha256": "9662ab83cf3fd3c79b5c2a4816aa0edf237a00301942c5ad8900d84311628728",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-install.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-install.log",
+      "size_bytes": 9809,
+      "source_sha256": "42d9c35ca6fedf234951f677506a8c91281998e1d178acffeef75004e9577841",
+      "destination_sha256": "42d9c35ca6fedf234951f677506a8c91281998e1d178acffeef75004e9577841",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-install.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-install.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-install-report.json",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-install-report.json",
+      "size_bytes": 883145,
+      "source_sha256": "654ae9d2cd17853100e3ea968b9105e8f5e05dce302c053458c1de739dc005a9",
+      "destination_sha256": "654ae9d2cd17853100e3ea968b9105e8f5e05dce302c053458c1de739dc005a9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv-create.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\venv-create.log",
+      "size_bytes": 0,
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv-create.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\venv-create.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-uninstall-base.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-uninstall-base-initial.log",
+      "size_bytes": 358,
+      "source_sha256": "5d4c1df4255b64c54803a4acb86b34d12be17f3401759e4b370baf04db11bf72",
+      "destination_sha256": "5d4c1df4255b64c54803a4acb86b34d12be17f3401759e4b370baf04db11bf72",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-uninstall-base.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-uninstall-base-initial.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-check.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-check-initial.log",
+      "size_bytes": 31,
+      "source_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "destination_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-check.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-check-initial.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-uninstall-base-v2.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-uninstall-base-corrected.log",
+      "size_bytes": 130,
+      "source_sha256": "151bb70cbc5a8de5f282fe2d27ff31749c414ab910eaa998e57f6fec6e87fd6a",
+      "destination_sha256": "151bb70cbc5a8de5f282fe2d27ff31749c414ab910eaa998e57f6fec6e87fd6a",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-uninstall-base-v2.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-uninstall-base-corrected.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-check-v2.log",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-check-corrected.log",
+      "size_bytes": 31,
+      "source_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "destination_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "identical": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\pip-check-v2.exit.txt",
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-independent-qa-2026-09-27\\pip-check-corrected.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "destination_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "identical": true
+    }
+  ],
+  "raw_qa_archive_sha256": "6f90ed890e0eb638f3e4b141fa0433c1cce854cc25661bf07fcccfbfb2ac9ddd",
+  "raw_qa_archive_testzip": null,
+  "result": "COPY_BYTES_IDENTICAL"
+}

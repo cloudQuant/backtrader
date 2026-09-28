@@ -1,0 +1,9 @@
+{
+  "main_base_store_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "parent_r2_manifest_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+  "r2_parent_files": {
+    "backtrader/stores/btapistore.py": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8",
+    "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py": "04968d98ae476d4b9ec33d448be11d19e0ffc9adb79585f423b37b37b759154f"
+  },
+  "source": "frozen R2 raw candidate ZIP"
+}

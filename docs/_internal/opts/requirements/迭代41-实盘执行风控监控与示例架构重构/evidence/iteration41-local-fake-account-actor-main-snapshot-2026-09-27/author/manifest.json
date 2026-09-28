@@ -1,0 +1,617 @@
+{
+  "authority": "LOCAL_FAKE_ONLY_NO_G6_P_F14_ACCEPTANCE",
+  "base": {
+    "accepted_store_preimages": [
+      {
+        "freshness_status": "CURRENT_GATEWAY_WRAPPER_R2_PREIMAGE_VERIFIED",
+        "role": "final Gateway wrapper R2 Store preimage",
+        "sha256": "b9e1bcd3efa6cf57bf8d3029d60ae89a7158d5332b313ee8dfe12a4a0ca557ff"
+      },
+      {
+        "freshness_status": "SUPERSEDED_BY_GATEWAY_WRAPPER_R2",
+        "role": "prior Store R5 snapshot, historical verification only",
+        "sha256": "40f776e783388dfa0a5499501e5886744ffd1d74d259e17d3adecd9a20a5c457"
+      },
+      {
+        "freshness_status": "SUPERSEDED_BY_GATEWAY_WRAPPER_R2",
+        "role": "original integration candidate preimage, historical verification only",
+        "sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9"
+      }
+    ],
+    "expected_new_target_preimages": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/LOCAL_FAKE_ONLY.md": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": "absent",
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": "absent",
+      "tests/unit/runtime/test_local_fake_account_actor_candidate.py": "absent",
+      "tests/unit/runtime/test_local_fake_account_actor_server_core_candidate.py": "absent",
+      "tests/unit/runtime/test_local_fake_account_actor_store_boundary_candidate.py": "absent"
+    },
+    "main_preimage_sha256": {
+      "backtrader/stores/btapistore.py": {
+        "sha256": "b9e1bcd3efa6cf57bf8d3029d60ae89a7158d5332b313ee8dfe12a4a0ca557ff",
+        "state": "present"
+      },
+      "backtrader_runtime/__init__.py": {
+        "sha256": "3f071f55a089f8bf54e0338139b7401988a5421607345ffad808ec4ecebcebfb",
+        "state": "present"
+      },
+      "backtrader_runtime/cli.py": {
+        "sha256": "bca2632e261fe2b663008e8b0758c2c932df917f9376e9b90230848b41ef5ef4",
+        "state": "present"
+      },
+      "backtrader_runtime/inventory.py": {
+        "sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb",
+        "state": "present"
+      },
+      "backtrader_runtime/registry.py": {
+        "sha256": "f359e0d0576662bc8d5f966ef2345fe723c8802cd504ad383323e59959fe5a01",
+        "state": "present"
+      },
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json": {
+        "sha256": "facbbc93067d77a317e3a0abde5ef89bc77bd53e4a4eb18722b51124e3e20780",
+        "state": "present"
+      },
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-writer-dispositions.json": {
+        "sha256": "e6ece21e16af6c6a6220431dd0c2669d81206a136b500dfd5214ca766818e841",
+        "state": "present"
+      },
+      "scripts/collect_iteration41_writer_inventory.py": {
+        "sha256": "b37ed7a309c057b4f97ab8e96fe20d3e840d54084b6bca8edbef3491230ab6e3",
+        "state": "present"
+      },
+      "scripts/iteration41_writer_inventory_scope.json": {
+        "sha256": "c473b4390d70477978c0eb9673e267244d78a57d0acb2e8df6d5f7d3bfa60dd7",
+        "state": "present"
+      },
+      "scripts/verify_iteration41_writer_dispositions.py": {
+        "sha256": "633ad4749eaebf54e8a6be257a6dbbe1900326992122eedd5c161b3485ee42e1",
+        "state": "present"
+      },
+      "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": {
+        "sha256": "e1e9a96a040ac510b4bb48a13195651d71199d9c4b7071083eb617b14f3b3f49",
+        "state": "present"
+      }
+    },
+    "repository_head": "ad2c142b9a8b42cede85886528c681abdfcb8096"
+  },
+  "default_path_boundary": {
+    "btapistore_imports_or_constructs_candidate": false,
+    "cli_imports_candidate": false,
+    "fake_child_imports_runtime_root_or_provider": false,
+    "local_fallback": false,
+    "package_imports_candidate": false,
+    "runtime_registry_contains_candidate": false
+  },
+  "limits": [
+    "Child, SQLite ledger, and fake sink are local and share one OS principal.",
+    "Snapshot proof, account/session values, and writer epochs are synthetic test facts.",
+    "Receipt is unauthenticated and fake sink does not call any provider or native API.",
+    "Forced child termination returns cleanup uncertainty; no Job Object or process-group supervisor verifies descendants.",
+    "No account-wide authenticated external writer fence, real CTP snapshot, G6-P, F14, SimNow, or production authority is supplied.",
+    "The 40f776... Store snapshot is provisional; rebind its hash after Gateway wrapper r2 settles.",
+    "The Gateway wrapper R2 Store SHA is exact but does not supply external account authority."
+  ],
+  "manifest_revision": 4,
+  "origin": {
+    "independent_r2_qa_report_path": "D:\\temp\\iteration41-account-actor-wire-protocol-local-20260927-r2-final-replay\\independent-qa-report.md",
+    "independent_r2_qa_report_sha256": "93dad5646d25715fe261f7dc5c074d22ef40b7998ca1ea95106f4193fb6cd3cf",
+    "r2_base_manifest_sha256": "e1002337f287a73577584fb8a4811980a2b344e980716d1695b4b7758356b53f",
+    "r2_candidate_manifest_sha256": "acd6f0e531dc735942177e569e4cee7fb88b1cb5fd915c50226230a1712bfd97",
+    "r2_patch_sha256": "00066d24d342acf5eaafef7dcc09eec2cc4b57cc89a591e57d63ba2a20a09d7d",
+    "r2_verdict": "LOCAL_PROCESS_SEPARATED_FAKE_PROTOCOL_ONLY"
+  },
+  "patch": {
+    "content_source": "Exact applied patch replay bytes from the verified Gateway wrapper R2 Store snapshot; all payload targets byte-match.",
+    "path": "candidate.patch",
+    "payload_files": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/LOCAL_FAKE_ONLY.md": {
+        "sha256": "2b56c26debd5c330084ef05d53e108a25f7f9c118ce0cc64146a9d139755a757",
+        "size_bytes": 1244
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": {
+        "sha256": "74e1d790cfc3157ae54adfbd918244bba6bb311b719e775ab7e797e68a5aaf26",
+        "size_bytes": 218
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": {
+        "sha256": "1cb3cfa6534da6974e7ec656ac54c413445401c819b3efd48e57c6be54cb7409",
+        "size_bytes": 25738
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": {
+        "sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "size_bytes": 63111
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": {
+        "sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "size_bytes": 21723
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": {
+        "sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c",
+        "size_bytes": 10622
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": {
+        "sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1",
+        "size_bytes": 5114
+      },
+      "tests/unit/runtime/test_local_fake_account_actor_candidate.py": {
+        "sha256": "67fe20c2cbde93cd2b29b21e85472c4675a4d43ddb50a6df546b442ca3b99018",
+        "size_bytes": 11432
+      },
+      "tests/unit/runtime/test_local_fake_account_actor_server_core_candidate.py": {
+        "sha256": "4bbf23974897fe8b37b4d59294be468376e7b761ae807c6b0763f2e0ad06c0f5",
+        "size_bytes": 29759
+      },
+      "tests/unit/runtime/test_local_fake_account_actor_store_boundary_candidate.py": {
+        "sha256": "31ba27d73fdfad55ba0dafcb1c22d08fc851d29863ecfc62bf30689dad4c001b",
+        "size_bytes": 31331
+      }
+    },
+    "sha256": "e9c3996cc836c2d7628ba92c569060cfa78c140768cf612db7f395f66cf2ca22",
+    "size_bytes": 208191,
+    "targets": [
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py",
+      "backtrader_runtime/_local_fake_account_actor_candidate/LOCAL_FAKE_ONLY.md",
+      "tests/unit/runtime/test_local_fake_account_actor_candidate.py",
+      "tests/unit/runtime/test_local_fake_account_actor_server_core_candidate.py",
+      "tests/unit/runtime/test_local_fake_account_actor_store_boundary_candidate.py"
+    ]
+  },
+  "schema": "iteration41-account-actor-runtime-integration-candidate.v1",
+  "static_inventory_delta": {
+    "candidate_delta_inventory_sha256": "2f710debeaf5524ede96b14a9786867f6842456ff478669ccf27861f8c40f7c2",
+    "disposition_inventory_modified": false,
+    "dynamic_execution_candidates": 1,
+    "fresh_exact_patch_replay_scan": {
+      "candidate_records_match_frozen_delta": true,
+      "collector_sha256": "b37ed7a309c057b4f97ab8e96fe20d3e840d54084b6bca8edbef3491230ab6e3",
+      "dynamic_execution_candidates": 1,
+      "files_scanned": 6,
+      "inventory_sha256": "6d91f4474cdf69c5f776442ea23c3f87c3122447f83970aba348a1953cdac337",
+      "writer_candidates": 20
+    },
+    "main_baseline_at_r3": {
+      "checked_in_disposition_entries": 445,
+      "discovered_candidate_total": 439,
+      "discovered_dynamic_candidates": 96,
+      "discovered_writer_candidates": 343,
+      "disposition_check": "REJECTED before candidate integration; six candidate IDs plus count/digest mismatch",
+      "inventory_sha256": "6ae143c265216f114eb7a51ae1557365a56123c2bf2b77d17728dba606e5a565",
+      "status": "PENDING_SCANNER_REBASELINE"
+    },
+    "note": "No inventory or checklist files are in this patch. At this r3 snapshot, the main collector discovers 439 candidates while the checked-in checklist has 445 entries and fails with six unexpected candidate IDs plus count/digest mismatch. Reconcile the scanner baseline, then add all 21 candidate records as REVIEW_REQUIRED / NOT_AVAILABLE before merge.",
+    "records": [
+      {
+        "candidate": {
+          "call": "connection.close",
+          "class_name": "AccountActorServerCoreV1",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_initialize_schema",
+          "kind": "writer_call_candidate",
+          "line": 1113,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+        },
+        "candidate_id": "i41-writer-1ea0d830505fd8dc9cc5",
+        "target_source_sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "target_source_size_bytes": 63111
+      },
+      {
+        "candidate": {
+          "call": "self.connection.close",
+          "class_name": "_Transaction",
+          "column": 16,
+          "dynamic_reason": null,
+          "function_name": "__enter__",
+          "kind": "writer_call_candidate",
+          "line": 1237,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+        },
+        "candidate_id": "i41-writer-698985163dc6a866fbaa",
+        "target_source_sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "target_source_size_bytes": 63111
+      },
+      {
+        "candidate": {
+          "call": "self.connection.close",
+          "class_name": "_Transaction",
+          "column": 16,
+          "dynamic_reason": null,
+          "function_name": "__exit__",
+          "kind": "writer_call_candidate",
+          "line": 1255,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py"
+        },
+        "candidate_id": "i41-writer-0839d47b1ee5e48be7f4",
+        "target_source_sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "target_source_size_bytes": 63111
+      },
+      {
+        "candidate": {
+          "call": "subprocess.Popen",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 24,
+          "dynamic_reason": "dynamic_execution",
+          "function_name": "__init__",
+          "kind": "dynamic_execution_candidate",
+          "line": 147,
+          "method": null,
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-71930b2c039462578bbf",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "__init__",
+          "kind": "writer_call_candidate",
+          "line": 183,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-8c75f3ada8308e550962",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_exchange_locked",
+          "kind": "writer_call_candidate",
+          "line": 372,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-4ca5fc53348f1f008a7a",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_exchange_locked",
+          "kind": "writer_call_candidate",
+          "line": 378,
+          "method": "close",
+          "ordinal": 1,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-d9cb3917dfd979c14f07",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_exchange_locked",
+          "kind": "writer_call_candidate",
+          "line": 381,
+          "method": "close",
+          "ordinal": 2,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-033a6d3492e283a6cab0",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 391,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-7efb437579fca2e99980",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 394,
+          "method": "close",
+          "ordinal": 1,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-6b8d23074a58e4a3a228",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 397,
+          "method": "close",
+          "ordinal": 2,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-e23724e1fbe73d86b09c",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 400,
+          "method": "close",
+          "ordinal": 3,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-baf12e0c3aa8e5672a67",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 403,
+          "method": "close",
+          "ordinal": 4,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-ea3b383559b59127b2f0",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 406,
+          "method": "close",
+          "ordinal": 5,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-1026c45e4c9156f811ba",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 411,
+          "method": "close",
+          "ordinal": 6,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-5f5016356e1caeee411f",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "self.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 12,
+          "dynamic_reason": null,
+          "function_name": "_read_response",
+          "kind": "writer_call_candidate",
+          "line": 414,
+          "method": "close",
+          "ordinal": 7,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-6c0a36772443adc4bac6",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "process.stdin.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 20,
+          "dynamic_reason": null,
+          "function_name": "close",
+          "kind": "writer_call_candidate",
+          "line": 491,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-e7052d2b9d1eda1be714",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "stream.close",
+          "class_name": "SubprocessFakeActorPort",
+          "column": 24,
+          "dynamic_reason": null,
+          "function_name": "close",
+          "kind": "writer_call_candidate",
+          "line": 528,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py"
+        },
+        "candidate_id": "i41-writer-7f73319f511d87e45de3",
+        "target_source_sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "target_source_size_bytes": 21723
+      },
+      {
+        "candidate": {
+          "call": "core.close",
+          "class_name": null,
+          "column": 4,
+          "dynamic_reason": null,
+          "function_name": "main",
+          "kind": "writer_call_candidate",
+          "line": 299,
+          "method": "close",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py"
+        },
+        "candidate_id": "i41-writer-b1d03654fed3c00d68a4",
+        "target_source_sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c",
+        "target_source_size_bytes": 10622
+      },
+      {
+        "candidate": {
+          "call": "self.actor_port.submit_order",
+          "class_name": "StoreBoundaryHarness",
+          "column": 22,
+          "dynamic_reason": null,
+          "function_name": "submit_order",
+          "kind": "writer_call_candidate",
+          "line": 75,
+          "method": "submit_order",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py"
+        },
+        "candidate_id": "i41-writer-8b49231c5a71f5759c11",
+        "target_source_sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1",
+        "target_source_size_bytes": 5114
+      },
+      {
+        "candidate": {
+          "call": "self.actor_port.cancel_order",
+          "class_name": "StoreBoundaryHarness",
+          "column": 22,
+          "dynamic_reason": null,
+          "function_name": "cancel_order",
+          "kind": "writer_call_candidate",
+          "line": 86,
+          "method": "cancel_order",
+          "ordinal": 0,
+          "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py"
+        },
+        "candidate_id": "i41-writer-fbc7eb19201080da507e",
+        "target_source_sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1",
+        "target_source_size_bytes": 5114
+      }
+    ],
+    "source_hashes": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": {
+        "sha256": "74e1d790cfc3157ae54adfbd918244bba6bb311b719e775ab7e797e68a5aaf26",
+        "size_bytes": 218
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": {
+        "sha256": "1cb3cfa6534da6974e7ec656ac54c413445401c819b3efd48e57c6be54cb7409",
+        "size_bytes": 25738
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": {
+        "sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106",
+        "size_bytes": 63111
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": {
+        "sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31",
+        "size_bytes": 21723
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": {
+        "sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c",
+        "size_bytes": 10622
+      },
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": {
+        "sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1",
+        "size_bytes": 5114
+      }
+    },
+    "writer_candidates": 20
+  },
+  "verdict": "UNREGISTERED_LOCAL_FAKE_PROTOCOL_INTEGRATION_CANDIDATE",
+  "verification": {
+    "command": "python -B -m unittest discover -s tests/unit/runtime -p 'test_local_fake_account_actor*' -v",
+    "fresh_patch_replays": [
+      {
+        "base": "fresh isolated copy of final Gateway wrapper R2 Store and runtime Python sources",
+        "exact_target_hash_matches": 10,
+        "main_tree_mutated": false,
+        "patch_application": "candidate.patch applied to fresh-replay-final-b9 only",
+        "ruff": {
+          "path": "final-b9-ruff.txt",
+          "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+          "size_bytes": 20
+        },
+        "ruff_result": "All checks passed",
+        "store_sha256": "b9e1bcd3efa6cf57bf8d3029d60ae89a7158d5332b313ee8dfe12a4a0ca557ff",
+        "target_count": 10,
+        "tests": {
+          "path": "final-b9-tests.txt",
+          "sha256": "63f2b09118fa32b21eb923b619c35de6709651436fd175b69b8ea98843fa969f",
+          "size_bytes": 13693
+        },
+        "tests_result": "65 passed"
+      }
+    ],
+    "independent_recheck": "PENDING_WRITER_PARTITION_4",
+    "main_checkout_modified": false,
+    "main_patch_check": {
+      "main_tree_mutated": false,
+      "result": "passed; additions-only patch preimages absent",
+      "store_sha256": "b9e1bcd3efa6cf57bf8d3029d60ae89a7158d5332b313ee8dfe12a4a0ca557ff"
+    },
+    "native_sdk_or_credentials": false,
+    "network_or_provider_io": false,
+    "previous_crlf_mismatch_count": 3,
+    "previous_crlf_mismatch_resolution": "Payload hashes and manifest source hashes rebuilt from exact applied replay bytes; all ten targets now byte-match.",
+    "result": "65 passed",
+    "ruff_command": "python -m ruff check backtrader_runtime/_local_fake_account_actor_candidate tests/unit/runtime/test_local_fake_account_actor_candidate.py tests/unit/runtime/test_local_fake_account_actor_server_core_candidate.py tests/unit/runtime/test_local_fake_account_actor_store_boundary_candidate.py",
+    "ruff_result": "All checks passed"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "archive": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g1-r7-teardown-r2-independent-qa-2026-09-27.raw.zip",
+  "archive_sha256": "84878618021fc6fb558bce855099985ac665e5d3ea4a74f46ca7f2c67d67196c",
+  "zip_testzip": "passed",
+  "file_count": 19,
+  "files": [
+    {
+      "path": "R7T_FINDINGS.md",
+      "size_bytes": 3746,
+      "sha256": "7d59adb0872e117efa6980c0ece4caafc2c168cb46f5113b03cea1548a6a4980"
+    },
+    {
+      "path": "build_r7t.bat",
+      "size_bytes": 328,
+      "sha256": "f8ae3f54b8f96834209e92093482b75f7cdb0017ff0c8326dcd34ece602897f8"
+    },
+    {
+      "path": "build_r7t.errorlevel",
+      "size_bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "build_r7t.log",
+      "size_bytes": 5259,
+      "sha256": "cc241b6967180da59378fefda98aab53bd00dd7737e4e27dffacd4107162bf9e"
+    },
+    {
+      "path": "g1_win_lazy_probe.cpp",
+      "size_bytes": 33002,
+      "sha256": "01178f99640104f0a500b208b3ce60feada23c868b6445adfdbccd9961f1d981"
+    },
+    {
+      "path": "make_r7t_manifest.py",
+      "size_bytes": 4077,
+      "sha256": "5d6bbdc2800fafaaae125a9525eacb85220355499fcd3cabce884e3d325ac3e5"
+    },
+    {
+      "path": "qa/R7T-QA-receipt.json",
+      "size_bytes": 1235,
+      "sha256": "827a78fd1d1b68c2a7ff9de31432b7967fb5825ccfdcc5494b1bc9b705580237"
+    },
+    {
+      "path": "qa/excluded-binaries.json",
+      "size_bytes": 596,
+      "sha256": "3c685b288560d11b090b423458f47dbb19c2b0c250930e8849f6ca83dff45ad6"
+    },
+    {
+      "path": "qa/independent-manifest-audit.json",
+      "size_bytes": 4878,
+      "sha256": "433a47f9f5eaf4e5f8d5a7ae1920912e1a584565dddf1c38dd3328fa4e48d4c6"
+    },
+    {
+      "path": "qa/independent-replay-summary.json",
+      "size_bytes": 6151,
+      "sha256": "b42965de1953b55b8b7554286a9ff65a24c07ea97af8cd46b5987256df33e000"
+    },
+    {
+      "path": "qa/independent-replay.stdout.log",
+      "size_bytes": 22711,
+      "sha256": "5f0829ff30685819997d6b1a429d2c3fd6040cef4a4d01ab2f01b6cf773beda6"
+    },
+    {
+      "path": "r7_payload_hashes.json",
+      "size_bytes": 2068,
+      "sha256": "dce633d92d48e230265a1cf42596de72a634309d07772d8d7e8d0ecfd7c1d2fe"
+    },
+    {
+      "path": "r7_receipt.json",
+      "size_bytes": 13164,
+      "sha256": "c57e1bab55d6983ecba96dcbd19d91389e07d08458221698052b7a48505659cc"
+    },
+    {
+      "path": "r7_scenarios.json",
+      "size_bytes": 25119,
+      "sha256": "1d27c9d47f3e56a45a5ec8afba811ebcb58d68d4cd8eb88aed206c7b99f7ada0"
+    },
+    {
+      "path": "r7t_environment.txt",
+      "size_bytes": 558,
+      "sha256": "abf04f184eee110c5269fd2f548a73e1246bd36b62c5923ef4a0902a0aa67393"
+    },
+    {
+      "path": "r7t_manifest.json",
+      "size_bytes": 2390,
+      "sha256": "8a46c8e16a0fa68f0229dbe995e6f34da60a2ef7ea7441655131a10c7409abde"
+    },
+    {
+      "path": "r7t_manifest.sha256",
+      "size_bytes": 85,
+      "sha256": "799bda6920f7127fd2819647d5d606f882bc7266cf0d19b65f2d629e2c419703"
+    },
+    {
+      "path": "r7t_scenario_runner.stdout.log",
+      "size_bytes": 22709,
+      "sha256": "8f2d64e562ab164dd6408263d28c721d872ddaea3026a0b8f4034ddc71d95ffb"
+    },
+    {
+      "path": "run_r7_scenarios.py",
+      "size_bytes": 7975,
+      "sha256": "fab5e885c239a69d9fac259b9a9d992699773d93b33f8064329274c05b870b55"
+    }
+  ]
+}

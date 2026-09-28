@@ -1,0 +1,35 @@
+{
+  "schema": "iteration41.g4.r2.disposable_build_probe.sources.v1",
+  "base_repo": "D:\\q\\e",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "source_candidate": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927_r2",
+  "version_probe_only": "2.0.4+g4r2.probe.20260927",
+  "sources": [
+    {
+      "label": "a",
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\source-a",
+      "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+      "source_overlays": {
+        "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+        "tests/test_ctp_native_lifecycle_receipt.py": "6CB3837065BBF3A78ADDE5771CF26EF4593A7FEBF7ED8CBC5D0DEBDDB74CA320"
+      },
+      "pyproject_sha256": "3D05CAC55229F870ACAE5D686BE71410A6A264445FD4CE8F1ADE413FE1C83951",
+      "probe_version": "2.0.4+g4r2.probe.20260927",
+      "setup_sha256": "5028884DAAE7D977882B7DCBF0782FA8D0DE843F9C4BBD98527CD502497D86E7",
+      "wrapper_sha256": "5B985C12976A406AE3EBE0084693CACE584615B69CD4F2D48AF57FF5995A031B"
+    },
+    {
+      "label": "b",
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\source-b",
+      "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+      "source_overlays": {
+        "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+        "tests/test_ctp_native_lifecycle_receipt.py": "6CB3837065BBF3A78ADDE5771CF26EF4593A7FEBF7ED8CBC5D0DEBDDB74CA320"
+      },
+      "pyproject_sha256": "3D05CAC55229F870ACAE5D686BE71410A6A264445FD4CE8F1ADE413FE1C83951",
+      "probe_version": "2.0.4+g4r2.probe.20260927",
+      "setup_sha256": "5028884DAAE7D977882B7DCBF0782FA8D0DE843F9C4BBD98527CD502497D86E7",
+      "wrapper_sha256": "5B985C12976A406AE3EBE0084693CACE584615B69CD4F2D48AF57FF5995A031B"
+    }
+  ]
+}

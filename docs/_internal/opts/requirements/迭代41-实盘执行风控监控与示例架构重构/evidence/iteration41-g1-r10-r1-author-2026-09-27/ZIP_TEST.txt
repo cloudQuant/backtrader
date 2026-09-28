@@ -1,0 +1,4 @@
+zip_test=PASS
+zip_path=D:\source_code\backtrader\docs\_internal\opts\requirements\迭代41-实盘执行风控监控与示例架构重构\evidence\iteration41-g1-r10-r1-author-2026-09-27\r10_r1_author_evidence.zip
+entries=31
+all payload SHA-256 entries verified against R10R1_INDEX.json

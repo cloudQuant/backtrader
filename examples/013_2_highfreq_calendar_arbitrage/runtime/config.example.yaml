@@ -1,0 +1,11 @@
+# LOCAL_REPLAY_ONLY: synthetic CTP ticks with zero network/provider writes.
+# This does not establish HFT capability, real-market execution, or admission.
+# Copy to config.yaml in this registered directory; no secrets or approvals.
+config_schema_version: 4
+strategy:
+  id: example.013_2.highfreq_calendar_arbitrage
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_edge

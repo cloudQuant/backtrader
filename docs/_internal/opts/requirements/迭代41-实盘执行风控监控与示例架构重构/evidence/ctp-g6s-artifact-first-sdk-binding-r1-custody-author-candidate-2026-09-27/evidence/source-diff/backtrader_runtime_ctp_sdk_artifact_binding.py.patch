@@ -1,0 +1,629 @@
+--- /dev/null
++++ candidate/backtrader_runtime/ctp_sdk_artifact_binding.py
+@@ -0,0 +1,626 @@
++"""Fail-closed artifact-first binding for the settlement evidence SDK.
++
++This candidate deliberately has no production artifact pin.  Its pure
++validation helpers are exercised with synthetic distributions; the runtime
++entrypoint refuses before importing bt_api_ctp until an independently
++reviewed wheel/RECORD/native-extension pin is added in code.
++"""
++
++from __future__ import annotations
++
++import base64
++import csv
++import hashlib
++import hmac
++import importlib
++import importlib._bootstrap_external
++import importlib.machinery
++import io
++import os
++import re
++import stat
++import sys
++import zipimport
++from collections.abc import Mapping
++from dataclasses import dataclass
++from email.parser import Parser
++from types import ModuleType
++from typing import Optional
++
++_DIST_NAME = "bt_api_ctp"
++_EVIDENCE_MODULE = "bt_api_ctp.containers.ctp.ctp_native_query_certificate"
++_LOWER_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
++
++
++class CtpSdkArtifactBindingError(RuntimeError):
++    """The installed SDK artifact cannot be bound to an approved identity."""
++
++    def __init__(self, reason: str) -> None:
++        self.reason = reason
++        super().__init__(reason)
++
++
++@dataclass(frozen=True)
++class CtpSdkArtifactPolicy:
++    """Code-owned exact installed-distribution expectations.
++
++    ``record_sha256`` pins the complete installed RECORD inventory. ``files``
++    independently pins relevant source and platform extension bytes. The
++    policy is not accepted from a public function argument.
++    """
++
++    distribution_name: str
++    version: str
++    record_sha256: str
++    source_manifest_sha256: str
++    files: Mapping[str, str]
++    module_files: Mapping[str, str]
++    extension_paths: tuple[str, ...]
++
++
++@dataclass(frozen=True)
++class VerifiedCtpSdkArtifact:
++    distribution_root: str
++    package_root: str
++    dist_info_root: str
++    version: str
++    record_sha256: str
++    source_manifest_sha256: str
++    file_sha256: tuple[tuple[str, str], ...]
++    module_origins: tuple[tuple[str, str], ...]
++    extension_paths: tuple[str, ...]
++
++
++# A candidate may set this only after an installed wheel, complete RECORD,
++# source files, native extension, and external release identity are reviewed.
++# Never replace None with a candidate/source-tree hash as a production pin.
++_CODE_OWNED_ARTIFACT_POLICY: Optional[CtpSdkArtifactPolicy] = None  # noqa: UP045
++_CODE_OWNED_VERIFIER_CACHE: Optional["_CodeOwnedSettlementEvidenceVerifier"] = None  # noqa: UP045, UP037
++
++
++def _fail(reason: str) -> None:
++    raise CtpSdkArtifactBindingError(reason)
++
++
++def _sha256(data: bytes) -> str:
++    return hashlib.sha256(data).hexdigest()
++
++
++def _norm_name(value: str) -> str:
++    return re.sub(r"[-_.]+", "-", value).lower()
++
++
++def _absolute(path: str) -> str:
++    return os.path.normcase(os.path.realpath(os.path.abspath(path)))
++
++
++def _is_within(path: str, root: str) -> bool:
++    try:
++        return os.path.commonpath((_absolute(path), _absolute(root))) == _absolute(root)
++    except (OSError, ValueError):
++        return False
++
++
++def _reject_link_components(path: str, root: str) -> None:
++    """Reject symlink components; deployment ACL/reparse checks remain external."""
++
++    absolute_root = os.path.abspath(root)
++    absolute_path = os.path.abspath(path)
++    if not _is_within(absolute_path, absolute_root):
++        _fail("sdk_artifact_path_escape")
++    relative = os.path.relpath(absolute_path, absolute_root)
++    current = absolute_root
++    for part in relative.split(os.sep):
++        current = os.path.join(current, part)
++        try:
++            mode = os.lstat(current).st_mode
++        except OSError:
++            _fail("sdk_artifact_file_missing")
++        if stat.S_ISLNK(mode):
++            _fail("sdk_artifact_reparse_or_symlink")
++
++
++def _read_regular_file(path: str, root: str) -> bytes:
++    _reject_link_components(path, root)
++    try:
++        info = os.stat(path, follow_symlinks=False)
++        if not stat.S_ISREG(info.st_mode):
++            _fail("sdk_artifact_not_regular_file")
++        with open(path, "rb") as stream:
++            data = stream.read()
++    except CtpSdkArtifactBindingError:
++        raise
++    except OSError:
++        _fail("sdk_artifact_file_unavailable")
++    return data
++
++
++def _parse_metadata(raw: bytes) -> tuple[str, str]:
++    try:
++        message = Parser().parsestr(raw.decode("utf-8"))
++    except (UnicodeError, ValueError):
++        _fail("sdk_artifact_metadata_invalid")
++    names = message.get_all("Name", [])
++    versions = message.get_all("Version", [])
++    if len(names) != 1 or len(versions) != 1:
++        _fail("sdk_artifact_metadata_identity_invalid")
++    return names[0], versions[0]
++
++
++def _decode_record_hash(value: str) -> str:
++    if not value.startswith("sha256="):
++        _fail("sdk_artifact_record_hash_algorithm_invalid")
++    encoded = value[7:]
++    try:
++        digest = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
++    except (ValueError, TypeError):
++        _fail("sdk_artifact_record_hash_invalid")
++    if len(digest) != 32:
++        _fail("sdk_artifact_record_hash_invalid")
++    return digest.hex()
++
++
++def _safe_record_relative(relative: str) -> str:
++    if (
++        type(relative) is not str
++        or not relative
++        or "\\" in relative
++        or "\x00" in relative
++        or relative.startswith("/")
++        or any(part in ("", ".", "..") for part in relative.split("/"))
++    ):
++        _fail("sdk_artifact_record_path_invalid")
++    return relative
++
++
++def _package_inventory(package_root: str, distribution_root: str) -> set[str]:
++    inventory: set[str] = set()
++    for current, dirs, files in os.walk(package_root, topdown=True, followlinks=False):
++        for name in list(dirs):
++            path = os.path.join(current, name)
++            if os.path.islink(path):
++                _fail("sdk_artifact_reparse_or_symlink")
++            if name == "__pycache__":
++                _fail("sdk_artifact_bytecode_cache_present")
++        for name in files:
++            path = os.path.join(current, name)
++            if name.lower().endswith(".pyc") or os.path.islink(path):
++                _fail("sdk_artifact_unsealed_package_file")
++            if not os.path.isfile(path):
++                _fail("sdk_artifact_not_regular_file")
++            rel = os.path.relpath(path, distribution_root).replace(os.sep, "/")
++            inventory.add(rel)
++    return inventory
++
++
++def _verify_distribution_tree(
++    *,
++    distribution_root: str,
++    package_root: str,
++    dist_info_root: str,
++    policy: CtpSdkArtifactPolicy,
++) -> tuple[tuple[str, str], ...]:
++    root = _absolute(distribution_root)
++    package = _absolute(package_root)
++    dist_info = _absolute(dist_info_root)
++    if not _is_within(package, root) or not _is_within(dist_info, root):
++        _fail("sdk_artifact_root_mismatch")
++    expected_dist_info = (
++        _norm_name(policy.distribution_name + "-" + policy.version) + ".dist-info"
++    )
++    if (
++        _norm_name(os.path.basename(dist_info)[:-10]) + ".dist-info"
++        != expected_dist_info
++    ):
++        _fail("sdk_artifact_dist_info_name_mismatch")
++    metadata_raw = _read_regular_file(os.path.join(dist_info, "METADATA"), root)
++    metadata_name, metadata_version = _parse_metadata(metadata_raw)
++    if (
++        _norm_name(metadata_name) != _norm_name(policy.distribution_name)
++        or metadata_version != policy.version
++    ):
++        _fail("sdk_artifact_distribution_identity_mismatch")
++
++    record_path = os.path.join(dist_info, "RECORD")
++    record_raw = _read_regular_file(record_path, root)
++    if (
++        type(policy.record_sha256) is not str
++        or not _LOWER_HEX64_RE.fullmatch(policy.record_sha256)
++        or not hmac.compare_digest(_sha256(record_raw), policy.record_sha256)
++    ):
++        _fail("sdk_artifact_record_digest_mismatch")
++    try:
++        rows = list(csv.reader(io.StringIO(record_raw.decode("utf-8"), newline="")))
++    except (UnicodeError, csv.Error):
++        _fail("sdk_artifact_record_invalid")
++    if not rows or any(len(row) != 3 for row in rows):
++        _fail("sdk_artifact_record_invalid")
++    entries: dict[str, tuple[str, int]] = {}
++    for relative, record_hash, record_size in rows:
++        relative = _safe_record_relative(relative)
++        if relative in entries:
++            _fail("sdk_artifact_record_duplicate_path")
++        if relative == os.path.relpath(record_path, root).replace(os.sep, "/"):
++            if record_hash or record_size:
++                _fail("sdk_artifact_record_self_hash_invalid")
++            entries[relative] = ("", -1)
++            continue
++        if not record_size.isdigit():
++            _fail("sdk_artifact_record_size_invalid")
++        digest = _decode_record_hash(record_hash)
++        path = os.path.join(root, *relative.split("/"))
++        raw = _read_regular_file(path, root)
++        if len(raw) != int(record_size) or _sha256(raw) != digest:
++            _fail("sdk_artifact_record_file_mismatch")
++        entries[relative] = (digest, len(raw))
++
++    expected = dict(policy.files)
++    if not expected or any(
++        type(path) is not str
++        or _safe_record_relative(path) != path
++        or type(digest) is not str
++        or not _LOWER_HEX64_RE.fullmatch(digest)
++        for path, digest in expected.items()
++    ):
++        _fail("sdk_artifact_policy_invalid")
++    for relative, expected_digest in expected.items():
++        row = entries.get(relative)
++        if row is None or row[0] != expected_digest:
++            _fail("sdk_artifact_pinned_file_mismatch")
++    package_prefix = os.path.relpath(package, root).replace(os.sep, "/") + "/"
++    record_package_files = {
++        path
++        for path in entries
++        if path.startswith(package_prefix) and path != package_prefix
++    }
++    if _package_inventory(package, root) != record_package_files:
++        _fail("sdk_artifact_package_inventory_mismatch")
++    if not policy.extension_paths or any(
++        path not in expected
++        or not path.startswith(package_prefix)
++        or not path.lower().endswith((".pyd", ".so", ".dylib"))
++        or not any(
++            path.lower().endswith(suffix.lower())
++            for suffix in importlib.machinery.EXTENSION_SUFFIXES
++        )
++        for path in policy.extension_paths
++    ):
++        _fail("sdk_artifact_native_extension_unpinned")
++    if not policy.module_files:
++        _fail("sdk_artifact_module_map_missing")
++    for fullname, relative in policy.module_files.items():
++        if type(fullname) is not str or not (
++            fullname == _DIST_NAME or fullname.startswith(_DIST_NAME + ".")
++        ):
++            _fail("sdk_artifact_module_map_invalid")
++        if (
++            relative not in expected
++            or not relative.startswith(package_prefix)
++            or not relative.endswith(".py")
++        ):
++            _fail("sdk_artifact_module_source_unpinned")
++    if policy.module_files.get(_DIST_NAME) != package_prefix + "__init__.py":
++        _fail("sdk_artifact_package_initializer_unpinned")
++    return tuple(sorted((path, digest) for path, digest in expected.items()))
++
++
++def _discover_and_verify(policy: CtpSdkArtifactPolicy) -> VerifiedCtpSdkArtifact:
++    if sys.dont_write_bytecode is not True:
++        _fail("sdk_artifact_requires_no_bytecode")
++    _require_standard_import_chain()
++    if any(
++        name == _DIST_NAME or name.startswith(_DIST_NAME + ".") for name in sys.modules
++    ):
++        _fail("sdk_artifact_check_after_import")
++    search_roots = _verified_search_roots()
++    packages: list[tuple[str, str]] = []
++    dist_infos: list[tuple[str, str]] = []
++    for root in search_roots:
++        package = os.path.join(root, _DIST_NAME)
++        if os.path.isdir(package):
++            packages.append((root, _absolute(package)))
++        try:
++            names = os.listdir(root)
++        except OSError:
++            continue
++        for name in names:
++            lower = name.lower()
++            if lower.endswith(".dist-info") and _norm_name(name[:-10]).startswith(
++                _norm_name(policy.distribution_name) + "-"
++            ):
++                dist_infos.append((root, _absolute(os.path.join(root, name))))
++    if len(packages) != 1 or len(dist_infos) != 1:
++        _fail("sdk_artifact_installation_not_unique")
++    package_root = packages[0][1]
++    if packages[0][0] != dist_infos[0][0]:
++        _fail("sdk_artifact_distribution_root_mismatch")
++    distribution_root = packages[0][0]
++    source_hashes = _verify_distribution_tree(
++        distribution_root=distribution_root,
++        package_root=package_root,
++        dist_info_root=dist_infos[0][1],
++        policy=policy,
++    )
++    if (
++        type(policy.source_manifest_sha256) is not str
++        or not _LOWER_HEX64_RE.fullmatch(policy.source_manifest_sha256)
++        or not policy.module_files
++    ):
++        _fail("sdk_artifact_source_manifest_unpinned")
++    return VerifiedCtpSdkArtifact(
++        distribution_root=distribution_root,
++        package_root=package_root,
++        dist_info_root=dist_infos[0][1],
++        version=policy.version,
++        record_sha256=policy.record_sha256,
++        source_manifest_sha256=policy.source_manifest_sha256,
++        file_sha256=source_hashes,
++        module_origins=tuple(
++            sorted(
++                (name, _absolute(os.path.join(distribution_root, *relative.split("/"))))
++                for name, relative in policy.module_files.items()
++            )
++        ),
++        extension_paths=tuple(
++            _absolute(os.path.join(distribution_root, *relative.split("/")))
++            for relative in policy.extension_paths
++        ),
++    )
++
++
++def _verify_loaded_module(
++    module: object, fullname: str, expected_origin: str, expected_sha256: str
++) -> None:
++    spec = getattr(module, "__spec__", None)
++    origin = getattr(spec, "origin", None)
++    module_file = getattr(module, "__file__", None)
++    if (
++        getattr(spec, "name", None) != fullname
++        or type(origin) is not str
++        or type(module_file) is not str
++        or _absolute(origin) != _absolute(expected_origin)
++        or _absolute(module_file) != _absolute(expected_origin)
++        or getattr(spec, "has_location", False) is not True
++        or type(getattr(spec, "loader", None))
++        is not importlib.machinery.SourceFileLoader
++        or getattr(spec.loader, "name", None) != fullname
++        or _absolute(getattr(spec.loader, "path", "")) != _absolute(expected_origin)
++    ):
++        _fail("sdk_artifact_loaded_module_origin_mismatch")
++    try:
++        with open(expected_origin, "rb") as stream:
++            digest = _sha256(stream.read())
++    except OSError:
++        _fail("sdk_artifact_loaded_module_unavailable")
++    if not hmac.compare_digest(digest, expected_sha256):
++        _fail("sdk_artifact_loaded_module_hash_mismatch")
++
++
++def _require_standard_import_chain() -> None:
++    expected = (
++        importlib.machinery.BuiltinImporter,
++        importlib.machinery.FrozenImporter,
++        importlib.machinery.PathFinder,
++    )
++    if len(sys.meta_path) != len(expected) or any(
++        actual is not trusted for actual, trusted in zip(sys.meta_path, expected)
++    ):
++        _fail("sdk_artifact_import_chain_modified")
++
++
++def _verified_search_roots() -> list[str]:
++    """Reject path entries/hooks that can hide another importable install."""
++
++    if len(sys.path_hooks) != 2 or sys.path_hooks[0] is not zipimport.zipimporter:
++        _fail("sdk_artifact_path_hooks_modified")
++    standard_hook = importlib._bootstrap_external.FileFinder.path_hook(
++        *importlib._bootstrap_external._get_supported_file_loaders()
++    )
++    actual_hook = sys.path_hooks[1]
++    if getattr(actual_hook, "__code__", None) is not standard_hook.__code__ or tuple(
++        cell.cell_contents for cell in (actual_hook.__closure__ or ())
++    ) != tuple(cell.cell_contents for cell in (standard_hook.__closure__ or ())):
++        _fail("sdk_artifact_path_hooks_modified")
++
++    roots: list[str] = []
++    for entry in sys.path:
++        if type(entry) is not str or not entry or "\x00" in entry:
++            _fail("sdk_artifact_path_entry_invalid")
++        candidate = _absolute(entry)
++        try:
++            exists = os.path.exists(candidate)
++            is_directory = os.path.isdir(candidate)
++        except OSError:
++            _fail("sdk_artifact_path_entry_unavailable")
++        if exists and not is_directory:
++            _fail("sdk_artifact_non_directory_import_path")
++        cached = sys.path_importer_cache.get(entry)
++        if cached is not None and type(cached) is not importlib.machinery.FileFinder:
++            _fail("sdk_artifact_cached_importer_modified")
++        if is_directory and candidate not in roots:
++            roots.append(candidate)
++    return roots
++
++
++def _verify_loaded_native_extension(artifact: VerifiedCtpSdkArtifact) -> None:
++    fullname = "bt_api_ctp.ctp._ctp"
++    module = sys.modules.get(fullname)
++    if module is None:
++        return
++    spec = getattr(module, "__spec__", None)
++    origin = getattr(spec, "origin", None)
++    module_file = getattr(module, "__file__", None)
++    if (
++        type(origin) is not str
++        or type(module_file) is not str
++        or type(getattr(spec, "loader", None))
++        is not importlib.machinery.ExtensionFileLoader
++        or getattr(spec.loader, "name", None) != fullname
++        or _absolute(getattr(spec.loader, "path", "")) != _absolute(origin)
++        or _absolute(module_file) != _absolute(origin)
++        or _absolute(origin) not in artifact.extension_paths
++    ):
++        _fail("sdk_artifact_native_module_origin_mismatch")
++    relative = os.path.relpath(origin, artifact.distribution_root).replace(os.sep, "/")
++    expected_hash = dict(artifact.file_sha256).get(relative)
++    if expected_hash is None:
++        _fail("sdk_artifact_native_module_unpinned")
++    try:
++        with open(origin, "rb") as stream:
++            actual_hash = _sha256(stream.read())
++    except OSError:
++        _fail("sdk_artifact_native_module_unavailable")
++    if not hmac.compare_digest(actual_hash, expected_hash):
++        _fail("sdk_artifact_native_module_hash_mismatch")
++
++
++class _CodeOwnedSettlementEvidenceVerifier:
++    """Verifier composed only after the no-argument artifact gate succeeds."""
++
++    def __init__(
++        self, artifact: VerifiedCtpSdkArtifact, certificate_module: ModuleType
++    ) -> None:
++        self.source_manifest_sha256 = artifact.source_manifest_sha256
++        self.evidence_type = certificate_module.CtpSettlementConfirmationEvidence
++        self._builder_type = certificate_module.CtpSettlementConfirmationEvidenceBuilder
++        self._certificate_module = certificate_module
++        self._artifact = artifact
++        self._file_hashes = dict(artifact.file_sha256)
++        self._policy = _CODE_OWNED_ARTIFACT_POLICY
++        self._module_objects: dict[str, object] = {}
++
++    def bind_modules(self) -> None:
++        for fullname, _origin in self._artifact.module_origins:
++            module = sys.modules.get(fullname)
++            if module is None:
++                _fail("sdk_artifact_required_module_missing")
++            self._module_objects[fullname] = module
++
++    def assert_current(self) -> None:
++        if self._policy is None:
++            _fail("sdk_artifact_release_pin_unavailable")
++        if (
++            _verify_distribution_tree(
++                distribution_root=self._artifact.distribution_root,
++                package_root=self._artifact.package_root,
++                dist_info_root=self._artifact.dist_info_root,
++                policy=self._policy,
++            )
++            != self._artifact.file_sha256
++        ):
++            _fail("sdk_artifact_inventory_changed")
++        for fullname, origin in self._artifact.module_origins:
++            module = sys.modules.get(fullname)
++            if module is None or module is not self._module_objects.get(fullname):
++                _fail("sdk_artifact_module_identity_changed")
++            relative = os.path.relpath(
++                origin, self._artifact.distribution_root
++            ).replace(os.sep, "/")
++            expected_hash = self._file_hashes.get(relative)
++            if expected_hash is None:
++                _fail("sdk_artifact_loaded_module_not_in_verified_inventory")
++            _verify_loaded_module(module, fullname, origin, expected_hash)
++        _verify_loaded_native_extension(self._artifact)
++
++    def verify_current(self, trader_client: object, result: object) -> object:
++        self.assert_current()
++        if (
++            self._certificate_module.CtpSettlementConfirmationEvidence
++            is not self.evidence_type
++        ):
++            _fail("sdk_artifact_evidence_type_identity_changed")
++        builder = self._builder_type(trader_client)
++        return builder.build(result)
++
++
++def _load_code_owned_settlement_verifier() -> _CodeOwnedSettlementEvidenceVerifier:
++    """Verify the pinned distribution before importing the SDK evidence module."""
++
++    global _CODE_OWNED_VERIFIER_CACHE
++    if _CODE_OWNED_VERIFIER_CACHE is not None:
++        _CODE_OWNED_VERIFIER_CACHE.assert_current()
++        return _CODE_OWNED_VERIFIER_CACHE
++    policy = _CODE_OWNED_ARTIFACT_POLICY
++    if policy is None:
++        _fail("sdk_artifact_release_pin_unavailable")
++    artifact = _discover_and_verify(policy)
++    try:
++        certificate_module = importlib.import_module(_EVIDENCE_MODULE)
++    except (ImportError, AttributeError, RuntimeError, OSError, TypeError, ValueError):
++        _fail("sdk_artifact_evidence_module_import_failed")
++    file_hashes = dict(artifact.file_sha256)
++    for fullname, expected_origin in artifact.module_origins:
++        module = sys.modules.get(fullname)
++        if module is None:
++            if fullname == _EVIDENCE_MODULE:
++                module = certificate_module
++            else:
++                try:
++                    module = importlib.import_module(fullname)
++                except (
++                    ImportError,
++                    AttributeError,
++                    RuntimeError,
++                    OSError,
++                    TypeError,
++                    ValueError,
++                ):
++                    _fail("sdk_artifact_required_module_import_failed")
++        relative = os.path.relpath(expected_origin, artifact.distribution_root).replace(
++            os.sep, "/"
++        )
++        expected_hash = file_hashes.get(relative)
++        if expected_hash is None:
++            _fail("sdk_artifact_loaded_module_not_in_verified_inventory")
++        _verify_loaded_module(module, fullname, expected_origin, expected_hash)
++    _verify_loaded_native_extension(artifact)
++    if (
++        getattr(certificate_module, "CtpSettlementConfirmationEvidence", None) is None
++        or getattr(certificate_module, "CtpSettlementConfirmationEvidenceBuilder", None)
++        is None
++        or sys.modules.get(_EVIDENCE_MODULE) is not certificate_module
++    ):
++        _fail("sdk_artifact_evidence_type_unavailable")
++    verifier = _CodeOwnedSettlementEvidenceVerifier(artifact, certificate_module)
++    verifier.bind_modules()
++    verifier.assert_current()
++    _CODE_OWNED_VERIFIER_CACHE = verifier
++    return verifier
++
++
++def _get_preclient_code_owned_verifier() -> _CodeOwnedSettlementEvidenceVerifier:
++    verifier = _CODE_OWNED_VERIFIER_CACHE
++    if verifier is None:
++        _fail("sdk_artifact_preclient_gate_required")
++    verifier.assert_current()
++    return verifier
++
++
++def _require_exact_evidence_type(evidence: object, expected_type: object) -> None:
++    if expected_type is None or type(evidence) is not expected_type:
++        _fail("sdk_artifact_evidence_type_identity_mismatch")
++
++
++def _validate_synthetic_distribution_for_tests(
++    *,
++    distribution_root: str,
++    package_root: str,
++    dist_info_root: str,
++    policy: CtpSdkArtifactPolicy,
++) -> tuple[tuple[str, str], ...]:
++    """Private filesystem-only seam used by fake install tests; never a route."""
++
++    return _verify_distribution_tree(
++        distribution_root=distribution_root,
++        package_root=package_root,
++        dist_info_root=dist_info_root,
++        policy=policy,
++    )
++
++
++def _discover_synthetic_distribution_for_tests(
++    policy: CtpSdkArtifactPolicy,
++) -> VerifiedCtpSdkArtifact:
++    """Private test seam to assert duplicate-install rejection without imports."""
++
++    return _discover_and_verify(policy)

@@ -1,0 +1,267 @@
+{
+  "schema_version": "ac41-63-writer-r4-p3-independent-qa.v1",
+  "verdict": "PASS_NARROW_ISOLATED_FAKE_ONLY_QA",
+  "packet": {
+    "root": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927",
+    "manifest_sha256": "6EBB6B381D371E429C54FBAF1D884E1FBABF254FDCECE7A0E6F035A1AB462FB6",
+    "sha256sums_sha256": "27B5C8232AD7A330B214616AD40AD53B2B20229F6F3A5E1BC0D62DBF68D36701",
+    "patch_sha256": "37EA74FA86D600A5FFC47CBC9511C2215B10765EC791FA9DD6F65036EB867B00",
+    "base_store_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "target_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+  },
+  "replayed_targets": [
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_iteration22.py",
+      "sha256": "64C1DDBC2A54322CEC9A0732C78760E684BA7A1E81DE14E4FF2D5AB5AC6833B3"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_entry_approval_arm.py",
+      "sha256": "7A77E0D9FE81230D44DB05F004D1299D997FA65B124ACA7CB228B3A024F2CE44"
+    },
+    {
+      "path": "tests/test_ctp_generic_sdk_queue_failclose.py",
+      "sha256": "75342D9D710BB52C7492C9C2BC71B1094984A27F976D38196D6433B6D182CD74"
+    }
+  ],
+  "test_results": [
+    {
+      "scope": "R4 self-contained queue contract",
+      "passed": 12,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "scope": "Recovery exit four-way parameterization",
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "scope": "Budget passthrough and CTP writer lookup",
+      "passed": 3,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "scope": "Original r3 generic contract",
+      "passed": 11,
+      "deselected": 1,
+      "failed": 0
+    },
+    {
+      "scope": "Managed cancel and forwarding compatibility",
+      "passed": 10,
+      "skipped": 0,
+      "failed": 0
+    }
+  ],
+  "test_total": {
+    "passed": 40,
+    "deselected": 1,
+    "failed": 0
+  },
+  "static_checks": {
+    "py_compile": "PASS",
+    "ruff": "PASS",
+    "strict_apply": "PASS",
+    "packet_sum_rows": 534,
+    "packet_sum_mismatches": 0
+  },
+  "guard": {
+    "provider_sdk_imports": "blocked by import tripwire; no blocked attempt observed",
+    "bt_api_py": "inert in-memory test stub only",
+    "network": "non-loopback blocked; none observed; local 127.0.0.1 event-loop setup only",
+    "credentials": "not read",
+    "private_config": "not read",
+    "provider_io": "none"
+  },
+  "broad_context": {
+    "historical_r3": "13 failed / 2724 passed / 43 skipped / 2 xfailed; preserved",
+    "current_main_reported_by_parent": "2740 passed / 43 skipped / 2 xfailed / 0 failed; not independently rerun by this QA"
+  },
+  "limits": [
+    "Narrow fake-only test evidence does not establish writer closure or SimNow/production authority.",
+    "Routing metadata snapshot may derive from injected API exchange_kwargs and is not authority.",
+    "Stale non-CTP Store snapshot paired with CTP-capable injected API remains a conditional generic sink residual.",
+    "Generic sink guard covers _invoke_sdk_command fallback only; earlier typed managed _execute_sdk_command branch is not globally closed.",
+    "Official writer dispositions remain REVIEW_REQUIRED / NOT_AVAILABLE; posture remains NO_WRITE / LIVE_NO_GO."
+  ],
+  "artifact_sha256": [
+    {
+      "path": "qa-report.md",
+      "sha256": "E0FBE9C3CB5A20C7F406B9DC138B35E4ECC1789C5057E820029934B502BA1E52"
+    },
+    {
+      "path": "static-checks.log",
+      "sha256": "75DE4F77FB6CEF68BACD3F39FE4C85089939B0EE64E2A1411BCF39F5E5325106"
+    },
+    {
+      "path": "packet/manifest.json",
+      "sha256": "6EBB6B381D371E429C54FBAF1D884E1FBABF254FDCECE7A0E6F035A1AB462FB6"
+    },
+    {
+      "path": "packet/SHA256SUMS.txt",
+      "sha256": "27B5C8232AD7A330B214616AD40AD53B2B20229F6F3A5E1BC0D62DBF68D36701"
+    },
+    {
+      "path": "packet/replay.md",
+      "sha256": "E2B957E543D1877ADD820E6424C57D553D87CC3031F0C281879A528DEB902A32"
+    },
+    {
+      "path": "packet/patch.diff",
+      "sha256": "37EA74FA86D600A5FFC47CBC9511C2215B10765EC791FA9DD6F65036EB867B00"
+    },
+    {
+      "path": "input-preimages/btapistore.py.preimage",
+      "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D"
+    },
+    {
+      "path": "input-preimages/test_btapistore_iteration22.py.preimage",
+      "sha256": "30EEAA2C9816E6D0792E801A6EA2A8960CC1BCAA3728679111318E5178AFA49D"
+    },
+    {
+      "path": "input-preimages/test_btapistore_entry_approval_arm.py.preimage",
+      "sha256": "F1C63AABB57D3C6B5F291C86083441E1CE196DA75CC4EA458841D1DCF022407D"
+    },
+    {
+      "path": "input-preimages/r3-original-generic-queue-contract.py",
+      "sha256": "3201896CBC984054BB8124CBBB1489A207DB349AE6CEB74CEB701DA08F21D29A"
+    },
+    {
+      "path": "replay/backtrader/stores/btapistore.py",
+      "sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+    },
+    {
+      "path": "replay/tests/unit/stores/test_btapistore_iteration22.py",
+      "sha256": "64C1DDBC2A54322CEC9A0732C78760E684BA7A1E81DE14E4FF2D5AB5AC6833B3"
+    },
+    {
+      "path": "replay/tests/unit/stores/test_btapistore_entry_approval_arm.py",
+      "sha256": "7A77E0D9FE81230D44DB05F004D1299D997FA65B124ACA7CB228B3A024F2CE44"
+    },
+    {
+      "path": "replay/tests/test_ctp_generic_sdk_queue_failclose.py",
+      "sha256": "75342D9D710BB52C7492C9C2BC71B1094984A27F976D38196D6433B6D182CD74"
+    },
+    {
+      "path": "tests/test_ctp_generic_sdk_queue_failclose_r3.py",
+      "sha256": "3201896CBC984054BB8124CBBB1489A207DB349AE6CEB74CEB701DA08F21D29A"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "sha256": "F7E1FA01AA383367F518C61A0AE30285DB2C8EEFF22B9CF75BA0E1C3D774F853"
+    },
+    {
+      "path": "tests/unit/stores/test_ctp_managed_projection_bridge.py",
+      "sha256": "08095B558369F1C9674F10F0994E1344FC91A5A2BC6AED8A9ACEEC98872832BB"
+    },
+    {
+      "path": "tests/unit/stores/test_ctp_i9_managed_dispatch_bridge.py",
+      "sha256": "697CF8CB65C2AC383C501D4EC5BF612B80C4EAF7C8F037A8F247458B7DE0BFB9"
+    },
+    {
+      "path": "tests/unit/stores/test_managed_ctp_store_adapter.py",
+      "sha256": "8A2BA574398649B260038B9E029D060F92F9A338A50245616DD99130B57B2918"
+    },
+    {
+      "path": "tests/unit/stores/test_managed_execution_store_adapter.py",
+      "sha256": "C9262DC03C3905A54B1397C10DB12B1A5DC68508874E550590039D22A482A030"
+    },
+    {
+      "path": "guard/sitecustomize.py",
+      "sha256": "33AB9E707249693FAAE5E50D74877D9194451C0E85C4E65D6FF6E9D6AE20D243"
+    },
+    {
+      "path": "guard/r4-contract.guard.json",
+      "sha256": "1EB4576CEA874B6299D1C357F2DAE095E86C17F2BD46ABDFFFD47FA371B79B10"
+    },
+    {
+      "path": "guard/r4-contract-rerun.guard.json",
+      "sha256": "16A7F1529422B867F16AA95957BCAABCDB4888AD3AB7E404C2AAC18E227876C8"
+    },
+    {
+      "path": "guard/r4-contract-final.guard.json",
+      "sha256": "9DF97249E2190A0D46453E82C5922079BC23E9C447FB67FE743362FAF121D9D2"
+    },
+    {
+      "path": "guard/recovery.guard.json",
+      "sha256": "B91063D3A50AF727249DECE01F63D561CDC7E22777CBDA03BF0B2CBF78A19A2B"
+    },
+    {
+      "path": "guard/budget.guard.json",
+      "sha256": "51F05649EE080D4F20CFE8CB36D6D6FCA75A32ACF2968A2031FFD7E48E7D5C14"
+    },
+    {
+      "path": "guard/r3-compat.guard.json",
+      "sha256": "DC23CB3F93B0B6230AB357EFA0DF115D216D2D2D24A05D4BAAE7A54D693624AA"
+    },
+    {
+      "path": "guard/managed-cancel.guard.json",
+      "sha256": "B91063D3A50AF727249DECE01F63D561CDC7E22777CBDA03BF0B2CBF78A19A2B"
+    },
+    {
+      "path": "r4-contract.log",
+      "sha256": "2B3695EC5F64CC59877E73D57DE9984FB0CA1011C72BD3C09F4565C641197662"
+    },
+    {
+      "path": "r4-contract-rerun.log",
+      "sha256": "CE96CBDBBB5C4327D1F5A834E2E931EB07DAE3642309BC299989DA3D638C9F16"
+    },
+    {
+      "path": "r4-contract-rerun.junit.xml",
+      "sha256": "D16D1A409BCF6251E160A62A15DE87F808E84CCCF724FD6090EBCF2429DE0211"
+    },
+    {
+      "path": "r4-contract-final.log",
+      "sha256": "FAB5F1B8038FE660E8E0FE7E3F597C3F337A152D5CA471A304DD50F7B956C503"
+    },
+    {
+      "path": "r4-contract-final.junit.xml",
+      "sha256": "AAC454085BF8D16C3178BF0E34312F0F46812C61A5766EC562A45C691D423581"
+    },
+    {
+      "path": "recovery.log",
+      "sha256": "070D7C74A0CBFAC8650A365677E16FE5444E871E12CA09D5FC3BC6686184CAAB"
+    },
+    {
+      "path": "recovery.junit.xml",
+      "sha256": "6EB30B0190F2EE237214B49BEC695D54D202CFFB814711B6879EAFC516C8974A"
+    },
+    {
+      "path": "budget.log",
+      "sha256": "04F58212CEDD64511D6DEB17A1820EB1D1C0EC23AA1E477305E0739A9E75D7E2"
+    },
+    {
+      "path": "budget.junit.xml",
+      "sha256": "3B6077811581BCC23910F2CB06094461BE199984D6CABEF9CE34FC795F531AE4"
+    },
+    {
+      "path": "r3-compat.log",
+      "sha256": "3FAA3BCE1D2D6BD8407AB54931A024843632C7673906D4B5B1D34E99D9898AA3"
+    },
+    {
+      "path": "r3-compat.junit.xml",
+      "sha256": "028CEEDFF5EDD6D71F40B13155372F1CA31FBA60F6C6E62369CBD794E3E25597"
+    },
+    {
+      "path": "managed-cancel.log",
+      "sha256": "F2B17AE96DAC1DC006CC53C9120DA99564946E53CB021FAA00ED53AAFCCE9221"
+    },
+    {
+      "path": "managed-cancel.junit.xml",
+      "sha256": "B625F2369B49520FECE26D8C35EC5EF8A36CA38580512F3E60247C2B5E70E17E"
+    },
+    {
+      "path": "run_focus.py",
+      "sha256": "EE98819521DCADB68A4E4065F99C603F674A6D4B15F74627F803765BA59AACFC"
+    },
+    {
+      "path": "run_managed_cancel.py",
+      "sha256": "F9E0C99E88C78AE4A6956390A01F4956CD183631E04E30ACB5D8ABE6F3898B09"
+    }
+  ]
+}

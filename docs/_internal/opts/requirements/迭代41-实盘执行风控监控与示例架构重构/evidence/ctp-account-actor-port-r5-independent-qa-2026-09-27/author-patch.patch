@@ -1,0 +1,678 @@
+--- a/account_actor_port.py
++++ b/account_actor_port.py
+@@ -8,6 +8,7 @@
+ 
+ import hashlib
+ import json
++import math
+ import threading
+ from abc import ABC, abstractmethod
+ from collections.abc import Mapping
+@@ -345,16 +346,20 @@
+     including environment overrides and nested symbol routing.
+     """
+ 
+-    if type(route) is not StoreRouteDescriptor:
++    route_fields = _store_route_fields(route)
++    if route_fields is None:
+         return RouteKind.AMBIGUOUS
+ 
+-    provider = _selector(route.provider)
+-    backend = _selector(route.backend)
+-    env_provider = _selector(route.environment_provider)
++    provider = _selector(route_fields["provider"])
++    backend = _selector(route_fields["backend"])
++    env_provider = _selector(route_fields["environment_provider"])
+ 
+     if (
+-        (route.backend is not None and type(route.backend) is not str)
+-        or (route.environment_provider is not None and type(route.environment_provider) is not str)
++        (route_fields["backend"] is not None and type(route_fields["backend"]) is not str)
++        or (
++            route_fields["environment_provider"] is not None
++            and type(route_fields["environment_provider"]) is not str
++        )
+     ):
+         return RouteKind.AMBIGUOUS
+ 
+@@ -363,8 +368,8 @@
+     if provider in _CTP_PROVIDERS or env_provider in _CTP_PROVIDERS:
+         return RouteKind.CTP
+ 
+-    config = _exact_dict(route.config)
+-    api_kwargs = _exact_dict(route.api_kwargs)
++    config = _exact_dict(route_fields["config"])
++    api_kwargs = _exact_dict(route_fields["api_kwargs"])
+     if config is None or api_kwargs is None:
+         return RouteKind.AMBIGUOUS
+ 
+@@ -377,8 +382,8 @@
+         unknown = unknown or invalid
+         has_selector = has_selector or present
+ 
+-    env_exchange = _venue(route.environment_exchange_type)
+-    if route.environment_exchange_type is not None:
++    env_exchange = _venue(route_fields["environment_exchange_type"])
++    if route_fields["environment_exchange_type"] is not None:
+         if not env_exchange:
+             unknown = True
+         else:
+@@ -391,7 +396,7 @@
+ 
+     # Do not touch attributes on route.api or route.api_cls. Even a property
+     # read can execute caller code before the missing-actor gate.
+-    if route.api is not None or route.api_cls is not None:
++    if route_fields["api"] is not None or route_fields["api_cls"] is not None:
+         return RouteKind.AMBIGUOUS
+ 
+     if unknown or not venues.issubset(_ALL_KNOWN_VENUES):
+@@ -444,6 +449,138 @@
+     return RouteKind.AMBIGUOUS
+ 
+ 
++@dataclass(frozen=True)
++class StoreRouteSnapshot:
++    """Immutable semantic route snapshot for per-operation mutation checks.
++
++    The snapshot stores only canonical bytes and a digest. Replacing a mutable
++    input mapping with equal content preserves the route; any semantic change
++    changes the digest. Opaque client objects are represented only by presence
++    bits and are rejected by route classification before snapshot capture.
++    """
++
++    route_kind: RouteKind
++    canonical_bytes: bytes
++    digest: str
++
++
++def capture_store_route_snapshot(route: StoreRouteDescriptor) -> StoreRouteSnapshot:
++    """Capture only exact built-in route data without reading injected objects."""
++
++    fields = _store_route_fields(route)
++    if fields is None:
++        raise AccountActorGateError("store_route_snapshot_invalid")
++    try:
++        canonical = {
++            "schema": "store-route-snapshot.v1",
++            "fields": {
++                "provider": _route_value(fields["provider"]),
++                "backend": _route_value(fields["backend"]),
++                "config": _route_value(fields["config"]),
++                "api_kwargs": _route_value(fields["api_kwargs"]),
++                "api_present": fields["api"] is not None,
++                "api_cls_present": fields["api_cls"] is not None,
++                "environment_provider": _route_value(fields["environment_provider"]),
++                "environment_exchange_type": _route_value(
++                    fields["environment_exchange_type"]
++                ),
++            },
++        }
++        canonical_bytes = json.dumps(
++            canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True
++        ).encode("ascii")
++    except (TypeError, ValueError, RecursionError, RuntimeError):
++        raise AccountActorGateError("store_route_snapshot_invalid") from None
++    kind = classify_store_route(route)
++    return StoreRouteSnapshot(
++        route_kind=kind,
++        canonical_bytes=canonical_bytes,
++        digest=hashlib.sha256(canonical_bytes).hexdigest(),
++    )
++
++
++def _store_route_fields(route: Any) -> Optional[dict[str, Any]]:  # noqa: UP045 - Python 3.8
++    """Read the exact frozen descriptor's instance dictionary only.
++
++    This avoids invoking caller-provided Mapping methods, object properties,
++    API descriptors, or subclass hooks during route checks.
++    """
++
++    if type(route) is not StoreRouteDescriptor:
++        return None
++    try:
++        fields = object.__getattribute__(route, "__dict__")
++    except (AttributeError, TypeError):
++        return None
++    expected = {
++        "provider",
++        "backend",
++        "config",
++        "api_kwargs",
++        "api",
++        "api_cls",
++        "environment_provider",
++        "environment_exchange_type",
++    }
++    if type(fields) is not dict or set(fields) != expected:
++        return None
++    return fields
++
++
++def _route_value(
++    value: Any, *, _active: Optional[set[int]] = None, _depth: int = 0  # noqa: UP045 - Python 3.8
++) -> Any:
++    """Return a type-tagged JSON value, rejecting opaque or hostile objects."""
++
++    if _depth > 64:
++        raise ValueError("route value nesting limit exceeded")
++    if value is None:
++        return ["none"]
++    if type(value) is bool:
++        return ["bool", value]
++    if type(value) is int:
++        return ["int", str(value)]
++    if type(value) is str:
++        return ["str", value]
++    if type(value) is float:
++        if not math.isfinite(value):
++            raise ValueError("non-finite route number")
++        return ["float", value.hex()]
++    if type(value) is Decimal:
++        if not value.is_finite():
++            raise ValueError("non-finite route decimal")
++        return ["decimal", str(value)]
++    if type(value) is bytes:
++        return ["bytes", value.hex()]
++
++    if type(value) not in {dict, list, tuple}:
++        raise TypeError("route snapshot accepts exact built-in values only")
++    active = _active if _active is not None else set()
++    identity = id(value)
++    if identity in active:
++        raise ValueError("cyclic route value")
++    active.add(identity)
++    try:
++        if type(value) is dict:
++            if any(type(key) is not str for key in value):
++                raise TypeError("route mapping keys must be exact strings")
++            if len(value) > 10000:
++                raise ValueError("route mapping is too large")
++            return [
++                "dict",
++                [
++                    [key, _route_value(value[key], _active=active, _depth=_depth + 1)]
++                    for key in sorted(value)
++                ],
++            ]
++        if len(value) > 10000:
++            raise ValueError("route sequence is too large")
++        tag = "list" if type(value) is list else "tuple"
++        return [tag, [_route_value(item, _active=active, _depth=_depth + 1) for item in value]]
++    finally:
++        active.remove(identity)
++
++
+ def require_account_actor_before_local_client(
+     route: StoreRouteDescriptor,
+     actor_port: Optional[CtpAccountActorPort],  # noqa: UP045 - Python 3.8 compatibility
+@@ -463,7 +600,10 @@
+         raise AccountActorGateError("external_account_actor_unavailable")
+     if not isinstance(actor_port, CtpAccountActorPort):
+         raise AccountActorGateError("typed_account_actor_port_required")
+-    if route.api is not None or route.api_cls is not None:
++    fields = _store_route_fields(route)
++    if fields is None:
++        raise AccountActorGateError("store_route_ambiguous")
++    if fields["api"] is not None or fields["api_cls"] is not None:
+         raise AccountActorGateError("local_ctp_client_injection_forbidden")
+     return actor_port
+ 
+@@ -674,7 +814,9 @@
+     "FakeLocalActorReplayLedger",
+     "RouteKind",
+     "StoreRouteDescriptor",
++    "StoreRouteSnapshot",
+     "UnavailableCtpAccountActorPort",
++    "capture_store_route_snapshot",
+     "classify_store_route",
+     "reject_ctp_legacy_dispatch",
+     "require_account_actor_before_local_client",
+--- a/store_boundary_harness.py
++++ b/store_boundary_harness.py
+@@ -11,9 +11,10 @@
+     CtpAccountActorPort,
+     CtpCancelIntentV2,
+     CtpSubmitIntentV2,
+-    FakeLocalActorReplayLedger,
+     RouteKind,
+     StoreRouteDescriptor,
++    StoreRouteSnapshot,
++    capture_store_route_snapshot,
+     classify_store_route,
+     reject_ctp_legacy_dispatch,
+     require_account_actor_before_local_client,
+@@ -28,25 +29,24 @@
+         *,
+         actor_port: Optional[CtpAccountActorPort] = None,  # noqa: UP045 - Python 3.8
+         actor_context: Optional[ActorCommandContextV1] = None,  # noqa: UP045 - Python 3.8
+-        receipt_ledger: Optional[FakeLocalActorReplayLedger] = None,  # noqa: UP045 - Python 3.8
+         credential_resolver: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+         api_factory: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+         gateway_factory: Optional[Callable[[], Any]] = None,  # noqa: UP045 - Python 3.8
+     ) -> None:
+-        # This is the candidate integration order: gate before retaining or
+-        # invoking any local API/API class/gateway factory.
++        # Gate the route before retaining or invoking any local API/API
++        # class/gateway factory, credential resolver, environment lookup, or SDK.
+         self.route_kind = classify_store_route(route)
+         self.actor_port = require_account_actor_before_local_client(route, actor_port)
++        self._route_descriptor = route
++        self._route_snapshot: StoreRouteSnapshot = capture_store_route_snapshot(route)
++        if self._route_snapshot.route_kind is not self.route_kind:
++            raise AccountActorGateError("store_route_changed_during_construction")
++        route_fields = object.__getattribute__(route, "__dict__")
+         if self.route_kind is RouteKind.CTP:
+             if type(actor_context) is not ActorCommandContextV1:
+                 raise AccountActorGateError("actor_command_context_required")
+-            if type(receipt_ledger) is FakeLocalActorReplayLedger:
+-                self.receipt_ledger = receipt_ledger
+-            else:
+-                raise AccountActorGateError("fake_replay_ledger_required")
+             self.actor_context = actor_context
+         else:
+-            self.receipt_ledger = receipt_ledger
+             self.actor_context = actor_context
+         self.api = None
+         self.legacy_calls = 0
+@@ -55,37 +55,51 @@
+         if self.route_kind is RouteKind.NON_CTP and credential_resolver is not None:
+             credential_resolver()
+         if self.route_kind is RouteKind.NON_CTP:
+-            if route.api is not None:
+-                self.api = route.api
+-            elif route.backend == "gateway":
++            if route_fields["api"] is not None or route_fields["api_cls"] is not None:
++                raise AccountActorGateError("store_route_changed_during_construction")
++            if route_fields["backend"] == "gateway":
+                 self.api = gateway_factory() if gateway_factory is not None else None
+-            elif route.api_cls is not None:
+-                self.api = api_factory() if api_factory is not None else route.api_cls()
+-        elif route.api is not None or route.api_cls is not None:
++        elif route_fields["api"] is not None or route_fields["api_cls"] is not None:
+             # The gate above rejects these for an actor-owned CTP route.
+             raise AccountActorGateError("local_ctp_client_injection_forbidden")
+ 
+     def submit_order(self, intent: object) -> Any:
++        self._require_current_route_snapshot()
+         if self.route_kind is RouteKind.CTP:
+             if type(intent) is not CtpSubmitIntentV2:
+                 raise AccountActorGateError("typed_submit_intent_required")
+             self._require_current_actor_context(intent)
+             expected = ActorCommandExpectationV2.from_intent(intent)
+-            self.receipt_ledger.claim_once(intent)
+-            receipt = self.actor_port.submit_order(intent)
++            receipt = self._dispatch_actor_command("SUBMIT", intent)
+             return validate_actor_receipt(receipt, expected=expected)
+         return self._submit_order_legacy(intent)
+ 
+     def cancel_order(self, intent: object) -> Any:
++        self._require_current_route_snapshot()
+         if self.route_kind is RouteKind.CTP:
+             if type(intent) is not CtpCancelIntentV2:
+                 raise AccountActorGateError("typed_cancel_intent_required")
+             self._require_current_actor_context(intent)
+             expected = ActorCommandExpectationV2.from_intent(intent)
+-            self.receipt_ledger.claim_once(intent)
+-            receipt = self.actor_port.cancel_order(intent)
++            receipt = self._dispatch_actor_command("CANCEL", intent)
+             return validate_actor_receipt(receipt, expected=expected)
+         return self._cancel_order_legacy(intent)
++
++    def _require_current_route_snapshot(self) -> None:
++        try:
++            current = capture_store_route_snapshot(self._route_descriptor)
++        except AccountActorGateError:
++            raise AccountActorGateError("store_route_changed_after_construction") from None
++        if (
++            current.digest != self._route_snapshot.digest
++            or current.canonical_bytes != self._route_snapshot.canonical_bytes
++            or current.route_kind is not self._route_snapshot.route_kind
++        ):
++            raise AccountActorGateError("store_route_changed_after_construction")
++
++    def _dispatch_actor_command(self, operation: str, intent: object) -> Any:
++        del operation, intent
++        raise AccountActorGateError("trusted_durable_remote_actor_unavailable")
+ 
+     def _require_current_actor_context(self, intent: Any) -> None:
+         if type(intent.context) is not ActorCommandContextV1:
+@@ -100,12 +114,14 @@
+ 
+     def _submit_order_legacy(self, value: object) -> str:
+         del value
++        self._require_current_route_snapshot()
+         reject_ctp_legacy_dispatch(self.route_kind)
+         self.legacy_calls += 1
+         return "legacy_non_ctp"
+ 
+     def _cancel_order_legacy(self, value: object) -> str:
+         del value
++        self._require_current_route_snapshot()
+         reject_ctp_legacy_dispatch(self.route_kind)
+         self.legacy_calls += 1
+         return "legacy_non_ctp"
+--- a//dev/null
++++ b/store_boundary_harness_testonly.py
+@@ -0,0 +1,51 @@
++"""Unit-test-only fake CTP dispatch seam.
++
++Never import this module from Backtrader, a Store, runtime registry, or an
++operator entry point. The in-memory ledger and fake port prove local plumbing
++only; they have no remote identity, cross-process uniqueness, or account
++authority.
++"""
++from __future__ import annotations
++
++from typing import Any, Optional
++
++from account_actor_port import (
++    AccountActorGateError,
++    CtpCancelIntentV2,
++    CtpSubmitIntentV2,
++    FakeLocalActorReplayLedger,
++    RouteKind,
++    StoreRouteDescriptor,
++    classify_store_route,
++)
++from store_boundary_harness import StoreBoundaryHarness
++
++
++class LocalFakeStoreBoundaryHarness(StoreBoundaryHarness):
++    """Explicit local fake path for isolated unit tests only."""
++
++    def __init__(
++        self,
++        route: StoreRouteDescriptor,
++        *,
++        receipt_ledger: Optional[FakeLocalActorReplayLedger] = None,  # noqa: UP045 - Python 3.8
++        **kwargs,
++    ) -> None:
++        if type(receipt_ledger) is not FakeLocalActorReplayLedger:
++            raise AccountActorGateError("fake_replay_ledger_required")
++        if classify_store_route(route) is not RouteKind.CTP:
++            raise AccountActorGateError("local_fake_harness_requires_ctp_route")
++        super().__init__(route, **kwargs)
++        if self.route_kind is not RouteKind.CTP:
++            raise AccountActorGateError("local_fake_harness_requires_ctp_route")
++        self.__receipt_ledger = receipt_ledger
++
++    def _dispatch_actor_command(self, operation: str, intent: object) -> Any:
++        if type(intent) not in {CtpSubmitIntentV2, CtpCancelIntentV2}:
++            raise AccountActorGateError("typed_actor_intent_required")
++        self.__receipt_ledger.claim_once(intent)
++        if operation == "SUBMIT":
++            return self.actor_port.submit_order(intent)
++        if operation == "CANCEL":
++            return self.actor_port.cancel_order(intent)
++        raise AccountActorGateError("actor_operation_unsupported")
+--- a/README.md
++++ b/README.md
+@@ -1,11 +1,13 @@
+-# External CTP Account Actor Port — offline candidate r4
++# External CTP Account Actor Port — offline candidate r5
+ 
+-This independent candidate models a fail-closed composition boundary, a small code-owned provider registry, and a locally checked V2 intent/receipt binding. It does not edit or import the main Backtrader package, does not implement a remote service, and must not be treated as a CTP write route. Unknown providers, ambiguous gateway selectors, and all raw `api`/`api_cls` injection are rejected without introspection.
++This isolated candidate hardens the route snapshot and local fake boundary. It does not edit or import the main Backtrader package, implement a remote service, or create a CTP write route. Unknown providers, ambiguous gateway selectors, and raw `api`/`api_cls` injection fail closed without inspecting injected objects.
+ 
+ Run the isolated fake harness with:
+ 
+     python -m unittest discover -s tests -v
+ 
+-The required result is zero API-class/gateway construction, connect, or ReqOrderInsert/ReqOrderAction calls for missing/default actor routes. The tests also cover CTP environment-downgrade attempts, nested route maps, unknown providers, and injected API objects with trap properties. `ActorCommandContextV1`, `CtpSubmitIntentV2`, `CtpCancelIntentV2`, `ActorCommandReceiptV2`, and `FakeLocalActorReplayLedger` exercise exact local binding and one-shot behavior. These are test contracts, not authenticated or durable external authority.
++The default CTP command path rejects with `trusted_durable_remote_actor_unavailable`, even when a local fake port is supplied. Tests that deliberately exercise fake command/receipt plumbing use the separate `store_boundary_harness_testonly.LocalFakeStoreBoundaryHarness` module and a `FakeLocalActorReplayLedger`. The ordinary harness has no local fake-dispatch switch. The test-only mode has no durable or cross-process uniqueness and is not imported by Backtrader, a Store, or a runtime registry. Route snapshots are rehashed before every submit/cancel. Mutations fail closed; an equal-content replacement mapping keeps the same semantic digest.
+ 
+-See INTEGRATION_CONTRACT.md for the precise main Store call points, existing seam differences, and public-compatibility limitations.
++The tests cover stale context/receipt bindings, CTP environment-downgrade attempts, nested route maps, route mutation, cross-process/reopen replay attempts, unknown providers, and injected API objects with trap properties. `ActorCommandContextV1`, the typed V2 intents/receipts, and the in-memory ledger remain local contract fixtures, not authenticated actor authority.
++
++See INTEGRATION_CONTRACT.md for the precise main Store call points and current limits.
+--- a/INTEGRATION_CONTRACT.md
++++ b/INTEGRATION_CONTRACT.md
+@@ -40,26 +40,43 @@
+ candidate rules, not a claim that all historical BtApiStore paths have been
+ integrated.
+ 
+-## r4 local binding contract and authority limit
++## r5 immutable route snapshot and authority limit
++
++`StoreRouteSnapshot` stores a frozen route kind, canonical bytes, and SHA-256
++digest. It accepts only the exact route descriptor and built-in nested values,
++and reads the descriptor's instance dictionary instead of invoking caller
++properties or mapping methods. API/API-class objects are represented only as
++presence bits; the route gate rejects their injection before snapshot use.
++Submit and cancel recapture and compare the digest and canonical bytes
++before dispatch. A changed nested field or route selector rejects before
++legacy dispatch; replacing a mapping with equal canonical content is allowed
++because the route meaning is unchanged.
+ 
+ `ActorCommandContextV1` carries account reference, runtime id, mode, config
+ digest, session id, session generation, and expected actor epoch. The V2
+ submit/cancel digest canonically binds this context, operation, command id, and
+-all logical intent fields. `ActorCommandReceiptV2` must return the exact
+-context, command id, and digest. The fake harness compares every field before
+-returning a receipt. Context mismatch rejects before actor-port invocation;
+-receipt mismatch never falls back to a local client. An explicit
+-`FakeLocalActorReplayLedger` reserves each command id once before the fake
+-actor call, and keeps the reservation after an exception or invalid receipt.
++logical intent fields. `ActorCommandReceiptV2` must return the exact context,
++command id, and digest. The fake harness compares every field. These fields
++and the digest are local comparisons; they do not prove the actor's current
++epoch or authenticate a receipt.
+ 
+-This is process-local test enforcement only. The context and actor epoch are
+-caller-supplied local expectations, the digest is unkeyed, and the replay
+-ledger is in-memory. They do not authenticate the actor, prove its current
+-epoch, prevent replay across processes/hosts, establish an external account
+-fence, or provide a common provider snapshot. A production protocol still
+-needs authenticated actor identity, authoritative account/runtime/session
+-bindings, a durable server-side idempotency ledger, cross-host fencing, and a
+-read/callback snapshot contract. No actor implementation or authenticated
+-receipt protocol exists in this candidate.
++`FakeLocalActorReplayLedger` is process-local and cannot prove uniqueness after
++process restart or across hosts. The default CTP submit/cancel path therefore
++rejects every command before calling a provided actor port unless a separately
++trusted durable remote Actor exists; this candidate has no trust handshake or
++implementation for one. The separate
++`store_boundary_harness_testonly.LocalFakeStoreBoundaryHarness` module opts
++into fake actor calls for unit tests. The ordinary harness exposes no fake
++dispatch flag. The test-only module uses an in-memory ledger to check
++same-process duplicate calls and is not imported by Backtrader, a Store, or a
++runtime registry. It makes no cross-process, durability, account-fence, or
++external-authority claim. Fresh processes submitting the same command both
++fail closed by default.
+ 
+-The fake actor in tests verifies only method/DTO plumbing and zero local calls. No real AccountActorPort implementation, credentials, service identity, deployment trust pin, external account fence, provider snapshot, callback feed, handoff or native API exists here. The candidate is fake-only and does not enable a default CTP route.
++No real AccountActorPort implementation, credentials, service identity,
++deployment trust pin, external account fence, provider snapshot, callback
++feed, handoff, or native API exists here. A reviewed integration still needs
++an independently authenticated remote Actor that owns durable idempotency and
++provider dispatch, plus authoritative epoch/account/session validation,
++cross-host fencing, and a read/callback snapshot contract. This candidate does
++not enable a default CTP route.
+--- a/tests/test_store_boundary_harness.py
++++ b/tests/test_store_boundary_harness.py
+@@ -1,6 +1,9 @@
++import subprocess
++import sys
+ import unittest
+ from dataclasses import replace
+ from decimal import Decimal
++from pathlib import Path
+ 
+ from account_actor_port import (
+     AccountActorGateError,
+@@ -17,6 +20,7 @@
+     classify_store_route,
+ )
+ from store_boundary_harness import StoreBoundaryHarness
++from store_boundary_harness_testonly import LocalFakeStoreBoundaryHarness
+ 
+ 
+ class Counters:
+@@ -115,7 +119,7 @@
+ 
+ def actor_store(actor, *, context=None, route=None, **kwargs):
+     kwargs.setdefault("receipt_ledger", FakeLocalActorReplayLedger())
+-    return StoreBoundaryHarness(
++    return LocalFakeStoreBoundaryHarness(
+         route or StoreRouteDescriptor(provider="ctp", backend="direct"),
+         actor_port=actor,
+         actor_context=context or actor_context(),
+@@ -476,13 +480,157 @@
+     def test_ctp_actor_requires_explicit_fake_replay_ledger(self):
+         actor = FakeActorPort()
+         with self.assertRaisesRegex(AccountActorGateError, "fake replay ledger required"):
+-            StoreBoundaryHarness(
++            LocalFakeStoreBoundaryHarness(
+                 StoreRouteDescriptor(provider="ctp"),
+                 actor_port=actor,
+                 actor_context=actor_context(),
+                 credential_resolver=lambda: self.fail("credentials must not be resolved"),
+             )
+         self.assertEqual(actor.submits, [])
++
++    def test_actor_unavailable_rejects_before_opaque_route_value_or_client_hooks(self):
++        class Trap:
++            @property
++            def value(self):
++                raise AssertionError("opaque route object must not be inspected")
++
++        class TrapMapping(dict):
++            def items(self):
++                raise AssertionError("mapping subclass must not be traversed")
++
++        route = StoreRouteDescriptor(
++            provider="ctp",
++            config=TrapMapping(nested=Trap()),
++            api=Trap(),
++        )
++        counters = Counters()
++        with self.assertRaisesRegex(AccountActorGateError, "external account actor unavailable"):
++            StoreBoundaryHarness(
++                route,
++                credential_resolver=lambda: self.fail("credentials must not be resolved"),
++                api_factory=lambda: FakeNativeClient(counters),
++                gateway_factory=lambda: FakeNativeClient(counters),
++            )
++        self.assertEqual(counters.constructed, 0)
++        self.assertEqual(counters.connected, 0)
++        self.assertEqual(counters.native_calls, 0)
++
++    def test_default_fake_port_never_claims_cross_process_or_reopen_uniqueness(self):
++        intent = submit_intent(intent_id="reopen-replay")
++
++        for _ in range(2):
++            actor = FakeActorPort()
++            store = StoreBoundaryHarness(
++                StoreRouteDescriptor(provider="ctp", backend="direct"),
++                actor_port=actor,
++                actor_context=actor_context(),
++            )
++            with self.assertRaisesRegex(
++                AccountActorGateError, "trusted durable remote actor unavailable"
++            ):
++                store.submit_order(intent)
++            self.assertEqual(actor.submits, [])
++            self.assertEqual(store.legacy_calls, 0)
++
++        # A fresh interpreter represents a process restart with a fresh local
++        # ledger. Without a trusted durable remote Actor, it must also fail
++        # closed before invoking its fake port.
++        child = r'''from account_actor_port import (
++    AccountActorGateError, ActorCommandContextV1, CtpAccountActorPort,
++    CtpCancelIntentV2, CtpSubmitIntentV2, StoreRouteDescriptor,
++)
++from store_boundary_harness import StoreBoundaryHarness
++from decimal import Decimal
++
++class Fake(CtpAccountActorPort):
++    def __init__(self): self.calls = 0
++    def submit_order(self, intent): self.calls += 1; raise AssertionError("must not dispatch")
++    def cancel_order(self, intent): self.calls += 1; raise AssertionError("must not dispatch")
++
++ctx = ActorCommandContextV1("account", "runtime", "simulation", "a" * 64,
++                            "session", 7, 11, 4, 3)
++intent = CtpSubmitIntentV2("reopen-replay", "IF2601", "CFFEX", "BUY", "OPEN",
++                           "SPECULATION", 1, Decimal("3000.5"), ctx)
++actor = Fake()
++store = StoreBoundaryHarness(StoreRouteDescriptor(provider="ctp", backend="direct"),
++                             actor_port=actor, actor_context=ctx)
++try:
++    store.submit_order(intent)
++except AccountActorGateError as exc:
++    print(f"{exc.code}:{actor.calls}:{store.legacy_calls}")
++'''
++        completed = subprocess.run(
++            [sys.executable, "-B", "-c", child],
++            cwd=str(Path(__file__).resolve().parents[1]),
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++        self.assertEqual(completed.returncode, 0, completed.stderr)
++        self.assertEqual(
++            completed.stdout.strip(), "trusted_durable_remote_actor_unavailable:0:0"
++        )
++
++    def test_nested_route_mutation_rejects_before_legacy_dispatch(self):
++        route = StoreRouteDescriptor(
++            provider="okx",
++            config={"symbol_routes": {"BTC-USDT": "OKX___SWAP"}},
++        )
++        store = StoreBoundaryHarness(route)
++        route.config["symbol_routes"]["BTC-USDT"] = "CTP"
++        for operation in (store.submit_order, store.cancel_order):
++            with self.assertRaisesRegex(
++                AccountActorGateError, "store route changed after construction"
++            ):
++                operation({"id": "must-not-dispatch"})
++        self.assertEqual(store.legacy_calls, 0)
++
++    def test_route_recheck_rejects_custom_mapping_without_invoking_its_methods(self):
++        class TrapMapping(dict):
++            reads = 0
++
++            def items(self):
++                type(self).reads += 1
++                raise AssertionError("route recheck must not invoke caller mapping methods")
++
++        route = StoreRouteDescriptor(provider="okx", config={"exchange_type": "OKX"})
++        store = StoreBoundaryHarness(route)
++        object.__setattr__(route, "config", TrapMapping(exchange_type="CTP"))
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            store.submit_order({"id": "must-not-dispatch"})
++        self.assertEqual(TrapMapping.reads, 0)
++        self.assertEqual(store.legacy_calls, 0)
++
++    def test_equal_content_route_mapping_replacement_keeps_same_snapshot(self):
++        route = StoreRouteDescriptor(
++            provider="okx",
++            config={"symbol_routes": {"BTC-USDT": "OKX___SWAP"}},
++        )
++        store = StoreBoundaryHarness(route)
++        original = route.config
++        replacement = {"symbol_routes": {"BTC-USDT": "OKX___SWAP"}}
++        self.assertIsNot(original, replacement)
++        object.__setattr__(route, "config", replacement)
++        self.assertEqual(store.submit_order({"id": "same-route"}), "legacy_non_ctp")
++        self.assertEqual(store.legacy_calls, 1)
++
++    def test_ctp_route_mutation_rejects_before_fake_actor_dispatch(self):
++        actor = FakeActorPort()
++        route = StoreRouteDescriptor(
++            provider="ctp",
++            backend="direct",
++            config={"symbol_routes": {"IF2601": "CFFEX"}},
++        )
++        store = actor_store(actor, route=route)
++        route.config["symbol_routes"]["IF2601"] = "OKX___SWAP"
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            store.submit_order(submit_intent())
++        self.assertEqual(actor.submits, [])
++        self.assertEqual(store.legacy_calls, 0)
+ 
+ 
+ class TypedIntentValidationTests(unittest.TestCase):

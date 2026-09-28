@@ -1,5 +1,32 @@
 # 012_2 盘口事件驱动跨所永续合约套利候选
 
+## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+
+新入口 `run_runtime.py` 必须读取本目录下 `runtime/config.yaml`（schema v4），仅支持
+`simulation/replay`。在仓库根目录、已安装本地 Backtrader/SDK 的环境中依次执行：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/012_2_event_driven_cross_exchange/runtime
+bt-runtime run --strategy-dir examples/012_2_event_driven_cross_exchange/runtime
+```
+
+`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。唯一可选参数是 `parameters.scenario`：
+`profitable/loss/no_edge/partial/unknown/gap`，默认 `no_edge`。这些名称仅表示合成公式
+分支；报告保留 `R0_FORMULA_FIXTURE`、零订单/成交及无盈利结论，不属于原生执行链验收。
+
+缺配置（`CONFIG_REQUIRED`）、错误 mode/preset、未登记目录及 CLI 模式覆盖会在加载旧策略前拒绝。
+复制 runtime 或整个示例目录不会自动取得登记，需部署阶段独立评审中央 inventory。
+新入口不读取凭据，不支持 shadow、paper、sandbox 或 live；外部网络和 provider 写入均为零。
+原有 tracked `config.yaml` 仍是 hash-bound 研究参数，不再选择执行模式。旧 `run.py` 的
+`--mode shadow/demo`、直接导入的 `main()` 和公开 `run_network()` 现已封闭；无参数调用只转发到
+已登记的 replay runtime。只读 shadow 暂不可直接运行，恢复前需要独立评审并登记 v4
+`simulation/shadow` runtime。
+
+兼容边界：直接执行旧 `run.py` 时，历史参数会在导入策略、Backtrader 和 SDK 前拒绝；通过
+Python 导入 `run.py` 仍会在模块加载期间导入 Backtrader 和 SDK，只有调用 `main()`、
+`run_network()` 或 `build_store()` 时才由旧入口拒绝。请用 `run_runtime.py` 作为配置优先入口。
+下文 `.env`、shadow 和 demo 的操作细节仅记录历史实现，不代表当前可运行入口。
+
 本例独立实现 OKX `BTC-USDT-SWAP` 与 Binance `BTCUSDT` 的 taker-taker IOC 事件策略。
 它不继承、不导入其他 example。行情和订单沿
 `BtApiStore` / `BtApiFeed` / `BtApiBroker` 进入 `bt_api_py` 公共统一接口。
@@ -27,20 +54,14 @@ replay、shadow 和 paper 研究在 G5A 前固定使用每笔 6 bps 的 `conserv
 开仓，或立即补偿已经确认的裸腿。资金费率请求不进入订单优先队列，因此不会占用撤单和
 平仓的命令容量。
 
-```bash
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_2_event_driven_cross_exchange.run --mode replay --scenario profitable
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_2_event_driven_cross_exchange.run --mode shadow
-/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
-  examples.012_2_event_driven_cross_exchange.run --mode demo --preflight
-```
+旧 `--mode shadow/demo` 网络命令已关闭。当前只能通过已登记的 v4 replay runtime 运行。
+只读 shadow 暂不可直接运行，未来需独立评审并登记 v4 `simulation/shadow` runtime。
 
-## Windows 验收与长期只读运行
+## Windows 验收
 
-当前候选为 `RESEARCH_REJECTED`，并且端到端 HFT 资格是 `FAIL/NOT_ADMITTED`。因此只可用
-`replay` 与 **只读** `shadow` 观察公共盘口；`shadow` 强制 SDK 的 `market_data_only`，不会下单、
-不会成交、不会产生 PnL。`paper-live`、demo 下单及任何“跑几天后即可交易”的解释均不适用。
+当前候选为 `RESEARCH_REJECTED`，端到端 HFT 资格是 `FAIL/NOT_ADMITTED`。已登记的 v4
+runtime 只开放 `replay`；旧只读 `shadow` 暂停，直到完成独立的 v4 shadow 注册和验收。
+`paper-live` 与 demo 下单也没有当前运行入口。
 
 首次在 Windows 上运行：
 
@@ -55,24 +76,11 @@ python scripts/refresh_cross_exchange_local_manifests.py --check
 确定性 replay 不联网也不交易：
 
 ```powershell
-python -m examples.012_2_event_driven_cross_exchange.run --mode replay --scenario profitable `
-  --output .\examples\012_2_event_driven_cross_exchange\reports\replay-profitable.json
+bt-runtime run --strategy-dir examples/012_2_event_driven_cross_exchange/runtime
 ```
 
-`--duration 0` 仅为 SDK/元数据探针：成功报告为 `SHADOW_ONE_SHOT_COMPLETE`，CLI 退出码仍为
-`2`，因为没有持续观测。正式观测至少需要 77.5 秒（60 秒统计窗口 + 2.5 秒最大持仓 +
-15 秒停机缓冲）；以下命令可连续安全观察一天，不需要 `.env` 或 API 凭据：
-
-```powershell
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$report = ".\examples\012_2_event_driven_cross_exchange\reports\shadow-$stamp.json"
-python -m examples.012_2_event_driven_cross_exchange.run --mode shadow --duration 86400 --output $report
-```
-
-合格的只读报告应有 `status: SHADOW_PASS`、`orders_submitted: 0`、`fills: 0`、
-`execution_status: NOT_RUN` 与 `store_stop_proven: true`。它仅记录盘口、机会、markout、
-资金费、拒绝原因和安全退出证据，不能推导收益、成交概率或未来盈利；失败时检查
-`shadow_failure.stage` / `shadow_failure.exception_type`，不要记录凭据。
+shadow 的持续观测步骤当前不可执行。未来恢复时必须由独立评审的 v4
+`simulation/shadow` 注册提供配置入口，并验证零订单、零成交、零 PnL 和安全停机。
 
 该策略的决策链是：连续 L2 事件 → sequence/恢复快照/500 ms 陈旧度与 250 ms 跨所 skew 检查
 → 共同数量格点及可执行深度 → 至少 500 ms 的机会寿命 → 四次 taker fee、退出、延迟、失败腿、

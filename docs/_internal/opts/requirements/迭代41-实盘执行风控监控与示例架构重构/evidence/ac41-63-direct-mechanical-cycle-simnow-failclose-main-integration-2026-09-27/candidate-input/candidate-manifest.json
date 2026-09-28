@@ -1,0 +1,89 @@
+{
+  "schema_version": "ac41-63.mechanical_direct_dispatch_failclose_candidate.v1",
+  "status": "ISOLATED_CANDIDATE_FOR_INDEPENDENT_QA; NOT_AUTHORIZATION; NOT_WRITER_CLOSURE",
+  "repository_root": ".",
+  "preimage_basis": "Exact raw working-tree bytes at D:\\source_code\\backtrader on 2026-09-27; per-file SHA-256s below. This is a local working-tree base, not HEAD.",
+  "patch_file": "candidate.patch",
+  "patch_sha256": "cc755c12522397c9980968f07655df0bbf90375ca03647d9f5b7e24d79bab0dc",
+  "changed_files": [
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+    "examples/ctp_options_simnow_live_runner.py",
+    "tests/unit/test_ctp_options_simnow_live_runner.py",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py"
+  ],
+  "preimage_sha256": {
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py": "562ce16464c4ac09c76ea057a319f5499a4bc3d077cb9c313d7916c4184cca5a",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py": "c24ede60544af5ad054dde7d91efe4e4e94034277df8322d18a5059b27707685",
+    "examples/ctp_options_simnow_live_runner.py": "d1756fca17c67544f1785c6c65f4a3681d13db169c05da3dfebfa969c2bd3998",
+    "tests/unit/test_ctp_options_simnow_live_runner.py": "e3de03054f543e3598cd8dfb013e557a92888f903128988c0867c8e76b3be783",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py": "192012c4b829388bb930218fa1cbcc7e31a4bcea4607977f50f3e70f1dfe19e4"
+  },
+  "target_sha256": {
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py": "573882b80db8f47f8b7c8cca8ae2c9c790469eb741c81bb523fc104e7d6c0c33",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py": "38696e2c08439c5d471327f22377c65d589ef3be043a2924f751cbae9c8bc5ee",
+    "examples/ctp_options_simnow_live_runner.py": "36b3056b0196d99cb8e24f02d251d96203b9a30df6193525b50821c46a66384c",
+    "tests/unit/test_ctp_options_simnow_live_runner.py": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4"
+  },
+  "partition_manifest_sha256": "87410218795ca21c6f4a35acef5132edfcb54572814c2ebdf705095bec2d4946",
+  "new_56_partition_sha256": "f4ebd9943f1ee613ef64fec89096b8021ae945eecf158dd5b92a7e4725a598f5",
+  "new_56_id_membership_sha256": "C1C2027546DC3E42D4B70E6BAE7CFD544A03FE6DD1B234259C2952308778F714",
+  "candidate_inventory_sha256": "43e74d725d623ad055255d7fbe9e73af90801ce0e84bef547a25d56781043660",
+  "supplemental_dispositions_sha256": "840a5376032439b232c351a4cf36e6535572aec92f4dc5bacdb60b7aa25f12e2",
+  "safety_scope": [
+    "No main-tree edits are included in this candidate package.",
+    "Generic MechanicalCycle and direct SimNowLiveRunner writer dispatch fail closed.",
+    "Only run_runtime-local registered replay code can define the internal fake-only cycle subclass; it is created after managed replay admission and after constructing the invocation-local _FakeProvider.",
+    "No real SDK/native import, provider, network, credential, account, or order was used by author verification."
+  ],
+  "author_verification": {
+    "candidate_focused_suite": "52 passed, 1 skipped (run_unit_plus_l2.py; 2 focused unit files use candidate-first overlay; L2 integration skip is because optional source roots were not supplied).",
+    "focused_unit_files_only": "52 passed in 0.58s.",
+    "l2_integration": "1 skipped in 4.50s with BT_API_TEST_SOURCE_ROOTS absent; skipped before starting the test subprocess, no SDK/native/provider/network execution.",
+    "py_compile": "passed for all five changed files.",
+    "ruff": "ruff 0.16.2 passed for all five changed files.",
+    "exact_base_patch_replay": "git apply --check and isolated exact-base replay passed; all five target raw SHA-256 values matched.",
+    "p1b_positive": "not run by author because the configured optional SDK source roots were absent; independent QA may run its registered fake-provider-only L2 test in the accepted isolated source environment."
+  },
+  "source_file_sha256": {
+    "backtrader/brokers/btapibroker.py": "538f7ddeb2d1c2ab52f43ec6ffe20981488f901b1b92bddc05f47d5cb75a159c",
+    "backtrader/stores/btapistore.py": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+    "backtrader_runtime/__init__.py": "3f071f55a089f8bf54e0338139b7401988a5421607345ffad808ec4ecebcebfb",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py": "562ce16464c4ac09c76ea057a319f5499a4bc3d077cb9c313d7916c4184cca5a",
+    "backtrader_runtime/ctp_managed_account_runtime_candidate.py": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+    "backtrader_runtime/ctp_production_sdk_readonly.py": "5a0a784aa77c059c067393908e9dcdd2f3e94afe8eb2b20410ef59ed1deba2d9",
+    "backtrader_runtime/ctp_sdk_readonly.py": "5b42ecd25c91d5b76894fc9bd68c1950a053cc2e69dd55cbee3fcb207d779c7a",
+    "backtrader_runtime/ctp_simnow_managed_runtime.py": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958",
+    "backtrader_runtime/ctp_trader_client_port.py": "db34b11a36e201af01fcabb83c1ae6e03ade820035855f38fee5a2ac8ca4b6e4",
+    "backtrader_runtime/runner.py": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd",
+    "examples/013_1_midfreq_cross_arbitrage/strategy.py": "aced71094122390293e8f25bc1df259a35f8fb88f4667a8b4f292e24ece4b5b9",
+    "examples/013_2_highfreq_calendar_arbitrage/strategy.py": "b4f23cde19ee5f14cfdcacb6415ad05f597ded1125fcb416c83823de3b1c8d13",
+    "examples/013_3_sa_midfreq_simnow/run.py": "1c3d37a7485c05ec4ebb82ba1a66218b6b739063e04819d7b327ba4d8847b58e",
+    "examples/013_3_sa_midfreq_simnow/strategy.py": "51d599673021621902a6dfea146f5dfc387ad744bb5e4f95f9a277728fb404f1",
+    "examples/014_1_ctp_options_lowfreq/ctp_options_lowfreq_strategy.py": "f53b549c5fe91d6237ab71f9a1a91a1120c6613ecc3009c61100a6bb85a56625",
+    "examples/014_1_ctp_options_lowfreq/simnow_adapter.py": "c62543a2cc07a8d21aaa612f2c40141d8fbda165e7ef5432b8c5c371f7372d9f",
+    "examples/014_2_ctp_options_midfreq/ctp_options_midfreq_strategy.py": "2be4517f471f93f2acf0fd0a7ae96e71555b7fc4412b960385a15ef56b0fda9d",
+    "examples/014_2_ctp_options_midfreq/simnow_adapter.py": "38dc32f18d5a6e257352f8c3f6a886e334ea0c9618cd7d4afa347005f481fbbc",
+    "examples/015_ctp_options_highfreq/engineering_smoke.py": "9b2ca12b74ea15cf8e12b78f3828dbe0f749bbfbeaf66eed6e16c39556905e9d",
+    "examples/ctp_options_simnow_live_runner.py": "d1756fca17c67544f1785c6c65f4a3681d13db169c05da3dfebfa969c2bd3998"
+  },
+  "source_hash_verification": {
+    "new_candidate_count": 56,
+    "unique_source_paths": 20,
+    "hash_mismatches": 0
+  },
+  "static_inventory_coverage": {
+    "candidate_rows": 445,
+    "new_rows": 56,
+    "new_writer_aliases": 17,
+    "new_dynamic_aliases": 39,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "discovered_source_paths": 211,
+    "missing_baseline_paths": 0,
+    "unclassified_paths": 0,
+    "private_ctp_runtime_state": "summarized_without_scanning"
+  },
+  "report_sha256": "3fefc3f8119122711c968cb5ba6ceb69428c24794505a1ba1011c75bd7e1a65f"
+}

@@ -1,0 +1,61 @@
+{
+  "status": "SOURCE_FAKE_ONLY",
+  "sdk_commit": "2fe2ba9d78bab6477aa4e232795aad35a14f2313",
+  "sdk_clean": true,
+  "source_hashes": {
+    "src/bt_api_ctp/ctp/client.py": "a80d060577c210c5faafc57e72b5f2435d6e7b25f6b4fad7eb5797827abe6bd6",
+    "tests/test_ctp_callback_ingress_client.py": "82de7c2539edfa7e7c6f2a84dc821d09fe8f7d2927638ea4ed18507d081313ce"
+  },
+  "junit_counts": {
+    "author": {
+      "tests": 472,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "parent_node": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "author_parent_provenance": "Original 472 run used nested package path and cannot prove intended parent normalizer origin; original log/JUnit preserved, manifest corrected.",
+  "independent_union": "Reviewer ran correct parent repository root: 472 passed, 2 warnings, 62.54s; direct tool result retained as text receipt, no independent raw JUnit/log.",
+  "parent_corrected_rerun": "1 passed with in-process import-origin assertions for parent package, normalization and contract models.",
+  "pending": "Main account-session V17/V2 integration, unified reproducible wheels, native/provider, G1-G8 and default route acceptance remain separate.",
+  "artifacts": {
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-author.junit.xml": {
+      "sha256": "a3c27207ba0609a897cdca04f917316ed6f2f4b96d6d42dc7f0ec90a12a2c2e9",
+      "bytes": 71228
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-author.log": {
+      "sha256": "85dba517bf50ff676028eb6ef18a9068df512f9fdc3ae22b2690ff96ac9a5192",
+      "bytes": 1844
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-author-manifest.txt": {
+      "sha256": "dc5aee917fc84e5e60c81b0b095bb099584a2cd55fcf322d5c51b992bf84910c",
+      "bytes": 3819
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-independent.txt": {
+      "sha256": "7a0b3353474405eb564f54e1dc355d032c84cf5bd650335a6d47a90329de834b",
+      "bytes": 5343
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-parent-node.junit.xml": {
+      "sha256": "2afded41f407a3ed37a1e4d68d08b8712022e18d26ae24a5a1b732512d1a7a90",
+      "bytes": 352
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-parent-node.log": {
+      "sha256": "fe8ab97d0330aad0d40aa439bf4224d43464008a1302e4739aa7f641d15bb90f",
+      "bytes": 1717
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-parent-node-manifest.txt": {
+      "sha256": "c11776c5fc25e8c3a27934bb183f508c08b88fb33fe2dc10b8cb846eb4f36113",
+      "bytes": 2892
+    },
+    "ctp-sdk-v2-2fe2ba-source-review-2026-09-26-parent-node-runner.py": {
+      "sha256": "f6ba03531ca93409444ddb5536d22807f591c0a643f207047892fe7894e823a1",
+      "bytes": 1118
+    }
+  }
+}

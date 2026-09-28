@@ -1,0 +1,33 @@
+{
+  "schema": "iteration41.local_evidence.v1",
+  "scope": "BM57 harness independent smoke and direct contract tests",
+  "status": "SMOKE_ONLY",
+  "acceptance_status": "NOT_ACCEPTED_FULL_MATRIX",
+  "python": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe",
+  "tests": {
+    "passed": 4,
+    "warnings": 1,
+    "elapsed_seconds": 4.41,
+    "raw_junit_retained": false,
+    "evidence_kind": "direct root tool output; existing unknown pytest asyncio config warning"
+  },
+  "smoke_exit_code": 0,
+  "source_files": {
+    "scripts/run_iteration41_direct_benchmark.py": "4b7a64e9381fc86a3d75291b972ae53684f9de70192c25e6def335c23236193f",
+    "tests/unit/scripts/test_run_iteration41_direct_benchmark.py": "1e7425ee5fd2992009c68df30d8b07dd2646fcbb2be399a10b5f9f2cfdda5fab"
+  },
+  "raw_files": {
+    "campaign-result.json": "c7cf437ab650203652b66675f9c1b3d85af810a4c1b0a6e6529b389dab14549c",
+    "round-01-baseline.json": "b2f88ee16805ab4a22fea9f90d12073fd69acf4209520fd0aaf0f86ec28a4f5a",
+    "round-01-candidate.json": "04dcca4eecc6cf3f8e1077090c3ca4dfccb21f04a3803045838c833ce1f6847b"
+  },
+  "raw_zip_sha256": "3b0151048b460754dbb0f96093b3a1cc66173ded9597bec8b44a9f7805fd12ea",
+  "result_sha256": "c7cf437ab650203652b66675f9c1b3d85af810a4c1b0a6e6529b389dab14549c",
+  "limits": [
+    "7 measured samples per operation plus 2 warmups; no performance threshold evaluation",
+    "concurrent development host; no performance isolation claimed",
+    "Python API guards are test observations, not OS isolation",
+    "no provider, credential, native CTP, SDK or live route used",
+    "five-round Windows/Linux full performance matrix not run"
+  ]
+}

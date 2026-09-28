@@ -1,0 +1,259 @@
+{
+  "schema": "iteration41.bm58_independent_qa_output_audit.v1",
+  "status": "FAKE_LOCAL_DIAGNOSTIC",
+  "acceptance_status": "NOT_ACCEPTED",
+  "author_artifact": {
+    "raw_zip_sha256": "9363d92ecdda7527a12feb5e7357793458047067f137f336a795c3859a948272",
+    "expected_raw_zip_sha256": "9363d92ecdda7527a12feb5e7357793458047067f137f336a795c3859a948272",
+    "zip_testzip": null,
+    "manifest_sha256": "9426567739623296a95b78cd7c288a38f96764d0c7f38e4e1a45d26e88ac5adb",
+    "expected_manifest_sha256": "9426567739623296a95b78cd7c288a38f96764d0c7f38e4e1a45d26e88ac5adb",
+    "manifest_payloads_verified": 16,
+    "payloads": [
+      {
+        "path": "INDEX.md",
+        "size_bytes": 2330,
+        "sha256": "9b285a0ad61d39b1314a47ec9b5a972927a30d69446397c6bfacef0c95a1862f"
+      },
+      {
+        "path": "pytest-py311.log",
+        "size_bytes": 550,
+        "sha256": "9c0175c9a335fe4eeaae278fcd9c73d83dedb5f845df3cf6019c8746b7f726f8"
+      },
+      {
+        "path": "python38-grammar.log",
+        "size_bytes": 38,
+        "sha256": "ff30612a118f4d9114419f5517896ba7dc6aae1ea226565c4d61453f8f438c28"
+      },
+      {
+        "path": "ruff-check.log",
+        "size_bytes": 20,
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      {
+        "path": "ruff-format.log",
+        "size_bytes": 27,
+        "sha256": "97d85b4b6c185a05396e2d09a3c304ff0f7cc77f8b7b7bb7989ec6cd875b3898"
+      },
+      {
+        "path": "raw-python312-default-smoke/authority.sqlite3",
+        "size_bytes": 49152,
+        "sha256": "c8abc2d856740237933cce7d27eab21e5583cf67843d5fdb4b2ae2bd1d4780ac"
+      },
+      {
+        "path": "raw-python312-default-smoke/backpressure-client-0.csv",
+        "size_bytes": 76,
+        "sha256": "7e40ac6ae66b41d43b173769e72060d8d857b872cc77383d5f51046ccf2f4bcf"
+      },
+      {
+        "path": "raw-python312-default-smoke/backpressure-client-1.csv",
+        "size_bytes": 76,
+        "sha256": "7e40ac6ae66b41d43b173769e72060d8d857b872cc77383d5f51046ccf2f4bcf"
+      },
+      {
+        "path": "raw-python312-default-smoke/backpressure-samples.csv",
+        "size_bytes": 86,
+        "sha256": "0d23a4b2b174b45b216e90e52a3a64a1bac279b57badda796880f3b0a0abfef1"
+      },
+      {
+        "path": "raw-python312-default-smoke/client-results.json",
+        "size_bytes": 573,
+        "sha256": "c1513fd3b46ed1254ac0221e47e706d6130479e5b9ca919a7bc5dfb2e52a72b3"
+      },
+      {
+        "path": "raw-python312-default-smoke/intent-samples.csv",
+        "size_bytes": 5313,
+        "sha256": "a1520d2a7996a3ad3b95a924dc450c2837c9ccb145abe2fb382d43cf9c4cff38"
+      },
+      {
+        "path": "raw-python312-default-smoke/request-attempts.csv",
+        "size_bytes": 3329,
+        "sha256": "3bbe312cdcb38640a37dc2f2546b7aa25899b4eaca4e92d6fbfd567364bc7246"
+      },
+      {
+        "path": "raw-python312-default-smoke/result.json",
+        "size_bytes": 3243,
+        "sha256": "1d68b664bf94323d1ee83354c5cacce834daecb0a4e915fec7fed22fedb0c3fa"
+      },
+      {
+        "path": "raw-python312-default-smoke/stdout.txt",
+        "size_bytes": 913,
+        "sha256": "21715ea8e53947049a4ad54f7cfb7b24b7a5f7d19fa04df97e013d3daecadcb8"
+      },
+      {
+        "path": "source/run_iteration41_actor_capacity_benchmark.py",
+        "size_bytes": 35084,
+        "sha256": "b1f02883d706c6d5449c5483a9a67fc32dae99f903c16fd2738e5e1b278759b1"
+      },
+      {
+        "path": "source/test_run_iteration41_actor_capacity_benchmark.py",
+        "size_bytes": 5252,
+        "sha256": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb"
+      }
+    ],
+    "harness_sha256_main_copy_zip": "b1f02883d706c6d5449c5483a9a67fc32dae99f903c16fd2738e5e1b278759b1",
+    "focused_test_sha256_main_copy_zip": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+    "author_report_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\bm58-two-client-capacity-2026-09-27.md",
+    "author_report_sha256": "d4db2e2f5ff6a8b799a7f871cf6ae4361684c184cfaaa8c794415380141eb957",
+    "author_report_test_hash_as_written": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffcb8f2fabb",
+    "author_report_test_hash_erratum": {
+      "written": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffcb8f2fabb",
+      "verified": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+      "finding": "The report has a test-file SHA typo; main file, manifest, and raw ZIP agree on the verified value. Author evidence was left unchanged."
+    }
+  },
+  "independent_pytest": "4 passed in 11.41s (CPython 3.11.5, plugin autoload disabled)",
+  "static_surface": {
+    "source_imports": [
+      "__future__",
+      "argparse",
+      "csv",
+      "hashlib",
+      "json",
+      "math",
+      "multiprocessing",
+      "os",
+      "platform",
+      "sqlite3",
+      "sys",
+      "threading",
+      "time",
+      "uuid",
+      "contextlib",
+      "pathlib",
+      "typing"
+    ],
+    "forbidden_import_prefixes_checked": [
+      "socket",
+      "requests",
+      "urllib",
+      "http",
+      "ctypes",
+      "bt_api_py",
+      "bt_api_ctp",
+      "backtrader",
+      "backtrader_runtime"
+    ],
+    "result_counter_note": "provider_dispatches/native_api_calls/network_calls are emitted as literal zero fields; no instrumentation of OS-level sockets/provider APIs. The source import/static surface is inert, but output zeros alone are not an external side-effect monitor.",
+    "no_sdk_native_or_runtime_imports": true
+  },
+  "runs": {
+    "smoke-default-final": {
+      "status": "PASS",
+      "profile": {
+        "acceptance_status": "NOT_ACCEPTED",
+        "duplicate_every": 10,
+        "duration_seconds": 2,
+        "max_outstanding": 256,
+        "process_count": 2,
+        "profile": "smoke",
+        "provider_latency_ms": 2.0,
+        "rate_per_second": 10,
+        "status": "FAKE_LOCAL_DIAGNOSTIC"
+      },
+      "metrics": {
+        "accepted_but_incomplete_intents": 0,
+        "accepted_unique_intents": 20,
+        "actual_elapsed_seconds": 1.925,
+        "backpressure_events": 0,
+        "backpressure_polls": 0,
+        "backpressure_wait_ns": 0,
+        "completed_intents": 20,
+        "drain_seconds_after_both_producers_finished": 0,
+        "duplicate_attempts": 2,
+        "expected_duplicate_attempts": 2,
+        "fake_provider_calls": 20,
+        "input_attempts_recorded": 22,
+        "input_intents_planned": 20,
+        "last_completion_ns": 231776671000000,
+        "lost_intents": 0,
+        "native_api_calls": 0,
+        "network_calls": 0,
+        "outstanding_at_end": 0,
+        "peak_backlog": 1,
+        "planned_end_ns": 231776778000000,
+        "producers_finished_ns": 231776671000000,
+        "production_extension_seconds": 0,
+        "provider_dispatches": 0,
+        "sqlite_busy_retries": 0
+      },
+      "sqlite_counts": {
+        "clients": 2,
+        "intents": 20,
+        "request_attempts": 22,
+        "backpressure_samples": 0,
+        "complete": 20,
+        "incomplete": 0,
+        "duplicates": 2,
+        "accepted_attempts": 20,
+        "outstanding": 0,
+        "max_backlog": 1,
+        "pressure_wait_ns": 0,
+        "pressure_polls": 0,
+        "journal_mode": "wal"
+      }
+    },
+    "pressure-40x1-final": {
+      "status": "PASS",
+      "profile": {
+        "acceptance_status": "NOT_ACCEPTED",
+        "duplicate_every": 0,
+        "duration_seconds": 1,
+        "max_outstanding": 1,
+        "process_count": 2,
+        "profile": "custom",
+        "provider_latency_ms": 100.0,
+        "rate_per_second": 40,
+        "status": "FAKE_LOCAL_DIAGNOSTIC"
+      },
+      "metrics": {
+        "accepted_but_incomplete_intents": 0,
+        "accepted_unique_intents": 40,
+        "actual_elapsed_seconds": 4.675,
+        "backpressure_events": 39,
+        "backpressure_polls": 3104,
+        "backpressure_wait_ns": 7218000000,
+        "completed_intents": 40,
+        "drain_seconds_after_both_producers_finished": 0.109,
+        "duplicate_attempts": 0,
+        "expected_duplicate_attempts": 0,
+        "fake_provider_calls": 40,
+        "input_attempts_recorded": 40,
+        "input_intents_planned": 40,
+        "last_completion_ns": 231782937000000,
+        "lost_intents": 0,
+        "native_api_calls": 0,
+        "network_calls": 0,
+        "outstanding_at_end": 0,
+        "peak_backlog": 1,
+        "planned_end_ns": 231779278000000,
+        "producers_finished_ns": 231782828000000,
+        "production_extension_seconds": 3.55,
+        "provider_dispatches": 0,
+        "sqlite_busy_retries": 0
+      },
+      "sqlite_counts": {
+        "clients": 2,
+        "intents": 40,
+        "request_attempts": 40,
+        "backpressure_samples": 39,
+        "complete": 40,
+        "incomplete": 0,
+        "duplicates": 0,
+        "accepted_attempts": 40,
+        "outstanding": 0,
+        "max_backlog": 1,
+        "pressure_wait_ns": 7218000000,
+        "pressure_polls": 3104,
+        "journal_mode": "wal"
+      }
+    }
+  },
+  "limitations": [
+    "Only a benchmark-owned local SQLite WAL table and two spawned local clients.",
+    "Fake provider is local sleep plus deterministic digest; it is not actor-server, Store, provider, SDK, native, account, credentials, or network evidence.",
+    "The 30-minute capacity profile was not run.",
+    "Zero external-call counters are emitted constants and are not OS-level call tracing.",
+    "In pressure run, one-second planned input was accepted/completed over 4.675 seconds; the 3.55-second production extension is a pressure diagnostic, not a throughput pass."
+  ]
+}

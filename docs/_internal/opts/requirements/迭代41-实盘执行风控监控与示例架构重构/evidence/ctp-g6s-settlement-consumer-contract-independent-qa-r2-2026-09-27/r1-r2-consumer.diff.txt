@@ -1,0 +1,38 @@
+--- r1/consumer.py
++++ r2/consumer.py
+@@ -53,6 +53,11 @@
+     except (OverflowError, ValueError):
+         return False
+     return True
++
++
++def _valid_zero_code(value: Any) -> bool:
++    """Accept only the native zero sentinel or None, never bool-as-int."""
++    return value is None or (type(value) is int and value == 0)
+ 
+ 
+ def _identifier_sha256(value: str) -> str:
+@@ -231,8 +236,8 @@
+         or evidence.is_last_seen is not True
+         or evidence.timed_out is not False
+         or evidence.unsupported is not False
+-        or evidence.error_code not in (None, 0)
+-        or evidence.submit_code not in (None, 0)
++        or not _valid_zero_code(evidence.error_code)
++        or not _valid_zero_code(evidence.submit_code)
+         or type(evidence.late_callback_count) is not int
+         or evidence.late_callback_count != 0
+     ):
+@@ -254,7 +259,11 @@
+         or evidence.current_trading_day != expected.trading_day
+         or not _valid_day(evidence.query_trading_day)
+         or not _valid_day(evidence.current_trading_day)
++        or type(evidence.query_connection_generation) is not int
++        or evidence.query_connection_generation <= 0
+         or evidence.query_connection_generation != expected.connection_generation
++        or type(evidence.current_connection_generation) is not int
++        or evidence.current_connection_generation <= 0
+         or evidence.current_connection_generation != expected.connection_generation
+     ):
+         _reject("settlement_current_trading_day_or_generation_mismatch")
+

@@ -1,0 +1,5 @@
+Captured pytest stdout (author run; preserved as recorded, not regenerated):
+
+........................................................................ [ 96%]
+...                                                                      [100%]
+75 passed in 0.52s

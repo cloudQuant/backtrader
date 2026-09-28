@@ -1,0 +1,764 @@
+{
+  "schema": "iteration41.unified_offline_candidate_files_manifest.v1",
+  "candidate_root": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1",
+  "disposition": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED",
+  "file_count": 150,
+  "excluded_paths": [
+    "consumer-venv/**",
+    "candidate-files-manifest.json (self)",
+    "archive-index.json (created after archive)",
+    "unified-offline-wheelhouse-settlement-evidence-r1.zip (self)"
+  ],
+  "files": [
+    {
+      "path": "audit-install-evidence.py",
+      "size_bytes": 2777,
+      "sha256": "8F2E6AD59F5DB413CEDB8A91D957EE7035E087745E5E74B32559179726B2CFAD"
+    },
+    {
+      "path": "audit-installed-records.py",
+      "size_bytes": 5973,
+      "sha256": "7ADC1D7F6760CFD16B3AB05CC60C9E6591B5C18B03CA97F0D347B0B2B3D2B7E9"
+    },
+    {
+      "path": "audit-wheelhouse.py",
+      "size_bytes": 2458,
+      "sha256": "E757435546EC42AED7353F636B2D189ADD67A2290430959089F712130CC9284A"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/build-status.txt",
+      "size_bytes": 77,
+      "sha256": "3D898E150914C4D0F5CF5CA0A6F02359787A1573C02506C08C4B02020F6AA411"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/build.cmd",
+      "size_bytes": 1816,
+      "sha256": "C89A9E6D4CB2AC897B5A7B99D7EC51B7C2E748D6200E798D755AF0F074814242"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/build.log",
+      "size_bytes": 781,
+      "sha256": "11033D784511FD640D684584BE7D92CB2E443CDC9F72E4BC44FDDF09764A6DBC"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/tool-paths.txt",
+      "size_bytes": 642,
+      "sha256": "BA1251A36B8857334ED3F42ED1910579C277FDB94F741331113A79BB3CDF6E8D"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/vcvarsall.log",
+      "size_bytes": 302,
+      "sha256": "613217881E4C11E2191C40BB5856E089D6B62121B2EDAE6EA7E678DB5FF015C6"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/version-overlay.json",
+      "size_bytes": 344,
+      "sha256": "312077AD353CA84C61782C178754F332E76D0207A294BFD44E7A8EC4D3EA4EBF"
+    },
+    {
+      "path": "build-evidence/ctp-build/a/wheel-a.whl",
+      "size_bytes": 5435756,
+      "sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/build-status.txt",
+      "size_bytes": 77,
+      "sha256": "F3585F3C77686FBB9ADF13431948E5E045B9062813319FBBA058715DE55CB3C1"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/build.cmd",
+      "size_bytes": 1816,
+      "sha256": "6839822CAD28A4BA3385DC6FBB2A066C0813EF095048137D2634D85EEB90F597"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/build.log",
+      "size_bytes": 781,
+      "sha256": "0A7DB5730D60485BEE1432849A9247B906EA6E6FE51B273FA5CC9C927609A3B3"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/tool-paths.txt",
+      "size_bytes": 642,
+      "sha256": "BA1251A36B8857334ED3F42ED1910579C277FDB94F741331113A79BB3CDF6E8D"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/vcvarsall.log",
+      "size_bytes": 302,
+      "sha256": "613217881E4C11E2191C40BB5856E089D6B62121B2EDAE6EA7E678DB5FF015C6"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/version-overlay.json",
+      "size_bytes": 344,
+      "sha256": "312077AD353CA84C61782C178754F332E76D0207A294BFD44E7A8EC4D3EA4EBF"
+    },
+    {
+      "path": "build-evidence/ctp-build/b/wheel-b.whl",
+      "size_bytes": 5435756,
+      "sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/build-toolchain.json",
+      "size_bytes": 1624,
+      "sha256": "901661C2BC26B62C6A13E014683B2B707ECC12430E214C601C423FA786AFEAA3"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/consumer-fake-tests.log",
+      "size_bytes": 2752,
+      "sha256": "0C2DEBDEAC3E2A0A7572FD9602A1A7C96DA2CC4BCB1D771F1A81B5DCFFCD4757"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/ctp-build-retry-inputs.json",
+      "size_bytes": 551,
+      "sha256": "54EA722827F94054AAF7CCA70EADEA7DF151D8AB1751D2BE5A21F4BF0C710A2F"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/ctp-settlement-build-source-audit.json",
+      "size_bytes": 1107,
+      "sha256": "645ABB79B61D343718B3F8C0D739E67479172624ACBAEAACCA72CDB19D77DE43"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/ctp-unique-version-build-inputs.json",
+      "size_bytes": 1295,
+      "sha256": "192BBFF5D2CE353419F80E042CB8B77047C0035BEA11A5FE41619D55F6824B7D"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/ctp-unique-wheel-validation.json",
+      "size_bytes": 1415,
+      "sha256": "65076C1C546C025F18BBF32DF383E3A15983BA116874522152A72FE2A5947F1F"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/freeze-evidence-manifest.json",
+      "size_bytes": 7035,
+      "sha256": "D579EF460D9FD1B9E03364F7E96F9C58CF1AFC78B72EAA326BCB7225829C9DC7"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/native-import-guard-tests.log",
+      "size_bytes": 104,
+      "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/native-import-guard.log",
+      "size_bytes": 104,
+      "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/prebuild-input-file-hashes.json",
+      "size_bytes": 73113,
+      "sha256": "84FA7A22DCA5170A21C1186131BB594ACC4C1B7940AB6C7D9578755A8237C184"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/README.md",
+      "size_bytes": 2318,
+      "sha256": "96EEB81EBCE64B5512A43572D9847B9F8F8572854F21C499ADD98A65FC0C18A7"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/source-manifest.json",
+      "size_bytes": 1908,
+      "sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/toolchain-facts.txt",
+      "size_bytes": 834,
+      "sha256": "5B6351D6DDFC8F92FC9357EBB2937DBE24F90040C8A3063DD1B4446F8AC55768"
+    },
+    {
+      "path": "build-evidence/ctp-build/source-lineage/wheel-repro-manifest.json",
+      "size_bytes": 36907,
+      "sha256": "5B9925582E5CF25A80E50E60E9731DE38EF11A83BF4B230C446654DCA4D40333"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/a-build-status.txt",
+      "size_bytes": 70,
+      "sha256": "CDDE66B4CE276FD7294ED8103043332C069B4A44299E76189157CED534A84ED7"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/a-build.cmd",
+      "size_bytes": 1815,
+      "sha256": "0EFAEEB46683AA4699249BC98626F1C3A24671C581D7DAF6EF4EADD4EB145B4B"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/a-build.log",
+      "size_bytes": 771,
+      "sha256": "83CA5C0D6FC1550EE5BF2729B510EF7561111C2EF1BFCF28B216851157C77093"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/a-tool-paths.txt",
+      "size_bytes": 642,
+      "sha256": "BA1251A36B8857334ED3F42ED1910579C277FDB94F741331113A79BB3CDF6E8D"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/a-vcvarsall.log",
+      "size_bytes": 302,
+      "sha256": "613217881E4C11E2191C40BB5856E089D6B62121B2EDAE6EA7E678DB5FF015C6"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/b-build-status.txt",
+      "size_bytes": 70,
+      "sha256": "7799D5E8035F2023C9AAF67879F6C689D0A1FBBAA0F48142CF9A08202F9CF25F"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/b-build.cmd",
+      "size_bytes": 1815,
+      "sha256": "4C62AFDA8756D2567F628867DF7711DBD37E4CE0CDD30F809F559F35EBF8B9D6"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/b-build.log",
+      "size_bytes": 771,
+      "sha256": "0B3C3F9CE4FA8E6BF2EB3FC70070E543B3536CA316E151EC819B23F206FE41E4"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/b-tool-paths.txt",
+      "size_bytes": 642,
+      "sha256": "BA1251A36B8857334ED3F42ED1910579C277FDB94F741331113A79BB3CDF6E8D"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/b-vcvarsall.log",
+      "size_bytes": 302,
+      "sha256": "613217881E4C11E2191C40BB5856E089D6B62121B2EDAE6EA7E678DB5FF015C6"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/collision-report.json",
+      "size_bytes": 1613,
+      "sha256": "2CE70E8BAED7580BB37F9CCBE251DCA9978B33BBC71206521C052105F629101C"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/original-g4-probe-wheel.whl",
+      "size_bytes": 5433813,
+      "sha256": "00E0C0C56574F60013115EE6010E531F72A8C811780F27DFCBA3249CDAFB5384"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/settlement-overlay-old-version-build-a.whl",
+      "size_bytes": 5435634,
+      "sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF"
+    },
+    {
+      "path": "build-evidence/ctp-build/version-collision/settlement-overlay-old-version-build-b.whl",
+      "size_bytes": 5435634,
+      "sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF"
+    },
+    {
+      "path": "build-evidence/parent-execution/coordinated-probe-archive-index-v2.json",
+      "size_bytes": 210224,
+      "sha256": "0492DF7EA055116C96519B8500D00B85F081DA8D96C6DD69A1D88F2C05F0E569"
+    },
+    {
+      "path": "build-evidence/parent-execution/coordinated-probe-final-receipt.json",
+      "size_bytes": 77264,
+      "sha256": "7F75A2A3B0EC293EC15613FD11C0B70B78471B42F759166E16BB009A04CBA022"
+    },
+    {
+      "path": "build-evidence/parent-execution/coordinated-probe-final-review.md",
+      "size_bytes": 4694,
+      "sha256": "C6C2C11656D8B78D4365E454A4E1AC9DECF0CCD03A21B0AC513CDA5D51511BB4"
+    },
+    {
+      "path": "build-evidence/parent-execution/coordinated-probe-freeze-summary-v2.json",
+      "size_bytes": 1295,
+      "sha256": "354514786A9163705992B6161EF5C2E2E207866EB882A27636566B80E3799986"
+    },
+    {
+      "path": "build-evidence/parent-execution/coordinated-probe-source-manifest-final.json",
+      "size_bytes": 181209,
+      "sha256": "01FA737D2A0F385DEC8CE6187D95C4A104C13CCE9DDE6D693152DF7DD94EF4B6"
+    },
+    {
+      "path": "build-evidence/parent-execution/guard-summary.json",
+      "size_bytes": 4373,
+      "sha256": "FA77B1568BFFC759B336C6C0C68A3FB083B8D397ABD9508AF46D010450C7C255"
+    },
+    {
+      "path": "build-evidence/parent-execution/independent-qa-receipt.json",
+      "size_bytes": 8948,
+      "sha256": "A7111B1C3709828287195E0E64678700A7760E351CD8FC9DE03EEC7A078951E3"
+    },
+    {
+      "path": "build-evidence/parent-execution/independent-qa-review.md",
+      "size_bytes": 2412,
+      "sha256": "C4F75CF8C7BFEFD4110C7E93EF8C213238EF98916681F948CD131E347C813BB3"
+    },
+    {
+      "path": "build-evidence/parent-execution/installation-audit.json",
+      "size_bytes": 4011,
+      "sha256": "A17267072D895568AC3F91820379441380FE5F232B840D418B1D6B1944C1633E"
+    },
+    {
+      "path": "build-evidence/parent-execution/qa-results.json",
+      "size_bytes": 18607,
+      "sha256": "265F4FF950D600957899D7ED7E60A4ABD7F941CC843B7FA367CA2ED129E01888"
+    },
+    {
+      "path": "build-evidence/parent-execution/wheel-build-runs-v4.json",
+      "size_bytes": 4612,
+      "sha256": "4AC67841692D16CE155FCE79D6594547F8FDCDE79F6BF9E836D62FD614AD9512"
+    },
+    {
+      "path": "build-evidence/parent-execution/wheel-dual-build-verification.json",
+      "size_bytes": 3673,
+      "sha256": "3DBB35F1736EB8C61B2D44E40AB829158993F313BE7F6031EEA281E7012C74F8"
+    },
+    {
+      "path": "build-evidence/parent-execution/wheelhouse-manifest.json",
+      "size_bytes": 18664,
+      "sha256": "AEDD18781806733ABD1EF354A73CADBB6C40FD63475BAF57E9B501A6725BD4B6"
+    },
+    {
+      "path": "build-evidence/settlement-source/__init__.py",
+      "size_bytes": 1339,
+      "sha256": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505"
+    },
+    {
+      "path": "build-evidence/settlement-source/blocked-native-imports-final.jsonl",
+      "size_bytes": 104,
+      "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508"
+    },
+    {
+      "path": "build-evidence/settlement-source/ctp_native_query_certificate.py",
+      "size_bytes": 51631,
+      "sha256": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282"
+    },
+    {
+      "path": "build-evidence/settlement-source/settlement-focused-tests.log",
+      "size_bytes": 1414,
+      "sha256": "0E0BF148E29CEDDB80BB9B60DB5683C5C6D4ED6A989745FEF7E91F4A4A044015"
+    },
+    {
+      "path": "build-evidence/settlement-source/settlement-freeze-receipt.json",
+      "size_bytes": 2422,
+      "sha256": "3F83D971C8B4B0834BF2A7AB5607A559CFF440593AD7DC04D44E011897C2B243"
+    },
+    {
+      "path": "build-evidence/settlement-source/settlement-query-evidence-note.md",
+      "size_bytes": 4974,
+      "sha256": "FA787003EFDC06BEDDFED272A631DECDD1CC16E14FA60A7CA24553E0192A7AA7"
+    },
+    {
+      "path": "build-evidence/settlement-source/settlement-source-manifest.json",
+      "size_bytes": 6831,
+      "sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9"
+    },
+    {
+      "path": "build-evidence/settlement-source/source-origin-smoke.log",
+      "size_bytes": 293,
+      "sha256": "BA1879E522D2A2AA5A8A2CF9A719CFFFFC6E285A5B8E9B4A4584C2473DB016D4"
+    },
+    {
+      "path": "build-evidence/settlement-source/static-checks.log",
+      "size_bytes": 159,
+      "sha256": "BF8819EC215BF481380BF7DFF63C546B22E91538D4D4752ED6C5C88AC13910B6"
+    },
+    {
+      "path": "build-evidence/settlement-source/test_ctp_settlement_query_evidence.py",
+      "size_bytes": 11750,
+      "sha256": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65"
+    },
+    {
+      "path": "candidate-receipt.json",
+      "size_bytes": 4690,
+      "sha256": "9901A15B328C4B8C72CA8AAFA213022FE4F2A7B07081DE7DFD2C653360D24896"
+    },
+    {
+      "path": "candidate-review.md",
+      "size_bytes": 6628,
+      "sha256": "33320BDCF715A8475741078E4B89E08499E9F12A60D80DBE86BBD9922BBE20F4"
+    },
+    {
+      "path": "compare-ctp-source.py",
+      "size_bytes": 3194,
+      "sha256": "862B185D304A8D5687D46026A9CE0C0E58315DE920187000C8828FF932531B55"
+    },
+    {
+      "path": "ctp-source-diff.json",
+      "size_bytes": 73113,
+      "sha256": "84FA7A22DCA5170A21C1186131BB594ACC4C1B7940AB6C7D9578755A8237C184"
+    },
+    {
+      "path": "direct-wheel-install-report.json",
+      "size_bytes": 51118,
+      "sha256": "447D26B58F52D06C7F2591D6D24038ADACB3126BBB04F0196EFEC61C93576FDB"
+    },
+    {
+      "path": "direct-wheel-install.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "direct-wheel-install.log",
+      "size_bytes": 1818,
+      "sha256": "6598C4805673974D74768AAF307627CBDB12F20AACAE2CDDFA79174C09622F6F"
+    },
+    {
+      "path": "freeze-candidate.py",
+      "size_bytes": 2711,
+      "sha256": "83BE3C9C263319CDF7423776ED6261D4AF5C8ACEF8D0BE491768AEB50483B241"
+    },
+    {
+      "path": "input-provenance.json",
+      "size_bytes": 4196,
+      "sha256": "1CB234D917DF36F82839F2D9883EA28438782AC0991E09924EAD4933911E809A"
+    },
+    {
+      "path": "install-evidence.json",
+      "size_bytes": 19791,
+      "sha256": "B7C357D8F89374C1FDD18083A6F8C6E3237246190C70D283E10352496EA70F8E"
+    },
+    {
+      "path": "installed-record-audit-initial-path-check.json",
+      "size_bytes": 27337,
+      "sha256": "B914CC8C38EFFDEBEE59DB17CC5D24F52D5715F77CAC243F5D8F678E1C2954FC"
+    },
+    {
+      "path": "installed-record-audit-initial-path-check.log",
+      "size_bytes": 2526,
+      "sha256": "1AB49BE2E0A4322CF16804ED0E653355308E67BFC8884A53B62BA975377292F7"
+    },
+    {
+      "path": "installed-record-audit.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "installed-record-audit.json",
+      "size_bytes": 26507,
+      "sha256": "4194205EDCDB5C724FD04DA5CA991D0AF56DA7DE316E0A624B12A3389BB6C1C7"
+    },
+    {
+      "path": "installed-record-audit.log",
+      "size_bytes": 1696,
+      "sha256": "5D97D2B999D7B1229CB5A3E4CA9272DFF1D0274EE349E6EEB15C116452EA4A29"
+    },
+    {
+      "path": "make-collision-report.py",
+      "size_bytes": 1987,
+      "sha256": "448EBC4695BCCBB54E7A4D8DFEE925CFB54D78D5824D74A1C1FC97F1D72C4B54"
+    },
+    {
+      "path": "make-ctp-input-manifest.py",
+      "size_bytes": 3807,
+      "sha256": "6D9F6BCB8F841EC0D076AB48656B740541CAE2374983C6DBAED6F6FDCD28A83A"
+    },
+    {
+      "path": "pip-check.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "pip-check.log",
+      "size_bytes": 31,
+      "sha256": "672AEC65A45BED50E70229C70934A7EEBF0462595C459B83023027645D57CCCF"
+    },
+    {
+      "path": "pip-install-report.json",
+      "size_bytes": 904273,
+      "sha256": "BAD156123EE0B2160F9F3281808174D6759AD42955DDEE7EA6B7A08E8E2929C6"
+    },
+    {
+      "path": "pip-install.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "pip-install.log",
+      "size_bytes": 14407,
+      "sha256": "6B64D5120140A3B6DB8177B73BA7B591D2E8D12F659D645A188449B77CB6F697"
+    },
+    {
+      "path": "prepare-candidate.py",
+      "size_bytes": 6409,
+      "sha256": "444FE65A878B2DA50F4DB55EDF630E7C6C994FE7DB5EE2C360FA5A7D04D14E09"
+    },
+    {
+      "path": "requirements-hashes.txt",
+      "size_bytes": 5144,
+      "sha256": "856971D73BEC6B6951FA3C5BB88EE6FEFE1E716AB21D3B9712ED251D2E2C1BCD"
+    },
+    {
+      "path": "same-version-collision-report.json",
+      "size_bytes": 1613,
+      "sha256": "2CE70E8BAED7580BB37F9CCBE251DCA9978B33BBC71206521C052105F629101C"
+    },
+    {
+      "path": "update-receipt.py",
+      "size_bytes": 1139,
+      "sha256": "164A28E98BDCB97395E95161F5A0A02BC62DF3359AA9264910FF495197BC0591"
+    },
+    {
+      "path": "venv-create.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "venv-create.log",
+      "size_bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "path": "wheelhouse/aiohappyeyeballs-2.6.1-py3-none-any.whl",
+      "size_bytes": 15265,
+      "sha256": "32F6FABE16EA80695580F69CE9696844442F3E678CAD38DCC45CFE6C8AD19B41"
+    },
+    {
+      "path": "wheelhouse/aiohttp-3.13.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 457680,
+      "sha256": "66C5A70EA364725CF58967727F48D1D48606EB2463F973C82ECCB242046C281A"
+    },
+    {
+      "path": "wheelhouse/aiosignal-1.4.0-py3-none-any.whl",
+      "size_bytes": 7490,
+      "sha256": "A4ACA10627734F5FA35979189731C9A192BF7C050268E5BCCEBCB4685F58F018"
+    },
+    {
+      "path": "wheelhouse/annotated_types-0.7.0-py3-none-any.whl",
+      "size_bytes": 13642,
+      "sha256": "1C0788661F57F6947D6E0102C7362F5F983BF4BE5000250F07DC216EBB6F8DE3"
+    },
+    {
+      "path": "wheelhouse/anyio-4.11.0-py3-none-any.whl",
+      "size_bytes": 109088,
+      "sha256": "D2B7627534E0DE2157DFE5C65DF6FCF68B0617DC9C3BF4F42C9F4E36951F2C03"
+    },
+    {
+      "path": "wheelhouse/attrs-25.4.0-py3-none-any.whl",
+      "size_bytes": 67615,
+      "sha256": "E6E613D40C797FC362BA6098C1D323E8425FE43AE3D394614AD3EDB8046584A9"
+    },
+    {
+      "path": "wheelhouse/bt_api_base-0.15.4-py3-none-any.whl",
+      "size_bytes": 149476,
+      "sha256": "CFE3507E1324F675454C41C37CD09FF72C8947C5254E9496E97C373CB8F3B369"
+    },
+    {
+      "path": "wheelhouse/bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+      "size_bytes": 5435756,
+      "sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D"
+    },
+    {
+      "path": "wheelhouse/bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+      "size_bytes": 177675,
+      "sha256": "B2A74D5EC4BCE72DB66ED5698709A8F986DE02B54D72FB5E08A181C2983B6217"
+    },
+    {
+      "path": "wheelhouse/bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+      "size_bytes": 534260,
+      "sha256": "5E6E846D26B5038C0916FA15D3CE3F7A1C1334FD0AA160CD263D2D0397C07B0F"
+    },
+    {
+      "path": "wheelhouse/certifi-2024.12.14-py3-none-any.whl",
+      "size_bytes": 164927,
+      "sha256": "62BF91F91D7FCD1B1EAE8A683289F340E3A5AE694FDB9265F192E183B891D759"
+    },
+    {
+      "path": "wheelhouse/charset_normalizer-2.0.4-py3-none-any.whl",
+      "size_bytes": 36408,
+      "sha256": "0C807E5768C024774BA817D5BC16A0D1FACE1EEAAF0AF37F09892F7EAD61E327"
+    },
+    {
+      "path": "wheelhouse/colorama-0.4.6-py2.py3-none-any.whl",
+      "size_bytes": 25335,
+      "sha256": "4F1D9991F5ACC0CA119F9D443620B77F9D6B33703E51011C16BAF57AFB285FC6"
+    },
+    {
+      "path": "wheelhouse/frozenlist-1.3.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 32400,
+      "sha256": "46DA2176EB4B442EA09C4AFE5F374FE87BEC46FE76C2FC1329BF71E0C02E9D7C"
+    },
+    {
+      "path": "wheelhouse/h11-0.14.0-py3-none-any.whl",
+      "size_bytes": 58258,
+      "sha256": "45263EC1953E6FDE3A85892844F41441BAB470ADB95D240BAE0971BB60CB3FE4"
+    },
+    {
+      "path": "wheelhouse/httpcore-1.0.5-py3-none-any.whl",
+      "size_bytes": 77918,
+      "sha256": "BF660822B9FEA3F3AD9681ED1C600841C2474D98AE1249A69565F9625ABA24B9"
+    },
+    {
+      "path": "wheelhouse/httpx-0.28.1-py3-none-any.whl",
+      "size_bytes": 73514,
+      "sha256": "B6BA579BD28EF203872E297C65094EA420B31C1383EDB7FA9A116AFCAC7938D8"
+    },
+    {
+      "path": "wheelhouse/idna-3.4-py3-none-any.whl",
+      "size_bytes": 61538,
+      "sha256": "4A5037B71AA61F49FFBEF4E069E3732BEB4FBD2220D8F586FAB25ABABD34E88B"
+    },
+    {
+      "path": "wheelhouse/iniconfig-2.3.0-py3-none-any.whl",
+      "size_bytes": 7484,
+      "sha256": "F631C04D2C48C52B84D0D0549C99FF3859C98DF65B3101406327ECC7D53FBF12"
+    },
+    {
+      "path": "wheelhouse/joblib-1.2.0-py3-none-any.whl",
+      "size_bytes": 298005,
+      "sha256": "0F5BDD316E924EA18F7EDC6AF03789B9CC43FE02E23439E1F7F006EDAC98F6B7"
+    },
+    {
+      "path": "wheelhouse/multidict-6.0.2-cp311-cp311-win_amd64.whl",
+      "size_bytes": 27650,
+      "sha256": "CBA9ABEA07C153BD4705B8B68D3AAB91A3CEF64621FC2A5C008F12C60EDAC900"
+    },
+    {
+      "path": "wheelhouse/numpy-1.26.4-cp311-cp311-win_amd64.whl",
+      "size_bytes": 15804925,
+      "sha256": "4B69D51B3F2AA73DA9E65B929C086CEB25C2A938EBAB950E2E0FA114716E4DBF"
+    },
+    {
+      "path": "wheelhouse/packaging-26.3-py3-none-any.whl",
+      "size_bytes": 129956,
+      "sha256": "D7193F7C8E4E93F444FDE0262BF90AF30E16FA0AD0AD44CB553C87339B23CD1C"
+    },
+    {
+      "path": "wheelhouse/pandas-2.2.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 11598082,
+      "sha256": "4C22344C50D4FBE630C56D66CA99B171563132FA05EE349E7162C406B9B3BE59"
+    },
+    {
+      "path": "wheelhouse/pluggy-1.6.0-py3-none-any.whl",
+      "size_bytes": 20538,
+      "sha256": "E920276DD6813095E9377C0BC5566D94C932C33B27A3E3945D8389C374DD4746"
+    },
+    {
+      "path": "wheelhouse/propcache-0.4.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 41637,
+      "sha256": "FE440F8754F7A000736BBB0560DE5459AA87DDD9C8963E31E479D947F3793688"
+    },
+    {
+      "path": "wheelhouse/psutil-5.9.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 245629,
+      "sha256": "70D6CDDA86925D1648EF1CFB4902F6449FB01C0C370BC7FD258FBF710BF9721A"
+    },
+    {
+      "path": "wheelhouse/pyarrow-23.0.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 27520417,
+      "sha256": "5B3D314C94F4A76023C505848F8437695D75D1514FE35DA74E1D64473895B6FD"
+    },
+    {
+      "path": "wheelhouse/pybind11-2.12.0-py3-none-any.whl",
+      "size_bytes": 234981,
+      "sha256": "1BADB9B27CC4EBC01A6453AA49B9288FC16578ED2CBF1702FAD198A3C0BE93C8"
+    },
+    {
+      "path": "wheelhouse/pydantic-2.5.0-py3-none-any.whl",
+      "size_bytes": 407476,
+      "sha256": "CF4632FBCA6EB6DA802C74FC6952B1C5A5FE5877318BD4618D58F63700A601BA"
+    },
+    {
+      "path": "wheelhouse/pydantic_core-2.14.1-cp311-none-win_amd64.whl",
+      "size_bytes": 1888840,
+      "sha256": "77E520D5D38F7A0DF8DD01FE56C52C8EA037ED33E7A38220ED31C9A035F25FB1"
+    },
+    {
+      "path": "wheelhouse/pytest-8.2.2-py3-none-any.whl",
+      "size_bytes": 339873,
+      "sha256": "C434598117762E2BD304E526244F67BF66BBD7B5D6CF22138BE51FF661980343"
+    },
+    {
+      "path": "wheelhouse/pytest_asyncio-0.24.0-py3-none-any.whl",
+      "size_bytes": 18024,
+      "sha256": "A811296ED596B69BF0B6F3DC40F83BCAF341B155A269052D82EFA2B25AC7037B"
+    },
+    {
+      "path": "wheelhouse/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+      "size_bytes": 229890,
+      "sha256": "E07752B817E50F9F9EDFD501D618E970C1FAC49A101859E79DDEDE5EF4BE1E43"
+    },
+    {
+      "path": "wheelhouse/python_dotenv-1.1.1-py3-none-any.whl",
+      "size_bytes": 20558,
+      "sha256": "F87DFB7286F7AB06FA443DBB408753A04F1C4C1E7199CA7EF86B12727C449B1A"
+    },
+    {
+      "path": "wheelhouse/python_rapidjson-1.20-cp311-cp311-win_amd64.whl",
+      "size_bytes": 149387,
+      "sha256": "9672CC3A35AC9A2B469D75679B236CA18564A23A7BFFDB00C991BB955967BAF2"
+    },
+    {
+      "path": "wheelhouse/pytz-2025.1-py2.py3-none-any.whl",
+      "size_bytes": 507427,
+      "sha256": "B709D564541A8B331A2E8811A13A47E053AC230DFB3572D1E08719F41B4D05C7"
+    },
+    {
+      "path": "wheelhouse/pyyaml-6.0.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 144696,
+      "sha256": "C36925F66FF721BA790842B990C8093E64A0621350EAFB0E225F2363D3323B48"
+    },
+    {
+      "path": "wheelhouse/pyzmq-27.1.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 633428,
+      "sha256": "5A1EFEE4DC74071196A145BC7D53E4CBF00D81446118FEC0D2420EA96EB3E491"
+    },
+    {
+      "path": "wheelhouse/requests-2.32.3-py3-none-any.whl",
+      "size_bytes": 64928,
+      "sha256": "40C5C79108AEFA3F2CC1064A53BDC360C688BBBC51299D1F3CDA188151F60C49"
+    },
+    {
+      "path": "wheelhouse/scikit_learn-1.3.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 8636494,
+      "sha256": "17F71053D11716F55765A3BEDF284FE607283257994CEF1083878AF071D65C09"
+    },
+    {
+      "path": "wheelhouse/scipy-1.15.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 43882060,
+      "sha256": "9475BFC912A51A801EA870C0FBD74C791002E087A275F8501161FC831E13346E"
+    },
+    {
+      "path": "wheelhouse/six-1.16.0-py2.py3-none-any.whl",
+      "size_bytes": 11064,
+      "sha256": "E1F085F07D32C16C417D70174053DFD36AD32BAD5FCE4BECDA8A9F6D588F59EA"
+    },
+    {
+      "path": "wheelhouse/sniffio-1.2.0-py3-none-any.whl",
+      "size_bytes": 10047,
+      "sha256": "A4837F845CECC5FDF8FA6063632E2ABD21AB60B3A2EA0C9D6F4E7BA88AE12B83"
+    },
+    {
+      "path": "wheelhouse/spdlog-2.0.6-cp311-cp311-win_amd64.whl",
+      "size_bytes": 219039,
+      "sha256": "6D467A6888A311E4D741600A083B789F8CD35660839E439729D199ED362943B1"
+    },
+    {
+      "path": "wheelhouse/threadpoolctl-3.6.0-py3-none-any.whl",
+      "size_bytes": 18641,
+      "sha256": "4D632708749CF41471D7CAE2E6FE2AAA8E6C50AC647BEF409DDD7CE4D7CB057E"
+    },
+    {
+      "path": "wheelhouse/typing_extensions-4.15.0-py3-none-any.whl",
+      "size_bytes": 44613,
+      "sha256": "E7B7BAF5F26B52444307EF057897C950701D6D2BD26F49E900839888CB1B595C"
+    },
+    {
+      "path": "wheelhouse/tzdata-2023.3-py2.py3-none-any.whl",
+      "size_bytes": 341543,
+      "sha256": "7FD209141D9A0FBEAC05F6B3FE992E8F5DFF34F589FA57EEC200BB14A055D606"
+    },
+    {
+      "path": "wheelhouse/urllib3-1.26.20-py2.py3-none-any.whl",
+      "size_bytes": 144216,
+      "sha256": "BFB9FAE38CF5830DF6595951BCDA6A1FDB68B8A6E792D8DD1A34CB7DFA2D0423"
+    },
+    {
+      "path": "wheelhouse/websocket_client-1.8.0-py3-none-any.whl",
+      "size_bytes": 58828,
+      "sha256": "C995E3C8758185413E2252BDC818207154A00DB0FB9DB3494622FC563745720D"
+    },
+    {
+      "path": "wheelhouse/websockets-15.0.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 176816,
+      "sha256": "969B2415F6F0D7E8F85095D8BE41B0ABBA0EC42D56208549B1F7EB6A8A631753"
+    },
+    {
+      "path": "wheelhouse/yarl-1.23.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 87462,
+      "sha256": "B9176EE69FE6C4AAFACC090606B8953031CD55291F0250C0136C46B53BB12C2F"
+    },
+    {
+      "path": "wheelhouse-manifest.json",
+      "size_bytes": 12706,
+      "sha256": "1B89CC1096E4D52145FAA404DA8A47A56E2779ED1B6B54D59E01F27980CB9FDC"
+    },
+    {
+      "path": "wheelhouse-static-audit.json",
+      "size_bytes": 15705,
+      "sha256": "63E7EC7B5322E25F5088BF178D1851DBFB5AFC1BE1B3040F6881BA7A91F141C1"
+    }
+  ]
+}

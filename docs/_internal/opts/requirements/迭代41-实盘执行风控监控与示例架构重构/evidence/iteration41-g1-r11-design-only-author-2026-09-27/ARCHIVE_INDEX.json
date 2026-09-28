@@ -1,0 +1,57 @@
+{
+  "entries": [
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/audit_frozen_r10.py",
+      "sha256": "a7d3a5daba335b87a43f9e216b566d6f6a4fcdbd90f0b2535bd531b09648884f",
+      "size_bytes": 2966
+    },
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/r10_readonly_audit.json",
+      "sha256": "3a40aa0a708b58796268ae96c6c4ab89656dc49b1710b0ba572e41ea305b23d7",
+      "size_bytes": 1180
+    },
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/r11_design_manifest.json",
+      "sha256": "904d96df52ee70ed89fed059072f8184413744060a3721a25e244a16b2416ad8",
+      "size_bytes": 4203
+    },
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/R11_G1_HARD_DEADLINE_AUDIT.md",
+      "sha256": "6e04fa4b5e63f9e4be3eecd96da33c4eb5819ee8020fd5b752320081f303cdc9",
+      "size_bytes": 11833
+    },
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/r11_negative_test_plan.json",
+      "sha256": "8eafb5e2ed7975a0a4743583db6f707aabc964d0af6374b0d1711fbaa9874b1c",
+      "size_bytes": 5977
+    },
+    {
+      "class": "frozen_R11_source_byte_exact",
+      "path": "frozen_source/SHA256SUMS.txt",
+      "sha256": "75a154c0dd43d3c0bc38f55bee90c7751fc4eccd7647cbd71614c01dbfdd235a",
+      "size_bytes": 462
+    },
+    {
+      "class": "post_freeze_R10_static_review",
+      "path": "R10_STATIC_REVIEW_ADDENDUM.md",
+      "sha256": "eb99753855c3a435da986581c6fb5a3e5a6ebce7ec6bf722d27546587b392fc5",
+      "size_bytes": 1897
+    },
+    {
+      "class": "R11_report_with_post_freeze_addendum",
+      "path": "R11_G1_HARD_DEADLINE_AUDIT.md",
+      "sha256": "cb100aa79f695124c87e1ccdd228090227e557eec2c4f40b02f2104f38f98401",
+      "size_bytes": 13737
+    }
+  ],
+  "format": "iteration41-g1-r11-design-archive-index-v1",
+  "frozen_r10_cpp_sha256": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+  "frozen_r11_checksums_sha256": "75a154c0dd43d3c0bc38f55bee90c7751fc4eccd7647cbd71614c01dbfdd235a",
+  "frozen_r11_manifest_sha256": "904d96df52ee70ed89fed059072f8184413744060a3721a25e244a16b2416ad8",
+  "index_self_hash": "external archive receipt/checksums bind this index"
+}

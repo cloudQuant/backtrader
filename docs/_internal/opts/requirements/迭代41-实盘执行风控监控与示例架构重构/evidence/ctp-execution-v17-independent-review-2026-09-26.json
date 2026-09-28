@@ -1,0 +1,88 @@
+{
+  "schema": "iteration41.local_evidence.v1",
+  "status": "ACCEPTED_ALLOCATOR_MIGRATION_SLICE_ONLY",
+  "execution_local_commit": "bb2cd24cdaf9fb64f6b95010ee8619b0c6a35589",
+  "snapshot_manifest_sha256": "be9415becf2a6a3fe32e667aae5437322d3b311c82db75f931c5ff8fe15cc0c1",
+  "independent_receipt_sha256": "540f56d895c2d40875ab94aa41d6cb9cee5445ab16332620b0b1842a58d92b09",
+  "independent_receipt_manifest_sha256": "116d2de0fa9686fe9e1197a7a8f0a53214d4b2aee035af7cb7e1bc99633f156d",
+  "root_verified_payload_files": 28,
+  "root_verified_qa_artifacts": 37,
+  "raw_zip_sha256": "3296fe41dbbb4a11bc25454b83e589ca9c09ddcb9bcf28887ac64fcf37f96a6c",
+  "raw_zip_bytes": 437955,
+  "author_package_result": {
+    "passed": 230,
+    "skipped": 2,
+    "independent_full_rerun": false
+  },
+  "independent_result": [
+    {
+      "log": "r1_allocator_unit_pytest.log",
+      "result": "6 passed",
+      "snapshot": "r1",
+      "test": "six focused V17 schema/allocator cases"
+    },
+    {
+      "log": "r1_native_callbacks_pytest.log",
+      "result": "15 passed",
+      "snapshot": "r1",
+      "test": "native callback mapping and exact integer correlation tests"
+    },
+    {
+      "db": "allocator_int32_boundary.sqlite3",
+      "log": "r1_action_ref_int32_boundary.log",
+      "result": "PASS; accepted 2147483647; next allocation rejected; counter remained max; no second command",
+      "snapshot": "r1",
+      "test": "direct int32 max then exhaustion and reopen script"
+    },
+    {
+      "db": "allocator_process_race.sqlite3",
+      "log": "r1_action_ref_multiprocess.log",
+      "result": "PASS; same-account refs {1,2,3}, other account ref {1}",
+      "snapshot": "r1",
+      "test": "same-account and cross-account independent process race"
+    },
+    {
+      "db": "allocator_type_semantics.sqlite3",
+      "log": "r1_action_ref_type_semantics.log",
+      "result": "PASS; equal numeric values can coexist; bool/string/out-of-range ActionRef rejected",
+      "snapshot": "r1",
+      "test": "RequestID/actionref semantic separation and strict int32 type/domain"
+    },
+    {
+      "log": "r1_v17_migration_replay.log",
+      "result": "PASS",
+      "snapshot": "r1",
+      "test": "synthetic V16 migration replay: terminal cancel fence, READY/CLAIMED submit UNKNOWN/no claim, cross-scope/day account fence, UNKNOWN cancel preservation, blank cancel-key rollback"
+    },
+    {
+      "log": "r2_missing_submit_identity_retest.json",
+      "result": "PASS after r2 fix; DurableStoreError, schema stayed 16, row/count unchanged",
+      "snapshot": "r2",
+      "test": "original malformed terminal SUBMIT account-key reproduction"
+    },
+    {
+      "log": "r3_identity_migration_retest.json",
+      "result": "PASS after r3 fix; both failed closed with schema 16 and command rows unchanged",
+      "snapshot": "r3",
+      "test": "synthetic V16 blank-account terminal submit and cross-field FK-corrupt legacy cancel"
+    },
+    {
+      "log": "r4_targeted_migration_pytest.log",
+      "result": "4 passed",
+      "snapshot": "r4",
+      "test": "valid completed submit migration, malformed terminal submit empty/whitespace, V0 dispatch FK mismatch rollback"
+    },
+    {
+      "log": "r4_identity_migration_retest.json",
+      "result": "PASS; no schema migration or row changes; cross-field mismatch remained at 3 FK violations",
+      "snapshot": "r4",
+      "test": "independent original malformed terminal-submit and canonical-prefix/cross-account FK-corruption fixtures"
+    }
+  ],
+  "label_note": "Reviewer uses r1 for the first snapshot (author r0, manifest 23c8a499...). Paths and SHA256, not short revision labels, identify inputs.",
+  "limitations": [
+    "source-only SQLite/fake evidence; no installed artifact or native/provider acceptance",
+    "V17 does not enforce target-terminal cancel postconditions before subsequent submits; separate V18 development is required",
+    "external approval/key/fence, default route and real SimNow/production remain unaccepted"
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.r2_independent_qa_copy_receipt.v2",
+  "classification": "FAKE_LOCAL_CONTRACT_ONLY / G6-S CLOSED / G7-S CLOSED",
+  "source_qa_root": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2",
+  "canonical_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-r2-2026-09-27",
+  "original_qa_zip_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+  "canonical_qa_zip_sha256": "2f5976e0571384814b0892f9eb0e9f720041e46b9f61f6282379126eb9597ab5",
+  "candidate_manifest_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+  "candidate_zip_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+  "report_cleanup_only": true,
+  "report_control_characters": 0,
+  "failed_verifier_script_and_log_preserved": true,
+  "archive_index_sha256": "c528a54a4864ddfac98f416534fe9ff796aa42909465990849c8ea08d0e01717",
+  "all_listed_hashes_match": true,
+  "files": [
+    {
+      "path": "archive-index.initial-copy.json",
+      "sha256": "d01a611e46b59933a9052404af0118e8c425f2fc5d6d6ca2745a629ada1224f4",
+      "size_bytes": 1574
+    },
+    {
+      "path": "archive-index.json",
+      "sha256": "c528a54a4864ddfac98f416534fe9ff796aa42909465990849c8ea08d0e01717",
+      "size_bytes": 1888
+    },
+    {
+      "path": "archive-verification.initial-copy.json",
+      "sha256": "04233f8a769cd227cfd1187f9ba554bed6948fa82b84f4580941baf95318f4a4",
+      "size_bytes": 427
+    },
+    {
+      "path": "archive-verification.json",
+      "sha256": "04233f8a769cd227cfd1187f9ba554bed6948fa82b84f4580941baf95318f4a4",
+      "size_bytes": 427
+    },
+    {
+      "path": "canonical-cleanup-verification.json",
+      "sha256": "ebe67102d6e7d23bbdfad70173142e44b948d24413ccbe7385ecbc37296e169c",
+      "size_bytes": 708
+    },
+    {
+      "path": "COMMANDS.txt",
+      "sha256": "cde5beb664d57cbb947de1923a0bd92e1361fc7ab3512b1c5333458e8acc5109",
+      "size_bytes": 2026
+    },
+    {
+      "path": "COPY-RECEIPT.initial-copy.json",
+      "sha256": "982c3e1f5c8201475f257f5e5b7cb237010df10e9f79f349b81cb7de81478093",
+      "size_bytes": 4308
+    },
+    {
+      "path": "independent-qa.original.raw.zip",
+      "sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+      "size_bytes": 1362473
+    },
+    {
+      "path": "independent-qa.raw.zip",
+      "sha256": "2f5976e0571384814b0892f9eb0e9f720041e46b9f61f6282379126eb9597ab5",
+      "size_bytes": 1364589
+    },
+    {
+      "path": "pytest-r2-adversarial.junit.xml",
+      "sha256": "3beb04b4f916b7294bc0fa501c7a8c7ad81e6f26393c6bcdddcc01e84cf2011c",
+      "size_bytes": 5832
+    },
+    {
+      "path": "pytest-r2-adversarial.stdout.txt",
+      "sha256": "4dbf1f068698b1033cb3e86b88d6c5140ade62a6ac9b488f27e248ca5ca76c46",
+      "size_bytes": 229
+    },
+    {
+      "path": "pytest-r2-focus.junit.xml",
+      "sha256": "ea10d1256833616f270b6cf9ff120edd5e9a7e1e1f494c49ddd643d481db9418",
+      "size_bytes": 8531
+    },
+    {
+      "path": "pytest-r2-focus.stdout.txt",
+      "sha256": "5a68e10192627a1b454a52d4ead53baa93d78d0184e65feeb92d800de4219126",
+      "size_bytes": 223
+    },
+    {
+      "path": "QA-RECEIPT.json",
+      "sha256": "20a36c6c93cb72c04f60143ee0b28301b2d919d2a0c01e96c7198e9544436c9c",
+      "size_bytes": 1685
+    },
+    {
+      "path": "r1-r2-consumer.diff.txt",
+      "sha256": "3c92cc51d3e7ee1f31890d2ec81e0f2895869773ccea93e80ef2776b069dc4d1",
+      "size_bytes": 1580
+    },
+    {
+      "path": "r1-r2-test.diff.txt",
+      "sha256": "acff6813cafd8c5a007a95eb7f52fb88e605e31bf0d27b831c5fa119c13a2edc",
+      "size_bytes": 1003
+    },
+    {
+      "path": "REPORT.md",
+      "sha256": "490e3e9042af866498fe34265b7808e9dc51df2e380c41c7bdf4735da6615ec9",
+      "size_bytes": 5228
+    },
+    {
+      "path": "SHA256SUMS.txt",
+      "sha256": "b8d868e2809a7d13ebc2dfefdf82ee7ea4beb7b877b223fdda4f6c4d06396688",
+      "size_bytes": 16009
+    },
+    {
+      "path": "test_independent_r2_adversarial.py",
+      "sha256": "06cc1f603b8c86c7495dfdec76fd0a6bdd5bcf386a8ed5144fa5af827cae7ebe",
+      "size_bytes": 7346
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "ordinary_attribute_guards": {
+    "_api": true,
+    "_invoke": true,
+    "__dict__": true,
+    "_CtpSdkAuthorityView__api": true,
+    "submit_order": true
+  },
+  "object_getattribute_returns_raw": true,
+  "slot_descriptor_returns_raw": true,
+  "partial_self_reaches_raw": true,
+  "fake_raw_write_counter_after_introspection": [
+    "submit_order"
+  ],
+  "unmanaged_ctp_prestart_sdk_api_is_none": true,
+  "unmanaged_ctp_private_fallback_returns_raw_client": true,
+  "sdk_import_guard": "bt_api_py, bt_api_ctp and _ctp imports blocked; no hit in final probe",
+  "provider_or_network": false
+}

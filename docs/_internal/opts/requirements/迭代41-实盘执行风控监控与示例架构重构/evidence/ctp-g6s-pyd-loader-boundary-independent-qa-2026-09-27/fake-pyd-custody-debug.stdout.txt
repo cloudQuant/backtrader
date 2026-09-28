@@ -1,0 +1,5 @@
+first_handle_type <class 'int'> repr 368 value None last_error 0
+cast 0x170
+second_write_handle 18446744073709551615 cast 18446744073709551615 last_error 32
+python_error PermissionError PermissionError(13, 'Permission denied') winerror None errno 13
+after b'1234567890'

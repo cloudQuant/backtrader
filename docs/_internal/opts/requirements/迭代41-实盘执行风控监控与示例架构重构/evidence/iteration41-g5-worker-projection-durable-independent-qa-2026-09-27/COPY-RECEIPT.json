@@ -1,0 +1,32 @@
+{
+  "format": "iteration41-g5-independent-qa-copy-receipt.v1",
+  "files": [
+    {
+      "path": "independent-qa-report.md",
+      "bytes": 8602,
+      "sha256": "1e8da5f58906bd46703d1d511b2b965d3cf312983d8126d2621a1be4526becfa"
+    },
+    {
+      "path": "g5-worker-projection-durable-independent-qa.raw.zip",
+      "bytes": 820747,
+      "sha256": "8983f62fc14ba9b23453da99ecc54afdfbed1af454a4a00217bb10cd471c7b0d"
+    },
+    {
+      "path": "ARCHIVE-INDEX.json",
+      "bytes": 11927,
+      "sha256": "ce4fd689a090c8a3a409f30039937ccdc0ee8c8ce53392f8e5740ea0098f7727"
+    },
+    {
+      "path": "independent-qa-receipt.json",
+      "bytes": 2208,
+      "sha256": "5a4944d48ad1466572fc79ec904549d153cb8fb5088531aa466077839cc06bd3"
+    },
+    {
+      "path": "verify-final-packet.log",
+      "bytes": 556,
+      "sha256": "2f7eb1e94f87deae8c4e1a755a9fe873a240ef310798fde812ca44117d7b8f1e"
+    }
+  ],
+  "source": "D:\\temp\\iteration41-g5-worker-projection-independent-qa-20260927\\evidence",
+  "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-g5-worker-projection-durable-independent-qa-2026-09-27"
+}

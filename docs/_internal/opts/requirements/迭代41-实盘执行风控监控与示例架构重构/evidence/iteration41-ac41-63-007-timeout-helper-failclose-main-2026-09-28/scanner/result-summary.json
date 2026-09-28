@@ -1,0 +1,26 @@
+{
+  "collector": {
+    "sha256": "AC6219E2112A58CFA270A181C4696645DBEF6BE60B3DF78AFDB8FED041906F46",
+    "stdout_sha256": "20FAAAA61B4F75C025C2AE832238D3872ACC757280EA5E744E542DF2DC14D5BD",
+    "files_scanned": 355,
+    "writer_candidates": 363,
+    "dynamic_candidates": 97,
+    "parse_errors": 0
+  },
+  "current_inventory_sha256": "0874A81AC23BA4F659ACAAC833A976ECEC44FA892A3A97778EA3D9779DB67A67",
+  "inventory_comparison": {
+    "additions": 0,
+    "locator_changes": 0,
+    "moves": 0,
+    "removals": 0,
+    "rows_and_locators_identical": true
+  },
+  "verifier": {
+    "exit_code": 0,
+    "status": "PASS",
+    "checked_rows": 460,
+    "review_required_rows": 460,
+    "historical_tombstones": 6,
+    "evidence_boundary": "STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION"
+  }
+}

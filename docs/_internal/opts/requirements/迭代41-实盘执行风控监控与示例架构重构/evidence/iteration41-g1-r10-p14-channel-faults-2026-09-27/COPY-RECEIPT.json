@@ -1,0 +1,112 @@
+{
+  "archive": "iteration41-g1-r10-p14-channel-faults-2026-09-27",
+  "status": "COPIED_AND_HASH_VERIFIED; G1 CLOSED",
+  "source_directory": "D:\\temp\\iteration41-g1-r10-p14-channel-faults-20260927\\freeze-r1",
+  "destination_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-g1-r10-p14-channel-faults-2026-09-27",
+  "source_manifest_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5",
+  "copied_manifest_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5",
+  "source_evidence_zip_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd",
+  "copied_evidence_zip_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd",
+  "zip_crc_test": "PASS",
+  "zip_manifest_payload_hashes": "PASS",
+  "file_count": 16,
+  "files": [
+    {
+      "path": "channel-close-wrapper.marker",
+      "size_bytes": 35,
+      "source_sha256": "7506a29cb6f142271183d2bac3cf0a8aa5976378e9ac1a13010dff4549ec585d",
+      "copied_sha256": "7506a29cb6f142271183d2bac3cf0a8aa5976378e9ac1a13010dff4549ec585d"
+    },
+    {
+      "path": "evidence.zip",
+      "size_bytes": 122358,
+      "source_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd",
+      "copied_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd"
+    },
+    {
+      "path": "evidence.zip.sha256",
+      "size_bytes": 80,
+      "source_sha256": "6c5159c00f236828a3403410692d4c955f0ad34e8d7a7ac9c7141afa6529ac7e",
+      "copied_sha256": "6c5159c00f236828a3403410692d4c955f0ad34e8d7a7ac9c7141afa6529ac7e"
+    },
+    {
+      "path": "manifest.json",
+      "size_bytes": 2608,
+      "source_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5",
+      "copied_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5"
+    },
+    {
+      "path": "manifest.sha256",
+      "size_bytes": 81,
+      "source_sha256": "cf1869b3091d9cbc813640f596b2b5fff3eccbf8f1d543a2919bd184af1a076c",
+      "copied_sha256": "cf1869b3091d9cbc813640f596b2b5fff3eccbf8f1d543a2919bd184af1a076c"
+    },
+    {
+      "path": "p14_channel_faults_reprobe.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "copied_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "p14_channel_faults_reprobe.json",
+      "size_bytes": 4820,
+      "source_sha256": "a57ef5be0e0d732685b972f462a449438c22fbbba50fe4a3245a281eaa6e01a4",
+      "copied_sha256": "a57ef5be0e0d732685b972f462a449438c22fbbba50fe4a3245a281eaa6e01a4"
+    },
+    {
+      "path": "p14_channel_faults_reprobe.py",
+      "size_bytes": 10297,
+      "source_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577",
+      "copied_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577"
+    },
+    {
+      "path": "p14_channel_faults_reprobe.stdout.txt",
+      "size_bytes": 4920,
+      "source_sha256": "68c9d1dc3193e13562418630f4d9b203c41739b593ccea2e5d2b9a972a67b98f",
+      "copied_sha256": "68c9d1dc3193e13562418630f4d9b203c41739b593ccea2e5d2b9a972a67b98f"
+    },
+    {
+      "path": "receipt.md",
+      "size_bytes": 4161,
+      "source_sha256": "47f62bebf2148b9a58cc870c05ab02a0606dd56812b2dee0723a0bfee0974675",
+      "copied_sha256": "47f62bebf2148b9a58cc870c05ab02a0606dd56812b2dee0723a0bfee0974675"
+    },
+    {
+      "path": "source/r10_custodian.cpp",
+      "size_bytes": 46073,
+      "source_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "copied_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186"
+    },
+    {
+      "path": "source/r10_r1_manifest.json",
+      "size_bytes": 4416,
+      "source_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "copied_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e"
+    },
+    {
+      "path": "source/r10_r1_manifest.sha256",
+      "size_bytes": 88,
+      "source_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "copied_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5"
+    },
+    {
+      "path": "source/run_r10_r1_trials.py",
+      "size_bytes": 15186,
+      "source_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "copied_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee"
+    },
+    {
+      "path": "source/run_r10_trials_r10_frozen.py",
+      "size_bytes": 27823,
+      "source_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "copied_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b"
+    },
+    {
+      "path": "terminate-wrapper.marker",
+      "size_bytes": 35,
+      "source_sha256": "d8feb4a49da3420f44e6436b393674f58579c9b92c7424fe88ad15f49764b100",
+      "copied_sha256": "d8feb4a49da3420f44e6436b393674f58579c9b92c7424fe88ad15f49764b100"
+    }
+  ],
+  "scope_note": "Inert local Windows probe only. Real Win32 failure returns are distinguished from pre-API wrapper sleeps. No true kernel hang or whole-command hard-deadline proof; G1 remains CLOSED."
+}

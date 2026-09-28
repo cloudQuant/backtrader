@@ -1,0 +1,14 @@
+Run from this candidate root with PowerShell; the primary-only plugin gate is set to avoid ambient pytest plugins.
+
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+$env:PYTHONDONTWRITEBYTECODE='1'
+python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py::test_explicit_ctp_rejects_before_route_environment_or_caller_object_reads tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py::test_unknown_custom_route_object_remains_untraversed_and_fails_closed tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py::test_environment_selected_ambiguous_btapi_still_rejects_without_local_effects -q --tb=short --junitxml=evidence/r2a-explicit-env-focus.junit.xml
+python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2a-candidate-focus.junit.xml
+python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2a-focused-tests.junit.xml
+python -B -m pytest -p no:asyncio tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2a-legacy-ctp-compatibility-delta.junit.xml
+python -m ruff check --config D:/source_code/backtrader/pyproject.toml backtrader/storestapistore.py backtrader/stores\ctp_account_actor_port.py tests/unit/stores	est_ctp_account_actor_store_wiring_candidate.py tests/unit/stores	est_managed_execution_store_adapter.py
+python -B -m py_compile backtrader/storestapistore.py backtrader/stores\ctp_account_actor_port.py tests/unit/stores	est_ctp_account_actor_store_wiring_candidate.py tests/unit/stores	est_managed_execution_store_adapter.py
+python evidence/generate_r2a_patch.py
+python evidence/replay_r2a_patch.py
+
+Expected result summary: 4 passed; 18 passed; 25 passed; the legacy 30-test set returns exit 1 with 9 passed / 21 fail-closed CTP actor-unavailable failures; Ruff and py_compile pass.

@@ -1,0 +1,5 @@
+{
+  "events": [
+    "fake_optional_sdk_stub:bt_api_py"
+  ]
+}

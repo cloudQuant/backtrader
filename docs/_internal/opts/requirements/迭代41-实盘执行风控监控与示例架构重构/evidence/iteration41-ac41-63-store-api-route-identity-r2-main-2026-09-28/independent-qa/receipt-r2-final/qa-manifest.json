@@ -1,0 +1,38 @@
+{
+  "schema_version": "iteration41-store-api-identity-r2-p3-independent-qa.v1",
+  "status": "PASS_NARROW_CONDITIONAL_WITH_DOCUMENTED_RESIDUAL",
+  "authorization": "NO_WRITE / LIVE_NO_GO; no authority, provider acceptance, or writer closure claim",
+  "candidate_packet": {
+    "path": "D:\\temp\\ac41-63-store-api-identity-r2-20260927",
+    "final_manifest_sha256": "14CA1DDD9EA18CA5BB09B5B851470164042510BFD3C202FC287F265E4F9EC15A",
+    "final_sha256sums_sha256": "AA0161F9299A21B1BB8B7CDCB292A7C228BEFBEB12A62BED027A7D4A94630F49",
+    "prior_superseded_manifest_sha256": "7770B105335576518B1B8A0A4E63B2788B78A23ECCFE6ABC28D466B3CA627964",
+    "base_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+    "candidate_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA",
+    "candidate_test_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A",
+    "patch_sha256": "AEF2BD46AA261576F936580502DF53C7FDC669856E3A7A59812CE43655493E59"
+  },
+  "independent_replay": {
+    "strict_apply_check": "PASS",
+    "apply": "PASS in receipt replay workdir, not main tree",
+    "result_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA",
+    "result_test_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A"
+  },
+  "tests": {
+    "route_identity_contracts": "16 passed",
+    "r4_recovery_matrix": "4 passed; market_data_only x managed_adapter combinations",
+    "p3_adversarial_fake_only": "4 passed; two historical bypass cases denied, dynamic hidden-route residual reproduced, no-route non-CTP positive",
+    "guarded_compatibility": "443 passed, 1 skipped, 18 import-tripwire-blocked; not full green",
+    "py_compile": "PASS",
+    "ruff": "PASS"
+  },
+  "residual": "An already-injected API with empty Store snapshot and custom __getattribute__ hiding CTP exchange_kwargs can reach local fake direct submit/cancel. This compatibility-preserved case is documented and means this is not general identity closure.",
+  "main_tree_reversal": {
+    "incident": "QA accidentally applied this exact patch while cwd was main; root reversed it.",
+    "final_main_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+    "new_test_absent": true,
+    "parent_confirmed_diff_check": true
+  },
+  "qa_report_sha256": "689CC7743C160190DB470E514425077B3D16869CA0067132FCC27F83541DE8D2",
+  "no_real_provider_or_native_io": true
+}

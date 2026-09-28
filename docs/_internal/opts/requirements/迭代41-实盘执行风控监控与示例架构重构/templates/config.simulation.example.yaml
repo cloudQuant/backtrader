@@ -1,0 +1,24 @@
+# Schema-v4 is accepted by the implemented `bt-runtime` CLI.
+# This is a generic template until its exact directory and strategy identity are bound by the reviewed registry.
+# The default registry has 16 registrations: 11 source replay paths, 1 CTP SimNow sandbox private-read path (no runner/capabilities),
+# 2 source managed-L2 replay paths, one public OKX shadow path, and one package-owned backtest/local_backtest fixture. This generic template is not itself registered.
+# Every Iter41 runtime requires <registered-runtime-dir>/config.yaml. Missing => CONFIG_REQUIRED, zero I/O.
+# Keep the existing tracked example/config.yaml strategy parameters unchanged.
+# Bootstrap atomically creates runtime/config.yaml once; it must never overwrite an existing file.
+# Runtime .gitignore must contain explicit /config.yaml and /secrets.yaml entries; it may also ignore unrelated runtime artifacts such as /reports/.
+# Registry resolves provider/environment, order_route, account_access and plugin requirements.
+# These resolved safety fields are read-only: do not put plugins, route, access or capability overrides here.
+# CLI run selects only the registered runtime directory; it cannot override mode/preset or upgrade this replay route.
+config_schema_version: 4
+strategy:
+  id: "example.strategy-id"
+runtime:
+  mode: "simulation"
+  preset: "replay"
+# replay: offline zero network and zero external provider writes; fake events are counted separately.
+# Other declared simulation presets are paper, shadow and sandbox; choosing one requires a new seal/preflight.
+# paper/shadow may use approved public reads but never external writes; candidate-specific bans still apply.
+# sandbox defaults to authenticated private READ_ONLY access in the registry-pinned demo/SimNow environment.
+# Only an approved write capability plus valid sandbox receipt/admission permits external sandbox writes;
+# that write profile requires managed execution+risk+monitor and cleanup. Production writes stay zero.
+parameters: {}

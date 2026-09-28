@@ -1,0 +1,12 @@
+{
+  "schema": "iteration41.unified_offline_wheelhouse_settlement.wheel_helper_readback.r1.v1",
+  "wheel": "bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+  "wheel_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+  "wheel_helper_path": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+  "wheel_helper_sha256": "53333798198177dd675f96478d8d7d2d0445e2e41459e54d4f021bdd32fa3282",
+  "matches_source_overlay_manifest": true,
+  "expected_source_overlay_sha256": "53333798198177dd675f96478d8d7d2d0445e2e41459e54d4f021bdd32fa3282",
+  "checks_confirm_date_against_scope_trading_day": true,
+  "conditionally_checks_row_trading_day_if_present": true,
+  "native_imported": false
+}

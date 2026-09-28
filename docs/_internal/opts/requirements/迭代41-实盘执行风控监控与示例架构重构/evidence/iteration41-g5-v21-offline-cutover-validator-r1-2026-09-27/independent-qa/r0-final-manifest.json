@@ -1,0 +1,111 @@
+{
+  "candidate_source_integration_changes_to_main_tree": [],
+  "changed_payloads": [
+    {
+      "bytes": 11237,
+      "path": "src/offline_cutover_validator.py",
+      "preimage": "absent in empty candidate base",
+      "replay_exact": true,
+      "replay_sha256": "2760a43ede16b8bfc680a75ce16f4c83c5a75fad42db27729fdf3beaba86a4bf",
+      "target_sha256": "2760a43ede16b8bfc680a75ce16f4c83c5a75fad42db27729fdf3beaba86a4bf"
+    },
+    {
+      "bytes": 7933,
+      "path": "tests/test_offline_cutover_validator.py",
+      "preimage": "absent in empty candidate base",
+      "replay_exact": true,
+      "replay_sha256": "7515ab2e78d61aaf15dd918e240e324d43ef7784d540825e10a231f7067ddddc",
+      "target_sha256": "7515ab2e78d61aaf15dd918e240e324d43ef7784d540825e10a231f7067ddddc"
+    },
+    {
+      "bytes": 4273,
+      "path": "docs/CANDIDATE.md",
+      "preimage": "absent in empty candidate base",
+      "replay_exact": true,
+      "replay_sha256": "62f0d33cc88295ba623073a4993e88de5dc561497338413d6cc7ec17981a6428",
+      "target_sha256": "62f0d33cc88295ba623073a4993e88de5dc561497338413d6cc7ec17981a6428"
+    },
+    {
+      "bytes": 1856,
+      "path": "docs/LIMITATIONS.md",
+      "preimage": "absent in empty candidate base",
+      "replay_exact": true,
+      "replay_sha256": "e4323bd0221e01786b3abfd3103fb1d8392d62f3bebbb51474e97cb40305754d",
+      "target_sha256": "e4323bd0221e01786b3abfd3103fb1d8392d62f3bebbb51474e97cb40305754d"
+    }
+  ],
+  "contract": {
+    "compared_identity_fields": [
+      "account_key",
+      "trading_day",
+      "scope_key",
+      "managed_action_id",
+      "managed_intent_id",
+      "runtime_order_id",
+      "order_ref",
+      "native_action_ref"
+    ],
+    "digest_is_integrity_not_authenticity": true,
+    "mode": "pure in-memory typed normalized snapshots",
+    "never_allocates_renumbers_deletes_or_coalesces": true,
+    "no_database_file_network_sdk_provider_or_runtime_io": true,
+    "rejects_missing_duplicate_conflicting_or_incomplete_rows": true,
+    "rejects_nonzero_high_water_without_rows": true,
+    "requires_known_non_unknown_command_state": true,
+    "requires_readable_complete_snapshots_and_verified_row_count_digest": true,
+    "requires_v21_high_water_gte_legacy_high_water": true
+  },
+  "created_utc": "2026-09-27T12:45:26.755006+00:00",
+  "disposition": "LOCAL_TYPED_CONTRACT_ONLY / NO_WRITE / NO_AUTHORITY / NOT_A_MIGRATION_TOOL / LIVE_NO_GO",
+  "limitations": [
+    "old G5 schema exists only in separate candidate source; no actual deployed schema or authenticated exporter is known",
+    "old G5 action reservation rows lack command ID and state; normalized legacy state requires a separately validated command join",
+    "V21 allocation needs command/correlation join to recover shared identity fields",
+    "no authenticated native MaxOrderActionRef floor",
+    "no external authenticated account-wide writer epoch or old-writer fence",
+    "no real account migration, deployment, provider, or live evidence"
+  ],
+  "patch": {
+    "base": "empty candidate repository",
+    "bytes": 26640,
+    "path": "OFFLINE-ACTIONREF-CUTOVER-CONSISTENCY-final.patch",
+    "sha256": "4f069e013f1352b768b4abed46a6eb749a444910b7531a301368447dc356327f"
+  },
+  "replay": {
+    "git_apply_check": "passed with core.autocrlf=false",
+    "patched_payloads_exact": true,
+    "path": "D:\\temp\\iteration41-g5-v21-offline-cutover-validator-replay-final-20260927"
+  },
+  "revision": "final",
+  "schema": "iteration41.g5-v21-actionref-offline-cutover-candidate.v1",
+  "separate_workspace_incident_evidence": "D:/temp/g6-actionref-validator-main-tree-incident-20260927",
+  "source_basis": {
+    "current_main_g5_verifier": {
+      "classification": "current verifier; not the historical allocator schema",
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66"
+    },
+    "historical_g5_sdk_candidate": {
+      "classification": "candidate schema evidence only; deployment schema unknown",
+      "path": "D:/temp/iteration41-g5-order-authority-20260927-candidate/implementation/sdk/src/bt_api_execution/ctp_identity_authority.py",
+      "sha256": "8e7abdd2819f66b6ec3d5ff1d5a049fcbb91ae8e71327665ee925098d35f647d"
+    },
+    "prior_cross_contract_packet_preimage_manifest": {
+      "path": "D:/temp/iteration41-g5-v21-current-contract-candidate-r0-20260927/PREIMAGE-TARGET-MANIFEST.json",
+      "sha256": "404ec9e4b21a0fba776fffac2ebb4de46bb25508340dc1214304d58fd66dffd9"
+    },
+    "v21_r3_store_preimage": {
+      "classification": "frozen local V21 r3 source snapshot",
+      "path": "D:/temp/iteration41_v21_ctp_account_handoff_freeze_r3_20260927/src/bt_api_execution/store.py",
+      "sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a"
+    }
+  },
+  "tests": {
+    "command": "$env:PYTHONPATH=\"src\"; python -m pytest -q tests/test_offline_cutover_validator.py --junitxml=artifacts/offline-cutover-junit.xml",
+    "junit_bytes": 3768,
+    "junit_sha256": "e1bcce084a226a384124b164aeb1269e357e417953bb5c6a14d0b9b055a1f820",
+    "result": "23 passed",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed"
+  }
+}

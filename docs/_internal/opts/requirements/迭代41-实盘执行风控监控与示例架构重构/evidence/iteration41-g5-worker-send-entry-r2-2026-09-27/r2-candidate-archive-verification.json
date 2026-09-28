@@ -1,0 +1,15 @@
+{
+  "candidate_files_including_manifest_and_sha": 140,
+  "candidate_root": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate",
+  "format": "iteration41-g5-send-entry-r2-archive-verification.v1",
+  "manifest_file_count": 138,
+  "manifest_sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+  "r1_evidence_copy_receipt": "evidence/r1-send-entry-regressions-copy-verification.json",
+  "status": "R2_FAIL_CLOSED / G5 NOT ACCEPTED",
+  "zip_bytes": 608197,
+  "zip_crc_bad_member": null,
+  "zip_member_count": 140,
+  "zip_member_set_matches_candidate_files": true,
+  "zip_path": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate.zip",
+  "zip_sha256": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283"
+}

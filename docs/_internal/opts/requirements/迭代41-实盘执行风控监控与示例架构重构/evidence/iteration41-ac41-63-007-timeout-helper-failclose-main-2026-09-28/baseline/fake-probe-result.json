@@ -1,0 +1,13 @@
+{
+  "probe": "python -B baseline/fake_probe.py",
+  "preimage_result": ["fake-strategy-result"],
+  "preimage_run_calls": 1,
+  "preimage_runstop_calls": 0,
+  "preimage_timer_calls": ["construct", "start", "cancel"],
+  "candidate_error": "legacy_direct_execution_not_supported",
+  "candidate_run_calls": 0,
+  "candidate_runstop_calls": 0,
+  "candidate_timer_calls": 0,
+  "sdk_imported": false,
+  "network_attempts": []
+}

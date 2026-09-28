@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.458" timestamp="2026-09-27T20:32:51.096246" hostname="yun"><testcase classname="" name="tests.unit.scripts.test_ctp_i13_i15_inert_deadline_supervisor" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\temp\iteration41-ctp-preflight-supervisor-independent-qa-20260927\replay\tests\unit\scripts\test_ctp_i13_i15_inert_deadline_supervisor.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\anaconda3\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests\unit\scripts\test_ctp_i13_i15_inert_deadline_supervisor.py:14: in &lt;module&gt;
+    from scripts import ctp_i13_i15_inert_deadline_supervisor as supervisor
+sitecustomize.py:37: in _guarded_import
+    return _original_import(name, *args, **kwargs)
+scripts\ctp_i13_i15_inert_deadline_supervisor.py:28: in &lt;module&gt;
+    from scripts.ctp_i13_i15_windows_guardian import (
+sitecustomize.py:37: in _guarded_import
+    return _original_import(name, *args, **kwargs)
+E   ModuleNotFoundError: No module named 'scripts.ctp_i13_i15_windows_guardian'</error></testcase></testsuite></testsuites>

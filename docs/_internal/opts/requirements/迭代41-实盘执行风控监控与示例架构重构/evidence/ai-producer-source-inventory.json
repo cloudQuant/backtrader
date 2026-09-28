@@ -1,0 +1,50 @@
+{
+  "limitations": [
+    "This artifact records local source identity only; it does not prove a built wheel, package installation, or runtime import origin.",
+    "This artifact is review evidence only and never grants deployment, execution, control, provider, account, or credential authority.",
+    "A changed Git working tree requires a newly collected artifact and independent review before it can be relied upon."
+  ],
+  "products": [
+    {
+      "deployment_evidence_path": "src/backtrader_agent/deployment_evidence.py",
+      "deployment_evidence_sha256": "7065dbff616e9cbed4ff74ae7b1583b1613a10d5e69851571bd1ee045f003959",
+      "git_commit": "90aabcf0bbd2fd06fcc114713c21fc0aac9ad88b",
+      "package_init_sha256": "d14e2df8e2322792e721d29eef7f30ee28b872b0da98b580dcecd5274cffb7d0",
+      "package_name": "backtrader_agent",
+      "package_version": "0.2.0",
+      "product": "backtrader-agent",
+      "pyproject_sha256": "b4cd76350f73c35c43bbaec23f57a56a30138cfa63a025a893e739736301197f",
+      "source_root": "D:/source_code/backtrader-agent",
+      "working_tree_dirty": true,
+      "working_tree_manifest_sha256": "3d7253360440357022ea60103ef5f237b7d2b2ff4f6a5d469084b26e5a2fcd00"
+    },
+    {
+      "deployment_evidence_path": "src/backtrader_mcp/deployment_evidence.py",
+      "deployment_evidence_sha256": "a377c18f354cc876e1c18d3f85faad9be5d87827dc3db5e207e54a8d97cffefb",
+      "git_commit": "ad6312a11c2fe7ff9a4c3fcfcfab5037a951b58c",
+      "package_init_sha256": "18d4084badf25bb345d8b43c9bfa7313a3ad1560df673dd98e315155e5f2b929",
+      "package_name": "backtrader_mcp",
+      "package_version": "0.2.0",
+      "product": "backtrader-mcp",
+      "pyproject_sha256": "dbd64bb527569696706556efe9267ebabf8ba6ced94c3450d91f6d2cad4d2cd9",
+      "source_root": "D:/source_code/backtrader-mcp",
+      "working_tree_dirty": true,
+      "working_tree_manifest_sha256": "bd15c4cf87832491753f98afaa7a0459a10ee944eb1a3e2ffc248421e680d530"
+    },
+    {
+      "deployment_evidence_path": "src/backtrader_skills/deployment_evidence.py",
+      "deployment_evidence_sha256": "13dc268953a8d1cfabd139b816d553797cb60c34fc9d74ab44a8debd847831b5",
+      "git_commit": "de68788439444cba2ec764e722db1818e455376a",
+      "package_init_sha256": "83513173ba46f7875306cc6e83b448c596b9a8d5db386eb7747df516a30c2c5f",
+      "package_name": "backtrader_skills",
+      "package_version": "0.2.0",
+      "product": "backtrader-skills",
+      "pyproject_sha256": "ddd6d323e07a22f4103d529b8d93f13459021e6d300a61822470a937c4e5490f",
+      "source_root": "D:/source_code/backtrader-skills",
+      "working_tree_dirty": true,
+      "working_tree_manifest_sha256": "bcc1a8619070888ff475ad6d870e6c49f46bca590f27d6686d91a41fd612afe0"
+    }
+  ],
+  "schema_version": "iteration41.ai-producer-source-inventory.v1",
+  "status": "SOURCE_BASELINE_ONLY"
+}

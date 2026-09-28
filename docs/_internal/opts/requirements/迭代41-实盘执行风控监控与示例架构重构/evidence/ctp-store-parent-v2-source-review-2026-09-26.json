@@ -1,0 +1,84 @@
+{
+  "schema": "iteration41.local_evidence.v1",
+  "status": "ACCEPTED_LOCAL_STORE_PARENT_V2_SLICE_ONLY",
+  "parent_later_local_commit": "e53b6b559bdc378d144cca5917814d0ac5beb2c1",
+  "parent_dirty_gitlinks_excluded": [
+    "bt_api_ctp",
+    "bt_api_execution",
+    "bt_api_monitor",
+    "bt_api_risk"
+  ],
+  "results": {
+    "independent-main": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "60",
+      "time": "5.529",
+      "timestamp": "2026-09-26T20:31:06.842898",
+      "hostname": "yun"
+    },
+    "independent-parent": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "41",
+      "time": "0.821",
+      "timestamp": "2026-09-26T20:27:27.306261",
+      "hostname": "yun"
+    },
+    "author-composition-r4": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "32",
+      "time": "3.030",
+      "timestamp": "2026-09-26T20:47:28.334395",
+      "hostname": "yun"
+    }
+  },
+  "root_verified_current_source_files": 12,
+  "raw_zip_sha256": "ac4efc6c142ec876f18112aa59336afa2861ed33de9fd368e153329609fd7573",
+  "raw_zip_bytes": 171344,
+  "payload_sha256": {
+    "main-source/tests/unit/stores/test_ctp_i9_provider_order_projection_gate.py": "1d056e8b94dbc3e74e752d08a0b8ade49158407a540452f67f4157c416603c40",
+    "main-source/backtrader/stores/managed_execution.py": "1c31f89412e8e1177eb2e27389c62b50e074361ef808098846c06704f18440c5",
+    "main-source/backtrader/stores/ctp_i9_managed_dispatch.py": "454c039e85b7559b7f37291bc7eb77f7e7a845cadf48faa9262cb7042636c6ad",
+    "main-source/tests/unit/stores/test_ctp_i9_managed_dispatch_bridge.py": "697cf8cb65c2ac383c501d4ec5bf612b80c4eaf7c8f037a8f247458b7de0bfb9",
+    "main-source/tests/unit/stores/test_ctp_i9_parent_request_builder.py": "83c50a5860e95edbf79f45230f460149cc718283f3c45c72a1afbb5221780240",
+    "main-source/tests/unit/stores/test_ctp_managed_projection_bridge.py": "08095b558369f1c9674f10f0994e1344fc91a5a2bc6aed8a9aceec98872832bb",
+    "main-source/backtrader/stores/ctp_i9_parent_request_builder.py": "4ef2264441adb020e92ad1eef3a52e58d870c66b406bd2dd795d737a6f0711e8",
+    "parent-source/bt_api_py/_contracts/models.py": "a325326825e958a0cc0d885c34e391bde9751199745863e87914d426d6213c11",
+    "parent-source/bt_api_py/_execution_session.py": "925abbe05d33b36a0d3c37dd2d4b5733190cf9c3a6bd0b7ecbeb0a152fd2d82f",
+    "parent-source/tests/bt_api_contract/test_ctp_orderref_consume.py": "bf9999ba32ff2457113f2b20c2438e8746aeb6eabfa4754ea3462e764cfa9677",
+    "composition-source/backtrader_runtime/ctp_i9_account_session_candidate.py": "a7c868ddc3ed3643fcc1a1daaf5ba0936140a1e921cc834d8ad15f22a82a7efe",
+    "composition-source/tests/integration/test_iteration41_ctp_i9_account_session_candidate.py": "12fd4c6e6c75d36b0283cbd1eff7939ebc338614a557238580fd9f56519cecbd",
+    "independent-main/exit-code.txt": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "independent-main/hashes-after.txt": "df80fd3d14b1ad6240e3abebe174b44dbd57ec72bd36d51069f5634cbfaa996c",
+    "independent-main/hashes-before.txt": "df80fd3d14b1ad6240e3abebe174b44dbd57ec72bd36d51069f5634cbfaa996c",
+    "independent-main/junit.xml": "f0ae1f308c1bc6ec2d00b22dd21ef772d7b5b641f323854a62e35e4ee2bc3f1e",
+    "independent-main/pytest-version.txt": "846befe5cbc425cd607dc0daf0ec551f9ab0029d43077eb0013001b9fe642513",
+    "independent-main/repro.json": "b152301b2b51706f2a070453d4e839862efa03ada7ceade464dcede6510dad6e",
+    "independent-main/repro.txt": "8055dd2f1f38e453be8ea0f90f36cce9944cd0f7bddf7c7352abb5f08184a5a5",
+    "independent-main/stdout.txt": "10c2e13460c81a18ddd345cd92990bd5b571de41082f06042825cfacb2f09d6e",
+    "independent-parent/exit-code.txt": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "independent-parent/junit.xml": "861d48b2705869b4979dacc36846c47ef4a1fdd30614001e0a3e753a02be4135",
+    "independent-parent/repro.json": "7c84f27a7f070fbe0b9e728a43f225d2c78489b01377a27d94688528b9dbb637",
+    "independent-parent/repro.txt": "654ce7180995ab694ec4a92533fb11219dd6fd3ee467e3b9bf1862aa6b48fe76",
+    "independent-parent/stdout-stderr.txt": "4bfda4be17616f8e8cb2437c2f10d82e793478ce0601f09ffdecba95c3791638",
+    "author-composition-r4/result.xml": "28b90e378d58a95270a7f0d739f0b853c7897f18be15b49ccfeb1904e0eb2429",
+    "author-composition-r4/result.log": "15cc6e5b484758a73c85eb96ed92e363b75ef245bfe9ade04c429a1b7fc5a42b"
+  },
+  "limitations": [
+    "Independent parent tests used the original V17 snapshot; independent main tests used r1. Neither is an r4 full-package rerun.",
+    "The parent source changes were uncommitted at test time; the later local commit does not change those three payload hashes.",
+    "Independent pytest processes did not record module origins in the same process; a prior separate probe is not equivalent.",
+    "Source-only metadata/PYTHONPATH composition is not an installed-wheel or release acceptance.",
+    "Composition 32-pass result is author-reported pytest evidence, with JUnit and log verified here; root did not rerun it.",
+    "The positive composition submits again only after target terminal OnRtnOrder; pending-cancel account blocking needs V18.",
+    "No real native session, provider acknowledgement, external action authority, default route or SimNow/production trading acceptance."
+  ]
+}

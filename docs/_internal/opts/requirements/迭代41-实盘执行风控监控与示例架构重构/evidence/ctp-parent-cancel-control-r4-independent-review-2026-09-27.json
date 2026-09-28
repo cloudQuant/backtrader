@@ -1,0 +1,78 @@
+{
+  "title": "Iteration 41 parent cancel-control r4 independent bridge review",
+  "status": "OFFLINE_FAKE_FOCUS_PASS_RELEASE_NOT_ACCEPTED",
+  "reviewed_utc": "2026-09-26T21:45:07.4296319Z",
+  "parent_snapshot": {
+    "path": "D:\\temp\\iteration41-cancel-control-r4-freeze-r1-20260927",
+    "payload_manifest_sha256": "60b020202ed89169e24afca30b1b1b16680151a11c6f52c518d0f5bbfa7fab0d",
+    "payload_count": 154,
+    "copy_verified_count": 154,
+    "copy_mismatches": 0,
+    "changed_module_sha256": "8b7d2b02654d0b4a9fbea63f4bc359a0135df6410cf4034ea069a41e32b898cd",
+    "changed_test_sha256": "0160907f5ae68eba844bf39961b65ea09f038c3d0517a3fb0e432a142407c8d7"
+  },
+  "candidate_overlay": {
+    "path": "D:\\temp\\iteration41-cancel-control-main-parent-overlay-parent-r4-20260927",
+    "main_managed_execution_sha256": "1305cf12b9470d20f5b3f888c4102c32c417b9205b9d9538b012f2b5f8f4cce6",
+    "main_cancellation_test_sha256": "921e9ff1d082b4dc380afa70aba11fd9df1d9b2e854b2412fc943ae459318755",
+    "registered_runner_source_map": "example-code source copies and SHA256 are included in the raw ZIP"
+  },
+  "tests": [
+    {
+      "focus": "original three bridge nodes",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "outcome": "3 passed; includes registered offline fake runner, reconciled release, and unknown takeover freeze",
+      "warning": "one existing DeprecationWarning from backtrader.feeds.quandl",
+      "junit_sha256": "650d25f1edf8725ae45037ebf2aba8b34a04197c8df1a8212b6e8c14553b123c"
+    },
+    {
+      "focus": "five-file Iteration 41 bridge focus",
+      "tests": 73,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "outcome": "73 passed",
+      "warning": "one existing DeprecationWarning from backtrader.feeds.quandl",
+      "junit_sha256": "23c061d2343dba1628887809f9908b4fe31afaf38b901194656934f02f90ca9d"
+    }
+  ],
+  "origins": {
+    "guard_log_count": 10,
+    "guarded_processes": 10,
+    "source_import_records": 1158,
+    "mismatches": 0,
+    "observed_import_roots": [
+      "bt_api_base",
+      "bt_api_execution",
+      "bt_api_monitor",
+      "bt_api_py",
+      "bt_api_risk"
+    ],
+    "source_only_metadata_root": "D:\\temp\\iteration41-v20-r3r2-main-cancel-qa-20260927\\source-only-metadata-r3r2",
+    "note": "Source-only overlay; no installed-wheel acceptance. CTP SDK source root was configured but not imported in these fake-only tests."
+  },
+  "retained_r3_history": {
+    "receipt_path": "D:\\temp\\iteration41-cancel-control-main-parent-overlay-r3-historical-receipt-20260927\\receipt.json",
+    "receipt_sha256": "b09836795e5ebcd4d43fcd66f017bab9cce74dbcaf53448735da425abf5c4529",
+    "original_three_outcome": "2 passed / 1 teardown failure",
+    "original_five_outcome": "70 passed / 3 failed",
+    "cleanup_breakpoint": "r3 _verify_release_prepared_monitor_fact used with sqlite3.connect as context manager without explicit close; tracked WAL/SHM/database handles caused Windows temp cleanup WinError 32 followed by WinError 267."
+  },
+  "limitations": [
+    "This is an offline fake-provider composition check only: no private config, provider, native CTP request, or live account was used.",
+    "R4 remains cooperative-SQLite only; same-user DROP TRIGGER can defeat SQLite trigger guards and was independently reported. No hostile same-user DDL isolation.",
+    "The monitor and risk latches span separate databases, so no general cross-database atomic release guarantee is claimed.",
+    "Ruff was not run by this independent bridge pass; the r4 author evidence reports 23 findings in its two changed files.",
+    "No G4/F14, real cancel-release, installed-wheel composition, or production/CTP release acceptance."
+  ],
+  "raw_evidence_zip": {
+    "path": "D:\\temp\\iteration41-cancel-control-main-parent-overlay-evidence-parent-r4-20260927\\ctp-parent-cancel-control-r4-independent-review-2026-09-27.raw.zip",
+    "sha256": "c054ef744fc3f1386b9fe2cb30e8fb97a4263b70b8bb2a1cf8b2d752fe0c9766",
+    "indexed_entries": 206,
+    "independently_extracted_and_verified_entries": 206,
+    "archive_entry_mismatches": 0
+  }
+}

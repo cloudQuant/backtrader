@@ -1,0 +1,28 @@
+{
+  "backtrader_or_provider_imported": false,
+  "constructor_exchange_type": "CTP",
+  "constructor_sets_direct_writes_disabled": true,
+  "fake_sink_calls_after_clearing_mutable_flag": [
+    "submit_order",
+    "submit_order",
+    "cancel_order"
+  ],
+  "gateway_client_remains_lazy_at_ctp_construction": true,
+  "interpretation": "Conditional reachability of current extracted wrapper methods only; no real provider/native/network behavior or default runtime reachability established.",
+  "method_nodes_extracted_from_current_source": [
+    "__init__",
+    "_client",
+    "_ensure_direct_writes_allowed",
+    "_is_supported_non_ctp_exchange",
+    "cancel_order",
+    "create_order",
+    "submit_order"
+  ],
+  "native_or_network_call_performed": false,
+  "operations_rejected_before_fake_sink_with_default_flag": [
+    "submit_order",
+    "create_order",
+    "cancel_order"
+  ],
+  "source_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+}

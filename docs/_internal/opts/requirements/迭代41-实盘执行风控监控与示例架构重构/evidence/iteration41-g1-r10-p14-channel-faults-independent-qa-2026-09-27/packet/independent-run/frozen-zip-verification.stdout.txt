@@ -1,0 +1,1 @@
+{"evidence_zip_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd", "manifest_entries": 12, "manifest_payload_ok": true, "manifest_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5", "zip_entries": 14, "zip_members_match_frozen_copy": true, "zip_test": null}

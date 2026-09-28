@@ -1,0 +1,109 @@
+{
+  "schema_version": "iteration41.writer-inventory-output-diff.v1",
+  "candidate_discovery_status_before": "CANDIDATE_DISCOVERY_ONLY",
+  "candidate_discovery_status_after": "CANDIDATE_DISCOVERY_ONLY",
+  "source_root_before": "HOST_ABSOLUTE_PATH_REDACTED",
+  "source_root_after": ".",
+  "python_files_scanned": {
+    "before": 287,
+    "after": 349,
+    "delta": 62
+  },
+  "writer_candidates": {
+    "before": 221,
+    "after": 327,
+    "delta": 106
+  },
+  "dynamic_candidates": {
+    "before": 49,
+    "after": 62,
+    "delta": 13
+  },
+  "parse_errors": {
+    "before": 0,
+    "after": 0
+  },
+  "total_static_candidates": {
+    "before": 270,
+    "after": 389,
+    "added": 147,
+    "removed": 28
+  },
+  "scope_paths": {
+    "before_count": 18,
+    "after_count": 21,
+    "added": [
+      "conftest.py",
+      "examples",
+      "setup.py"
+    ],
+    "removed": []
+  },
+  "new_candidate_paths": [
+    "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+    "backtrader_runtime/ctp_i13_source_identity.py",
+    "backtrader_runtime/ctp_i13_worker_dependency_seal.py",
+    "backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+    "backtrader_runtime/ctp_simulation_execution.py",
+    "backtrader_runtime/managed_execution.py",
+    "conftest.py",
+    "examples/001_multi_extend_data/strategy_multi_extend_data.py",
+    "examples/003_hft_notebook_examples/prepare_data.py",
+    "examples/004_midfreq_demo/run.py",
+    "examples/005_midfreq_arbitrage/run.py",
+    "examples/006_plots/example_bokeh_charts.py",
+    "examples/006_plots/example_plotly_charts.py",
+    "examples/006_plots/example_report_generation.py",
+    "examples/006_plots/plot_plotly_example.py",
+    "examples/008_dual_side/dual_side_basic.py",
+    "examples/008_dual_side/dual_side_hedge.py",
+    "examples/008_dual_side/dual_side_vs_net.py",
+    "examples/009_trade_logger/trade_logger_example.py",
+    "examples/009_trade_logger/trade_logger_heikin_ashi_example.py",
+    "examples/011_hft_backtest/orderbook_backtest.py",
+    "examples/011_hft_backtest/tick_backtest.py",
+    "examples/012_1_midfreq_cross_exchange/strategy_candidate_approval.py",
+    "examples/012_1_midfreq_cross_exchange/strategy.py",
+    "examples/012_2_event_driven_cross_exchange/strategy_candidate_approval.py",
+    "examples/012_2_event_driven_cross_exchange/strategy.py",
+    "examples/016_self_similarity/self_similarity_strategy.py",
+    "examples/017_fnn_embedding/fnn_autoencoder.py",
+    "examples/017_fnn_embedding/fnn_embedding_strategy.py",
+    "examples/bollinger_band_strategy_test.py",
+    "examples/bollinger_band_strategy_train.py",
+    "examples/cryptohftdata_sma.py",
+    "examples/ctp_options_simnow_live_runner.py",
+    "examples/mixed_mode_backtest.py",
+    "examples/optimize_bollinger_strategy.py",
+    "examples/optimize_strategy.py",
+    "examples/premium_rate_crossover_strategy.py",
+    "examples/sma_crossover.py",
+    "examples/strategy_candidate_approval.py",
+    "setup.py"
+  ],
+  "source_path_coverage": {
+    "before": "NOT_REPORTED",
+    "after": "BASELINE_CLASSIFIED",
+    "controlled_baseline_path_count": 182,
+    "discovered_classified_path_count": 211,
+    "unclassified_path_count": 0,
+    "generated_python_cache_count": 27,
+    "generated_runtime_output_count": 1,
+    "private_state_summary_count": 1
+  },
+  "disposition": {
+    "status_before": "REVIEW_REQUIRED",
+    "entry_count_before": 270,
+    "status_after": "REVIEW_REQUIRED",
+    "entry_count_after": 389,
+    "all_remain_review_required_not_available": true,
+    "live_route_count_field_is_not_route_authorization": true
+  },
+  "limitations": [
+    "Counts are a static AST candidate diff; they do not prove runtime reachability or writer closure.",
+    "Path classifications only describe source-scan coverage and do not authorize a route.",
+    "The prior host-specific source_root value is withheld from this diff.",
+    "No protected config, .env, credential content, or machine-specific absolute path is included."
+  ]
+}

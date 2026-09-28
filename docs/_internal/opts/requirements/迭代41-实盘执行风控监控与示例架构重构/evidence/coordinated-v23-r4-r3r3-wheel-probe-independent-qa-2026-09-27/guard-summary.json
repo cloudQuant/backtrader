@@ -1,0 +1,105 @@
+{
+  "schema": "independent-coordinated-probe-guard-summary-v1",
+  "created_utc": "2026-09-27T01:04:01.302271+00:00",
+  "guard_log_count": 13,
+  "event_counts": {
+    "guard-started": 13,
+    "source-import": 1031,
+    "source-namespace": 7
+  },
+  "blocked_event_counts": {
+    "network-blocked": 0,
+    "native-import-blocked": 0,
+    "private-config-blocked": 0,
+    "origin-rejected": 0
+  },
+  "native_modules_imported_by_suite_runner": {
+    "main-bridge": [],
+    "main-cancel-control": [],
+    "main-artifact-set": [],
+    "parent-issuer-control": []
+  },
+  "bt_api_ctp_source_import_events": 0,
+  "all_source_import_origins_under_mapped_roots": true,
+  "guard_log_hashes": [
+    {
+      "path": "independent-runs\\main-artifact-set-independent-wheel-qa-guard\\origin-guard-44204.jsonl",
+      "size_bytes": 1589,
+      "sha256": "62af7dbaae8ec9d8a2027f31230a246d08df43a06d63f15795bbfa6f16e18b5a",
+      "event_count": 1
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-12756.jsonl",
+      "size_bytes": 32862,
+      "sha256": "5bf4031702d100013165f8215b5d3b79479c08634bfc328e23da5dfd7120be7a",
+      "event_count": 133
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-15032.jsonl",
+      "size_bytes": 32862,
+      "sha256": "d13e7af624af5cefa9edefad77b57622faefe84157bf1f7faacde953c2c56fda",
+      "event_count": 133
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-20344.jsonl",
+      "size_bytes": 32862,
+      "sha256": "f9b5cefc710964729d4125c1512a6714af346ac6a143ded64d7323ba6a8b48f2",
+      "event_count": 133
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-36304.jsonl",
+      "size_bytes": 26851,
+      "sha256": "b1dd71304133e689918f996dd62df249623110f12654357f5562cbc22ebab2d8",
+      "event_count": 107
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-36476.jsonl",
+      "size_bytes": 32862,
+      "sha256": "11703c56fa3ab0f29e51a117a1dbaa1d8f27819a42030c964dc01f4d49a40818",
+      "event_count": 133
+    },
+    {
+      "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-41596.jsonl",
+      "size_bytes": 32862,
+      "sha256": "a972f0804c8ed2b0a24520e7f0ba06b7a7be8c49f09c70a8bf87f5ee24dc99e2",
+      "event_count": 133
+    },
+    {
+      "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-28448.jsonl",
+      "size_bytes": 33738,
+      "sha256": "1c3c5638b11bb875e88fc8e49d9d8a4d92f7122144eca1b7fcd54490ac4a8048",
+      "event_count": 137
+    },
+    {
+      "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-38276.jsonl",
+      "size_bytes": 1591,
+      "sha256": "6c3eebec64150697f38b33693823a308aad8f2f63f6c628c7a0c90992b634d7c",
+      "event_count": 1
+    },
+    {
+      "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-7860.jsonl",
+      "size_bytes": 1590,
+      "sha256": "63cd34d45b0c041a82ef201b6fead4a295b776e3ed851ad75a0da087f642f9f0",
+      "event_count": 1
+    },
+    {
+      "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-18576.jsonl",
+      "size_bytes": 1593,
+      "sha256": "c727b97fcd612373538fa1194a72a16abc6468727627a640e95e3d11f75bea7f",
+      "event_count": 1
+    },
+    {
+      "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-28548.jsonl",
+      "size_bytes": 33740,
+      "sha256": "9dca07a57975ba5cb0d49d436eca621163d2aa209dc6c75bf4a73ef4f76e881a",
+      "event_count": 137
+    },
+    {
+      "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-37800.jsonl",
+      "size_bytes": 1593,
+      "sha256": "19566cf4c9a244d52f680202e6035268019e989198ee2ac2624c0eca00df5d65",
+      "event_count": 1
+    }
+  ],
+  "interpretation": "Four fake-only suites ran under the copied origin guard. No non-loopback network or native/provider access was performed; Python-level guard logged zero blocked network/native/private-config/origin events. This is local QA evidence, not OS-level isolation or G1/G4/G5 acceptance."
+}

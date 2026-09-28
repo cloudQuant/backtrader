@@ -1,0 +1,95 @@
+diff --git a/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py b/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d0980b954f2f02f9aa6f147622c2d66fd64631c
+--- /dev/null
++++ b/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py
+@@ -0,0 +1,55 @@
++"""Pure CTP query-completion contracts; no Store construction or Actor authority."""
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore
++
++
++def _complete_result():
++    return {
++        "request_type": "positions",
++        "request_id": 7,
++        "connection_generation": 3,
++        "account_fingerprint": "acct-sha256",
++        "started_at_utc": "2026-09-27T01:00:00+00:00",
++        "completed_at_utc": "2026-09-27T01:00:00.001+00:00",
++        "is_last_seen": True,
++        "error_code": None,
++        "timed_out": False,
++        "complete": True,
++        "unsupported": False,
++        "request_type_matches": True,
++        "records_schema_valid": True,
++        "records": [],
++    }
++
++
++def test_complete_typed_query_result_is_accepted_without_store_instance():
++    assert BtApiStore._ctp_query_result_complete(_complete_result()) is True
++
++
++@pytest.mark.parametrize(
++    ("contract", "field", "value"),
++    [
++        pytest.param("completion flag is explicit", "complete", False, id="completion-flag-false"),
++        pytest.param("terminal callback was observed", "is_last_seen", False, id="no-terminal-callback"),
++        pytest.param("query did not time out", "timed_out", True, id="producer-timeout"),
++        pytest.param("query capability is supported", "unsupported", True, id="unsupported-query"),
++        pytest.param("provider returned no error", "error_code", 7, id="provider-error-code"),
++        pytest.param("terminal completion has a timestamp", "completed_at_utc", None, id="missing-completion-time"),
++        pytest.param("request identity is a positive native integer", "request_id", 0, id="request-id-not-positive"),
++        pytest.param("boolean is not a request identity", "request_id", True, id="request-id-bool"),
++        pytest.param("float is not a request identity", "request_id", 7.0, id="request-id-float"),
++        pytest.param("string is not a request identity", "request_id", "7", id="request-id-string"),
++        pytest.param("session generation is positive", "connection_generation", 0, id="generation-not-positive"),
++        pytest.param("session generation is parseable", "connection_generation", "invalid", id="generation-invalid"),
++        pytest.param("account binding is nonblank", "account_fingerprint", " ", id="blank-account-binding"),
++        pytest.param("result matches requested query type", "request_type_matches", False, id="wrong-query-type"),
++        pytest.param("records satisfy the typed schema", "records_schema_valid", False, id="invalid-record-schema"),
++        pytest.param("records are present as a list", "records", None, id="missing-records"),
++        pytest.param("records use canonical list form", "records", (), id="noncanonical-record-container"),
++    ],
++)
++def test_incomplete_or_noncanonical_query_evidence_is_rejected(contract, field, value):
++    result = BtApiStore._ctp_query_result_complete({**_complete_result(), field: value})
++    assert result is False, f"{contract} must reject the mutated evidence"
+diff --git a/tests/unit/stores/test_btapistore_iteration22.py b/tests/unit/stores/test_btapistore_iteration22.py
+index be133641a0554e91066c298480bf6b8ae78081f2..c926013b621450c921816d34138fcfa476262725 100644
+--- a/tests/unit/stores/test_btapistore_iteration22.py
++++ b/tests/unit/stores/test_btapistore_iteration22.py
+@@ -3427,9 +3427,13 @@ def test_malformed_query_records_cannot_be_coerced_to_an_empty_success():
+ 
+ 
+ def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
++    # Query normalization and completion validation are pure; do not construct a
++    # Store or treat this read-result fixture as AccountActor authority.
+     client = CompleteQueryClient()
+-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+     complete = client._result("positions")
++    normalized_complete = BtApiStore._normalise_ctp_query_result(complete, "positions")
++    assert BtApiStore._ctp_query_result_complete(normalized_complete) is True
++
+     nested_failure = {
+         **complete,
+         "complete": False,
+@@ -3439,12 +3443,12 @@ def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
+         "error_code": "timeout",
+     }
+ 
+-    result = store._normalise_ctp_query_result(
++    result = BtApiStore._normalise_ctp_query_result(
+         {**complete, "query_result": nested_failure}, "positions"
+     )
+ 
+     assert result["complete"] is False
+-    assert store._ctp_query_result_complete(result) is False
++    assert BtApiStore._ctp_query_result_complete(result) is False
+ 
+ 
+ def test_duplicate_query_request_ids_fail_closed_across_reference_queries():

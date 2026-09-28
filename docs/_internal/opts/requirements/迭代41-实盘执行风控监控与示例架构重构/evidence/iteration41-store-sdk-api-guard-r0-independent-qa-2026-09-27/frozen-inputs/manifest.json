@@ -1,0 +1,53 @@
+{
+  "artifact": "Iteration 41 Store public sdk_api CTP raw-handle guard r0",
+  "artifacts_sha256": {
+    "first_missing_examples_log": "32D0DC705B12530C6638A25530A4EBEE20A46C89B9E16457C37C129BB9BBF216",
+    "focused_suite_log": "8B61533A567333EE9DA4F5C25AD321AF0B42C8D987C515AC06BAFB1AB30B8B3E",
+    "focused_test_junit": "AB62C0BED928DD21B415E9F1FDC19BF8D39D2473D86EABB6494854529FB22E0C",
+    "full_runtime_collection_limitation_log": "3F9F7198FA524436AC1BA23EF56B0BC25AC8D51C98663FBC85D75974651F1DD7",
+    "runner_rerun_log": "D3E23CD6ADD8C49FD3C326BCDE697D8D0ACB5A1C6ED91D547117CA1A1F088E56"
+  },
+  "callsite_compatibility": {
+    "iteration21": "Existing no-client sdk_api is None contract is preserved.",
+    "mechanical_example": "examples/ctp_options_simnow_mechanical_operator.py uses all four allowed authority methods (build, redeem, settlement confirm, budget reserve).",
+    "residual": "At lines 966-968 the example falls back to private store._ensure_api_ready() when sdk_api is None. This getter-only patch does not close that raw private path; the default runner remains fail-closed and this candidate makes no route or authorization claim."
+  },
+  "candidate_source_sha256": "16EFA561A56465B1BD8165318F705EEA240A7A6D2E97CDE3B68286A41A778575",
+  "changes": [
+    "Add a slots-based CTP SDK authority view exposing only the four mechanical authority methods.",
+    "Hide wrapper underscore/dunder attributes, including __dict__, _invoke and the name-mangled raw API slot, from ordinary instance access; recheck the method allowlist inside invocation.",
+    "Return None for gateway/forwarding and unsupported CTP paths; return the view only for an existing direct managed CTP SDK; keep non-CTP direct identity behavior.",
+    "Add fake-only tests for four allowed authority methods, write-method denial, CTP/gateway/forwarding/no-client behavior, non-CTP compatibility, and internal read-only CTP metadata query."
+  ],
+  "expected_preimage_source_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "focused_test_sha256": "9643D7659E7B95E60560BB3990A13079233F5DCBA941A36AB0B73DD885449E6E",
+  "freeze_root": "D:\\temp\\iteration41-store-sdk-api-guard-only-20260927\\freeze-r0",
+  "hashes": {
+    "candidate_source": "16EFA561A56465B1BD8165318F705EEA240A7A6D2E97CDE3B68286A41A778575",
+    "first_missing_examples_log": "32D0DC705B12530C6638A25530A4EBEE20A46C89B9E16457C37C129BB9BBF216",
+    "focused_suite_log": "8B61533A567333EE9DA4F5C25AD321AF0B42C8D987C515AC06BAFB1AB30B8B3E",
+    "focused_test_junit": "AB62C0BED928DD21B415E9F1FDC19BF8D39D2473D86EABB6494854529FB22E0C",
+    "full_runtime_collection_limitation_log": "3F9F7198FA524436AC1BA23EF56B0BC25AC8D51C98663FBC85D75974651F1DD7",
+    "new_focused_test": "9643D7659E7B95E60560BB3990A13079233F5DCBA941A36AB0B73DD885449E6E",
+    "patch": "687AA34EEE0A94ED042ED5447883A11DA332338750DD9B6772221DB9AF4A5709",
+    "preimage_source": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+    "runner_rerun_log": "D3E23CD6ADD8C49FD3C326BCDE697D8D0ACB5A1C6ED91D547117CA1A1F088E56"
+  },
+  "out_of_scope_unchanged": [
+    "BtApiStore.start",
+    "BtApiStore._ensure_api_ready"
+  ],
+  "patch_sha256": "687AA34EEE0A94ED042ED5447883A11DA332338750DD9B6772221DB9AF4A5709",
+  "preimage_existing_store_test_sha256": "F7E1FA01AA383367F518C61A0AE30285DB2C8EEFF22B9CF75BA0E1C3D774F853",
+  "preimage_source_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "replay_root": "D:\\temp\\iteration41-store-sdk-api-guard-only-20260927\\replay",
+  "scope": "Temp-only extracted getter/view patch; no Store.start or _ensure_api_ready changes.",
+  "source_root": "D:\\source_code\\backtrader",
+  "validation": {
+    "combined_command": "python -m pytest -q --junitxml=<temp-root>/store-runtime-contract.junit.xml tests/unit/stores tests/unit/runtime/test_runtime_batch_bootstrap.py tests/unit/runtime/test_runtime_config.py tests/unit/runtime/test_runtime_live_dispatch_guard.py tests/unit/runtime/test_runtime_operator_flow.py tests/unit/runtime/test_runtime_operator_guidance.py tests/unit/runtime/test_runtime_package_import_boundary.py tests/unit/runtime/test_runtime_profiles.py tests/unit/runtime/test_runtime_runner.py",
+    "combined_result": "869 passed, 26 skipped, 1 existing pytest config warning; isolated replay source package and copied public examples (private CTP runtime directory and .env excluded).",
+    "full_unit_runtime_collection": "Not completed: collection aborts at optional bt_api_execution 0.2.0 metadata dependency missing from this environment; no full-suite result is claimed.",
+    "runner_missing_examples_initial": "5 failed because the replay initially omitted examples; original log preserved. Re-run after safe examples copy: 3 passed, 2 skipped.",
+    "side_effect_controls": "All focused new tests use fake in-memory API objects. No real SDK/native import, credential read, network operation or provider/broker construction was part of this patch validation."
+  }
+}

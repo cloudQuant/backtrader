@@ -1,0 +1,4 @@
+COMMAND: D:\source_code\backtrader\.venv\Scripts\python.exe -m py_compile backtrader/stores/btapistore.py backtrader/stores/ctp_account_actor_port.py
+CWD: D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r0
+EXIT: 0
+

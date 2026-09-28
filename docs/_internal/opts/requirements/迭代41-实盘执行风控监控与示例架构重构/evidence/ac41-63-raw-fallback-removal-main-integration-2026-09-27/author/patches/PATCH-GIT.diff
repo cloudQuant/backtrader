@@ -1,0 +1,49 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index 022610d..79b6cd4 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -1931,22 +1931,32 @@ def _create_ctp_wrapper_class():
+             return state
+ 
+         def _send_native_order_insert(self, field, req_id):
+-            """Route one order insert through the typed execution gate."""
+-            typed = getattr(self.trader_client, "submit_order_insert", None)
++            """Require a typed SDK method and non-null capability for native inserts."""
+             capability = self._execution_gate_capability
+-            if callable(typed) and capability is not None:
+-                return typed(field, req_id, execution_capability=capability)
+-            # SDK builds without the execution gate keep the raw path; on
+-            # gated builds an unarmed fallback fails closed inside the SDK.
+-            return self.trader_client.api.ReqOrderInsert(field, req_id)
++            if capability is None:
++                raise BtApiStoreError(
++                    "CTP order insert requires the typed execution gate and capability"
++                )
++            typed = getattr(self.trader_client, "submit_order_insert", None)
++            if not callable(typed):
++                raise BtApiStoreError(
++                    "CTP order insert requires the typed execution gate and capability"
++                )
++            return typed(field, req_id, execution_capability=capability)
+ 
+         def _send_native_order_action(self, field, req_id):
+-            """Route one order action (cancel) through the typed gate."""
+-            typed = getattr(self.trader_client, "submit_order_action", None)
++            """Require a typed SDK method and non-null capability for native cancels."""
+             capability = self._execution_gate_capability
+-            if callable(typed) and capability is not None:
+-                return typed(field, req_id, execution_capability=capability)
+-            return self.trader_client.api.ReqOrderAction(field, req_id)
++            if capability is None:
++                raise BtApiStoreError(
++                    "CTP order action requires the typed execution gate and capability"
++                )
++            typed = getattr(self.trader_client, "submit_order_action", None)
++            if not callable(typed):
++                raise BtApiStoreError(
++                    "CTP order action requires the typed execution gate and capability"
++                )
++            return typed(field, req_id, execution_capability=capability)
+ 
+         def connect(self):
+             """Connect to CTP servers."""

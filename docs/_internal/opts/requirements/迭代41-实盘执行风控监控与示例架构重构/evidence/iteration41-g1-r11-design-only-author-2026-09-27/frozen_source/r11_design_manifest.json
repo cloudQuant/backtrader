@@ -1,0 +1,61 @@
+{
+  "artifacts": [
+    {
+      "path": "audit_frozen_r10.py",
+      "sha256": "a7d3a5daba335b87a43f9e216b566d6f6a4fcdbd90f0b2535bd531b09648884f",
+      "size_bytes": 2966
+    },
+    {
+      "path": "r10_readonly_audit.json",
+      "sha256": "3a40aa0a708b58796268ae96c6c4ab89656dc49b1710b0ba572e41ea305b23d7",
+      "size_bytes": 1180
+    },
+    {
+      "path": "R11_G1_HARD_DEADLINE_AUDIT.md",
+      "sha256": "6e04fa4b5e63f9e4be3eecd96da33c4eb5819ee8020fd5b752320081f303cdc9",
+      "size_bytes": 11833
+    },
+    {
+      "path": "r11_negative_test_plan.json",
+      "sha256": "8eafb5e2ed7975a0a4743583db6f707aabc964d0af6374b0d1711fbaa9874b1c",
+      "size_bytes": 5977
+    }
+  ],
+  "created_utc_note": "2026-09-27 local Windows inert evidence review",
+  "read_only_inputs": {
+    "g1_acceptance_matrix": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\ctp-current-acceptance-matrix.md",
+      "sha256": "1343643fdcc94ad1bd7e64830f944f92791121cdb8e810cb6623c6b32ba3a22c"
+    },
+    "r10_author_report": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-author-2026-09-27\\AUTHOR_R10_EVIDENCE.md",
+      "sha256": "e421fa38eda80585d9a8d890f51ebcdcc897ed1b608a9c2bd462c14dc26f1344"
+    },
+    "r10_final_trials": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-author-2026-09-27\\frozen_candidate\\r10_trials.json",
+      "sha256": "ba4ab18e585ff66a3af956b17fc84426ec055d4f5f6ae4916ed40fe2651894d5"
+    },
+    "r10_initial_trials": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-author-2026-09-27\\frozen_candidate\\r10_trials_initial.json",
+      "sha256": "32bca66edba15ae73a7cf8777ecafcaabcd346df4326e69c39c49a44ae781040"
+    },
+    "r10_manifest": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-author-2026-09-27\\frozen_candidate\\r10_manifest.json",
+      "sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3"
+    },
+    "r10_receipt": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-author-2026-09-27\\frozen_candidate\\r10_receipt.json",
+      "sha256": "deb34cbe0584710fa41f6623f0febcec0a2a2a71c5ff15e0c54f2fbf39c877c7"
+    },
+    "r8_negative_checklist": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-g1-r8-independent-reaper-review-checklist-2026-09-27.md",
+      "sha256": "ba9c16e90be9f3ff96a181a53755eb40e26c29e4cb41e176ed174333ca4cb816"
+    },
+    "r9_design": {
+      "absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g1-r9-prestarted-service-topology-design-only-2026-09-27.md",
+      "sha256": "77500a63eabd0df5673b923458893fbd44c0d3ca1ec22c403dff95b98d869bd0"
+    }
+  },
+  "scope": "No production edits, OS process execution in the R11 plan, provider/native/credential/config/network/SCM/default-preflight access.",
+  "status": "DESIGN_ONLY_NOT_EXECUTED_G1_CLOSED"
+}

@@ -1,0 +1,60 @@
+{
+  "record": "ctp-account-actor-port-r4-main-integration-qa-2026-09-27",
+  "date": "2026-09-27",
+  "candidate_status": "NARROW_OFFLINE_FAKE_CANDIDATE_TESTED; MAIN_INTEGRATION_NOT_ACCEPTED",
+  "frozen_input": {
+    "path": "D:\\temp\\iteration41-ctp-account-actor-port-freeze-20260927-r4",
+    "manifest_sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8",
+    "independent_copy": "D:\\temp\\iteration41-ctp-account-actor-port-r4-qa-independent-20260927",
+    "all_manifest_payload_hashes_and_sizes_match": true,
+    "manifest_payload_file_count": 9
+  },
+  "independent_qa": {
+    "packet": "D:\\temp\\iteration41-ctp-account-actor-r4-independent-review-20260927",
+    "manifest_sha256": "4ed88a1708a889565dc960dead22c0155a6cef0d2e98ef65c68ae033d96733a7",
+    "command": "python -B -m unittest discover -s tests -v",
+    "passed": 34,
+    "failed": 0,
+    "exit_code": 0,
+    "supplemental_fake_probe": "adversarial_r4.py",
+    "counterexample": "shallow-frozen route descriptor can be mutated after NON_CTP classification; cached harness route_kind still permits legacy path",
+    "known_authority_limit": "self-consistent caller-provided actor epoch/account context is accepted; no authenticated external actor or callback replay API"
+  },
+  "main_static_review": {
+    "source": "backtrader/stores/btapistore.py",
+    "path": "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py",
+    "sha256": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "actor_symbols_found_under_backtrader_and_runtime": false,
+    "source_ranges": {
+      "backend_resolution": "3435-44",
+      "constructor": "3455-3766; exchange_kwargs API attribute read at 3538; autostart at 3765-66",
+      "provider_environment_rewrite": "3768-72",
+      "public_submit": "7714-27",
+      "legacy_submit": "7906-14",
+      "public_cancel_order": "7991-8008",
+      "public_cancel_order_ref": "8062-68",
+      "legacy_cancel": "8219-27",
+      "forwarding_not_classified_as_CTP": "8363-65",
+      "SDK_worker_method_dispatch": "6635-49",
+      "enqueue_order": "7151-58",
+      "enqueue_cancel": "7309-18",
+      "raw_CTP_fallbacks": "1933-49",
+      "gateway_wrapper_writes": "3318-53",
+      "ensure_api_ready": "16395-16421",
+      "forwarding_client_factory": "16541+"
+    },
+    "interpretation": "callable source paths only; no main Store or client runtime invoked"
+  },
+  "safety_scope": {
+    "real_store_constructed": false,
+    "sdk_imported_or_called": false,
+    "native_called": false,
+    "provider_called": false,
+    "network_used": false,
+    "credentials_or_private_config_read": false,
+    "account_accessed": false,
+    "main_production_files_changed": false,
+    "default_route_changed": false
+  },
+  "raw_zip": "ctp-account-actor-port-r4-main-integration-qa-2026-09-27.raw.zip"
+}

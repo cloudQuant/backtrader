@@ -1,0 +1,26 @@
+base_store_sha256= dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826
+patch_sha256= b164d083aa4d4bd3a6dc325582c4ee82e0042945360c98a63ca3ec9212abcc58
+$ git init -q
+$ git config core.autocrlf false
+$ git config user.name QA Replay
+$ git config user.email qa@example.invalid
+$ git add backtrader/stores/btapistore.py
+$ git commit -q -m exact input Store snapshot
+$ git -c core.autocrlf=false apply --check --ignore-whitespace --whitespace=nowarn D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1\r1-apply.patch
+$ git -c core.autocrlf=false apply --ignore-whitespace --whitespace=nowarn D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1\r1-apply.patch
+autocrlf=false path=backtrader/stores/btapistore.py bytes=802132 sha256=a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8 exact=True normalized_text_equal=True
+autocrlf=false path=backtrader/stores/ctp_account_actor_port.py bytes=25500 sha256=19f5935bc6aabcde178f60f62619757b01fa51b99ff5389120a8404e00e70372 exact=True normalized_text_equal=True
+autocrlf=false path=tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py bytes=14055 sha256=b04100bac2cd4fba6c132d3cfb44e18fa6e40a0896e602aa276a69b2daebb12c exact=True normalized_text_equal=True
+$ git init -q
+$ git config core.autocrlf true
+$ git config user.name QA Replay
+$ git config user.email qa@example.invalid
+$ git add backtrader/stores/btapistore.py
+warning: in the working copy of 'backtrader/stores/btapistore.py', LF will be replaced by CRLF the next time Git touches it
+$ git commit -q -m exact input Store snapshot
+$ git -c core.autocrlf=true apply --check --ignore-whitespace --whitespace=nowarn D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1\r1-apply.patch
+$ git -c core.autocrlf=true apply --ignore-whitespace --whitespace=nowarn D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1\r1-apply.patch
+autocrlf=true path=backtrader/stores/btapistore.py bytes=802132 sha256=a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8 exact=True normalized_text_equal=True
+autocrlf=true path=backtrader/stores/ctp_account_actor_port.py bytes=26177 sha256=fbd8b39c1b2d963123ffa09a51bd6d886ae992f65530dabfac682996a805dbc9 exact=False normalized_text_equal=True
+autocrlf=true path=tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py bytes=14457 sha256=eda089faf9842212eaf6644225445fd2fb08dd4c3cc1f7553785af626ad01769 exact=False normalized_text_equal=True
+PATCH_REPLAY_PASS

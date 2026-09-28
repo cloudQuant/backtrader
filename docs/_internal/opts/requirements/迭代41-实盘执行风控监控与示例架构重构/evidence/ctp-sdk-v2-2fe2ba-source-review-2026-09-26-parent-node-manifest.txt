@@ -1,0 +1,34 @@
+Corrected Iteration 41 parent normalizer provenance check
+Date: 2026-09-26
+
+Affected test only
+- Node: tests/test_iter22_contracts.py::test_gateway_quote_v2_serialized_payload_reaches_parent_normalizer
+- Candidate CWD: D:\bt_api_ctp_i13_g5_manual_candidate_20260926
+- SDK HEAD: 2fe2ba9d78bab6477aa4e232795aad35a14f2313 (tree 4d87dc1feb2aa1c38383ddce061c11bd6640f6b1)
+- SDK client.py SHA256 A80D060577C210C5FAAFC57E72B5F2435D6E7B25F6B4FAD7EB5797827ABE6BD6
+- SDK test_ctp_callback_ingress_client.py SHA256 82DE7C2539EDFA7E7C6F2A84DC821D09FE8F7D2927638EA4ED18507D081313CE
+
+Frozen parent source root
+- D:\bt_api_py_codex_i9_integrated_20260926 (HEAD 62e683bc5ec9a04117e39f4a5dcbba1f6e3b16ec; owner-frozen source files are uncommitted)
+- bt_api_py/__init__.py SHA256 D7704AB15DD3A09BEB033BE65536C70F24748AD77E1EE7D446C633D7F864D999
+- bt_api_py/_normalization.py SHA256 FD0EFCBAEB086F667E0C50876966C782ADE525D33ED2E92834F082101E32E544
+- bt_api_py/_contracts/models.py SHA256 A325326825E958A0CC0D885C34E391BDE9751199745863E87914D426D6213C11
+
+Corrected environment
+PYTHONPATH=D:\bt_api_ctp_i13_g5_manual_candidate_20260926\src;D:\source_code\backtrader;D:\bt_api_py_codex_i9_integrated_20260926;D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+
+Origin assertion in the saved runner imported and checked `__file__` for all three modules before invoking pytest; each origin was under the frozen parent root:
+- bt_api_py: D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py\__init__.py
+- bt_api_py._normalization: D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py\_normalization.py
+- bt_api_py._contracts.models: D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py\_contracts\models.py
+
+Exact command
+`$env:PYTHONPATH='D:\bt_api_ctp_i13_g5_manual_candidate_20260926\src;D:\source_code\backtrader;D:\bt_api_py_codex_i9_integrated_20260926;D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src'; $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'; python 'D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.py'`
+
+Result: 1 passed, 2 expected warnings (existing pytest config option; no matching Windows `_ctp` extension). No wheel, real extension, provider, or network use.
+- Runner: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.py SHA256 F6BA03531CA93409444DDB5536D22807F591C0A643F207047892FE7894E823A1
+- Log: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.log SHA256 FE8AB97D0330AAD0D40AA439BF4224D43464008A1302E4739AA7F641D15BB90F
+- JUnit: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.xml SHA256 2AFDED41F407A3ED37A1E4D68D08B8712022E18D26AE24A5A1B732512D1A7A90
+
+The prior 14-file union log/JUnit were preserved unchanged. Their parent normalizer provenance must be considered invalid/unfixed; this node was rerun separately with asserted correct source origins. Full consumer regression remains for the final unified V2 checkpoint.

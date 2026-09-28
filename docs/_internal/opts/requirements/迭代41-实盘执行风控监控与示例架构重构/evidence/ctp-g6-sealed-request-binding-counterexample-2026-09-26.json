@@ -1,0 +1,117 @@
+{
+  "status": "COMPLETE_ACTION_AUTHORITY_ACCEPTANCE_BLOCKED_BY_SEALED_FIELD_GAP",
+  "root_verified_original_receipt_and_log_hashes": true,
+  "root_reran_tests": false,
+  "raw_zip_sha256": "42619e140a3dd9e5ba8863506413146a82936defd9266a4e874ac59f66c05c90",
+  "raw_payload_sha256": {
+    "author-focus/focused.junit.xml": "0249555ada218a83d79ed7f370e72dc733fbb1f657ad14f4486e23600786cd27",
+    "author-focus/focused.log": "cab04d732279afe773756f6b7d6d65f3396d850b6afbec8653abd1e119e7c162",
+    "author-focus/source-hash-receipt.json": "6028f53ddb48f701639d8bd72ebae9dd6eeefee2619f2434974ecc153413ccde",
+    "real-store-probe-runner.py": "815c0218298016fbc83d2ccc5a356e7a119da118e6c329083ee138e1ef49e636",
+    "real-store-probe.log": "260653be9c1d933aaecaff3cf7b5b39f122e42c2a24e250c808a9fd760b32805",
+    "review-evidence.json": "ec495adc6448cd577e50f35e9163be5cc5dad38bc408852e35923e5ef70af566",
+    "runner-manifest.json": "c41c9b67e398ecf03a608ce4c6e2d1ba80802df3792f54a6b002d61380aaed62",
+    "source-provenance.txt": "e1b0fae696bd7861fee487beecbfe3510ed5b3adcccc639d23c4cf5ef77f8061",
+    "v18-compat.log": "9256b138b3a6f9f366695ccd2cfc144e1a90c65d8f368b7a8b8961ea9ba94139",
+    "v18-real-store-probe.log": "d45c140894a089d1d9564b7f6bfcd82ddec4a513fbf40c1de3f96ce3feb16334"
+  },
+  "review": {
+    "evidence_id": "iteration41-action-authority-independent-review-2026-09-26",
+    "scope": "Independent source-only primitive review; not an enabled runtime or complete authorization path.",
+    "reviewed_execution_sources": [
+      {
+        "label": "V17 r4 historical counterexample and freshness probe",
+        "root": "D:\\temp\\iteration41_v17_execution_review_20260926_r4_cancel_fk_regression",
+        "manifest_sha256": "be9415becf2a6a3fe32e667aae5437322d3b311c82db75f931c5ff8fe15cc0c1",
+        "store_py_sha256": "6907145308CCE6931B4C25403ED7BADED2CED6CC6D5BB74BB4FD2E4F7F54824D",
+        "evidence_log": "real-store-probe.log",
+        "evidence_log_sha256": "260653BE9C1D933AAECAFF3CF7B5B39F122E42C2A24E250C808A9FD760B32805",
+        "results": {
+          "misbinding": "A synthetic config with offline-broker/offline-user/rb2701/SHFE and a Store-bound wrong-broker/wrong-user login plus logical request fields other-broker/other-user/cu9999/DCE passed authority verification and actual V17 Store claim to CLAIMED.",
+          "freshness_before": "At t0+100ms claim completed CLAIMED; no native SDK call was wired.",
+          "freshness_after": "At t0+250000001ns, after the t0+249ms cap, claim was rejected as expired and durable row remained READY; no native SDK call was wired."
+        },
+        "runtime_module_origins": [
+          "D:\\temp\\iteration41_v17_execution_review_20260926_r4_cancel_fk_regression\\src\\bt_api_execution\\__init__.py",
+          "D:\\temp\\iteration41_v17_execution_review_20260926_r4_cancel_fk_regression\\src\\bt_api_execution\\store.py"
+        ]
+      },
+      {
+        "label": "V18 r0 source-only compatibility target",
+        "root": "D:\\temp\\iteration41_v18_cancel_postcondition_r0",
+        "manifest_sha256": "0372771FBB91D3A6C6CC8D859EB4C68B6BBE65368A8672A8312F4AE9FA6E46B1",
+        "source_head": "bb2cd24cdaf9fb64f6b95010ee8619b0c6a35589",
+        "manifest_rows": 33,
+        "manifest_mismatches": 0,
+        "store_py_sha256": "25980518E1B7AAE5CE13E3531AB854771AB5D036DF0209CDDDE08508124E8206",
+        "metadata_shim": "D:\\temp\\iteration41-main-source-qa-20260926\\source-only-metadata-r3",
+        "test_log": "v18-compat.log",
+        "test_log_sha256": "9256B138B3A6F9F366695CCD2CFC144E1A90C65D8F368B7A8B8961EA9BA94139",
+        "test_result": "41 passed: combined authority and scope-resolver focus, with imported execution/store roots verified as V18 r0.",
+        "claim_counterexample": "An actual V18 Store misbinding counterexample was observed during the prior QA session and prompted the repair task; the preserved raw real-store-probe.log is the V17 r4 runner output, not a V18 raw stdout transcript. Do not treat the V18 41-test compatibility result as a full authorization pass.",
+        "runtime_module_origins": [
+          "D:\\temp\\iteration41_v18_cancel_postcondition_r0\\src\\bt_api_execution\\__init__.py",
+          "D:\\temp\\iteration41_v18_cancel_postcondition_r0\\src\\bt_api_execution\\store.py"
+        ],
+        "main_module_origins": [
+          "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_managed_action_authority.py",
+          "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_managed_action_scope_resolver.py"
+        ]
+      }
+    ],
+    "main_source_at_review_freeze": {
+      "authority_py_sha256": "C8E154DDB60BD5F8266759523C1841A7C262AAB8321EF8D3D07BA061E4395E81",
+      "authority_test_sha256": "18E331F9FB94BCF1B2CAC9F12E03320691A8A6ECC67FFAEEC9DEF55888E71153",
+      "resolver_py_sha256": "2E05A413F1629ACFFAD9982D2063641925C088F41091C0C1AECC41EB119DC90A",
+      "resolver_test_sha256": "AEC2E85C81BAF58097898E8C5F6A87FE97D1B176A6DBFE0635E0567823E5E1C1"
+    },
+    "synthetic_test_trust": {
+      "signing_key": "Generated in-process ephemeral Ed25519PrivateKey; not a user, deployment, or provider key.",
+      "revocation_and_fence": "Local in-memory fake sources with synthetic snapshots.",
+      "configuration": "Synthetic offline protected-config fixture; no private config or credentials read.",
+      "native_or_provider": "No SDK native client, _ctp, provider, network, or native dispatch was constructed or invoked."
+    },
+    "limitation": "The 41 passing tests establish focused source compatibility only. The action-authority path did not independently bind Store-read login BrokerID/UserID and signed logical request account/contract fields to the canonical sealed config in the frozen baseline."
+  },
+  "runner_manifest": {
+    "runner": "real-store-probe-runner.py",
+    "original_runner_path": "D:\\temp\\action-authority-real-store-independent-qa.py",
+    "sha256": "815C0218298016FBC83D2CCC5A356E7A119DA118E6C329083EE138E1EF49E636",
+    "scope": "Temporary-directory-only synthetic Store claim and freshness probes. It creates local SQLite stores, configures an ephemeral Ed25519 signer, uses fake revocation/fence/clock ports, and does not construct SDK/native/provider clients.",
+    "source_targets": {
+      "baseline": "V17 r4 manifest be9415becf2a6a3fe32e667aae5437322d3b311c82db75f931c5ff8fe15cc0c1",
+      "compatibility": "V18 r0 manifest 0372771FBB91D3A6C6CC8D859EB4C68B6BBE65368A8672A8312F4AE9FA6E46B1"
+    },
+    "primary_logs": [
+      {
+        "path": "real-store-probe.log",
+        "sha256": "260653BE9C1D933AAECAFF3CF7B5B39F122E42C2A24E250C808A9FD760B32805",
+        "execution_source": "V17 r4"
+      },
+      {
+        "path": "v18-compat.log",
+        "sha256": "9256B138B3A6F9F366695CCD2CFC144E1A90C65D8F368B7A8B8961EA9BA94139",
+        "execution_source": "V18 r0",
+        "result": "41 passed"
+      }
+    ],
+    "dynamic_unfrozen_rerun": {
+      "path": "v18-real-store-probe.log",
+      "main_worktree_resolver_sha256": "DB9801EB6C2DDDA010FDFB97A2A676CF30758B73B794CCF8BFCE7CA1DAD4862F",
+      "main_worktree_authority_sha256": "E91939A792BD3EB3D2D5FA321D9CBA7CB72D7FE7639728C806520A9E402B46A6",
+      "result": "Scope resolver rejected before Store claim. This used an unfrozen main working tree and is diagnostic only, not an independently accepted fix. Runner exception left a synthetic temp SQLite file; exact deletion was rejected by command-runner policy, and no alternate cleanup was attempted."
+    },
+    "metadata": "For V18 source-only imports, use D:\\temp\\iteration41-main-source-qa-20260926\\source-only-metadata-r3; this is not an installed wheel. Verify module origins explicitly.",
+    "exact_focus_command": "PYTHONPATH=D:\\temp\\iteration41-main-source-qa-20260926\\source-only-metadata-r3;D:\\temp\\iteration41_v18_cancel_postcondition_r0\\src;D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src;D:\\source_code\\backtrader; BT_API_TEST_METADATA_ROOT=D:\\temp\\iteration41-main-source-qa-20260926\\source-only-metadata-r3; PYTHONDONTWRITEBYTECODE=1; D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe -m pytest -q --noconftest tests/unit/runtime/test_ctp_managed_action_authority.py tests/unit/runtime/test_ctp_managed_action_scope_resolver.py",
+    "origins_checked": [
+      "bt_api_execution.__file__ and store.py resolve under the exact V18 r0 source root",
+      "backtrader_runtime resolver/authority resolve under D:\\source_code\\backtrader",
+      "package metadata resolves only through the explicit source-only METADATA shim"
+    ]
+  },
+  "limits": [
+    "Frozen main source bytes were not separately preserved; only original hashes, focus XML and logs are retained",
+    "V18 misbinding observation has no preserved independent raw stdout; V17 r4 raw counterexample does",
+    "Unfrozen follow-up rejection is diagnostic only and does not accept the repair"
+  ]
+}

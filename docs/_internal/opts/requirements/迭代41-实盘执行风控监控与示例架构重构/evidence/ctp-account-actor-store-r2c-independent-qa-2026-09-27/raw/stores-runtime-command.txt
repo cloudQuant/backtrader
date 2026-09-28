@@ -1,0 +1,1 @@
+python -B -m pytest -p no:asyncio tests/unit/stores tests/unit/runtime -q --tb=short --basetemp <owned-fixture-root> --junitxml <fresh-output>

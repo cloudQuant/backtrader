@@ -1,0 +1,43 @@
+{
+  "blocking_findings": [
+    "A file replaced after hash scan and before import executes before later hash rejection; no retained handles/ACL boundary."
+  ],
+  "candidate_manifest_sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+  "candidate_missing_or_unlisted_payload": false,
+  "candidate_payload_count": 139,
+  "candidate_payload_hashes_verified": true,
+  "candidate_unlisted_generated_cache_breakdown": {
+    "pyc": 190,
+    "pytest_cache": 12,
+    "ruff_cache": 14
+  },
+  "candidate_unlisted_generated_cache_files": 216,
+  "findings": {
+    "G4_or_G6S_accepted": false,
+    "cached_gate_does_not_recheck_import_chain_or_path": true,
+    "client_credentials_construction_order_proven": false,
+    "default_unpinned_gate_rejects_before_sdk_import": true,
+    "exact_evidence_class_identity_checked": true,
+    "file_swap_after_hash_scan_executes_before_late_rejection": true,
+    "native_loaded_or_executed": false,
+    "nominal_artifact_checks_precede_sdk_evidence_import": true,
+    "protected_handle_or_acl_boundary": false,
+    "provider_network_or_private_config_accessed": false,
+    "same_name_and_sys_modules_spoofs_rejected": true,
+    "source_manifest_bytes_independently_resolved": false
+  },
+  "interpreter": "C:\\anaconda3\\python.exe",
+  "pytest": {
+    "command": "python -m pytest --noconftest tests\\unit\\runtime\\test_ctp_sdk_artifact_binding.py tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py tests\\unit\\runtime\\test_g6s_adversarial.py -q --tb=short --junitxml=evidence\\independent-qa\\combined-junit.xml",
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": "isolated QA copy root"
+    },
+    "result": "45 passed, exit 0"
+  },
+  "python_version": "3.11.5",
+  "qa_copy": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-independent-qa-20260927-r1",
+  "schema": "iteration41.g6s.artifact_first_independent_qa_receipt.v1",
+  "status": "BLOCKED_BY_WRITABLE_INSTALL_TOCTOU_FAKE_LOCAL_ONLY_NOT_ACCEPTED"
+}

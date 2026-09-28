@@ -1,26 +1,16 @@
-"""Operator-owned SimNow session builder for Iterations 23/24/25.
+"""Retired SimNow operator implementation retained for review and tests.
 
-This is the governed operator entry the option examples deliberately wait
-for: the examples never load credentials or create the native CTP client
-themselves.  The operator loads local credentials from a non-versioned
-``.env``, builds the single managed CTP client through ``BtApiStore``'s
-``provider='btapi'`` construction (never a second native trader), and drives
-only public Store/Broker contracts.
+The standalone CLI is disabled under Iteration 41 because the default runtime
+registry has no CTP SimNow route. The retained helper APIs document and test
+the historical read-only preflight and settlement confirmation flow; invoking
+the CLI cannot load credentials or construct a provider.
 
-``engineering_smoke`` (default, read-only) connects to SimNow, verifies the
-settlement state read-only, scans exchange instruments, discovers the strict
-F/C/P bundle, collects Stage A/B plus bundle preflight, executable reference
-quotes and two reconciliation rounds, and feeds them to the governed
-``SimNowLiveRunner`` preflight.  It reports ``ENGINEERING_SMOKE_PASS`` with
-zero state-changing requests.  No order is ever submitted in this purpose.
-
-The operator never prints, logs, or reports a secret.  Every failure is
-fail-closed with a stable reason code.
+The standalone operator never prints, logs, or reports a secret. Its retired
+CLI fails closed with a stable Iteration 41 error.
 """
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import sys
@@ -29,14 +19,39 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-if not __package__:  # Direct script execution needs the repository root first.
-    _REPOSITORY_ROOT = str(Path(__file__).resolve().parents[1])
-    while _REPOSITORY_ROOT in sys.path:
-        sys.path.remove(_REPOSITORY_ROOT)
+_REPOSITORY_ROOT = str(Path(__file__).resolve().parents[1])
+if _REPOSITORY_ROOT not in sys.path:
     sys.path.insert(0, _REPOSITORY_ROOT)
 
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.stores.btapistore import BtApiStore
+from backtrader_runtime.legacy import (  # noqa: E402
+    legacy_direct_execution_error as _legacy_direct_execution_error,
+)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Reject the retired standalone SimNow operator before account access."""
+
+    del argv
+    error = _legacy_direct_execution_error("examples/ctp_options_simnow_operator.py")
+    print(
+        json.dumps(
+            {
+                "status": "BLOCKED",
+                "error": error.as_dict(),
+                "external_request_counts": {"network": 0, "order_write": 0},
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402 - CLI gate runs first
+from backtrader.stores.btapistore import BtApiStore  # noqa: E402 - CLI gate runs first
 
 if __package__:
     from .ctp_options_simnow_common import (
@@ -52,6 +67,11 @@ else:
 CTP_EXCHANGE = "CTP___FUTURE"
 HERE = Path(__file__).resolve().parent
 DEFAULT_ENV_PATH = HERE / ".env"
+
+# The old operator has no Iteration 41 CTP registration. Fake-backed unit
+# tests can exercise its assembly contracts with this private opt-in; normal
+# calls cannot fall through to a provider or endpoint probe.
+_TEST_ONLY_INJECTION_TOKEN = object()
 
 ENVIRONMENTS = frozenset({"first", "second_7x24"})
 SDK_PROFILE_FAMILIES = {"first": "set1", "second_7x24": "set2"}
@@ -154,9 +174,18 @@ def resolve_credentials(env: Mapping[str, str]) -> dict[str, str]:
 
 
 def resolve_fronts(
-    env: Mapping[str, str], environment: str, *, selector: Callable[..., Any] | None = None
+    env: Mapping[str, str],
+    environment: str,
+    *,
+    selector: Callable[..., Any] | None = None,
+    _test_only_injection: object | None = None,
 ) -> dict[str, str]:
-    """Resolve one SimNow front pair from explicit overrides or the SDK probe."""
+    """Resolve explicit fronts or use a test-injected selector.
+
+    There is no default SDK selector: this historical operator has no sealed
+    Iteration 41 CTP runtime registration. Front discovery is available only
+    to fake-backed tests that explicitly supply the private injection token.
+    """
 
     if environment not in ENVIRONMENTS:
         raise OperatorBlocked(f"ENVIRONMENT_MUST_BE_ONE_OF:{sorted(ENVIRONMENTS)}")
@@ -174,16 +203,16 @@ def resolve_fronts(
             "td_front": td_front,
             "md_front": md_front,
         }
-    probe = selector
-    if probe is None:
-        try:
-            from bt_api_ctp.ctp_env_selector import select_reachable_ctp_environment
-        except ImportError as exc:
-            raise OperatorBlocked("BT_API_CTP_SELECTOR_UNAVAILABLE") from exc
-        probe = select_reachable_ctp_environment
+    if (
+        selector is None
+        or _test_only_injection is not _TEST_ONLY_INJECTION_TOKEN
+        or getattr(selector, "__backtrader_test_double__", False) is not True
+    ):
+        raise _legacy_direct_execution_error("examples/ctp_options_simnow_operator.py")
+
     family = SDK_PROFILE_FAMILIES[environment]
     try:
-        selection = probe(env=family)
+        selection = selector(env=family)
     except Exception as exc:
         raise OperatorBlocked(f"FRONT_PROBE_FAILED:{type(exc).__name__}") from exc
     profile = str(getattr(selection, "profile", "") or "").strip().lower()
@@ -222,17 +251,29 @@ def build_live_store(
     *,
     state_directory: Path,
     api_cls: Any = None,
-    store_cls: Any = BtApiStore,
+    store_cls: Any = None,
+    _test_only_injection: object | None = None,
     execution_authorization_key_id: str | None = None,
     execution_authorization_secret: str | None = None,
     strategy_identity_sha256: str | None = None,
 ) -> BtApiStore:
-    """Build the only managed CTP client through ``provider='btapi'``.
+    """Build a fake-backed Store for tests; real Store construction is closed.
 
-    The Store owns construction of the top-level ``bt_api_py.BtApi`` and its
-    durable execution session; this operator never opens a native trader or a
-    second query connection.  Every network session starts read-only.
+    This module has no sealed Iteration 41 CTP runtime registration, so it
+    cannot construct the default ``BtApiStore``. Tests must explicitly inject
+    a Store class and the private test-only token. SDK API-class injection is
+    not supported here.
     """
+
+    if (
+        _test_only_injection is not _TEST_ONLY_INJECTION_TOKEN
+        or store_cls is None
+        or store_cls is BtApiStore
+        or (isinstance(store_cls, type) and issubclass(store_cls, BtApiStore))
+        or getattr(store_cls, "__backtrader_test_double__", False) is not True
+        or api_cls is not None
+    ):
+        raise _legacy_direct_execution_error("examples/ctp_options_simnow_operator.py")
 
     account_hash = hashlib.sha256(
         f"{credentials['broker_id']}:{credentials['user_id']}".encode("utf-8")
@@ -276,8 +317,6 @@ def build_live_store(
     if execution_authorization_key_id and execution_authorization_secret:
         store_options["config"]["execution_authorization_key_id"] = execution_authorization_key_id
         store_options["config"]["execution_authorization_secret"] = execution_authorization_secret
-    if api_cls is not None:
-        store_options["api_cls"] = api_cls
     return store_cls(**store_options)
 
 
@@ -485,13 +524,12 @@ def run_engineering_smoke(
     store: BtApiStore | None = None,
     broker_cls: Any = BtApiBroker,
 ) -> dict[str, Any]:
-    """Connect read-only and drive the full three-leg preflight evidence chain."""
+    """Drive the read-only preflight only through an explicitly injected Store."""
 
-    credentials = resolve_credentials(env)
-    fronts = resolve_fronts(env, config.environment)
-    owned_store = store is None
     if store is None:
-        store = build_live_store(credentials, fronts, config, state_directory=state_directory)
+        raise _legacy_direct_execution_error("examples/ctp_options_simnow_operator.py")
+    del env, state_directory  # No credentials or Store construction in this injected path.
+
     settlement_confirmed = _verify_or_confirm_settlement(store, config)
 
     evidence = collect_three_leg_evidence(store, config)
@@ -565,7 +603,7 @@ def run_engineering_smoke(
         "purpose": "engineering_smoke",
         "environment": config.environment,
         "operator": {
-            "owned_store": owned_store,
+            "owned_store": False,
             "store_type": type(store).__name__,
             "broker_type": type(broker).__name__,
         },
@@ -599,72 +637,3 @@ def _request_counts(evidence: Mapping[str, Any]) -> dict[str, int]:
                 int(delta.get(key, 0) or 0) for key in ("order_insert", "order_action")
             )
     return {"order_write": order_write if observed else "NOT_OBSERVED"}
-
-
-def main(argv: list[str] | None = None) -> int:
-    """Parse the CLI, run one governed smoke session, and emit its JSON report.
-
-    Returns 0 only for ``ENGINEERING_SMOKE_PASS``; any ``OperatorBlocked``
-    precondition emits a ``BLOCKED`` report and exit code 2 (fail-closed).
-    """
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--env", type=Path, default=DEFAULT_ENV_PATH)
-    parser.add_argument("--environment", choices=sorted(ENVIRONMENTS), default="second_7x24")
-    parser.add_argument("--product", default="SA")
-    parser.add_argument("--exchange", default="CZCE")
-    parser.add_argument("--future")
-    parser.add_argument("--call")
-    parser.add_argument("--put")
-    parser.add_argument("--capital", type=float, default=200000.0)
-    parser.add_argument("--purpose", choices=("engineering_smoke",), default="engineering_smoke")
-    parser.add_argument(
-        "--query-timeout",
-        type=float,
-        default=QUERY_TIMEOUT_SECONDS,
-        help="Per-query timeout; SimNow reference queries may need 60s+ after "
-        "large scans due to exchange flow control.",
-    )
-    parser.add_argument(
-        "--confirm-settlement",
-        action="store_true",
-        help="Perform the one sanctioned settlement-confirmation write when the "
-        "read-only verification shows an unconfirmed settlement statement.",
-    )
-    parser.add_argument("--state-directory", type=Path, default=HERE / "state")
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args(argv)
-
-    def emit(report: dict[str, Any]) -> int:
-        text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True, default=str)
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(text + "\n", encoding="utf-8")
-        print(text)
-        return 0 if report.get("status") == "ENGINEERING_SMOKE_PASS" else 2
-
-    try:
-        config = OperatorConfiguration(
-            environment=args.environment,
-            product_id=args.product,
-            exchange_id=args.exchange,
-            future_instrument_id=args.future,
-            call_instrument_id=args.call,
-            put_instrument_id=args.put,
-            capital=args.capital,
-            purpose=args.purpose,
-            confirm_settlement=bool(args.confirm_settlement),
-            query_timeout=float(args.query_timeout),
-        )
-        env = load_operator_env(args.env)
-        report = run_engineering_smoke(config, env, state_directory=args.state_directory)
-    except OperatorBlocked as exc:
-        report = {
-            "status": "BLOCKED",
-            "reason": exc.reason,
-            "external_request_counts": {"order_write": 0},
-        }
-    return emit(report)
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

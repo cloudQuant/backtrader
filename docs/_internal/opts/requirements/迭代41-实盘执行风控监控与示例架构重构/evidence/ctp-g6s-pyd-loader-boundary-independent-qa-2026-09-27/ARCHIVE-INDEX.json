@@ -1,0 +1,21 @@
+{
+  "boundaries": [
+    "no .pyd load",
+    "no SDK/_ctp/provider/network/private config",
+    "no main source/default-route changes"
+  ],
+  "canonical_archive_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-pyd-loader-boundary-independent-qa-2026-09-27",
+  "disposition": "PARTIAL_PATH_CUSTODY_ONLY_NO_G4_NO_G6S",
+  "independent_qa_zip": "g6s-pyd-loader-boundary-independent-qa.zip",
+  "independent_qa_zip_sha256": "78450ecf51d5c0f6ee65f961eeb28f3b5cca75c032e7cee1e311e7efa3c06cf1",
+  "independent_qa_zip_size": 889709,
+  "qa_manifest_sha256": "57f22feb7f5f1394330bbb4690ba1fcdb6f51306d5406e932b5e53357aeea82c",
+  "r2_candidate_payload_files_verified": 191,
+  "r2_candidate_zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+  "r2_source_manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+  "raw_evidence_prefix": "frozen-input/, r2-reference/, and independent probe/pytest outputs",
+  "report": "QA-REPORT.md",
+  "schema": "iteration41.g6s.pyd_loader_boundary_independent_qa_archive.v1",
+  "sha256sums_sha256": "1848cdac4630c1091b5e2850f8eae57349ddaafa672f8f2551983c431dda5ff9",
+  "source_packet_manifest_sha256": "16fb9b7df3073e93cf6da39705d5399ff6c9b7459a1f3c2978ba21ef50df2dec"
+}

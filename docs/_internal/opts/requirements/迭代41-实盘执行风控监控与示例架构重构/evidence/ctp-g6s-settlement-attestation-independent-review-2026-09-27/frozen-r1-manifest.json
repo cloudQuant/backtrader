@@ -1,0 +1,75 @@
+{
+  "candidate_id": "g6s-simnow-settlement-attestation-2026-09-27",
+  "scope": "LOCAL_FAKE_ONLY / NO_WRITE / NOT_REGISTERED",
+  "created_date": "2026-09-27",
+  "python": "CPython 3.11.5",
+  "test_command": "python -m pytest -q -p no:cacheprovider .",
+  "test_result": "75 passed in 0.52s",
+  "provider_native_network_or_credentials_used": false,
+  "protected_config_read_or_modified": false,
+  "main_repo_production_code_modified": false,
+  "main_repo_commit": "ad2c142b",
+  "sdk_source_commit": "d3674e19",
+  "sdk_source_worktree": "dirty; inspected source hashes below are exact but are not an accepted/pinned artifact",
+  "installed_bt_api_ctp_metadata_version": "2.0.2; metadata only, package was not imported",
+  "candidate_files": [
+    {
+      "path": "settlement_attestation.py",
+      "sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f"
+    },
+    {
+      "path": "test_settlement_attestation.py",
+      "sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059"
+    },
+    {
+      "path": "README.md",
+      "sha256": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf"
+    }
+  ],
+  "reviewed_inputs": [
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simulation_query_evidence.py",
+      "sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b"
+    },
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simnow_native_readiness.py",
+      "sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94"
+    },
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d"
+    },
+    {
+      "path": "D:/source_code/backtrader/tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "sha256": "b7cba6ac34626726340565ad5ba002750efe87ea668e3419035357d071c276f3"
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+      "sha256": "08c80203f62ded15b2b3f711dd5babb83731ecb0bb57348a8ce4dad6855f9084"
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ADR-41-16-simnow-f14-writer-fence-proposal.md",
+      "sha256": "376e299ea9939a904eb5c9b725bc03880b0058ce35153e0a12e972916ebed08d"
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-settlement-readiness-gate-audit-2026-09-25.md",
+      "sha256": "56d79090288829fd9aa2abad9f1a3981e20a63c997ffe8ccc25cc86b24fcc46d"
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-accountwide-control-feasibility-2026-09-23.md",
+      "sha256": "561b2ec8f6e576ff6aa2bd08e02783af6b87636ca12fa12374c7b7a7db15d289"
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/client.py",
+      "sha256": "b61b32f9a2a2e61035bf88bcb7acf669c8c7ee8e5bf5d7e1f6e375e69f053eab"
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query.py",
+      "sha256": "a65be5fc46a6a7658c1cf017197f1de14cad018fb46dbafd9ead1ca8fcfc93ad"
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+      "sha256": "a76e4e1245e84c782ffb9a92b4a804c377fc58c7f3672fd33265e3260e059fbe"
+    }
+  ]
+}

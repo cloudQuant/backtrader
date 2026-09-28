@@ -1,0 +1,33 @@
+{
+  "authority": "review_only",
+  "evidence_sha256": "d845ba7d76b0a05b88e949d75074a5b077fc7419cb51e7b625b8d180ecf61c8d",
+  "isolated_python_flags": [
+    "-I",
+    "-S"
+  ],
+  "limitations": [
+    "This local wheel vector proves only portable read-only evidence compatibility.",
+    "It does not prove release provenance, a trusted deployment manifest, provider access, or live admission.",
+    "The supplied wheel hashes must be independently reviewed before any deployment use."
+  ],
+  "network": "not_opened_by_evidence_vector",
+  "schema_version": "iteration41.ai-wheel-review-interop.v1",
+  "status": "LOCAL_WHEEL_REVIEW_INTEROP_PASS",
+  "wheels": [
+    {
+      "module": "backtrader_agent",
+      "product": "backtrader-agent",
+      "sha256": "7213e5ea2e3cd7d98effbef5e63292548254c4a55fd652a58fbeba0d87930b43"
+    },
+    {
+      "module": "backtrader_skills",
+      "product": "backtrader-skills",
+      "sha256": "f9f4445f28c09f434053dc8e144bead6702a0dbd8737bf4988b4df4267a90ab7"
+    },
+    {
+      "module": "backtrader_mcp",
+      "product": "backtrader-mcp",
+      "sha256": "d506050df0686f368b8116996076fa253af56f1e01b53925805b8047e0fcbf1f"
+    }
+  ]
+}

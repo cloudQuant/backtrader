@@ -1,0 +1,17 @@
+{
+  "schema": "iteration41.unified_offline_candidate_archive_index.v1",
+  "candidate_files_manifest_sha256": "CC356F2238CF1D57D076E8A87152CB4E42D48D9F179CA12212238DCD0009F491",
+  "candidate_receipt_sha256": "9901A15B328C4B8C72CA8AAFA213022FE4F2A7B07081DE7DFD2C653360D24896",
+  "candidate_review_sha256": "33320BDCF715A8475741078E4B89E08499E9F12A60D80DBE86BBD9922BBE20F4",
+  "raw_archive": {
+    "file": "unified-offline-wheelhouse-settlement-evidence-r1.zip",
+    "sha256": "C140D4C3AC902D4CD5FE51320285467C15D9BE2B58B98D11D8DDCB355AAF568B",
+    "size_bytes": 147300627,
+    "zip_member_count": 151,
+    "zip_testzip": null
+  },
+  "manifest_file_count_excluding_self_archive_and_venv": 150,
+  "archive_contains_candidate_file_manifest": true,
+  "archive_index_excluded_from_archive": true,
+  "disposition": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED"
+}

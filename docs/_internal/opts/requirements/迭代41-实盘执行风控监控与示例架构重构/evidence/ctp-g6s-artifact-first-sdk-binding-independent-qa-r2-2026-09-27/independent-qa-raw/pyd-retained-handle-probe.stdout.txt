@@ -1,0 +1,3 @@
+pyd_overwrite_attempt=PermissionError:None
+pyd_replace_attempt=PermissionError:32
+retained_pyd_bytes=not a native image; inert fixture bytes

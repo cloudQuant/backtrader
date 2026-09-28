@@ -1,0 +1,6 @@
+CWD: D:\source_code\backtrader\docs\_internal\opts\requirements\迭代41-实盘执行风控监控与示例架构重构\evidence\ctp-g6s-artifact-first-sdk-binding-r2-author-candidate-2026-09-27\candidate
+PYTHONPATH: same candidate root
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+PYTHONDONTWRITEBYTECODE=1
+C:\anaconda3\python.exe -m pytest --noconftest tests\unit\runtime\test_ctp_windows_artifact_custody.py -q --tb=short --color=no
+Result: 3 passed, 1 pre-existing unknown pytest config warning, exit 0.

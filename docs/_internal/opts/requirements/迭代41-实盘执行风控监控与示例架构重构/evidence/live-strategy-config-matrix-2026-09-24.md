@@ -1,0 +1,16 @@
+# 历史实盘策略与 Iteration 41 配置/运行矩阵（2026-09-24）
+
+本表按默认 `backtrader_runtime/inventory.py`、示例入口及本地文件状态核对；不读取或保存账号认证值。它区分“原示例曾含 provider/报单代码”和“当前已审定可实际运行的 live route”。不能把前者的 replay `config.yaml` 改成 `live` 后视为接线完成。
+
+**当前 CTP 配置约定：** SimNow 与未来 production CTP 使用同一个已登记 runtime `config.yaml` 路径和规范 `ctp:` 字段结构。未来 live 阶段在同一文件更改 mode/preset 并替换账户、前置、合约参数；当前不维护第二份 production config，不收集生产字段。现存独立生产 parser/path/selector 仅为 legacy/deferred 迁移证据。生产 runner/admission 尚未实现，live mode 必须 fail closed。
+
+| 示例范围 | 当前登记的 schema-v4 运行入口 | 当前真实账号/报单状态 | 下一项独立开发与验收 |
+| --- | --- | --- | --- |
+| `007_ctp` 的历史 CTP broker/mixbroker/tickbroker 示例 | `examples/007_ctp/runtime/config.yaml` 为 `simulation/replay`；当前共享 CTP runtime 文件是 `examples/013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml`，future production mode would reuse that same path, not `runtime-production/config.yaml` | 五组历史 live 入口被配置优先门拦截；无默认 production runner/route、SDK pin、真实 session 或写入准入。独立 `runtime-production` parser/path/selector 为 legacy/deferred fake/config evidence | 用户未来启动 production 阶段后，先在该 shared config 切换审阅过的 live mode/preset 并替换 account/front/instrument params；随后仍需实现并独立验收 runner/admission、受审 artifact/account/session、进程边界、账户级 writer fence、风险/监控和逐请求写许可。当前不创建第二份 config、不索取生产字段 |
+| `013_3_sa_midfreq_simnow` | `runtime/config.yaml` 为 replay；`runtime-ctp-private` 已登记 `simulation/sandbox` 私有只读 route，唯一受保护 operator 文件存在但无 runner/写能力 | H2 source/wheel/RECORD pins 仅限此 registered readonly route；离线 wheel guard 为本地制品证据。当前五-pair config 下官方 H2 preflight 完成七项 TD query 且零错误，但 rates ExchangeID 空、Join shutdown incomplete (`session_close_incomplete`)，整体 FAIL；官方 MD 阶段未到达。独立 MD-only 观察到 `front_callback_observed=true`，但无被接受的登录响应 (`market_login_timeout`)，最终 `market_client_stop_failed`、client stop returned、Join pending，无 ACK/tick、零写入，原因未确定。新增官方 7x24 pair 两端 TCP 均不可达。managed 第三 `bt_api_py` parent pin 与账户级 writer fence 缺，写入未开放 | 修复完整查询/关闭合同并取得 TD/MD login、订阅、matching tick 和 clean shutdown；未来 production 经独立实现与验收后复用该同一 config.yaml，只替换 mode/account/front/contract 字段。再单独验收 account-wide writer fence 和 managed order/cancel/recovery；当前 live preset/default registry fail closed。
+| `014_1_ctp_options_lowfreq`、`014_2_ctp_options_midfreq`、`015_ctp_options_highfreq` | 各自 `runtime/config.yaml` 为 replay | 旧 options launcher 的 SimNow/production 直连入口被拦截 | 每个候选单独绑定多合约范围、期权保证金/风险、行情时序、订单恢复与批准；现有 replay PASS 不授予实盘资格 |
+| `010_live_examples`、`sample.py` | `010` SimNow 旧示例和 `sample` 均为无动作 replay；另有 `010` 公开 OKX shadow | shadow 仅看公开盘口，不构造交易 Broker/订单 | 如需恢复实际策略，另建审定 runner；不能复用旧直连测试或 shadow observation 作为交易证据 |
+| `012_1`、`012_2` 跨交易所候选 | 各自 runtime 为 replay | 原交易路径关闭；冻结候选未通过经济/延迟门 | 新 candidate ID、预注册、成本/OOS、真实成交/资金流水证据通过后才能另议 demo/production route |
+| `013_1`、`013_2` CTP 套利候选 | 各自 runtime 为 replay | 原直连入口关闭 | 单独审定经济与账户/合约范围，不自动继承 `013_3` 或 production 配置 |
+
+默认 registry 合计 16 条：13 条离线 replay、1 条已登记但不可执行的 CTP SimNow 私有只读 route、1 条公开行情 shadow、1 条 package-owned backtest；**没有 live runner**。2026-09-24 的离线 CLI smoke 在补齐本地 SDK 源码路径后 14/14 通过；shadow 及真实账户会话未包含在该数字里。本机 SimNow 配置和 TCP transport 状态见[CTP 私有配置来源核对](ctp-private-config-source-audit-2026-09-24.md)与[前置探测说明](ctp-front-pair-selection-2026-09-24.md)。用户指定的首条真实账户链路是 CTP SimNow 加 CTP production；其余历史示例仍应保持原有关闭状态，直到各自满足经济、风险、执行和 QA 准入，不能批量复制一份 live 配置来“跑通”。

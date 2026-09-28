@@ -1,0 +1,2082 @@
+{
+  "consumer": {
+    "dependency_check": {
+      "command": [
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "stderr_log": "logs\\consumer-pip-check.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_log": "logs\\consumer-pip-check.stdout.log",
+      "stdout_sha256": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09"
+    },
+    "expected_local_projects": {
+      "backtrader": {
+        "distribution": "backtrader",
+        "version": "1.4.0",
+        "wheel_sha256": "74d754ce2bc076b676bcf2baddad5d698c6be7476e4b8054e927a5d0aa916612"
+      },
+      "bt_api_base": {
+        "distribution": "bt_api_base",
+        "version": "0.15.4",
+        "wheel_sha256": "679940fbffc9811025ad53bcd14c879e5c9c01c11deee4a55218996a0b1e1609"
+      },
+      "bt_api_execution": {
+        "distribution": "bt_api_execution",
+        "version": "0.1.0",
+        "wheel_sha256": "f5e322eceb72f2a20fdfb40ebcb55a5655a042922a127e310877a033acd4cf60"
+      },
+      "bt_api_gateway": {
+        "distribution": "bt_api_gateway",
+        "version": "0.1.0",
+        "wheel_sha256": "f19edc424bad3716955e67ad7d448d3bc693ac4205a6ffab3e995e60627bad06"
+      },
+      "bt_api_monitor": {
+        "distribution": "bt_api_monitor",
+        "version": "0.1.0",
+        "wheel_sha256": "9dd7a4ca28e227c8754f79f3efe24909badc2cd22fb66f0097c2317f04c74236"
+      },
+      "bt_api_py": {
+        "distribution": "bt_api_py",
+        "version": "0.15.4",
+        "wheel_sha256": "eef99160326c01a190babdb79cf01704ca83ef1825837377ecae32466b4c7160"
+      },
+      "bt_api_risk": {
+        "distribution": "bt_api_risk",
+        "version": "0.1.0",
+        "wheel_sha256": "878a7e1e27d9009ec8cc775258173c0a39e5855a6b0d6a37fafa9e539bc1dd2e"
+      },
+      "bt_api_transport_zmq": {
+        "distribution": "bt_api_transport_zmq",
+        "version": "0.1.0",
+        "wheel_sha256": "dd27300f93fb39e5506ef016947cc2b1b1079c7007e71459c29c29072a830ac2"
+      }
+    },
+    "install": {
+      "command": [
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--find-links",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse",
+        "--no-cache-dir",
+        "--disable-pip-version-check",
+        "--force-reinstall",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\backtrader-1.4.0-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_py-0.15.4-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_base-0.15.4-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_execution-0.1.0-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_risk-0.1.0-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_monitor-0.1.0-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_gateway-0.1.0-py3-none-any.whl",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41-capability-final2-38f3d556c04746d2802fa189a3c7be50\\wheelhouse\\bt_api_transport_zmq-0.1.0-py3-none-any.whl"
+      ],
+      "exit_code": 0,
+      "stderr_log": "logs\\consumer-install.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_log": "logs\\consumer-install.stdout.log",
+      "stdout_sha256": "7e59650af39da596c203c3d2bd615b329e912824895ce90e3120fc993161630c"
+    },
+    "isolated_python": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Scripts\\python.exe",
+    "local_install_bindings": {
+      "backtrader": {
+        "distribution": "backtrader",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader-1.4.0.dist-info",
+        "payload_manifest_sha256": "def102316b30f137401484903391f4d13d3d7edef999f58a77d0ebf68a180be0",
+        "payload_member_count": 507,
+        "version": "1.4.0",
+        "wheel_sha256": "74d754ce2bc076b676bcf2baddad5d698c6be7476e4b8054e927a5d0aa916612"
+      },
+      "bt_api_base": {
+        "distribution": "bt_api_base",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_base-0.15.4.dist-info",
+        "payload_manifest_sha256": "6582ed215f0936af4adcd63ee854ba2f7820034920f4b80c325906e2b808c705",
+        "payload_member_count": 108,
+        "version": "0.15.4",
+        "wheel_sha256": "679940fbffc9811025ad53bcd14c879e5c9c01c11deee4a55218996a0b1e1609"
+      },
+      "bt_api_execution": {
+        "distribution": "bt_api_execution",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_execution-0.1.0.dist-info",
+        "payload_manifest_sha256": "5ed2f3c973e347c75711d510a1a712e5b52f193678c6b2c5f47fe2983c4f030c",
+        "payload_member_count": 12,
+        "version": "0.1.0",
+        "wheel_sha256": "f5e322eceb72f2a20fdfb40ebcb55a5655a042922a127e310877a033acd4cf60"
+      },
+      "bt_api_gateway": {
+        "distribution": "bt_api_gateway",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_gateway-0.1.0.dist-info",
+        "payload_manifest_sha256": "a67d611a78be424b5819c997c30d07e6aea5798854d3586c88963a67beac358a",
+        "payload_member_count": 6,
+        "version": "0.1.0",
+        "wheel_sha256": "f19edc424bad3716955e67ad7d448d3bc693ac4205a6ffab3e995e60627bad06"
+      },
+      "bt_api_monitor": {
+        "distribution": "bt_api_monitor",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_monitor-0.1.0.dist-info",
+        "payload_manifest_sha256": "88f18de7c82da22e07ef5df643aa8c68335977761b54e1213eb3dfc4ffff66ac",
+        "payload_member_count": 16,
+        "version": "0.1.0",
+        "wheel_sha256": "9dd7a4ca28e227c8754f79f3efe24909badc2cd22fb66f0097c2317f04c74236"
+      },
+      "bt_api_py": {
+        "distribution": "bt_api_py",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_py-0.15.4.dist-info",
+        "payload_manifest_sha256": "825a97327858e3d103d6c629318dd5a51e2b0ee7fbc95738d936d4b1ae218695",
+        "payload_member_count": 152,
+        "version": "0.15.4",
+        "wheel_sha256": "eef99160326c01a190babdb79cf01704ca83ef1825837377ecae32466b4c7160"
+      },
+      "bt_api_risk": {
+        "distribution": "bt_api_risk",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_risk-0.1.0.dist-info",
+        "payload_manifest_sha256": "8e9331a5b88a7553793c0b9e49da10a648286da5f9613014bdcf2d682ec402a4",
+        "payload_member_count": 18,
+        "version": "0.1.0",
+        "wheel_sha256": "878a7e1e27d9009ec8cc775258173c0a39e5855a6b0d6a37fafa9e539bc1dd2e"
+      },
+      "bt_api_transport_zmq": {
+        "distribution": "bt_api_transport_zmq",
+        "installed_record_validated": true,
+        "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_transport_zmq-0.1.0.dist-info",
+        "payload_manifest_sha256": "d9c9779ec2f827dabc4cf4d8c44dd18108af8387d484406a92cd2ee864ffa639",
+        "payload_member_count": 8,
+        "version": "0.1.0",
+        "wheel_sha256": "dd27300f93fb39e5506ef016947cc2b1b1079c7007e71459c29c29072a830ac2"
+      }
+    },
+    "local_wheelhouse_only": true,
+    "probe": {
+      "command": [
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Scripts\\python.exe",
+        "-I",
+        "-c",
+        "\nimport io\nimport importlib.metadata as metadata\nimport json\nimport os\nfrom decimal import Decimal\nfrom pathlib import Path\n\nimport socket\n\n\nnetwork_guard_attempts = []\n\n\ndef _blocked_python_network(label):\n    def blocked(*args, **kwargs):\n        network_guard_attempts.append(label)\n        raise AssertionError(f\"Python network entry point is forbidden in the isolated consumer probe: {label}\")\n\n    return blocked\n\n\n_original_socket = socket.socket\n\n\nclass _BlockedSocket(_original_socket):\n    def connect(self, *args, **kwargs):\n        return _blocked_python_network(\"socket.connect\")(*args, **kwargs)\n\n    def connect_ex(self, *args, **kwargs):\n        return _blocked_python_network(\"socket.connect_ex\")(*args, **kwargs)\n\n\nsocket.socket = _BlockedSocket\nfor _attribute in (\"create_connection\", \"create_server\", \"fromfd\", \"socketpair\", \"getaddrinfo\"):\n    if hasattr(socket, _attribute):\n        setattr(socket, _attribute, _blocked_python_network(f\"socket.{_attribute}\"))\nfor _attribute in (\"gethostbyaddr\", \"gethostbyname\", \"getnameinfo\"):\n    if hasattr(socket, _attribute):\n        setattr(socket, _attribute, _blocked_python_network(f\"socket.{_attribute}\"))\n\nif os.environ.get(\"ITERATION41_CONTROLLER_SECRET_SENTINEL\") is not None:\n    raise AssertionError(\"controller environment sentinel leaked into the isolated consumer\")\ntry:\n    expected_projects = json.loads(os.environ[\"ITERATION41_EXPECTED_LOCAL_PROJECTS\"])\nexcept (KeyError, TypeError, json.JSONDecodeError) as error:\n    raise AssertionError(\"missing or malformed expected local-project manifest\") from error\nif not isinstance(expected_projects, dict):\n    raise AssertionError(\"expected local-project manifest must be an object\")\n\nimport backtrader_runtime.cli as runtime_cli\nimport backtrader_runtime.inventory as runtime_inventory\n\nexpected_backtest_runtime_id = \"backtrader.iteration41.local_backtest_fixture\"\nbacktest_registry = runtime_inventory.iteration41_backtest_fixture_registry()\nif len(backtest_registry.registrations) != 1:\n    raise AssertionError(\"packaged local-backtest registry must contain exactly one runtime\")\nbacktest_registration = backtest_registry.registrations[0]\nif backtest_registration.runtime_id != expected_backtest_runtime_id:\n    raise AssertionError(\"packaged local-backtest registry does not match the reviewed runtime ID\")\nbacktest_stdout = io.StringIO()\nbacktest_stderr = io.StringIO()\nbacktest_exit_code = runtime_cli.main(\n    [\"run\", \"--strategy-dir\", str(backtest_registration.runtime_dir), \"--full-report\"],\n    registry=backtest_registry,\n    stdout=backtest_stdout,\n    stderr=backtest_stderr,\n)\nif backtest_exit_code != 0:\n    raise AssertionError(\n        \"packaged local-backtest fixture dispatch failed: \" + backtest_stderr.getvalue().strip()\n    )\ntry:\n    local_backtest_report = json.loads(backtest_stdout.getvalue())[\"report\"][\"result\"]\nexcept (KeyError, TypeError, json.JSONDecodeError) as error:\n    raise AssertionError(\"packaged local-backtest fixture did not emit a complete report\") from error\nif local_backtest_report.get(\"status\") != \"LOCAL_BACKTEST_CEREBRO_PASS\":\n    raise AssertionError(\"packaged local-backtest fixture did not reach its expected status\")\n\nexpected_l2_statuses = {\n    \"example.013_3.sa_midfreq_simnow.managed_replay_l2\": \"LOCAL_MANAGED_FAKE_PROVIDER_L2_PASS\",\n    \"example.ctp_options_simnow.mechanical_managed_replay_l2\": \"LOCAL_CTP_MECHANICAL_MANAGED_FAKE_PROVIDER_L2_PASS\",\n}\nl2_registry = runtime_inventory.iteration41_l2_fixture_registry()\nif {registration.runtime_id for registration in l2_registry.registrations} != set(expected_l2_statuses):\n    raise AssertionError(\"packaged L2 fixture registry does not match the reviewed consumer matrix\")\nl2_fixture_reports = {}\nfor registration in l2_registry.registrations:\n    l2_stdout = io.StringIO()\n    l2_stderr = io.StringIO()\n    l2_exit_code = runtime_cli.main(\n        [\"run\", \"--strategy-dir\", str(registration.runtime_dir), \"--full-report\"],\n        registry=l2_registry,\n        stdout=l2_stdout,\n        stderr=l2_stderr,\n    )\n    if l2_exit_code != 0:\n        raise AssertionError(\n            \"packaged L2 fixture dispatch failed: \"\n            f\"{registration.runtime_id}: {l2_stderr.getvalue().strip()}\"\n        )\n    try:\n        l2_payload = json.loads(l2_stdout.getvalue())\n        l2_report = l2_payload[\"report\"][\"result\"]\n    except (KeyError, TypeError, json.JSONDecodeError) as error:\n        raise AssertionError(\n            f\"packaged L2 fixture did not emit a complete report: {registration.runtime_id}\"\n        ) from error\n    if l2_report.get(\"status\") != expected_l2_statuses[registration.runtime_id]:\n        raise AssertionError(\n            f\"packaged L2 fixture did not reach its expected status: {registration.runtime_id}\"\n        )\n    l2_fixture_reports[registration.runtime_id] = {\n        \"status\": l2_report[\"status\"],\n        \"external_network_requests\": l2_report[\"external_network_requests\"],\n        \"external_write_requests\": l2_report[\"external_write_requests\"],\n        \"actual_fills\": l2_report[\"actual_fills\"],\n        \"provider_submissions\": l2_report[\"provider_submissions\"],\n    }\n\nimport backtrader\nimport backtrader_runtime._iteration41_backtest_fixture.run as backtest_fixture\nimport backtrader_runtime.managed_execution as bridge\nimport bt_api_base\nimport bt_api_execution\nimport bt_api_gateway\nimport bt_api_monitor\nimport bt_api_risk\nimport bt_api_transport_zmq\nimport bt_api_py\nimport bt_api_py.runtime_plugins as plugins\n\npaths = {\n    \"backtrader\": backtrader.__file__,\n    \"backtrader_runtime\": bridge.__file__,\n    \"backtrader_runtime.cli\": runtime_cli.__file__,\n    \"backtrader_runtime.inventory\": runtime_inventory.__file__,\n    \"backtrader_runtime.backtest_fixture\": backtest_fixture.__file__,\n    \"bt_api_base\": bt_api_base.__file__,\n    \"bt_api_execution\": bt_api_execution.__file__,\n    \"bt_api_gateway\": bt_api_gateway.__file__,\n    \"bt_api_monitor\": bt_api_monitor.__file__,\n    \"bt_api_risk\": bt_api_risk.__file__,\n    \"bt_api_transport_zmq\": bt_api_transport_zmq.__file__,\n    \"bt_api_py\": bt_api_py.__file__,\n    \"bt_api_py.runtime_plugins\": plugins.__file__,\n}\nfor name, value in paths.items():\n    resolved = Path(value).resolve()\n    if \"site-packages\" not in {part.lower() for part in resolved.parts}:\n        raise AssertionError(f\"{name} did not import from site-packages: {resolved}\")\n\nobserved_projects = {}\nfor project_key, expected in sorted(expected_projects.items()):\n    if not isinstance(expected, dict):\n        raise AssertionError(f\"expected local-project entry is not an object: {project_key}\")\n    distribution_name = expected.get(\"distribution\")\n    expected_version = expected.get(\"version\")\n    expected_wheel_sha256 = expected.get(\"wheel_sha256\")\n    if not all(isinstance(value, str) and value for value in (\n        distribution_name,\n        expected_version,\n        expected_wheel_sha256,\n    )):\n        raise AssertionError(f\"expected local-project entry is incomplete: {project_key}\")\n    observed_version = metadata.version(distribution_name)\n    if observed_version != expected_version:\n        raise AssertionError(\n            f\"installed version mismatch for {distribution_name}: {observed_version} != {expected_version}\"\n        )\n    installed_distribution = metadata.distribution(distribution_name)\n    installed_metadata = Path(str(getattr(installed_distribution, \"_path\", \"\"))).resolve()\n    if \"site-packages\" not in {part.lower() for part in installed_metadata.parts}:\n        raise AssertionError(\n            f\"installed metadata escaped site-packages for {distribution_name}: {installed_metadata}\"\n        )\n    observed_projects[project_key] = {\n        \"distribution\": distribution_name,\n        \"version\": observed_version,\n        \"wheel_sha256\": expected_wheel_sha256,\n        \"metadata_path\": str(installed_metadata),\n    }\n\ncontract = plugins.RuntimeCapabilityContract(\n    strategy_id=\"iteration41.isolated.consumer\",\n    mode=\"live\",\n    preset=\"managed_live_direct\",\n    environment=\"production\",\n    order_route=\"managed_execution\",\n    required_capabilities=(\n        plugins.CAPABILITY_EXECUTION,\n        plugins.CAPABILITY_RISK,\n        plugins.CAPABILITY_MONITOR,\n    ),\n    effective_digest=\"a\" * 64,\n)\ncatalog = plugins.CapabilityCatalog(\n    (\n        plugins.CapabilityPin(\n            plugins.CAPABILITY_EXECUTION,\n            \"bt_api_execution\",\n            \"bt_api_execution\",\n            metadata.version(\"bt_api_execution\"),\n        ),\n        plugins.CapabilityPin(\n            plugins.CAPABILITY_RISK,\n            \"bt_api_risk\",\n            \"bt_api_risk\",\n            metadata.version(\"bt_api_risk\"),\n        ),\n        plugins.CapabilityPin(\n            plugins.CAPABILITY_MONITOR,\n            \"bt_api_monitor\",\n            \"bt_api_monitor\",\n            metadata.version(\"bt_api_monitor\"),\n        ),\n    )\n)\nsnapshot = plugins.SealedNormalizedInstrumentMetadataSnapshot.from_normalized_payload(\n    {\n        \"provider\": \"fixture_provider\",\n        \"environment\": \"production\",\n        \"account_ref\": \"fixture_account\",\n        \"trading_day\": \"20260922\",\n        \"metadata_version\": \"fixture-normalized-v1\",\n        \"as_of_ns\": 1_000,\n        \"expires_at_ns\": 2_000,\n        \"account_currency\": \"USD\",\n        \"instruments\": [\n            {\n                \"instrument\": \"fixture/contract\",\n                \"tick_size\": \"0.1\",\n                \"lot_size\": \"1\",\n                \"contract_multiplier\": \"1\",\n                \"max_gross_notional_account\": \"1000\",\n                \"quote_currency\": \"USD\",\n                \"fee_currency\": \"USD\",\n                \"quote_to_account_fx\": \"1\",\n                \"fee_to_account_fx\": \"1\",\n                \"taker_fee_bps\": \"0\",\n                \"fixed_fee\": \"0\",\n                \"max_slippage_bps\": \"0\",\n                \"quantity_unit\": \"contracts\",\n            }\n        ],\n    }\n)\nruntime = plugins.compose_managed_execution(\n    catalog.load(contract),\n    state_directory=Path(os.environ[\"ITERATION41_CONSUMER_STATE\"]),\n    provider=\"fixture_provider\",\n    environment=\"production\",\n    account_ref=\"fixture_account\",\n    strategy_id=contract.strategy_id,\n    writer_id=\"consumer-writer\",\n    policy_id=\"consumer-policy\",\n    max_increase_notional=Decimal(\"100\"),\n    max_increase_count=1,\n    trading_day=snapshot.trading_day,\n    instrument_metadata_snapshot=snapshot,\n    instrument_clock_ns=lambda: 1_500,\n)\nprovider_calls = []\ntry:\n    intent = runtime.execution.OrderIntent.limit(\n        intent_id=\"consumer-intent\",\n        scope=runtime.scope,\n        signal_id=\"consumer-signal\",\n        instrument=\"fixture/contract\",\n        side=runtime.execution.Side.BUY,\n        quantity=Decimal(\"1\"),\n        price=Decimal(\"1\"),\n        metadata_version=snapshot.metadata_version,\n        tags={\n            \"instrument_metadata_digest\": snapshot.instrument_digest(\"fixture/contract\"),\n            \"quantity_unit\": snapshot.instrument_metadata(\"fixture/contract\").quantity_unit,\n        },\n    )\n\n    def fake_provider(submitted):\n        provider_calls.append(submitted.intent_id)\n        return runtime.execution.ProviderObservation.accepted(\n            submitted.intent_id,\n            \"fixture-provider-order\",\n        )\n\n    record = runtime.submit(intent, fake_provider)\n    if record.state.value != \"ACKED\" or provider_calls != [\"consumer-intent\"]:\n        raise AssertionError(\"local fake-provider composition did not acknowledge exactly once\")\nfinally:\n    runtime.close()\n\nprint(\n    json.dumps(\n        {\n            \"module_paths\": {key: str(Path(value).resolve()) for key, value in paths.items()},\n            \"package_versions\": {\n                item[\"distribution\"]: item[\"version\"]\n                for item in observed_projects.values()\n            },\n            \"installed_local_projects\": observed_projects,\n            \"fake_provider_calls\": len(provider_calls),\n            \"execution_state\": \"ACKED\",\n            \"local_backtest_report\": local_backtest_report,\n            \"l2_fixture_reports\": l2_fixture_reports,\n            \"network_guard\": \"python_connection_and_dns_entry_points_blocked_before_package_imports; no OS firewall claim\",\n            \"network_guard_attempts\": network_guard_attempts,\n            \"controller_environment_sentinel_absent\": True,\n            \"provider_evidence\": \"fixture_only\",\n        },\n        sort_keys=True,\n    )\n)\n"
+      ],
+      "exit_code": 0,
+      "stderr_log": "logs\\consumer-probe.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_log": "logs\\consumer-probe.stdout.log",
+      "stdout_sha256": "2eeddb0cf71d0222c93f26c65f32d7eab52d39e3b890915a4887ba931d254386"
+    },
+    "probe_payload": {
+      "controller_environment_sentinel_absent": true,
+      "execution_state": "ACKED",
+      "fake_provider_calls": 1,
+      "installed_local_projects": {
+        "backtrader": {
+          "distribution": "backtrader",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader-1.4.0.dist-info",
+          "version": "1.4.0",
+          "wheel_sha256": "74d754ce2bc076b676bcf2baddad5d698c6be7476e4b8054e927a5d0aa916612"
+        },
+        "bt_api_base": {
+          "distribution": "bt_api_base",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_base-0.15.4.dist-info",
+          "version": "0.15.4",
+          "wheel_sha256": "679940fbffc9811025ad53bcd14c879e5c9c01c11deee4a55218996a0b1e1609"
+        },
+        "bt_api_execution": {
+          "distribution": "bt_api_execution",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_execution-0.1.0.dist-info",
+          "version": "0.1.0",
+          "wheel_sha256": "f5e322eceb72f2a20fdfb40ebcb55a5655a042922a127e310877a033acd4cf60"
+        },
+        "bt_api_gateway": {
+          "distribution": "bt_api_gateway",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_gateway-0.1.0.dist-info",
+          "version": "0.1.0",
+          "wheel_sha256": "f19edc424bad3716955e67ad7d448d3bc693ac4205a6ffab3e995e60627bad06"
+        },
+        "bt_api_monitor": {
+          "distribution": "bt_api_monitor",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_monitor-0.1.0.dist-info",
+          "version": "0.1.0",
+          "wheel_sha256": "9dd7a4ca28e227c8754f79f3efe24909badc2cd22fb66f0097c2317f04c74236"
+        },
+        "bt_api_py": {
+          "distribution": "bt_api_py",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_py-0.15.4.dist-info",
+          "version": "0.15.4",
+          "wheel_sha256": "eef99160326c01a190babdb79cf01704ca83ef1825837377ecae32466b4c7160"
+        },
+        "bt_api_risk": {
+          "distribution": "bt_api_risk",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_risk-0.1.0.dist-info",
+          "version": "0.1.0",
+          "wheel_sha256": "878a7e1e27d9009ec8cc775258173c0a39e5855a6b0d6a37fafa9e539bc1dd2e"
+        },
+        "bt_api_transport_zmq": {
+          "distribution": "bt_api_transport_zmq",
+          "metadata_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_transport_zmq-0.1.0.dist-info",
+          "version": "0.1.0",
+          "wheel_sha256": "dd27300f93fb39e5506ef016947cc2b1b1079c7007e71459c29c29072a830ac2"
+        }
+      },
+      "l2_fixture_reports": {
+        "example.013_3.sa_midfreq_simnow.managed_replay_l2": {
+          "actual_fills": 0,
+          "external_network_requests": 0,
+          "external_write_requests": 0,
+          "provider_submissions": 4,
+          "status": "LOCAL_MANAGED_FAKE_PROVIDER_L2_PASS"
+        },
+        "example.ctp_options_simnow.mechanical_managed_replay_l2": {
+          "actual_fills": 0,
+          "external_network_requests": 0,
+          "external_write_requests": 0,
+          "provider_submissions": 9,
+          "status": "LOCAL_CTP_MECHANICAL_MANAGED_FAKE_PROVIDER_L2_PASS"
+        }
+      },
+      "local_backtest_report": {
+        "actual_fills": 0,
+        "actual_pnl": "NOT_APPLICABLE",
+        "data_bars": 4,
+        "external_network_requests": 0,
+        "external_write_requests": 0,
+        "network_guard_attempts": [],
+        "pnl_source": "local_backtest_no_orders",
+        "provider_submissions": 0,
+        "runtime_config": {
+          "allows_external_writes": false,
+          "allows_network": false,
+          "allows_production_writes": false,
+          "environment": "local",
+          "mode": "backtest",
+          "preset": "local_backtest",
+          "strategy_id": "backtrader.iteration41.local_backtest_fixture"
+        },
+        "status": "LOCAL_BACKTEST_CEREBRO_PASS"
+      },
+      "module_paths": {
+        "backtrader": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader\\__init__.py",
+        "backtrader_runtime": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader_runtime\\managed_execution.py",
+        "backtrader_runtime.backtest_fixture": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader_runtime\\_iteration41_backtest_fixture\\run.py",
+        "backtrader_runtime.cli": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader_runtime\\cli.py",
+        "backtrader_runtime.inventory": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\backtrader_runtime\\inventory.py",
+        "bt_api_base": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_base\\__init__.py",
+        "bt_api_execution": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+        "bt_api_gateway": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_gateway\\__init__.py",
+        "bt_api_monitor": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_monitor\\__init__.py",
+        "bt_api_py": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py",
+        "bt_api_py.runtime_plugins": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_py\\runtime_plugins\\__init__.py",
+        "bt_api_risk": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_risk\\__init__.py",
+        "bt_api_transport_zmq": "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv\\Lib\\site-packages\\bt_api_transport_zmq\\__init__.py"
+      },
+      "network_guard": "python_connection_and_dns_entry_points_blocked_before_package_imports; no OS firewall claim",
+      "network_guard_attempts": [],
+      "package_versions": {
+        "backtrader": "1.4.0",
+        "bt_api_base": "0.15.4",
+        "bt_api_execution": "0.1.0",
+        "bt_api_gateway": "0.1.0",
+        "bt_api_monitor": "0.1.0",
+        "bt_api_py": "0.15.4",
+        "bt_api_risk": "0.1.0",
+        "bt_api_transport_zmq": "0.1.0"
+      },
+      "provider_evidence": "fixture_only"
+    },
+    "venv": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "venv",
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41c-fsiyiv6h\\venv"
+      ],
+      "exit_code": 0,
+      "stderr_log": "logs\\consumer-venv.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_log": "logs\\consumer-venv.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "controller_build_requirements": {
+    "backtrader": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools"
+      }
+    ],
+    "bt_api_base": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ],
+    "bt_api_execution": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ],
+    "bt_api_gateway": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ],
+    "bt_api_monitor": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ],
+    "bt_api_py": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=64"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      },
+      {
+        "observed_version": "3.0.12",
+        "requirement": "cython"
+      },
+      {
+        "observed_version": "1.26.4",
+        "requirement": "numpy"
+      }
+    ],
+    "bt_api_risk": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ],
+    "bt_api_transport_zmq": [
+      {
+        "observed_version": "75.8.0",
+        "requirement": "setuptools>=65"
+      },
+      {
+        "observed_version": "0.43.0",
+        "requirement": "wheel"
+      }
+    ]
+  },
+  "controller_python": "C:\\anaconda3\\python.exe",
+  "generated_at": "2026-09-23T00:15:25.898819Z",
+  "limitations": [
+    "LOCAL_ONLY_VERIFIER_DOES_NOT_ESTABLISH_REVIEWED_RELEASE_OR_PUBLICATION",
+    "LOCAL_ONLY_VERIFIER_DOES_NOT_ESTABLISH_SIGNATURE_OR_TRUSTED_ARTIFACT_PROVENANCE",
+    "LOCAL_GIT_STATE_IS_NOT_FINAL_COMMIT_OR_RELEASE_PROVENANCE",
+    "LOCAL_ONLY_VERIFIER_DOES_NOT_ESTABLISH_PROVIDER_ACCOUNT_OR_LIVE_TRADING_ADMISSION",
+    "SOURCE_STATE_BACKTRADER_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_PY_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_BASE_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_EXECUTION_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_RISK_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_MONITOR_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_GATEWAY_DIRTY_LOCAL_SOURCE",
+    "SOURCE_STATE_BT_API_TRANSPORT_ZMQ_DIRTY_LOCAL_SOURCE",
+    "DEPENDENCY_AIOHAPPYEYEBALLS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_AIOHTTP_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_AIOSIGNAL_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_ANNOTATED-TYPES_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_ANYIO_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_ATTRS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_CERTIFI_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_CHARSET-NORMALIZER_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_CONTOURPY_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_CYCLER_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_FONTTOOLS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_FROZENLIST_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_H11_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_HTTPCORE_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_HTTPX_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_IDNA_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_JOBLIB_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_KIWISOLVER_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_MATPLOTLIB_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_MULTIDICT_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_NUMPY_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PACKAGING_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PANDAS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PATSY_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PILLOW_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PROPCACHE_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PSUTIL_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYARROW_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYBIND11_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYDANTIC_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYDANTIC-CORE_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYPARSING_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYTHON-DATEUTIL_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYTHON-DOTENV_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYTZ_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYYAML_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_PYZMQ_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_REQUESTS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_SCIKIT-LEARN_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_SCIPY_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_SIX_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_SNIFFIO_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_SPDLOG_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_STATSMODELS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_THREADPOOLCTL_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_TYPING-EXTENSIONS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_TZDATA_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_URLLIB3_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_WEBSOCKET-CLIENT_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_WEBSOCKETS_CONTROLLER_RECORD_UNTRUSTED",
+    "DEPENDENCY_YARL_CONTROLLER_RECORD_UNTRUSTED"
+  ],
+  "local_validation": "PASSED",
+  "local_wheels": {
+    "backtrader": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\backtrader-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-backtrader-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-backtrader-1.stdout.log",
+          "stdout_sha256": "6596be95cedc098d96e1d0b1f32975a3e72821c1ad188548f0cae25f03a11f90"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\backtrader-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-backtrader-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-backtrader-2.stdout.log",
+          "stdout_sha256": "d7cb1cb4c1be7814ccd0edb756e83da20066918c85a665818d3363bf2d054c71"
+        }
+      ],
+      "distribution": "backtrader",
+      "filename": "backtrader-1.4.0-py3-none-any.whl",
+      "metadata_sha256": "5b8075d00be980c69c450499831ecb1c6f798de8ea4d27ec0c32f9b650d97dda",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "numpy<2.0.0,>=1.20.0; python_version < \"3.13\"",
+        "numpy>=2.1.0; python_version >= \"3.13\"",
+        "pytz>=2021.1",
+        "pandas>=1.3.0",
+        "matplotlib>=3.3.0",
+        "scipy>=1.5.0",
+        "statsmodels>=0.12.0",
+        "PyYAML>=5.4",
+        "pytest; extra == \"dev\"",
+        "pytest-cov; extra == \"dev\"",
+        "pytest-xdist; extra == \"dev\"",
+        "pytest-html; extra == \"dev\"",
+        "pytest-timeout; extra == \"dev\"",
+        "pytest-asyncio; extra == \"dev\"",
+        "ruff; extra == \"dev\"",
+        "black; extra == \"dev\"",
+        "isort; extra == \"dev\"",
+        "plotly; extra == \"dev\"",
+        "seaborn; extra == \"dev\"",
+        "dash; extra == \"dev\"",
+        "bokeh; extra == \"dev\"",
+        "pyecharts; extra == \"dev\"",
+        "scikit-learn; extra == \"dev\"",
+        "hmmlearn>=0.3.3; extra == \"dev\"",
+        "mysql-connector-python; extra == \"dev\"",
+        "python-dotenv; extra == \"dev\"",
+        "psutil; extra == \"dev\"",
+        "PyYAML; extra == \"dev\"",
+        "python-docx>=0.8.11; extra == \"dev\"",
+        "websockets; extra == \"dev\"",
+        "aiohttp; extra == \"dev\"",
+        "cryptography>=3.4; extra == \"dev\"",
+        "plotly; extra == \"plotting\"",
+        "bokeh; extra == \"plotting\"",
+        "dash; extra == \"plotting\"",
+        "pyecharts; extra == \"plotting\"",
+        "cryptohftdata<1.0.0,>=0.4.0; extra == \"cryptohftdata\"",
+        "cryptography>=3.4; extra == \"live\""
+      ],
+      "source_file_count": 505,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "82e14454d0df4cbffd5bab0e7548085f1406b5d58140c091ab17a6a0881cefcd",
+      "version": "1.4.0",
+      "wheel_sha256": "74d754ce2bc076b676bcf2baddad5d698c6be7476e4b8054e927a5d0aa916612"
+    },
+    "bt_api_base": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_base-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_base-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_base-1.stdout.log",
+          "stdout_sha256": "79ac2c2a777f593298cae4720f76d73d8d31bd95df685a7d4c291ea95065ace0"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_base-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_base-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_base-2.stdout.log",
+          "stdout_sha256": "d590b5954201981919491c3daaa79cb7c04cf3b08a5d38614f6162c4009f0a20"
+        }
+      ],
+      "distribution": "bt_api_base",
+      "filename": "bt_api_base-0.15.4-py3-none-any.whl",
+      "metadata_sha256": "875a24e259122904cfc5746b65ca6ca75204dfd0aa3f84a8b54cf838817333e0",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "numpy>=1.26.0",
+        "python-dotenv>=1.0.0",
+        "requests>=2.31.0",
+        "websocket-client>=1.6.0",
+        "pyyaml>=6.0",
+        "pandas>=2.0.0",
+        "pyarrow>=14.0.0",
+        "aiohttp>=3.9.0",
+        "packaging>=24.0",
+        "spdlog>=2.0.0",
+        "pytz>=2023.3",
+        "python-rapidjson>=1.10",
+        "httpx>=0.27.0",
+        "pyzmq>=26.0.0",
+        "pydantic>=2.0.0",
+        "websockets>=12.0",
+        "typing-extensions>=4.8.0",
+        "eval-type-backport>=0.2.0; python_version < \"3.10\"",
+        "pytest>=7.0; extra == \"dev\"",
+        "pytest-asyncio>=0.21.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "mypy>=1.0; extra == \"dev\""
+      ],
+      "source_file_count": 188,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "b0916ab6fd49d81bdb585f633f1870240808fe366a5cc835e4b00f79f48ebed1",
+      "version": "0.15.4",
+      "wheel_sha256": "679940fbffc9811025ad53bcd14c879e5c9c01c11deee4a55218996a0b1e1609"
+    },
+    "bt_api_execution": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_execution-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_execution-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_execution-1.stdout.log",
+          "stdout_sha256": "7fef89632d2350082334b5b351ac30126a42fa8bffe51fe1e9fe85fd04db22e7"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_execution-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_execution-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_execution-2.stdout.log",
+          "stdout_sha256": "2d4fdc150fba47a6aa06c2267fd3e50399b4cf9520685b77ff70c18831c50ffa"
+        }
+      ],
+      "distribution": "bt_api_execution",
+      "filename": "bt_api_execution-0.1.0-py3-none-any.whl",
+      "metadata_sha256": "921021a04777e613af03a7e1da699f7eb19b3503904f4a22e9c85fd941d91351",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "pytest>=7.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "mypy>=1.0; extra == \"dev\""
+      ],
+      "source_file_count": 11,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "58d1dd5be33456ae9210551f69b5857dc3d300a9784eaeda66341d911a49a5e8",
+      "version": "0.1.0",
+      "wheel_sha256": "f5e322eceb72f2a20fdfb40ebcb55a5655a042922a127e310877a033acd4cf60"
+    },
+    "bt_api_gateway": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_gateway-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_gateway-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_gateway-1.stdout.log",
+          "stdout_sha256": "20f255c4ce2298ede7488723588eafc6a54bbd2d81f7ca8b68c4cd21c47b6210"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_gateway-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_gateway-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_gateway-2.stdout.log",
+          "stdout_sha256": "72583d65401f2e9d4e6461f1dbd0c778e1b49ea660c7a3e9965746fdc722f6f0"
+        }
+      ],
+      "distribution": "bt_api_gateway",
+      "filename": "bt_api_gateway-0.1.0-py3-none-any.whl",
+      "metadata_sha256": "69c0d99af5a856a743f2aec9f14663114c78ff61a5884d53aecfd94fbc537424",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "pytest>=7.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\""
+      ],
+      "source_file_count": 5,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "f5b6a737c0c1c96f749700ded987e1e6910425a74505d770443b1e3426c4c44c",
+      "version": "0.1.0",
+      "wheel_sha256": "f19edc424bad3716955e67ad7d448d3bc693ac4205a6ffab3e995e60627bad06"
+    },
+    "bt_api_monitor": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_monitor-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_monitor-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_monitor-1.stdout.log",
+          "stdout_sha256": "f879bdab2582194f17fb5b255d2d96959fbb82d57f4e75ef2122cce9856dbc3e"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_monitor-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_monitor-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_monitor-2.stdout.log",
+          "stdout_sha256": "835b2a1db604b45aeda6078bae455e0a56e8eca2d0151bf3d9c10a684f548ce9"
+        }
+      ],
+      "distribution": "bt_api_monitor",
+      "filename": "bt_api_monitor-0.1.0-py3-none-any.whl",
+      "metadata_sha256": "780a69fd2fae2b8f145e6caca601ecd515c04bd05d59f755303a8c29d7470c25",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "bt_api_base<0.16,>=0.15.4",
+        "psutil>=5.9.0",
+        "aiohttp>=3.9.0",
+        "pydantic>=2.0.0",
+        "typing-extensions>=4.8.0",
+        "pytest>=7.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "mypy>=1.0; extra == \"dev\""
+      ],
+      "source_file_count": 15,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "4944011d09b468a9db0d701bf3e4a348e8f342702c890d719e28d2afe8fde39f",
+      "version": "0.1.0",
+      "wheel_sha256": "9dd7a4ca28e227c8754f79f3efe24909badc2cd22fb66f0097c2317f04c74236"
+    },
+    "bt_api_py": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_py-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_py-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_py-1.stdout.log",
+          "stdout_sha256": "cd40c637fed24e9199ffdf8b933556f5de465f2cf9bf7a2013473a86a15fee7f"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_py-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_py-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_py-2.stdout.log",
+          "stdout_sha256": "c1c6f84d454f58b8accb565afcff815332229c74f8c45abd89636d86a52a705a"
+        }
+      ],
+      "distribution": "bt_api_py",
+      "filename": "bt_api_py-0.15.4-py3-none-any.whl",
+      "metadata_sha256": "862e8599df750a88613d990f9dde8150a2c3e3156d27dd8ce70632fdbeb65f0b",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "bt_api_base>=0.15.4",
+        "numpy>=1.26.0",
+        "python-dotenv>=1.0.0",
+        "requests>=2.31.0",
+        "websocket-client>=1.6.0",
+        "pyyaml>=6.0",
+        "pandas>=2.0.0",
+        "aiohttp>=3.9.0",
+        "spdlog>=2.0.0",
+        "pytz>=2023.3",
+        "python-rapidjson>=1.10",
+        "httpx>=0.27.0",
+        "pyzmq>=26.0.0",
+        "pydantic>=2.0.0",
+        "websockets>=12.0",
+        "typing-extensions>=4.8.0",
+        "eval-type-backport>=0.2.0; python_version < \"3.10\"",
+        "build>=1.0.0; extra == \"dev\"",
+        "wheel; extra == \"dev\"",
+        "cython; extra == \"dev\"",
+        "types-PyYAML>=6.0; extra == \"dev\"",
+        "types-pytz>=2023.3; extra == \"dev\"",
+        "types-requests>=2.31.0; extra == \"dev\"",
+        "pytest>=7.0; extra == \"dev\"",
+        "pytest-asyncio>=0.21.0; extra == \"dev\"",
+        "pytest-sugar>=1.0.0; extra == \"dev\"",
+        "pytest-cov>=4.0.0; extra == \"dev\"",
+        "pytest-timeout>=2.1.0; extra == \"dev\"",
+        "pytest-html>=4.0.0; extra == \"dev\"",
+        "pytest-rerunfailures>=12.0; extra == \"dev\"",
+        "pytest-xdist>=3.0.0; extra == \"dev\"",
+        "pytest-benchmark>=4.0.0; extra == \"dev\"",
+        "pytest-picked>=0.5.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "mypy>=1.0; extra == \"dev\"",
+        "pre-commit>=3.0.0; extra == \"dev\"",
+        "bandit[toml]>=1.7.0; extra == \"dev\"",
+        "pip-audit>=2.7.0; extra == \"dev\"",
+        "setuptools>=83.0.0; extra == \"dev\"",
+        "hypothesis>=6.0.0; extra == \"dev\"",
+        "psutil>=5.9.0; extra == \"dev\"",
+        "scikit-learn>=1.3.0; extra == \"dev\"",
+        "pyarrow>=14.0.0; extra == \"dev\"",
+        "pyjwt>=2.8.0; extra == \"security\"",
+        "pyotp>=2.9.0; extra == \"security\"",
+        "cryptography>=41.0.0; extra == \"security\"",
+        "bcrypt>=4.1.0; extra == \"security\"",
+        "matplotlib>=3.7.0; extra == \"visualization\"",
+        "pyecharts>=2.0.0; extra == \"visualization\"",
+        "psutil>=5.9.0; extra == \"monitoring\"",
+        "aiohttp>=3.9.0; extra == \"monitoring\"",
+        "aiosmtplib>=2.0.0; extra == \"email\"",
+        "ntplib>=0.4.0; extra == \"time\"",
+        "ib-insync>=0.9.86; extra == \"ib\"",
+        "pyjwt>=2.8.0; extra == \"ib-web\"",
+        "cryptography>=41.0.0; extra == \"ib-web\"",
+        "playwright>=1.45.0; extra == \"ib-web\"",
+        "pymt5>=0.5.0; extra == \"mt5\"",
+        "browser-cookie3>=0.19.0; extra == \"cookies\"",
+        "bt_api_py[cookies,dev,email,ib,ib_web,monitoring,mt5,security,time,visualization]; extra == \"all\"",
+        "bt_api_binance>=2.0.0; extra == \"core-reference\"",
+        "bt_api_ctp<3.0,>=2.0.2; extra == \"core-reference\""
+      ],
+      "source_file_count": 153,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "b0f3b8f18dbec980b37b138fd5e9490b2270c5e2a3f8ef98acd1c81de545128f",
+      "version": "0.15.4",
+      "wheel_sha256": "eef99160326c01a190babdb79cf01704ca83ef1825837377ecae32466b4c7160"
+    },
+    "bt_api_risk": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_risk-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_risk-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_risk-1.stdout.log",
+          "stdout_sha256": "500b1748d3747bf18e578e74bcc087c948fc7e1789afdd39d95d8b66e0e07cdb"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_risk-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_risk-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_risk-2.stdout.log",
+          "stdout_sha256": "c79f55f1dfcded5e04b46ea469d968b1d1783f0fd4a443e0aa56b94e0a60668b"
+        }
+      ],
+      "distribution": "bt_api_risk",
+      "filename": "bt_api_risk-0.1.0-py3-none-any.whl",
+      "metadata_sha256": "ed8da26e9a2113c6d54a1ae81a8414a5177d1df9af1910dcd3d49b2e28724387",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "bt_api_base<0.16,>=0.15.4",
+        "numpy>=1.26.0",
+        "pydantic>=2.0.0",
+        "typing-extensions>=4.8.0",
+        "scikit-learn>=1.0.0",
+        "pytest>=7.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "mypy>=1.0; extra == \"dev\""
+      ],
+      "source_file_count": 17,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "7db6b3c5fb73b00cdbc73cf68a163f13e0de3964216313c1852d1c4003255673",
+      "version": "0.1.0",
+      "wheel_sha256": "878a7e1e27d9009ec8cc775258173c0a39e5855a6b0d6a37fafa9e539bc1dd2e"
+    },
+    "bt_api_transport_zmq": {
+      "builds": [
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_transport_zmq-wheel-1",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_transport_zmq-1.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_transport_zmq-1.stdout.log",
+          "stdout_sha256": "ec735ed313acd68285e100789b0af3fb06ef742c031047bb0aecbbdd08046947"
+        },
+        {
+          "command": [
+            "C:\\anaconda3\\python.exe",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-index",
+            "--no-cache-dir",
+            "--wheel-dir",
+            "C:\\Users\\yunji\\AppData\\Local\\Temp\\i41b-k1fjkpam\\bt_api_transport_zmq-wheel-2",
+            "."
+          ],
+          "exit_code": 0,
+          "stderr_log": "logs\\build-bt_api_transport_zmq-2.stderr.log",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_log": "logs\\build-bt_api_transport_zmq-2.stdout.log",
+          "stdout_sha256": "9fc0eaa87161685b40198968db68e0cddea209d23547c5897f99f561a8ac6109"
+        }
+      ],
+      "distribution": "bt_api_transport_zmq",
+      "filename": "bt_api_transport_zmq-0.1.0-py3-none-any.whl",
+      "metadata_sha256": "f7ea1210d5ca15d80b1f8818b1f100276c7ca224e43a354eb9b95c9121047164",
+      "record_validated": true,
+      "reproducible_build": true,
+      "requirements": [
+        "pyzmq>=25",
+        "pytest>=7.0; extra == \"dev\"",
+        "ruff>=0.1.0; extra == \"dev\""
+      ],
+      "source_file_count": 7,
+      "source_snapshot": {
+        "captured_from_bytes": true,
+        "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD"
+      },
+      "source_tree_sha256": "465610b75c7ce9acad53846e9ccebbec210eb3679f0a4756551c1ecb9e2da41e",
+      "version": "0.1.0",
+      "wheel_sha256": "dd27300f93fb39e5506ef016947cc2b1b1079c7007e71459c29c29072a830ac2"
+    }
+  },
+  "offline_constraints": {
+    "consumer_inherited_pythonpath": false,
+    "consumer_python_isolated": true,
+    "consumer_python_socket_guard": true,
+    "controller_environment_redaction_sentinel": "ITERATION41_CONTROLLER_SECRET_SENTINEL",
+    "minimal_child_environment": true,
+    "os_network_firewall_verified": false,
+    "pip_config_file": "nul",
+    "pip_no_index": true,
+    "source_date_epoch": "315532800"
+  },
+  "purpose": "local-only Iteration 41 wheel-install and isolated-consumer mechanics",
+  "release_status": "NOT_RELEASE_ELIGIBLE",
+  "repackaged_dependencies": {
+    "aiohappyeyeballs": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "a3421f20cafa66c611f536a5d6721daada36b8e9607c76d226f2f54431cbf345",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "aiohappyeyeballs",
+      "filename": "aiohappyeyeballs-2.6.1-py3-none-any.whl",
+      "metadata_root_sha256": "f2abc17f08495003c33df65077e657dac8b36f5fbc51eec8b78d5c62d85855bb",
+      "origin": "controller_site_packages_repack",
+      "version": "2.6.1",
+      "wheel_sha256": "000513f4897d1103d532c58a6d2125604e86e85bd5aa8c55e6bd9ae2b8d03a7e"
+    },
+    "aiohttp": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "7c8ae6fa76f8ef19c0171a605bcbcf967f37f110fd666649fcfd832afe99acc7",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "aiohttp",
+      "filename": "aiohttp-3.13.3-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "3d3ee0c0e94bf25f5ae3c8b59c53f9ce064bb4ca2236534664cc7109d35d63c6",
+      "origin": "controller_site_packages_repack",
+      "version": "3.13.3",
+      "wheel_sha256": "f58f16562906f05b1d15e44b4de7ac90e2eaea977eb1fef31d5ae248a4935edc"
+    },
+    "aiosignal": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "d3e57df9e057ca8644294c218c0578bb19b43e5b2c6e254c57eba9389128b911",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "aiosignal",
+      "filename": "aiosignal-1.4.0-py3-none-any.whl",
+      "metadata_root_sha256": "f8799389368357b2285d6a11f9e54fb10aea9d943aa3cc2c1894056750399cdb",
+      "origin": "controller_site_packages_repack",
+      "version": "1.4.0",
+      "wheel_sha256": "5a7c48c8b3bc88f1139d72f311cc229582fa6a133948d77fda2e917b241159e0"
+    },
+    "annotated-types": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "39a664185d5772be7d995c026452b162ebee2780904b73274c5a572dd9551dd0",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "annotated-types",
+      "filename": "annotated_types-0.7.0-py3-none-any.whl",
+      "metadata_root_sha256": "b23a5e98968139d77cc4a18d699897695abe2a1b14576e1ebeda378701e87d04",
+      "origin": "controller_site_packages_repack",
+      "version": "0.7.0",
+      "wheel_sha256": "2abb7cc0823eab141e7ea565b62507960e22ee5e80091bf27d053a922131fa6a"
+    },
+    "anyio": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "f080f0dcfd360bab525d8ec253c88181ebebaa0fa1b2b331499026c997349b1e",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "anyio",
+      "filename": "anyio-4.11.0-py3-none-any.whl",
+      "metadata_root_sha256": "a222866cb0ee1c65580b45a7be7439ac7943736ecbef1a1c12c57958617146a1",
+      "origin": "controller_site_packages_repack",
+      "version": "4.11.0",
+      "wheel_sha256": "1d3c940063423b0e3729aaefe7c416670960a087c434ff4fdebfa183f1e80fb3"
+    },
+    "attrs": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "fb4d5dc8cb0ac427b5e8c0a2e2f718d49ae3e10a4060cb85507dabd1c9cf8882",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "attrs",
+      "filename": "attrs-25.4.0-py3-none-any.whl",
+      "metadata_root_sha256": "d0d0c66edbef271e7da7300b20d91362248be0f6a7086c5da798c73926886846",
+      "origin": "controller_site_packages_repack",
+      "version": "25.4.0",
+      "wheel_sha256": "39c2ebee6863a3dcfe682286ce86aa26dfaa02938140228f161a451fa99c1a2e"
+    },
+    "certifi": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "9f732998905d30ad2104a7136308c93fd06064506259610a7a3b2d39a4da1098",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "certifi",
+      "filename": "certifi-2024.12.14-py3-none-any.whl",
+      "metadata_root_sha256": "76b382ae8d9a26bdd48beb8eb5912df55b8aecf0c81d7d6d6f4c0b0ab9ed6b9b",
+      "origin": "controller_site_packages_repack",
+      "version": "2024.12.14",
+      "wheel_sha256": "ab19c3b871d24aea368eeabd3aa2995fb7308af721e136282506f12c136af2a5"
+    },
+    "charset-normalizer": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "620d0c4a5c837abdb37154b79a7d6dbede5ad5b13abc31407365d72ea52d93ce",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "charset-normalizer",
+      "filename": "charset_normalizer-2.0.4-py3-none-any.whl",
+      "metadata_root_sha256": "afcf979a37dd16353319e3e37bd31e45bdfe410aaa3c235ddc2119266590df67",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "2.0.4",
+      "wheel_sha256": "83c341b0615f0e822ec71c67bf757e618b5795eea2cba0600fdf10750a78a465"
+    },
+    "contourpy": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "c3e43e16c773047404c84d6835ac3a20a1ff74d5ae2d358a9bfc60c66bdbdfbd",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "contourpy",
+      "filename": "contourpy-1.0.5-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "9714a82a68f1fc629f3ea3ea6f76f32bde0351ccdfdfa5897b26e4e8127a7071",
+      "origin": "controller_site_packages_repack",
+      "version": "1.0.5",
+      "wheel_sha256": "dbc7cb6d4161ed20cac4c20341888fb4e647832d541556f9a3c03324fbb1787b"
+    },
+    "cycler": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "69577f0954147f1d137c95b69c8d059e6c0e5c8a5956bbe3568117627bd66d4c",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "cycler",
+      "filename": "cycler-0.11.0-py3-none-any.whl",
+      "metadata_root_sha256": "f44db44e18b94c81e799cdb7903cc601c99384a43c0556bb38e238ca6d3d678e",
+      "origin": "controller_site_packages_repack",
+      "version": "0.11.0",
+      "wheel_sha256": "61f894b29d30c55c42e839f51d070c113dbb0edf475d983a5ecac1e98a94aebf"
+    },
+    "fonttools": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "edc29d71c8eb8af1f90a06ec2b2fdc58dd960344da82227b95def76530250e26",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "fonttools",
+      "filename": "fonttools-4.53.0-py3-none-any.whl",
+      "metadata_root_sha256": "ddbfc91e69bdf300cf87fbf1d9e01244831c8f3e32f668554ef025e36ac54b53",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "missing_or_non_regular_member": 7
+      },
+      "version": "4.53.0",
+      "wheel_sha256": "6313481044a5e1ddd938b6d9283a0d17a100163c4c3cba0cdac26f1620e9540f"
+    },
+    "frozenlist": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "37355cc2edae21b9d5c3e883cd8e9924d9b5cbef9542adc9ca0db8a0c96c9775",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "frozenlist",
+      "filename": "frozenlist-1.3.3-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "18e180718e0edc65c0284d9567a133a8c9d149d2a7d3885eac3ea57ff4ece4bb",
+      "origin": "controller_site_packages_repack",
+      "version": "1.3.3",
+      "wheel_sha256": "bddbea049578ccf37a09e9d71898bf94f5d9eb6d532fb4df8d8d1572fc8d5bbd"
+    },
+    "h11": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "5f977154163e66fb622eb93afc51afb0b86972e11ff29229920f2ccda4fc8a21",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "h11",
+      "filename": "h11-0.14.0-py3-none-any.whl",
+      "metadata_root_sha256": "3a33e0f2f6d68cc3c7e79f3bca49613bfd20e2adc1ecd11240bdd253cc9ad481",
+      "origin": "controller_site_packages_repack",
+      "version": "0.14.0",
+      "wheel_sha256": "84f387fab02f524e7309f85eb8a7d47555d5d5ae08f2efb5a534ecf77ad9b2c3"
+    },
+    "httpcore": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "ab41f983e0e9a6cee8061fa0ad75e6191028849f78b83a5010c399d52be39c93",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "httpcore",
+      "filename": "httpcore-1.0.5-py3-none-any.whl",
+      "metadata_root_sha256": "a7b3474f3d4483fa1fee873b701842f0ef074b1a87415a12c89ce2ed85e5db1b",
+      "origin": "controller_site_packages_repack",
+      "version": "1.0.5",
+      "wheel_sha256": "c141c9e7cb6581635e19a5c89dc5e0860033bfdad6fd33a78fc7e2ed6a259a06"
+    },
+    "httpx": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "cf3a1ab5894c2be984ccf51b8bfc2cd7a3ad043a65cc55b7982ed34c555b3b45",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "httpx",
+      "filename": "httpx-0.28.1-py3-none-any.whl",
+      "metadata_root_sha256": "b9130e810055a6baac4cfc54320ab77a0f79e19b1b58481d38cd7024a70b1f08",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "0.28.1",
+      "wheel_sha256": "bec0f03b1c5836e368472049c40a8ef9cee16d03fa357db39e38143af04717b3"
+    },
+    "idna": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "9f2cda1a33faebe494378d01fdd14d8312ea37a3c45361e8d4e891eb40cb0fc1",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "idna",
+      "filename": "idna-3.4-py3-none-any.whl",
+      "metadata_root_sha256": "d51177a733649474dd73f36814c86bd2f3bf7ac8afb9be2ece32d6d411284780",
+      "origin": "controller_site_packages_repack",
+      "version": "3.4",
+      "wheel_sha256": "6029b54e86b8b02d6d40d060431b371e74067132a465d73bf1b73f841fcfbb0c"
+    },
+    "joblib": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "7c960bf7ad6863a2698ecd422d34381113b57fd05139e0252a721e92d68794d9",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "joblib",
+      "filename": "joblib-1.2.0-py3-none-any.whl",
+      "metadata_root_sha256": "481ea9f540c07cea142558c84d9877d61a8fa3355b59057b019987ef78193ee8",
+      "origin": "controller_site_packages_repack",
+      "version": "1.2.0",
+      "wheel_sha256": "2075e8f5e8a79e21a208453a1a472301e132e812f0e4264409769c914420b72a"
+    },
+    "kiwisolver": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "e740ac755e570010d39bf8a03b24f09da2794cb208a82a9c6b5243c9c6d4fb08",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "kiwisolver",
+      "filename": "kiwisolver-1.4.4-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "2537dbcd1635cb327c1a58cc54d585c3015c14bbddf42c2091017c09bb78b4b6",
+      "origin": "controller_site_packages_repack",
+      "version": "1.4.4",
+      "wheel_sha256": "e4603b936d1d9588b463bc708401158f914c2cf33c283065dcc3f4a623bb5016"
+    },
+    "matplotlib": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "ce94fb8cf7d201f55b85d3b180561010d0a7648d09a86c4a171021ae6e575641",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "matplotlib",
+      "filename": "matplotlib-3.10.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "cb6ba590384d36d082d9853a7ac205d2c131c96673f66781d7a28fa9dc6cf246",
+      "origin": "controller_site_packages_repack",
+      "version": "3.10.0",
+      "wheel_sha256": "241a517535f6830fa9e653960c1b69a7eaa0d90b54b202fd3090c157867f18c2"
+    },
+    "multidict": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "e8fa5281bef64225e0b92fbe85330d356768dabef0979c22e4b6c51227d8a0e9",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "multidict",
+      "filename": "multidict-6.0.2-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "b150fe233046a1eccec691539009c6ed41132fb31473f55df64a6ab9eeebb8ff",
+      "origin": "controller_site_packages_repack",
+      "version": "6.0.2",
+      "wheel_sha256": "b6d17d19d2da7e8ae743213331a16ecd561c5257ad1806b105e1ad4be6a38ccb"
+    },
+    "numpy": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "67b44eef36135568094ee4b53f985f1a4759ac854739faa9bc2366a2aa797fd9",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "numpy",
+      "filename": "numpy-1.26.4-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "1fca9622d9d3d1d69f9f8da4bd1a1aebcbff5b432e6bf55414aea93f71d8f178",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "1.26.4",
+      "wheel_sha256": "1acf3933176ca2a6ecef8aa6a6d8b919c0108787c05caf13395b2292089ba805"
+    },
+    "packaging": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "d809e069eb5ed0248f046e18502bd4ccd13a417d8e1112079952ddf4433a213d",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "packaging",
+      "filename": "packaging-26.3-py3-none-any.whl",
+      "metadata_root_sha256": "8b40501085686892bd2a1266f30eb4057c55bf2aaad34f978c5c996c99f10ae6",
+      "origin": "controller_site_packages_repack",
+      "version": "26.3",
+      "wheel_sha256": "a7050ae102d556d00f251d98f07289a0f17f033eaa7ebbbdc8b072528163f97a"
+    },
+    "pandas": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "f885e020a53fed70d172f5a58fc984311034cfc4aa550417000808ddb7c6d932",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pandas",
+      "filename": "pandas-2.2.3-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "a0d75e6445ca67f93ce457a031cd940cd062ad054ab4bad3dc25f96d1a3c26a0",
+      "origin": "controller_site_packages_repack",
+      "version": "2.2.3",
+      "wheel_sha256": "d9a1b285a8bf7b81182565e441813885cad722bbfc92b6a6817d3987063423d3"
+    },
+    "patsy": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "5edca658b60e0caf49b1dea6c89a738c1cca0bf5e6bd5d6f29be18e16c0c58d3",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "patsy",
+      "filename": "patsy-1.0.1-py2.py3-none-any.whl",
+      "metadata_root_sha256": "2dc72eaf0235693b0c429150d869b5cbee99219f0491d7ccdd5bdb1d7cfb0339",
+      "origin": "controller_site_packages_repack",
+      "version": "1.0.1",
+      "wheel_sha256": "879c143b2e7fcf05ad53e513834a531a1ab203eeaefa6b62e65a40828e998dc6"
+    },
+    "pillow": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "cbf72bfe5b7dab7818e6dd51a9a133d040049c43b9313f71ce44000ca2b56985",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "Pillow",
+      "filename": "pillow-9.4.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "7a1a4b0da5d15c8a8062964b1cd4df581a6a07b854f82f06a6197bb23d493b17",
+      "origin": "controller_site_packages_repack",
+      "version": "9.4.0",
+      "wheel_sha256": "8496da13064d64377138deb1b7d092dcb0f46f9097fbf01a03cac1fb598ba406"
+    },
+    "propcache": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "27e86539b2114cc2f1e1aa999b05b34fac10e155ac8d803f3a46078d4e12851e",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "propcache",
+      "filename": "propcache-0.4.1-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "c9047939ee0faa180d6935e4e7b7571aebce092d406f76c72630870158cb2545",
+      "origin": "controller_site_packages_repack",
+      "version": "0.4.1",
+      "wheel_sha256": "ab9febd75d127c359bb9b16fe4782de1ff01695b090d83423c67ab55534516ee"
+    },
+    "psutil": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "1bbbd8ce28418b0406720ea03ffd47afa027cafc73eef12e49dff3f291838c84",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "psutil",
+      "filename": "psutil-5.9.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "45c1c58a8e03dd8e2b51088d5290f8edd67849f8d54a07e079874d790c96799d",
+      "origin": "controller_site_packages_repack",
+      "version": "5.9.0",
+      "wheel_sha256": "ff08af9b57dd573671615e055d6539a7b0183773ef6fb7fecc685336de55a4d2"
+    },
+    "pyarrow": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "312f41ec98e70505b7146c8a78d93427d54311342bdf1e05d2208066cb9dd49d",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pyarrow",
+      "filename": "pyarrow-23.0.1-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "f1c5dce9f07439cfd7684afbfebb692f3b5682fd6d3fbb6af7a0264df0ea1378",
+      "origin": "controller_site_packages_repack",
+      "version": "23.0.1",
+      "wheel_sha256": "45e62bc15f7e6ffd4fe9636158e36d734332f5d1b739c75eca4dbfa6c99ac975"
+    },
+    "pybind11": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "452646a502f90cdd0c7d602c4a53a8db9a7364e4c8d3e366625ec86899e80377",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pybind11",
+      "filename": "pybind11-2.12.0-py3-none-any.whl",
+      "metadata_root_sha256": "44007371bd7ac7f8395f9471782b2a30dcb1bf89907b6c3b438473a2dad9a4d1",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "2.12.0",
+      "wheel_sha256": "792c55b81a6a0c7ea5a4eca6b374e44b83df812c3ed816f47bc914f9555cd0b1"
+    },
+    "pydantic": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "55221ffa50a726236d306763ac279832b0b8adf0f7f585c3ee4ed7a07de8bc2a",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pydantic",
+      "filename": "pydantic-2.5.0-py3-none-any.whl",
+      "metadata_root_sha256": "bb60fb44f17ad093590ac02c1ef33a2a06bb667e10c86e491df6ad6c652ba3dc",
+      "origin": "controller_site_packages_repack",
+      "version": "2.5.0",
+      "wheel_sha256": "c4286ac883c5e62878bf764c5c6a514be633b24f840227f00708dd67fb426723"
+    },
+    "pydantic-core": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "4689e255df29de34bc10efcf7dafff6ec9d671402c75d4da45fa7e3fba22572f",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pydantic_core",
+      "filename": "pydantic_core-2.14.1-cp311-none-win_amd64.whl",
+      "metadata_root_sha256": "b3728aa76b880a5c2016bee31c37e33822b064aaae6ce2d49827a20f70d29166",
+      "origin": "controller_site_packages_repack",
+      "version": "2.14.1",
+      "wheel_sha256": "d79f1527eb306e72d388e6591104784199fdbe05826b40af4e21a02b06eed178"
+    },
+    "pyparsing": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "debac8903dec11d8f84dd2d47b8155bc0cecdf6a6bb279138bb338258699cd77",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pyparsing",
+      "filename": "pyparsing-3.0.9-py3-none-any.whl",
+      "metadata_root_sha256": "686b464a956485bddaef6b7c7425756e209af45398c60066b22560c915ab3999",
+      "origin": "controller_site_packages_repack",
+      "version": "3.0.9",
+      "wheel_sha256": "ae86ebd92c406a4e150f6d2656af9b11f5da7ba49a797710dc66f67f74842442"
+    },
+    "python-dateutil": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "f22054479391148e83a48ef217d27243d2d23e738d8c8f10c3c89ba3ee63afca",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "python-dateutil",
+      "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+      "metadata_root_sha256": "9661f56b02324d1c7bf6e475d93940ce36cb0e14f4ae1ddb735c2c7b33a7125d",
+      "origin": "controller_site_packages_repack",
+      "version": "2.9.0.post0",
+      "wheel_sha256": "b2f3a98e72785ad97f38dc60371fb2da1c0e382490b9ed4ae42fd03fce63d7e5"
+    },
+    "python-dotenv": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "705ed4dfd71a7e89078c4d97b9bf80e46805468e5c0bf97d701c138be4e30cd6",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "python-dotenv",
+      "filename": "python_dotenv-1.1.1-py3-none-any.whl",
+      "metadata_root_sha256": "a2ea8d0981069e2e3eeefb01c77b71f0b6a82c5547d2c9ea3ad885e98c529c19",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "1.1.1",
+      "wheel_sha256": "5b5e0510af3cda46a0257893630a1bf62b84cb6171b6334a11143cf63047de79"
+    },
+    "python-rapidjson": {
+      "controller_record_sha256": "c05cf22d1110c6f5b8547447cc3262f7f33887d3d773e417650739ce3c36c2b6",
+      "controller_record_status": "VALIDATED_CONTROLLER_RECORD",
+      "distribution": "python-rapidjson",
+      "filename": "python_rapidjson-1.20-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "ee37d100eba3fc7532811b6b209c044b1560864c2f62794540735baf4b4f6a85",
+      "origin": "controller_site_packages_repack",
+      "version": "1.20",
+      "wheel_sha256": "1c4b2ae01a9a0f748ce3ae163fe163d33157deabd90ef694aec91cdaba019c0a"
+    },
+    "pytz": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "558c36a6d2e1f17602488ce904b0cf7242046ff07d5d9933de2860ecd98a3ada",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pytz",
+      "filename": "pytz-2025.1-py2.py3-none-any.whl",
+      "metadata_root_sha256": "5eec983cb410479008bf33e711acbd5e735b2448c75b0532a50d4492592ea605",
+      "origin": "controller_site_packages_repack",
+      "version": "2025.1",
+      "wheel_sha256": "a798de4d2b675d68b4c435ca6352e943346adaaa1878f39b4630bd8572b71fca"
+    },
+    "pyyaml": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "00749f44a0d8f7b68156154a6455298fdd5266161b314211cf9e4cdc95c977af",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "PyYAML",
+      "filename": "pyyaml-6.0.1-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "de644a717cfbee7404af4fa267ab1f77956b50f8ebd1db02974926e2093046c0",
+      "origin": "controller_site_packages_repack",
+      "version": "6.0.1",
+      "wheel_sha256": "c58d7fa75503c7b24a835357e6679682cf6d9e2ef7883def57e3949f0e3bed40"
+    },
+    "pyzmq": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "7b0bc12005c14706b1ba6d528ca0f154e2dd9b69a1ae5e51da0e80033c594aed",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "pyzmq",
+      "filename": "pyzmq-27.1.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "c3f3a7c898012879e1492c0f042bf94aad40e9a69db59ae1cd9c42d65847b991",
+      "origin": "controller_site_packages_repack",
+      "version": "27.1.0",
+      "wheel_sha256": "0903f03e6171c4cebfdb8e7c14ec6d0b0bb59f7076e8de58ed65e564de3878b0"
+    },
+    "requests": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "1ee7ffb0e441dc8ea0326b140f026b50defda224e6c9da208964fe630ad79027",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "requests",
+      "filename": "requests-2.32.3-py3-none-any.whl",
+      "metadata_root_sha256": "7d53f8dad7bc338e42c00a2447cc13192af0f3ced0fa5a005d67adc7f5727cbd",
+      "origin": "controller_site_packages_repack",
+      "version": "2.32.3",
+      "wheel_sha256": "13c4965a35bf4e2284b36baa59928d884bb171f3c5413c498f931fdc026add89"
+    },
+    "scikit-learn": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "20810c130ede878b8c8bb15240d455b5a8c377cef559da50ed12acdf66e88f09",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "scikit-learn",
+      "filename": "scikit_learn-1.3.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "f2efdd80ce8d9ff747691fac6ecbfe76a89b70bd7b311c23adb0ea395865cb1f",
+      "origin": "controller_site_packages_repack",
+      "version": "1.3.0",
+      "wheel_sha256": "6896e7ad9ab66eb7c040c6404569aa460846e885b09b4523e6d1dc8732ee480d"
+    },
+    "scipy": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "fc266ce19f4045d4027e751ce2ee0b550449b83640dd56e2e60fb68dd14d00cc",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "scipy",
+      "filename": "scipy-1.15.1-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "5ec8b2958aa064bf7ac9e0c68f319695f75e18747b30030ade31183eaeea452e",
+      "origin": "controller_site_packages_repack",
+      "version": "1.15.1",
+      "wheel_sha256": "b4268def8270281e46e3697db652f390fdff2ca47e570ad346464457a0b4ba5a"
+    },
+    "six": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "5cd6b9754c73796267ddbfff91d15815e0024f8b795b56a8bc324321979679e5",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "six",
+      "filename": "six-1.16.0-py2.py3-none-any.whl",
+      "metadata_root_sha256": "fb845bedc781dc694bd6c4c9fb1f8a4daa3ced52e101b82b859c46e42430c241",
+      "origin": "controller_site_packages_repack",
+      "version": "1.16.0",
+      "wheel_sha256": "c886eed9a2a67f3364797d03d991e4a24b9a60eb3fa22e1ea45f6f0a83268df4"
+    },
+    "sniffio": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "cbbe03dc7f926de34a93f21ec571f33e30face0cb1cf94f5d3ad28bf3ffd1c99",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "sniffio",
+      "filename": "sniffio-1.2.0-py3-none-any.whl",
+      "metadata_root_sha256": "dd89b9b7c0dd0b89e6c5820877b7151a0cf4335da76a84302d220047689c2cd5",
+      "origin": "controller_site_packages_repack",
+      "version": "1.2.0",
+      "wheel_sha256": "5e9e5c05a1d8ef265ef6225ec9413ef9d53f109f4aa57a3e13a276fec90b533d"
+    },
+    "spdlog": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "ea287b30cc4742da3988bf5fc0efc17034150b520afb716f5a15f6aeb686bdde",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "spdlog",
+      "filename": "spdlog-2.0.6-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "590345758a2f7a9048897fe1027272ca88332fd23dfcbd04e57425b9fcc60317",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "unsafe_relative_path": 99
+      },
+      "version": "2.0.6",
+      "wheel_sha256": "d2d6da1a044100aef185db0991e323af436a1fd48e097942b98e6e74d7e72b42"
+    },
+    "statsmodels": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "9aaf6a227576e216b80f512e13de951cbb6351d69ef8d2e8450a102ad39287d2",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "statsmodels",
+      "filename": "statsmodels-0.14.4-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "751d5dbd301ca6e588fff4b2b480eb8896a8f3877666a2a68306d2fad9daa782",
+      "origin": "controller_site_packages_repack",
+      "version": "0.14.4",
+      "wheel_sha256": "b1de04eeb6641c00bfa4f179a6a3e69e62ab458e71037627c81f32ddf3991f3a"
+    },
+    "threadpoolctl": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "45ec1ffcec4eabed9558f14385fc6f6122ac97461acce1bdbc962631b7f0efc4",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "threadpoolctl",
+      "filename": "threadpoolctl-3.6.0-py3-none-any.whl",
+      "metadata_root_sha256": "73bf7c00be3d543309bf02a06246caaab354f916ba9d2c333f21be1029a8f227",
+      "origin": "controller_site_packages_repack",
+      "version": "3.6.0",
+      "wheel_sha256": "00e53b369063b2a18610e3b374248483aeeb06caf967233e76b9aa3dd2a579a4"
+    },
+    "typing-extensions": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "d09d67683e60ad06d78f768f653658c1e2834fcaf6f2ac69f294d7da9a358c28",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "typing_extensions",
+      "filename": "typing_extensions-4.15.0-py3-none-any.whl",
+      "metadata_root_sha256": "a41c32a185696aed2db512283a9d410282de3c21bc5e605233213919e041a49e",
+      "origin": "controller_site_packages_repack",
+      "version": "4.15.0",
+      "wheel_sha256": "057477a9936bdee3652e810f5fbc161df970a35fbe4de3c61a183fbb6eae5ad9"
+    },
+    "tzdata": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "849b1a71697fe39a154d1e77afb5fab8366efc938092546474719f84bea502e7",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "tzdata",
+      "filename": "tzdata-2023.3-py2.py3-none-any.whl",
+      "metadata_root_sha256": "0e2b1bad45c76d255e13a7146c5a829266dcc1aec6abb232ee30fba2c688018a",
+      "origin": "controller_site_packages_repack",
+      "version": "2023.3",
+      "wheel_sha256": "33cd41ed56b244a25d9319bcfaab6860b3ff3dc0fbc2746219bf78bbab161bad"
+    },
+    "urllib3": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "20b1a47ff4db235e38f9d15412be8d479411af6692e0647ba868f3cb6702502c",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "urllib3",
+      "filename": "urllib3-1.26.20-py2.py3-none-any.whl",
+      "metadata_root_sha256": "c0e146b0c04650391b45ef27afe3d2f045a7edadb8458faf3e954e1046c3d60d",
+      "origin": "controller_site_packages_repack",
+      "version": "1.26.20",
+      "wheel_sha256": "eb821b7a9ee5fea24e010fac5b57475ec30e305cad63fb0cb2cd104641379281"
+    },
+    "websocket-client": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "fa2c9fbe0ad4fa27805bc8424a79bcf82be57d3b3fad8dc229f6a4f87807ff23",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "websocket-client",
+      "filename": "websocket_client-1.8.0-py3-none-any.whl",
+      "metadata_root_sha256": "da5669733b6e343e90cd6a050add0e6f3baa540112609d6ae93b94ede112a83f",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "1.8.0",
+      "wheel_sha256": "503497a80530e045e562bc721bcfc39b842c3f8332a46895eb5090725fd89416"
+    },
+    "websockets": {
+      "controller_record_reason": "UNREPACKAGED_CONTROLLER_RECORD_MEMBERS",
+      "controller_record_sha256": "32ed7cf27ddc83f1ff37458b961b002e4b88ff83d74390ef7ebbefd2157ca310",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "websockets",
+      "filename": "websockets-15.0.1-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "2cb2b0c6c6662f6d3749c3ccbd96a1059d4b90bd351c7875332700a002101c08",
+      "origin": "controller_site_packages_repack",
+      "skipped_controller_member_categories": {
+        "pip_generated_console_script": 1
+      },
+      "version": "15.0.1",
+      "wheel_sha256": "40bc5816c9f42b67aa9d39da4114e488a8ec3246a2b16e406ed7eab07ff26652"
+    },
+    "yarl": {
+      "controller_record_reason": "ValueError",
+      "controller_record_sha256": "bb60bac896c5a3df070676ef03bf151497a57b18d250ab4bb20ce05bda278f8a",
+      "controller_record_status": "UNTRUSTED_CONTROLLER_REPACK",
+      "distribution": "yarl",
+      "filename": "yarl-1.23.0-cp311-cp311-win_amd64.whl",
+      "metadata_root_sha256": "2bc07b691e445f3c970a47a43c25749e293b6f26dd17bb0cd83eee052926ad8f",
+      "origin": "controller_site_packages_repack",
+      "version": "1.23.0",
+      "wheel_sha256": "96ea9315819449383fd889dd4616e561b9ff3be1d77df2711d388be885b370aa"
+    }
+  },
+  "result": "LOCAL_EVIDENCE_ONLY",
+  "schema_version": 2,
+  "source_snapshots": {
+    "backtrader": {
+      "captured_from_bytes": true,
+      "file_count": 505,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "82e14454d0df4cbffd5bab0e7548085f1406b5d58140c091ab17a6a0881cefcd"
+    },
+    "bt_api_base": {
+      "captured_from_bytes": true,
+      "file_count": 188,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "b0916ab6fd49d81bdb585f633f1870240808fe366a5cc835e4b00f79f48ebed1"
+    },
+    "bt_api_execution": {
+      "captured_from_bytes": true,
+      "file_count": 11,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "58d1dd5be33456ae9210551f69b5857dc3d300a9784eaeda66341d911a49a5e8"
+    },
+    "bt_api_gateway": {
+      "captured_from_bytes": true,
+      "file_count": 5,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "f5b6a737c0c1c96f749700ded987e1e6910425a74505d770443b1e3426c4c44c"
+    },
+    "bt_api_monitor": {
+      "captured_from_bytes": true,
+      "file_count": 15,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "4944011d09b468a9db0d701bf3e4a348e8f342702c890d719e28d2afe8fde39f"
+    },
+    "bt_api_py": {
+      "captured_from_bytes": true,
+      "file_count": 153,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "b0f3b8f18dbec980b37b138fd5e9490b2270c5e2a3f8ef98acd1c81de545128f"
+    },
+    "bt_api_risk": {
+      "captured_from_bytes": true,
+      "file_count": 17,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "7db6b3c5fb73b00cdbc73cf68a163f13e0de3964216313c1852d1c4003255673"
+    },
+    "bt_api_transport_zmq": {
+      "captured_from_bytes": true,
+      "file_count": 7,
+      "original_source_recheck": "PASSED_BEFORE_AND_AFTER_BUILD",
+      "sha256": "465610b75c7ce9acad53846e9ccebbec210eb3679f0a4756551c1ecb9e2da41e"
+    }
+  },
+  "source_states": {
+    "backtrader": {
+      "checkout_head": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+      "checkout_matches_superproject_gitlink": false,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\source_code\\backtrader",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 242,
+      "status_sha256": "e18cc56c25ef8c72f412b3e09508ee7b68872a27165f59ef941f237c6521bb22",
+      "superproject_gitlink": null
+    },
+    "bt_api_base": {
+      "checkout_head": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+      "checkout_matches_superproject_gitlink": true,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_base",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 3,
+      "status_sha256": "5337a155e321e29ff1909dfd932a99c09f897087b01c5ba5ac40bb958c28dc80",
+      "superproject_gitlink": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f"
+    },
+    "bt_api_execution": {
+      "checkout_head": "2700cb5454ef4c3d1780eda28b6f33307a860998",
+      "checkout_matches_superproject_gitlink": true,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_execution",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 16,
+      "status_sha256": "f222a7c7e39f0d066ccd9fe5d025a0c2d9759d5201608e69a10bb71b1993dc89",
+      "superproject_gitlink": "2700cb5454ef4c3d1780eda28b6f33307a860998"
+    },
+    "bt_api_gateway": {
+      "checkout_head": "44fd2fe26b51f1d8b573c84415a6cff660f33dea",
+      "checkout_matches_superproject_gitlink": true,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_gateway",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 19,
+      "status_sha256": "10b7325b9b422b122fd037e68ab58e65d1e4ba9df7752e412c16612a9eed0e22",
+      "superproject_gitlink": "44fd2fe26b51f1d8b573c84415a6cff660f33dea"
+    },
+    "bt_api_monitor": {
+      "checkout_head": "d515a8209324d56742c095d70976593bb3ba3eff",
+      "checkout_matches_superproject_gitlink": true,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_monitor",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 4,
+      "status_sha256": "2fe8fac2fef16937d02e3a337ad9458409bab06f1d49ecf2862a43cbf9884da2",
+      "superproject_gitlink": "d515a8209324d56742c095d70976593bb3ba3eff"
+    },
+    "bt_api_py": {
+      "checkout_head": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+      "checkout_matches_superproject_gitlink": false,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 37,
+      "status_sha256": "dc4127fd69ad342e334cdd861acc640f3d69b7df03a11bb55524a42d89dbd24d",
+      "superproject_gitlink": null
+    },
+    "bt_api_risk": {
+      "checkout_head": "d0c18a9d503a6792b582d0927244ceb55395032b",
+      "checkout_matches_superproject_gitlink": true,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_risk",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 6,
+      "status_sha256": "d9583f4c381ad55474706d01b09643af200b0a1dc81bdf4887ee3c7197cf9e02",
+      "superproject_gitlink": "d0c18a9d503a6792b582d0927244ceb55395032b"
+    },
+    "bt_api_transport_zmq": {
+      "checkout_head": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+      "checkout_matches_superproject_gitlink": false,
+      "dirty": true,
+      "git_available": true,
+      "source_root": "D:\\bt_api_py\\bt_api\\bt_api_transport_zmq",
+      "source_state": "DIRTY_LOCAL_SOURCE",
+      "status_entry_count": 37,
+      "status_sha256": "dc4127fd69ad342e334cdd861acc640f3d69b7df03a11bb55524a42d89dbd24d",
+      "superproject_gitlink": null
+    }
+  },
+  "wheelhouse_manifest": {
+    "files": [
+      {
+        "filename": "aiohappyeyeballs-2.6.1-py3-none-any.whl",
+        "sha256": "000513f4897d1103d532c58a6d2125604e86e85bd5aa8c55e6bd9ae2b8d03a7e"
+      },
+      {
+        "filename": "aiohttp-3.13.3-cp311-cp311-win_amd64.whl",
+        "sha256": "f58f16562906f05b1d15e44b4de7ac90e2eaea977eb1fef31d5ae248a4935edc"
+      },
+      {
+        "filename": "aiosignal-1.4.0-py3-none-any.whl",
+        "sha256": "5a7c48c8b3bc88f1139d72f311cc229582fa6a133948d77fda2e917b241159e0"
+      },
+      {
+        "filename": "annotated_types-0.7.0-py3-none-any.whl",
+        "sha256": "2abb7cc0823eab141e7ea565b62507960e22ee5e80091bf27d053a922131fa6a"
+      },
+      {
+        "filename": "anyio-4.11.0-py3-none-any.whl",
+        "sha256": "1d3c940063423b0e3729aaefe7c416670960a087c434ff4fdebfa183f1e80fb3"
+      },
+      {
+        "filename": "attrs-25.4.0-py3-none-any.whl",
+        "sha256": "39c2ebee6863a3dcfe682286ce86aa26dfaa02938140228f161a451fa99c1a2e"
+      },
+      {
+        "filename": "backtrader-1.4.0-py3-none-any.whl",
+        "sha256": "74d754ce2bc076b676bcf2baddad5d698c6be7476e4b8054e927a5d0aa916612"
+      },
+      {
+        "filename": "bt_api_base-0.15.4-py3-none-any.whl",
+        "sha256": "679940fbffc9811025ad53bcd14c879e5c9c01c11deee4a55218996a0b1e1609"
+      },
+      {
+        "filename": "bt_api_execution-0.1.0-py3-none-any.whl",
+        "sha256": "f5e322eceb72f2a20fdfb40ebcb55a5655a042922a127e310877a033acd4cf60"
+      },
+      {
+        "filename": "bt_api_gateway-0.1.0-py3-none-any.whl",
+        "sha256": "f19edc424bad3716955e67ad7d448d3bc693ac4205a6ffab3e995e60627bad06"
+      },
+      {
+        "filename": "bt_api_monitor-0.1.0-py3-none-any.whl",
+        "sha256": "9dd7a4ca28e227c8754f79f3efe24909badc2cd22fb66f0097c2317f04c74236"
+      },
+      {
+        "filename": "bt_api_py-0.15.4-py3-none-any.whl",
+        "sha256": "eef99160326c01a190babdb79cf01704ca83ef1825837377ecae32466b4c7160"
+      },
+      {
+        "filename": "bt_api_risk-0.1.0-py3-none-any.whl",
+        "sha256": "878a7e1e27d9009ec8cc775258173c0a39e5855a6b0d6a37fafa9e539bc1dd2e"
+      },
+      {
+        "filename": "bt_api_transport_zmq-0.1.0-py3-none-any.whl",
+        "sha256": "dd27300f93fb39e5506ef016947cc2b1b1079c7007e71459c29c29072a830ac2"
+      },
+      {
+        "filename": "certifi-2024.12.14-py3-none-any.whl",
+        "sha256": "ab19c3b871d24aea368eeabd3aa2995fb7308af721e136282506f12c136af2a5"
+      },
+      {
+        "filename": "charset_normalizer-2.0.4-py3-none-any.whl",
+        "sha256": "83c341b0615f0e822ec71c67bf757e618b5795eea2cba0600fdf10750a78a465"
+      },
+      {
+        "filename": "contourpy-1.0.5-cp311-cp311-win_amd64.whl",
+        "sha256": "dbc7cb6d4161ed20cac4c20341888fb4e647832d541556f9a3c03324fbb1787b"
+      },
+      {
+        "filename": "cycler-0.11.0-py3-none-any.whl",
+        "sha256": "61f894b29d30c55c42e839f51d070c113dbb0edf475d983a5ecac1e98a94aebf"
+      },
+      {
+        "filename": "fonttools-4.53.0-py3-none-any.whl",
+        "sha256": "6313481044a5e1ddd938b6d9283a0d17a100163c4c3cba0cdac26f1620e9540f"
+      },
+      {
+        "filename": "frozenlist-1.3.3-cp311-cp311-win_amd64.whl",
+        "sha256": "bddbea049578ccf37a09e9d71898bf94f5d9eb6d532fb4df8d8d1572fc8d5bbd"
+      },
+      {
+        "filename": "h11-0.14.0-py3-none-any.whl",
+        "sha256": "84f387fab02f524e7309f85eb8a7d47555d5d5ae08f2efb5a534ecf77ad9b2c3"
+      },
+      {
+        "filename": "httpcore-1.0.5-py3-none-any.whl",
+        "sha256": "c141c9e7cb6581635e19a5c89dc5e0860033bfdad6fd33a78fc7e2ed6a259a06"
+      },
+      {
+        "filename": "httpx-0.28.1-py3-none-any.whl",
+        "sha256": "bec0f03b1c5836e368472049c40a8ef9cee16d03fa357db39e38143af04717b3"
+      },
+      {
+        "filename": "idna-3.4-py3-none-any.whl",
+        "sha256": "6029b54e86b8b02d6d40d060431b371e74067132a465d73bf1b73f841fcfbb0c"
+      },
+      {
+        "filename": "joblib-1.2.0-py3-none-any.whl",
+        "sha256": "2075e8f5e8a79e21a208453a1a472301e132e812f0e4264409769c914420b72a"
+      },
+      {
+        "filename": "kiwisolver-1.4.4-cp311-cp311-win_amd64.whl",
+        "sha256": "e4603b936d1d9588b463bc708401158f914c2cf33c283065dcc3f4a623bb5016"
+      },
+      {
+        "filename": "matplotlib-3.10.0-cp311-cp311-win_amd64.whl",
+        "sha256": "241a517535f6830fa9e653960c1b69a7eaa0d90b54b202fd3090c157867f18c2"
+      },
+      {
+        "filename": "multidict-6.0.2-cp311-cp311-win_amd64.whl",
+        "sha256": "b6d17d19d2da7e8ae743213331a16ecd561c5257ad1806b105e1ad4be6a38ccb"
+      },
+      {
+        "filename": "numpy-1.26.4-cp311-cp311-win_amd64.whl",
+        "sha256": "1acf3933176ca2a6ecef8aa6a6d8b919c0108787c05caf13395b2292089ba805"
+      },
+      {
+        "filename": "packaging-26.3-py3-none-any.whl",
+        "sha256": "a7050ae102d556d00f251d98f07289a0f17f033eaa7ebbbdc8b072528163f97a"
+      },
+      {
+        "filename": "pandas-2.2.3-cp311-cp311-win_amd64.whl",
+        "sha256": "d9a1b285a8bf7b81182565e441813885cad722bbfc92b6a6817d3987063423d3"
+      },
+      {
+        "filename": "patsy-1.0.1-py2.py3-none-any.whl",
+        "sha256": "879c143b2e7fcf05ad53e513834a531a1ab203eeaefa6b62e65a40828e998dc6"
+      },
+      {
+        "filename": "pillow-9.4.0-cp311-cp311-win_amd64.whl",
+        "sha256": "8496da13064d64377138deb1b7d092dcb0f46f9097fbf01a03cac1fb598ba406"
+      },
+      {
+        "filename": "propcache-0.4.1-cp311-cp311-win_amd64.whl",
+        "sha256": "ab9febd75d127c359bb9b16fe4782de1ff01695b090d83423c67ab55534516ee"
+      },
+      {
+        "filename": "psutil-5.9.0-cp311-cp311-win_amd64.whl",
+        "sha256": "ff08af9b57dd573671615e055d6539a7b0183773ef6fb7fecc685336de55a4d2"
+      },
+      {
+        "filename": "pyarrow-23.0.1-cp311-cp311-win_amd64.whl",
+        "sha256": "45e62bc15f7e6ffd4fe9636158e36d734332f5d1b739c75eca4dbfa6c99ac975"
+      },
+      {
+        "filename": "pybind11-2.12.0-py3-none-any.whl",
+        "sha256": "792c55b81a6a0c7ea5a4eca6b374e44b83df812c3ed816f47bc914f9555cd0b1"
+      },
+      {
+        "filename": "pydantic-2.5.0-py3-none-any.whl",
+        "sha256": "c4286ac883c5e62878bf764c5c6a514be633b24f840227f00708dd67fb426723"
+      },
+      {
+        "filename": "pydantic_core-2.14.1-cp311-none-win_amd64.whl",
+        "sha256": "d79f1527eb306e72d388e6591104784199fdbe05826b40af4e21a02b06eed178"
+      },
+      {
+        "filename": "pyparsing-3.0.9-py3-none-any.whl",
+        "sha256": "ae86ebd92c406a4e150f6d2656af9b11f5da7ba49a797710dc66f67f74842442"
+      },
+      {
+        "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+        "sha256": "b2f3a98e72785ad97f38dc60371fb2da1c0e382490b9ed4ae42fd03fce63d7e5"
+      },
+      {
+        "filename": "python_dotenv-1.1.1-py3-none-any.whl",
+        "sha256": "5b5e0510af3cda46a0257893630a1bf62b84cb6171b6334a11143cf63047de79"
+      },
+      {
+        "filename": "python_rapidjson-1.20-cp311-cp311-win_amd64.whl",
+        "sha256": "1c4b2ae01a9a0f748ce3ae163fe163d33157deabd90ef694aec91cdaba019c0a"
+      },
+      {
+        "filename": "pytz-2025.1-py2.py3-none-any.whl",
+        "sha256": "a798de4d2b675d68b4c435ca6352e943346adaaa1878f39b4630bd8572b71fca"
+      },
+      {
+        "filename": "pyyaml-6.0.1-cp311-cp311-win_amd64.whl",
+        "sha256": "c58d7fa75503c7b24a835357e6679682cf6d9e2ef7883def57e3949f0e3bed40"
+      },
+      {
+        "filename": "pyzmq-27.1.0-cp311-cp311-win_amd64.whl",
+        "sha256": "0903f03e6171c4cebfdb8e7c14ec6d0b0bb59f7076e8de58ed65e564de3878b0"
+      },
+      {
+        "filename": "requests-2.32.3-py3-none-any.whl",
+        "sha256": "13c4965a35bf4e2284b36baa59928d884bb171f3c5413c498f931fdc026add89"
+      },
+      {
+        "filename": "scikit_learn-1.3.0-cp311-cp311-win_amd64.whl",
+        "sha256": "6896e7ad9ab66eb7c040c6404569aa460846e885b09b4523e6d1dc8732ee480d"
+      },
+      {
+        "filename": "scipy-1.15.1-cp311-cp311-win_amd64.whl",
+        "sha256": "b4268def8270281e46e3697db652f390fdff2ca47e570ad346464457a0b4ba5a"
+      },
+      {
+        "filename": "six-1.16.0-py2.py3-none-any.whl",
+        "sha256": "c886eed9a2a67f3364797d03d991e4a24b9a60eb3fa22e1ea45f6f0a83268df4"
+      },
+      {
+        "filename": "sniffio-1.2.0-py3-none-any.whl",
+        "sha256": "5e9e5c05a1d8ef265ef6225ec9413ef9d53f109f4aa57a3e13a276fec90b533d"
+      },
+      {
+        "filename": "spdlog-2.0.6-cp311-cp311-win_amd64.whl",
+        "sha256": "d2d6da1a044100aef185db0991e323af436a1fd48e097942b98e6e74d7e72b42"
+      },
+      {
+        "filename": "statsmodels-0.14.4-cp311-cp311-win_amd64.whl",
+        "sha256": "b1de04eeb6641c00bfa4f179a6a3e69e62ab458e71037627c81f32ddf3991f3a"
+      },
+      {
+        "filename": "threadpoolctl-3.6.0-py3-none-any.whl",
+        "sha256": "00e53b369063b2a18610e3b374248483aeeb06caf967233e76b9aa3dd2a579a4"
+      },
+      {
+        "filename": "typing_extensions-4.15.0-py3-none-any.whl",
+        "sha256": "057477a9936bdee3652e810f5fbc161df970a35fbe4de3c61a183fbb6eae5ad9"
+      },
+      {
+        "filename": "tzdata-2023.3-py2.py3-none-any.whl",
+        "sha256": "33cd41ed56b244a25d9319bcfaab6860b3ff3dc0fbc2746219bf78bbab161bad"
+      },
+      {
+        "filename": "urllib3-1.26.20-py2.py3-none-any.whl",
+        "sha256": "eb821b7a9ee5fea24e010fac5b57475ec30e305cad63fb0cb2cd104641379281"
+      },
+      {
+        "filename": "websocket_client-1.8.0-py3-none-any.whl",
+        "sha256": "503497a80530e045e562bc721bcfc39b842c3f8332a46895eb5090725fd89416"
+      },
+      {
+        "filename": "websockets-15.0.1-cp311-cp311-win_amd64.whl",
+        "sha256": "40bc5816c9f42b67aa9d39da4114e488a8ec3246a2b16e406ed7eab07ff26652"
+      },
+      {
+        "filename": "yarl-1.23.0-cp311-cp311-win_amd64.whl",
+        "sha256": "96ea9315819449383fd889dd4616e561b9ff3be1d77df2711d388be885b370aa"
+      }
+    ],
+    "sha256": "c99342947c0cfa689aa06737c7b4ec8753d352ce02d67fde35865c4576173cec",
+    "wheel_count": 60
+  }
+}

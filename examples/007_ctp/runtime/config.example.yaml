@@ -1,0 +1,10 @@
+# LOCAL_REPLAY_ONLY: copy to config.yaml in this registered directory.
+# This migration profile does not load a CTP YAML, credentials, or provider.
+config_schema_version: 4
+strategy:
+  id: example.007_ctp.legacy_direct
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_action

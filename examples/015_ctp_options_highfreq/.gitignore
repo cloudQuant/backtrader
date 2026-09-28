@@ -1,4 +1,6 @@
 .env
 reports/
 __pycache__/
+/runtime/config.yaml
+!/runtime/config.example.yaml
 

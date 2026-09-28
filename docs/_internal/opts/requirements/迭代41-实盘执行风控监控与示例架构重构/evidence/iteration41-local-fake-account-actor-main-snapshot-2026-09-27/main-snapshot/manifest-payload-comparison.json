@@ -1,0 +1,18 @@
+{
+  "schema": "iteration41-local-fake-actor-payload-comparison.v1",
+  "author_manifest_sha256": "8bfcfb67c5d8de21d56e3d03d63478f81375e65f86b0f8c98e144a197b7f994f",
+  "author_manifest_revision": 4,
+  "manifest_sidecar_matches": true,
+  "candidate_payload_count": 10,
+  "current_tree_exact_payload_matches": 9,
+  "current_tree_changed_payloads": [
+    {
+      "path": "tests/unit/runtime/test_local_fake_account_actor_candidate.py",
+      "manifest_sha256": "67fe20c2cbde93cd2b29b21e85472c4675a4d43ddb50a6df546b442ca3b99018",
+      "current_sha256": "4fce80027d16d4618b82bd9c6cbc93cfd05a3c45301b4453227c21bb08923ee5",
+      "exact_change": "Removed only assertNotIn(\"bt_api_py\", sys.modules) and assertNotIn(\"_ctp\", sys.modules) from the pytest-process test. Child-boundary and fresh-process checks remain."
+    }
+  ],
+  "historical_independent_r3_report": "independent-qa/independent-qa-report-r3.md; its 3 CRLF mismatch finding predates author manifest r4 and is superseded for payload-byte identity; its scanner/inventory concern remains relevant.",
+  "scope": "This comparison does not establish external Actor authority, provider/native safety, Job Object cleanup, or official scanner closure."
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "iteration41.bm58_independent_qa_receipt.v1",
+  "date": "2026-09-27",
+  "classification": "FAKE_LOCAL_DIAGNOSTIC",
+  "acceptance_status": "NOT_ACCEPTED",
+  "archive_sha256": "1ca8dd82a8c7ae5db1933b79e6516524952f8d1acf32b2460a3b5175108ab7c7",
+  "archive_bytes": 72715,
+  "archive_member_count": 39,
+  "zip_testzip": null,
+  "report_sha256": "fa64062a5aa9947efa6bddcd0bccb0f8c6b422f98a4220a8e5867d1c2ef99171",
+  "output_audit_sha256": "c3d56fd58fa2d46129593a0e7dbe30706d1618e81c09f433bda5d3e1b446b808",
+  "author_raw_zip_sha256": "9363d92ecdda7527a12feb5e7357793458047067f137f336a795c3859a948272",
+  "author_manifest_sha256": "9426567739623296a95b78cd7c288a38f96764d0c7f38e4e1a45d26e88ac5adb",
+  "source_sha256": "b1f02883d706c6d5449c5483a9a67fc32dae99f903c16fd2738e5e1b278759b1",
+  "test_sha256": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+  "independent_pytest": "4 passed in 11.41s; CPython 3.11.5; plugin autoload disabled",
+  "run_summaries": {
+    "smoke-default-final": {
+      "planned": 20,
+      "accepted": 20,
+      "completed": 20,
+      "duplicates": 2,
+      "lost": 0,
+      "outstanding": 0,
+      "backpressure_events": 0,
+      "run_status": "PASS"
+    },
+    "pressure-40x1-final": {
+      "planned": 40,
+      "accepted": 40,
+      "completed": 40,
+      "duplicates": 0,
+      "lost": 0,
+      "outstanding": 0,
+      "backpressure_events": 39,
+      "run_status": "PASS"
+    }
+  },
+  "author_report_test_sha_erratum": {
+    "written": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffcb8f2fabb",
+    "verified": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb",
+    "author_file_modified": false
+  },
+  "limits": [
+    "Only a benchmark-owned local SQLite WAL table and two spawned local clients.",
+    "Fake provider is local sleep plus deterministic digest; it is not actor-server, Store, provider, SDK, native, account, credentials, or network evidence.",
+    "The 30-minute capacity profile was not run.",
+    "Zero external-call counters are emitted constants and are not OS-level call tracing.",
+    "In pressure run, one-second planned input was accepted/completed over 4.675 seconds; the 3.55-second production extension is a pressure diagnostic, not a throughput pass."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "decision": "R10 demonstrates an asynchronous single-slot state-machine prototype only; G1 remains closed.",
+  "manifest": "r10_manifest.json",
+  "manifest_sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+  "no_provider_or_credentials": true,
+  "no_repo_changes": true,
+  "source_sha256": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+  "status": "ASYNC_TICKET_PROTOTYPE_ONLY_G1_CLOSED",
+  "trials_sha256": "ba4ab18e585ff66a3af956b17fc84426ec055d4f5f6ae4916ed40fe2651894d5"
+}

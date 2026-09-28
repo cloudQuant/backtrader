@@ -1,0 +1,9 @@
+{
+  "all_manifest_payloads_match": true,
+  "crc_bad_member": null,
+  "manifest_files": 1010,
+  "mismatches": [],
+  "missing": [],
+  "unindexed_members": 9,
+  "zip_members": 1019
+}

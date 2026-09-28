@@ -1,0 +1,13 @@
+{
+  "parent": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\parent-source",
+  "base": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+  "ctp": "D:\\q\\e\\src",
+  "execution": "D:\\temp\\iteration41_v17_execution_review_20260926_r3_migration_integrity\\src",
+  "risk": "D:\\bt_api_risk_ac41_48_candidate_20260926\\src",
+  "monitor": "D:\\bt_api_monitor_ac41_53_candidate_20260926\\src",
+  "gateway": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\gateway\\src",
+  "transport_zmq": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\transport_zmq\\src",
+  "agent": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\agent\\src",
+  "skills": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\skills\\src",
+  "mcp": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\mcp\\src"
+}

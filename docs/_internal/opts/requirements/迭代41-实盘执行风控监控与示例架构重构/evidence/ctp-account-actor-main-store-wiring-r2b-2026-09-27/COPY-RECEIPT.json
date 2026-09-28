@@ -1,0 +1,203 @@
+{
+  "status": "COPY_VERIFIED",
+  "verdict": "AUTHOR_CANDIDATE / NO_WRITE",
+  "source_snapshot": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2b",
+  "candidate_manifest_sha256": "ecfdf31484133fdbab34b755941f95617e7055dd705dd4238d4daf71eaf2a619",
+  "candidate_manifest_payload_count": 724,
+  "archive_payload_count": 26,
+  "source_target_hashes": "all match",
+  "archive_index_sha256": "70b0728734869962247afbb2f50909e88efc371a470547c5ff7a422a2fa3f870",
+  "archive_member_count": 34,
+  "raw_zip": "r2b-author-evidence.zip",
+  "raw_zip_sha256": "7e9c610215a6be6752a74e8875b63010ca5c680366f180eff05e198271b5f659",
+  "raw_zip_testzip": "passed; null result",
+  "archive_index_member_hashes": "all pass",
+  "external_actor_dispatch": false,
+  "default_route_changed": false,
+  "ctp_provider_credentials_native_sdk_used": false,
+  "real_g1_g5_f14_or_production_acceptance": false,
+  "payloads": [
+    {
+      "path": "payload/candidate-manifest/r2b-manifest.json",
+      "source_path": "evidence/r2b-manifest.json",
+      "size_bytes": 136791,
+      "sha256": "ecfdf31484133fdbab34b755941f95617e7055dd705dd4238d4daf71eaf2a619",
+      "source_sha256": "ecfdf31484133fdbab34b755941f95617e7055dd705dd4238d4daf71eaf2a619"
+    },
+    {
+      "path": "payload/candidate-manifest/r2b-manifest.sha256",
+      "source_path": "evidence/r2b-manifest.sha256",
+      "size_bytes": 85,
+      "sha256": "7f336f2f0f7fcdfee0476c049da48bc527967c409f349489229c55264d6ff18f",
+      "source_sha256": "7f336f2f0f7fcdfee0476c049da48bc527967c409f349489229c55264d6ff18f"
+    },
+    {
+      "path": "payload/patches/r2b-main-base-apply.patch",
+      "source_path": "r2b-main-base-apply.patch",
+      "size_bytes": 120107,
+      "sha256": "1a16aadb94edb99924553d6472bf72dcb02bd04c7f994276816d91991a729f37",
+      "source_sha256": "1a16aadb94edb99924553d6472bf72dcb02bd04c7f994276816d91991a729f37"
+    },
+    {
+      "path": "payload/patches/r2b-apply.patch",
+      "source_path": "r2b-apply.patch",
+      "size_bytes": 42459,
+      "sha256": "d27a724711c3eb9c3622e5103c4d70da65d977510e740bb5030dea7990abf9dc",
+      "source_sha256": "d27a724711c3eb9c3622e5103c4d70da65d977510e740bb5030dea7990abf9dc"
+    },
+    {
+      "path": "payload/review/r2b-qa-report.md",
+      "source_path": "evidence/r2b-qa-report.md",
+      "size_bytes": 6154,
+      "sha256": "4146af589a728bac4025c3d0df1fa6714521cd5eb33d54bbba3ad66efe990e13",
+      "source_sha256": "4146af589a728bac4025c3d0df1fa6714521cd5eb33d54bbba3ad66efe990e13"
+    },
+    {
+      "path": "payload/review/r2b-old-ctp-21-migration.md",
+      "source_path": "evidence/r2b-old-ctp-21-migration.md",
+      "size_bytes": 9919,
+      "sha256": "1ba026c3a81bd7357d41231e105ebac97d91ae0d6414459815fc77190db38230",
+      "source_sha256": "1ba026c3a81bd7357d41231e105ebac97d91ae0d6414459815fc77190db38230"
+    },
+    {
+      "path": "payload/logs/r2b-internal-route-pre-fix.log",
+      "source_path": "evidence/r2b-internal-route-pre-fix.log",
+      "size_bytes": 2090,
+      "sha256": "6cb1e0112250221f14d00582d795c228df91f744b09c3be97419700410f0d88f",
+      "source_sha256": "6cb1e0112250221f14d00582d795c228df91f744b09c3be97419700410f0d88f"
+    },
+    {
+      "path": "payload/logs/r2b-internal-boundary-final.log",
+      "source_path": "evidence/r2b-internal-boundary-final.log",
+      "size_bytes": 738,
+      "sha256": "ec18e6c9bff922ded6da2f6ee82627388339cb1a0b38d8477b0d0caa42a9007a",
+      "source_sha256": "ec18e6c9bff922ded6da2f6ee82627388339cb1a0b38d8477b0d0caa42a9007a"
+    },
+    {
+      "path": "payload/logs/r2b-internal-boundary-final.junit.xml",
+      "source_path": "evidence/r2b-internal-boundary-final.junit.xml",
+      "size_bytes": 961,
+      "sha256": "c93dec9656f69b7146ed7282a3ccda506a2157082c5c8dcee190500248940bd7",
+      "source_sha256": "c93dec9656f69b7146ed7282a3ccda506a2157082c5c8dcee190500248940bd7"
+    },
+    {
+      "path": "payload/logs/r2b-candidate-focus-final.log",
+      "source_path": "evidence/r2b-candidate-focus-final.log",
+      "size_bytes": 737,
+      "sha256": "cfecf17e14e9e12e387e4421e8ab784865b1586c1e9d0fc30545fbf7641c5989",
+      "source_sha256": "cfecf17e14e9e12e387e4421e8ab784865b1586c1e9d0fc30545fbf7641c5989"
+    },
+    {
+      "path": "payload/logs/r2b-candidate-focus-final.junit.xml",
+      "source_path": "evidence/r2b-candidate-focus-final.junit.xml",
+      "size_bytes": 9188,
+      "sha256": "3713cd0b93145fbb58974558ba040ff702ed5e1e1e10c6d0e3ba4bb993dc35e8",
+      "source_sha256": "3713cd0b93145fbb58974558ba040ff702ed5e1e1e10c6d0e3ba4bb993dc35e8"
+    },
+    {
+      "path": "payload/logs/r2b-exact-30-final.log",
+      "source_path": "evidence/r2b-exact-30-final.log",
+      "size_bytes": 730,
+      "sha256": "90aab58976d2f7c4a1d06f7f11c7be221de1ddfcb8eb38b7cfb3e417bc625237",
+      "source_sha256": "90aab58976d2f7c4a1d06f7f11c7be221de1ddfcb8eb38b7cfb3e417bc625237"
+    },
+    {
+      "path": "payload/logs/r2b-exact-30-final.junit.xml",
+      "source_path": "evidence/r2b-exact-30-final.junit.xml",
+      "size_bytes": 6688,
+      "sha256": "943e3c3eeba0cd0b468ac9fdff8448f0f7da135dea2fcb2e8ff459765e6a775f",
+      "source_sha256": "943e3c3eeba0cd0b468ac9fdff8448f0f7da135dea2fcb2e8ff459765e6a775f"
+    },
+    {
+      "path": "payload/logs/r2b-related-stores-runtime-final.log",
+      "source_path": "evidence/r2b-related-stores-runtime-final.log",
+      "size_bytes": 744,
+      "sha256": "159f2acad7e031fc8c08cc3b3d25f3d6f90f5c66466f617f7b20730f57452baa",
+      "source_sha256": "159f2acad7e031fc8c08cc3b3d25f3d6f90f5c66466f617f7b20730f57452baa"
+    },
+    {
+      "path": "payload/logs/r2b-related-stores-runtime-final.junit.xml",
+      "source_path": "evidence/r2b-related-stores-runtime-final.junit.xml",
+      "size_bytes": 11189,
+      "sha256": "a90c6e74ea0d95dc5386740fa7aee47b6cede4e44ea59a655ff9c1966d900b98",
+      "source_sha256": "a90c6e74ea0d95dc5386740fa7aee47b6cede4e44ea59a655ff9c1966d900b98"
+    },
+    {
+      "path": "payload/logs/r2b-ruff-final.log",
+      "source_path": "evidence/r2b-ruff-final.log",
+      "size_bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "source_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "payload/logs/r2b-pycompile-final.log",
+      "source_path": "evidence/r2b-pycompile-final.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "payload/verification/r2b-main-base-patch-replay.txt",
+      "source_path": "evidence/r2b-main-base-patch-replay.txt",
+      "size_bytes": 886,
+      "sha256": "815d70867a6cc5facfa6226295426f30237e71ab634f03c7db0e602d040c34ef",
+      "source_sha256": "815d70867a6cc5facfa6226295426f30237e71ab634f03c7db0e602d040c34ef"
+    },
+    {
+      "path": "payload/verification/r2b-patch-replay-final.txt",
+      "source_path": "evidence/r2b-patch-replay-final.txt",
+      "size_bytes": 740,
+      "sha256": "a598827a3a2e4355befbc7c136ee807bd890bdaf88bd56be9ad79a2120883872",
+      "source_sha256": "a598827a3a2e4355befbc7c136ee807bd890bdaf88bd56be9ad79a2120883872"
+    },
+    {
+      "path": "payload/candidate/backtrader/stores/btapistore.py",
+      "source_path": "backtrader/stores/btapistore.py",
+      "size_bytes": 804142,
+      "sha256": "24f8199e199bbe84bbb113c3edbbee9e71d4736fdd8573297e24ead3298f2518",
+      "source_sha256": "24f8199e199bbe84bbb113c3edbbee9e71d4736fdd8573297e24ead3298f2518"
+    },
+    {
+      "path": "payload/candidate/backtrader/stores/ctp_account_actor_port.py",
+      "source_path": "backtrader/stores/ctp_account_actor_port.py",
+      "size_bytes": 25332,
+      "sha256": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3",
+      "source_sha256": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3"
+    },
+    {
+      "path": "payload/candidate/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+      "source_path": "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+      "size_bytes": 23358,
+      "sha256": "fc675d30a1cd3e303357406e81edc067af0b7559d2230ac6a2ee3732466cc2c6",
+      "source_sha256": "fc675d30a1cd3e303357406e81edc067af0b7559d2230ac6a2ee3732466cc2c6"
+    },
+    {
+      "path": "payload/candidate/tests/unit/stores/test_managed_ctp_store_adapter.py",
+      "source_path": "tests/unit/stores/test_managed_ctp_store_adapter.py",
+      "size_bytes": 30013,
+      "sha256": "15d93e165ea817b5ba484adac52658baf67f89fb83d30eff142c3e1ba4203ae3",
+      "source_sha256": "15d93e165ea817b5ba484adac52658baf67f89fb83d30eff142c3e1ba4203ae3"
+    },
+    {
+      "path": "payload/candidate/tests/unit/stores/test_ctp_non_authorizing_contracts.py",
+      "source_path": "tests/unit/stores/test_ctp_non_authorizing_contracts.py",
+      "size_bytes": 2623,
+      "sha256": "a61c8b0070a41c813d7c3adb1165f9ad38ea5b63986a9293e868e38d78f3b5cf",
+      "source_sha256": "a61c8b0070a41c813d7c3adb1165f9ad38ea5b63986a9293e868e38d78f3b5cf"
+    },
+    {
+      "path": "payload/main-base/backtrader/stores/btapistore.py",
+      "source_path": "input-sources/btapistore.py",
+      "size_bytes": 780123,
+      "sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "source_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826"
+    },
+    {
+      "path": "README.md",
+      "source_path": "canonical archive README (created for this bundle)",
+      "size_bytes": 1398,
+      "sha256": "529a46d36aee738a7d31e3f7a2331433016caf731b844182b612128b75ee725f",
+      "source_sha256": "529a46d36aee738a7d31e3f7a2331433016caf731b844182b612128b75ee725f"
+    }
+  ]
+}

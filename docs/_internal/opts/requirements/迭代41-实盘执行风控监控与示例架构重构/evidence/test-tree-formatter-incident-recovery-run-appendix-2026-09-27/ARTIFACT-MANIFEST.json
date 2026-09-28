@@ -1,0 +1,98 @@
+{
+  "artifact": "iteration41_test_tree_formatter_incident_recovery_run_appendix",
+  "date": "2026-09-27",
+  "scope": "raw test sidecars plus compact recovery provenance; no source tree payload",
+  "current_store": {
+    "observed_state": "A028 restored source",
+    "sha256": "a028a68df87abe84a1d38f4020d81af56e0dfb860ded43d36c3830933106696d",
+    "path": "backtrader/stores/btapistore.py"
+  },
+  "runs": [
+    {
+      "exit_code": 0,
+      "source_directory": "D:\\temp\\iteration41-post-formatter-recovery-store-runtime-baseline-20260927",
+      "passed": 2725,
+      "skipped": 43,
+      "name": "post_recovery_a028_baseline",
+      "xfailed": 2,
+      "failed": 0
+    },
+    {
+      "name": "rejected_r3_broad",
+      "source_directory": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927",
+      "failed": 13,
+      "disposition": "reversed; not current source state",
+      "exit_code": 1,
+      "passed": 2724,
+      "xfailed": 2,
+      "skipped": 43
+    }
+  ],
+  "payloads": [
+    {
+      "path": "runs/post-recovery-a028-baseline/junit.xml",
+      "source": "D:\\temp\\iteration41-post-formatter-recovery-store-runtime-baseline-20260927\\junit.xml",
+      "sha256": "ae480b77789669dd3d9156008d0e4ff8e35e26ad52f2e7329cbd1b24698e04d6",
+      "size_bytes": 486500
+    },
+    {
+      "path": "runs/post-recovery-a028-baseline/pytest.log",
+      "source": "D:\\temp\\iteration41-post-formatter-recovery-store-runtime-baseline-20260927\\pytest.log",
+      "sha256": "e3a212b0668e3a3fdaac53b200fe0d9364d343b727ebcfec2c5f6cabe5fc1ab4",
+      "size_bytes": 3777
+    },
+    {
+      "path": "runs/post-recovery-a028-baseline/exit.txt",
+      "source": "D:\\temp\\iteration41-post-formatter-recovery-store-runtime-baseline-20260927\\exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "size_bytes": 1
+    },
+    {
+      "path": "runs/rejected-r3-broad/junit.xml",
+      "source": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\junit.xml",
+      "sha256": "68b5dcfc60275d189842e89c3f5eb1912a47b48f197c29192975108d4fa9c0e7",
+      "size_bytes": 497230
+    },
+    {
+      "path": "runs/rejected-r3-broad/pytest.log",
+      "source": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\pytest.log",
+      "sha256": "9cc55fb66d4f59325603c22864a37c19b69099bedfe08fc797a92f91fe31bdd9",
+      "size_bytes": 14010
+    },
+    {
+      "path": "runs/rejected-r3-broad/exit.txt",
+      "source": "D:\\temp\\iteration41-store-generic-queue-r3-main-broad-20260927\\exit.txt",
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "size_bytes": 1
+    },
+    {
+      "path": "provenance/tracked-24-recovery/manifest.json",
+      "source": "D:\\temp\\g6-actionref-main-tree-test-preimage-recovery-r2-20260927\\manifest.json",
+      "sha256": "18ff61f0232a88892dc18e475a8cf9ad90cdaa5394dcb24099ae7aea1fb58810",
+      "size_bytes": 149969
+    },
+    {
+      "path": "provenance/tracked-24-recovery/PACKAGE-RECEIPT.json",
+      "source": "D:\\temp\\g6-actionref-main-tree-test-preimage-recovery-r2-20260927\\PACKAGE-RECEIPT.json",
+      "sha256": "fbb41f34f5cb5c956a60eaae1d9bf6a700f20e401c81c197504e289250930311",
+      "size_bytes": 873
+    },
+    {
+      "path": "provenance/untracked-49-runtime/runtime-incident-preimage-conclusion.json",
+      "source": "D:\\temp\\g6-runtime-preimage-audit-20260927\\runtime-incident-preimage-conclusion.json",
+      "sha256": "7697c45ab566c010ec599182d8b4d74fbe7f8e9aa6cd03f6737bf6c54817879b",
+      "size_bytes": 51111
+    },
+    {
+      "path": "provenance/untracked-16-recovery/manifest.json",
+      "source": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\manifest.json",
+      "sha256": "5c9abcf84c4b5f970599eaeeafbf1f4e58c0057780c8edd9c34b56b7feba75fd",
+      "size_bytes": 57986
+    }
+  ],
+  "notes": [
+    "R3 was reversed; the current Store file is the A028 source with SHA recorded above.",
+    "Ruff formatting is not a unique inverse. The recovery packet records exact candidate-to-incident formatter output matches and main-source identity evidence, but cannot prove uniqueness against unarchived preimages.",
+    "No full source tree ZIP or large snapshot was copied into this appendix."
+  ]
+}

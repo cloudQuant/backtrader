@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+"""Awesome Oscillator Module - AO momentum indicator.
+
+This module provides the Awesome Oscillator (AO) developed by
+Bill Williams to measure market momentum.
+
+Classes:
+    AwesomeOscillator: Awesome Oscillator indicator (aliases: AwesomeOsc, AO).
+
+Example:
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ao = bt.indicators.AO(self.data)
+
+        def next(self):
+            if self.ao.ao[0] > 0 and self.ao.ao[-1] < 0:
+                self.buy()
+"""
+
+from . import Indicator
+from .sma import SMA
+
+__all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
+
+
+class AwesomeOscillator(Indicator):
+    """
+    Awesome Oscillator (AO) is a momentum indicator reflecting the precise
+    changes in the market driving force, which helps to identify the trend's
+    strength up to the points of formation and reversal.
+
+
+    Formula:
+     - median price = (high + low) / 2
+     - AO = SMA (median price, 5)- SMA (median price, 34)
+
+    See:
+      - https://www.metatrader5.com/en/terminal/help/indicators/bw_indicators/awesome
+      - https://www.ifcmarkets.com/en/ntx-indicators/awesome-oscillator
+
+    """
+
+    # Alias
+    alias = ("AwesomeOsc", "AO")
+    # Line to generate
+    lines = ("ao",)
+    # Parameters
+    params = (
+        ("fast", 5),
+        ("slow", 34),
+        ("movav", SMA),
+    )
+    # Plot parameters
+    plotlines = {"ao": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
+
+    # Create indicators during initialization
+    def __init__(self):
+        """Initialize the Awesome Oscillator.
+
+        Sets minimum period to the slow period.
+        """
+        super().__init__()
+        self.addminperiod(self.p.slow)
+
+    def next(self):
+        """Calculate AO for the current bar.
+
+        Formula: AO = SMA(median_price, fast) - SMA(median_price, slow)
+        """
+        fast = self.p.fast
+        slow = self.p.slow
+
+        # Calculate median price SMA for fast period
+        fast_sum = 0.0
+        for i in range(fast):
+            fast_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
+        sma_fast = fast_sum / fast
+
+        # Calculate median price SMA for slow period
+        slow_sum = 0.0
+        for i in range(slow):
+            slow_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
+        sma_slow = slow_sum / slow
+
+        self.lines.ao[0] = sma_fast - sma_slow
+
+    def once(self, start, end):
+        """Calculate AO in runonce mode."""
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        larray = self.lines.ao.array
+        fast = self.p.fast
+        slow = self.p.slow
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(min(slow - 1, len(high_array))):
+            if i < len(larray):
+                larray[i] = float("nan")
+
+        for i in range(slow - 1, min(end, len(high_array), len(low_array))):
+            # Calculate fast SMA
+            fast_sum = 0.0
+            for j in range(fast):
+                idx = i - j
+                if idx >= 0:
+                    fast_sum += (high_array[idx] + low_array[idx]) / 2.0
+            sma_fast = fast_sum / fast
+
+            # Calculate slow SMA
+            slow_sum = 0.0
+            for j in range(slow):
+                idx = i - j
+                if idx >= 0:
+                    slow_sum += (high_array[idx] + low_array[idx]) / 2.0
+            sma_slow = slow_sum / slow
+
+            larray[i] = sma_fast - sma_slow
+
+
+AwesomeOsc = AO = AwesomeOscillator

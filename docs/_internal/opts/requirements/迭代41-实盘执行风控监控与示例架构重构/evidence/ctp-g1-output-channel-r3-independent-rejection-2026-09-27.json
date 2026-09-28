@@ -1,0 +1,64 @@
+{
+  "schema": "iteration41.g1_output_r3.root_rejection.v1",
+  "status": "REJECTED_FORGED_JOB_EMPTY_AND_CONSTRUCTOR_CLEANUP",
+  "source_manifest_sha256": "00bbd6a4c22b43544f051b23cb527d4cc0f1c58d4a2d210d327355daf6177824",
+  "independent_receipt_sha256": "23500f91185ca79bdc92ebce24612de43144116a6b6a0848e276ac697fb5a78e",
+  "independent_focus": "15 passed, but counterexample rejects helper",
+  "archive": {
+    "file": "ctp-g1-output-channel-r3-independent-rejection-2026-09-27.raw.zip",
+    "sha256": "d4267de8a0129572e69e6efe61ea1248cfe5e42d707a90b9448b8a762eb008c0",
+    "entries": 10
+  },
+  "files": [
+    {
+      "path": "independent/forged_outer_result_repro.log",
+      "sha256": "f16a8bfa89b5c272320706b9af2eb42b098b84b20fd3e899a3574bb13bddd291",
+      "bytes": 102
+    },
+    {
+      "path": "independent/forged_outer_result_repro.py",
+      "sha256": "6368869eeb080d9a6606e2e4eb375c6b15420d60a67cdbc9aeba171f3dc932ae",
+      "bytes": 1486
+    },
+    {
+      "path": "independent/independent-junit.xml",
+      "sha256": "8268af19daabe4f968c35e7fcbe20f6d4b6e70f7275bca1f7c1eaa9b77125b2a",
+      "bytes": 2786
+    },
+    {
+      "path": "independent/independent-pytest.log",
+      "sha256": "0d017124c13cb56caa4ffdd671d9c09a6186de9f5bc0c0984a53220c6420d03b",
+      "bytes": 861
+    },
+    {
+      "path": "independent/review-receipt.json",
+      "sha256": "23500f91185ca79bdc92ebce24612de43144116a6b6a0848e276ac697fb5a78e",
+      "bytes": 5165
+    },
+    {
+      "path": "source-r3/manifest.json",
+      "sha256": "00bbd6a4c22b43544f051b23cb527d4cc0f1c58d4a2d210d327355daf6177824",
+      "bytes": 965
+    },
+    {
+      "path": "source-r3/scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719",
+      "bytes": 23510
+    },
+    {
+      "path": "source-r3/scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "bytes": 46080
+    },
+    {
+      "path": "source-r3/scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "c27e5e036039fe14e00f7f3caa8b14a82869c4f03dff44bf72e6a0ee0d2e92e6",
+      "bytes": 45041
+    },
+    {
+      "path": "source-r3/tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+      "sha256": "999fc5ea0abf402bd07bcec587d38fb18d7ef8b8e50e0302527fe632fc48e787",
+      "bytes": 18283
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer_candidate_receipt.v2",
+  "disposition": "FAKE_ONLY / NO_RELEASE / G6-S CLOSED / G7-S CLOSED",
+  "candidate_root": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927-r2",
+  "parent_r1": {
+    "manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+    "candidate_zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+    "author_tests": "35 passed",
+    "independent_qa_tests": "21 passed; two intentional malformed-input counterexamples reproduced"
+  },
+  "implementation": {
+    "path": "ctp_simnow_settlement_consumer.py",
+    "sha256": "24816a2c71ba617224c9efdae1b963bc14ad4ef723a75e2df8ee233bbfa9b516",
+    "test_path": "tests/test_ctp_simnow_settlement_consumer.py",
+    "test_sha256": "b16bae1e2dbefb74f2a37c74b44e99266e5b9cee6457ac4d929c6379fbb76328",
+    "strict_input_delta": [
+      "query_connection_generation exact int and positive",
+      "current_connection_generation exact int and positive",
+      "error_code is None or exact int zero",
+      "submit_code is None or exact int zero"
+    ]
+  },
+  "r2_tests": {
+    "command_evidence": "evidence/r2-test-command.txt",
+    "output": "evidence/r2-pytest.stdout.txt",
+    "output_sha256": "c54da19f6e85e17db0d1e7f3cc96a64aa96ae08783f76001db0dd1e8dc447148",
+    "junit": "evidence/r2-pytest.junit.xml",
+    "junit_sha256": "50455db5d24ff9dd53cfba225b463452dd6aa08e822725bd8129abd03e7c6a87",
+    "result": "39 passed, exit 0",
+    "py_compile": "exit 0",
+    "blocked_import_smoke": "exit 0; bt_api_ctp and _ctp not loaded"
+  },
+  "safety_scope": {
+    "production_source_modified": false,
+    "runtime_inventory_or_cli_connected": false,
+    "default_route_changed": false,
+    "real_sdk_or_native_imported_or_called": false,
+    "provider_or_network_used": false,
+    "credentials_or_private_config_read": false,
+    "write_methods_exposed": false,
+    "fallback_pair_selection": false,
+    "provider_source_trusted": false,
+    "execution_authorized": false,
+    "snapshot_authority_proven": false,
+    "os_writer_fence_proven": false,
+    "g6s_accepted": false,
+    "g7s_accepted": false
+  },
+  "historical_harness_diagnostic": "One r2 import-guard smoke was first invoked without the candidate root on PYTHONPATH and failed with ModuleNotFoundError; the corrected guarded import with the candidate and repository roots passed. The failed invocation is retained separately and is not a candidate test failure.",
+  "provider_evidence_limit": "An injected fake attestor supplies the modeled fields. The candidate checks exact shape and binding only; it does not authenticate the attestor, recompute digests, or establish durable provider provenance."
+}

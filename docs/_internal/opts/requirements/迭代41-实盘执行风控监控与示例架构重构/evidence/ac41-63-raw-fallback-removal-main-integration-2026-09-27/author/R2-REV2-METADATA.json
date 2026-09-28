@@ -1,0 +1,88 @@
+{
+  "schema": "ac41-63-r2-rev2-frozen-candidate",
+  "status": "ISOLATED_NO_WRITE_LIVE_NO_GO_AWAITING_INDEPENDENT_QA",
+  "source_patch": {
+    "path": "PATCH-GIT.diff",
+    "sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+    "base_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+    "target_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+    "git_apply_check_and_apply_core_autocrlf_false_passed_exact_base": true,
+    "current_main_read_only_apply_check_passed": true,
+    "applied_to_main": false,
+    "no_other_path_assertion": "NO-OTHER-PATH-ASSERTION.json"
+  },
+  "test_migration": {
+    "path": "TEST-MIGRATION.diff",
+    "sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b",
+    "target_test_path": "tests/unit/stores/test_btapistore.py",
+    "existing_submit_nodeid_preserved": "test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref",
+    "new_submit_nodeid": "test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access",
+    "new_cancel_param_nodeid": "test_ctp_wrapper_cancel_rejects_without_raw_action_access",
+    "current_main_read_only_apply_check_passed": true,
+    "applied_to_main": false,
+    "test_path_assertion": "TEST-PATH-ASSERTION.json"
+  },
+  "application_order": [
+    "PATCH-GIT.diff",
+    "TEST-MIGRATION.diff"
+  ],
+  "fake_boundary_probe": {
+    "count": 8,
+    "all_pass": true,
+    "path": "fake-boundary-probe-r2.json",
+    "sha256": "eb07d5faf7e6d88a72450010729e46c9fde922ad22fe66b7ebfe27ef0de5692f"
+  },
+  "focused_junit": {
+    "baseline": "baseline-focused.xml",
+    "baseline_tests": 4,
+    "baseline_passed": 1,
+    "baseline_failed_gate_cases": 3,
+    "patched": "patched-focused.xml",
+    "patched_tests": 4,
+    "patched_passed": 4,
+    "patched_failed": 0
+  },
+  "two_file_junit": {
+    "baseline": "baseline-full.xml",
+    "baseline_tests": 341,
+    "baseline_passed": 335,
+    "baseline_failed": 6,
+    "patched": "patched-full.xml",
+    "patched_tests": 341,
+    "patched_passed": 338,
+    "patched_failed": 3,
+    "exact_failure_nodeids": "R2-REV2-RESULTS.json"
+  },
+  "source_only_tree_assertion": {
+    "path": "NO-OTHER-PATH-ASSERTION.json",
+    "files_compared": 1025,
+    "only_changed_path": "backtrader/stores/btapistore.py"
+  },
+  "candidates": {
+    "total": 389,
+    "prior_slice_reviewed": 10,
+    "new_slice_reviewed": 12,
+    "cumulative_examined": 22,
+    "unexamined": 367,
+    "official_disposition": "REVIEW_REQUIRED/NOT_AVAILABLE"
+  },
+  "prior_artifacts": {
+    "r1_status": "NEEDS_REVISION",
+    "r1_preserved": true,
+    "r1_application_artifact_superseded_by_r2": true,
+    "initial_r2_package_preserved": true,
+    "initial_r2_package_sha256": "12ad9e0f5b207c6a306474e8d1e6f7738cd72642d81e3e749f10614e7c6b2b73",
+    "r2_rev2_supersedes_initial_r2_test_migration_and_results": true
+  },
+  "replay_required_after_r2b_r2c_or_source_change": true,
+  "trusted_capability_authority_established": false,
+  "write_authorized": false,
+  "real_sdk_network_native_or_order_used": false,
+  "artifacts": {
+    "report_sha256": "accd4d4ca212506c82c23a53997fb68853e60a4c25fff8b1006e21f9f5f0363e",
+    "results_sha256": "7ba356c6795ca35a2772d44f93f93c2d0f0c53dad2161b0c7e005a0ab962cd5e",
+    "byte_replacements_sha256": "e4ac5024dee4642ba74970126a8411fbcc7b927f3beac1486874521cd93c0a37",
+    "test_path_assertion_sha256": "112b3ea60b39f0a8c8e0cfe247032df9dd7f3a62106848791f890da0f7e979a4",
+    "r1_candidate_table_sha256": "c10fb8791d224c79024fb38189bd46f5e51fe9645f4a58e2ec28ba602e48a093"
+  }
+}

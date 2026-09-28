@@ -1,0 +1,1763 @@
+--- a/implementation/sdk/src/bt_api_execution/__init__.py
++++ b/implementation/sdk/src/bt_api_execution/__init__.py
+@@ -55,6 +55,9 @@
+     CtpDispatchReceipt,
+     CtpOrderIdentityReservation,
+     CtpOrderRefSeedProof,
++    CtpOrderTargetProjectionHandle,
++    CtpOrderTargetProjectionVerifier,
++    CtpVerifiedOrderTargetProjection,
+     ExecutionRecord,
+     SqliteExecutionStore,
+     WriterLease,
+@@ -76,7 +79,10 @@
+     "CtpDispatchCommand",
+     "CtpDispatchReceipt",
+     "CtpOrderIdentityReservation",
++    "CtpOrderTargetProjectionHandle",
++    "CtpOrderTargetProjectionVerifier",
+     "CtpOrderRefSeedProof",
++    "CtpVerifiedOrderTargetProjection",
+     "ChildIntent",
+     "ContractValidationError",
+     "DispatchPort",
+--- a/implementation/sdk/src/bt_api_execution/store.py
++++ b/implementation/sdk/src/bt_api_execution/store.py
+@@ -18,7 +18,7 @@
+ from decimal import Decimal
+ from pathlib import Path
+ from threading import RLock
+-from typing import TYPE_CHECKING, Any, Optional, Tuple
++from typing import TYPE_CHECKING, Any, Optional, Protocol, Tuple
+ 
+ if TYPE_CHECKING:
+     from collections.abc import Iterator
+@@ -222,6 +222,149 @@
+     session_id: int
+ 
+ 
++_CTP_ORDER_TARGET_MAX_TTL_NS = 5_000_000_000
++
++
++@dataclass(frozen=True)
++class CtpVerifiedOrderTargetProjection:
++    """Typed verifier output for one fresh, unique native OPEN/PARTIAL row.
++
++    Caller-supplied fields are not accepted as verification. Only the return
++    value of an injected verifier can be issued by this Store; this package
++    has no native CTP query verifier and defaults to rejection.
++    """
++
++    account_key: str
++    scope_key: str
++    trading_day: str
++    managed_intent_id: str
++    runtime_order_id: str
++    order_ref: str
++    account_fingerprint_sha256: str
++    registration_digest: str
++    instrument_id: str
++    exchange_id: str
++    session_generation_id: str
++    connection_generation: int
++    query_front_id: int
++    query_session_id: int
++    query_request_id: int
++    query_filters_sha256: str
++    query_records_sha256: str
++    source_evidence_sha256: str
++    query_record_count: int
++    query_match_count: int
++    query_complete: bool
++    query_terminal: bool
++    query_timed_out: bool
++    query_error_id: int | None
++    late_callback_count: int
++    order_sys_id: str
++    front_id: int
++    session_id: int
++    provider_state: str
++    quantity: int
++    traded_quantity: int
++    remaining_quantity: int
++    verifier_id: str
++    verified_at_ns: int
++    expires_at_ns: int
++
++    def __post_init__(self) -> None:
++        for name in (
++            "account_key", "scope_key", "managed_intent_id", "runtime_order_id",
++            "instrument_id", "exchange_id", "session_generation_id", "order_sys_id",
++            "verifier_id",
++        ):
++            value = getattr(self, name)
++            if (type(value) is not str or not value or value != value.strip()
++                    or len(value) > 128 or not value.isascii()
++                    or any(not (char.isalnum() or char in "._:-") for char in value)):
++                raise ContractValidationError("invalid CTP target " + name)
++        if (type(self.trading_day) is not str or len(self.trading_day) != 8
++                or not self.trading_day.isascii() or not self.trading_day.isdigit()):
++            raise ContractValidationError("invalid CTP target trading day")
++        if (type(self.order_ref) is not str or len(self.order_ref) != 12
++                or not self.order_ref.isascii() or not self.order_ref.isdigit()):
++            raise ContractValidationError("invalid CTP target OrderRef")
++        for name in ("account_fingerprint_sha256", "registration_digest",
++                     "query_filters_sha256", "query_records_sha256",
++                     "source_evidence_sha256"):
++            self._validate_digest(getattr(self, name), name)
++        for name in ("connection_generation", "query_front_id", "query_session_id",
++                     "query_request_id", "front_id", "session_id"):
++            value = getattr(self, name)
++            if type(value) is not int or value <= 0:
++                raise ContractValidationError("invalid CTP target " + name)
++        if self.query_request_id > 2_147_483_647:
++            raise ContractValidationError("invalid CTP target query request id")
++        if (type(self.query_record_count) is not int or self.query_record_count <= 0
++                or type(self.query_match_count) is not int or self.query_match_count != 1):
++            raise ContractValidationError("CTP target query is ambiguous or empty")
++        if (self.query_complete is not True or self.query_terminal is not True
++                or self.query_timed_out is not False
++                or type(self.query_error_id) not in (int, type(None))
++                or self.query_error_id not in (None, 0)
++                or type(self.late_callback_count) is not int
++                or self.late_callback_count != 0):
++            raise ContractValidationError("CTP target query is incomplete or unstable")
++        if self.provider_state not in {"OPEN", "PARTIAL"}:
++            raise ContractValidationError("CTP cancel target is not currently open")
++        if (type(self.quantity) is not int or self.quantity <= 0
++                or type(self.traded_quantity) is not int
++                or not 0 <= self.traded_quantity < self.quantity
++                or type(self.remaining_quantity) is not int
++                or self.remaining_quantity != self.quantity - self.traded_quantity
++                or self.remaining_quantity <= 0
++                or (self.provider_state == "OPEN" and self.traded_quantity != 0)
++                or (self.provider_state == "PARTIAL" and self.traded_quantity == 0)):
++            raise ContractValidationError("CTP target open quantity is inconsistent")
++        if (type(self.verified_at_ns) is not int or self.verified_at_ns <= 0
++                or type(self.expires_at_ns) is not int
++                or not self.verified_at_ns < self.expires_at_ns
++                or self.expires_at_ns - self.verified_at_ns > _CTP_ORDER_TARGET_MAX_TTL_NS):
++            raise ContractValidationError("invalid CTP target freshness interval")
++
++    @staticmethod
++    def _validate_digest(value: Any, field: str) -> None:
++        if (type(value) is not str or len(value) != 64
++                or any(char not in "0123456789abcdef" for char in value)):
++            raise ContractValidationError("invalid CTP target " + field)
++
++    def to_payload(self) -> dict[str, Any]:
++        return {name: getattr(self, name) for name in self.__dataclass_fields__}
++
++
++@dataclass(frozen=True)
++class CtpOrderTargetProjectionHandle:
++    """Ephemeral handle issued after same-Store SQLite row readback."""
++
++    projection_id: str
++    projection_sha256: str
++    projection: CtpVerifiedOrderTargetProjection
++
++
++class CtpOrderTargetProjectionVerifier(Protocol):
++    """Trusted native query adapter contract; no production implementation ships."""
++
++    def verify_order_target(
++        self,
++        scope: ExecutionScope,
++        reservation: CtpOrderIdentityReservation,
++        native_query_evidence: Any,
++        *,
++        now_ns: int,
++    ) -> CtpVerifiedOrderTargetProjection: ...
++
++
++class _RejectCtpOrderTargetProjectionVerifier:
++    def verify_order_target(self, *args: Any, **kwargs: Any) -> CtpVerifiedOrderTargetProjection:
++        raise ContractValidationError("trusted CTP order-target query verifier is required")
++
++
++_REJECT_CTP_ORDER_TARGET_VERIFIER = _RejectCtpOrderTargetProjectionVerifier()
++
++
+ _CANCEL_ALLOWED_TRANSITIONS: dict[ExecutionState, frozenset[ExecutionState]] = {
+     ExecutionState.PENDING_ADMISSION: frozenset(
+         {ExecutionState.PENDING_DISPATCH, ExecutionState.REJECTED, ExecutionState.BLOCKED}
+@@ -267,8 +410,15 @@
+     # Version 2 makes intent identity scope-qualified. Version 3 adds observed
+     # cumulative commission. Version 4 adds CTP order identity reservations.
+     # Version 5 adds an offline-only command queue in this same authority; the
+-    # generic event outbox remains an event log, not a command source.
+-    _SCHEMA_VERSION = 5
++    # generic event outbox remains an event log, not a command source. Version
++    # 6 adds typed durable native-target projections and one-use cancel binding.
++    _SCHEMA_VERSION = 6
++
++    @staticmethod
++    def _monotonic_now_ns() -> int:
++        """Read process monotonic time for short-lived target projections."""
++
++        return time.monotonic_ns()
+ 
+     def __init__(self, path: str | Path, *, busy_timeout_ms: int = 5_000) -> None:
+         if type(busy_timeout_ms) is not int or busy_timeout_ms <= 0:
+@@ -288,6 +438,9 @@
+             self._connection.execute("PRAGMA journal_mode = WAL")
+             self._connection.execute("PRAGMA synchronous = FULL")
+             self._lock = RLock()
++            self._issued_ctp_order_target_projections: dict[
++                str, CtpOrderTargetProjectionHandle
++            ] = {}
+             self._create_schema()
+         except sqlite3.Error as error:
+             raise DurableStoreError("unable to initialize execution store") from error
+@@ -394,6 +547,57 @@
+                 );
+                 CREATE INDEX IF NOT EXISTS ctp_order_identity_scope_day
+                     ON ctp_order_identity_reservations(account_key, trading_day, scope_key);
++                CREATE TABLE IF NOT EXISTS ctp_order_target_projections (
++                    account_key TEXT NOT NULL,
++                    projection_id TEXT NOT NULL
++                        CHECK(length(projection_id) = 32
++                              AND projection_id NOT GLOB '*[^0-9a-f]*'),
++                    runtime_order_id TEXT NOT NULL,
++                    scope_key TEXT NOT NULL,
++                    trading_day TEXT NOT NULL,
++                    managed_intent_id TEXT NOT NULL,
++                    order_ref TEXT NOT NULL
++                        CHECK(length(order_ref) = 12 AND order_ref NOT GLOB '*[^0-9]*'),
++                    session_generation_id TEXT NOT NULL,
++                    connection_generation INTEGER NOT NULL CHECK(connection_generation > 0),
++                    query_front_id INTEGER NOT NULL CHECK(query_front_id > 0),
++                    query_session_id INTEGER NOT NULL CHECK(query_session_id > 0),
++                    query_request_id INTEGER NOT NULL CHECK(query_request_id > 0),
++                    projection_payload_json TEXT NOT NULL,
++                    projection_sha256 TEXT NOT NULL CHECK(length(projection_sha256) = 64),
++                    verified_at_ns INTEGER NOT NULL CHECK(verified_at_ns > 0),
++                    expires_at_ns INTEGER NOT NULL CHECK(expires_at_ns > verified_at_ns),
++                    created_at_ns INTEGER NOT NULL CHECK(created_at_ns > 0),
++                    PRIMARY KEY(account_key, projection_id),
++                    FOREIGN KEY(account_key, runtime_order_id)
++                        REFERENCES ctp_order_identity_reservations(account_key, runtime_order_id)
++                );
++                CREATE INDEX IF NOT EXISTS ctp_order_target_projection_latest
++                    ON ctp_order_target_projections(
++                        account_key, scope_key, trading_day, runtime_order_id, created_at_ns DESC
++                    );
++                CREATE UNIQUE INDEX IF NOT EXISTS ctp_order_target_query_request_once
++                    ON ctp_order_target_projections(
++                        account_key, scope_key, trading_day, session_generation_id,
++                        connection_generation, query_request_id
++                    );
++                CREATE TABLE IF NOT EXISTS ctp_order_target_projection_consumptions (
++                    account_key TEXT NOT NULL,
++                    projection_id TEXT NOT NULL,
++                    command_id TEXT NOT NULL,
++                    consumed_at_ns INTEGER NOT NULL CHECK(consumed_at_ns > 0),
++                    PRIMARY KEY(account_key, projection_id),
++                    FOREIGN KEY(account_key, projection_id)
++                        REFERENCES ctp_order_target_projections(account_key, projection_id),
++                    FOREIGN KEY(account_key, command_id)
++                        REFERENCES ctp_dispatch_commands(account_key, command_id)
++                );
++                CREATE INDEX IF NOT EXISTS ctp_order_target_consumption_command
++                    ON ctp_order_target_projection_consumptions(
++                        account_key, command_id, consumed_at_ns DESC
++                    );
++                CREATE UNIQUE INDEX IF NOT EXISTS ctp_order_target_consumption_one_per_command
++                    ON ctp_order_target_projection_consumptions(account_key, command_id);
+                 CREATE TABLE IF NOT EXISTS ctp_order_ref_watermarks (
+                     account_key TEXT NOT NULL,
+                     trading_day TEXT NOT NULL,
+@@ -475,6 +679,26 @@
+                 BEGIN
+                     SELECT RAISE(ABORT, 'CTP dispatch command identity is immutable');
+                 END;
++                CREATE TRIGGER IF NOT EXISTS ctp_order_target_projections_immutable_update
++                BEFORE UPDATE ON ctp_order_target_projections
++                BEGIN
++                    SELECT RAISE(ABORT, 'CTP order-target projection is immutable');
++                END;
++                CREATE TRIGGER IF NOT EXISTS ctp_order_target_projections_immutable_delete
++                BEFORE DELETE ON ctp_order_target_projections
++                BEGIN
++                    SELECT RAISE(ABORT, 'CTP order-target projection is immutable');
++                END;
++                CREATE TRIGGER IF NOT EXISTS ctp_order_target_consumptions_immutable_update
++                BEFORE UPDATE ON ctp_order_target_projection_consumptions
++                BEGIN
++                    SELECT RAISE(ABORT, 'CTP order-target consumption is immutable');
++                END;
++                CREATE TRIGGER IF NOT EXISTS ctp_order_target_consumptions_immutable_delete
++                BEFORE DELETE ON ctp_order_target_projection_consumptions
++                BEGIN
++                    SELECT RAISE(ABORT, 'CTP order-target consumption is immutable');
++                END;
+                 """
+             )
+             row = cursor.execute(
+@@ -508,6 +732,12 @@
+                 )
+                 return
+             if version == "4":
++                cursor.execute(
++                    "UPDATE execution_meta SET value = ? WHERE key = ?",
++                    (str(self._SCHEMA_VERSION), "schema_version"),
++                )
++                return
++            if version == "5":
+                 cursor.execute(
+                     "UPDATE execution_meta SET value = ? WHERE key = ?",
+                     (str(self._SCHEMA_VERSION), "schema_version"),
+@@ -713,6 +943,242 @@
+             except sqlite3.Error as error:
+                 raise DurableStoreError("unable to read CTP order identity") from error
+         return None if row is None else self._ctp_order_identity_from_row(row)
++
++    @staticmethod
++    def _ctp_order_target_projection_from_payload(
++        payload: Any,
++    ) -> CtpVerifiedOrderTargetProjection:
++        if (type(payload) is not dict
++                or set(payload) != set(CtpVerifiedOrderTargetProjection.__dataclass_fields__)):
++            raise ContractValidationError("stored CTP target projection payload is invalid")
++        try:
++            return CtpVerifiedOrderTargetProjection(**payload)
++        except (TypeError, ValueError) as error:
++            raise ContractValidationError("stored CTP target projection is invalid") from error
++
++    @staticmethod
++    def _validate_ctp_order_target_projection_binding(
++        scope: ExecutionScope,
++        reservation: CtpOrderIdentityReservation,
++        projection: CtpVerifiedOrderTargetProjection,
++    ) -> None:
++        if type(projection) is not CtpVerifiedOrderTargetProjection:
++            raise ContractValidationError("typed verified CTP order target is required")
++        expected = (
++            reservation.account_key, reservation.scope_key, reservation.trading_day,
++            reservation.managed_intent_id, reservation.runtime_order_id, reservation.order_ref,
++        )
++        actual = (
++            projection.account_key, projection.scope_key, projection.trading_day,
++            projection.managed_intent_id, projection.runtime_order_id, projection.order_ref,
++        )
++        if (expected != actual or reservation.account_key != scope.account_key
++                or reservation.scope_key != scope.key
++                or reservation.trading_day != scope.trading_day):
++            raise ContractValidationError("verified CTP target differs from OrderRef reservation")
++
++    def issue_ctp_order_target_projection(
++        self,
++        scope: ExecutionScope,
++        managed_intent_id: str,
++        native_query_evidence: Any,
++        *,
++        verifier: CtpOrderTargetProjectionVerifier | None = None,
++    ) -> CtpOrderTargetProjectionHandle:
++        """Persist exact typed verifier output; native verification defaults to reject.
++
++        The query adapter owns evidence interpretation and current-result
++        readback. No caller mapping is converted into a projection here. The
++        returned handle is Store-instance scoped and cannot be revived after
++        restart without a new verified query.
++        """
++
++        account_key, trading_day, scope_key = self._validate_ctp_order_identity_scope(scope)
++        reservation = self.read_ctp_order_identity(scope, managed_intent_id)
++        if type(reservation) is not CtpOrderIdentityReservation:
++            raise ContractValidationError("CTP target has no same-store OrderRef reservation")
++        check_started_ns = self._monotonic_now_ns()
++        authority = _REJECT_CTP_ORDER_TARGET_VERIFIER if verifier is None else verifier
++        verify = getattr(authority, "verify_order_target", None)
++        if not callable(verify):
++            raise ContractValidationError("trusted CTP order-target query verifier is required")
++        try:
++            projection = verify(scope, reservation, native_query_evidence, now_ns=check_started_ns)
++        except Exception as error:
++            raise ContractValidationError("CTP order-target query verification failed") from error
++        if type(projection) is not CtpVerifiedOrderTargetProjection:
++            raise ContractValidationError("invalid typed CTP order-target verification result")
++        self._validate_ctp_order_target_projection_binding(scope, reservation, projection)
++        if (projection.verified_at_ns != check_started_ns
++                or projection.expires_at_ns <= check_started_ns):
++            raise ContractValidationError("CTP order-target query is stale or unbound")
++        payload = projection.to_payload()
++        payload_json = canonical_json(payload)
++        digest = payload_sha256(payload)
++        projection_id = uuid.uuid4().hex
++        if projection.expires_at_ns <= self._monotonic_now_ns():
++            raise ContractValidationError("CTP order-target query expired before persistence")
++        try:
++            with self._transaction() as cursor:
++                current = cursor.execute(
++                    """SELECT account_key, trading_day, scope_key, managed_intent_id,
++                              runtime_order_id, order_ref, created_at_ns
++                       FROM ctp_order_identity_reservations
++                       WHERE account_key = ? AND trading_day = ? AND scope_key = ?
++                         AND managed_intent_id = ?""",
++                    (account_key, trading_day, scope_key, managed_intent_id),
++                ).fetchone()
++                current_reservation = (
++                    None if current is None else self._ctp_order_identity_from_row(current)
++                )
++                if current_reservation != reservation:
++                    raise ContractValidationError(
++                        "CTP target reservation changed during verification"
++                    )
++                cursor.execute(
++                    """INSERT INTO ctp_order_target_projections(
++                           account_key, projection_id, runtime_order_id, scope_key,
++                           trading_day, managed_intent_id, order_ref, session_generation_id,
++                           connection_generation, query_front_id, query_session_id,
++                           query_request_id, projection_payload_json, projection_sha256,
++                           verified_at_ns, expires_at_ns, created_at_ns
++                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
++                    (
++                        account_key, projection_id, reservation.runtime_order_id, scope_key,
++                        trading_day, managed_intent_id, reservation.order_ref,
++                        projection.session_generation_id, projection.connection_generation,
++                        projection.query_front_id, projection.query_session_id,
++                        projection.query_request_id, payload_json, digest,
++                        projection.verified_at_ns, projection.expires_at_ns, time.time_ns(),
++                    ),
++                )
++        except DurableStoreError as error:
++            if isinstance(error.__cause__, sqlite3.IntegrityError):
++                raise ContractValidationError(
++                    "CTP native query identity is duplicate or already persisted"
++                ) from error
++            raise
++        handle = CtpOrderTargetProjectionHandle(projection_id, digest, projection)
++        self._issued_ctp_order_target_projections[projection_id] = handle
++        try:
++            self.read_ctp_order_target_projection(scope, handle)
++        except Exception:
++            self._issued_ctp_order_target_projections.pop(projection_id, None)
++            raise
++        return handle
++
++    def _read_ctp_order_target_projection_row(
++        self,
++        scope: ExecutionScope,
++        handle: CtpOrderTargetProjectionHandle,
++        *,
++        cursor: sqlite3.Cursor | None = None,
++        now_ns: int | None = None,
++    ) -> CtpVerifiedOrderTargetProjection:
++        account_key, trading_day, scope_key = self._validate_ctp_order_identity_scope(scope)
++        if (type(handle) is not CtpOrderTargetProjectionHandle
++                or self._issued_ctp_order_target_projections.get(handle.projection_id) is not handle):
++            raise ContractValidationError("fresh same-store CTP target handle is required")
++        projection = handle.projection
++        if (projection.account_key != account_key or projection.scope_key != scope_key
++                or projection.trading_day != trading_day):
++            raise ContractValidationError("CTP target handle belongs to another scope")
++        now = self._monotonic_now_ns() if now_ns is None else now_ns
++        if type(now) is not int or now >= projection.expires_at_ns:
++            raise ContractValidationError("CTP target handle is stale")
++        if handle.projection_sha256 != payload_sha256(projection.to_payload()):
++            raise ContractValidationError("CTP target handle digest differs")
++        query = """SELECT runtime_order_id, scope_key, trading_day, managed_intent_id,
++                         order_ref, projection_payload_json, projection_sha256,
++                         session_generation_id, connection_generation, query_front_id,
++                         query_session_id, query_request_id, verified_at_ns, expires_at_ns
++                  FROM ctp_order_target_projections
++                  WHERE account_key = ? AND projection_id = ?"""
++        if cursor is None:
++            with self._lock:
++                row = self._connection.execute(query, (account_key, handle.projection_id)).fetchone()
++        else:
++            row = cursor.execute(query, (account_key, handle.projection_id)).fetchone()
++        if row is None:
++            raise ContractValidationError("persisted CTP target projection is missing")
++        stored_json = str(row["projection_payload_json"])
++        stored_digest = str(row["projection_sha256"])
++        try:
++            stored_projection = self._ctp_order_target_projection_from_payload(json.loads(stored_json))
++        except (TypeError, ValueError, json.JSONDecodeError) as error:
++            raise ContractValidationError("persisted CTP target projection is invalid") from error
++        if (canonical_json(stored_projection.to_payload()) != stored_json
++                or stored_digest != payload_sha256(stored_projection.to_payload())
++                or stored_digest != handle.projection_sha256
++                or stored_projection != projection
++                or str(row["runtime_order_id"]) != projection.runtime_order_id
++                or str(row["scope_key"]) != projection.scope_key
++                or str(row["trading_day"]) != projection.trading_day
++                or str(row["managed_intent_id"]) != projection.managed_intent_id
++                or str(row["order_ref"]) != projection.order_ref
++                or str(row["session_generation_id"]) != projection.session_generation_id
++                or int(row["connection_generation"]) != projection.connection_generation
++                or int(row["query_front_id"]) != projection.query_front_id
++                or int(row["query_session_id"]) != projection.query_session_id
++                or int(row["query_request_id"]) != projection.query_request_id
++                or int(row["verified_at_ns"]) != projection.verified_at_ns
++                or int(row["expires_at_ns"]) != projection.expires_at_ns):
++            raise ContractValidationError("persisted CTP target projection readback differs")
++        return stored_projection
++
++    def read_ctp_order_target_projection(
++        self, scope: ExecutionScope, handle: CtpOrderTargetProjectionHandle
++    ) -> CtpVerifiedOrderTargetProjection:
++        """Read a fresh persisted projection through its exact live Store handle."""
++
++        return self._read_ctp_order_target_projection_row(scope, handle)
++
++    @staticmethod
++    def _record_ctp_order_target_projection_consumption(
++        cursor: sqlite3.Cursor,
++        *,
++        account_key: str,
++        projection_id: str,
++        command_id: str,
++        consumed_at_ns: int,
++    ) -> None:
++        by_projection = cursor.execute(
++            """SELECT command_id FROM ctp_order_target_projection_consumptions
++               WHERE account_key = ? AND projection_id = ?""",
++            (account_key, projection_id),
++        ).fetchone()
++        if by_projection is not None:
++            if str(by_projection["command_id"]) != command_id:
++                raise IntentConflictError(
++                    "CTP target projection is already consumed by another cancel"
++                )
++            by_command = cursor.execute(
++                """SELECT projection_id FROM ctp_order_target_projection_consumptions
++                   WHERE account_key = ? AND command_id = ?""",
++                (account_key, command_id),
++            ).fetchone()
++            if by_command is None or str(by_command["projection_id"]) != projection_id:
++                raise DurableStoreError("CTP target projection consumption readback conflicts")
++            return
++        by_command = cursor.execute(
++            """SELECT projection_id FROM ctp_order_target_projection_consumptions
++               WHERE account_key = ? AND command_id = ?""",
++            (account_key, command_id),
++        ).fetchone()
++        if by_command is not None:
++            raise IntentConflictError("CTP cancel command is bound to another target projection")
++        command = cursor.execute(
++            "SELECT operation FROM ctp_dispatch_commands WHERE account_key = ? AND command_id = ?",
++            (account_key, command_id),
++        ).fetchone()
++        if command is None or str(command["operation"]) != "CANCEL":
++            raise ContractValidationError("target projection can only bind to a staged cancel")
++        cursor.execute(
++            """INSERT INTO ctp_order_target_projection_consumptions(
++                   account_key, projection_id, command_id, consumed_at_ns
++               ) VALUES (?, ?, ?, ?)""",
++            (account_key, projection_id, command_id, consumed_at_ns),
++        )
+ 
+     @staticmethod
+     def _validate_ctp_order_ref(value: str, field_name: str) -> str:
+@@ -1232,6 +1698,7 @@
+         managed_intent_id: Optional[str] = None,
+         order_ref: Optional[str] = None,
+         cancel_target: Optional[CtpCancelTarget] = None,
++        cancel_target_projection: CtpOrderTargetProjectionHandle | None = None,
+     ) -> CtpDispatchCommand:
+         """Persist one immutable CTP command; this does not enable dispatch.
+ 
+@@ -1275,7 +1742,8 @@
+         cancel_front_id: Optional[int] = None
+         cancel_session_id: Optional[int] = None
+         if operation == "SUBMIT":
+-            if managed_intent_id is None or order_ref is None or cancel_target is not None:
++            if (managed_intent_id is None or order_ref is None or cancel_target is not None
++                    or cancel_target_projection is not None):
+                 raise ContractValidationError("SUBMIT requires its reserved intent and OrderRef")
+             self._validate_command_identifier(managed_intent_id, "managed_intent_id")
+             self._validate_ctp_order_ref(order_ref, "OrderRef")
+@@ -1293,6 +1761,30 @@
+             if managed_intent_id is not None or order_ref is not None or cancel_target is None:
+                 raise ContractValidationError("CANCEL requires an exact typed cancel target")
+             self._validate_ctp_cancel_target(cancel_target, request_value)
++            if type(cancel_target_projection) is not CtpOrderTargetProjectionHandle:
++                raise ContractValidationError(
++                    "CANCEL requires exact typed target and verified projection"
++                )
++            projection = self.read_ctp_order_target_projection(scope, cancel_target_projection)
++            if (projection.order_ref != cancel_target.order_ref
++                    or projection.exchange_id != cancel_target.exchange_id
++                    or projection.order_sys_id != cancel_target.order_sys_id
++                    or projection.front_id != cancel_target.front_id
++                    or projection.session_id != cancel_target.session_id):
++                raise ContractValidationError("CTP target projection differs from cancel target")
++            expected_query_session = {
++                "session_generation_id": projection.session_generation_id,
++                "dispatch_front_id": projection.query_front_id,
++                "dispatch_session_id": projection.query_session_id,
++            }
++            if any(
++                type(session_value.get(name)) is not type(value)
++                or session_value.get(name) != value
++                for name, value in expected_query_session.items()
++            ):
++                raise ContractValidationError(
++                    "CTP target query differs from exact dispatch session binding"
++                )
+             persisted_order_ref = None
+             persisted_cancel_target = cancel_target.order_ref
+             cancel_exchange_id = cancel_target.exchange_id
+@@ -1316,7 +1808,9 @@
+             else:
+                 reservation = cursor.execute(
+                     """
+-                    SELECT managed_intent_id FROM ctp_order_identity_reservations
++                    SELECT account_key, trading_day, scope_key, managed_intent_id,
++                           runtime_order_id, order_ref, created_at_ns
++                    FROM ctp_order_identity_reservations
+                     WHERE account_key = ? AND trading_day = ? AND scope_key = ?
+                       AND order_ref = ?
+                     """,
+@@ -1325,6 +1819,52 @@
+             if reservation is None:
+                 raise ContractValidationError("CTP command has no exact OrderRef reservation")
+             reservation_managed_intent_id = str(reservation["managed_intent_id"])
++            if operation == "CANCEL":
++                current_reservation = self._ctp_order_identity_from_row(reservation)
++                native_action_ref = request_value.get("OrderActionRef")
++                if (type(native_action_ref) is not int
++                        or not 1 <= native_action_ref <= 2_147_483_647):
++                    raise ContractValidationError(
++                        "CANCEL requires the candidate ActionRef authority"
++                    )
++                action_table = cursor.execute(
++                    """SELECT 1 FROM sqlite_master
++                       WHERE type = 'table' AND name = 'ctp_action_identity_reservations'"""
++                ).fetchone()
++                if action_table is None:
++                    raise ContractValidationError(
++                        "candidate ActionRef reservation table is unavailable"
++                    )
++                action_identity = cursor.execute(
++                    """SELECT managed_intent_id, runtime_order_id, order_ref
++                       FROM ctp_action_identity_reservations
++                       WHERE account_key = ? AND trading_day = ? AND scope_key = ?
++                         AND native_action_ref = ?""",
++                    (account_key, trading_day, scope_key, native_action_ref),
++                ).fetchone()
++                if (action_identity is None
++                        or str(action_identity["managed_intent_id"])
++                        != current_reservation.managed_intent_id
++                        or str(action_identity["runtime_order_id"])
++                        != current_reservation.runtime_order_id
++                        or str(action_identity["order_ref"])
++                        != current_reservation.order_ref):
++                    raise ContractValidationError(
++                        "CANCEL ActionRef is not issued by the candidate same-Store authority"
++                    )
++                projection = self._read_ctp_order_target_projection_row(
++                    scope, cancel_target_projection, cursor=cursor,
++                    now_ns=self._monotonic_now_ns(),
++                )
++                self._validate_ctp_order_target_projection_binding(
++                    scope, current_reservation, projection
++                )
++                if (projection.order_ref != cancel_target.order_ref
++                        or projection.exchange_id != cancel_target.exchange_id
++                        or projection.order_sys_id != cancel_target.order_sys_id
++                        or projection.front_id != cancel_target.front_id
++                        or projection.session_id != cancel_target.session_id):
++                    raise ContractValidationError("CTP target projection differs from cancel target")
+ 
+             existing = cursor.execute(
+                 "SELECT * FROM ctp_dispatch_commands WHERE account_key = ? AND command_id = ?",
+@@ -1379,6 +1919,14 @@
+                 )
+                 if stored != immutable:
+                     raise IntentConflictError("CTP command_id conflicts with staged command")
++                if operation == "CANCEL":
++                    self._record_ctp_order_target_projection_consumption(
++                        cursor,
++                        account_key=account_key,
++                        projection_id=cancel_target_projection.projection_id,
++                        command_id=command_id,
++                        consumed_at_ns=now_ns,
++                    )
+                 return self._ctp_dispatch_command_from_row(existing)
+ 
+             approval_owner = cursor.execute(
+@@ -1431,6 +1979,14 @@
+                 (account_key, command_id),
+             ).fetchone()
+             assert row is not None
++            if operation == "CANCEL":
++                self._record_ctp_order_target_projection_consumption(
++                    cursor,
++                    account_key=account_key,
++                    projection_id=cancel_target_projection.projection_id,
++                    command_id=command_id,
++                    consumed_at_ns=now_ns,
++                )
+             return self._ctp_dispatch_command_from_row(row)
+ 
+     def read_ctp_dispatch_command(
+@@ -1452,6 +2008,75 @@
+             except sqlite3.Error as error:
+                 raise DurableStoreError("unable to read CTP dispatch command") from error
+         return None if row is None else self._ctp_dispatch_command_from_row(row)
++
++    def require_fresh_ctp_cancel_target_for_dispatch(
++        self, scope: ExecutionScope, command_id: str
++    ) -> CtpVerifiedOrderTargetProjection:
++        """Recheck the consumed cancel projection immediately before SDK entry."""
++
++        account_key, trading_day, scope_key = self._validate_ctp_order_identity_scope(scope)
++        self._validate_command_identifier(command_id, "command_id")
++        with self._lock:
++            row = self._connection.execute(
++                """SELECT * FROM ctp_dispatch_commands
++                   WHERE account_key = ? AND scope_key = ? AND trading_day = ?
++                     AND command_id = ?""",
++                (account_key, scope_key, trading_day, command_id),
++            ).fetchone()
++            if row is None or str(row["operation"]) != "CANCEL" or str(row["status"]) != "CLAIMED":
++                raise ContractValidationError("CTP cancel is not durably claimed")
++            consumptions = self._connection.execute(
++                """SELECT projection_id FROM ctp_order_target_projection_consumptions
++                   WHERE account_key = ? AND command_id = ?""",
++                (account_key, command_id),
++            ).fetchall()
++            if len(consumptions) != 1:
++                raise ContractValidationError("CTP cancel lacks one exact target projection")
++            projection_id = str(consumptions[0]["projection_id"])
++            handle = self._issued_ctp_order_target_projections.get(projection_id)
++            if handle is None:
++                raise ContractValidationError(
++                    "fresh same-store CTP target handle is required before SDK entry"
++                )
++            projection = self._read_ctp_order_target_projection_row(
++                scope, handle, now_ns=self._monotonic_now_ns()
++            )
++            reservation_row = self._connection.execute(
++                """SELECT account_key, trading_day, scope_key, managed_intent_id,
++                          runtime_order_id, order_ref, created_at_ns
++                   FROM ctp_order_identity_reservations
++                   WHERE account_key = ? AND trading_day = ? AND scope_key = ?
++                     AND managed_intent_id = ? AND order_ref = ?""",
++                (
++                    account_key, trading_day, scope_key,
++                    str(row["reservation_managed_intent_id"]),
++                    str(row["cancel_target_order_ref"]),
++                ),
++            ).fetchone()
++            if reservation_row is None:
++                raise ContractValidationError("CTP cancel target reservation is missing")
++            self._validate_ctp_order_target_projection_binding(
++                scope, self._ctp_order_identity_from_row(reservation_row), projection
++            )
++            command = self._ctp_dispatch_command_from_row(row)
++            if (projection.order_ref != command.cancel_target_order_ref
++                    or projection.exchange_id != command.cancel_target_exchange_id
++                    or projection.order_sys_id != command.cancel_target_order_sys_id
++                    or projection.front_id != command.cancel_target_front_id
++                    or projection.session_id != command.cancel_target_session_id):
++                raise ContractValidationError("CTP target changed before SDK entry")
++            binding = command.session_binding
++            expected_query_session = {
++                "session_generation_id": projection.session_generation_id,
++                "dispatch_front_id": projection.query_front_id,
++                "dispatch_session_id": projection.query_session_id,
++            }
++            if any(
++                type(binding.get(name)) is not type(value) or binding.get(name) != value
++                for name, value in expected_query_session.items()
++            ):
++                raise ContractValidationError("CTP target session changed before SDK entry")
++            return projection
+ 
+     def claim_ctp_dispatch_command(
+         self,
+@@ -1534,6 +2159,45 @@
+                 raise ContractValidationError(
+                     "CTP OrderRef predates or conflicts with the seeded watermark"
+                 )
++            if str(row["operation"]) == "CANCEL":
++                consumption = cursor.execute(
++                    """SELECT projection_id FROM ctp_order_target_projection_consumptions
++                       WHERE account_key = ? AND command_id = ?""",
++                    (account_key, command_id),
++                ).fetchone()
++                if consumption is None:
++                    raise ContractValidationError("CTP cancel has no consumed target projection")
++                projection_id = str(consumption["projection_id"])
++                handle = self._issued_ctp_order_target_projections.get(projection_id)
++                if handle is None:
++                    raise ContractValidationError(
++                        "fresh same-store CTP target handle is required after restart"
++                    )
++                projection = self._read_ctp_order_target_projection_row(
++                    scope, handle, cursor=cursor, now_ns=self._monotonic_now_ns()
++                )
++                target_row = cursor.execute(
++                    """SELECT account_key, trading_day, scope_key, managed_intent_id,
++                              runtime_order_id, order_ref, created_at_ns
++                       FROM ctp_order_identity_reservations
++                       WHERE account_key = ? AND trading_day = ? AND scope_key = ?
++                         AND managed_intent_id = ? AND order_ref = ?""",
++                    (
++                        account_key, trading_day, scope_key,
++                        str(row["reservation_managed_intent_id"]), command_ref,
++                    ),
++                ).fetchone()
++                if target_row is None:
++                    raise ContractValidationError("CTP cancel target reservation is missing")
++                self._validate_ctp_order_target_projection_binding(
++                    scope, self._ctp_order_identity_from_row(target_row), projection
++                )
++                if (projection.order_ref != str(row["cancel_target_order_ref"])
++                        or projection.exchange_id != str(row["cancel_target_exchange_id"])
++                        or projection.order_sys_id != str(row["cancel_target_order_sys_id"])
++                        or projection.front_id != int(row["cancel_target_front_id"])
++                        or projection.session_id != int(row["cancel_target_session_id"])):
++                    raise ContractValidationError("CTP cancel target differs from consumed projection")
+             cursor.execute(
+                 """
+                 UPDATE ctp_dispatch_commands
+--- a/implementation/sdk/src/bt_api_execution/ctp_identity_authority.py
++++ b/implementation/sdk/src/bt_api_execution/ctp_identity_authority.py
+@@ -20,6 +20,7 @@
+     CtpDispatchCommand,
+     CtpOrderIdentityReservation,
+     CtpOrderRefSeedProof,
++    CtpOrderTargetProjectionHandle,
+     SqliteExecutionStore,
+     WriterLease,
+ )
+@@ -498,7 +499,7 @@
+         request_payload: Mapping[str, Any],
+         *,
+         target: CtpCancelTarget,
+-        cancel_target_projection: object | None = None,
++        cancel_target_projection: CtpOrderTargetProjectionHandle | None = None,
+         approval_use_id: str,
+         approval_digest: str,
+         session_binding: Mapping[str, Any],
+@@ -515,13 +516,14 @@
+             raise ContractValidationError("cancel action has no durable ActionRef reservation")
+         if action.order_ref != target.order_ref:
+             raise ContractValidationError("cancel target differs from reserved ActionRef order")
+-        if cancel_target_projection is not None:
+-            projection_reader = getattr(self.store, "read_ctp_order_target_projection", None)
+-            if not callable(projection_reader):
+-                raise ContractValidationError("same-store CTP target readback is unavailable")
+-            projection = getattr(cancel_target_projection, "projection", None)
+-            if projection is None or projection_reader(scope, cancel_target_projection) != projection:
+-                raise ContractValidationError("same-store CTP target projection readback differs")
++        if type(cancel_target_projection) is not CtpOrderTargetProjectionHandle:
++            raise ContractValidationError("typed CTP target projection handle is required")
++        projection_reader = getattr(self.store, "read_ctp_order_target_projection", None)
++        if not callable(projection_reader):
++            raise ContractValidationError("same-store CTP target readback is unavailable")
++        projection = cancel_target_projection.projection
++        if projection_reader(scope, cancel_target_projection) != projection:
++            raise ContractValidationError("same-store CTP target projection readback differs")
+         logical = dict(request_payload)
+         expected = {
+             "OrderRef": target.order_ref,
+@@ -544,6 +546,7 @@
+             session_binding=session_binding,
+             writer_lease=writer_lease,
+             cancel_target=target,
++            cancel_target_projection=cancel_target_projection,
+         )
+         durable = self.store.read_ctp_dispatch_command(scope, command.command_id)
+         if (
+--- a/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py
++++ b/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py
+@@ -14,10 +14,11 @@
+ """
+ from __future__ import annotations
+ 
++import inspect
+ import json
+ import re
+ import time
+-from collections.abc import Awaitable, Mapping
++from collections.abc import Mapping
+ from dataclasses import dataclass
+ from hashlib import sha256
+ from types import MappingProxyType
+@@ -34,6 +35,8 @@
+     CtpDispatchCommand,
+     CtpDispatchReceipt,
+     CtpOrderIdentityReservation,
++    CtpOrderTargetProjectionHandle,
++    CtpVerifiedOrderTargetProjection,
+     SqliteExecutionStore,
+     WriterLease,
+ )
+@@ -296,7 +299,7 @@
+ class CtpNativeDispatchSender(Protocol):
+     def __call__(
+         self, command: CtpDispatchCommand
+-    ) -> CtpNativeDispatchResult | Awaitable[CtpNativeDispatchResult]:
++    ) -> CtpNativeDispatchResult:
+         """Observe one already-claimed command in the SDK fake."""
+ 
+ 
+@@ -478,7 +481,8 @@
+         """
+ 
+         if (
+-            type(getattr(handle, "projection_id", None)) is not str
++            type(handle) is not CtpOrderTargetProjectionHandle
++            or type(getattr(handle, "projection_id", None)) is not str
+             or not re.fullmatch(r"[0-9a-f]{32}", handle.projection_id, re.ASCII)
+             or type(getattr(handle, "projection_sha256", None)) is not str
+             or not _HEX_64.fullmatch(handle.projection_sha256)
+@@ -486,6 +490,8 @@
+         ):
+             raise ContractValidationError("typed same-store CTP target handle is required")
+         projection = handle.projection
++        if type(projection) is not CtpVerifiedOrderTargetProjection:
++            raise ContractValidationError("typed verified CTP target projection is required")
+         payload = self._projection_payload(projection)
+         if payload_sha256(payload) != handle.projection_sha256:
+             raise ContractValidationError("CTP target projection handle digest differs")
+@@ -543,7 +549,7 @@
+             or projection.query_timed_out is not False
+             or projection.query_error_id not in (None, 0)
+             or type(projection.query_error_id) not in (int, type(None))
+-            or projection.expires_at_ns <= time.monotonic_ns()
++            or projection.expires_at_ns <= self._store._monotonic_now_ns()
+             or projection.expires_at_ns <= projection.verified_at_ns
+             or projection.expires_at_ns - projection.verified_at_ns
+             > _TARGET_PROJECTION_MAX_TTL_NS
+@@ -696,6 +702,12 @@
+         )
+         if not callable(sender):
+             raise ContractValidationError("one SDK fake sender is required")
++        if inspect.iscoroutinefunction(sender) or inspect.iscoroutinefunction(
++            getattr(sender, "__call__", None)
++        ):
++            raise ContractValidationError(
++                "awaitable SDK sender is unsupported without a send-entry fence"
++            )
+         handoff = self._read_handoff(command)
+         state = str(handoff["state"])
+         if command.status == "UNKNOWN":
+@@ -725,9 +737,27 @@
+         # A crash after the SQLite claim but before this marker is still safe:
+         # recovery fences the Store row to UNKNOWN, and no sender was called.
+         self._set_state(command_id, "CLAIMED", from_states={"QUEUED"})
++        if claimed.operation == "CANCEL":
++            try:
++                self._store.require_fresh_ctp_cancel_target_for_dispatch(
++                    self._scope, command_id
++                )
++            except Exception:  # noqa: BLE001 - fail closed after the durable claim
++                completed = self._complete_receipt(
++                    claimed, "UNKNOWN", "target_projection_expired_before_sender"
++                )
++                self._set_state(command_id, "UNKNOWN", from_states={"CLAIMED"})
++                return CtpWorkerDispatchResult(completed, "UNKNOWN", False)
+         outcome = "UNKNOWN"
+         try:
+             result = sender(claimed)
++            if inspect.isawaitable(result):
++                close = getattr(result, "close", None)
++                if callable(close):
++                    close()
++                raise ContractValidationError(
++                    "awaitable SDK sender is unsupported without a send-entry fence"
++                )
+             if type(result) is not CtpNativeDispatchResult:
+                 raise ContractValidationError("SDK fake returned an untyped dispatch receipt")
+             if result.outcome == "QUEUED":
+--- a/implementation/backtrader_bridge/ctp_order_action_bridge.py
++++ b/implementation/backtrader_bridge/ctp_order_action_bridge.py
+@@ -9,7 +9,12 @@
+ from dataclasses import dataclass
+ from typing import Any, Mapping, Optional
+ 
+-from bt_api_execution import CtpCancelTarget, ExecutionScope, SqliteExecutionStore
++from bt_api_execution import (
++    CtpCancelTarget,
++    CtpOrderTargetProjectionHandle,
++    ExecutionScope,
++    SqliteExecutionStore,
++)
+ from bt_api_execution.ctp_identity_authority import (
+     CtpActionIdentityReservation,
+     CtpActionRefSeedProof,
+@@ -98,6 +103,7 @@
+         command_id: str,
+         request_payload: Mapping[str, Any],
+         target: CtpCancelTarget,
++        cancel_target_projection: CtpOrderTargetProjectionHandle,
+         approval_use_id: str,
+         approval_digest: str,
+         session_binding: Mapping[str, Any],
+@@ -114,6 +120,25 @@
+             or target.order_ref != expected_order_ref
+         ):
+             raise CtpOrderActionBridgeError("cancel target differs from exact OrderRef reservation")
++        if type(cancel_target_projection) is not CtpOrderTargetProjectionHandle:
++            raise CtpOrderActionBridgeError("typed verified target projection is required")
++        try:
++            projection = self._store.read_ctp_order_target_projection(
++                self._scope, cancel_target_projection
++            )
++        except Exception as error:
++            raise CtpOrderActionBridgeError("same-store target projection readback failed") from error
++        if (projection.account_key != order.account_key
++                or projection.scope_key != order.scope_key
++                or projection.trading_day != order.trading_day
++                or projection.managed_intent_id != order.managed_intent_id
++                or projection.runtime_order_id != order.runtime_order_id
++                or projection.order_ref != order.order_ref
++                or projection.exchange_id != target.exchange_id
++                or projection.order_sys_id != target.order_sys_id
++                or projection.front_id != target.front_id
++                or projection.session_id != target.session_id):
++            raise CtpOrderActionBridgeError("target projection differs from cancel identity")
+         action = self._authority.reserve_cancel_action_identity(
+             self._scope,
+             managed_action_id,
+@@ -129,6 +154,7 @@
+             command_id,
+             request_payload,
+             target=target,
++            cancel_target_projection=cancel_target_projection,
+             approval_use_id=approval_use_id,
+             approval_digest=approval_digest,
+             session_binding=session_binding,
+--- a/implementation/tests/test_g5_single_worker_action_handoff.py
++++ b/implementation/tests/test_g5_single_worker_action_handoff.py
+@@ -2,17 +2,18 @@
+ 
+ import inspect
+ import json
+-import time
+-from dataclasses import dataclass, fields, replace
++from dataclasses import dataclass, replace
+ from hashlib import sha256
++from itertools import count
+ 
+ import pytest
+ from bt_api_execution import (
+     CtpCancelTarget,
+     CtpOrderRefSeedProof,
++    CtpOrderTargetProjectionHandle,
++    CtpVerifiedOrderTargetProjection,
+     ExecutionScope,
+     SqliteExecutionStore,
+-    payload_sha256,
+ )
+ from bt_api_execution.ctp_identity_authority import (
+     CtpActionRefSeedProof,
+@@ -29,45 +30,69 @@
+ 
+ 
+ @dataclass(frozen=True)
+-class _VerifiedTargetProjection:
+-    account_key: str
+-    scope_key: str
+-    trading_day: str
+-    managed_intent_id: str
+-    runtime_order_id: str
+-    order_ref: str
++class _SyntheticNativeOrderQueryEvidence:
++    """Test-only opaque stand-in; this is not evidence from a native SDK query."""
++
++    instrument_id: str
++    exchange_id: str
++    order_sys_id: str
+     session_generation_id: str
+     query_front_id: int
+     query_session_id: int
+     query_request_id: int
+-    instrument_id: str
+-    exchange_id: str
+-    order_sys_id: str
+     front_id: int
+     session_id: int
+-    provider_state: str
+-    quantity: int
+-    traded_quantity: int
+-    remaining_quantity: int
+-    query_record_count: int
+-    query_match_count: int
+-    query_complete: bool
+-    query_terminal: bool
+-    query_timed_out: bool
+-    query_error_id: int | None
+-    late_callback_count: int
+-    verified_at_ns: int
+-    expires_at_ns: int
+-
+-    def to_payload(self):
+-        return {field.name: getattr(self, field.name) for field in fields(self)}
+-
+-
+-@dataclass(frozen=True)
+-class _TargetProjectionHandle:
+-    projection_id: str
+-    projection_sha256: str
+-    projection: _VerifiedTargetProjection
++    provider_state: str = "OPEN"
++    quantity: int = 1
++    traded_quantity: int = 0
++
++
++class _SyntheticOrderQueryVerifier:
++    """Test-only fake verifier used to exercise the durable consumer contract."""
++
++    def verify_order_target(self, scope, reservation, evidence, *, now_ns):
++        if type(evidence) is not _SyntheticNativeOrderQueryEvidence:
++            raise ContractValidationError("synthetic typed query evidence required")
++        return CtpVerifiedOrderTargetProjection(
++            account_key=reservation.account_key,
++            scope_key=reservation.scope_key,
++            trading_day=reservation.trading_day,
++            managed_intent_id=reservation.managed_intent_id,
++            runtime_order_id=reservation.runtime_order_id,
++            order_ref=reservation.order_ref,
++            account_fingerprint_sha256=sha256(b"synthetic account fingerprint").hexdigest(),
++            registration_digest=sha256(b"synthetic registration").hexdigest(),
++            instrument_id=evidence.instrument_id,
++            exchange_id=evidence.exchange_id,
++            session_generation_id=evidence.session_generation_id,
++            connection_generation=1,
++            query_front_id=evidence.query_front_id,
++            query_session_id=evidence.query_session_id,
++            query_request_id=evidence.query_request_id,
++            query_filters_sha256=sha256(b"synthetic query filters").hexdigest(),
++            query_records_sha256=sha256(b"synthetic query records").hexdigest(),
++            source_evidence_sha256=sha256(b"synthetic source evidence").hexdigest(),
++            query_record_count=1,
++            query_match_count=1,
++            query_complete=True,
++            query_terminal=True,
++            query_timed_out=False,
++            query_error_id=0,
++            late_callback_count=0,
++            order_sys_id=evidence.order_sys_id,
++            front_id=evidence.front_id,
++            session_id=evidence.session_id,
++            provider_state=evidence.provider_state,
++            quantity=evidence.quantity,
++            traded_quantity=evidence.traded_quantity,
++            remaining_quantity=evidence.quantity - evidence.traded_quantity,
++            verifier_id="test-only.synthetic-order-query-verifier",
++            verified_at_ns=now_ns,
++            expires_at_ns=now_ns + 5_000_000_000,
++        )
++
++
++_QUERY_REQUEST_IDS = count(11)
+ 
+ 
+ def _scope() -> ExecutionScope:
+@@ -84,22 +109,6 @@
+     scope = _scope()
+     lease = store.acquire_or_renew_lease(scope, owner, ttl_ns=120_000_000_000)
+ 
+-    # This frozen author SDK snapshot predates the production target-projection
+-    # tables. Install a same-Store test readback port with exact handle identity.
+-    projections = {}
+-    store._g5_test_target_projections = projections
+-
+-    def read_target_projection(read_scope, handle):
+-        if read_scope != scope:
+-            return None
+-        entry = projections.get(getattr(handle, "projection_id", None))
+-        if entry is None or entry[0] is not handle:
+-            return None
+-        if handle.projection_sha256 != payload_sha256(handle.projection.to_payload()):
+-            return None
+-        return entry[1]
+-
+-    store.read_ctp_order_target_projection = read_target_projection
+     return store, authority, scope, lease
+ 
+ 
+@@ -213,47 +222,20 @@
+ 
+ 
+ def _target_projection(store, order, prepared, *, exchange_id=None):
+-    now_ns = time.monotonic_ns()
+-    projection = _VerifiedTargetProjection(
+-        account_key=order.account_key,
+-        scope_key=order.scope_key,
+-        trading_day=order.trading_day,
+-        managed_intent_id=order.managed_intent_id,
+-        runtime_order_id=order.runtime_order_id,
+-        order_ref=order.order_ref,
++    evidence = _SyntheticNativeOrderQueryEvidence(
++        instrument_id=prepared.request_payload["InstrumentID"],
++        exchange_id=exchange_id or prepared.cancel_target_exchange_id,
++        order_sys_id=prepared.cancel_target_order_sys_id,
+         session_generation_id=prepared.session_generation_id,
+         query_front_id=prepared.dispatch_front_id,
+         query_session_id=prepared.dispatch_session_id,
+-        query_request_id=11,
+-        instrument_id=prepared.request_payload["InstrumentID"],
+-        exchange_id=exchange_id or prepared.cancel_target_exchange_id,
+-        order_sys_id=prepared.cancel_target_order_sys_id,
++        query_request_id=next(_QUERY_REQUEST_IDS),
+         front_id=prepared.cancel_target_front_id,
+         session_id=prepared.cancel_target_session_id,
+-        provider_state="OPEN",
+-        quantity=1,
+-        traded_quantity=0,
+-        remaining_quantity=1,
+-        query_record_count=1,
+-        query_match_count=1,
+-        query_complete=True,
+-        query_terminal=True,
+-        query_timed_out=False,
+-        query_error_id=0,
+-        late_callback_count=0,
+-        verified_at_ns=now_ns,
+-        expires_at_ns=now_ns + 5_000_000_000,
+-    )
+-    projection_id = sha256(
+-        (prepared.command_id + projection.order_ref).encode("ascii")
+-    ).hexdigest()[:32]
+-    handle = _TargetProjectionHandle(
+-        projection_id=projection_id,
+-        projection_sha256=payload_sha256(projection.to_payload()),
+-        projection=projection,
+-    )
+-    store._g5_test_target_projections[projection_id] = (handle, projection)
+-    return handle
++    )
++    return store.issue_ctp_order_target_projection(
++        _scope(), order.managed_intent_id, evidence, verifier=_SyntheticOrderQueryVerifier()
++    )
+ 
+ 
+ def test_action_identity_is_typed_staged_and_echoed_through_worker_to_sdk_fake(tmp_path):
+@@ -267,9 +249,21 @@
+         signature = inspect.signature(worker.stage_prepared_dispatch)
+         assert "cancel_target_projection" in signature.parameters
+         assert "action_identity" in signature.parameters
++        projection_handle = _target_projection(store, order, prepared)
++        assert type(projection_handle) is CtpOrderTargetProjectionHandle
++        projection_row = store._connection.execute(
++            "SELECT projection_payload_json, projection_sha256 FROM ctp_order_target_projections "
++            "WHERE account_key = ? AND projection_id = ?",
++            (scope.account_key, projection_handle.projection_id),
++        ).fetchone()
++        assert projection_row is not None
++        assert json.loads(projection_row["projection_payload_json"]) == (
++            projection_handle.projection.to_payload()
++        )
++        assert projection_row["projection_sha256"] == projection_handle.projection_sha256
+         binding = worker.stage_prepared_dispatch(
+             prepared,
+-            cancel_target_projection=_target_projection(store, order, prepared),
++            cancel_target_projection=projection_handle,
+             action_identity=action,
+         )
+         staged = store.read_ctp_dispatch_command(scope, prepared.command_id)
+@@ -297,6 +291,12 @@
+         )
+         assert handoff["action_ref"] == action.native_action_ref
+         assert handoff["state"] == "STAGED"
++        consumption = store._connection.execute(
++            "SELECT projection_id, command_id FROM ctp_order_target_projection_consumptions "
++            "WHERE account_key = ? AND command_id = ?",
++            (scope.account_key, prepared.command_id),
++        ).fetchone()
++        assert consumption["projection_id"] == projection_handle.projection_id
+ 
+         queued_binding = worker.record_managed_queue_receipt(
+             prepared.command_id, binding, _queue(binding, staged)
+@@ -396,7 +396,7 @@
+ 
+         issued = _target_projection(store, order, prepared)
+         forged = replace(issued)
+-        with pytest.raises(ContractValidationError, match="same-store CTP target projection"):
++        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
+             worker.stage_prepared_dispatch(
+                 prepared,
+                 cancel_target_projection=forged,
+@@ -412,6 +412,179 @@
+                 action_identity=action,
+             )
+         assert store.read_ctp_dispatch_command(scope, prepared.command_id) is None
++    finally:
++        store.close()
++
++
++def test_default_target_verifier_rejects_caller_mapping_and_persists_nothing(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "reject-untrusted-query.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        with pytest.raises(ContractValidationError, match="query verification failed"):
++            store.issue_ctp_order_target_projection(
++                scope,
++                order.managed_intent_id,
++                {"OrderRef": order.order_ref, "OrderStatus": "OPEN"},
++            )
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_order_target_projections"
++        ).fetchone()[0] == 0
++    finally:
++        store.close()
++
++
++def test_store_rejects_cancel_action_ref_without_candidate_authority_row(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "reject-unissued-action-ref.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        prepared = _prepared(order)
++        handle = _target_projection(store, order, prepared)
++        target = CtpCancelTarget(
++            order.order_ref,
++            prepared.cancel_target_exchange_id,
++            prepared.cancel_target_order_sys_id,
++            prepared.cancel_target_front_id,
++            prepared.cancel_target_session_id,
++        )
++        with pytest.raises(
++            ContractValidationError,
++            match="not issued by the candidate same-Store authority",
++        ):
++            store.stage_ctp_dispatch_command(
++                scope,
++                "cancel-with-unissued-ref",
++                "CANCEL",
++                {**dict(prepared.request_payload), "OrderActionRef": 2_147_000_000},
++                approval_use_id="approval-unissued-ref",
++                approval_digest=sha256(b"test approval").hexdigest(),
++                session_binding=dict(prepared.session_binding),
++                writer_lease=lease,
++                cancel_target=target,
++                cancel_target_projection=handle,
++            )
++        assert store.read_ctp_dispatch_command(scope, "cancel-with-unissued-ref") is None
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_order_target_projection_consumptions"
++        ).fetchone()[0] == 0
++    finally:
++        store.close()
++
++
++def test_projection_row_tamper_fails_hash_and_reopen_does_not_revive_handle(tmp_path):
++    path = tmp_path / "projection-reopen.sqlite3"
++    store, authority, scope, lease = _open(path)
++    order = _seed_order(authority, scope, lease)
++    prepared = _prepared(order)
++    handle = _target_projection(store, order, prepared)
++    assert store.read_ctp_order_target_projection(scope, handle) == handle.projection
++    with pytest.raises(DurableStoreError, match="transaction failed"):
++        with store._transaction() as cursor:
++            cursor.execute(
++                "UPDATE ctp_order_target_projections SET projection_payload_json = ? "
++                "WHERE account_key = ? AND projection_id = ?",
++                ("{}", scope.account_key, handle.projection_id),
++            )
++    # Exercise the reader's hash/schema defense after simulating out-of-band
++    # schema-owner tampering that bypasses the immutability trigger.
++    store._connection.execute("DROP TRIGGER ctp_order_target_projections_immutable_update")
++    with store._transaction() as cursor:
++        cursor.execute(
++            "UPDATE ctp_order_target_projections SET projection_payload_json = ? "
++            "WHERE account_key = ? AND projection_id = ?",
++            ("{}", scope.account_key, handle.projection_id),
++        )
++    with pytest.raises(ContractValidationError, match="projection payload is invalid"):
++        store.read_ctp_order_target_projection(scope, handle)
++    store.close()
++
++    reopened = SqliteExecutionStore(path)
++    scope2 = _scope()
++    try:
++        assert reopened._connection.execute(
++            "SELECT COUNT(*) FROM ctp_order_target_projections WHERE account_key = ?",
++            (scope2.account_key,),
++        ).fetchone()[0] == 1
++        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
++            reopened.read_ctp_order_target_projection(scope2, handle)
++    finally:
++        reopened.close()
++
++
++def test_projection_expiry_after_claim_blocks_sender_and_fences_unknown(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "expires-before-send.sqlite3")
++    try:
++        clock = {"now": 1_000_000_000}
++        store._monotonic_now_ns = lambda: clock["now"]
++        order = _seed_order(authority, scope, lease)
++        action = _reserve_action(authority, scope, lease, order)
++        prepared = _prepared(order)
++        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++        handle = _target_projection(store, order, prepared)
++        expires_at_ns = handle.projection.expires_at_ns
++        binding = worker.stage_prepared_dispatch(
++            prepared, cancel_target_projection=handle, action_identity=action
++        )
++        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert command is not None
++        binding = worker.record_managed_queue_receipt(
++            prepared.command_id, binding, _queue(binding, command)
++        )
++
++        set_state = worker._set_state
++
++        def expire_after_claim(command_id, state, *, from_states=None):
++            result = set_state(command_id, state, from_states=from_states)
++            if state == "CLAIMED":
++                clock["now"] = expires_at_ns
++            return result
++
++        worker._set_state = expire_after_claim
++        sender_calls = []
++        result = worker.dispatch_managed_command(
++            prepared.command_id, binding, lambda value: sender_calls.append(value)
++        )
++        assert result.worker_state == "UNKNOWN"
++        assert result.sender_called is False
++        assert result.command.status == "UNKNOWN"
++        assert sender_calls == []
++        retry = worker.dispatch_managed_command(
++            prepared.command_id, binding, lambda value: sender_calls.append(value)
++        )
++        assert retry.worker_state == "UNKNOWN"
++        assert retry.sender_called is False
++        assert sender_calls == []
++    finally:
++        store.close()
++
++
++def test_awaitable_sender_is_rejected_before_claim_and_not_entered(tmp_path):
++    store, authority, scope, lease = _open(tmp_path / "awaitable-sender-rejected.sqlite3")
++    try:
++        order = _seed_order(authority, scope, lease)
++        action = _reserve_action(authority, scope, lease, order)
++        prepared = _prepared(order)
++        worker = CtpManagedSingleWorkerCandidate(store, scope, lease, authority)
++        binding = worker.stage_prepared_dispatch(
++            prepared,
++            cancel_target_projection=_target_projection(store, order, prepared),
++            action_identity=action,
++        )
++        command = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert command is not None
++        binding = worker.record_managed_queue_receipt(
++            prepared.command_id, binding, _queue(binding, command)
++        )
++        sender_calls = []
++
++        async def delayed_sender(value):
++            sender_calls.append(value)
++            return CtpNativeDispatchResult("QUEUED", {"queued": True})
++
++        with pytest.raises(ContractValidationError, match="awaitable SDK sender is unsupported"):
++            worker.dispatch_managed_command(prepared.command_id, binding, delayed_sender)
++        assert sender_calls == []
++        persisted = store.read_ctp_dispatch_command(scope, prepared.command_id)
++        assert persisted is not None and persisted.status == "READY"
+     finally:
+         store.close()
+ 
+--- a/implementation/tests/test_g5_store_order_action_bridge.py
++++ b/implementation/tests/test_g5_store_order_action_bridge.py
+@@ -3,21 +3,21 @@
+ from hashlib import sha256
+ 
+ import pytest
+-
++from backtrader_bridge.ctp_order_action_bridge import (
++    CtpOrderActionAuthorityBridge,
++    CtpOrderActionBridgeError,
++)
+ from bt_api_execution import (
+     CtpCancelTarget,
+     CtpDispatchReceipt,
+     CtpOrderRefSeedProof,
++    CtpVerifiedOrderTargetProjection,
+     ExecutionScope,
+     SqliteExecutionStore,
+ )
+ from bt_api_execution.ctp_identity_authority import (
+     CtpActionRefSeedProof,
+     CtpUnifiedOrderActionAuthority,
+-)
+-from backtrader_bridge.ctp_order_action_bridge import (
+-    CtpOrderActionAuthorityBridge,
+-    CtpOrderActionBridgeError,
+ )
+ 
+ 
+@@ -90,6 +90,64 @@
+         return sender(command)
+ 
+ 
++class _SyntheticNativeOrderQueryEvidence:
++    """Test-only typed stand-in, not native CTP query evidence."""
++
++    instrument_id = "rb2710"
++    exchange_id = "SHFE"
++    order_sys_id = "SYS-bridge"
++    session_generation_id = "synthetic-bridge-generation"
++    query_front_id = 4
++    query_session_id = 8
++    query_request_id = 93
++    front_id = 4
++    session_id = 8
++
++
++class _SyntheticOrderQueryVerifier:
++    """Test-only verifier for Store persistence/consumer mechanics."""
++
++    def verify_order_target(self, scope, reservation, evidence, *, now_ns):
++        assert type(evidence) is _SyntheticNativeOrderQueryEvidence
++        return CtpVerifiedOrderTargetProjection(
++            account_key=reservation.account_key,
++            scope_key=reservation.scope_key,
++            trading_day=reservation.trading_day,
++            managed_intent_id=reservation.managed_intent_id,
++            runtime_order_id=reservation.runtime_order_id,
++            order_ref=reservation.order_ref,
++            account_fingerprint_sha256=sha256(b"test account").hexdigest(),
++            registration_digest=sha256(b"test registration").hexdigest(),
++            instrument_id=evidence.instrument_id,
++            exchange_id=evidence.exchange_id,
++            session_generation_id=evidence.session_generation_id,
++            connection_generation=1,
++            query_front_id=evidence.query_front_id,
++            query_session_id=evidence.query_session_id,
++            query_request_id=evidence.query_request_id,
++            query_filters_sha256=sha256(b"test filters").hexdigest(),
++            query_records_sha256=sha256(b"test records").hexdigest(),
++            source_evidence_sha256=sha256(b"test source evidence").hexdigest(),
++            query_record_count=1,
++            query_match_count=1,
++            query_complete=True,
++            query_terminal=True,
++            query_timed_out=False,
++            query_error_id=0,
++            late_callback_count=0,
++            order_sys_id=evidence.order_sys_id,
++            front_id=evidence.front_id,
++            session_id=evidence.session_id,
++            provider_state="OPEN",
++            quantity=1,
++            traded_quantity=0,
++            remaining_quantity=1,
++            verifier_id="test-only.synthetic-bridge-query-verifier",
++            verified_at_ns=now_ns,
++            expires_at_ns=now_ns + 5_000_000_000,
++        )
++
++
+ def _bridge(tmp_path, *, worker_store=None, outcome="QUEUED"):
+     store = SqliteExecutionStore(tmp_path / "bridge.sqlite3")
+     authority = CtpUnifiedOrderActionAuthority(store)
+@@ -122,6 +180,12 @@
+         "LimitPrice": 0.0,
+         "VolumeChange": 0,
+     }
++    projection = bridge._store.issue_ctp_order_target_projection(
++        scope,
++        order.managed_intent_id,
++        _SyntheticNativeOrderQueryEvidence(),
++        verifier=_SyntheticOrderQueryVerifier(),
++    )
+     return bridge.stage_cancel(
+         managed_action_id="cancel-bridge",
+         managed_intent_id="intent-bridge",
+@@ -130,9 +194,15 @@
+         command_id="cancel-bridge-command",
+         request_payload=request,
+         target=target,
++        cancel_target_projection=projection,
+         approval_use_id="approval-bridge",
+         approval_digest=sha256(b"approved fake action").hexdigest(),
+-        session_binding={"session_generation": 1, "opaque": "test"},
++        session_binding={
++            "session_generation_id": "synthetic-bridge-generation",
++            "dispatch_front_id": 4,
++            "dispatch_session_id": 8,
++            "opaque": "test",
++        },
+     )
+ 
+ 
+--- a/implementation/tests/test_g5_unified_order_action_authority.py
++++ b/implementation/tests/test_g5_unified_order_action_authority.py
+@@ -3,14 +3,16 @@
+ import threading
+ from concurrent.futures import ThreadPoolExecutor
+ from hashlib import sha256
++from itertools import count
+ from queue import Queue
+ 
+ import pytest
+-
+ from bt_api_execution import (
++    ContractValidationError,
+     CtpCancelTarget,
+     CtpDispatchReceipt,
+     CtpOrderRefSeedProof,
++    CtpVerifiedOrderTargetProjection,
+     DurableStoreError,
+     ExecutionScope,
+     IntentConflictError,
+@@ -84,6 +86,79 @@
+         "LimitPrice": 0.0,
+         "VolumeChange": 0,
+     }
++
++
++class _SyntheticNativeOrderQueryEvidence:
++    """Test-only stand-in, not provider or native SDK query evidence."""
++
++    instrument_id = "rb2710"
++    exchange_id = "SHFE"
++    order_sys_id = "SYS-8842"
++    session_generation_id = "synthetic-session-generation"
++    query_front_id = 17
++    query_session_id = 29
++    front_id = 17
++    session_id = 29
++
++    def __init__(self):
++        self.query_request_id = next(_SYNTHETIC_QUERY_REQUEST_IDS)
++
++
++_SYNTHETIC_QUERY_REQUEST_IDS = count(71)
++
++
++class _SyntheticOrderQueryVerifier:
++    """Test-only verifier for exercising Store durability and consumption."""
++
++    def verify_order_target(self, scope, reservation, evidence, *, now_ns):
++        if type(evidence) is not _SyntheticNativeOrderQueryEvidence:
++            raise ContractValidationError("synthetic typed query evidence required")
++        return CtpVerifiedOrderTargetProjection(
++            account_key=reservation.account_key,
++            scope_key=reservation.scope_key,
++            trading_day=reservation.trading_day,
++            managed_intent_id=reservation.managed_intent_id,
++            runtime_order_id=reservation.runtime_order_id,
++            order_ref=reservation.order_ref,
++            account_fingerprint_sha256=sha256(b"synthetic account").hexdigest(),
++            registration_digest=sha256(b"synthetic registration").hexdigest(),
++            instrument_id=evidence.instrument_id,
++            exchange_id=evidence.exchange_id,
++            session_generation_id=evidence.session_generation_id,
++            connection_generation=1,
++            query_front_id=evidence.query_front_id,
++            query_session_id=evidence.query_session_id,
++            query_request_id=evidence.query_request_id,
++            query_filters_sha256=sha256(b"synthetic filters").hexdigest(),
++            query_records_sha256=sha256(b"synthetic records").hexdigest(),
++            source_evidence_sha256=sha256(b"synthetic source evidence").hexdigest(),
++            query_record_count=1,
++            query_match_count=1,
++            query_complete=True,
++            query_terminal=True,
++            query_timed_out=False,
++            query_error_id=0,
++            late_callback_count=0,
++            order_sys_id=evidence.order_sys_id,
++            front_id=evidence.front_id,
++            session_id=evidence.session_id,
++            provider_state="OPEN",
++            quantity=1,
++            traded_quantity=0,
++            remaining_quantity=1,
++            verifier_id="test-only.synthetic-order-query-verifier",
++            verified_at_ns=now_ns,
++            expires_at_ns=now_ns + 5_000_000_000,
++        )
++
++
++def _projection(store, scope, order):
++    return store.issue_ctp_order_target_projection(
++        scope,
++        order.managed_intent_id,
++        _SyntheticNativeOrderQueryEvidence(),
++        verifier=_SyntheticOrderQueryVerifier(),
++    )
+ 
+ 
+ def _queue_receipt(command, outcome="QUEUED"):
+@@ -111,15 +186,24 @@
+ 
+ 
+ def _stage_cancel(authority, store, scope, lease, action, command_id="cancel-1"):
++    order = store.read_ctp_order_identity(scope, action.managed_intent_id)
++    assert order is not None
++    target = _cancel_target(action.order_ref)
+     return authority.stage_cancel_command(
+         scope,
+         action.managed_action_id,
+         command_id,
+-        _request(_cancel_target(action.order_ref)),
+-        target=_cancel_target(action.order_ref),
++        _request(target),
++        target=target,
++        cancel_target_projection=_projection(store, scope, order),
+         approval_use_id="approval-" + command_id,
+         approval_digest=sha256(b"synthetic approval digest").hexdigest(),
+-        session_binding={"session_generation": 3, "session": "opaque"},
++        session_binding={
++            "session_generation_id": "synthetic-session-generation",
++            "dispatch_front_id": 17,
++            "dispatch_session_id": 29,
++            "session": "opaque",
++        },
+         writer_lease=lease,
+     )
+ 
+@@ -343,16 +427,50 @@
+                 session_binding={"session_generation": 3}, writer_lease=lease,
+             )
+ 
++        target_projection = _projection(store, scope, order)
+         command = authority.stage_cancel_command(
+             scope, action.managed_action_id, "cancel-good", _request(target), target=target,
++            cancel_target_projection=target_projection,
+             approval_use_id="approval-good", approval_digest=sha256(b"approval").hexdigest(),
+-            session_binding={"session_generation": 3, "session": "opaque"},
++            session_binding={
++                "session_generation_id": "synthetic-session-generation",
++                "dispatch_front_id": 17,
++                "dispatch_session_id": 29,
++                "session": "opaque",
++            },
+             writer_lease=lease,
+         )
+         assert command.request_payload["OrderRef"] == order.order_ref
+         assert command.request_payload["OrderActionRef"] == action.native_action_ref
+         assert command.request_payload_sha256 == payload_sha256(dict(command.request_payload))
+         assert "OrderActionRef" in command.request_payload
++        repeated = authority.stage_cancel_command(
++            scope, action.managed_action_id, "cancel-good", _request(target), target=target,
++            cancel_target_projection=target_projection,
++            approval_use_id="approval-good", approval_digest=sha256(b"approval").hexdigest(),
++            session_binding={
++                "session_generation_id": "synthetic-session-generation",
++                "dispatch_front_id": 17,
++                "dispatch_session_id": 29,
++                "session": "opaque",
++            },
++            writer_lease=lease,
++        )
++        assert repeated == command
++        with pytest.raises(IntentConflictError, match="already consumed"):
++            authority.stage_cancel_command(
++                scope, action.managed_action_id, "cancel-reuse-projection", _request(target),
++                target=target, cancel_target_projection=target_projection,
++                approval_use_id="approval-reuse-projection",
++                approval_digest=sha256(b"approval-reuse").hexdigest(),
++                session_binding={
++                    "session_generation_id": "synthetic-session-generation",
++                    "dispatch_front_id": 17,
++                    "dispatch_session_id": 29,
++                    "session": "opaque",
++                },
++                writer_lease=lease,
++            )
+ 
+         claimed = store.claim_ctp_dispatch_command(scope, command.command_id, writer_lease=lease)
+         assert claimed is not None and claimed.status == "CLAIMED"

@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+# Process execution is a configuration-first alias.  This branch deliberately
+# runs before Backtrader, the SDK, or the historical CLI is imported.
+if __name__ == "__main__":
+    import sys as _iteration41_sys
+    from pathlib import Path as _Iteration41Path
+
+    _ITERATION41_REPOSITORY_ROOT = _Iteration41Path(__file__).resolve().parents[2]
+    if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+        _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+    from backtrader_runtime.legacy import run_legacy_config_first_cli as _run_config_gate
+
+    raise SystemExit(_run_config_gate(_Iteration41Path(__file__).resolve().parent / "runtime"))
+
 import argparse
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
@@ -16,6 +29,11 @@ import sys
 import threading
 import time
 from typing import Mapping, Optional
+
+from backtrader_runtime.legacy import (
+    legacy_direct_execution_error as _legacy_direct_execution_error,
+    run_legacy_config_first_cli as _run_legacy_config_first_cli,
+)
 
 
 def _load_repo_backtrader_package(script_file=None):
@@ -84,18 +102,18 @@ if __package__:
         APPROVAL_PUBLIC_KEY_SHA256,
         DemoApprovalVerificationError,
         collect_runtime_source_provenance,
-        serialize_private_json_report,
+        serialize_private_json_report,  # noqa: F401 - public compatibility export
         verify_demo_approval,
-        write_private_json_report,
+        write_private_json_report,  # noqa: F401 - public compatibility export
     )
 else:
     from strategy_candidate_approval import (
         APPROVAL_PUBLIC_KEY_SHA256,
         DemoApprovalVerificationError,
         collect_runtime_source_provenance,
-        serialize_private_json_report,
+        serialize_private_json_report,  # noqa: F401 - public compatibility export
         verify_demo_approval,
-        write_private_json_report,
+        write_private_json_report,  # noqa: F401 - public compatibility export
     )
 import yaml  # noqa: E402
 
@@ -1092,7 +1110,7 @@ def _exchange_kwargs(mode, credentials=None, okx_api_region="global"):
     return result
 
 
-def build_store(
+def _build_store_impl(
     mode,
     env_file=HERE / ".env",
     risk=None,
@@ -2344,7 +2362,7 @@ def _preflight_store_health_summary(health):
     }
 
 
-def run_network(
+def _run_network_impl(
     mode,
     duration,
     config_path=DEFAULT_CONFIG,
@@ -2457,7 +2475,7 @@ def run_network(
     shadow_execution_started = False
     shadow_observed_execution = None
     try:
-        store = build_store(
+        store = _build_store_impl(
             mode,
             env_file,
             risk,
@@ -2946,6 +2964,20 @@ def run_network(
     return report
 
 
+def build_store(*args, **kwargs):
+    """Reject direct Store construction outside a reviewed runtime route."""
+
+    del args, kwargs
+    raise _legacy_direct_execution_error("012_1 direct Store construction")
+
+
+def run_network(*args, **kwargs):
+    """Reject the retired direct network route until v4 shadow is registered."""
+
+    del args, kwargs
+    raise _legacy_direct_execution_error("012_1 direct network runner")
+
+
 def build_parser():
     """Build the CLI argument parser for the runner."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -2978,78 +3010,9 @@ def build_parser():
 
 
 def main(argv=None):
-    """Execute the CLI: dispatch to replay or network mode and emit the report.
+    """Retain only the fixed Iteration 41 configuration-first CLI alias."""
 
-    Writes the private JSON report to disk, prints it, and returns 0 only
-    for passing statuses.  Shadow-mode failures are converted into a
-    failure report instead of an exception; other modes re-raise.
-    """
-    args = build_parser().parse_args(argv)
-    config = None
-    try:
-        config = load_config(args.config)
-        duration = (
-            args.duration
-            if args.duration is not None
-            else float(config.get("run_timeout_seconds", 0))
-        )
-        if not math.isfinite(duration) or duration < 0:
-            raise RunnerConfigurationError("duration must be finite and non-negative")
-        if args.preflight and args.mode != "demo":
-            raise RunnerConfigurationError("--preflight is only valid with --mode demo")
-        if args.allow_rejected_demo_simulation and args.mode != "demo":
-            raise RunnerConfigurationError(
-                "--allow-rejected-demo-simulation is only valid with --mode demo"
-            )
-        if args.demo_execution_smoke and args.mode != "demo":
-            raise RunnerConfigurationError("--demo-execution-smoke is only valid with --mode demo")
-        if args.demo_execution_smoke and args.preflight:
-            raise RunnerConfigurationError("--demo-execution-smoke cannot be combined with --preflight")
-        if args.demo_execution_smoke and not args.allow_rejected_demo_simulation:
-            raise DemoApprovalError(
-                "--demo-execution-smoke requires --allow-rejected-demo-simulation"
-            )
-        # Demo must use the repository-canonical manifest; the other modes use
-        # this folder's self-contained copy unless the operator overrides it.
-        manifest_path = (
-            args.manifest
-            if args.manifest is not None
-            else (REPO_CANONICAL_MANIFEST if args.mode == "demo" else MANIFEST_PATH)
-        )
-        report = (
-            run_replay(args.scenario, args.config, manifest_path)
-            if args.mode == "replay"
-            else run_network(
-                args.mode,
-                duration,
-                args.config,
-                args.env_file,
-                args.preflight,
-                manifest_path,
-                args.allow_rejected_demo_simulation,
-                args.demo_execution_smoke,
-            )
-        )
-    except Exception as exc:
-        if args.mode != "shadow":
-            raise
-        report = _shadow_cli_failure_report(config, exc)
-    output = args.output or HERE / "reports" / f"{args.mode}-{args.scenario}.json"
-    write_private_json_report(output, report)
-    print(serialize_private_json_report(report))
-    return (
-        0
-        if report["status"]
-        in {
-            "FORMULA_CHECK_PASS",
-            "SHADOW_PASS",
-            "PAPER_OBSERVATION_PASS",
-            "DEMO_EXECUTION_PASS",
-            "MECHANICAL_DEMO_SMOKE_PASS",
-            "PREFLIGHT_PASS",
-        }
-        else 2
-    )
+    return _run_legacy_config_first_cli(HERE / "runtime", argv)
 
 
 if __name__ == "__main__":

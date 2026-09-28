@@ -1,0 +1,12 @@
+COMMAND: D:\source_code\backtrader\.venv\Scripts\python.exe -B -m pytest tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short
+CWD: D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r0
+EXIT: 0
+
+...........                                                              [100%]
+============================== warnings summary ===============================
+backtrader\feeds\__init__.py:69
+  D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r0\backtrader\feeds\__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+11 passed, 1 warning in 5.93s

@@ -1,0 +1,13 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.r2_independent_qa_canonical_verification.v1",
+  "original_qa_zip_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+  "canonical_qa_zip_sha256": "2f5976e0571384814b0892f9eb0e9f720041e46b9f61f6282379126eb9597ab5",
+  "report_sha256": "490e3e9042af866498fe34265b7808e9dc51df2e380c41c7bdf4735da6615ec9",
+  "embedded_sha256sums_sha256": "b8d868e2809a7d13ebc2dfefdf82ee7ea4beb7b877b223fdda4f6c4d06396688",
+  "member_count": 132,
+  "crc": "ok",
+  "report_control_characters": 0,
+  "preserved_failure_log": "evidence-zip-verifier-attempt1.txt",
+  "preserved_failed_verifier": "verify_qa_zip-attempt1.py",
+  "result": "pass"
+}

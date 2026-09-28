@@ -1,0 +1,13 @@
+{
+  "archive_index_sha256": "6b5c6af0434d72ce0d8584238ce4085808059fce781d58ee06793fe1a9bb38f9",
+  "archive_member_count": 681,
+  "candidate_manifest_sha256": "5ad9cce0851fbebd9ac07d520919b7a02f793ab99a133cf96e91f58cede405fb",
+  "candidate_payload_count": 679,
+  "default_route_changed": false,
+  "external_actor_dispatch": false,
+  "parent_r2_manifest_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+  "raw_zip_sha256": "3854e1d8aa94855c4e3d958cbdc939199ea9f4c26bb576d1e6739eef1bde5db9",
+  "raw_zip_testzip": "passed",
+  "status": "COPY_VERIFIED",
+  "verdict": "AUTHOR_CANDIDATE / NO_WRITE"
+}

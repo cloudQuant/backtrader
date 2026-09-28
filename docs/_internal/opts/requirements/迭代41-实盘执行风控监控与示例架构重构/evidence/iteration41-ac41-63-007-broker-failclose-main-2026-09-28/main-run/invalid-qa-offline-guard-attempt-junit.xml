@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="4.413" timestamp="2026-09-28T00:55:59.372979" hostname="yun"><testcase classname="" name="" time="0.000"><error message="collection failure">tests\unit\test_ctp_example_support.py:19: in &lt;module&gt;
+    _SPEC.loader.exec_module(support)
+&lt;frozen importlib._bootstrap_external&gt;:940: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:241: in _call_with_frames_removed
+    ???
+examples\007_ctp\ctp_example_support.py:21: in &lt;module&gt;
+    import backtrader as bt
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+backtrader\__init__.py:117: in &lt;module&gt;
+    from . import indicators as ind
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+backtrader\indicators\__init__.py:136: in &lt;module&gt;
+    from .ols import *
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+backtrader\indicators\ols.py:60: in &lt;module&gt;
+    class OLS_Slope_InterceptN(PeriodN):
+backtrader\indicator.py:133: in __init_subclass__
+    super().__init_subclass__(**kwargs)
+backtrader\lineiterator.py:375: in __init_subclass__
+    super().__init_subclass__(**kwargs)
+backtrader\lineseries.py:1466: in __init_subclass__
+    super().__init_subclass__(**kwargs)
+backtrader\metabase.py:914: in __init_subclass__
+    ParameterManager.setup_class_params(cls, params, packages, frompackages)
+backtrader\metabase.py:777: in setup_class_params
+    ParameterManager._handle_packages(cls, packages, frompackages)
+backtrader\metabase.py:863: in _handle_packages
+    pmod = __import__(package)
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\statsmodels\api.py:123: in &lt;module&gt;
+    from .graphics import api as graphics
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\statsmodels\graphics\api.py:6: in &lt;module&gt;
+    from .functional import fboxplot, hdrboxplot, rainbowplot
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\statsmodels\graphics\functional.py:9: in &lt;module&gt;
+    from statsmodels.nonparametric.kernel_density import KDEMultivariate
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\statsmodels\nonparametric\kernel_density.py:34: in &lt;module&gt;
+    from ._kernel_base import GenericKDE, EstimatorSettings, gpke, \
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\statsmodels\nonparametric\_kernel_base.py:12: in &lt;module&gt;
+    import joblib
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\__init__.py:120: in &lt;module&gt;
+    from .parallel import Parallel
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\parallel.py:26: in &lt;module&gt;
+    from ._parallel_backends import (FallbackToBackend, MultiprocessingBackend,
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\_parallel_backends.py:17: in &lt;module&gt;
+    from .pool import MemmappingPool
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\pool.py:31: in &lt;module&gt;
+    from ._memmapping_reducer import get_memmapping_reducers
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\_memmapping_reducer.py:37: in &lt;module&gt;
+    from .externals.loky.backend import resource_tracker
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\externals\loky\__init__.py:20: in &lt;module&gt;
+    from .reusable_executor import get_reusable_executor
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\externals\loky\reusable_executor.py:11: in &lt;module&gt;
+    from .process_executor import ProcessPoolExecutor, EXTRA_QUEUED_CALLS
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\externals\loky\process_executor.py:85: in &lt;module&gt;
+    from .backend.utils import kill_process_tree, get_exitcodes_terminated_worker
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\joblib\externals\loky\backend\utils.py:10: in &lt;module&gt;
+    import psutil
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\psutil\__init__.py:42: in &lt;module&gt;
+    from . import _common
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:39: in guarded_import
+    return original_import(name, *args, **kwargs)
+C:\anaconda3\Lib\site-packages\psutil\_common.py:46: in &lt;module&gt;
+    PSUTIL_DEBUG = bool(os.getenv('PSUTIL_DEBUG', 0))
+D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\qa_offline_guard.py:45: in guarded_getenv
+    raise AssertionError("offline QA blocked process os.getenv access: " + str(name))
+E   AssertionError: offline QA blocked process os.getenv access: PSUTIL_DEBUG</error></testcase></testsuite></testsuites>

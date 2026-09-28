@@ -1,0 +1,1258 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="46" failures="0" skipped="0" tests="54" time="7.990" timestamp="2026-09-27T10:34:34.658323" hostname="yun"><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_delegates_to_explicit_managed_adapter_without_direct_provider_write" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_submit_failure_never_retries_through_direct_provider_path" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_missing_managed_projection_is_rejected_without_direct_provider_write" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_cancel_without_explicit_port_is_rejected_without_direct_fallback" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_passes_the_full_order_to_the_explicit_managed_cancel_port" time="0.000" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_managed_cancel_failure_never_retries_through_direct_provider_path" time="0.001" /><testcase classname="tests.unit.stores.test_managed_execution_store_adapter" name="test_store_rejects_an_object_that_is_not_a_managed_adapter" time="0.000" /><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_submission_projects_typed_identity_to_sdk_only]" time="0.001"><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_placeholder_is_a_local_rejection_before_queueing]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification]]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_order_request_refuses_a_second_orderref_allocator]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing]" time="0.001"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_legacy_ctp_store_composition_is_now_explicitly_fail_closed[test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown]" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.stores.test_managed_ctp_store_adapter" name="test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="tests.unit.runtime.test_runtime_live_dispatch_guard" name="test_synthetic_live_registration_and_confirmation_cannot_import_a_runner" time="0.000"><error message="failed on setup with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:85: in pytest_runtest_setup
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:833: in pytest_runtest_setup
+    yield from self._runtest_for(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:877: in pytest_runtest_setup
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:82: in pytest_runtest_setup
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:160: in pytest_runtest_setup
+    _update_current_test_var(item, "setup")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error><error message="failed on teardown with &quot;TypeError: '_RouteEnvironmentProbe' object does not support item assignment&quot;">C:\anaconda3\Lib\site-packages\_pytest\runner.py:345: in from_call
+    result: Optional[TResult] = func()
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:266: in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:92: in pytest_runtest_teardown
+    yield from thread_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\threadexception.py:63: in thread_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:95: in pytest_runtest_teardown
+    yield from unraisable_exception_runtest_hook()
+C:\anaconda3\Lib\site-packages\_pytest\unraisableexception.py:65: in unraisable_exception_runtest_hook
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:846: in pytest_runtest_teardown
+    yield from self._runtest_for(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\logging.py:822: in _runtest_for
+    yield
+C:\anaconda3\Lib\site-packages\_pytest\capture.py:887: in pytest_runtest_teardown
+    return (yield)
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:185: in pytest_runtest_teardown
+    _update_current_test_var(item, "teardown")
+C:\anaconda3\Lib\site-packages\_pytest\runner.py:202: in _update_current_test_var
+    os.environ[var_name] = value
+E   TypeError: '_RouteEnvironmentProbe' object does not support item assignment</error></testcase><testcase classname="pytest" name="internal" time="0.000"><error message="internal error">Traceback (most recent call last):
+  File "C:\anaconda3\Lib\site-packages\_pytest\main.py", line 272, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+                         ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\main.py", line 326, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_hooks.py", line 513, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    raise exception.with_traceback(exception.__traceback__)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 122, in _multicall
+    teardown.throw(exception)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\logging.py", line 796, in pytest_runtestloop
+    return (yield)  # Run all the tests.
+            ^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 103, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\main.py", line 351, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_hooks.py", line 513, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    raise exception.with_traceback(exception.__traceback__)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 122, in _multicall
+    teardown.throw(exception)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\warnings.py", line 109, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 122, in _multicall
+    teardown.throw(exception)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\assertion\__init__.py", line 174, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 122, in _multicall
+    teardown.throw(exception)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\unittest.py", line 408, in pytest_runtest_protocol
+    res = yield
+          ^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 122, in _multicall
+    teardown.throw(exception)  # type: ignore[union-attr]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\faulthandler.py", line 85, in pytest_runtest_protocol
+    return (yield)
+            ^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 103, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\runner.py", line 115, in pytest_runtest_protocol
+    ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_hooks.py", line 513, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    raise exception.with_traceback(exception.__traceback__)
+  File "C:\anaconda3\Lib\site-packages\pluggy\_callers.py", line 103, in _multicall
+    res = hook_impl.function(*args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\terminal.py", line 652, in pytest_runtest_logfinish
+    self._write_progress_information_filling_space()
+  File "C:\anaconda3\Lib\site-packages\_pytest\terminal.py", line 682, in _write_progress_information_filling_space
+    fill = self._tw.fullwidth - w - 1
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\_io\terminalwriter.py", line 87, in fullwidth
+    return get_terminal_width()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\site-packages\_pytest\_io\terminalwriter.py", line 18, in get_terminal_width
+    width, _ = shutil.get_terminal_size(fallback=(80, 24))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\shutil.py", line 1419, in get_terminal_size
+    columns = int(os.environ['COLUMNS'])
+                  ~~~~~~~~~~^^^^^^^^^^^
+TypeError: '_RouteEnvironmentProbe' object is not subscriptable</error></testcase></testsuite></testsuites>

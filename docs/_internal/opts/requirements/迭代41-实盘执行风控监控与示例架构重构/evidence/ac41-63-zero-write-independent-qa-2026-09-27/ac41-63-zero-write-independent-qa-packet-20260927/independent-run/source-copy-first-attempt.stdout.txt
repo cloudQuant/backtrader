@@ -1,0 +1,8 @@
+{
+  "copy_failures": [
+    {
+      "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/ac41-63-zero-write-runtime-trace-2026-09-27/",
+      "error": "missing_source"
+    }
+  ]
+}

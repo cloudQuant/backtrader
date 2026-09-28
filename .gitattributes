@@ -4,3 +4,6 @@ examples/012_1_midfreq_cross_exchange/config.yaml text eol=lf
 examples/012_2_event_driven_cross_exchange/run.py text eol=lf
 examples/012_2_event_driven_cross_exchange/strategy.py text eol=lf
 examples/012_2_event_driven_cross_exchange/config.yaml text eol=lf
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-independent-qa-r1-2026-09-27/candidate-inputs/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-independent-qa-r1-2026-09-27/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-r1-2026-09-27/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,13 @@
+{
+  "events": [
+    "fake_optional_sdk_stub:bt_api_py",
+    "local_loopback_only:('127.0.0.1', 51194)",
+    "local_loopback_only:('127.0.0.1', 51196)",
+    "local_loopback_only:('127.0.0.1', 51198)",
+    "local_loopback_only:('127.0.0.1', 51200)",
+    "local_loopback_only:('127.0.0.1', 51202)",
+    "local_loopback_only:('127.0.0.1', 51204)",
+    "local_loopback_only:('127.0.0.1', 51206)",
+    "local_loopback_only:('127.0.0.1', 51208)"
+  ]
+}

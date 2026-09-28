@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_utils.optional_sdk import optional_sdk
+from backtrader.stores.btapistore import BtApiStoreError
 
 CtpExecutionApprovalCapability = optional_sdk(
     allow_module_level=True
@@ -20,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_btapistore_iteration22 import (  # noqa: E402
     ManagedBtApiClient,
     _authorized_store,
+    make_store,
 )
 
 
@@ -156,7 +158,7 @@ def test_store_order_command_carries_budget_capability(monkeypatch):
     monkeypatch.setattr(
         store,
         "_sdk_order_request",
-        lambda venue, payload: _Request(),
+        lambda venue, payload, **_kwargs: _Request(),
     )
 
     order = _FakeOrder({"budget_capability": capability})
@@ -172,7 +174,6 @@ def test_store_order_command_carries_budget_capability(monkeypatch):
 
 
 def test_store_invoke_sdk_command_passes_budget_capability_to_async_make_order():
-    _client, store, proof, _grant, _configured = _authorized_store()
     capability = _capability_stub()
     seen = []
 
@@ -181,10 +182,10 @@ def test_store_invoke_sdk_command_passes_budget_capability_to_async_make_order()
             seen.append((venue, request, normalized, kwargs))
             return {"kind": "order", "status": "submitted"}
 
-    store._api = _Api()
+    store = make_store(api=_Api(), provider="binance")
     command = {
         "operation": "submit",
-        "venue": "CTP___FUTURE",
+        "venue": "BINANCE___FUTURE",
         "request": object(),
         "budget_capability": capability,
     }
@@ -194,10 +195,7 @@ def test_store_invoke_sdk_command_passes_budget_capability_to_async_make_order()
     assert len(seen) == 1
     assert seen[0][2] is True
     assert seen[0][3] == {"budget_capability": capability}
-
-
 def test_store_invoke_sdk_command_omits_budget_capability_when_absent():
-    _client, store, proof, _grant, _configured = _authorized_store()
     seen = []
 
     class _Api:
@@ -205,12 +203,37 @@ def test_store_invoke_sdk_command_omits_budget_capability_when_absent():
             seen.append(kwargs)
             return {"kind": "order", "status": "submitted"}
 
+    store = make_store(api=_Api(), provider="binance")
+    command = {
+        "operation": "submit",
+        "venue": "BINANCE___FUTURE",
+        "request": object(),
+    }
+    asyncio.run(store._invoke_sdk_command("submit", command))
+
+    assert seen == [{}]
+
+
+def test_ctp_generic_sdk_sink_rejects_before_writer_method_lookup():
+    _client, store, _proof, _grant, _configured = _authorized_store()
+    method_lookups = []
+
+    class _Api:
+        def __getattribute__(self, name):
+            if name == "async_make_order":
+                method_lookups.append(name)
+            return object.__getattribute__(self, name)
+
+        async def async_make_order(self, venue, request, *, normalized=False, **kwargs):
+            raise AssertionError("CTP writer method must not be called")
+
     store._api = _Api()
     command = {
         "operation": "submit",
         "venue": "CTP___FUTURE",
         "request": object(),
     }
-    asyncio.run(store._invoke_sdk_command("submit", command))
+    with pytest.raises(BtApiStoreError, match="direct CTP SDK command dispatch is disabled"):
+        asyncio.run(store._invoke_sdk_command("submit", command))
 
-    assert seen == [{}]
+    assert method_lookups == []

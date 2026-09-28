@@ -1,0 +1,266 @@
+{
+  "schema": "iteration41.guardian.preorchestration.root_archive.v1",
+  "status": "LOCAL_HELPER_PASS_G1_NOT_PASSED",
+  "independent_results": {
+    "service": {
+      "tests": 41,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "revert": {
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "manifest": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "root_rehashed_source_files": 16,
+  "root_execution": "Root inspected frozen source and rehashed reviewer source copies/JUnit/logs; independent reviewer executed pytest.",
+  "review": {
+    "schema": "rqa-guardian-preorch-r1.v1",
+    "snapshot": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+    "evidence_manifest_sha256": "9E85F5D9E28F402144251167DD82F350D2A6E75FC827636BDEBC5621FB96C06B",
+    "frozen_sources": {
+      "service": "86CBAC9E0276B86A7C2479CCF44761B8B0EED713A7C11817F536C424BD5BBCE7",
+      "service_tests": "7DEBDD1A94AE079B288ADF0455E9464C4EFC7B95DA59AB9B87AE211A3AB38C83",
+      "parent_launcher": "F0209E38C1E997359E6AF683704E46DE4D069BA155C10754CFF061EC74FE86A9",
+      "manifest_test": "BA09D006D535105A3395D177B84F786BFCE57EE25566383DAC4B186631A02497"
+    },
+    "independent_runs": [
+      {
+        "name": "service_module",
+        "result": "41 passed in 26.15s",
+        "exit": 0,
+        "log": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\service-pytest.log",
+        "junit": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\service-junit.xml"
+      },
+      {
+        "name": "revert_failstop_focus",
+        "result": "7 passed, 34 deselected in 0.45s",
+        "exit": 0,
+        "log": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\revert-pytest.log",
+        "junit": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\revert-junit.xml"
+      },
+      {
+        "name": "parent_bootstrap_worker_gate",
+        "result": "1 passed in 0.48s",
+        "exit": 0,
+        "log": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\manifest-pytest.log",
+        "junit": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\manifest-junit.xml"
+      }
+    ],
+    "static_checks": {
+      "ruff_check_exit": 0,
+      "ruff_check_log": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\ruff-check.log",
+      "ruff_format_check_exit": 1,
+      "ruff_format_check_log": "D:\\temp\\rqa-guardian-preorch-r1-20260926\\ruff-format-check.log"
+    },
+    "source_review": {
+      "revert_helpers": "Both helpers call the common process-fatal reversion helper. On Windows it attempts TerminateProcess; regardless of return or wrapper failure, os._exit(70) follows. In the fault-injected test path the helper raises GuardianServiceThreadFatalError, a BaseException subclass.",
+      "request_handler": "The OS-token route catches GuardianServiceThreadFatalError before the broad BaseException handler and fail-stops before cleanup/receipt/response; integration negative asserts those side effects do not happen.",
+      "token_close_order": "Both paths attempt token-handle close and RevertToSelf; reversion failure process-fatal takes precedence. A source token close failure is surfaced only after successful reversion.",
+      "parent_gate": "Frozen parent source manifest checks require the fixed worker/helper/bootstrap sources; negative test removes worker/bootstrap/helper entries and requires rejection.",
+      "format_drift": "ruff format --check reports only parent_launcher.py and test_ctp_i13_source_manifest_candidate.py; service and service tests are already formatted. Record as whole-file pre-existing drift, not a new logic failure."
+    },
+    "scope": "Pre-orchestration helper and parent-manifest QA only. Snapshot explicitly predates protected per-request supervisor/Job orchestration. No SCM install/ACL mutation/provider/native/private config. Production TerminateProcess/os._exit were not invoked by tests.",
+    "commands": [
+      {
+        "name": "full_service",
+        "cwd": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+        "python": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+        "environment": {
+          "PYTHONPATH": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+        },
+        "argv": [
+          "-m",
+          "pytest",
+          "-q",
+          "--color=no",
+          "--basetemp",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\service-basetemp",
+          "--junitxml",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\service-junit.xml",
+          "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py"
+        ],
+        "result": "41 passed in 26.15s",
+        "exit": 0
+      },
+      {
+        "name": "focused_revert_failstop",
+        "cwd": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+        "python": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+        "environment": {
+          "PYTHONPATH": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+        },
+        "argv": [
+          "-m",
+          "pytest",
+          "-q",
+          "--color=no",
+          "--basetemp",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\revert-basetemp",
+          "--junitxml",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\revert-junit.xml",
+          "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+          "-k",
+          "revert or failstops"
+        ],
+        "result": "7 passed, 34 deselected in 0.45s",
+        "exit": 0
+      },
+      {
+        "name": "parent_manifest_worker_gate",
+        "cwd": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+        "python": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+        "environment": {
+          "PYTHONPATH": "D:\\temp\\iteration41-readonly-supervisor-preorch-20260926-r1",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+        },
+        "argv": [
+          "-m",
+          "pytest",
+          "-q",
+          "--color=no",
+          "--basetemp",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\manifest-basetemp",
+          "--junitxml",
+          "D:\\temp\\rqa-guardian-preorch-r1-20260926\\manifest-junit.xml",
+          "tests/unit/runtime/test_ctp_i13_source_manifest_candidate.py::test_worker_only_manifest_is_compatible_but_bootstrap_requires_worker"
+        ],
+        "result": "1 passed in 0.48s",
+        "exit": 0
+      }
+    ],
+    "source_copy_manifest": "source-copy-manifest.json",
+    "source_copy_classes": "frozen: the exact four source/test files executed; context: direct imports/support files copied from the snapshot, not claimed as one joint freeze or separately tested by this review.",
+    "scope_limits": "No service installation, DACL mutation, native/provider access, private config access, or production TerminateProcess/os._exit execution. This evidence stops before per-request Job/supervisor orchestration and is not whole-command/G1 acceptance."
+  },
+  "archive": {
+    "file": "ctp-g1-guardian-preorchestration-independent-review-2026-09-26.raw.zip",
+    "sha256": "8dcb2cd084af7cbcb494a583bab4468bfca7dbe23dab9473f96b0813c6158766",
+    "entries": 28
+  },
+  "files": [
+    {
+      "path": "artifact-hashes.json",
+      "sha256": "5f6b5761e03b5c07dd2d873340d469f8e1af07f5d64c79e67a3859cd929e1dd4"
+    },
+    {
+      "path": "manifest-junit.xml",
+      "sha256": "688733ac95dfa6435f1d734000aae80d903134091e370f633235dd57379910c5"
+    },
+    {
+      "path": "manifest-pytest.log",
+      "sha256": "4e553311303d833c89b7f9ec3c4cb81108cad30c41e9e26873407c774d47ef33"
+    },
+    {
+      "path": "revert-junit.xml",
+      "sha256": "007fb5f639e7a3235974bbc89785ba091970370507a8e30190507a2d515d6ba2"
+    },
+    {
+      "path": "revert-pytest.log",
+      "sha256": "b0413ed4304ac11832d8e0b1df42fb33f24ab38b1dba346550ad4153f6df3537"
+    },
+    {
+      "path": "review-receipt.json",
+      "sha256": "891c1e26661779cdcfc0b12544705b526ff2526bade128db3b9e373673567e6d"
+    },
+    {
+      "path": "review-receipt.md",
+      "sha256": "f131ca25e895368d023dcc94d55fcec0d877584569207c38b9e4e1868f29ceb3"
+    },
+    {
+      "path": "ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "ruff-format-check.log",
+      "sha256": "951322fb14792fc7dfba331339e660f99cd30ff1e6347398647956dd4b92519e"
+    },
+    {
+      "path": "service-junit.xml",
+      "sha256": "6fca8b19f2eef62428990ef33b63062ed9faba3ff9a40ab1f3972c64ea3bab97"
+    },
+    {
+      "path": "service-pytest.log",
+      "sha256": "1a76770a4d1f406a4836b9c9e6b40cbe85b6b850635d4ba2e2efb10fafc6f83b"
+    },
+    {
+      "path": "source-context/context/backtrader_runtime/ctp_i13_source_identity.py",
+      "sha256": "5c0d335017f4a847e97ff10f0746e0ff8b42d1060bb8922615a0272e381768c4"
+    },
+    {
+      "path": "source-context/context/backtrader_runtime/ctp_i13_source_identity_pin.py",
+      "sha256": "1b2ed8511bf7b183cd027caa26a093ec82a439fabb8b3805f5489f4639c03800"
+    },
+    {
+      "path": "source-context/context/backtrader_runtime/ctp_i15_source_identity_pin.py",
+      "sha256": "782cfdb0a9c5fedbb74a305eb3ad850a1c5aa655d92565190e215e726a756324"
+    },
+    {
+      "path": "source-context/context/scripts/__init__.py",
+      "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "19fc85e9bc0d82a991efd0f7bfa15cc5bb3388a22c0931b4f2b857a7d4fc9db4"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_readonly_preflight_worker.py",
+      "sha256": "f3368648c05cfd9234e02d0d8d6f78d15993c4e7108a8e6e5f8dfed4102bc282"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_sealed_import.py",
+      "sha256": "8376e2cde464eddf5c06bdd13f32c9b79fc1531ffbe5ac8818cb019e3714dafe"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "51dccaa8b1ff591c0ea77d35aceb5fe7fb33561754c889a011a10eae77c4d949"
+    },
+    {
+      "path": "source-context/context/scripts/ctp_i13_source_manifest_candidate.py",
+      "sha256": "76afbeb83debcbb9eb7508c6d602e3ed813d6f24bb6d6ba51ae8da39c8d19054"
+    },
+    {
+      "path": "source-context/frozen/scripts/ctp_i13_i15_parent_launcher.py",
+      "sha256": "f0209e38c1e997359e6af683704e46de4d069ba155c10754cff061ec74fe86a9"
+    },
+    {
+      "path": "source-context/frozen/scripts/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "86cbac9e0276b86a7c2479ccf44761b8b0eed713a7c11817f536c424bd5bbce7"
+    },
+    {
+      "path": "source-context/frozen/tests/unit/runtime/test_ctp_i13_source_manifest_candidate.py",
+      "sha256": "ba09d006d535105a3395d177b84f786bfce57ee25566383dac4b186631a02497"
+    },
+    {
+      "path": "source-context/frozen/tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "7debdd1a94ae079b288adf0455e9464c4efc7b95da59ab9b87ae211a3ab38c83"
+    },
+    {
+      "path": "source-copy-manifest.json",
+      "sha256": "287eeb15b116b4f63d0d58d6c3fff1fba9a3b6465d774c61b1449dd01e8aaed9"
+    }
+  ]
+}

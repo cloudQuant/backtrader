@@ -1,0 +1,1017 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -3259,43 +3259,54 @@
+                 asset_type, and other gateway-specific settings.
+         """
+ 
+-        def __init__(self, **kwargs):
+-            """Initialize the CTP gateway client wrapper.
++        def __init__(self, *, _store_route_owner=None, **kwargs):
++            """Initialize a gateway client only for a Store-sealed non-CTP route.
+ 
+             Args:
+                 **kwargs: Gateway configuration parameters passed to GatewayClient.
+             """
++            if not isinstance(_store_route_owner, BtApiStore):
++                raise BtApiStoreError("gateway wrapper requires an owning BtApiStore")
++            self._store = _store_route_owner
+             self._kwargs = dict(kwargs)
+-            self._store_route_guard = None
+-            self._kwargs.setdefault("exchange_type", "CTP")
+             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
++            exchange = self._kwargs.get("exchange_type")
++            normalized_exchange = (
++                exchange.strip().upper().partition("___")[0]
++                if type(exchange) is str
++                else ""
++            )
++            if normalized_exchange not in {"IB_WEB", "MT5"}:
++                raise BtApiStoreError("gateway wrapper refuses an unadmitted exchange route")
++            self._require_store_route()
+             self._client = GatewayClient(**self._kwargs)
+ 
+-        def _attach_store_route_guard(self, guard):
+-            self._store_route_guard = guard
+-
+         def _require_store_route(self):
+-            if self._store_route_guard is not None:
+-                self._store_route_guard()
++            self._store._candidate_require_route(RouteKind.NON_CTP)
+ 
+         def connect(self):
+             """Connect to the CTP gateway."""
++            self._require_store_route()
+             self._client.connect()
+ 
+         def start(self):
+             """Start the gateway client (alias for connect)."""
++            self._require_store_route()
+             self.connect()
+ 
+         def disconnect(self):
+             """Disconnect from the CTP gateway."""
++            self._require_store_route()
+             self._client.disconnect()
+ 
+         def stop(self):
+             """Stop the gateway client (alias for disconnect)."""
++            self._require_store_route()
+             self.disconnect()
+ 
+         def get_session_state(self):
+             """Return gateway session state when the gateway exposes it."""
++            self._require_store_route()
+             getter = getattr(self._client, "get_session_state", None)
+             if callable(getter):
+                 state = getter()
+@@ -3312,6 +3323,7 @@
+             Returns:
+                 Subscription result from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.subscribe(symbols)
+ 
+         def poll_tick(self, symbol):
+@@ -3323,6 +3335,7 @@
+             Returns:
+                 Tick data or None if no tick is available.
+             """
++            self._require_store_route()
+             return self._client.poll_tick(symbol)
+ 
+         def get_next_tick(self, symbol):
+@@ -3334,6 +3347,7 @@
+             Returns:
+                 Next tick data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_next_tick(symbol)
+ 
+         def has_pending_tick(self, symbol):
+@@ -3345,6 +3359,7 @@
+             Returns:
+                 True if a tick is available, False otherwise.
+             """
++            self._require_store_route()
+             return self._client.has_pending_tick(symbol)
+ 
+         def supports_live_ticks(self, symbol):
+@@ -3356,6 +3371,7 @@
+             Returns:
+                 True if live ticks are supported, False otherwise.
+             """
++            self._require_store_route()
+             return self._client.supports_live_ticks(symbol)
+ 
+         def supports_live_streaming(self, _symbol=None):
+@@ -3367,6 +3383,7 @@
+             Returns:
+                 True (live streaming is always supported).
+             """
++            self._require_store_route()
+             return True
+ 
+         def get_balance(self):
+@@ -3375,6 +3392,7 @@
+             Returns:
+                 Account balance data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_balance()
+ 
+         def get_account(self):
+@@ -3383,6 +3401,7 @@
+             Returns:
+                 Account data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_account()
+ 
+         def get_positions(self):
+@@ -3391,6 +3410,7 @@
+             Returns:
+                 List of position data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_positions()
+ 
+         def fetch_bars(
+@@ -3409,6 +3429,7 @@
+             Returns:
+                 List of bar data from the gateway client.
+             """
++            self._require_store_route()
+             tf = self._resolve_timeframe(timeframe, compression)
+             count = int(limit or 200)
+             if hasattr(self._client, "fetch_bars"):
+@@ -3456,6 +3477,7 @@
+ 
+         def get_symbol_info(self, symbol):
+             """Get trading symbol metadata from either gateway API alias."""
++            self._require_store_route()
+             for method_name in ("get_symbol_info", "fetch_symbol_info"):
+                 getter = getattr(self._client, method_name, None)
+                 if callable(getter):
+@@ -3468,6 +3490,7 @@
+             Returns:
+                 List of open order data, or empty list if unavailable.
+             """
++            self._require_store_route()
+             if hasattr(self._client, "fetch_open_orders"):
+                 return self._client.fetch_open_orders()
+             return []
+@@ -3481,6 +3504,8 @@
+             Returns:
+                 None (bars not supported in this wrapper).
+             """
++            self._require_store_route()
++            return
+ 
+         def get_next_bar(self, symbol):
+             """Get the next bar for the symbol.
+@@ -3491,6 +3516,8 @@
+             Returns:
+                 None (bars not supported in this wrapper).
+             """
++            self._require_store_route()
++            return
+ 
+         def submit_order(self, payload):
+             """Submit an order to the gateway.
+@@ -3537,6 +3564,7 @@
+             Returns:
+                 Broker update data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.poll_broker_update()
+ 
+         @staticmethod
+@@ -3623,6 +3651,42 @@
+     if _is_gateway_provider(provider_text):
+         return "gateway"
+     return "direct"
++
++
++class _StoreBoundSdkApiView:
++    """Route-checked public view over an SDK object retained by a Store.
++
++    Methods are wrapped so a reference obtained before a Store route change
++    cannot keep dispatching through the old client. Private attributes and
++    opaque non-callable client objects are never exposed through this view.
++    This is a compatibility guard, not an in-process isolation boundary:
++    same-process Python code can still inspect the Store's private ``_api``.
++    """
++
++    __slots__ = ("_store", "_api")
++
++    def __init__(self, store: "BtApiStore", api: Any):
++        self._store = store
++        self._api = api
++
++    def __getattr__(self, name: str) -> Any:
++        if not isinstance(name, str) or name.startswith("_"):
++            raise AttributeError(name)
++        self._store._candidate_require_route(RouteKind.NON_CTP)
++        value = getattr(self._api, name)
++        if callable(value):
++            def guarded_call(*args, **kwargs):
++                self._store._candidate_require_route(RouteKind.NON_CTP)
++                result = value(*args, **kwargs)
++                self._store._candidate_require_route(RouteKind.NON_CTP)
++                return result
++
++            return guarded_call
++        if value is None or type(value) in (str, bytes, int, float, bool):
++            return value
++        if type(value) in (dict, list, tuple, set, frozenset):
++            return deepcopy(value)
++        raise BtApiStoreError("sdk_api view does not expose opaque client attributes")
+ 
+ 
+ class BtApiStore(LiveStoreBase):
+@@ -4165,11 +4229,21 @@
+         contexts, redemptions, budget reservations) and must never construct a
+         second native client.
+         """
+-        return self._api
++        if self._api is None:
++            return None
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route has no SDK client")
++        self._candidate_require_route(RouteKind.NON_CTP)
++        return _StoreBoundSdkApiView(self, self._api)
+ 
+     @property
+     def uses_async_commands(self) -> bool:
+         """Return whether this SDK exposes the typed asynchronous command contract."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            return False
++        self._candidate_require_route(RouteKind.NON_CTP)
+         api = self._api
+         return bool(
+             self._sdk_mode
+@@ -4331,6 +4405,7 @@
+ 
+     def _require_async_sdk_commands(self) -> None:
+         """Fail closed when an SDK trading session lacks any async operation."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_mode:
+             return
+         missing = [
+@@ -4567,6 +4642,7 @@
+         clear_authorization: bool = False,
+     ) -> None:
+         """Revoke any SDK write lease and retain only market-data capability."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         ctp_unarmed = not (
+             self._ctp_sdk_arm_attempted
+             or self._sdk_execution_config.get("market_data_only") is not True
+@@ -4607,6 +4683,7 @@
+         generation.  Authorization preparation therefore uses the distinct
+         public SDK transition and refuses to emulate it for older clients.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         self._sdk_execution_config["market_data_only"] = True
+         with self._command_condition:
+             self._command_accept_openings = False
+@@ -4669,7 +4746,10 @@
+             classify_store_route(route) is not expected
+             or _candidate_route_fingerprint(route) != self._candidate_route_seal
+         ):
+-            raise BtApiStoreError("store route changed or is not admitted by this candidate")
++            error = BtApiStoreError("store route changed or is not admitted by this candidate")
++            error.definite_reject = True
++            error.code = "store_route_changed"
++            raise error
+ 
+     def _candidate_require_adapter_only(self) -> None:
+         if not self._candidate_adapter_only:
+@@ -4710,6 +4790,7 @@
+             self._candidate_require_adapter_only()
+             raise BtApiStoreError("ambiguous adapter-only route cannot start a provider client")
+         if self._candidate_actor_only:
++            self._candidate_require_route(RouteKind.CTP)
+             raise BtApiStoreError("account actor route has no accepted shared-session read feed")
+         self._candidate_require_route(RouteKind.NON_CTP)
+         with self._read_only_metadata_probe_condition:
+@@ -5117,6 +5198,7 @@
+ 
+     def _prepare_sdk_start(self) -> None:
+         """Reject restart while an earlier session worker can still mutate state."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         close_thread = self._sdk_close_thread
+         if close_thread is not None and close_thread.is_alive():
+             self._restart_blocked_by_close = True
+@@ -5273,6 +5355,7 @@
+ 
+     def enable_openings_after_account_risk(self) -> Dict[str, Any]:
+         """Unlock SDK openings only after a fresh identity-bound durable baseline."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self.requires_account_risk:
+             self._enable_openings_after_safety_gate()
+             return {"enabled": True, "account_risk_required": False}
+@@ -5700,6 +5783,7 @@
+ 
+     def _bounded_sdk_close(self, api: Any, timeout: float) -> Tuple[bool, Optional[BaseException]]:
+         """Close one SDK client within the caller's deadline and record the outcome."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         close = getattr(api, "close", None)
+         if not callable(close):
+             close_error = BtApiStoreError("The SDK client does not expose close()")
+@@ -5708,7 +5792,13 @@
+             self._shutdown_state = "FAIL"
+             return True, close_error
+ 
+-        closed, close_error, close_thread = self._bounded_call(close, timeout)
++        def close_if_route_is_still_admitted():
++            self._candidate_require_route(RouteKind.NON_CTP)
++            close()
++
++        closed, close_error, close_thread = self._bounded_call(
++            close_if_route_is_still_admitted, timeout
++        )
+         self._sdk_close_generation = self._command_generation
+         self._sdk_close_thread = close_thread
+         if not closed:
+@@ -5731,8 +5821,13 @@
+     def stop(self, timeout: Optional[float] = None):
+         """Bound command draining and disconnect the underlying client."""
+         if getattr(self, "_candidate_actor_only", False):
++            self._candidate_require_route(RouteKind.CTP)
+             self._started = False
+             return None
++        if getattr(self, "_candidate_adapter_only", False):
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot stop a provider client")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._read_only_metadata_probe_condition:
+             probe_worker = self._read_only_metadata_probe_thread
+             probe_owned_shutdown_pending = bool(
+@@ -5811,21 +5906,26 @@
+ 
+             if self._api is not None and funding_worker_stopped:
+                 if self._sdk_mode:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._cache_account_risk_snapshot_before_shutdown()
+                     try:
++                        self._candidate_require_route(RouteKind.NON_CTP)
+                         if hasattr(self._api, "get_execution_summary"):
+                             self._last_execution_summary = deepcopy(
+                                 self._api.get_execution_summary()
+                             )
+                     finally:
+                         if worker_stopped:
++                            self._candidate_require_route(RouteKind.NON_CTP)
+                             self._bounded_sdk_close(
+                                 self._api,
+                                 max(deadline - time.monotonic(), 0.0),
+                             )
+                 elif worker_stopped and hasattr(self._api, "disconnect"):
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._api.disconnect()
+                 elif worker_stopped and hasattr(self._api, "stop"):
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._api.stop()
+         finally:
+             if self._sdk_mode:
+@@ -5877,6 +5977,7 @@
+ 
+     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
+         """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._is_ctp_session_provider():
+             self._force_sdk_market_data_only("store_stop", clear_authorization=True)
+         self._venue_balance_cache = {}
+@@ -5900,11 +6001,14 @@
+             if self._connected:
+                 self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+             if self._api is not None and funding_worker_stopped:
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._cache_account_risk_snapshot_before_shutdown()
+                 try:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     if hasattr(self._api, "get_execution_summary"):
+                         self._last_execution_summary = deepcopy(self._api.get_execution_summary())
+                 finally:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._bounded_sdk_close(self._api, timeout or 0.0)
+         finally:
+             if not funding_worker_stopped:
+@@ -5927,6 +6031,10 @@
+ 
+     def getbroker(self, *args, **kwargs):
+         """Return a BtApiBroker bound to this store."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot bind a broker")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         broker_cls = kwargs.pop("broker_cls", self.BrokerCls)
+         if broker_cls is None:
+             from ..brokers.btapibroker import BtApiBroker
+@@ -5939,6 +6047,10 @@
+ 
+     def getdata(self, *args, **kwargs):
+         """Return a BtApiFeed bound to this store."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot bind a feed")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         data_cls = kwargs.pop("data_cls", self.DataCls)
+         if data_cls is None:
+             from ..feeds.btapifeed import BtApiFeed
+@@ -5958,6 +6070,7 @@
+         events. Deterministic replay clients may expose this small hook so a
+         runner never reaches through the Store's private client attribute.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         setter = getattr(self._api, "set_stop_callback", None)
+         if not callable(setter):
+             return False
+@@ -5981,6 +6094,10 @@
+         actual mode is queried separately through :meth:`get_account_config`;
+         callers must validate that result before submitting live or demo orders.
+         """
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            return False
++        self._candidate_require_route(RouteKind.NON_CTP)
+         mode = str(mode or "net").strip().lower()
+         if mode != "dual_side":
+             return True
+@@ -6007,6 +6124,7 @@
+ 
+     def get_balance(self, force: bool = False, raise_errors: bool = False):
+         """Refresh cached cash and value from the API, if available."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_balance_refresh,
+             self._account_cache_ttl,
+@@ -6060,6 +6178,7 @@
+         raise_errors: bool = False,
+     ) -> List[Dict[str, Any]]:
+         """Return cached or queried positions."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_positions_refresh,
+             self._positions_cache_ttl,
+@@ -6224,6 +6343,7 @@
+         raise_errors: bool = False,
+     ) -> List[Dict[str, Any]]:
+         """Fetch the provider's currently open orders, if supported."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_open_orders_refresh,
+             self._open_orders_cache_ttl,
+@@ -6442,6 +6562,7 @@
+ 
+     def poll_broker_update(self):
+         """Poll a normalized broker-side order/trade/error update from the API."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._connected:
+             return None
+ 
+@@ -6659,6 +6780,7 @@
+         managed_ctp_dispatcher: Optional[Callable[[CtpManagedDispatchBinding], Any]] = None,
+     ) -> Dict[str, Any]:
+         """Insert one command without waiting for transport or the SDK worker."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         operation = str(command.get("operation") or "").strip().lower()
+         command_venue = self._public_sdk_venue(command.get("venue")).casefold()
+         managed_ctp_operation = bool(
+@@ -6905,6 +7027,11 @@
+             "completed_monotonic_ns": 0,
+         }
+         try:
++            # A command can sit in the queue while public routing fields are
++            # mutated. Recheck inside the caught dispatch block so this becomes
++            # an auditable definite local rejection instead of killing the
++            # worker or reaching a retained SDK method.
++            self._candidate_require_route(RouteKind.NON_CTP)
+             if operation == "reconcile":
+                 result = await _run_in_thread(self._sdk_reconcile_snapshot)
+             elif operation == "ctp_reconcile":
+@@ -7052,6 +7179,7 @@
+         return completion
+ 
+     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if operation == "submit":
+             self._validate_approval_lease_command(command)
+         method_names = {
+@@ -7071,6 +7199,7 @@
+         call_kwargs = {"normalized": True}
+         if budget_capability is not None:
+             call_kwargs["budget_capability"] = budget_capability
++        self._candidate_require_route(RouteKind.NON_CTP)
+         result = async_method(*args, **call_kwargs)
+         if not inspect.isawaitable(result):
+             raise BtApiStoreError(f"SDK {async_name} did not return an awaitable")
+@@ -7149,6 +7278,7 @@
+ 
+     def _validated_sdk_identity(self, venue: str, raw_identity: Any = None) -> Dict[str, Any]:
+         """Validate, bind, and continuously fence one SDK-owned identity."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         getter = getattr(self._api, "get_execution_identity", None)
+         if raw_identity is None:
+             if not callable(getter):
+@@ -7451,10 +7581,12 @@
+         )
+ 
+     def _sdk_reconcile_snapshot(self) -> Dict[str, Any]:
++        self._candidate_require_route(RouteKind.NON_CTP)
+         positions = []
+         open_orders: List[Any] = []
+         reconciled_venues: List[str] = []
+         for venue in self._sdk_exchanges:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             venue_positions = self._require_sdk_list_result(
+                 self._api.get_position(venue, None, normalized=True),
+                 "get_position",
+@@ -7478,6 +7610,7 @@
+             open_orders.extend(self._sdk_broker_event(venue, row) for row in venue_open_orders)
+             # A venue is covered only after both risk-bearing reads returned.
+             reconciled_venues.append(self._public_sdk_venue(venue))
++        self._candidate_require_route(RouteKind.NON_CTP)
+         venue_balances = self._api.get_all_balances(normalized=True)
+         balance = self._api.get_portfolio_balance(venue_balances=venue_balances)
+         account_risk_snapshot = None
+@@ -8492,6 +8625,7 @@
+         identities, so a bare symbol such as ``rb2701`` is resolved to its
+         exchange here (the adapter then reuses it for order fields).
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         api = self._ensure_api_ready()
+         arm = getattr(api, "arm_registered_sim_execution", None)
+         if not callable(arm):
+@@ -12029,6 +12163,7 @@
+ 
+     def prepare_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+         """Explicitly confirm CTP settlement and return before/after request evidence."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._is_ctp_session_provider():
+             raise BtApiStoreError("CTP settlement preparation requires a CTP provider")
+         self._ensure_api_ready()
+@@ -12090,6 +12225,7 @@
+ 
+     def verify_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+         """Verify existing settlement state using a read-only server query."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._is_ctp_session_provider():
+             raise BtApiStoreError("CTP settlement verification requires a CTP provider")
+         self._ensure_api_ready()
+@@ -13518,6 +13654,7 @@
+         read-only and are surfaced as errors to the runner.
+         """
+ 
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._ctp_execution_recovery_completion_lock:
+             return self._prepare_execution_recovery_locked(proof)
+ 
+@@ -13605,6 +13742,7 @@
+ 
+     def abort_execution_recovery(self, reason: str) -> Dict[str, Any]:
+         """Strictly revoke a recovery lease and invalidate its local proof."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         normalized_reason = str(reason or "execution_recovery_aborted").strip()
+         if (
+@@ -13703,6 +13841,7 @@
+         recovery_token_sha256: str,
+     ) -> Dict[str, Any]:
+         """Arm only the actions present in one SDK-issued recovery plan."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._command_condition:
+             self._command_accept_openings = False
+@@ -13761,6 +13900,7 @@
+ 
+     def cancel_execution_recovery_orders(self, *, recovery_token_sha256: str) -> list:
+         """Queue exactly the SDK-approved cancellation set without local Order objects."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         recovery = self._ctp_execution_recovery
+         if not isinstance(recovery, Mapping) or not self._ctp_execution_recovery_armed:
+@@ -13826,6 +13966,7 @@
+ 
+     def complete_execution_recovery(self, *, recovery_token_sha256: str) -> Dict[str, Any]:
+         """Let the SDK prove two-round flatness and revoke the recovery lease once."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._ctp_execution_recovery_completion_lock:
+             return self._complete_execution_recovery_locked(
+@@ -13949,6 +14090,7 @@
+         legacy V1 proof-only call remains for compatibility with existing Store
+         facades and fixtures.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if str(self.provider or "").strip().lower() != "btapi":
+             raise BtApiStoreError("SDK execution arming requires provider='btapi'")
+         with self._command_condition:
+@@ -15147,6 +15289,7 @@
+ 
+     def get_execution_summary(self):
+         """Read the active session, or its stop snapshot without reconnecting."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._last_execution_summary is not None:
+             source_summary = self._last_execution_summary
+         else:
+@@ -15282,6 +15425,7 @@
+         complete snapshot.  Queue dispatch happens after the lock is released
+         and never calls an SDK method on the strategy callback thread.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._account_risk_lock:
+             snapshot = (
+@@ -15345,6 +15489,7 @@
+         provider without the public SDK contract therefore returns a complete
+         fail-closed shape with ``evidence_complete=False``.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._account_risk_lock:
+             cached = (
+                 deepcopy(self._last_account_risk_snapshot)
+@@ -15358,6 +15503,7 @@
+ 
+     def initialize_account_risk_baseline(self) -> Dict[str, Any]:
+         """Ask the SDK to initialize its baseline under its authoritative flatness gate."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self.requires_account_risk:
+             raise BtApiStoreError("account_risk_not_required")
+         snapshot = self._read_account_risk_snapshot(
+@@ -15373,6 +15519,7 @@
+ 
+     def get_reconcile_snapshot(self) -> Dict[str, Any]:
+         """Return one redacted, identity-bound synchronous SDK reconciliation snapshot."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_mode:
+             raise BtApiStoreError("SDK reconciliation is unavailable")
+         incident_epoch = self._current_risk_incident_epoch()
+@@ -15384,6 +15531,7 @@
+         self, api: Any, *, initialize_baseline: bool = False
+     ) -> Dict[str, Any]:
+         """Read, validate and redact the public SDK account-risk contract."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         configured_routes = sorted(
+             str(venue).strip() for venue in self._sdk_exchanges if str(venue).strip()
+         )
+@@ -15772,6 +15920,7 @@
+ 
+     def _warm_sdk_command_types(self) -> Dict[str, Any]:
+         """Load public bt_api_py request models outside the order hot path."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_command_types:
+             from bt_api_py import (
+                 CancelOrderRequest,
+@@ -16607,7 +16756,9 @@
+ 
+     def _drain_sdk_events(self):
+         """Convert standard SDK events to native objects on the Cerebro thread."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         for venue in self._sdk_exchanges:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             poll_events = getattr(self._api, "poll_events", None)
+             if callable(poll_events):
+                 events = poll_events(
+@@ -16830,6 +16981,7 @@
+ 
+     def _recover_reservation_only_cancel_unknowns(self) -> None:
+         """Run the SDK's local journal recovery hook before Store transport startup."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         recover = getattr(self._api, "recover_reservation_only_cancel_unknowns", None)
+         if not callable(recover):
+             return
+@@ -16848,6 +17000,7 @@
+ 
+     def _recover_historical_documented_definite_rejections(self) -> None:
+         """Run the SDK's proven local rejection recovery before transport startup."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         recover = getattr(self._api, "recover_historical_documented_definite_rejections", None)
+         if not callable(recover):
+             # This hook is optional for older SDKs. Without it, unresolved
+@@ -16912,6 +17065,7 @@
+                 "execution_config" in options
+                 or any(key in options for key in _SDK_EXECUTION_CONFIG_KEYS)
+             ):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.configure_execution(execution)
+             if metadata_probe_requires_market_data_only:
+                 self._configure_bounded_metadata_probe_sdk_market_data_only()
+@@ -16931,11 +17085,10 @@
+                 kwargs = dict(self._config)
+                 kwargs.update(self._api_kwargs)
+                 self._candidate_require_route(RouteKind.NON_CTP)
+-                created_api = api_cls(**kwargs)
+                 if attach_store_route_guard:
+-                    created_api._attach_store_route_guard(
+-                        lambda: self._candidate_require_route(RouteKind.NON_CTP)
+-                    )
++                    created_api = api_cls(_store_route_owner=self, **kwargs)
++                else:
++                    created_api = api_cls(**kwargs)
+                 self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api = created_api
+ 
+@@ -16960,9 +17113,12 @@
+             )
+ 
+         try:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             if hasattr(self._api, "connect"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.connect()
+             elif hasattr(self._api, "start"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.start()
+         except Exception as exc:
+             _safe_log("error", "btapistore:14824 exception before re-raise (Exception)")
+@@ -17021,6 +17177,7 @@
+                     self._api = None
+                 self._sdk_configured = False
+             elif hasattr(self._api, "disconnect"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.disconnect()
+             raise
+         self.emit_runtime_event("store_ready", status="ready")
+diff --git a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+--- a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
++++ b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+@@ -683,3 +683,219 @@
+         wrapper.cancel_order("order-ref")
+     assert clients[0].submit_calls == [{}]
+     assert clients[0].cancel_calls == [("order-ref", None)]
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_gateway_wrapper_lifecycle_and_read_methods_recheck_retained_route(
++    monkeypatch, route_mutation
++):
++    import sys
++    from types import ModuleType
++
++    clients = []
++
++    class _TrackingGatewayClient:
++        def __init__(self, **kwargs):
++            self.kwargs = kwargs
++            self.calls = []
++            clients.append(self)
++
++        def __getattr__(self, name):
++            def call(*args, **kwargs):
++                self.calls.append((name, args, kwargs))
++                if name == "get_balance":
++                    return {"balance": 100}
++                return None
++
++            return call
++
++    root_module = ModuleType("bt_api_py")
++    root_module.__path__ = []
++    gateway_module = ModuleType("bt_api_py.gateway")
++    gateway_module.__path__ = []
++    client_module = ModuleType("bt_api_py.gateway.client")
++    client_module.GatewayClient = _TrackingGatewayClient
++    monkeypatch.setitem(sys.modules, "bt_api_py", root_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", client_module)
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    wrapper = store._api
++    before = list(clients[0].calls)
++    assert before
++
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++
++    calls = (
++        lambda: wrapper.connect(),
++        lambda: wrapper.start(),
++        lambda: wrapper.disconnect(),
++        lambda: wrapper.stop(),
++        lambda: wrapper.get_session_state(),
++        lambda: wrapper.subscribe(["rb2710"]),
++        lambda: wrapper.poll_tick("rb2710"),
++        lambda: wrapper.get_next_tick("rb2710"),
++        lambda: wrapper.has_pending_tick("rb2710"),
++        lambda: wrapper.supports_live_ticks("rb2710"),
++        lambda: wrapper.supports_live_streaming("rb2710"),
++        lambda: wrapper.get_balance(),
++        lambda: wrapper.get_account(),
++        lambda: wrapper.get_positions(),
++        lambda: wrapper.fetch_bars("rb2710"),
++        lambda: wrapper.fetch_ohlcv("rb2710"),
++        lambda: wrapper.fetch_symbol_info("rb2710"),
++        lambda: wrapper.get_symbol_info("rb2710"),
++        lambda: wrapper.fetch_open_orders(),
++        lambda: wrapper.poll_bar("rb2710"),
++        lambda: wrapper.get_next_bar("rb2710"),
++        lambda: wrapper.submit_order({}),
++        lambda: wrapper.create_order(symbol="rb2710"),
++        lambda: wrapper.cancel_order("order-ref"),
++        lambda: wrapper.poll_broker_update(),
++    )
++    for call in calls:
++        with pytest.raises(BtApiStoreError, match="route changed"):
++            call()
++
++    assert clients[0].calls == before
++
++
++def test_retained_sdk_api_method_rechecks_route_before_provider_call():
++    class _RetainedApi:
++        exchange_kwargs = {}
++
++        def __init__(self):
++            self.calls = []
++            self.client = object()
++
++        def read_marker(self):
++            self.calls.append("read_marker")
++            return {"ok": True}
++
++    api = _RetainedApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    retained = store.sdk_api
++    retained_method = retained.read_marker
++    assert retained_method() == {"ok": True}
++    assert api.calls == ["read_marker"]
++
++    store._config["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        retained_method()
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        retained.read_marker
++    assert api.calls == ["read_marker"]
++
++    store._config["exchange_type"] = "OKX"
++    with pytest.raises(BtApiStoreError, match="opaque client attributes"):
++        _ = store.sdk_api.client
++    assert retained is not api
++
++
++def test_route_mutation_after_queue_blocks_sdk_worker_before_api_dispatch():
++    import asyncio
++
++    class _DispatchApi:
++        exchange_kwargs = {}
++
++        def __init__(self):
++            self.calls = []
++
++        async def async_query_order(self, *args, **kwargs):
++            self.calls.append((args, kwargs))
++            return {"status": "ok"}
++
++    api = _DispatchApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    command = {
++        "operation": "query",
++        "venue": "okx",
++        "request": object(),
++        "priority": "query",
++    }
++    receipt = store._enqueue_sdk_command(command, priority_name="query")
++    assert receipt["queued"] is True
++    assert api.calls == []
++
++    store._config["exchange_type"] = "CTP"
++    completion = asyncio.run(store._execute_sdk_command(command))
++    assert completion["status"] == "failed"
++    assert completion["definite_reject"] is True
++    assert completion["execution_unknown"] is False
++    assert completion["error_code"] == "store_route_changed"
++    assert api.calls == []
++
++
++@pytest.mark.parametrize(
++    "entrypoint",
++    [
++        "start",
++        "get_balance",
++        "get_execution_summary",
++        "get_account_risk_snapshot",
++        "get_callback_account_risk_state",
++        "get_reconcile_snapshot",
++        "initialize_account_risk_baseline",
++        "enable_openings_after_account_risk",
++        "prepare_ctp_settlement",
++        "verify_ctp_settlement",
++        "prepare_execution_recovery",
++        "arm_execution_recovery",
++        "cancel_execution_recovery_orders",
++        "complete_execution_recovery",
++        "arm_sdk_execution",
++        "arm_registered_sim_execution",
++        "supports_position_mode",
++        "stop",
++    ],
++)
++def test_store_entrypoints_reject_route_mutation_before_touching_retained_api(entrypoint):
++    class _TrapApi:
++        exchange_kwargs = {}
++        ctp_query_min_interval_seconds = 1.0
++        poll_event = None
++
++        def __init__(self):
++            self.reads = []
++
++        def __getattr__(self, name):
++            self.reads.append(name)
++            raise AssertionError(f"provider attribute touched after route mutation: {name}")
++
++    api = _TrapApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    if entrypoint == "get_execution_summary":
++        store._last_execution_summary = {"active_orders": 0}
++    store._config["exchange_type"] = "CTP"
++
++    calls = {
++        "arm_sdk_execution": lambda: store.arm_sdk_execution({}),
++        "arm_registered_sim_execution": lambda: store.arm_registered_sim_execution(
++            "rb2710",
++            strategy_identity_sha256="a" * 64,
++            execution_cycle_id="cycle",
++            preflight_sha256="b" * 64,
++        ),
++        "prepare_execution_recovery": lambda: store.prepare_execution_recovery({}),
++        "arm_execution_recovery": lambda: store.arm_execution_recovery(
++            {}, recovery_token_sha256="c" * 64
++        ),
++        "cancel_execution_recovery_orders": lambda: store.cancel_execution_recovery_orders(
++            recovery_token_sha256="c" * 64
++        ),
++        "complete_execution_recovery": lambda: store.complete_execution_recovery(
++            recovery_token_sha256="c" * 64
++        ),
++        "supports_position_mode": lambda: store.supports_position_mode("net"),
++    }
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        calls[entrypoint]() if entrypoint in calls else getattr(store, entrypoint)()
++    assert api.reads == []
+diff --git a/tests/unit/stores/test_btapistore.py b/tests/unit/stores/test_btapistore.py
+--- a/tests/unit/stores/test_btapistore.py
++++ b/tests/unit/stores/test_btapistore.py
+@@ -3586,12 +3586,23 @@
+     store.stop()
+ 
+ 
+-def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypatch):
+-    """Gateway wrapper should expose exchange asset specs from either symbol-info alias."""
++def test_gateway_wrapper_symbol_info_alias_requires_store_bound_non_ctp_route(monkeypatch):
++    """Gateway wrapper aliases remain usable only through a Store-admitted route."""
++    constructed = []
+ 
+     class SymbolInfoGatewayClient:
+         def __init__(self, **kwargs):
+             self.kwargs = dict(kwargs)
++            constructed.append(self)
++
++        def connect(self):
++            return None
++
++        def disconnect(self):
++            return None
++
++        def get_balance(self):
++            return {"balance": 100}
+ 
+         def get_symbol_info(self, symbol):
+             assert symbol == DEFAULT_SYMBOL
+@@ -3613,11 +3624,21 @@
+     monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
+ 
+     wrapper_cls = _create_ctp_gateway_wrapper_class()
+-    client = wrapper_cls(account_id="acc-1")
+-
+-    assert client.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
+-    assert client.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
+-    assert client._client.kwargs["exchange_type"] == "CTP"
++    with pytest.raises(BtApiStoreError, match="owning BtApiStore"):
++        wrapper_cls(exchange_type="CTP")
++    assert constructed == []
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    wrapper = store._api
++    assert wrapper.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
++    assert wrapper.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
++    assert wrapper._client.kwargs["exchange_type"] == "IB_WEB"
++    assert store.stop() is not None
+ 
+ 
+ def test_split_ctp_symbol_normalizes_czce_with_exchange():

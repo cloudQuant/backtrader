@@ -1,0 +1,4 @@
+same_process_extension_loader_swap=ACCEPTED
+fake_loader_marker=fake-loader-ran
+native_extension_loaded=false
+retained_hash_checked_before_path_delegate=true

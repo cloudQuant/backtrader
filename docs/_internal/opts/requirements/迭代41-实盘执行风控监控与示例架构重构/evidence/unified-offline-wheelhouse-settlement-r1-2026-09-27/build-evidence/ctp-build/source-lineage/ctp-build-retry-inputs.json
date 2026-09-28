@@ -1,0 +1,11 @@
+{
+  "schema": "iteration41.g4r2.settlement-build-retry-inputs.v1",
+  "source_manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+  "copies_identical": true,
+  "file_count": 367,
+  "files_sha256": "a6f1d0a93530ac83e740d4169c3fff19825e125815fe140b59414d8936a7cd36",
+  "copied_source_roots": [
+    "D:\\temp\\iteration41-unified-offline-wheelhouse-20260927-v2\\ctp-build-a-retry\\source\\source-a",
+    "D:\\temp\\iteration41-unified-offline-wheelhouse-20260927-v2\\ctp-build-b-retry\\source\\source-a"
+  ]
+}

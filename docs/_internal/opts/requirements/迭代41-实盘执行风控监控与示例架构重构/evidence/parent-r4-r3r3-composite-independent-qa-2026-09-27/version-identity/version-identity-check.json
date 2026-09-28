@@ -1,0 +1,12 @@
+{
+  "candidate_version": "0.15.5",
+  "baseline_parent_version": "0.15.5",
+  "source_only_metadata_version": "0.15.5",
+  "baseline_pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+  "candidate_pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+  "baseline_authority_sha256": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058",
+  "r4_authority_sha256": "ff31893935aed8ac7944c5f720eb46553298cf593553dbbe64ad74583b89dc06",
+  "same_version_different_authority_source": true,
+  "wheel_built_or_installed": false,
+  "release_pin_authorized": false
+}

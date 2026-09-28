@@ -1,0 +1,10 @@
+{
+  "blocked_ctp_import_events": 1,
+  "guard_processes": 32,
+  "meaning": "Guard diagnostic only; one CTP import was blocked at optional importorskip collection. No native modules or external network events were recorded.",
+  "native_modules_loaded": [],
+  "network_or_dns_events": 0,
+  "observed_events": [
+    "blocked_provider_import:bt_api_ctp"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "candidate": {
+    "directory": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1",
+    "freeze_receipt_sha256": "9e42739f3357032cd4c0c8d67b493bd52a2a114272c45b3223ce38874b331473",
+    "manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+    "payload_count": 141,
+    "payload_hash_and_size_errors": 0,
+    "zip_crc": "passed",
+    "zip_path": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1.zip",
+    "zip_sha256": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0"
+  },
+  "independent_copy": "D:\\temp\\iteration41-g6s-r1-independent-qa-20260927",
+  "limitations": [
+    "Code-owned SDK pin remains None.",
+    "Native extension load still delegates to pathname-based ExtensionFileLoader after a retained-handle digest check; no mapped-image identity proof was made.",
+    "A same-process mutation of importlib.machinery.ExtensionFileLoader is not covered by the importer context snapshot and was accepted by an inert fake loader probe.",
+    "Python in-process controls do not isolate against hostile concurrent same-process code.",
+    "No approved wheel/signature/protected deployment root or complete dependency closure."
+  ],
+  "probes": {
+    "default_pin_gate": {
+      "result": "sdk_artifact_release_pin_unavailable",
+      "sdk_package_imported": false,
+      "stdout_sha256": "e3731c8ba84cefb9275fbb711bd70836a6747e4ed106c91ee48ef6efae8cf5a2"
+    },
+    "retained_pyd_mutation": {
+      "actual_pyd_load": false,
+      "fixture_bytes": "inert text; unchanged",
+      "overwrite": "PermissionError",
+      "replace": "PermissionError winerror=32",
+      "stdout_sha256": "282c5a14f1ae2ff0a7638e4a73f131bc3199b4bda84d035fd8946e3a8ddf0bca"
+    },
+    "same_process_extension_loader_hook": {
+      "actual_pyd_load": false,
+      "result": "accepted fake replacement loader after gate; module marker set",
+      "stdout_sha256": "115c341f36872947b07c446c99718ebfc25396ced35f98226cbd19be2c5cff45"
+    }
+  },
+  "runtime": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "D:\\temp\\iteration41-g6s-r1-independent-qa-20260927",
+    "interpreter": "C:\\anaconda3\\python.exe",
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.5"
+  },
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.independent_qa.r1.v1",
+  "scope": {
+    "account_accessed": false,
+    "credentials_or_private_config_read": false,
+    "ctp_native_loaded_or_called": false,
+    "default_route_changed": false,
+    "provider_or_network_called": false,
+    "real_sdk_loaded": false
+  },
+  "source_files_sha256": {
+    "backtrader_runtime/ctp_sdk_artifact_binding.py": "3a47e5ddd9dff239f45546991e881ba7dff25f64254783e9386b1a63ac393713",
+    "backtrader_runtime/ctp_simnow_td_trading_readiness.py": "25ceb62fd9ec0aa2c9280f555e6c95b92e4a24c0d201ee7d4ffb92c3027bf48a",
+    "backtrader_runtime/ctp_windows_artifact_custody.py": "eaf794fceed98ed18bc23d21bc9d1d962575d27ceee9b78bfd84d86b2003f421",
+    "tests/unit/runtime/test_ctp_sdk_artifact_binding.py": "89d5622615dc93db8eac63e84437e1ba9a2b8a45e09e57d771757dbd44a96a73",
+    "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py": "136e94204c418ad452cb67e155c827cfa0ef57697b77d4ae607c1fa109235377",
+    "tests/unit/runtime/test_ctp_windows_artifact_custody.py": "14a643deca3aa8f259fca54d3c6066dc77817c4537e2e8a0eccbb034685db841"
+  },
+  "status": "PARTIAL_CUSTODY_G4_BLOCKED_G6S_BLOCKED",
+  "tests": [
+    {
+      "command": "python -m pytest --noconftest tests\\unit\\runtime\\test_ctp_sdk_artifact_binding.py tests\\unit\\runtime\\test_ctp_windows_artifact_custody.py tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml=evidence\\r1-independent-qa\\pytest-focus.junit.xml",
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 47
+      },
+      "junit": "evidence/r1-independent-qa/pytest-focus.junit.xml",
+      "stdout_sha256": "a0b3467b613853c663d188e5bde5ff3b6c4fb9eac0f4b87df04eae0f25356028"
+    },
+    {
+      "command": "pytest --noconftest with nodes: test_retained_source_handle_blocks_concurrent_replace_before_import; test_source_swap_after_custody_cannot_execute_replacement_marker; four test_import_environment_mutation_rejects_cached_artifact_before_use params; test_sys_modules_replacement_rejects_cached_artifact_before_use; test_production_gate_has_no_default_artifact_pin_and_touches_no_sdk",
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 8
+      },
+      "junit": "evidence/r1-independent-qa/pytest-adversarial.junit.xml",
+      "stdout_sha256": "577084f5626cc9dfa5581fdca02a81d62056b223cd5165f7f67ec326e3ea34f1"
+    }
+  ]
+}

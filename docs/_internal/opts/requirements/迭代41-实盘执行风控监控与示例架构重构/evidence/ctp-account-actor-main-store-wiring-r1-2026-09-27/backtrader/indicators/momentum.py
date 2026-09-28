@@ -1,0 +1,267 @@
+#!/usr/bin/env python
+"""Momentum Indicator Module - Momentum and Rate of Change.
+
+This module provides momentum-based indicators for measuring the rate
+of price change over a given period.
+
+Classes:
+    Momentum: Measures price change (difference).
+    MomentumOscillator: Momentum as ratio (alias: MomentumOsc).
+    RateOfChange: Rate of change indicator (alias: ROC).
+    RateOfChange100: ROC with base 100 (alias: ROC100).
+
+Example:
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.mom = bt.indicators.Momentum(self.data.close, period=12)
+            self.roc = bt.indicators.ROC(self.data.close, period=10)
+            self.roc100 = bt.indicators.ROC100(self.data.close, period=12)
+
+        def next(self):
+            # Momentum-based strategy
+            if self.mom.momentum[0] > 0:
+                self.buy()
+            elif self.mom.momentum[0] < 0:
+                self.sell()
+"""
+
+from . import Indicator
+
+
+class Momentum(Indicator):
+    """
+    Measures the change in price by calculating the difference between the
+    current price and the price from a given period ago
+
+
+    Formula:
+      - momentum = data - data_period
+
+    See:
+      - http://en.wikipedia.org/wiki/Momentum_(technical_analysis)
+    """
+
+    lines = ("momentum",)
+    params = (("period", 12),)
+    plotinfo = {"plothlines": [0.0]}
+
+    def __init__(self):
+        """Initialize the Momentum indicator.
+
+        Sets minimum period to period + 1 for difference calculation.
+        """
+        super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        """Calculate momentum for the current bar.
+
+        Momentum = current_price - price_period_ago
+        """
+        self.lines.momentum[0] = self.data[0] - self.data[-self.p.period]
+
+    def once(self, start, end):
+        """Calculate momentum in runonce mode.
+
+        Computes price difference across all bars.
+        """
+        darray = self.data.array
+        larray = self.lines.momentum.array
+        period = self.p.period
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(period, min(end, len(darray))):
+            larray[i] = darray[i] - darray[i - period]
+
+
+class MomentumOscillator(Indicator):
+    """
+    Measures the ratio of change in prices over a period
+
+    Formula:
+      - mosc = 100 * (data / data_period)
+
+    See:
+      - http://ta.mql4.com/indicators/oscillators/momentum
+    """
+
+    alias = ("MomentumOsc",)
+
+    # Named output lines
+    lines = ("momosc",)
+
+    # Accepted parameters (and defaults)
+    params = (("period", 12), ("band", 100.0))
+
+    def _plotlabel(self):
+        plabels = [self.p.period]
+        return plabels
+
+    def _plotinit(self):
+        self.plotinfo.plothlines = [self.p.band]
+
+    def __init__(self):
+        """Initialize the Momentum Oscillator indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
+        super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        """Calculate momentum oscillator for the current bar.
+
+        Oscillator = 100 * (current_price / price_period_ago)
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.momosc[0] = 100.0 * (self.data[0] / prev_val)
+        else:
+            self.lines.momosc[0] = 0.0
+
+    def once(self, start, end):
+        """Calculate momentum oscillator in runonce mode.
+
+        Computes 100 * ratio across all bars.
+        """
+        darray = self.data.array
+        larray = self.lines.momosc.array
+        period = self.p.period
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = 100.0 * (darray[i] / prev_val)
+            else:
+                larray[i] = 0.0
+
+
+class RateOfChange(Indicator):
+    """
+    Measures the ratio of change in prices over a period
+
+    Formula:
+      - roc = (data - data_period) / data_period
+
+    See:
+      - http://en.wikipedia.org/wiki/Momentum_(technical_analysis)
+    """
+
+    alias = ("ROC",)
+
+    # Named output lines
+    lines = ("roc",)
+
+    # Accepted parameters (and defaults)
+    params = (("period", 12),)
+
+    def __init__(self):
+        """Initialize the Rate of Change indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
+        super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        """Calculate ROC for the current bar.
+
+        ROC = (current_price - price_period_ago) / price_period_ago
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.roc[0] = (self.data[0] - prev_val) / prev_val
+        else:
+            self.lines.roc[0] = 0.0
+
+    def once(self, start, end):
+        """Calculate ROC in runonce mode.
+
+        Computes rate of change ratio across all bars.
+        """
+        darray = self.data.array
+        larray = self.lines.roc.array
+        period = self.p.period
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = (darray[i] - prev_val) / prev_val
+            else:
+                larray[i] = 0.0
+
+
+class RateOfChange100(Indicator):
+    """
+    Measures the ratio of change in prices over a period with base 100
+
+    This is, for example, how ROC is defined in stockcharts
+
+    Formula:
+      - roc = 100 * (data - data_period) / data_period
+
+    See:
+      - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:rate_of_change_roc_and_momentum
+
+    """
+
+    alias = ("ROC100",)
+
+    # Named output lines
+    lines = ("roc100",)
+
+    # Accepted parameters (and defaults)
+    params = (("period", 12),)
+
+    def __init__(self):
+        """Initialize the ROC100 indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
+        super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        """Calculate ROC100 for the current bar.
+
+        ROC100 = 100 * (current_price - price_period_ago) / price_period_ago
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.roc100[0] = 100.0 * (self.data[0] - prev_val) / prev_val
+        else:
+            self.lines.roc100[0] = 0.0
+
+    def once(self, start, end):
+        """Calculate ROC100 in runonce mode.
+
+        Computes rate of change with base 100 across all bars.
+        """
+        darray = self.data.array
+        larray = self.lines.roc100.array
+        period = self.p.period
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = 100.0 * (darray[i] - prev_val) / prev_val
+            else:
+                larray[i] = 0.0
+
+
+ROC = RateOfChange
+ROC100 = RateOfChange100

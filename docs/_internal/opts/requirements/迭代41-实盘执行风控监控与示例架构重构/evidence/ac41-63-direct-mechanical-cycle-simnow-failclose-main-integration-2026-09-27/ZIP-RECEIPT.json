@@ -1,0 +1,9 @@
+{
+  "schema": "ac41-63.direct-dispatch-main-integration-zip.v1",
+  "zip": "evidence.zip",
+  "sha256": "eb4a3b1915b76c1c0ce2d3d1957f57e462cf9218d3dc5dd060e93d081e01fafa",
+  "members": 34,
+  "crc": "PASS",
+  "readme_sha256": "708ac6a683c851621637daa6406cb4ce6c2e14e4e07132df6d9d1b72f6e9f800",
+  "payload_manifest_sha256": "87059838ea05b4af242dcd9ff286ad74b5581649391d64a7f3cb6e1390ed5b1b"
+}

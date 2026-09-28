@@ -1,0 +1,235 @@
+{
+  "artifact_files": {
+    "commands.txt": {
+      "sha256": "85ea86973b8455fef5aecd0cb4e4038506478b8c720604a1850d1bc8264e1d8c",
+      "size": 5078
+    },
+    "finalize_composite.py": {
+      "sha256": "950519746fb9621abf3ee688621ca1111d588cb3578dfb62c99df8720bb61950",
+      "size": 18045
+    },
+    "five-file-focus-r1.exit.txt": {
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size": 3
+    },
+    "five-file-focus-r1.log": {
+      "sha256": "6b65df32c102c6fd48b5ea279d24f604be34805ef469c14567eaef3c4473ba9b",
+      "size": 769
+    },
+    "five-file-focus-r1.xml": {
+      "sha256": "7a3ecb4020ec749b7a1a186158b9c07fa0b6bd2366ac66a856b70c85405a3823",
+      "size": 13569
+    },
+    "main-cancel-control-r1.exit.txt": {
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size": 3
+    },
+    "main-cancel-control-r1.log": {
+      "sha256": "9c598a096111470b506e51ee6ddee0cd1f3df2cbb64b5ce4f9e53cbc266a0781",
+      "size": 214
+    },
+    "main-cancel-control-r1.xml": {
+      "sha256": "f7f0c2e18be5e6673b4c868001bc9164035667b13e6c96a2adcad0855dbaff93",
+      "size": 3474
+    },
+    "main-three-r1.exit.txt": {
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size": 3
+    },
+    "main-three-r1.log": {
+      "sha256": "8e71bd52e222be28196e68994eba88ceffc590331b7b2e03d7c3e41b0e297c9c",
+      "size": 4506
+    },
+    "main-three-r1.xml": {
+      "sha256": "c68efa3e6f35f972ce8d4ac35a42255ed75b65837280a9e5e354348e5ac075c1",
+      "size": 5816
+    },
+    "main-three-r2.exit.txt": {
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size": 3
+    },
+    "main-three-r2.log": {
+      "sha256": "6a7dadcdd1ceeb7a68914f99220032144b089935c4b050031d511b129dcde94c",
+      "size": 682
+    },
+    "main-three-r2.xml": {
+      "sha256": "e445a4583343716fdc17307d439ed03206f0b3449685ddc52857a8157e8d8af0",
+      "size": 1029
+    },
+    "origin-guard-cancel-control-r1/origin-guard-34476.jsonl": {
+      "sha256": "5195821549e60c3d4fb1769089c223fb56f1d0f381a36738df552206668b1a2d",
+      "size": 1428
+    },
+    "origin-guard-cancel-control-r1/origin-guard-36156.jsonl": {
+      "sha256": "5aee4652e52f808a43315db6bc80be20239acb4543fa717353966612b60b13a5",
+      "size": 29388
+    },
+    "origin-guard-cancel-control-r1/origin-guard-39796.jsonl": {
+      "sha256": "995b241f7e30dde32b2724ed9bcec41fe477fa1254b6059670afccf8f2c573f6",
+      "size": 1428
+    },
+    "origin-guard-cancel-control-r1/origin-guard-41628.jsonl": {
+      "sha256": "b22e94d1d779957b83d000ed1a4e78e842726056e04395328e72513f858e9b11",
+      "size": 1428
+    },
+    "origin-guard-five-r1/origin-guard-13516.jsonl": {
+      "sha256": "c05d3357709b5f501f77248d339851f46811c74a3cda0ea9264549aa8242afc0",
+      "size": 28606
+    },
+    "origin-guard-five-r1/origin-guard-13728.jsonl": {
+      "sha256": "dd7e33b2d7938ea525b36f208f6dd2764aee74b1d4ecdde4ef63b2b0a331e1f1",
+      "size": 28606
+    },
+    "origin-guard-five-r1/origin-guard-14040.jsonl": {
+      "sha256": "ea40cf05e2736849bd43d78402a4f51f31b2b897ce49d15cf72d1973731edd97",
+      "size": 1418
+    },
+    "origin-guard-five-r1/origin-guard-14292.jsonl": {
+      "sha256": "4b04e086391f6f3cc797142109cb3567c2c8bb003cb694f1a1217cda1813eb0e",
+      "size": 28606
+    },
+    "origin-guard-five-r1/origin-guard-26228.jsonl": {
+      "sha256": "2e3d5b56810b9a2400f4d3311a1ba060741dd7add8593bd2d310752a0783efa6",
+      "size": 28606
+    },
+    "origin-guard-five-r1/origin-guard-40276.jsonl": {
+      "sha256": "42d17d412f273823094f0581f64643b828a045bef5858634bd6433b4561c44ee",
+      "size": 23530
+    },
+    "origin-guard-five-r1/origin-guard-42164.jsonl": {
+      "sha256": "fe9a420489646a115907f7ef8eb94e84d5a9f3943892652381faeea196397c34",
+      "size": 28606
+    },
+    "origin-guard-original-three-r1/origin-guard-25636.jsonl": {
+      "sha256": "d69cd8e90c3f456133e35bf86dad252cc65e4440c8f476e7c8f0ca80c49d186a",
+      "size": 1428
+    },
+    "origin-guard-original-three-r1/origin-guard-26320.jsonl": {
+      "sha256": "a11b9f0c6f35fb05daf7f36e40d4c4d52d7c22694a28d7a099fa07fe2789003b",
+      "size": 28616
+    },
+    "origin-guard-original-three-r1/origin-guard-37764.jsonl": {
+      "sha256": "33e93c172d9ea17b9e3696f0b08c3e279e81ff41884ee28886599746be10dde0",
+      "size": 28616
+    },
+    "origin-guard-original-three-r1/origin-guard-44972.jsonl": {
+      "sha256": "1b2f89db47be5fb5b03900ec7b38f7ecf151de8252a611e86e2e07a6293d13b6",
+      "size": 28616
+    },
+    "origin-guard-original-three-r1/origin-guard-45096.jsonl": {
+      "sha256": "65cd5cd0904213b598cc7c8706054ea8411c0edc291be56046754c23b4669ab4",
+      "size": 1428
+    },
+    "origin-guard-parent-focus-r3/origin-guard-10852.jsonl": {
+      "sha256": "7c3da7ed33802481512bbcbf08af0564652314c421557e314c97e312d2368487",
+      "size": 1428
+    },
+    "origin-guard-parent-focus-r3/origin-guard-25172.jsonl": {
+      "sha256": "032f690c85620496fcfc18d04dee3db65f66faa718a0d5f93e4d5a99e0678c3d",
+      "size": 1428
+    },
+    "origin-guard-parent-focus-r3/origin-guard-28556.jsonl": {
+      "sha256": "abf7e6f8eb90d57b3d1f36ec97a876238e207646573f8a0a6f206c02ff174502",
+      "size": 29388
+    },
+    "origin-guard-parent-focus-r3/origin-guard-34184.jsonl": {
+      "sha256": "efc4168832c1a85b392685cd938ab26f0a123eafc84ccad9356fd9f01d4c2788",
+      "size": 1428
+    },
+    "original-three-r1.exit.txt": {
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size": 3
+    },
+    "original-three-r1.log": {
+      "sha256": "151d3f350fc5e076868d203ecf08a3827cb8f41799db75afc318b310432a9e09",
+      "size": 686
+    },
+    "original-three-r1.xml": {
+      "sha256": "06a5e8c4fce1f2adbbc511b85b20687ef2c20bb33fb14a8d02fe24385ea74073",
+      "size": 791
+    },
+    "parent-focus-guarded-r3.exit.txt": {
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size": 3
+    },
+    "parent-focus-guarded-r3.log": {
+      "sha256": "bc9400167d23a0a12bc03a3354e2214cce423a7674bd7fb0632af014dcc93424",
+      "size": 775
+    },
+    "parent-focus-guarded-r3.xml": {
+      "sha256": "07e005d5b65eabee67b16def27633da0c07fb597689a48981d9ac60554e8afc8",
+      "size": 7220
+    },
+    "provenance/main-overlay-origin-map-test.diff": {
+      "sha256": "b5aeb22f9125b6f5993b95cd67866f42b4ae59a57cbfdc534606a5304598cd86",
+      "size": 735
+    },
+    "provenance/r3r3-authority-to-r4-stricter-source.diff": {
+      "sha256": "5a61c362ecb7c902291d8bdb590468e038444ced095a5241409ddaf9b7adf6d9",
+      "size": 3995
+    },
+    "provenance/r3r3-issuer-proof-adapted-to-r4.diff": {
+      "sha256": "ea265dda57039cf98e04aecb6cf18bed048d06be05456fd64348ea9a3d3b9112",
+      "size": 3003
+    },
+    "provenance/r3r3-issuer-store-adapted-to-r4.diff": {
+      "sha256": "7fc8579197c7c8b5cfb7ff50f175349d343b9089e0e1f26a28ad1b66d20bb8e5",
+      "size": 4773
+    },
+    "provenance/r4-wrong-policy-negative-test.diff": {
+      "sha256": "0f7a7a059b7edb1c7a9a567ba10d59620374d43f2ed3ed0ecd3b1312d00a5fb2",
+      "size": 1869
+    },
+    "ruff-r1.exit.txt": {
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size": 3
+    },
+    "ruff-r1.log": {
+      "sha256": "61948dcb469b48decb0b78280b1d1541a561773e372631cf297e9a82b7f22c51",
+      "size": 598
+    },
+    "ruff-source-r1.exit.txt": {
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size": 3
+    },
+    "ruff-source-r1.log": {
+      "sha256": "e9b4b9e6279d7d26dde64e731781358583adb9581e96c5f06506c699ab84e437",
+      "size": 415
+    },
+    "source-only-metadata-manifest.json": {
+      "sha256": "9b0b2092a81eef7480676d04c3da953e35eed9fb4c2ed02a19fcfd5fc1982137",
+      "size": 5508
+    },
+    "source-roots.json": {
+      "sha256": "488bbf735bfa698b1cb28d036f411b6b2ccf0b662ffb4d77ff51e4441dcb519c",
+      "size": 1177
+    },
+    "summarize_guard_all.py": {
+      "sha256": "57d1dfa9a6afff51f4f353f440b84e6793a86cbd85b1e4bc8b4d8b5571ba3ba0",
+      "size": 997
+    },
+    "write_authority_diff.py": {
+      "sha256": "8e8c4459e8b7d8bbf5c8e233c9d98c55e026217be8d7e0d527a7775426e3a5ef",
+      "size": 726
+    },
+    "write_test_diffs.py": {
+      "sha256": "4b263dbb6eccac252a351630a7a9c0bd1b576f708eaebf51caba5ea24cc1dd98",
+      "size": 805
+    }
+  },
+  "classification": "isolated source-only composition QA; no distribution build/install; not release acceptance",
+  "commands_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\commands.txt",
+  "commands_sha256": "85ea86973b8455fef5aecd0cb4e4038506478b8c720604a1850d1bc8264e1d8c",
+  "disposable_snapshot_id": "iteration41-parent-r4-r3r3-composite-20260927-r1",
+  "fake_only_no_provider_native_network_credentials_private_config": true,
+  "main_cancel_control_additional": "20 passed, 0 skipped, no warnings",
+  "main_five_file_focus": "73 passed, 0 skipped, one existing Backtrader Quandl deprecation warning",
+  "main_original_three": "3 passed, 0 skipped, one existing Backtrader Quandl deprecation warning",
+  "parent_focus": "44 passed, 0 skipped, one existing pytest config warning (guarded r2 run)",
+  "parent_version": "0.15.5 inherited and unallocated for this composite; no wheel/pin change; release blocked.",
+  "r4_r3r3_merge": "R4 stricter authority retained; R3r3 original module/tests preserved in provenance; test-only fixture adaptations are diff-bound.",
+  "schema": "iteration41-parent-r4-r3r3-composite-qa-receipt.v1",
+  "setup_failure_preserved": "main-three-r1 had 4 failures because flattened test overlay gave child process wrong cwd/project root; corrected layout reruns passed; this was test harness packaging, not product behavior.",
+  "source_manifest_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-source-manifest.json",
+  "source_manifest_sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131"
+}

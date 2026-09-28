@@ -1,0 +1,71 @@
+{
+  "schema": "iteration41.core_strategy_regression.v1",
+  "status": "LOCAL_F10_CORE_REGRESSION_PASS",
+  "date": "2026-09-26",
+  "head": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+  "working_tree": "dirty; tested byte hashes are authoritative for this local result",
+  "python": "3.11.5",
+  "pytest": "8.0.0",
+  "xdist": "3.6.1",
+  "workers": 8,
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONPATH": "unset",
+    "BACKTRADER_USE_INSTALLED": "unset"
+  },
+  "command": "python -m pytest -p xdist.plugin tests/functional/strategies -n 8 -q --junitxml=D:/temp/iteration41-f10-strategies-20260926-qa2/junit.xml",
+  "import_origin": "D:/source_code/backtrader/backtrader/__init__.py",
+  "result": {
+    "passed": 1286,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "warnings": 13,
+    "exit_code": 0,
+    "pytest_seconds": 312.48,
+    "junit_seconds": 312.234
+  },
+  "sources": {
+    "path_count": 1662,
+    "scope": [
+      "backtrader/**/*.py",
+      "tests/functional/strategies/**/*.py",
+      "tests/functional/strategies/**/*.json",
+      "conftest.py",
+      "pytest.ini",
+      "pyproject.toml"
+    ],
+    "begin_end_bytes_identical": true,
+    "sha256": "1e0d05e837f8ba7467e1158f603294323582b14cfaffd5593d704282559261af",
+    "source_change_count": 0
+  },
+  "artifacts": {
+    "f10-core-strategies-2026-09-26.sources.csv": {
+      "sha256": "1e0d05e837f8ba7467e1158f603294323582b14cfaffd5593d704282559261af",
+      "bytes": 225745
+    },
+    "f10-core-strategies-2026-09-26.junit.xml": {
+      "sha256": "67289378c1c2e6951b7e09f4902ba13bdccc12d2380bf6da7c58dbfe5a5641d5",
+      "bytes": 194131
+    },
+    "f10-core-strategies-2026-09-26.log": {
+      "sha256": "f5ee44cbb9cfd63cb564a7181bc3b8c63896066a3fe4934f38711f6ddf2e32e6",
+      "bytes": 4743
+    }
+  },
+  "retained_directory": "D:\\temp\\iteration41-f10-strategies-20260926-qa2",
+  "prior_attempt": {
+    "directory": "D:/temp/iteration41-f10-strategies-20260926-qa1",
+    "exit_code": 5,
+    "elapsed_seconds": 1.95,
+    "junit_produced": false,
+    "reported_assertion_failure": false,
+    "diagnosis": "invocation/setup failure; exact cause unproven; separate collection found 1286 tests; corrected explicit JUnit argument succeeded"
+  },
+  "limitations": [
+    "local Windows source run; no installed-wheel or hosted CI acceptance",
+    "core regression independent of still-active AC27 runtime-layer numerical fixes",
+    "not a performance benchmark or provider/native/account acceptance",
+    "13 warnings include intentionally disabled asyncio plugin config and third-party pandas/loky warnings"
+  ]
+}

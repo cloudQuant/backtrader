@@ -1,0 +1,239 @@
+--- a/tests/unit/stores/test_ctp_managed_projection_bridge.py
++++ b/tests/unit/stores/test_ctp_managed_projection_bridge.py
+@@ -93,7 +93,7 @@
+ 
+ 
+ class _Api:
+-    exchange_kwargs = {"CTP": {}}
++    exchange_kwargs = {"OKX": {}}
+ 
+     def __init__(self):
+         self.submissions = []
+@@ -258,51 +258,71 @@
+         )
+ 
+ 
+-def _store(adapter):
++def _queue_store(*, managed_guard=False):
++    """Create a sealed non-CTP Store for private queue primitive contracts.
++
++    These tests call only private queue methods with injected fake receipt and
++    projection callbacks.  The sentinel selects the managed-binding validation
++    branch; it is neither a ManagedExecutionAdapter nor an AccountActor.
++    """
+     api = _Api()
+     store = BtApiStore(
+         provider="btapi",
+         api=api,
+         config={
+-            "exchange_kwargs": {"CTP": {}},
+-            "execution_config": {"market_data_only": False, "strategy_id": "fixture"},
++            "exchange_kwargs": {"OKX": {}},
+         },
+-        managed_execution_adapter=adapter,
++        autostart=False,
+     )
+     store._sdk_mode = True
+-    store._sdk_exchanges = {"CTP": {}}
+-    store._sdk_account_id = lambda venue, supplied=None: "account"
+-    store._validate_managed_ctp_identity_scope = lambda venue, account_id: None
+-    store._enqueue_order_command = lambda order, *, ctp_managed_identity: (
+-        order.info.__setitem__("client_order_id", "000000000017") or _queue_receipt("submit")
+-    )
+-    store._enqueue_ctp_managed_cancel = lambda identity, dataname: _queue_receipt(
+-        "cancel", bt_order_ref=17
+-    )
++    if managed_guard:
++        # _enqueue_sdk_command checks presence only before rejecting an
++        # incomplete managed CTP binding.  No public Store method is called.
++        store._managed_execution_adapter = object()
+     return store, api
+ 
+ 
+-def test_store_uses_outbox_projection_for_submit_and_cancel_without_legacy_fallback():
++def _assert_local_ctp_constructor_is_gated(*, adapter=None, extra_config=None):
++    constructed = []
++
++    def forbidden_client(**kwargs):
++        constructed.append(kwargs)
++        raise AssertionError("CTP Store attempted local client construction")
++
++    config = {"exchange_kwargs": {"CTP": {}}}
++    if extra_config:
++        config.update(extra_config)
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="btapi",
++            api_cls=forbidden_client,
++            config=config,
++            managed_execution_adapter=adapter,
++            autostart=False,
++        )
++    assert constructed == []
++
++
++def test_projection_adapter_uses_outbox_for_submit_and_cancel_without_legacy_fallback():
+     authority = _FakeOutboxAuthority()
+     adapter = CtpManagedExecutionProjectionAdapter(_Runtime(), authority=authority, hedge_flag="2")
+-    store, api = _store(adapter)
+     order = _Order()
+ 
+-    def enqueue_submit(dispatched_order, *, ctp_managed_identity):
++    def enqueue_submit(ctp_managed_identity):
+         authority.events.append("sdk_queue_submit")
+-        dispatched_order.info["client_order_id"] = "000000000017"
++        order.info["client_order_id"] = "000000000017"
+         return _queue_receipt("submit")
+ 
+-    def enqueue_cancel(identity, dataname):
++    def enqueue_cancel(identity):
+         authority.events.append("sdk_queue_cancel")
+         return _queue_receipt("cancel", bt_order_ref=17)
+ 
+-    store._enqueue_order_command = enqueue_submit
+-    store._enqueue_ctp_managed_cancel = enqueue_cancel
+-
+-    submitted = store.submit_order(order)
+-    repeated = store.submit_order(_Order())
+-    cancelled = store.cancel_order(order)
++    submitted_projection = adapter.submit_order(order, enqueue_submit)
++    repeated_projection = adapter.submit_order(_Order(), enqueue_submit)
++    cancelled_projection = adapter.cancel_order(order, "rb", enqueue_cancel)
++    submitted = submitted_projection.to_store_response()
++    repeated = repeated_projection.to_store_response()
++    cancelled = cancelled_projection.to_store_response()
+ 
+     assert submitted["kind"] == "managed_execution_projection"
+     assert submitted["state"] == "PENDING"
+@@ -327,24 +347,23 @@
+         "sdk_queue_cancel",
+         "record_receipt",
+     ]
+-    assert api.submissions == []
+-    assert api.cancellations == []
++    assert submitted_projection.state is CtpManagedProjectionState.PENDING
++    assert cancelled_projection.state is CtpManagedProjectionState.PENDING
+ 
+ 
+ def test_ambiguous_sdk_handoff_reads_back_unknown_and_does_not_retry():
+     authority = _FakeOutboxAuthority()
+     adapter = CtpManagedExecutionProjectionAdapter(_Runtime(), authority=authority, hedge_flag="2")
+-    store, api = _store(adapter)
+     dispatches = []
+ 
+-    def uncertain_dispatch(order, *, ctp_managed_identity):
++    def uncertain_dispatch(ctp_managed_identity):
+         dispatches.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000017"
+         raise OSError("queue handoff response was lost")
+ 
+-    store._enqueue_order_command = uncertain_dispatch
+-    first = store.submit_order(_Order("intent.uncertain"))
+-    second = store.submit_order(_Order("intent.uncertain"))
++    first_projection = adapter.submit_order(_Order("intent.uncertain"), uncertain_dispatch)
++    second_projection = adapter.submit_order(_Order("intent.uncertain"), uncertain_dispatch)
++    first = first_projection.to_store_response()
++    second = second_projection.to_store_response()
+ 
+     assert first["kind"] == "managed_execution_projection"
+     assert first["state"] == "UNKNOWN"
+@@ -356,8 +375,7 @@
+     assert second == first
+     assert len(dispatches) == 1
+     assert len(authority.freezes) == 1
+-    assert api.submissions == []
+-    assert api.cancellations == []
++    assert first_projection == second_projection
+ 
+ 
+ def test_current_simulation_session_does_not_satisfy_store_outbox_port():
+@@ -398,7 +416,7 @@
+ 
+ 
+ def test_queue_receipt_commit_is_before_publication_and_worker_uses_typed_outbox_only():
+-    store, api = _store(None)
++    store, api = _queue_store()
+     binding = _dispatch_binding()
+     persisted = []
+     dispatches = []
+@@ -461,7 +479,7 @@
+ 
+ 
+ def test_receipt_writer_failure_leaves_managed_command_invisible_and_unsent():
+-    store, api = _store(None)
++    store, api = _queue_store()
+     binding = _dispatch_binding()
+     dispatches = []
+     native_calls = []
+@@ -492,7 +510,7 @@
+ 
+ 
+ def test_managed_worker_without_single_dispatch_port_never_calls_generic_sender():
+-    store, api = _store(None)
++    store, api = _queue_store()
+     binding = replace(_dispatch_binding(), local_queue_receipt_queued=True)
+     native_calls = []
+ 
+@@ -518,7 +536,7 @@
+ 
+ 
+ def test_local_queue_rejection_is_durable_and_never_calls_outbox_dispatcher():
+-    store, api = _store(None)
++    store, api = _queue_store()
+     binding = _dispatch_binding()
+     written = []
+     dispatches = []
+@@ -592,34 +610,16 @@
+ 
+ 
+ @pytest.mark.parametrize("recovery_armed", [False, True])
+-def test_managed_ctp_raw_enqueue_cancel_is_rejected_before_queue_or_sdk(
+-    monkeypatch, recovery_armed
+-):
++def test_managed_ctp_raw_enqueue_cancel_is_rejected_before_queue_or_sdk(recovery_armed):
+     adapter = CtpManagedExecutionProjectionAdapter(
+         _Runtime(), authority=_FakeOutboxAuthority(), hedge_flag="2"
+     )
+-    store, api = _store(adapter)
+-    store._ctp_execution_recovery_armed = recovery_armed
+-    side_effects = {"worker": 0, "enqueue": 0, "request": 0}
+-
+-    def count(name):
+-        def called(*args, **kwargs):
+-            side_effects[name] += 1
+-            raise AssertionError(f"managed CTP raw cancel reached {name}")
+-
+-        return called
+-
+-    monkeypatch.setattr(store, "_start_command_worker", count("worker"))
+-    monkeypatch.setattr(store, "_enqueue_sdk_command", count("enqueue"))
+-    monkeypatch.setattr(store, "_sdk_cancel_request", count("request"))
+-
+-    with pytest.raises(BtApiStoreError, match="cannot use the generic SDK queue"):
+-        store.enqueue_cancel("000000000017", dataname="rb")
+-
+-    assert side_effects == {"worker": 0, "enqueue": 0, "request": 0}
+-    assert store._command_heap == []
+-    assert store._command_inflight == 0
+-    assert api.cancellations == []
++    # Recovery state cannot authorize constructing the retired local CTP path.
++    _assert_local_ctp_constructor_is_gated(
++        adapter=adapter,
++        extra_config={"execution_recovery_armed": recovery_armed},
++    )
++    assert adapter.authority.events == []
+ 
+ 
+ @pytest.mark.parametrize("operation", ["submit", "cancel"])
+@@ -630,10 +630,7 @@
+ def test_managed_ctp_private_enqueue_requires_complete_matching_v2_binding(
+     monkeypatch, operation, port_case
+ ):
+-    adapter = CtpManagedExecutionProjectionAdapter(
+-        _Runtime(), authority=_FakeOutboxAuthority(), hedge_flag="2"
+-    )
+-    store, api = _store(adapter)
++    store, api = _queue_store(managed_guard=True)
+     side_effects = {"worker": 0, "sender": 0}
+ 
+     def count(name):

@@ -1,0 +1,8 @@
+Static diff summary (byte-level baseline vs candidate copies)
+
+Changed source files: 1
+Unified patch: +72 / -0
+
+backtrader/stores/btapistore.py: 53cd937a7202990df883fa071c210d31573f11df83937c05880abb3cbc50e90b -> 57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae
+
+Selected test source files are byte-identical between baseline and candidate. Ruff-generated .ruff_cache and Python bytecode caches are excluded from source comparison.

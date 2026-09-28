@@ -1,0 +1,1 @@
+C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe -B -m pytest -p no:asyncio tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2a-independent-exact-base-legacy.junit.xml

@@ -1,3 +1,10 @@
+# ARCHIVED ITERATION 22 EXAMPLE — not an Iteration 41 operator config.
+# Iteration 41 uses one protected runtime-ctp-private/config.yaml with canonical
+# ctp: fields for SimNow and, when implemented, production. Change that same
+# file's runtime.mode/preset, account, fronts and contract to switch environments.
+# The separate production paths and frozen set profiles below are historical
+# data only; do not use them to prepare or launch the Iteration 41 runtime.
+#
 # Operator-owned deployment boundary for the Iteration 22 SA candidate.
 #
 # This is deliberately a non-executable template.  `run.py` consumes only the

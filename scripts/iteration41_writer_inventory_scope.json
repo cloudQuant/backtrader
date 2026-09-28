@@ -1,0 +1,921 @@
+{
+  "limitations": [
+    "Classifications describe static scan coverage only; they do not disposition writers or authorize routes.",
+    "New examples directories and repository-root Python scripts require explicit review and baseline updates.",
+    "Generated __pycache__/logs and private CTP runtime state are reported by fixed classifications, not enumerated as source paths."
+  ],
+  "paths": [
+    {
+      "classification": "REPOSITORY_ROOT_PYTHON_STATIC_SCAN",
+      "kind": "repository_root_python_script",
+      "path": "conftest.py"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/001_multi_extend_data"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/002_hft_alignment_demo"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/002_hft_alignment_demo/data"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/003_hft_notebook_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/004_midfreq_demo"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/005_midfreq_arbitrage"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/006_plots"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_bbroker_5s_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_bbroker_5s_examples/backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_bbroker_5s_examples/live"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_5s_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_5s_examples/backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_5s_examples/live"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_examples/backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_mixbroker_examples/live"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_5s_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_5s_examples/backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_5s_examples/live"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_examples/backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/ctp_tickbroker_examples/live"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/hongyuan_penetration"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/hongyuan_penetration/cases"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/hongyuan_penetration/common"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/simnow_penetration"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/simnow_penetration/cases"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/live_certification/simnow_penetration/common"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/007_ctp/runtime-production"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/008_dual_side"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/009_trade_logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/010_live_examples"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/010_live_examples/btapi"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/010_live_examples/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/010_live_examples/runtime-okx-shadow"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/011_hft_backtest"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_1_midfreq_cross_exchange"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_1_midfreq_cross_exchange/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_1_midfreq_cross_exchange/reports/trade_logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_1_midfreq_cross_exchange/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_2_event_driven_cross_exchange"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_2_event_driven_cross_exchange/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_2_event_driven_cross_exchange/reports/trade_logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/012_2_event_driven_cross_exchange/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_1_midfreq_cross_arbitrage"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_1_midfreq_cross_arbitrage/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_2_highfreq_calendar_arbitrage"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_2_highfreq_calendar_arbitrage/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/fixtures"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/iter27-20260921-preflight"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/iter27-20260921-replay"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/iter27-20260921-replay/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/verify-local-replay"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/verify-local-replay/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/verify-supervisor-output"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/reports/verify-supervisor-state"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime-ctp-private"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime-managed-replay"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-09091aa18cb54ab199af7820fded087a"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-09091aa18cb54ab199af7820fded087a/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-2167aa315e384518a4810139f87d17e8"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-2167aa315e384518a4810139f87d17e8/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-218d8f9a35b24114ae52e11065fbfc80"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-218d8f9a35b24114ae52e11065fbfc80/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-24619e23182c4cefa47f8de14eaa2834"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-24619e23182c4cefa47f8de14eaa2834/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-365c36767092483095f2778596eeaffc"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-365c36767092483095f2778596eeaffc/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-37906d0e296b41d3931e7ff523457e32"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-38ddb04e0c194efcb19db09fb9c920f7"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-3cd8ff60394444e096399cdc94d3165d"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-3cd8ff60394444e096399cdc94d3165d/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-450bb78517f8432193fe2f255a79fc8e"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-450bb78517f8432193fe2f255a79fc8e/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-490c363aa38848ac83e50a935f38c54b"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-5819f66fc5c6436691b9a3f2c2438160"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-5819f66fc5c6436691b9a3f2c2438160/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7a2f8687c6db4982885fa89273991820"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7a2f8687c6db4982885fa89273991820/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7cde20ad5bd34026b43155207be72044"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7cde20ad5bd34026b43155207be72044/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7e18b964204445d8a6d021872be2ce49"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-7e18b964204445d8a6d021872be2ce49/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-826efa2524f34c9aab304ee38de1e138"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-826efa2524f34c9aab304ee38de1e138/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-82ccb0e8f1fb4f9aa80a8043160b8fce"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-82ccb0e8f1fb4f9aa80a8043160b8fce/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-844dfa7024ec48b59207c6c41dc7b7ca"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-844dfa7024ec48b59207c6c41dc7b7ca/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-90e301b3d4584b08bdf4dba6582e8ce5"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-90e301b3d4584b08bdf4dba6582e8ce5/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-a08e8036f98f489eb488d96df308ac9f"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-a08e8036f98f489eb488d96df308ac9f/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-a9630a2b4e7b4c468fe63a02e92b85d1"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-bdd99b0f935a44ebb00e02bdb6b2e6f6"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-bdd99b0f935a44ebb00e02bdb6b2e6f6/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-c7aa90a55b70494691890fd3b55c7803"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-c7aa90a55b70494691890fd3b55c7803/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-c9a93a46216f46ddbc673bcc1daac8f3"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-c9a93a46216f46ddbc673bcc1daac8f3/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-cfd30bf172774ae98ba52852b2dc7933"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-cfd30bf172774ae98ba52852b2dc7933/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-f4a58996272c4939b6fe0490ecd4b00b"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-f4a58996272c4939b6fe0490ecd4b00b/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-febcf3ace57f4855b4c5de81a61e87cd"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/013_3_sa_midfreq_simnow/runtime/reports/replay-febcf3ace57f4855b4c5de81a61e87cd/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/014_1_ctp_options_lowfreq"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/014_1_ctp_options_lowfreq/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/014_1_ctp_options_lowfreq/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/014_2_ctp_options_midfreq"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/014_2_ctp_options_midfreq/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/fixtures"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/iter27-20260921-replay"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260921_095554"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260921_095555"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260921_095715"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260921_095716"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_125406"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_125407"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_131429"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_131437"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_131438"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_135032"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_135033"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_140829"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_140836"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_141142"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_141144"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_141145"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_141708"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_141713"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_154044"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_154045"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_174544"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_174545"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_175149"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_175156"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_175640"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_175651"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_185508"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_190938"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_190939"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_192342"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_192343"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_192350"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_192351"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_200250"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_200251"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_200252"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_203456"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_203457"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_220030"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_220541"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_220542"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/reports/trade-logger/20260922_220552"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/015_ctp_options_highfreq/runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/016_self_similarity"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/016_self_similarity/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/3e491b56fd"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/466c15000e"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/a1575a4afe"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/c881daf2d6"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/cca13c829d"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/models/diag"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/017_fnn_embedding/reports"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/ctp_options_simnow_managed_replay_runtime"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/sample"
+    },
+    {
+      "classification": "EXAMPLE_SUBDIRECTORY_STATIC_SCAN",
+      "kind": "example_directory",
+      "path": "examples/sample/runtime"
+    },
+    {
+      "classification": "REPOSITORY_ROOT_PYTHON_STATIC_SCAN",
+      "kind": "repository_root_python_script",
+      "path": "setup.py"
+    }
+  ],
+  "schema_version": "iteration41.writer-inventory-surface-baseline.v1",
+  "status": "CONTROLLED_SOURCE_PATH_BASELINE"
+}

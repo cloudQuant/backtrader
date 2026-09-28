@@ -1,0 +1,19 @@
+{
+  "package_root": "D:\\temp\\g6-actionref-main-tree-test-preimage-recovery-r2-20260927",
+  "zip_path": "D:\\temp\\g6-actionref-main-tree-test-preimage-recovery-r2-20260927.zip",
+  "manifest_sha256": "18ff61f0232a88892dc18e475a8cf9ad90cdaa5394dcb24099ae7aea1fb58810",
+  "readme_sha256": "6e4d22b4016802c17ef7f183a1a7f745114994e2b80c79c703edfceeb18e42c6",
+  "sha256sums_sha256": "ad24f786c14d6705ae05073d8017e1386543f8ff4f3abd787387045407eecab7",
+  "zip_sha256": "62df52a0800ae5efd4dd2d4dccc1379e68d5c577fcda904802bc755be230b1cf",
+  "zip_bytes": 12137874,
+  "zip_entries": 232,
+  "zip_testzip": "clean",
+  "target_count": 24,
+  "classification_counts": {
+    "A_MAIN_SOURCE_HASH_RECORDED": 24,
+    "B_CANDIDATE_ONLY_NO_MAIN_IDENTITY": 0
+  },
+  "one_unique_scanned_match_per_target": true,
+  "main_tree_modified": false,
+  "ruff_version": "ruff 0.16.2"
+}

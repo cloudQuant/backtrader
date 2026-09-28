@@ -1,0 +1,108 @@
+{
+  "schema": "iteration41-independent-qa-archive.v1",
+  "disposition": "NO_MERGE_AS_SECURITY_OR_AUTHORIZATION_BOUNDARY",
+  "scope": "fake Python reflection; no real SDK/native/provider/config/network",
+  "payload_count": 20,
+  "files": [
+    {
+      "path": "frozen-inputs/btapistore.py",
+      "size_bytes": 782160,
+      "sha256": "16EFA561A56465B1BD8165318F705EEA240A7A6D2E97CDE3B68286A41A778575"
+    },
+    {
+      "path": "frozen-inputs/manifest.json",
+      "size_bytes": 5069,
+      "sha256": "68E78410E35C41C02843CE44D67D825E9AFA6E42566840E56565A3883323E91C"
+    },
+    {
+      "path": "frozen-inputs/manifest.sha256",
+      "size_bytes": 81,
+      "sha256": "866F7E31C2DE779CDB907269C7B371BD5BD418BFE3B5EA0F3B16455F9530B74C"
+    },
+    {
+      "path": "frozen-inputs/preimage-btapistore.py",
+      "size_bytes": 780202,
+      "sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF"
+    },
+    {
+      "path": "frozen-inputs/preimage-test_btapistore.py",
+      "size_bytes": 147675,
+      "sha256": "F7E1FA01AA383367F518C61A0AE30285DB2C8EEFF22B9CF75BA0E1C3D774F853"
+    },
+    {
+      "path": "frozen-inputs/sdk-api-guard-r0.patch",
+      "size_bytes": 8400,
+      "sha256": "687AA34EEE0A94ED042ED5447883A11DA332338750DD9B6772221DB9AF4A5709"
+    },
+    {
+      "path": "frozen-inputs/test_btapistore_sdk_api_guard.py",
+      "size_bytes": 5011,
+      "sha256": "9643D7659E7B95E60560BB3990A13079233F5DCBA941A36AB0B73DD885449E6E"
+    },
+    {
+      "path": "independent-qa/focused.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "independent-qa/focused.junit.xml",
+      "size_bytes": 971,
+      "sha256": "5BC54F47CB28E622FD001389EFBD478AFE119ABB1FA264ABFC17B98F89416881"
+    },
+    {
+      "path": "independent-qa/focused.log",
+      "size_bytes": 665,
+      "sha256": "72655FCE2E3AE0AA43866694675481D1627407170BF88289F11FCBA281D615AE"
+    },
+    {
+      "path": "independent-qa/guard/sitecustomize.py",
+      "size_bytes": 406,
+      "sha256": "502A599E036839527AD64D14ACA80981AD8FE76C447D6789F5018A79D0585B51"
+    },
+    {
+      "path": "independent-qa/independent-qa-manifest.json",
+      "size_bytes": 1975,
+      "sha256": "7D7B28533E919D2D1D66DA72F8ED3E551BAFD8249C8C8E1D7EE62F072A9673FF"
+    },
+    {
+      "path": "independent-qa/introspection-probe-rerun.log",
+      "size_bytes": 913,
+      "sha256": "5C8A7DA914BA401BA99732359D1343421411D94FF98ED737C58CA3F4EB34CA6B"
+    },
+    {
+      "path": "independent-qa/introspection-probe.json",
+      "size_bytes": 615,
+      "sha256": "2F9E317738AC5BACE16CFD8AF9723AEDBD46A1B24B3CB0B972C35B57291AF974"
+    },
+    {
+      "path": "independent-qa/introspection-probe.log",
+      "size_bytes": 615,
+      "sha256": "2F9E317738AC5BACE16CFD8AF9723AEDBD46A1B24B3CB0B972C35B57291AF974"
+    },
+    {
+      "path": "independent-qa/introspection_probe.py",
+      "size_bytes": 2546,
+      "sha256": "850F7A868B39B47B60DE77F6417C5E27A4C896A54069A7A7B32FA4035B455746"
+    },
+    {
+      "path": "independent-qa/introspection_probe_rerun.py",
+      "size_bytes": 2359,
+      "sha256": "AD48DFC1CCBD7D6E5745DB006DC7265BB6B8B1ECF9CC0C68A51E7F730DE5560D"
+    },
+    {
+      "path": "independent-qa/QA-REPORT.md",
+      "size_bytes": 4354,
+      "sha256": "F91C236E14D24B4616CC9838DCCC8CA40FAC5E3BEC16B22EBF9D593F5EDD22D3"
+    },
+    {
+      "path": "independent-qa/SHA256SUMS.txt",
+      "size_bytes": 1065,
+      "sha256": "8773875F97942FCC8DD271A977F267EBDF091DB64C1CB4932051BEC21EA249EF"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 3124,
+      "sha256": "1EEF949C4AE71579CC4D2E0F1B63E550D3946151A52EAC873603BEE6D2C461B3"
+    }
+  ]
+}

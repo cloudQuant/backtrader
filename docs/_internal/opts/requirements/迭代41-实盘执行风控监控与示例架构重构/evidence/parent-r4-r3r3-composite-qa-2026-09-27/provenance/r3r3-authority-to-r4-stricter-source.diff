@@ -1,0 +1,96 @@
+--- R3r3/src/fake_dispatch_authority.py
++++ R4-composite/bt_api_py/runtime_plugins/fake_dispatch_authority.py
+@@ -21,6 +21,61 @@
+ 
+ _SCHEMA_VERSION = 3
+ _HEX = frozenset("0123456789abcdef")
++
++_OFFLINE_FAKE_POLICY_BINDINGS = frozenset(
++    {
++        (
++            "example.013_3.sa_midfreq_simnow",
++            "iteration41_managed_replay_fake_provider",
++            "iteration41_managed_replay_fake_account",
++            "iteration41.managed_replay.l2",
++        ),
++        (
++            "example.ctp_options_simnow.mechanical_managed_replay_l2",
++            "iteration41_ctp_mechanical_fake_provider",
++            "iteration41_ctp_mechanical_fake_account",
++            "iteration41.ctp-mechanical-replay.l2",
++        ),
++    }
++)
++
++
++def is_registered_offline_fake_binding(
++    contract: Any,
++    execution_scope: Any,
++    policy_id: object,
++    risk_scope: Any | None = None,
++) -> bool:
++    """Check the code-owned, exact offline fake-composition allowlist.
++
++    ``provider='fake'`` on the risk scope is not sufficient: a mismatched
++    execution scope must not borrow fake proof authority for a CTP-labeled or
++    otherwise unregistered account.  This predicate intentionally recognizes
++    only the two fixed replay compositions in this module.
++    """
++
++    strategy_id = getattr(execution_scope, "strategy_id", None)
++    provider = getattr(execution_scope, "provider", None)
++    account_ref = getattr(execution_scope, "account_ref", None)
++    if (
++        type(strategy_id) is not str
++        or type(provider) is not str
++        or type(account_ref) is not str
++        or type(policy_id) is not str
++        or getattr(contract, "strategy_id", None) != strategy_id
++        or getattr(contract, "mode", None) != "simulation"
++        or getattr(contract, "preset", None) != "replay"
++        or getattr(contract, "environment", None) != "offline"
++        or getattr(contract, "order_route", None) != "managed_execution"
++        or getattr(execution_scope, "environment", None) != "offline"
++        or (strategy_id, provider, account_ref, policy_id) not in _OFFLINE_FAKE_POLICY_BINDINGS
++    ):
++        return False
++    return risk_scope is None or (
++        getattr(risk_scope, "provider", None) == "fake"
++        and getattr(risk_scope, "environment", None) == "offline"
++        and getattr(risk_scope, "account_id", None) == account_ref
++    )
+ 
+ _CANCEL_PROOF_FIELDS = (
+     "permit_id",
+@@ -192,22 +247,24 @@
+         execution_store: Any,
+         facade: Any | None,
+         risk_types: Any,
++        contract: Any,
++        policy_id: str,
+         risk_intent_mapper: Callable[[Any], Any] | None = None,
+     ) -> None:
+-        if getattr(risk_scope, "provider", None) != "fake":
+-            raise FakeDispatchJournalError("simulation journal requires the fake risk provider")
+-        if getattr(risk_scope, "environment", None) != "offline":
++        if not is_registered_offline_fake_binding(
++            contract, execution_scope, policy_id, risk_scope
++        ):
+             raise FakeDispatchJournalError(
+-                "simulation journal requires the offline risk environment"
+-            )
+-        if getattr(execution_scope, "environment", None) != "offline":
+-            raise FakeDispatchJournalError("simulation journal requires the offline environment")
++                "simulation journal requires an exact registered offline fake binding"
++            )
+         self._database_path = Path(database_path)
+         self._execution_scope = execution_scope
+         self._risk_scope = risk_scope
+         self._execution_store = execution_store
+         self._facade = facade
+         self._risk_types = risk_types
++        self._contract = contract
++        self._policy_id = policy_id
+         if risk_intent_mapper is not None and not callable(risk_intent_mapper):
+             raise FakeDispatchJournalError("fake risk intent mapper must be callable")
+         self._risk_intent_mapper = risk_intent_mapper

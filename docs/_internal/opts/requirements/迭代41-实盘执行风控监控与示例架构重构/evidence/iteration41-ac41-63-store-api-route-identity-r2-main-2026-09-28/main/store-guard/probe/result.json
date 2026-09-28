@@ -1,0 +1,10 @@
+{
+  "events": [
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_ctp_create_dynamic",
+    "blocked_ctp_extension_loader",
+    "blocked_ctp_dlopen",
+    "blocked_dns:getaddrinfo"
+  ],
+  "native_modules_loaded": []
+}

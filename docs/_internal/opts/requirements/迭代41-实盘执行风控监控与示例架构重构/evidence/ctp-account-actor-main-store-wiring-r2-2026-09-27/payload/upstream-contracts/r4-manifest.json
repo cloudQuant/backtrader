@@ -1,0 +1,51 @@
+{
+  "candidate": "ctp-account-actor-port-r4",
+  "base_manifest_sha256": "417ebef0fc2a85b4e37ee22122024b0118211c161795abb79dac438840b960a1",
+  "files": [
+    {
+      "path": "account_actor_port.py",
+      "size_bytes": 25739,
+      "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48"
+    },
+    {
+      "path": "compile-results.txt",
+      "size_bytes": 59,
+      "sha256": "4cac00d710806727905ea0eee943ebe8c690fbeaa9507328c8a36342fc002337"
+    },
+    {
+      "path": "INTEGRATION_CONTRACT.md",
+      "size_bytes": 5574,
+      "sha256": "0a68828d986a5c942c6fb76ac3b5aa1414e86f35b5a11f55cd70739bf3b8ba0b"
+    },
+    {
+      "path": "MAIN_SOURCE_INVENTORY.md",
+      "size_bytes": 2730,
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1232,
+      "sha256": "de8288865b7174d09936d3e285ee5d52da16b142c023ce10b1d157e239b638ad"
+    },
+    {
+      "path": "ruff-results.txt",
+      "size_bytes": 33,
+      "sha256": "b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4"
+    },
+    {
+      "path": "store_boundary_harness.py",
+      "size_bytes": 5114,
+      "sha256": "087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0"
+    },
+    {
+      "path": "test-results.txt",
+      "size_bytes": 6119,
+      "sha256": "8aa1807fdc356d7b6059a330731179b5a82d4ebc09924b20a3c939c5a6804099"
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "size_bytes": 31213,
+      "sha256": "f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa"
+    }
+  ]
+}

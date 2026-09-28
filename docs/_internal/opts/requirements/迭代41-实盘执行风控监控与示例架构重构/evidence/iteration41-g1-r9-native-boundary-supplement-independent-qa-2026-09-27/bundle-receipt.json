@@ -1,0 +1,35 @@
+{
+  "schema": "iteration41_g1_r9_native_boundary_supplement_receipt.v1",
+  "classification": "INERT_LOCAL_WIN32_BOUNDARY_EVIDENCE_ONLY_G1_CLOSED",
+  "bundle_manifest": "bundle-manifest.json",
+  "bundle_manifest_sha256": "4f81790db13aa06ed762184a0bbb9ea29dae4c3027f8c49c14d2c64a4a2f929d",
+  "r9_author_zip_sha256": "2055fb8329a06d80abe8fc52ae2d2fec25674686300defe96192faf3a4e44f3a",
+  "r9_author_index_sha256": "1957b0bdc47c26903de96eed6a8c08bb4d25613d56d495de2c3add2198852665",
+  "r9_candidate_manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+  "supplement_source_sha256": "d6da3d0ad987bb164f444e03cff0207e486cd1738a04554cf63db0fd58ee041d",
+  "final_executable_sha256": "e649fd99ebc4350669c1be4aedb0324b79fadd4732ab817a409b3fd8386fbd62",
+  "exploratory_failed_executable_sha256": "9c57a570c5a4ac2739268d7df278ddc5c411f80ff1991bcd1c06795a27ca1929",
+  "replays": [
+    {
+      "log": "run/native-boundary-run-01.log",
+      "exit_code": 2,
+      "disposition": "preserved assertion mismatch: actual post-death DuplicateHandle error 5, old assertion required 6"
+    },
+    {
+      "log": "run/native-boundary-run-final.log",
+      "exit_code": 0,
+      "disposition": "all local helper probes passed"
+    },
+    {
+      "log": "run/native-boundary-replay-02.log",
+      "exit_code": 0,
+      "disposition": "independent repeat passed; source unchanged; no helper process remained"
+    }
+  ],
+  "limits": [
+    "No kernel CreateProcessW hang injected",
+    "No P14 correct-rights API failure/hang or CloseHandle failure injected",
+    "No SCM/startup-D/whole-command hard-deadline evidence",
+    "No provider, SDK, credentials, network, or production route"
+  ]
+}

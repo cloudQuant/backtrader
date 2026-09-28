@@ -1,0 +1,2 @@
+command: & 'D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe' 'D:\temp\iteration41-g6s-settlement-consumer-contract-candidate-20260927-r2\freeze_candidate.py'
+result: completed; candidate-manifest.json and candidate-evidence.zip were regenerated after all content evidence was in place.

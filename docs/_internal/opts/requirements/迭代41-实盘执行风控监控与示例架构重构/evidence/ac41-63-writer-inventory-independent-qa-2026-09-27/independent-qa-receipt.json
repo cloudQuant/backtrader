@@ -1,0 +1,53 @@
+{
+  "candidate_json_equal_frozen_except_generated_at": true,
+  "collector_counts": {
+    "dynamic_execution_candidates": 62,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 327
+  },
+  "disposition_count": 389,
+  "frozen_owner_evidence_sha256": {
+    "REPORT.md": "7BF14919927231C8ABD72B701BDDF606CAB52830F82721CCEDD6CB78591EC90B",
+    "SHA256SUMS.txt": "C3087E2A2DF78FE036514750193F726A11084784584E1D0CD94BE317A5F5AD1D",
+    "inventory-output-diff.json": "D38F9D5CD6DE7F61D0937AC3C4C711116B7F0EB7439F5C3E1816A5A4F69495B1",
+    "verification.log": "B702A631C4E3B425D3E5C9DB47AAB9F4B7F9F726B4758848A9B1F375C061E3B5",
+    "writer-inventory-surface-baseline.json": "C473B4390D70477978C0EB9673E267244D78A57D0ACB2E8DF6D5F7D3BFA60DD7"
+  },
+  "inventory_diff_after_values_verified": true,
+  "isolated_repo": "D:\\temp\\iteration41-writer-inventory-independent-qa-20260927\\repo",
+  "isolated_source_file_count": 362,
+  "limitations": [
+    "No live private config was copied or opened; only a synthetic sentinel was used.",
+    "No provider, SDK, native module, network, or Backtrader import was used by independent probe.",
+    "This validates static inventory discovery only; it does not prove writer closure, reachability, runtime behavior, or route authorization."
+  ],
+  "main_frozen_input_hashes_match": {
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-inventory-candidates.json": true,
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json": true,
+    "scripts/collect_iteration41_writer_inventory.py": true,
+    "scripts/iteration41_writer_inventory_scope.json": true,
+    "tests/unit/scripts/test_collect_iteration41_writer_inventory.py": true
+  },
+  "private_synthetic_probe": "PASS: zero open attempts for runtime-ctp-private, sentinel absent from scan/output, forbidden modules not loaded",
+  "pytest_counts": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 12
+  },
+  "pytest_runtime": "CPython 3.11.5, pytest 8.2.2; one existing PytestConfigWarning for asyncio_default_fixture_loop_scope",
+  "pytest_warning": "1 existing PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option",
+  "python38_syntax": "CPython 3.12.10 ast.parse(feature_version=(3,8)) PASS for collector and test; no CPython 3.8 installed",
+  "ruff": "ruff 0.16.2, targeted collector + test check PASS",
+  "scope_path_count": 21,
+  "source_coverage_counts": {
+    "discovered_paths": 211,
+    "missing_baseline_paths": 0,
+    "unclassified_paths": 0
+  },
+  "source_manifest_sha256": "423CB56E86375019307D252AD774706A259161D7D4EF7B605410EDB0FC889FC6",
+  "status": "CANDIDATE_DISCOVERY_ONLY",
+  "test_command": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe -m pytest -p no:asyncio tests/unit/scripts/test_collect_iteration41_writer_inventory.py tests/unit/scripts/test_verify_iteration41_writer_dispositions.py -vv --tb=short --junitxml=<qa>\\pytest-junit.xml",
+  "unclassified_synthetic_probe": "PASS: new nested example directories and root .py reported UNCLASSIFIED / REVIEW_REQUIRED"
+}

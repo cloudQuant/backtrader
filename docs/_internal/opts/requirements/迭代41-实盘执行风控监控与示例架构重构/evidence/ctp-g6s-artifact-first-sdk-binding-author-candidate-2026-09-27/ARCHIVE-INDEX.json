@@ -1,0 +1,53 @@
+{
+  "archive_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-g6s-artifact-first-sdk-binding-author-candidate-2026-09-27",
+  "author_page": {
+    "path": "AUTHOR-CANDIDATE.md",
+    "sha256": "bfc8d594b377277b204672e5205603435a565a46f56a329e333f0176abdbbea6"
+  },
+  "candidate_freeze_receipt": {
+    "path": "freeze-receipt.json",
+    "sha256": "79b633ff8bac9d9c18e3cfacd4c54382db1d9c8e999d133a7edc20080f4e0738",
+    "status": "ISOLATED_SOURCE_FAKE_ONLY_CANDIDATE_NO_ACCEPTANCE"
+  },
+  "candidate_source_manifest": {
+    "path": "candidate-source-manifest.json",
+    "payload_count": 139,
+    "payload_total_bytes": 3186860,
+    "sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4"
+  },
+  "classification": "AUTHOR_CANDIDATE/NO_WRITE; independent review pending",
+  "frozen_temp_candidate_root": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927",
+  "important_files": {
+    "artifact_bridge_source": "backtrader_runtime/ctp_sdk_artifact_binding.py",
+    "artifact_bridge_tests": "tests/unit/runtime/test_ctp_sdk_artifact_binding.py",
+    "final_junit": "evidence/artifact-first-run/focused-junit.xml",
+    "final_stdout": "evidence/artifact-first-run/focused-pytest.log",
+    "fresh_process_guard": "evidence/artifact-first-run/source-origin-sdk-block-guard.log",
+    "initial_fixture_setup_failure_note": "evidence/artifact-first-run/intermediate-run-note.md",
+    "readiness_source": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+    "readiness_tests": "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+    "source_diffs": [
+      "evidence/source-diff/backtrader_runtime_ctp_sdk_artifact_binding.py.patch",
+      "evidence/source-diff/backtrader_runtime_ctp_simnow_td_trading_readiness.py.patch",
+      "evidence/source-diff/tests_unit_runtime_test_ctp_sdk_artifact_binding.py.patch",
+      "evidence/source-diff/tests_unit_runtime_test_ctp_simnow_td_trading_readiness.py.patch"
+    ]
+  },
+  "limitations": [
+    "Fake artifact policy is injected only by tests; production code-owned policy remains None and the route rejects before SDK import/client access.",
+    "No final wheel, native file hash release pin, independent signed source provenance, protected file handles, or ACL verification is present.",
+    "AUTHOR_CANDIDATE only; not G4 or G6-S acceptance."
+  ],
+  "main_repo_production_modified": false,
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.archive_index.v1",
+  "verification": {
+    "junit_summary": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 36
+    },
+    "result": "36 passed; 0 failed; 0 skipped; exit 0",
+    "scope": "fake installed distribution, inert placeholder extension bytes, no SDK/native/provider/network/config access"
+  }
+}

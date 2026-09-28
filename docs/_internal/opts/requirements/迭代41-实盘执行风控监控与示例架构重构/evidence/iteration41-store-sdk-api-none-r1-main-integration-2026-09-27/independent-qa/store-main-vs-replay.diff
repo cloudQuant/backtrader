@@ -1,0 +1,24 @@
+warning: in the working copy of 'backtrader/stores/btapistore.py', LF will be replaced by CRLF the next time Git touches it
+diff --git a/backtrader/stores/btapistore.py "b/D:\\temp\\iteration41-sdk-api-none-r1-independent-qa-20260927\\backtrader\\stores\\btapistore.py"
+index c29f5dcd..6d6b7aac 100644
+--- a/backtrader/stores/btapistore.py
++++ "b/D:\\temp\\iteration41-sdk-api-none-r1-independent-qa-20260927\\backtrader\\stores\\btapistore.py"
+@@ -3818,13 +3818,13 @@ class BtApiStore(LiveStoreBase):
+ 
+     @property
+     def sdk_api(self) -> Any:
+-        """Return the managed SDK API object for governed public-method calls.
++        """Return no raw client for CTP, gateway, or forwarding routes.
+ 
+-        The returned object is the single managed client this Store owns; the
+-        caller may only use it for the SDK's public contracts (approval
+-        contexts, redemptions, budget reservations) and must never construct a
+-        second native client.
++        Store query methods continue to use the managed client internally.
++        Non-CTP direct SDK behavior remains compatible.
+         """
++        if self.backend in {"gateway", "forwarding"} or self._is_ctp_write_provider():
++            return None
+         return self._api
+ 
+     @property

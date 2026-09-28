@@ -1,0 +1,15 @@
+# CTP I9 队列租约版本化 wheel 离线候选（2026-09-25）
+
+状态：`LOCAL_OFFLINE_CANDIDATE / NOT_PINNED / NO_WRITE`。这份记录只证明本地源码、制品及 fake API 接缝，不证明 SimNow/生产 CTP 原生回调、订单、撤单或关闭。
+
+独立候选位于 `D:\bt_api_ctp_candidate_iteration41_i9_20260925`，分支 `codex/ctp-2.0.4-iteration41-i9`，commit `19349b8abd546aa4f1522fee674611a9a455e36e`。父提交为队列 consumer lease 源码 `232a14dc6e055523a8bb5968238eb0e93126ff94`；callback-source event 提交 `69098921025ceaba57ca4c7cdb660e97bdf94217` 是其祖先。此增量只同步 `pyproject.toml` 与包 `__version__` 为 `2.0.4+iteration41.i9`，并添加候选说明；它满足 SDK 总工程的 `bt_api_ctp>=2.0.3,<3.0` 版本范围。两个 clean build root 均在该提交、无未提交改动。
+
+从两个 clean root 构建的 `bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl` 字节一致，SHA-256 为 `7148c4cecc8438426f2ddbe1ee0da0e06d6eb5aa0c699ab901f4cf3e42dc6502`。构建产物分别保存在 `C:\Users\yunji\AppData\Local\Temp\bt_api_ctp_candidate_i9_20260925\wheel_a\`、`wheel_b\`。嵌入 RECORD SHA-256 为 `d9974746bd0f406a54c4d12870ba17cbd192e8ef152f63ac89c8b5f91d9b06f6`，86 行、85 个 hash 成员，逐项 hash/size 核验无失败；打包的 `.py` 与源码 root 一致。`_ctp.cp311-win_amd64.pyd` SHA-256 为 `e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78`，MD/Trader DLL 分别为 `72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b`、`d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad`。构建使用 CPython 3.11.5、setuptools 75.8.0、wheel 0.43.0、MSVC 14.42 x64、固定 `SOURCE_DATE_EPOCH=1790340376` 与 `LINK=/Brepro`。
+
+在 fresh no-system CPython 3.11.5 venv `C:\Users\yunji\AppData\Local\Temp\bt_api_ctp_i9_no_system_venv_20260925` 中，`include-system-site-packages=false`，`pip check` 无破损依赖。已安装 CTP、`_ctp.pyd`、加载的 MD/Trader DLL 与 `bt_api_execution` 均来自该 venv，`native_loaded=True`；此前冻结的 execution `0.1.0` wheel 为精确 SHA `a34a3df09cc46a5578ca4ed6eebdfef7632e8f897c790fa41ed7ed1a44782a11`。安装来源的队列/回调源测试含 close-before-dequeue fake，`10 passed`；两项真实 `TraderClient` 对 fake API 的 execution 桥接测试 `2 passed`、无 skip。pytest 工具来自另一个 no-system venv，不属于候选运行期三制品。以上均未访问 provider、私有配置、账号或一次性 marker。
+
+此前未版本化的 `2.0.2` 队列租约 wheel 两份也字节一致（SHA `9ca165be2ba9cc261432bd185fb755b048172faf0ffde174ea7b273d20af04d2`），RECORD SHA `a6d4328945a5992ad480b51b160743774556e8198abb076c348b71a70dd10af0`、86 行；但它低于总工程 `>=2.0.3`，只保留为历史证据。新的 `2.0.4+iteration41.i9` 是不同候选，不能把旧 wheel 的版本问题或测试结果移作新制品验收。
+
+**独立交叉复核：** reviewer 对两份 I9 wheel 的字节、RECORD、Python 源、CTP 6.7.7 native 构建输入和 DLL/PYD hash 单独检查，未发现本轮 P1/P2。另在 fresh CPython 3.11.5 no-system venv 离线安装精确 I9 wheel、`bt_api_execution 0.2.0` clean wheel（SHA-256 `352c26db7636868710dbe28ea0583f49db619dd06e3b9c1f258b69fe68e51787`）、`bt_api_base 0.15.5` 及依赖；`pip check` 通过，Execution/CTP 模块均由该 venv 导入，native extension 已加载。两项真实 `TraderClient` + fake API 的桥接 nodeid `test_close_wakes_real_trader_client_poll_and_discards_its_result`、`test_close_discards_real_sdk_event_dequeued_before_close_wins` 均 PASSED、无 skip；没有启动真实 CTP API factory 或连接 provider。此复核证明本机三制品离线来源/接口组合，尚无外部签名或独立工具链证明。
+
+主仓的 managed CTP source pin、默认 runner、SDK parent pin 和真实写入准入均未改变。仍缺受信原生 callback 来源、完整 native close、账户级 writer fence、共同快照、逐动作审批、风险/监控及真实 SimNow 端到端验收。任何本地 queue receipt 不是 provider ACK；结果不确定时继续 `UNKNOWN`/冻结，`NO_WRITE / LIVE_NO_GO` 不变。

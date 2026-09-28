@@ -1,0 +1,13 @@
+# PUBLIC_SHADOW_ONLY: fixed public OKX order-book observations, no credentials or orders.
+config_schema_version: 4
+strategy:
+  id: example.010_live_examples.okx_public_shadow
+runtime:
+  mode: simulation
+  preset: shadow
+parameters:
+  symbols:
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+  duration_seconds: 10
+  orderbook_limit: 5

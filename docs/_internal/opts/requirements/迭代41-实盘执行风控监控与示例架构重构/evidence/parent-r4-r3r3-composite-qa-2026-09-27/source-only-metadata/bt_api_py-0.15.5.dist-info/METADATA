@@ -1,0 +1,24 @@
+Metadata-Version: 2.3
+Name: bt_api_py
+Version: 0.15.5
+Summary: SOURCE-ONLY metadata for isolated Iteration 41 bridge tests; not installed
+X-Iteration41-Source-Only: true
+X-Iteration41-Source-Root: D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\parent-source
+X-Iteration41-Source-Tree-SHA256: ccd69de522b7fd47b9bce143d7e206f20261c9fd683423295315ff121b5674d2
+Requires-Dist: bt_api_base>=0.15.4
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: websocket-client>=1.6.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: aiohttp>=3.9.0
+Requires-Dist: spdlog>=2.0.0
+Requires-Dist: pytz>=2023.3
+Requires-Dist: python-rapidjson>=1.10
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: pyzmq>=26.0.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: websockets>=12.0
+Requires-Dist: typing-extensions>=4.8.0
+Requires-Dist: eval-type-backport>=0.2.0; python_version < '3.10'

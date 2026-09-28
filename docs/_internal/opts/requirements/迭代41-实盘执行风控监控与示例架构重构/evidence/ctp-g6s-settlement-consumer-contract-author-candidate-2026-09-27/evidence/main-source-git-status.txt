@@ -1,0 +1,5 @@
+Observed from the shared D:\source_code\backtrader worktree at candidate capture:
+?? backtrader_runtime/ctp_simnow_managed_runtime.py
+?? backtrader_runtime/ctp_simnow_native_readiness.py
+?? backtrader_runtime/ctp_simulation_query_evidence.py
+`git diff` for these paths emitted no tracked diff. Their current bytes were copied and hash-compared into input-snapshots. This receipt does not infer who created the pre-existing untracked files. Candidate writes were confined to D:\temp\iteration41-g6s-settlement-consumer-contract-candidate-20260927.

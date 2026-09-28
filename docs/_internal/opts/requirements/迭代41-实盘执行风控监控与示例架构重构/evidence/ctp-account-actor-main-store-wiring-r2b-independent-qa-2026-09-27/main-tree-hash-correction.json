@@ -1,0 +1,16 @@
+{
+  "correction": "The canonical main-tree apply/revert REPORT.md was updated after the first independent amendment; this corrects only its referenced hash and rebuilds the amendment package. Test results and verdict are unchanged.",
+  "stale_main_tree_report_sha256": "DD56C80FF819E7D7B80B939F4F28021C66EBFC0B3055BAD3E71822F288772997",
+  "current_main_tree_report_sha256": "EB262AE8FB391DE5933A536115D99C0739DAD7DFC06B4A99B600C43A6E019DD4",
+  "old_amendment_report_sha256": "2B3B8A93A4613522D193AAB0A499934B21F01CC42DAD0948511FC6FBCE1EE8E6",
+  "current_amendment_report_sha256": "fb49ec08d49867340056220e79c51e60d1b1f07c25ec42df946f8920e78ee24b",
+  "preserved_historical_archive": {
+    "path": "main-tree-amendment-r1-historical.raw.zip",
+    "sha256": "6b05af6e7ff28d1ce73f79852aae5db5d26599c1a29f59746a213516ecf2c271"
+  },
+  "preserved_historical_index": {
+    "path": "main-tree-amendment-r1-index.json",
+    "sha256": "213ecf87f7374a2593330cced533a1ecc47df112ec2bc8edaa51000eaf090429"
+  },
+  "no_main_report_or_production_source_modified": true
+}

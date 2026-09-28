@@ -1,0 +1,291 @@
+{
+  "version": "1",
+  "pip_version": "23.2.1",
+  "install": [
+    {
+      "download_info": {
+        "url": "file:///D:/temp/iteration41-unified-offline-wheelhouse-settlement-20260927-r1/wheelhouse/bt_api_base-0.15.4-py3-none-any.whl",
+        "archive_info": {
+          "hash": "sha256=cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+          "hashes": {
+            "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369"
+          }
+        }
+      },
+      "is_direct": true,
+      "requested": true,
+      "metadata": {
+        "metadata_version": "2.4",
+        "name": "bt_api_base",
+        "version": "0.15.4",
+        "dynamic": [
+          "license-file"
+        ],
+        "summary": "Shared base abstractions for bt_api plugins",
+        "description": "# bt_api_base\r\n\r\n[![PyPI Version](https://img.shields.io/pypi/v/bt_api_base.svg)](https://pypi.org/project/bt_api_base/)\r\n[![Python Versions](https://img.shields.io/pypi/pyversions/bt_api_base.svg)](https://pypi.org/project/bt_api_base/)\r\n[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\r\n[![CI](https://github.com/cloudQuant/bt_api_base/actions/workflows/ci.yml/badge.svg)](https://github.com/cloudQuant/bt_api_base/actions)\r\n[![Docs](https://readthedocs.org/projects/bt-api-base/badge/?version=latest)](https://bt-api-base.readthedocs.io/)\r\n\r\n---\r\n\r\n## English | [中文](#中文)\r\n\r\n### Overview\r\n\r\n`bt_api_base` is the **canonical shared base package** for the [bt_api](https://github.com/cloudQuant/bt_api_py) plugin ecosystem. It provides a standardized foundation that all exchange plugins (Binance, OKX, HTX, CTP, Interactive Brokers, etc.) depend on — without needing to import from the main application.\r\n\r\nThis package is the **core runtime dependency** for every `bt_api_xx` exchange plugin. It abstracts away the complexity of multi-exchange integration, letting plugin authors focus purely on exchange-specific API semantics.\r\n\r\n### Architecture\r\n\r\n```\r\nbt_api_base/\r\n├── src/bt_api_base/\r\n│   ├── registry.py          # ExchangeRegistry — plugin registration system\r\n│   ├── event_bus.py         # EventBus — pub/sub event dispatcher\r\n│   ├── websocket_manager.py # WebSocketManager — connection pooling & auto-reconnect\r\n│   ├── cache.py             # SimpleCache, ExchangeInfoCache, MarketDataCache\r\n│   ├── rate_limiter.py     # SlidingWindowLimiter, FixedWindowLimiter, RateLimiter\r\n│   ├── exceptions.py         # Full exception hierarchy (20+ exception types)\r\n│   ├── config_loader.py     # Pydantic-based YAML config validation\r\n│   ├── security.py          # Authentication & request signing utilities\r\n│   ├── balance_utils.py    # Balance normalization helpers\r\n│   ├── logging_factory.py   # Structured logging setup\r\n│   ├── feeds/              # AbstractVenueFeed protocol & AsyncWrapperMixin\r\n│   ├── containers/          # Instrument, Tick, OrderBook, Bar, Order, Position, Balance...\r\n│   ├── gateway/            # BaseGatewayAdapter, PluginGatewayAdapter\r\n│   ├── plugins/             # PluginInfo, PluginLoader, PluginProtocol\r\n│   └── core/               # AsyncTaskGroup, DependencyInjection, Interfaces, Services\r\n├── tests/                  # Comprehensive unit & integration tests\r\n└── docs/                  # API documentation\r\n```\r\n\r\n### Core Features\r\n\r\n#### 1. Exchange Registry (Plugin System)\r\n\r\nThe `ExchangeRegistry` implements a **Registry Pattern** for plug-and-play exchange support:\r\n\r\n```python\r\nfrom bt_api_base.registry import ExchangeRegistry\r\n\r\n# Global singleton (backward compatible)\r\nExchangeRegistry.register_feed(\"BINANCE___SPOT\", BinanceSpotFeed)\r\nfeed = ExchangeRegistry.create_feed(\"BINANCE___SPOT\", data_queue)\r\n\r\n# Isolated instance (for testing)\r\nregistry = ExchangeRegistry.create_isolated()\r\nregistry.register_feed(\"TEST___SPOT\", MockFeed)\r\n```\r\n\r\n#### 2. Event Bus\r\n\r\nPublish/subscribe event dispatcher with **Queue mode** (existing behavior) and **Callback mode** (for CTP SPI / IB EWrapper callback-driven APIs):\r\n\r\n```python\r\nfrom bt_api_base.event_bus import EventBus, ErrorHandlerMode\r\n\r\nbus = EventBus(error_mode=ErrorHandlerMode.LOG)\r\n\r\nbus.on(\"order_filled\", lambda data: print(f\"Order filled: {data}\"))\r\nbus.on(\"tick_update\", lambda data: update_chart(data))\r\n\r\nerrors = bus.emit(\"order_filled\", {\"order_id\": \"123\", \"filled\": 0.5})\r\n```\r\n\r\n#### 3. WebSocket Manager\r\n\r\nConnection pooling with **auto-reconnect**, **backpressure handling**, and **subscription limiting**:\r\n\r\n```python\r\nfrom bt_api_base.websocket_manager import WebSocketManager, WebSocketConfig\r\n\r\nconfig = WebSocketConfig(\r\n    url=\"wss://stream.binance.com:9443/ws\",\r\n    exchange_name=\"BINANCE___SPOT\",\r\n    max_connections=5,\r\n    heartbeat_interval=30.0,\r\n    reconnect_interval=5.0,\r\n    max_reconnect_attempts=10,\r\n)\r\n\r\nmanager = WebSocketManager()\r\nawait manager.add_exchange(config)\r\n\r\nsubscription_id = await manager.subscribe(\r\n    exchange_name=\"BINANCE___SPOT\",\r\n    topic=\"ticker\",\r\n    symbol=\"BTCUSDT\",\r\n    callback=on_ticker_update,\r\n)\r\n```\r\n\r\n#### 4. Caching System\r\n\r\nThree-tier caching with TTL support and thread-safe operations:\r\n\r\n```python\r\nfrom bt_api_base.cache import SimpleCache, ExchangeInfoCache, MarketDataCache, cached\r\n\r\n# Manual cache\r\ncache = SimpleCache(default_ttl=300.0, max_size=10000)\r\ncache.set(\"key\", value, ttl=60)\r\nvalue = cache.get(\"key\")\r\n\r\n# Decorator-based caching\r\n@cached(ttl=60)\r\ndef fetch_exchange_info():\r\n    return requests.get(\"/api/v3/exchangeInfo\").json()\r\n```\r\n\r\n#### 5. Rate Limiter\r\n\r\nSupports **sliding window**, **fixed window**, and **token bucket** rate limiting with endpoint-level glob matching and weight mapping:\r\n\r\n```python\r\nfrom bt_api_base.rate_limiter import RateLimiter, RateLimitRule, RateLimitType, RateLimitScope\r\n\r\nrules = [\r\n    RateLimitRule(name=\"global\", type=RateLimitType.SLIDING_WINDOW,\r\n                  interval=60, limit=1200, scope=RateLimitScope.GLOBAL),\r\n    RateLimitRule(name=\"order\", type=RateLimitType.FIXED_WINDOW,\r\n                  interval=1, limit=10, scope=RateLimitScope.ENDPOINT,\r\n                  endpoint=\"/api/v3/order*\",\r\n                  weight_map={\"POST\": 10, \"DELETE\": 5, \"GET\": 1}),\r\n]\r\n\r\nlimiter = RateLimiter(rules)\r\n\r\nwith limiter:\r\n    # Rate-limited request\r\n    response = requests.post(\"/api/v3/order\", json=order_data)\r\n```\r\n\r\n#### 6. Configuration System\r\n\r\nPydantic-based YAML config validation with full schema checking:\r\n\r\n```python\r\nfrom bt_api_base.config_loader import load_exchange_config, ExchangeConfig\r\n\r\nconfig = load_exchange_config(\"binance.yaml\")\r\n# Returns ExchangeConfig with validated fields\r\n```\r\n\r\n#### 7. Comprehensive Exception Hierarchy\r\n\r\n20+ exception types with predicate functions for error classification:\r\n\r\n```python\r\nfrom bt_api_base.exceptions import (\r\n    BtApiError, ExchangeNotFoundError, AuthenticationError,\r\n    RateLimitError, OrderError, is_network_error, is_user_recoverable\r\n)\r\n\r\ntry:\r\n    feed.make_order(...)\r\nexcept RateLimitError as e:\r\n    wait_time = e.retry_after\r\nexcept OrderError as e:\r\n    log.error(f\"Order failed: {e}\")\r\n```\r\n\r\n#### 8. Feed Protocol & Async Wrapper\r\n\r\nStandardized `AbstractVenueFeed` protocol ensuring all exchange plugins implement a consistent interface:\r\n\r\n```python\r\nfrom bt_api_base.feeds.abstract_feed import AbstractVenueFeed, AsyncWrapperMixin\r\n\r\n# All exchange feeds implement:\r\n# - get_tick, get_depth, get_kline, make_order, cancel_order, get_balance, get_position...\r\n# - async_* versions for each operation\r\n# - connect, disconnect, is_connected\r\n# - capabilities property\r\n```\r\n\r\n### Supported Exchanges\r\n\r\nAll exchange plugins in the bt_api ecosystem depend on bt_api_base:\r\n\r\n| Exchange Plugin | Repository | Status |\r\n|----------------|------------|--------|\r\n| Binance | [bt_api_binance](https://github.com/cloudQuant/bt_api_binance) | ✅ |\r\n| OKX | [bt_api_okx](https://github.com/cloudQuant/bt_api_okx) | ✅ |\r\n| HTX | [bt_api_htx](https://github.com/cloudQuant/bt_api_htx) | ✅ |\r\n| CTP (China Futures) | [bt_api_ctp](https://github.com/cloudQuant/bt_api_ctp) | ✅ |\r\n| Interactive Brokers | [bt_api_ib_web](https://github.com/cloudQuant/bt_api_ib_web) | ✅ |\r\n| Gemini | [bt_api_gemini](https://github.com/cloudQuant/bt_api_gemini) | ✅ |\r\n| Bybit | [bt_api_bybit](https://github.com/cloudQuant/bt_api_bybit) | ✅ |\r\n| Gate.io | [bt_api_gateio](https://github.com/cloudQuant/bt_api_gateio) | ✅ |\r\n| MetaTrader 5 | [bt_api_mt5](https://github.com/cloudQuant/bt_api_mt5) | ✅ |\r\n\r\n*And 54+ more exchange plugins...*\r\n\r\n### Installation\r\n\r\n```bash\r\npip install bt_api_base\r\n```\r\n\r\nOr install from source:\r\n\r\n```bash\r\ngit clone https://github.com/cloudQuant/bt_api_base\r\ncd bt_api_base\r\npip install -e .\r\n```\r\n\r\nFor development:\r\n\r\n```bash\r\npip install -e \".[dev]\"\r\n```\r\n\r\n### Requirements\r\n\r\n- Python 3.9+\r\n- pydantic >= 2.0\r\n- numpy >= 1.26\r\n- requests >= 2.31\r\n- websocket-client >= 1.6\r\n- aiohttp >= 3.9\r\n- websockets >= 12.0\r\n- pyyaml >= 6.0\r\n\r\n### Online Documentation\r\n\r\n| Resource | Link |\r\n|----------|------|\r\n| English Docs | https://bt-api-base.readthedocs.io/ |\r\n| Chinese Docs | https://bt-api-base.readthedocs.io/zh/latest/ |\r\n| GitHub Repository | https://github.com/cloudQuant/bt_api_base |\r\n| Issue Tracker | https://github.com/cloudQuant/bt_api_base/issues |\r\n| PyPI Package | https://pypi.org/project/bt_api_base/ |\r\n| Main Project (bt_api_py) | https://github.com/cloudQuant/bt_api_py |\r\n\r\n### License\r\n\r\nMIT License - see [LICENSE](LICENSE) for details.\r\n\r\n### Support\r\n\r\n- Report bugs via [GitHub Issues](https://github.com/cloudQuant/bt_api_base/issues)\r\n- Email: yunjinqi@gmail.com\r\n\r\n---\r\n\r\n## 中文\r\n\r\n### 概述\r\n\r\n`bt_api_base` 是 [bt_api](https://github.com/cloudQuant/bt_api_py) 插件生态系统的**标准共享基础包**。它为所有交易所插件（Binance、OKX、HTX、CTP、Interactive Brokers 等）提供标准化的基础依赖，让插件作者无需从主应用包导入，即可获得所有核心功能。\r\n\r\n这个包是**每个 `bt_api_xx` 交易所插件的核心运行时依赖**。它将多交易所集成的复杂性抽象化，让插件作者专注于交易所特定的 API 语义。\r\n\r\n### 架构\r\n\r\n```\r\nbt_api_base/\r\n├── src/bt_api_base/\r\n│   ├── registry.py          # ExchangeRegistry — 插件注册系统\r\n│   ├── event_bus.py         # EventBus — 发布/订阅事件分发器\r\n│   ├── websocket_manager.py # WebSocketManager — 连接池与自动重连\r\n│   ├── cache.py             # SimpleCache, ExchangeInfoCache, MarketDataCache\r\n│   ├── rate_limiter.py     # SlidingWindowLimiter, FixedWindowLimiter, RateLimiter\r\n│   ├── exceptions.py         # 完整异常层次结构（20+ 异常类型）\r\n│   ├── config_loader.py     # 基于 Pydantic 的 YAML 配置验证\r\n│   ├── security.py          # 认证与请求签名工具\r\n│   ├── balance_utils.py    # 余额规范化辅助函数\r\n│   ├── logging_factory.py   # 结构化日志配置\r\n│   ├── feeds/              # AbstractVenueFeed 协议和 AsyncWrapperMixin\r\n│   ├── containers/          # Instrument, Tick, OrderBook, Bar, Order, Position, Balance...\r\n│   ├── gateway/            # BaseGatewayAdapter, PluginGatewayAdapter\r\n│   ├── plugins/             # PluginInfo, PluginLoader, PluginProtocol\r\n│   └── core/               # AsyncTaskGroup, DependencyInjection, Interfaces, Services\r\n├── tests/                  # 综合单元测试和集成测试\r\n└── docs/                  # API 文档\r\n```\r\n\r\n### 核心功能\r\n\r\n#### 1. 交易所注册表（插件系统）\r\n\r\n`ExchangeRegistry` 实现**注册表模式**，支持插件式交易所接入：\r\n\r\n```python\r\nfrom bt_api_base.registry import ExchangeRegistry\r\n\r\n# 全局单例（向后兼容）\r\nExchangeRegistry.register_feed(\"BINANCE___SPOT\", BinanceSpotFeed)\r\nfeed = ExchangeRegistry.create_feed(\"BINANCE___SPOT\", data_queue)\r\n\r\n# 隔离实例（用于测试）\r\nregistry = ExchangeRegistry.create_isolated()\r\nregistry.register_feed(\"TEST___SPOT\", MockFeed)\r\n```\r\n\r\n#### 2. 事件总线\r\n\r\n支持 **Queue 模式**（现有行为）和 **Callback 模式**（适配 CTP SPI / IB EWrapper 等回调驱动 API）的发布/订阅事件分发器：\r\n\r\n```python\r\nfrom bt_api_base.event_bus import EventBus, ErrorHandlerMode\r\n\r\nbus = EventBus(error_mode=ErrorHandlerMode.LOG)\r\n\r\nbus.on(\"order_filled\", lambda data: print(f\"订单成交: {data}\"))\r\nbus.on(\"tick_update\", lambda data: update_chart(data))\r\n\r\nerrors = bus.emit(\"order_filled\", {\"order_id\": \"123\", \"filled\": 0.5})\r\n```\r\n\r\n#### 3. WebSocket 管理器\r\n\r\n支持**自动重连**、**背压处理**和**订阅限制**的连接池：\r\n\r\n```python\r\nfrom bt_api_base.websocket_manager import WebSocketManager, WebSocketConfig\r\n\r\nconfig = WebSocketConfig(\r\n    url=\"wss://stream.binance.com:9443/ws\",\r\n    exchange_name=\"BINANCE___SPOT\",\r\n    max_connections=5,\r\n    heartbeat_interval=30.0,\r\n    reconnect_interval=5.0,\r\n    max_reconnect_attempts=10,\r\n)\r\n\r\nmanager = WebSocketManager()\r\nawait manager.add_exchange(config)\r\n\r\nsubscription_id = await manager.subscribe(\r\n    exchange_name=\"BINANCE___SPOT\",\r\n    topic=\"ticker\",\r\n    symbol=\"BTCUSDT\",\r\n    callback=on_ticker_update,\r\n)\r\n```\r\n\r\n#### 4. 缓存系统\r\n\r\n三层缓存系统，支持 TTL 和线程安全操作：\r\n\r\n```python\r\nfrom bt_api_base.cache import SimpleCache, ExchangeInfoCache, MarketDataCache, cached\r\n\r\n# 手动缓存\r\ncache = SimpleCache(default_ttl=300.0, max_size=10000)\r\ncache.set(\"key\", value, ttl=60)\r\nvalue = cache.get(\"key\")\r\n\r\n# 装饰器缓存\r\n@cached(ttl=60)\r\ndef fetch_exchange_info():\r\n    return requests.get(\"/api/v3/exchangeInfo\").json()\r\n```\r\n\r\n#### 5. 限流器\r\n\r\n支持**滑动窗口**、**固定窗口**和**令牌桶**限流，端点级 glob 匹配和权重映射：\r\n\r\n```python\r\nfrom bt_api_base.rate_limiter import RateLimiter, RateLimitRule, RateLimitType, RateLimitScope\r\n\r\nrules = [\r\n    RateLimitRule(name=\"global\", type=RateLimitType.SLIDING_WINDOW,\r\n                  interval=60, limit=1200, scope=RateLimitScope.GLOBAL),\r\n    RateLimitRule(name=\"order\", type=RateLimitType.FIXED_WINDOW,\r\n                  interval=1, limit=10, scope=RateLimitScope.ENDPOINT,\r\n                  endpoint=\"/api/v3/order*\",\r\n                  weight_map={\"POST\": 10, \"DELETE\": 5, \"GET\": 1}),\r\n]\r\n\r\nlimiter = RateLimiter(rules)\r\n\r\nwith limiter:\r\n    # 限流请求\r\n    response = requests.post(\"/api/v3/order\", json=order_data)\r\n```\r\n\r\n#### 6. 配置系统\r\n\r\n基于 Pydantic 的 YAML 配置验证，支持完整 Schema 检查：\r\n\r\n```python\r\nfrom bt_api_base.config_loader import load_exchange_config, ExchangeConfig\r\n\r\nconfig = load_exchange_config(\"binance.yaml\")\r\n# 返回经过字段验证的 ExchangeConfig\r\n```\r\n\r\n#### 7. 完整异常层次结构\r\n\r\n20+ 异常类型，带错误分类谓词函数：\r\n\r\n```python\r\nfrom bt_api_base.exceptions import (\r\n    BtApiError, ExchangeNotFoundError, AuthenticationError,\r\n    RateLimitError, OrderError, is_network_error, is_user_recoverable\r\n)\r\n\r\ntry:\r\n    feed.make_order(...)\r\nexcept RateLimitError as e:\r\n    wait_time = e.retry_after\r\nexcept OrderError as e:\r\n    log.error(f\"订单失败: {e}\")\r\n```\r\n\r\n#### 8. Feed 协议和异步封装\r\n\r\n标准化的 `AbstractVenueFeed` 协议，确保所有交易所插件实现一致接口：\r\n\r\n```python\r\nfrom bt_api_base.feeds.abstract_feed import AbstractVenueFeed, AsyncWrapperMixin\r\n\r\n# 所有交易所 feeds 都实现:\r\n# - get_tick, get_depth, get_kline, make_order, cancel_order, get_balance, get_position...\r\n# - 各操作的 async_* 版本\r\n# - connect, disconnect, is_connected\r\n# - capabilities 属性\r\n```\r\n\r\n### 支持的交易所\r\n\r\nbt_api 生态系统中所有交易所插件都依赖 bt_api_base：\r\n\r\n| 交易所插件 | 仓库 | 状态 |\r\n|----------------|------------|--------|\r\n| Binance | [bt_api_binance](https://github.com/cloudQuant/bt_api_binance) | ✅ |\r\n| OKX | [bt_api_okx](https://github.com/cloudQuant/bt_api_okx) | ✅ |\r\n| HTX (火币) | [bt_api_htx](https://github.com/cloudQuant/bt_api_htx) | ✅ |\r\n| CTP (中国期货) | [bt_api_ctp](https://github.com/cloudQuant/bt_api_ctp) | ✅ |\r\n| Interactive Brokers | [bt_api_ib_web](https://github.com/cloudQuant/bt_api_ib_web) | ✅ |\r\n| Gemini | [bt_api_gemini](https://github.com/cloudQuant/bt_api_gemini) | ✅ |\r\n| Bybit | [bt_api_bybit](https://github.com/cloudQuant/bt_api_bybit) | ✅ |\r\n| Gate.io | [bt_api_gateio](https://github.com/cloudQuant/bt_api_gateio) | ✅ |\r\n| MetaTrader 5 | [bt_api_mt5](https://github.com/cloudQuant/bt_api_mt5) | ✅ |\r\n\r\n*以及 54+ 更多交易所插件...*\r\n\r\n### 安装\r\n\r\n```bash\r\npip install bt_api_base\r\n```\r\n\r\n或从源码安装：\r\n\r\n```bash\r\ngit clone https://github.com/cloudQuant/bt_api_base\r\ncd bt_api_base\r\npip install -e .\r\n```\r\n\r\n开发安装：\r\n\r\n```bash\r\npip install -e \".[dev]\"\r\n```\r\n\r\n### 系统要求\r\n\r\n- Python 3.9+\r\n- pydantic >= 2.0\r\n- numpy >= 1.26\r\n- requests >= 2.31\r\n- websocket-client >= 1.6\r\n- aiohttp >= 3.9\r\n- websockets >= 12.0\r\n- pyyaml >= 6.0\r\n\r\n### 在线文档\r\n\r\n| 资源 | 链接 |\r\n|----------|------|\r\n| 英文文档 | https://bt-api-base.readthedocs.io/ |\r\n| 中文文档 | https://bt-api-base.readthedocs.io/zh/latest/ |\r\n| GitHub 仓库 | https://github.com/cloudQuant/bt_api_base |\r\n| 问题反馈 | https://github.com/cloudQuant/bt_api_base/issues |\r\n| PyPI 包 | https://pypi.org/project/bt_api_base/ |\r\n| 主项目 (bt_api_py) | https://github.com/cloudQuant/bt_api_py |\r\n\r\n### 许可证\r\n\r\nMIT 许可证 - 详见 [LICENSE](LICENSE)。\r\n\r\n### 技术支持\r\n\r\n- 通过 [GitHub Issues](https://github.com/cloudQuant/bt_api_base/issues) 反馈问题\r\n- 邮箱: yunjinqi@gmail.com\r\n",
+        "description_content_type": "text/markdown",
+        "author_email": "cloudQuant <yunjinqi@gmail.com>",
+        "license": "MIT",
+        "classifier": [
+          "Programming Language :: Python :: 3",
+          "Programming Language :: Python :: 3.9",
+          "Programming Language :: Python :: 3.10",
+          "Programming Language :: Python :: 3.11",
+          "Programming Language :: Python :: 3.12",
+          "Programming Language :: Python :: 3.13",
+          "Programming Language :: Python :: Implementation :: CPython",
+          "License :: OSI Approved :: MIT License",
+          "Operating System :: POSIX :: Linux",
+          "Operating System :: Microsoft :: Windows",
+          "Operating System :: MacOS"
+        ],
+        "requires_dist": [
+          "numpy>=1.26.0",
+          "python-dotenv>=1.0.0",
+          "requests>=2.31.0",
+          "websocket-client>=1.6.0",
+          "pyyaml>=6.0",
+          "pandas>=2.0.0",
+          "pyarrow>=14.0.0",
+          "aiohttp>=3.9.0",
+          "packaging>=24.0",
+          "spdlog>=2.0.0",
+          "pytz>=2023.3",
+          "python-rapidjson>=1.10",
+          "httpx>=0.27.0",
+          "pyzmq>=26.0.0",
+          "pydantic>=2.0.0",
+          "websockets>=12.0",
+          "typing-extensions>=4.8.0",
+          "eval-type-backport>=0.2.0; python_version < \"3.10\"",
+          "pytest>=7.0; extra == \"dev\"",
+          "pytest-asyncio>=0.21.0; extra == \"dev\"",
+          "ruff>=0.1.0; extra == \"dev\"",
+          "mypy>=1.0; extra == \"dev\""
+        ],
+        "requires_python": ">=3.9",
+        "project_url": [
+          "Homepage, https://github.com/cloudQuant/bt_api_py",
+          "Repository, https://github.com/cloudQuant/bt_api_py"
+        ],
+        "provides_extra": [
+          "dev"
+        ]
+      }
+    },
+    {
+      "download_info": {
+        "url": "file:///D:/temp/iteration41-unified-offline-wheelhouse-settlement-20260927-r1/wheelhouse/bt_api_ctp-2.0.4%2Bg4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+        "archive_info": {
+          "hash": "sha256=857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+          "hashes": {
+            "sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d"
+          }
+        }
+      },
+      "is_direct": true,
+      "requested": true,
+      "metadata": {
+        "metadata_version": "2.2",
+        "name": "bt_api_ctp",
+        "version": "2.0.4+g4r2.settlement.probe.20260927",
+        "summary": "CTP exchange plugin for bt_api",
+        "description": "# CTP (China Futures)\r\n\r\nCTP exchange plugin for bt_api, supporting Chinese futures market trading.\r\n\r\n[![PyPI Version](https://img.shields.io/pypi/v/bt_api_ctp.svg)](https://pypi.org/project/bt_api_ctp/)\r\n[![Python Versions](https://img.shields.io/pypi/pyversions/bt_api_ctp.svg)](https://pypi.org/project/bt_api_ctp/)\r\n[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\r\n[![CI](https://github.com/cloudQuant/bt_api_ctp/actions/workflows/ci.yml/badge.svg)](https://github.com/cloudQuant/bt_api_ctp/actions)\r\n[![Docs](https://readthedocs.org/projects/bt-api-ctp/badge/?version=latest)](https://bt-api-ctp.readthedocs.io/)\r\n\r\n---\r\n\r\n## English | [中文](#中文)\r\n\r\n### Overview\r\n\r\nThis package provides the **CTP (China Futures)** exchange plugin for the [bt_api](https://github.com/cloudQuant/bt_api_py) framework. It offers a unified interface for interacting with Chinese futures exchanges via the CTP protocol.\r\n\r\n### Supported Exchanges\r\n\r\n| Exchange | Code | Description |\r\n|----------|------|-------------|\r\n| Shanghai Futures Exchange | SHFE | metals, energy |\r\n| Dalian Commodity Exchange | DCE | agricultural, chemicals |\r\n| Zhengzhou Commodity Exchange | CZCE | agricultural, chemicals |\r\n| China Financial Futures Exchange | CFFEX | equity index futures |\r\n| Shanghai International Energy Exchange | INE | crude oil, iron ore |\r\n| Guangzhou Futures Exchange | GFEX | industrial, agricultural |\r\n\r\n### Features\r\n\r\n- Futures trading via CTP protocol (v6.x)\r\n- Support for all Chinese futures exchanges\r\n- Real-time market data via market data API\r\n- Order placement and cancellation via trade API\r\n- Position and margin tracking\r\n- Auto-selection between SimNow environments (set1 / set2 / 7x24)\r\n- SimNow simulated trading support\r\n\r\n### Installation\r\n\r\n```bash\r\npip install bt_api_ctp\r\n```\r\n\r\nOr install from source:\r\n\r\n```bash\r\ngit clone https://github.com/cloudQuant/bt_api_ctp\r\ncd bt_api_ctp\r\npip install -e .\r\n```\r\n\r\n### Quick Start\r\n\r\n```python\r\nfrom bt_api_py import BtApi\r\n\r\n# Configure CTP futures exchange\r\nexchange_kwargs = {\r\n    \"CTP___FUTURE\": {\r\n        \"user_id\": \"your_user_id\",\r\n        \"password\": \"your_password\",\r\n        \"broker_id\": \"your_broker_id\",\r\n        \"md_front\": \"tcp://182.254.243.31:30011\",\r\n        \"td_front\": \"tcp://182.254.243.31:30001\",\r\n    }\r\n}\r\n\r\napi = BtApi(exchange_kwargs=exchange_kwargs)\r\n\r\n# Connect and subscribe\r\napi.connect()\r\napi.subscribe(\"CTP___FUTURE___rb2401\", [{\"topic\": \"tick\", \"symbol\": \"rb2401\"}])\r\n\r\n# Get data from queue\r\ndata_queue = api.get_data_queue(\"CTP___FUTURE\")\r\nmsg = data_queue.get(timeout=10)\r\nprint(type(msg).__name__, msg)\r\n```\r\n\r\n### Tick Collection and Parquet Storage\r\n\r\nThe package ships an exchange-agnostic collector that subscribes to the **whole market**\r\n(futures + options, all six exchanges) and persists every depth snapshot to Parquet:\r\n\r\n```bash\r\npython -m bt_api_ctp.collector --config collector.yaml --until-close --wait-open\r\n```\r\n\r\nRun it before the open; it waits for the session, collects to the close (day session\r\nends 15:15, night session 02:30), then writes the completeness report and exits by\r\nitself — designed for cron/systemd/launchd scheduling. See\r\n[`deploy/collector/README.md`](deploy/collector/README.md) for ready-to-use units and\r\nthe checklist (holiday calendar file, logging, exit codes).\r\n\r\nFiles land as `<data_root>/<trading_day>/<exchange>/<instrument_id>.parquet`. The\r\ndirectory names the **trading day**: Friday night data belongs to the following\r\nMonday and is stored next to Monday's day session, matching the exchange calendar.\r\n\r\n**Reading the data** — one file per instrument, one row per snapshot, sorted by\r\n`(action_day, update_time, update_millisec)` and deduplicated:\r\n\r\n```python\r\nimport pyarrow.parquet as pq\r\n\r\ntable = pq.read_table(\"20260916/SHFE/rb2701.parquet\")\r\nrows = table.to_pylist()\r\n# Key columns per row:\r\n#   trading_day / action_day        \"20260916\" (night ticks: action_day = previous day)\r\n#   update_time / update_millisec   \"21:00:01\" / 500        quote time, ms precision\r\n#   local_receive_time              1789539477726693000     local wall clock (ns)\r\n#   last_price, volume, turnover, open_interest\r\n#   open/high/low/average_price, upper_limit/lower_limit\r\n#   pre_settlement/pre_close/pre_open_interest\r\n#   bid_price_1..5 / bid_volume_1..5 / ask_price_1..5 / ask_volume_1..5\r\n# Missing values are NULL (CTP sends DBL_MAX for absent prices; it is normalized).\r\n\r\n# With pandas:\r\nimport pandas as pd\r\ndf = pq.read_table(\"20260916/SHFE/rb2701.parquet\").to_pandas()\r\n```\r\n\r\n`<data_root>/<trading_day>/report.json` lists per-instrument row counts, first/last\r\nquote time and in-session gaps — scheduled breaks (10:15-10:30, lunch, overnight)\r\nare not counted as gaps.\r\n\r\n### CtpGatewayAdapter API\r\n\r\nThe `CtpGatewayAdapter` provides direct access to CTP futures:\r\n\r\n```python\r\nfrom bt_api_ctp.gateway.adapter import CtpGatewayAdapter\r\n\r\n# Initialize adapter\r\nadapter = CtpGatewayAdapter(\r\n    md_front=\"tcp://182.254.243.31:30011\",  # market data front\r\n    td_front=\"tcp://182.254.243.31:30001\",  # trade front\r\n    user_id=\"your_user_id\",\r\n    password=\"your_password\",\r\n    broker_id=\"your_broker_id\",\r\n    gateway_startup_timeout_sec=10.0,\r\n)\r\n\r\n# Connect\r\nadapter.connect()\r\n\r\n# Subscribe to symbols\r\nadapter.subscribe_symbols([\"rb2401.SHFE\", \"IF2404.CFFEX\"])\r\n\r\n# Get balance and positions\r\nbalance = adapter.get_balance()\r\npositions = adapter.get_positions()\r\n\r\n# Place an order\r\norder = adapter.place_order({\r\n    \"symbol\": \"rb2401.SHFE\",\r\n    \"side\": \"buy\",\r\n    \"size\": 1,\r\n    \"price\": 4000.0,\r\n    \"offset\": \"open\",\r\n})\r\n\r\n# Cancel an order\r\nadapter.cancel_order({\r\n    \"symbol\": \"rb2401.SHFE\",\r\n    \"order_id\": order[\"order_id\"],\r\n    \"front_id\": order[\"front_id\"],\r\n    \"session_id\": order[\"session_id\"],\r\n    \"order_ref\": order[\"order_ref\"],\r\n})\r\n\r\n# Disconnect\r\nadapter.disconnect()\r\n```\r\n\r\n### Constructor Parameters\r\n\r\n| Parameter | Type | Default | Description |\r\n|-----------|------|---------|-------------|\r\n| `md_front` | str | `\"\"` | Market data front address (tcp://host:port) |\r\n| `td_front` | str | `\"\"` | Trade front address (tcp://host:port) |\r\n| `user_id` | str | `\"\"` | CTP user ID / investor ID |\r\n| `password` | str | `\"\"` | CTP password |\r\n| `broker_id` | str | `\"\"` | Broker ID |\r\n| `auth_code` | str | `\"0000000000000000\"` | Auth code (for production) |\r\n| `app_id` | str | `\"simnow_client_test\"` | App ID |\r\n| `gateway_startup_timeout_sec` | float | `10.0` | Connection timeout |\r\n\r\n### Supported Operations\r\n\r\n| Operation | Method | Status |\r\n|-----------|--------|--------|\r\n| Connect | `connect()` | ✅ |\r\n| Disconnect | `disconnect()` | ✅ |\r\n| Subscribe Symbols | `subscribe_symbols(symbols)` | ✅ |\r\n| Get Balance | `get_balance()` | ✅ |\r\n| Get Positions | `get_positions()` | ✅ |\r\n| Place Order | `place_order(payload)` | ✅ |\r\n| Cancel Order | `cancel_order(payload)` | ✅ |\r\n\r\n### Order Payload Format\r\n\r\n```python\r\n{\r\n    \"symbol\": \"rb2401.SHFE\",     # instrument.exchange or just instrument\r\n    \"side\": \"buy\",                # \"buy\" or \"sell\"\r\n    \"size\": 1,                   # order volume\r\n    \"price\": 4000.0,             # limit price (required for limit orders)\r\n    \"offset\": \"open\",             # \"open\", \"close\", \"close_today\"\r\n    \"client_order_id\": \"...\",    # optional, client-side order ref\r\n    \"exchange_id\": \"SHFE\",        # optional, exchange code\r\n}\r\n```\r\n\r\n### Order Response Format\r\n\r\n```python\r\n{\r\n    \"id\": \"...\",\r\n    \"order_id\": \"...\",\r\n    \"external_order_id\": \"...\",\r\n    \"order_ref\": \"...\",\r\n    \"front_id\": 1,\r\n    \"session_id\": 123456,\r\n    \"exchange_id\": \"SHFE\",\r\n    \"details\": {\"bt_order_ref\": \"...\"},\r\n}\r\n```\r\n\r\n### Environment Configuration\r\n\r\nCTP supports three environments via `CTP_ENV` or `env` parameter:\r\n\r\n| Environment | Description | Trading Hours |\r\n|-------------|-------------|---------------|\r\n| `auto` (default) | Auto-select based on time | Matches production |\r\n| `set1` | Production-like environment | Trading session only |\r\n| `set2` | 7x24 environment | Non-trading hours |\r\n\r\nFor SimNow test accounts, leave `md_front`/`td_front` empty to auto-select the appropriate SimNow environment.\r\n\r\n### Online Documentation\r\n\r\n| Resource | Link |\r\n|----------|------|\r\n| English Docs | https://bt-api-ctp.readthedocs.io/ |\r\n| Chinese Docs | https://bt-api-ctp.readthedocs.io/zh/latest/ |\r\n| GitHub Repository | https://github.com/cloudQuant/bt_api_ctp |\r\n| Issue Tracker | https://github.com/cloudQuant/bt_api_ctp/issues |\r\n\r\n### Requirements\r\n\r\n- Python 3.9+\r\n- bt_api_base >= 0.15\r\n\r\n### Architecture\r\n\r\n```\r\nbt_api_ctp/\r\n├── src/bt_api_ctp/           # Source code\r\n│   ├── containers/ctp/       # Data containers (CtpTicker, CtpOrder, etc.)\r\n│   ├── feeds/                # Feed implementations (live_ctp_feed.py)\r\n│   ├── gateway/              # Gateway adapter (CtpGatewayAdapter)\r\n│   ├── ctp/                  # CTP protocol (structs, client, trader/md API)\r\n│   ├── errors/               # Error translators\r\n│   ├── exchange_data.py       # Exchange metadata\r\n│   └── ctp_env_selector.py    # SimNow environment selector\r\n├── tests/                    # Unit tests\r\n└── docs/                     # Documentation\r\n```\r\n\r\n### License\r\n\r\nMIT License - see [LICENSE](LICENSE) for details.\r\n\r\n### Support\r\n\r\n- Report bugs via [GitHub Issues](https://github.com/cloudQuant/bt_api_ctp/issues)\r\n- Email: yunjinqi@gmail.com\r\n\r\n---\r\n\r\n## 中文\r\n\r\n### 概述\r\n\r\n本包为 [bt_api](https://github.com/cloudQuant/bt_api_py) 框架提供 **CTP（中国期货）** 交易所插件。通过 CTP 协议与中国期货交易所进行交互的统一接口。\r\n\r\n### 支持的交易所\r\n\r\n| 交易所 | 代码 | 描述 |\r\n|--------|------|------|\r\n| 上海期货交易所 | SHFE | 金属、能源 |\r\n| 大连商品交易所 | DCE | 农产品、化工 |\r\n| 郑州商品交易所 | CZCE | 农产品、化工 |\r\n| 中国金融期货交易所 | CFFEX | 股指期货 |\r\n| 上海国际能源交易中心 | INE | 原油、铁矿石 |\r\n| 广州期货交易所 | GFEX | 工业品、农产品 |\r\n\r\n### 功能特点\r\n\r\n- 通过 CTP 协议（v6.x）进行期货交易\r\n- 支持所有中国期货交易所\r\n- 通过行情 API 获取实时市场数据\r\n- 通过交易 API 下单和撤单\r\n- 持仓和保证金跟踪\r\n- 自动选择 SimNow 环境（set1 / set2 / 7x24）\r\n- SimNow 模拟交易支持\r\n\r\n### 安装\r\n\r\n```bash\r\npip install bt_api_ctp\r\n```\r\n\r\n或从源码安装：\r\n\r\n```bash\r\ngit clone https://github.com/cloudQuant/bt_api_ctp\r\ncd bt_api_ctp\r\npip install -e .\r\n```\r\n\r\n### 快速开始\r\n\r\n```python\r\nfrom bt_api_py import BtApi\r\n\r\n# 配置 CTP 期货交易所\r\nexchange_kwargs = {\r\n    \"CTP___FUTURE\": {\r\n        \"user_id\": \"your_user_id\",\r\n        \"password\": \"your_password\",\r\n        \"broker_id\": \"your_broker_id\",\r\n        \"md_front\": \"tcp://182.254.243.31:30011\",  # 行情前置\r\n        \"td_front\": \"tcp://182.254.243.31:30001\",  # 交易前置\r\n    }\r\n}\r\n\r\napi = BtApi(exchange_kwargs=exchange_kwargs)\r\n\r\n# 连接并订阅\r\napi.connect()\r\napi.subscribe(\"CTP___FUTURE___rb2401\", [{\"topic\": \"tick\", \"symbol\": \"rb2401\"}])\r\n\r\n# 从队列获取数据\r\ndata_queue = api.get_data_queue(\"CTP___FUTURE\")\r\nmsg = data_queue.get(timeout=10)\r\nprint(type(msg).__name__, msg)\r\n```\r\n\r\n### 全市场 Tick 采集与 Parquet 落盘\r\n\r\n内置交易所解耦的采集器，可订阅**全市场**（期货 + 期权，六大交易所）并把每条\r\n深度行情快照写入 Parquet：\r\n\r\n```bash\r\npython -m bt_api_ctp.collector --config collector.yaml --until-close --wait-open\r\n```\r\n\r\n在开盘前启动即可：脚本等待开盘、一直采到收盘（白盘 15:15、夜盘 02:30）后自动\r\n写完整性报告并退出 —— 专为 cron/systemd/launchd 无人值守设计。开箱即用的\r\n调度单元与检查清单（节假日日历、日志、退出码）见\r\n[`deploy/collector/README.md`](deploy/collector/README.md)。\r\n\r\n数据按 `<data_root>/<交易日>/<交易所>/<合约代码>.parquet` 落盘。目录名是\r\n**交易日**：周五夜盘的数据属于下周一，与周一白盘数据存放在同一目录，与交易所\r\n口径一致。\r\n\r\n**读取数据** —— 每个合约一个文件，每行一条快照，已按\r\n`(action_day, update_time, update_millisec)` 去重排序：\r\n\r\n```python\r\nimport pyarrow.parquet as pq\r\n\r\ntable = pq.read_table(\"20260916/SHFE/rb2701.parquet\")\r\nrows = table.to_pylist()\r\n# 每行关键列：\r\n#   trading_day / action_day        \"20260916\"（夜盘 tick 的 action_day 为前一自然日）\r\n#   update_time / update_millisec   \"21:00:01\" / 500        行情时间，毫秒精度\r\n#   local_receive_time              1789539477726693000     本地墙钟接收时间（纳秒）\r\n#   last_price、volume、turnover、open_interest\r\n#   open/high/low/average_price、upper_limit/lower_limit\r\n#   pre_settlement/pre_close/pre_open_interest\r\n#   bid_price_1..5 / bid_volume_1..5 / ask_price_1..5 / ask_volume_1..5\r\n# 缺失值为 NULL（CTP 对无价档位发送 DBL_MAX 哨兵，已归一化为 NULL）。\r\n\r\n# 用 pandas 读取：\r\nimport pandas as pd\r\ndf = pq.read_table(\"20260916/SHFE/rb2701.parquet\").to_pandas()\r\n```\r\n\r\n`<data_root>/<交易日>/report.json` 记录每个合约的行数、首末行情时间与\r\n**交易时段内**的缺口 —— 小节休息（10:15-10:30）、午休、隔夜均不计为缺口。\r\n\r\n### CtpGatewayAdapter API\r\n\r\n`CtpGatewayAdapter` 提供对 CTP 期货的直接访问：\r\n\r\n```python\r\nfrom bt_api_ctp.gateway.adapter import CtpGatewayAdapter\r\n\r\n# 初始化适配器\r\nadapter = CtpGatewayAdapter(\r\n    md_front=\"tcp://182.254.243.31:30011\",  # 行情前置地址\r\n    td_front=\"tcp://182.254.243.31:30001\",  # 交易前置地址\r\n    user_id=\"your_user_id\",\r\n    password=\"your_password\",\r\n    broker_id=\"your_broker_id\",\r\n    gateway_startup_timeout_sec=10.0,\r\n)\r\n\r\n# 连接\r\nadapter.connect()\r\n\r\n# 订阅合约\r\nadapter.subscribe_symbols([\"rb2401.SHFE\", \"IF2404.CFFEX\"])\r\n\r\n# 获取资金和持仓\r\nbalance = adapter.get_balance()\r\npositions = adapter.get_positions()\r\n\r\n# 下单\r\norder = adapter.place_order({\r\n    \"symbol\": \"rb2401.SHFE\",\r\n    \"side\": \"buy\",\r\n    \"size\": 1,\r\n    \"price\": 4000.0,\r\n    \"offset\": \"open\",\r\n})\r\n\r\n# 撤单\r\nadapter.cancel_order({\r\n    \"symbol\": \"rb2401.SHFE\",\r\n    \"order_id\": order[\"order_id\"],\r\n    \"front_id\": order[\"front_id\"],\r\n    \"session_id\": order[\"session_id\"],\r\n    \"order_ref\": order[\"order_ref\"],\r\n})\r\n\r\n# 断开连接\r\nadapter.disconnect()\r\n```\r\n\r\n### 构造函数参数\r\n\r\n| 参数 | 类型 | 默认值 | 描述 |\r\n|------|------|--------|------|\r\n| `md_front` | str | `\"\"` | 行情前置地址（tcp://host:port）|\r\n| `td_front` | str | `\"\"` | 交易前置地址（tcp://host:port）|\r\n| `user_id` | str | `\"\"` | CTP 用户 ID / 投资者 ID |\r\n| `password` | str | `\"\"` | CTP 密码 |\r\n| `broker_id` | str | `\"\"` | 经纪公司 ID |\r\n| `auth_code` | str | `\"0000000000000000\"` | 认证码（生产环境用）|\r\n| `app_id` | str | `\"simnow_client_test\"` | App ID |\r\n| `gateway_startup_timeout_sec` | float | `10.0` | 连接超时时间 |\r\n\r\n### 支持的操作\r\n\r\n| 操作 | 方法 | 状态 |\r\n|------|------|------|\r\n| 连接 | `connect()` | ✅ |\r\n| 断开 | `disconnect()` | ✅ |\r\n| 订阅合约 | `subscribe_symbols(symbols)` | ✅ |\r\n| 获取资金 | `get_balance()` | ✅ |\r\n| 获取持仓 | `get_positions()` | ✅ |\r\n| 下单 | `place_order(payload)` | ✅ |\r\n| 撤单 | `cancel_order(payload)` | ✅ |\r\n\r\n### 下单 Payload 格式\r\n\r\n```python\r\n{\r\n    \"symbol\": \"rb2401.SHFE\",     # 合约代码.交易所或仅合约代码\r\n    \"side\": \"buy\",               # \"buy\" 或 \"sell\"\r\n    \"size\": 1,                  # 委托数量\r\n    \"price\": 4000.0,           # 限价（限价单必须）\r\n    \"offset\": \"open\",           # \"open\", \"close\", \"close_today\"\r\n    \"client_order_id\": \"...\",   # 可选，客户端订单引用\r\n    \"exchange_id\": \"SHFE\",       # 可选，交易所代码\r\n}\r\n```\r\n\r\n### 订单响应格式\r\n\r\n```python\r\n{\r\n    \"id\": \"...\",\r\n    \"order_id\": \"...\",\r\n    \"external_order_id\": \"...\",\r\n    \"order_ref\": \"...\",\r\n    \"front_id\": 1,\r\n    \"session_id\": 123456,\r\n    \"exchange_id\": \"SHFE\",\r\n    \"details\": {\"bt_order_ref\": \"...\"},\r\n}\r\n```\r\n\r\n### 环境配置\r\n\r\nCTP 支持通过 `CTP_ENV` 或 `env` 参数配置三种环境：\r\n\r\n| 环境 | 描述 | 交易时段 |\r\n|------|------|----------|\r\n| `auto`（默认）| 根据时间自动选择 | 与生产一致 |\r\n| `set1` | 类生产环境 | 仅交易时段 |\r\n| `set2` | 7x24 环境 | 非交易时段 |\r\n\r\n使用 SimNow 测试账户时，留空 `md_front`/`td_front` 可自动选择合适的 SimNow 环境。\r\n\r\n### 在线文档\r\n\r\n| 资源 | 链接 |\r\n|------|------|\r\n| 英文文档 | https://bt-api-ctp.readthedocs.io/ |\r\n| 中文文档 | https://bt-api-ctp.readthedocs.io/zh/latest/ |\r\n| GitHub 仓库 | https://github.com/cloudQuant/bt_api_ctp |\r\n| 问题反馈 | https://github.com/cloudQuant/bt_api_ctp/issues |\r\n\r\n### 系统要求\r\n\r\n- Python 3.9+\r\n- bt_api_base >= 0.15\r\n\r\n### 架构\r\n\r\n```\r\nbt_api_ctp/\r\n├── src/bt_api_ctp/           # 源代码\r\n│   ├── containers/ctp/       # 数据容器 (CtpTicker, CtpOrder 等)\r\n│   ├── feeds/                # Feed 实现 (live_ctp_feed.py)\r\n│   ├── gateway/              # 网关适配器 (CtpGatewayAdapter)\r\n│   ├── ctp/                  # CTP 协议 (structs, client, trader/md API)\r\n│   ├── errors/               # 错误翻译器\r\n│   ├── exchange_data.py       # 交易所元数据\r\n│   └── ctp_env_selector.py    # SimNow 环境选择器\r\n├── tests/                    # 单元测试\r\n└── docs/                     # 文档\r\n```\r\n\r\n### 许可证\r\n\r\nMIT 许可证 - 详见 [LICENSE](LICENSE)。\r\n\r\n### 技术支持\r\n\r\n- 通过 [GitHub Issues](https://github.com/cloudQuant/bt_api_ctp/issues) 反馈问题\r\n- 邮箱: yunjinqi@gmail.com\r\n",
+        "description_content_type": "text/markdown",
+        "license": "MIT",
+        "classifier": [
+          "Programming Language :: Python :: 3",
+          "Programming Language :: Python :: 3.9",
+          "Programming Language :: Python :: 3.10",
+          "Programming Language :: Python :: 3.11",
+          "Programming Language :: Python :: 3.12",
+          "Programming Language :: Python :: 3.13",
+          "Programming Language :: Python :: 3.14",
+          "Programming Language :: Python :: Implementation :: CPython",
+          "License :: OSI Approved :: MIT License",
+          "Operating System :: POSIX :: Linux",
+          "Operating System :: Microsoft :: Windows",
+          "Operating System :: MacOS"
+        ],
+        "requires_dist": [
+          "bt_api_base<1.0,>=0.15.4",
+          "paramiko>=3.0; extra == \"cleaner\""
+        ],
+        "requires_python": ">=3.9",
+        "provides_extra": [
+          "cleaner"
+        ]
+      }
+    },
+    {
+      "download_info": {
+        "url": "file:///D:/temp/iteration41-unified-offline-wheelhouse-settlement-20260927-r1/wheelhouse/bt_api_execution-0.2.4.dev0%2Bv23r3r3.f94b924e1e20-py3-none-any.whl",
+        "archive_info": {
+          "hash": "sha256=b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+          "hashes": {
+            "sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+          }
+        }
+      },
+      "is_direct": true,
+      "requested": true,
+      "metadata": {
+        "metadata_version": "2.2",
+        "name": "bt_api_execution",
+        "version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+        "summary": "Provider-neutral durable execution contracts and local execution spine",
+        "description": "# V23 G1 native-owner process-binding candidate\r\n\r\nThis is an isolated, source-only `bt_api_execution` candidate based directly on the frozen V22 candidate manifest (`V22-CANDIDATE-MANIFEST.json`, SHA-256 `8244038ab975f30de6c0ba56c140f033ddd5b5ce5fb3cabc9e60abb7bf24066d`). V22 itself is based on the R3r3 + V21 owner-handoff composite manifest with SHA-256 `00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd`.\r\n\r\nV23 advances the SQLite schema to 23 and binds an owner process generation to the journal, account/scope, account-family owner/fence, callback owner, supervisor/Job identifiers, PID plus process creation time, Windows session, owner SID digest, deployment/artifact digests, and one attestor proof. The binding row is immutable and must match before a session-bound native claim. V22 claims that predate OS process binding migrate to `UNKNOWN` and poison the callback owner/account family; they are never replayed.\r\n\r\nThe default process attestor is absent: owner creation and native session claims fail closed. Tests inject a fake attestor and prove local transaction/schema behavior only. Python-private protocols and injected policy are not an OS security boundary and do not establish G5. The process-exit verifier is also absent by default.\r\n\r\nThe generic local `claim_ctp_dispatch_command()` path can persist a `CLAIMED` ledger row with `native_call_inflight=0`, but the candidate's only sender consumer never passes that claim to its injected sender. A queued READY V2 command sent to `dispatch_managed_command()` without the native-owner adapter is atomically moved to `UNKNOWN` and its owner/family poisoned before any sender call. No native request/send API is present in this package; the candidate is not wired to a production route.\r\n\r\nVerification is source-only with CPython 3.11.5 / pytest 8.2.2. Full package: 322 passed, 2 skipped because the separate `bt_api_ctp` SDK package is absent; the skips are not passes. No wheel was built or installed. No CTP native SDK, provider, credentials, private configuration, network, or real account was accessed.\r\n",
+        "description_content_type": "text/markdown",
+        "author_email": "cloudQuant <yunjinqi@gmail.com>",
+        "license": "MIT",
+        "classifier": [
+          "Programming Language :: Python :: 3",
+          "Programming Language :: Python :: 3.11",
+          "Programming Language :: Python :: 3.12",
+          "Programming Language :: Python :: 3.13",
+          "Programming Language :: Python :: Implementation :: CPython",
+          "Operating System :: POSIX :: Linux",
+          "Operating System :: Microsoft :: Windows",
+          "Operating System :: MacOS"
+        ],
+        "requires_dist": [
+          "pytest>=7.0; extra == \"dev\"",
+          "ruff>=0.1.0; extra == \"dev\"",
+          "mypy>=1.0; extra == \"dev\""
+        ],
+        "requires_python": ">=3.11",
+        "provides_extra": [
+          "dev"
+        ]
+      }
+    },
+    {
+      "download_info": {
+        "url": "file:///D:/temp/iteration41-unified-offline-wheelhouse-settlement-20260927-r1/wheelhouse/bt_api_py-0.15.7.dev0%2Br4r3r3.67e54513-py3-none-any.whl",
+        "archive_info": {
+          "hash": "sha256=5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+          "hashes": {
+            "sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+          }
+        }
+      },
+      "is_direct": true,
+      "requested": true,
+      "metadata": {
+        "metadata_version": "2.2",
+        "name": "bt_api_py",
+        "version": "0.15.7.dev0+r4r3r3.67e54513",
+        "summary": "Implement backtesting and trading of quantitative strategy",
+        "description_content_type": "text/markdown",
+        "author_email": "cloudQuant <yunjinqi@gmail.com>",
+        "license": "MIT",
+        "classifier": [
+          "Programming Language :: Python :: 3",
+          "Programming Language :: Python :: 3.11",
+          "Programming Language :: Python :: 3.12",
+          "Programming Language :: Python :: 3.13",
+          "Programming Language :: Python :: Implementation :: CPython",
+          "Operating System :: POSIX :: Linux",
+          "Operating System :: Microsoft :: Windows",
+          "Operating System :: MacOS"
+        ],
+        "requires_dist": [
+          "bt_api_base>=0.15.4",
+          "numpy>=1.26.0",
+          "python-dotenv>=1.0.0",
+          "requests>=2.31.0",
+          "websocket-client>=1.6.0",
+          "pyyaml>=6.0",
+          "pandas>=2.0.0",
+          "aiohttp>=3.9.0",
+          "spdlog>=2.0.0",
+          "pytz>=2023.3",
+          "python-rapidjson>=1.10",
+          "httpx>=0.27.0",
+          "pyzmq>=26.0.0",
+          "pydantic>=2.0.0",
+          "websockets>=12.0",
+          "typing-extensions>=4.8.0",
+          "eval-type-backport>=0.2.0; python_version < \"3.10\"",
+          "build>=1.0.0; extra == \"dev\"",
+          "wheel; extra == \"dev\"",
+          "cython; extra == \"dev\"",
+          "types-PyYAML>=6.0; extra == \"dev\"",
+          "types-pytz>=2023.3; extra == \"dev\"",
+          "types-requests>=2.31.0; extra == \"dev\"",
+          "pytest>=7.0; extra == \"dev\"",
+          "pytest-asyncio>=0.21.0; extra == \"dev\"",
+          "pytest-sugar>=1.0.0; extra == \"dev\"",
+          "pytest-cov>=4.0.0; extra == \"dev\"",
+          "pytest-timeout>=2.1.0; extra == \"dev\"",
+          "pytest-html>=4.0.0; extra == \"dev\"",
+          "pytest-rerunfailures>=12.0; extra == \"dev\"",
+          "pytest-xdist>=3.0.0; extra == \"dev\"",
+          "pytest-benchmark>=4.0.0; extra == \"dev\"",
+          "pytest-picked>=0.5.0; extra == \"dev\"",
+          "ruff>=0.1.0; extra == \"dev\"",
+          "mypy>=1.0; extra == \"dev\"",
+          "pre-commit>=3.0.0; extra == \"dev\"",
+          "bandit[toml]>=1.7.0; extra == \"dev\"",
+          "pip-audit>=2.7.0; extra == \"dev\"",
+          "setuptools>=83.0.0; extra == \"dev\"",
+          "hypothesis>=6.0.0; extra == \"dev\"",
+          "psutil>=5.9.0; extra == \"dev\"",
+          "scikit-learn>=1.3.0; extra == \"dev\"",
+          "pyarrow>=14.0.0; extra == \"dev\"",
+          "pyjwt>=2.8.0; extra == \"security\"",
+          "pyotp>=2.9.0; extra == \"security\"",
+          "cryptography>=41.0.0; extra == \"security\"",
+          "bcrypt>=4.1.0; extra == \"security\"",
+          "matplotlib>=3.7.0; extra == \"visualization\"",
+          "pyecharts>=2.0.0; extra == \"visualization\"",
+          "psutil>=5.9.0; extra == \"monitoring\"",
+          "aiohttp>=3.9.0; extra == \"monitoring\"",
+          "aiosmtplib>=2.0.0; extra == \"email\"",
+          "ntplib>=0.4.0; extra == \"time\"",
+          "ib-insync>=0.9.86; extra == \"ib\"",
+          "pyjwt>=2.8.0; extra == \"ib-web\"",
+          "cryptography>=41.0.0; extra == \"ib-web\"",
+          "playwright>=1.45.0; extra == \"ib-web\"",
+          "pymt5>=0.5.0; extra == \"mt5\"",
+          "browser-cookie3>=0.19.0; extra == \"cookies\"",
+          "bt_api_py[cookies,dev,email,ib,ib_web,monitoring,mt5,security,time,visualization]; extra == \"all\"",
+          "bt_api_binance>=2.0.0; extra == \"core-reference\"",
+          "bt_api_ctp<3.0,>=2.0.2; extra == \"core-reference\""
+        ],
+        "requires_python": ">=3.11",
+        "project_url": [
+          "Homepage, https://github.com/cloudQuant/bt_api_py",
+          "Repository, https://github.com/cloudQuant/bt_api_py"
+        ],
+        "provides_extra": [
+          "dev",
+          "security",
+          "visualization",
+          "monitoring",
+          "email",
+          "time",
+          "ib",
+          "ib-web",
+          "mt5",
+          "cookies",
+          "all",
+          "core-reference"
+        ]
+      }
+    }
+  ],
+  "environment": {
+    "implementation_name": "cpython",
+    "implementation_version": "3.11.5",
+    "os_name": "nt",
+    "platform_machine": "AMD64",
+    "platform_release": "10",
+    "platform_system": "Windows",
+    "platform_version": "10.0.26200",
+    "python_full_version": "3.11.5",
+    "platform_python_implementation": "CPython",
+    "python_version": "3.11",
+    "sys_platform": "win32"
+  }
+}

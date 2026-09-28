@@ -1,0 +1,2 @@
+base {"python_members": 105, "exact_blob": 0, "crlf_normalized": 105, "mismatch": 0, "mismatch_sample": []}
+ctp {"python_members": 78, "exact_blob": 0, "crlf_normalized": 78, "mismatch": 0, "mismatch_sample": []}

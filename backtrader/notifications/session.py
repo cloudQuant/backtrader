@@ -35,6 +35,7 @@ import base64
 import json
 import os
 import secrets
+import subprocess
 import threading
 import time
 
@@ -118,11 +119,41 @@ def _json_bytes(payload):
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
+def _restrict_windows_anchor_acl(path, grant):
+    """Give only the current Windows account access to one anchor path.
+
+    ``chmod`` maps only to the read-only attribute on Windows and therefore
+    cannot express the owner-only contract that protects session credentials.
+    ``icacls`` is part of supported Windows installations, needs no optional
+    Python dependency, and can remove inherited permissions before granting a
+    minimal explicit ACL to the current account.
+    """
+
+    username = os.environ.get("USERNAME")
+    if not username:
+        raise OSError("cannot identify the current Windows account for anchor permissions")
+    try:
+        completed = subprocess.run(
+            ["icacls", path, "/inheritance:r", "/grant:r", "{0}:{1}".format(username, grant)],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise OSError("cannot restrict Windows anchor permissions") from exc
+    if completed.returncode:
+        raise OSError("cannot restrict Windows anchor permissions")
+
+
 def _restrict_anchor_permissions(path, directory=False):
-    """Apply POSIX mode bits to an anchor path."""
+    """Apply the platform-specific owner-only contract to an anchor path."""
 
     if os.name == "nt":
-        raise OSError("Windows anchor permissions require handle-based persistence")
+        grant = "(OI)(CI)(F)" if directory else "(R,W)"
+        _restrict_windows_anchor_acl(path, grant)
+        return
     try:
         os.chmod(path, 0o700 if directory else 0o600)
     except OSError:  # nosec B110 - best effort on platforms without POSIX modes

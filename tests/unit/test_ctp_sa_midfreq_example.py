@@ -413,7 +413,7 @@ def test_effective_profile_selection_is_frozen_copied_and_hash_bound():
         )
 
 
-def test_reachable_front_selection_stays_within_the_selected_sdk_family():
+def test_reachable_front_selection_is_disabled_and_configured_pair_is_retained():
     config = _config()
     config["environment"] = "simnow_second_7x24"
     calls = []
@@ -426,36 +426,19 @@ def test_reachable_front_selection_stays_within_the_selected_sdk_family():
             md_front="tcp://fixture-md",
         )
 
-    resolved = runner.resolve_fronts(
-        config,
-        {},
-        select_reachable=True,
-        reachable_selector=selector,
-    )
-
-    assert calls == [
-        {
-            "env": "set2",
-            "profile": "set2_7x24_4000x",
-            "require_profile": "set2_7x24_4000x",
-        }
-    ]
-    assert resolved["profile"] == "simnow_second_7x24"
-    assert resolved["sdk_profile"] == "set2_7x24_4000x"
-    assert resolved["td_front"] == "tcp://fixture-td"
-    assert resolved["md_front"] == "tcp://fixture-md"
-
-    with pytest.raises(runner.RunnerConfigurationError, match="required exact profile"):
+    with pytest.raises(runner.RunnerConfigurationError, match="automatic CTP front selection"):
         runner.resolve_fronts(
             config,
             {},
             select_reachable=True,
-            reachable_selector=lambda **_kwargs: SimpleNamespace(
-                profile="set2_7x24",
-                td_front="tcp://fixture-td",
-                md_front="tcp://fixture-md",
-            ),
+            reachable_selector=selector,
         )
+    assert calls == []
+
+    resolved = runner.resolve_fronts(config, {})
+    configured = runner.FROZEN_PROFILES["simnow_second_7x24"]
+    assert resolved["td_front"] == configured["td_front"]
+    assert resolved["md_front"] == configured["md_front"]
 
 
 def test_profile_endpoints_are_frozen_and_receipt_cannot_follow_an_override(monkeypatch, tmp_path):
@@ -591,7 +574,7 @@ def test_run_network_rejects_untrusted_receipt_before_side_effects(
         receipt = runner.AdmissionReceipt(raw, runner._RECEIPT_VALIDATION_MARKER)
     output = tmp_path / f"network-{unchecked}"
     with pytest.raises(runner.RunnerConfigurationError, match="validated receipt|provenance"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="simnow",
             purpose="engineering_smoke",
@@ -764,7 +747,7 @@ def test_api_diagnostic_parser_and_invocation_reject_unsafe_combinations(monkeyp
     assert not (tmp_path / "duration-is-forbidden").exists()
 
     monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_first_group1")
-    with pytest.raises(runner.RunnerConfigurationError, match="simnow_second_7x24"):
+    with pytest.raises(runner.RunnerConfigurationError, match="network CLI is disabled"):
         runner.main(["--api-diagnostic"])
 
 
@@ -784,7 +767,7 @@ def test_engineering_only_profile_rejects_strategy_run_before_store_construction
     output = tmp_path / "forbidden-set2-strategy-run"
 
     with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="shadow",
             purpose="observation",
@@ -853,7 +836,7 @@ def test_set2_engineering_strategy_observation_is_explicit_bounded_and_read_only
 
     output = tmp_path / "set2-engineering-observation"
     with pytest.raises(RuntimeError, match="stop-after-set2-observation-entry"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="shadow",
             purpose="observation",
@@ -1014,9 +997,13 @@ def _first_set_g3_observation_shutdown_inputs():
 def test_first_set_g3_observation_shutdown_accepts_bound_zero_write_observation_only():
     """G3 may seal a real observation, but its stop can never substitute for G4."""
 
-    observation, shutdown, preflight, startup, identity = (
-        _first_set_g3_observation_shutdown_inputs()
-    )
+    (
+        observation,
+        shutdown,
+        preflight,
+        startup,
+        identity,
+    ) = _first_set_g3_observation_shutdown_inputs()
 
     assert (
         runner._first_set_g3_observation_shutdown_complete(
@@ -1088,9 +1075,13 @@ def test_first_set_g3_observation_shutdown_accepts_bound_zero_write_observation_
 def test_first_set_g3_observation_shutdown_fails_closed_when_required_evidence_is_missing(
     failure_case,
 ):
-    observation, shutdown, preflight, startup, identity = (
-        _first_set_g3_observation_shutdown_inputs()
-    )
+    (
+        observation,
+        shutdown,
+        preflight,
+        startup,
+        identity,
+    ) = _first_set_g3_observation_shutdown_inputs()
 
     if failure_case == "terminal_write":
         observation["forbidden_write_request_counts"]["order_insert"] = 1
@@ -1257,7 +1248,7 @@ def test_engineering_strategy_observation_rejects_every_noncontract_shape(
     )
 
     with pytest.raises(runner.RunnerConfigurationError, match=message):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode=mode,
             purpose=purpose,
@@ -1282,7 +1273,14 @@ def test_cli_routes_set2_engineering_observation_without_admission_receipt(monke
     dispatched = {}
     monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
     monkeypatch.setattr(
-        runner, "load_config", lambda *_args, **_kwargs: (config, Path("config.yaml"))
+        runner,
+        "_load_env_file",
+        lambda _path: pytest.fail("network CLI closure must precede .env access"),
+    )
+    monkeypatch.setattr(
+        runner,
+        "load_config",
+        lambda *_args, **_kwargs: pytest.fail("network CLI closure must precede config loading"),
     )
 
     def fake_run_network(config_arg, **kwargs):
@@ -1291,7 +1289,7 @@ def test_cli_routes_set2_engineering_observation_without_admission_receipt(monke
         return {"state": "STOPPED", "orders": [], "pnl_fields_emitted": False}
 
     monkeypatch.setattr(runner, "run_network", fake_run_network)
-    assert (
+    with pytest.raises(runner.RunnerConfigurationError, match="network CLI is disabled"):
         runner.main(
             [
                 "--mode",
@@ -1305,13 +1303,7 @@ def test_cli_routes_set2_engineering_observation_without_admission_receipt(monke
                 str(tmp_path / "set2-cli-observation"),
             ]
         )
-        == 0
-    )
-    assert dispatched["engineering_strategy_observation"] is True
-    assert dispatched["mode"] == "shadow"
-    assert dispatched["purpose"] == "observation"
-    assert dispatched["receipt"] is None
-    assert dispatched["run_seconds"] == 60.0
+    assert dispatched == {}
 
 
 def test_cli_returns_nonzero_for_incomplete_engineering_observation():
@@ -1484,7 +1476,7 @@ def test_direct_api_rejects_engineering_only_strategy_before_receipt_revalidatio
     output = tmp_path / "forbidden-set2-direct-simnow"
 
     with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="simnow",
             purpose="engineering_smoke",
@@ -1501,10 +1493,14 @@ def test_direct_api_rejects_engineering_only_strategy_before_receipt_revalidatio
 
 
 def test_cli_rejects_engineering_only_strategy_before_receipt_validation(monkeypatch, tmp_path):
-    """CLI routing cannot parse a Set-2 order receipt before the profile guard."""
+    """Imported network CLI calls stop before .env, config, or receipt access."""
 
     receipt_reads = []
-    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setattr(
+        runner,
+        "_load_env_file",
+        lambda _path: pytest.fail("network CLI closure must precede .env access"),
+    )
     monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
     monkeypatch.setattr(
         runner,
@@ -1512,7 +1508,7 @@ def test_cli_rejects_engineering_only_strategy_before_receipt_validation(monkeyp
         lambda *args, **kwargs: receipt_reads.append((args, kwargs)),
     )
 
-    with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
+    with pytest.raises(runner.RunnerConfigurationError, match="network CLI is disabled"):
         runner.main(
             [
                 "--mode",
@@ -1945,68 +1941,63 @@ def test_set2_api_diagnostic_rejects_incomplete_shutdown_before_writing_pass(mon
     assert manifest["exit_status"] == "FAIL_CLOSED"
 
 
-@pytest.mark.parametrize(
-    ("state", "completed", "monitor_exit", "expected_exit_code"),
-    [
-        ("STOPPED_FLAT", True, "flat_completed", 0),
-        ("STOPPED_FLAT", False, "flat_completed", runner.RECOVERY_INCOMPLETE_EXIT_CODE),
-        ("MANUAL_INTERVENTION", False, None, runner.RECOVERY_INCOMPLETE_EXIT_CODE),
-        (
-            "MANUAL_INTERVENTION",
-            False,
-            "forced_termination",
-            runner.RECOVERY_INCOMPLETE_EXIT_CODE,
-        ),
-        (
-            "MANUAL_INTERVENTION",
-            False,
-            "operator_takeover",
-            runner.RECOVERY_INCOMPLETE_EXIT_CODE,
-        ),
-    ],
-)
-def test_cli_recovery_exit_code_requires_sdk_completed_stopped_flat(
-    monkeypatch, tmp_path, state, completed, monitor_exit, expected_exit_code
-):
-    report = {
-        "state": state,
-        "purpose": "execution_recovery",
-        "execution_recovery": {
-            "recovery_only": True,
-            "completed": completed,
-            "monitor_exit": monitor_exit,
-        },
-    }
-    monkeypatch.setattr(
-        runner, "load_config", lambda _path, **_kwargs: ({}, tmp_path / "config.yaml")
-    )
-    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
-    monkeypatch.setattr(runner, "effective_profile_config", lambda config, _env: config)
-    monkeypatch.setattr(runner, "validate_receipt", lambda *_args, **_kwargs: {"valid": True})
-    monkeypatch.setattr(runner, "_run_id", lambda _mode: "cli-recovery")
+@pytest.mark.parametrize("mode", ("shadow", "simnow"))
+def test_imported_main_rejects_network_modes_before_env_or_config(monkeypatch, tmp_path, mode):
     monkeypatch.setattr(
         runner,
-        "_evidence_directory",
-        lambda _config, _run_id_value, _output_dir: tmp_path,
+        "_load_env_file",
+        lambda _path: pytest.fail("network CLI closure must precede .env access"),
     )
-    monkeypatch.setattr(runner, "run_network", lambda *_args, **_kwargs: report)
-
-    exit_code = runner.main(
-        [
-            "--config",
-            str(tmp_path / "config.yaml"),
-            "--mode",
-            "simnow",
-            "--purpose",
-            "engineering_smoke",
-            "--admission-receipt",
-            str(tmp_path / "receipt.json"),
-            "--output-dir",
-            str(tmp_path),
-        ]
+    monkeypatch.setattr(
+        runner,
+        "load_config",
+        lambda *_args, **_kwargs: pytest.fail("network CLI closure must precede config loading"),
     )
+    with pytest.raises(runner.RunnerConfigurationError, match="network CLI is disabled"):
+        runner.main(["--mode", mode])
 
-    assert exit_code == expected_exit_code
+
+def test_imported_run_network_rejects_before_env_provider_or_output(monkeypatch, tmp_path):
+    output = tmp_path / "network-must-not-start"
+    monkeypatch.setattr(
+        runner,
+        "_load_env_file",
+        lambda _path: pytest.fail("run_network closure must precede .env access"),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: pytest.fail("run_network closure must precede provider setup"),
+    )
+    with pytest.raises(runner.RunnerConfigurationError, match="network runner is disabled"):
+        runner.run_network(
+            {},
+            mode="shadow",
+            purpose="observation",
+            preflight_only=False,
+            prepare_settlement=False,
+            receipt=None,
+            output_directory=output,
+            run_seconds=0.0,
+        )
+    assert not output.exists()
+
+
+def test_imported_main_keeps_explicit_offline_replay(monkeypatch, tmp_path):
+    config = _config()
+    replay_calls = []
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setattr(
+        runner, "load_config", lambda *_args, **_kwargs: (config, Path("config.yaml"))
+    )
+    monkeypatch.setattr(runner, "_evidence_directory", lambda *_args: tmp_path)
+    monkeypatch.setattr(
+        runner,
+        "run_replay",
+        lambda *args, **kwargs: replay_calls.append((args, kwargs)) or {"mode": "replay"},
+    )
+    assert runner.main(["--mode", "replay", "--output-dir", str(tmp_path)]) == 0
+    assert len(replay_calls) == 1
 
 
 def test_quote_normalization_uses_separate_wall_and_monotonic_clocks():
@@ -2556,6 +2547,11 @@ def test_live_store_uses_one_managed_btapi_session_and_common_journal(tmp_path):
     second_config = second.kwargs["config"]
     assert first_config["execution_config"]["market_data_only"] is True
     assert second_config["execution_config"]["market_data_only"] is True
+    configured_pair = runner.FROZEN_PROFILES["simnow_first_group1"]
+    for store_config in (first_config, second_config):
+        ctp_kwargs = store_config["exchange_kwargs"][runner.CTP_EXCHANGE]
+        assert ctp_kwargs["td_front"] == configured_pair["td_front"]
+        assert ctp_kwargs["md_front"] == configured_pair["md_front"]
     assert (
         first_config["execution_config"]["order_journal"]
         == second_config["execution_config"]["order_journal"]
@@ -2617,7 +2613,7 @@ def test_shadow_full_network_run_holds_account_lock_before_store_start(monkeypat
     )
     monkeypatch.setattr(runner, "runtime_component_identities", dict)
     with pytest.raises(RuntimeError, match="stop-after-lock-proof"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="shadow",
             purpose="observation",
@@ -2638,22 +2634,22 @@ def test_account_lock_is_nonblocking_across_processes_and_releases(tmp_path):
     """The account lock rejects a second process, then permits a later owner."""
 
     path = tmp_path / "state" / "writer.lock"
+    lock_support = importlib.import_module(f"{PACKAGE}.account_lock")
+    assert runner.AccountLock is lock_support.AccountLock
+    assert runner.RunnerConfigurationError is lock_support.RunnerConfigurationError
+
     child_probe = """
-import importlib.util
 import sys
 from pathlib import Path
 
 example = Path(sys.argv[1])
 sys.path.insert(0, str(example))
-spec = importlib.util.spec_from_file_location("account_lock_probe", example / "run.py")
-module = importlib.util.module_from_spec(spec)
-assert spec is not None and spec.loader is not None
-sys.modules[spec.name] = module
-spec.loader.exec_module(module)
+from account_lock import AccountLock, RunnerConfigurationError
+
 try:
-    with module.AccountLock(Path(sys.argv[2])):
+    with AccountLock(Path(sys.argv[2])):
         pass
-except module.RunnerConfigurationError:
+except RunnerConfigurationError:
     raise SystemExit(0)
 raise SystemExit(1)
 """
@@ -2752,7 +2748,7 @@ def test_run_network_records_calendar_gate_in_failure_evidence(monkeypatch, tmp_
 
     output = tmp_path / "calendar-gate-failure"
     with pytest.raises(runner.PreflightError, match="BLOCKED_CTP_TRADING_CALENDAR"):
-        runner.run_network(
+        runner._run_network_legacy_impl(
             config,
             mode="simnow",
             purpose="observation",
@@ -2938,7 +2934,7 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
 
     monkeypatch.setattr(runner.time, "sleep", observed_sleep)
 
-    result = runner.run_network(
+    result = runner._run_network_legacy_impl(
         config,
         mode="simnow",
         purpose="engineering_smoke",
@@ -3269,8 +3265,8 @@ def test_strategy_exit_reaches_real_dual_side_broker_with_explicit_position_side
         deadline=SimpleNamespace(submitted=lambda _now: None),
         _transition=lambda state, reason, now=None: transitions.append((state, reason, now)),
     )
-    holder.getposition = lambda current_data, current_broker, side=None: (
-        current_broker.getposition(current_data, side=side)
+    holder.getposition = lambda current_data, current_broker, side=None: current_broker.getposition(
+        current_data, side=side
     )
     holder.buy = lambda **kwargs: broker.buy(owner=holder, **kwargs)
     holder.sell = lambda **kwargs: broker.sell(owner=holder, **kwargs)
@@ -3638,9 +3634,14 @@ def test_bar_identity_accepts_datetime_extensions():
     unavailable = copy.deepcopy(holder)
     unavailable._latest_bar_event["available_at"] = unavailable._latest_bar_event["bucket_end"]
     assert not strategy_module.SAMidFrequencyStrategy._bar_identity(unavailable, 0.0)[4]
-    bar_id, end, available, day, valid, reason = (
-        strategy_module.SAMidFrequencyStrategy._bar_identity(holder, 0.0)
-    )
+    (
+        bar_id,
+        end,
+        available,
+        day,
+        valid,
+        reason,
+    ) = strategy_module.SAMidFrequencyStrategy._bar_identity(holder, 0.0)
     assert bar_id == "bar-1"
     assert available - end == pytest.approx(0.5)
     assert day == "20260909"
@@ -4314,6 +4315,7 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
     assert "# Iteration 22 Daily Report" in daily_markdown
     assert '"pnl_fields_emitted": false' in daily_markdown
     manifest = json.loads((tmp_path / "first" / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["evidence_health"]["complete"] is True, manifest["evidence_health"]
     assert manifest["exit_status"] == "PASS_REPLAY_PATH"
     assert manifest["execution_basis"] == "none"
     assert manifest["evidence_dropped_counts"] == dict.fromkeys(reporting.EvidenceWriter.STREAMS, 0)

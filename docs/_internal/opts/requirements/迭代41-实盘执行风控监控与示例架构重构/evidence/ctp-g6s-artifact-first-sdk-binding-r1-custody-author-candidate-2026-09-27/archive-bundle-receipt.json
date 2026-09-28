@@ -1,0 +1,23 @@
+{
+  "archive_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-artifact-first-sdk-binding-r1-custody-author-candidate-2026-09-27",
+  "canonical_archive_index_sha256": "4924d596bf189cbc47ddd8da37a543dac292a6ed17c526177d78b2b9dc41ce9c",
+  "canonical_evidence_readme_hash_semantics": "point-in-time snapshot; not a stable R1 payload identity",
+  "canonical_evidence_readme_snapshot_sha256": "302fe77134addc03972c996a03f239d0dc6af563e823c6adf52473ba62c076a1",
+  "freeze_receipt_sha256_source_and_copy": "9e42739f3357032cd4c0c8d67b493bd52a2a114272c45b3223ce38874b331473",
+  "manifest_sha256_source_and_copy": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "payload_file_count": 141,
+  "payload_total_bytes": 3242254,
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.r1_canonical_copy_receipt.v1",
+  "scope": {
+    "NO_G4": true,
+    "NO_G6S": true,
+    "default_pin_none": true,
+    "main_repo_production_modified": false,
+    "native_or_provider_called": false
+  },
+  "source_archive_index_sha256": "bad390638faa27d0b2b4988e690c80be9e9991c50044da078b21c571e0034318",
+  "status": "COPIED_VERIFIED_AUTHOR_CANDIDATE_NO_ACCEPTANCE",
+  "verification": "All manifest payloads and named run evidence matched source bytes after ZIP extraction; ZIP CRC verified.",
+  "zip_sha256_after_copy": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0",
+  "zip_sha256_before_copy": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0"
+}

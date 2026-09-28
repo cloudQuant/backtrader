@@ -1,0 +1,43 @@
+{
+  "action_refs_equal": true,
+  "authority_rows": {
+    "g5": [
+      {
+        "account_key": "account:f15f7a4bf81d918d40d81a0bea459d3ae1e9f895f8a74b31ce0ebaf7e53019bc",
+        "managed_action_id": "fake-g5-cancel",
+        "native_action_ref": 1
+      }
+    ],
+    "v21_command_mappings": [],
+    "v21_counter": [
+      {
+        "account_key": "account:f15f7a4bf81d918d40d81a0bea459d3ae1e9f895f8a74b31ce0ebaf7e53019bc",
+        "last_action_ref": 1
+      }
+    ]
+  },
+  "credentials_used": false,
+  "g5_action_ref": 1,
+  "interpretation": "Two independent durable ActionRef allocators in one SQLite database both issue 1 for the same synthetic account. This is a structural single-authority blocker, not evidence that a provider received or observed a duplicate.",
+  "native_or_provider_modules_loaded": [],
+  "native_sdk_or_provider_send": false,
+  "network_used": false,
+  "order_ref_reserved_by_shared_order_api": "000000000001",
+  "result": "STRUCTURAL_COLLISION_REPRODUCED",
+  "scope_account_key": "account:f15f7a4bf81d918d40d81a0bea459d3ae1e9f895f8a74b31ce0ebaf7e53019bc",
+  "scope_key": "scope:71cf978fe9abaee7a88818d6aef50bdeddd86f41b6a76ab572027ac5d88a5f01",
+  "source_hashes": {
+    "g5_authority_sha256": "8E7ABDD2819F66B6EC3D5FF1D5A049FCBB91AE8E71327665EE925098D35F647D",
+    "v21_manifest_sha256": "B3A614D62B2A4CF1B0DBDFEFEE463015157DEE38BF4C9C5119C64EF2D71D6D24",
+    "v21_store_sha256": "1F01EDA8466873B90359C25AAD2B61CB378D7A9FEB477FA8EC77A97FB2478E6A"
+  },
+  "sqlite_db": ":memory:",
+  "table_schemas": {
+    "ctp_action_identity_reservations": "CREATE TABLE ctp_action_identity_reservations (\n                        account_key TEXT NOT NULL,\n                        trading_day TEXT NOT NULL,\n                        scope_key TEXT NOT NULL,\n                        managed_action_id TEXT NOT NULL,\n                        managed_intent_id TEXT NOT NULL,\n                        runtime_order_id TEXT NOT NULL,\n                        order_ref TEXT NOT NULL\n                            CHECK(length(order_ref) = 12 AND order_ref NOT GLOB '*[^0-9]*'),\n                        native_action_ref INTEGER NOT NULL\n                            CHECK(native_action_ref BETWEEN 1 AND 2147483647),\n                        created_at_ns INTEGER NOT NULL,\n                        PRIMARY KEY(account_key, scope_key, managed_action_id),\n                        UNIQUE(account_key, native_action_ref),\n                        FOREIGN KEY(account_key, scope_key, managed_intent_id)\n                            REFERENCES ctp_order_identity_reservations(\n                                account_key, scope_key, managed_intent_id\n                            )\n                    )",
+    "ctp_native_action_ref_allocations": "CREATE TABLE ctp_native_action_ref_allocations (\n                    account_key TEXT NOT NULL,\n                    native_action_ref INTEGER NOT NULL\n                        CHECK(typeof(native_action_ref) = 'integer' AND\n                              native_action_ref BETWEEN 1 AND 2147483647),\n                    scope_key TEXT NOT NULL,\n                    command_id TEXT NOT NULL,\n                    managed_action_id TEXT NOT NULL,\n                    allocated_at_ns INTEGER NOT NULL,\n                    PRIMARY KEY(account_key, native_action_ref),\n                    UNIQUE(account_key, command_id),\n                    UNIQUE(account_key, scope_key, managed_action_id),\n                    FOREIGN KEY(account_key, command_id)\n                        REFERENCES ctp_dispatch_commands(account_key, command_id)\n                )",
+    "ctp_native_action_ref_counters": "CREATE TABLE ctp_native_action_ref_counters (\n                    account_key TEXT PRIMARY KEY,\n                    last_action_ref INTEGER NOT NULL\n                        CHECK(typeof(last_action_ref) = 'integer' AND\n                              last_action_ref BETWEEN 0 AND 2147483647),\n                    updated_at_ns INTEGER NOT NULL\n                )"
+  },
+  "v21_action_ref": 1,
+  "v21_allocation_scope": "The Store allocator primitive was called in its own committed SQLite transaction; full cancel command staging and the command-to-ActionRef mapping insert were not called.",
+  "v21_command_mapping_created": false
+}

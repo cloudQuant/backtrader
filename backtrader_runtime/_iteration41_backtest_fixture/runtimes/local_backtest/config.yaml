@@ -1,0 +1,10 @@
+config_schema_version: 4
+
+strategy:
+  id: backtrader.iteration41.local_backtest_fixture
+
+runtime:
+  mode: backtest
+  preset: local_backtest
+
+parameters: {}

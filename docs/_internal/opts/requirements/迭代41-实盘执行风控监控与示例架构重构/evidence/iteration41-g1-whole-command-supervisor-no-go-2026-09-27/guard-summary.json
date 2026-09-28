@@ -1,0 +1,32 @@
+{
+  "schema": "iteration41-ctp-preflight-supervisor-independent-qa-guard-summary-v1",
+  "pytest_process_guards": {
+    "mechanism": "sitecustomize.py blocks optional SDK package imports and socket DNS/connect/send",
+    "harness_path": "replay/sitecustomize.py",
+    "harness_sha256": "1537D1E2B94EB78F9A009AA8B880A84B7BF85939EABD1478036E2E4316A6B774",
+    "supervisor_suite": {
+      "blocked_sdk_import_events": [],
+      "blocked_network_events": [],
+      "raw_event_log_created": false
+    },
+    "cli_gate": {
+      "blocked_sdk_import_events": [],
+      "blocked_network_events": [],
+      "raw_event_log_created": false
+    }
+  },
+  "private_config": {
+    "project_dotenv_or_runtime_config_copied": false,
+    "private_named_files_found_in_replay": [],
+    "ambient_ctp_related_environment_values_emitted": false
+  },
+  "cli_gate_test_traps": {
+    "config_loader": true,
+    "config_byte_read": true,
+    "credential_resolution": true,
+    "socket_creation": true,
+    "ctp_sdk_import": true,
+    "expected_touches": []
+  },
+  "child_processes": "Only local inert Python helper and short sleep worker; no provider/session/SDK code."
+}

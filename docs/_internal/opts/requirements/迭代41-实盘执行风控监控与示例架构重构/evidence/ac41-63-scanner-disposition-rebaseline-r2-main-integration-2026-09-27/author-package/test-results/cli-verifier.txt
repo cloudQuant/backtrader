@@ -1,0 +1,2 @@
+Command: python scripts/verify_iteration41_writer_dispositions.py --source-root . --checklist docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-writer-dispositions.json
+{"checklist_entry_count": 460, "discovered_candidate_count": 460, "evidence_boundary": "STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION", "historical_tombstone_count": 6, "live_route_count": 460, "reason_codes": [], "review_required_count": 460, "schema_version": "iteration41.writer-disposition-checklist.v1", "status": "PASS"}

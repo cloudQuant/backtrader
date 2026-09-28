@@ -1,0 +1,81 @@
+{
+  "schema_version": "iteration41.g1-independent-qa.v1",
+  "status": "INDEPENDENT_REPRODUCTION / FEASIBILITY_ONLY / G1 CLOSED",
+  "date": "2026-09-27",
+  "source_archive_manifest_sha256": "687dc04c052e48674cba867e4c6220292314cd3fbf207d3afedce4f6c64dca78",
+  "frozen_probe_sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139",
+  "copied_probe_sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139",
+  "command": "python .\\probe.py --run-all",
+  "exit_code": 0,
+  "platform": "win32",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "scope": "Local Win32 named events, disposable Job Object, isolated worker processes only; no CTP/native/provider, credentials/private config, network, SCM, or production route.",
+  "timestamp_interpretation": "bounded_function_return_qpc is captured at caller_result classification before cleanup; actual one_trial return and exact Job-zero QPC are not measured.",
+  "wrapper_marker_limit": "wrapper_sleep trial records wrapper_sleep_begin but does not explicitly sample api_call_begin at D; source has 1.2s sleep before the API marker.",
+  "trials": [
+    {
+      "mode": "api_wait",
+      "deadline_ms": 700,
+      "first_marker": "api_call_begin",
+      "first_marker_seen": true,
+      "unknown_classification_sample_delta_ms": 702.5956,
+      "sample_overshoot_ms": 2.5956,
+      "api_return_marker_before_cleanup": false,
+      "process_wait_at_deadline": 258,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "terminate_job_after_deadline": true,
+      "process_wait_after_termination": 0,
+      "job_active_after_termination": 0,
+      "post_deadline_cleanup_delta_ms": 8.6794
+    },
+    {
+      "mode": "wrapper_sleep",
+      "deadline_ms": 700,
+      "first_marker": "wrapper_sleep_begin",
+      "first_marker_seen": true,
+      "unknown_classification_sample_delta_ms": 702.3799,
+      "sample_overshoot_ms": 2.3799,
+      "api_return_marker_before_cleanup": false,
+      "process_wait_at_deadline": 258,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "terminate_job_after_deadline": true,
+      "process_wait_after_termination": 0,
+      "job_active_after_termination": 0,
+      "post_deadline_cleanup_delta_ms": 4.9226
+    }
+  ],
+  "payloads": [
+    {
+      "path": "probe.py",
+      "size_bytes": 14622,
+      "sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139"
+    },
+    {
+      "path": "QA-REPORT.md",
+      "size_bytes": 3025,
+      "sha256": "5587b602e81c534e3ce67c33164deda39eb0782dbd11fed3a9e401066d8455ae"
+    },
+    {
+      "path": "results.json",
+      "size_bytes": 4252,
+      "sha256": "c6521b800832e4d329d5ed77f48cf89d7284356ce7c6d0f4230d509d09b35aec"
+    },
+    {
+      "path": "run.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "run.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run.stdout.txt",
+      "size_bytes": 4252,
+      "sha256": "c6521b800832e4d329d5ed77f48cf89d7284356ce7c6d0f4230d509d09b35aec"
+    }
+  ]
+}

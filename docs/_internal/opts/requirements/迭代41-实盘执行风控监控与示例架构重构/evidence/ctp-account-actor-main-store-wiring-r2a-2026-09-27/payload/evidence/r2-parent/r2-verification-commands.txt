@@ -1,0 +1,15 @@
+PowerShell commands run from the candidate root:
+
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2-candidate-focus.junit.xml
+python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2-focused-tests.junit.xml
+python -B -m pytest -p no:asyncio tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short --junitxml=evidence/r2-legacy-ctp-compatibility-delta.junit.xml
+python -m ruff check --config D:\source_code\backtrader\pyproject.toml backtrader\stores\btapistore.py backtrader\stores\ctp_account_actor_port.py tests\unit\stores\test_ctp_account_actor_store_wiring_candidate.py tests\unit\stores\test_managed_execution_store_adapter.py
+python -B -m py_compile backtrader\stores\btapistore.py backtrader\stores\ctp_account_actor_port.py tests\unit\stores\test_ctp_account_actor_store_wiring_candidate.py tests\unit\stores\test_managed_execution_store_adapter.py
+
+Patch generation and replay:
+  python evidence/generate_r2_patch.py
+  python evidence/replay_patch.py
+The JUnit files bind the 14-test candidate-boundary focus, 21-test adapter/live guard focus, and 30-test legacy Store delta. Exact-base 30/30 log SHA-256: 2990563f46564515e525768480213e650b33b67dbd9687f898304bf23b6499d1 (from the separately preserved r1 migration audit).
+Expected patch SHA-256: 6e8575874cefeab4c693f6fedd5f3fc89dcec935005f5ad3a0d64f0e1284f90f
+Expected exact replay targets with core.autocrlf=false: Store a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8; actor module 2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3; focused test 04968d98ae476d4b9ec33d448be11d19e0ffc9adb79585f423b37b37b759154f.

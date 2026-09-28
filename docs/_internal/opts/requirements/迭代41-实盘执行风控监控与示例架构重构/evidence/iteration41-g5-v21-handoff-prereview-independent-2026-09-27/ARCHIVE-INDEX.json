@@ -1,0 +1,54 @@
+{
+  "artifact": "G5/V21 handoff pre-review independent evidence archive",
+  "classification": "LOCAL_FAKE_OFFLINE_ONLY",
+  "zip": {
+    "path": "g5-v21-handoff-prereview-independent-qa.raw.zip",
+    "bytes": 5888,
+    "sha256": "e761f923ae9b9b8e3530d200e09a1031d3d599fbc1cd469c27c7f66c63bc5470",
+    "testzip": null
+  },
+  "source_copy_checks": {
+    "independent-pre-review.md": {
+      "source_sha256": "8c961f01e015b815d6342100952b9e2bf05b7e386125577bc9cd14287dbafc1c",
+      "destination_sha256": "8c961f01e015b815d6342100952b9e2bf05b7e386125577bc9cd14287dbafc1c",
+      "match": true
+    },
+    "probe_v21_worker_signature.py": {
+      "source_sha256": "73019f38b93d13bf939c595fe028e4695f2253af37e0c3f0c30963a3ae8516b0",
+      "destination_sha256": "73019f38b93d13bf939c595fe028e4695f2253af37e0c3f0c30963a3ae8516b0",
+      "match": true
+    },
+    "probe_v21_worker_signature.log": {
+      "source_sha256": "dd346c33bda5703685181ef7a515b7492647796cecd7723bc6b8b03539d648c5",
+      "destination_sha256": "dd346c33bda5703685181ef7a515b7492647796cecd7723bc6b8b03539d648c5",
+      "match": true
+    }
+  },
+  "members": [
+    {
+      "path": "independent-pre-review.md",
+      "bytes": 8130,
+      "sha256": "8c961f01e015b815d6342100952b9e2bf05b7e386125577bc9cd14287dbafc1c"
+    },
+    {
+      "path": "probe_v21_worker_signature.py",
+      "bytes": 959,
+      "sha256": "73019f38b93d13bf939c595fe028e4695f2253af37e0c3f0c30963a3ae8516b0"
+    },
+    {
+      "path": "probe_v21_worker_signature.log",
+      "bytes": 491,
+      "sha256": "dd346c33bda5703685181ef7a515b7492647796cecd7723bc6b8b03539d648c5"
+    },
+    {
+      "path": "archive-manifest.json",
+      "bytes": 759,
+      "sha256": "733fc2c418ff2326bb7c86fbede6e2318fa0533c96a9d4931e81f576252cb00a"
+    },
+    {
+      "path": "SHA256SUMS.txt",
+      "bytes": 288,
+      "sha256": "80e67c450b1690558104d5563efb65f00715a71bc65ce5e1e5c1f8d4b3bddcd3"
+    }
+  ]
+}

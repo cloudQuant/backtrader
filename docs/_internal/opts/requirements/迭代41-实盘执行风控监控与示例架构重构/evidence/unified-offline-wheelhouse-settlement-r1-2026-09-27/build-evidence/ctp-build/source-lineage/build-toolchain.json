@@ -1,0 +1,43 @@
+{
+  "schema": "iteration41.g4.r2.build_toolchain.v1",
+  "python": {
+    "executable": "C:\\Anaconda3\\python.exe",
+    "version": "3.11.5",
+    "sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+    "setuptools": "75.8.0",
+    "wheel": "0.43.0"
+  },
+  "msvc": {
+    "visual_studio": "Visual Studio 2022 Community 17.12.3",
+    "vc_tools_version": "14.42.34433",
+    "compiler_version": "19.42.34435",
+    "windows_sdk_version": "10.0.26100.0",
+    "vcvarsall": {
+      "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat",
+      "sha256": "ee67e4181ae2578b7842f9f1549a7f66e2166638fa544ce6838d9e9033a02275"
+    },
+    "cl": {
+      "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx86\\x64\\cl.exe",
+      "sha256": "82fbc62b16b71a3241fd95027b67784b556ec342c98703eb3f0fdce47ed6f00d"
+    },
+    "link": {
+      "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx86\\x64\\link.exe",
+      "sha256": "be44ca1f090be708588d34145717d8b5c249e7ff33bb20220d2e16e69f4b9fdb"
+    },
+    "flags": {
+      "CL": "/Brepro",
+      "LINK": "/Brepro"
+    }
+  },
+  "build_policy": {
+    "source_date_epoch": "1790420787",
+    "pythonhashseed": "0",
+    "pythonutf8": "1",
+    "tz": "UTC",
+    "pip_no_index": true,
+    "pip_config_file": "NUL",
+    "build_isolation": false,
+    "cache": false
+  },
+  "probe_script": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\toolchain-probe.cmd"
+}

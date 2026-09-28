@@ -1,0 +1,194 @@
+{
+  "schema": "iteration41-g4-parent-sdk-status-evidence-v1",
+  "disposition": "DISPOSABLE_PARENT_ARTIFACT_INTEGRITY_ONLY / THREE_PACKAGE_PIN_NOT_AVAILABLE / G4_CLOSED / NO_WRITE",
+  "source_zip_sha256": "cfd48c7ee40633d2315b6cd4f46db9378892144fc0d942865cfc1d29c338a02c",
+  "independent_review_sha256": "91d534800b6ebdc9f2df43fe8cb20d5b60175c08b17c4395c8a894533822d3a2",
+  "status_audit_sha256": "b88ab5c2fa84fd25ecb4dbe8bdabc9d6012e35dd2a27540ba5e3c466a01091f6",
+  "record_reproduction_sha256": "d9034eb52f3b5e91c414b337fa34b48ac3bddfb2a7311aba744047f904e0c928",
+  "original_archive_receipt_sha256": "525356e9ad714de0c7fb1d40f1b289b4f74f0558508c77bcfa0555c518b97a3c",
+  "archive_index_sha256": "0d83890bead500d8282237549d643e77671f8f3df540a0f8acfd20ba8bf00837",
+  "copy_receipt_sha256": "d31ce6187028e90e1db9e98e08408eefa561e7a35ab965f46e18da6fad317f89",
+  "zip_crc_clean": true,
+  "zip_total_members": 42,
+  "zip_indexed_payloads": 40,
+  "copied_artifact_count": 19,
+  "files": [
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\g4-parent-sdk-independent-qa.zip",
+      "archive_path": "g4-parent-sdk-independent-qa.zip",
+      "source_sha256": "cfd48c7ee40633d2315b6cd4f46db9378892144fc0d942865cfc1d29c338a02c",
+      "archive_sha256": "cfd48c7ee40633d2315b6cd4f46db9378892144fc0d942865cfc1d29c338a02c",
+      "source_bytes": 40706,
+      "archive_bytes": 40706,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\g4-parent-sdk-independent-qa.zip.sha256",
+      "archive_path": "g4-parent-sdk-independent-qa.zip.sha256",
+      "source_sha256": "9477bde923849ba643f9f48d30f8f315c2143a7300ac5fb561b21564a10edcd9",
+      "archive_sha256": "9477bde923849ba643f9f48d30f8f315c2143a7300ac5fb561b21564a10edcd9",
+      "source_bytes": 100,
+      "archive_bytes": 100,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\independent-review.md",
+      "archive_path": "independent-review.md",
+      "source_sha256": "91d534800b6ebdc9f2df43fe8cb20d5b60175c08b17c4395c8a894533822d3a2",
+      "archive_sha256": "91d534800b6ebdc9f2df43fe8cb20d5b60175c08b17c4395c8a894533822d3a2",
+      "source_bytes": 10315,
+      "archive_bytes": 10315,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\status-audit.json",
+      "archive_path": "status-audit.json",
+      "source_sha256": "b88ab5c2fa84fd25ecb4dbe8bdabc9d6012e35dd2a27540ba5e3c466a01091f6",
+      "archive_sha256": "b88ab5c2fa84fd25ecb4dbe8bdabc9d6012e35dd2a27540ba5e3c466a01091f6",
+      "source_bytes": 5460,
+      "archive_bytes": 5460,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\two-venv-installed-record-reproduction.json",
+      "archive_path": "two-venv-installed-record-reproduction.json",
+      "source_sha256": "d9034eb52f3b5e91c414b337fa34b48ac3bddfb2a7311aba744047f904e0c928",
+      "archive_sha256": "d9034eb52f3b5e91c414b337fa34b48ac3bddfb2a7311aba744047f904e0c928",
+      "source_bytes": 1657,
+      "archive_bytes": 1657,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\g4-parent-sdk-independent-qa.archive-receipt.json",
+      "archive_path": "g4-parent-sdk-independent-qa.archive-receipt.json",
+      "source_sha256": "525356e9ad714de0c7fb1d40f1b289b4f74f0558508c77bcfa0555c518b97a3c",
+      "archive_sha256": "525356e9ad714de0c7fb1d40f1b289b4f74f0558508c77bcfa0555c518b97a3c",
+      "source_bytes": 698,
+      "archive_bytes": 698,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\ARCHIVE-INDEX.json",
+      "archive_path": "ARCHIVE-INDEX.json",
+      "source_sha256": "0d83890bead500d8282237549d643e77671f8f3df540a0f8acfd20ba8bf00837",
+      "archive_sha256": "0d83890bead500d8282237549d643e77671f8f3df540a0f8acfd20ba8bf00837",
+      "source_bytes": 7103,
+      "archive_bytes": 7103,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\SHA256SUMS.txt",
+      "archive_path": "SHA256SUMS.txt",
+      "source_sha256": "c54ae7292c23a3e33c75ddd459986aa006ff40f09179cc366bb7944a16122ee1",
+      "archive_sha256": "c54ae7292c23a3e33c75ddd459986aa006ff40f09179cc366bb7944a16122ee1",
+      "source_bytes": 4036,
+      "archive_bytes": 4036,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\artifact-audit.stdout.json",
+      "archive_path": "artifact-audit.stdout.json",
+      "source_sha256": "173771c4cf15e97c9fa8c6ace4a9803ace43aac15e243e117206ef13c930002c",
+      "archive_sha256": "173771c4cf15e97c9fa8c6ace4a9803ace43aac15e243e117206ef13c930002c",
+      "source_bytes": 2559,
+      "archive_bytes": 2559,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\artifact-audit.exit.txt",
+      "archive_path": "artifact-audit.exit.txt",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "archive_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_bytes": 1,
+      "archive_bytes": 1,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\reproduce_installed_record.py",
+      "archive_path": "reproduce_installed_record.py",
+      "source_sha256": "3ce826d72350057e37520919f06d0881cd451e52175c380e3441c2b85e5296e4",
+      "archive_sha256": "3ce826d72350057e37520919f06d0881cd451e52175c380e3441c2b85e5296e4",
+      "source_bytes": 3356,
+      "archive_bytes": 3356,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-a-install.log",
+      "archive_path": "record-install-a-install.log",
+      "source_sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7",
+      "archive_sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7",
+      "source_bytes": 286,
+      "archive_bytes": 286,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-a-install.log.exit.txt",
+      "archive_path": "record-install-a-install.log.exit.txt",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "archive_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_bytes": 1,
+      "archive_bytes": 1,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-a-pip-version.log",
+      "archive_path": "record-install-a-pip-version.log",
+      "source_sha256": "65deb733a72abef44626b25233dff2ccea142c57d46537a668fb4aa3664e449c",
+      "archive_sha256": "65deb733a72abef44626b25233dff2ccea142c57d46537a668fb4aa3664e449c",
+      "source_bytes": 130,
+      "archive_bytes": 130,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-a-pip-version.log.exit.txt",
+      "archive_path": "record-install-a-pip-version.log.exit.txt",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "archive_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_bytes": 1,
+      "archive_bytes": 1,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-b-install.log",
+      "archive_path": "record-install-b-install.log",
+      "source_sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7",
+      "archive_sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7",
+      "source_bytes": 286,
+      "archive_bytes": 286,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-b-install.log.exit.txt",
+      "archive_path": "record-install-b-install.log.exit.txt",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "archive_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_bytes": 1,
+      "archive_bytes": 1,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-b-pip-version.log",
+      "archive_path": "record-install-b-pip-version.log",
+      "source_sha256": "518515e40d18601f466e89c101c308343c3f9707ab466f0f02fe85b5cdabea33",
+      "archive_sha256": "518515e40d18601f466e89c101c308343c3f9707ab466f0f02fe85b5cdabea33",
+      "source_bytes": 130,
+      "archive_bytes": 130,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\record-install-b-pip-version.log.exit.txt",
+      "archive_path": "record-install-b-pip-version.log.exit.txt",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "archive_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_bytes": 1,
+      "archive_bytes": 1,
+      "match": true
+    }
+  ],
+  "limitations": [
+    "The source QA status is DISPOSABLE_PARENT_WHEEL_VERIFIED / THREE_PACKAGE_PIN_NOT_AVAILABLE / G4_CLOSED.",
+    "This archive proves evidence-copy and ZIP/member integrity only; it is not a parent SDK pin or a three-package installation acceptance.",
+    "G4 native lifecycle, provider/account use, writes, and the default CTP route remain closed.",
+    "No wheel pin, source tree, production file, private configuration, or environment was changed."
+  ]
+}

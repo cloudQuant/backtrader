@@ -1,0 +1,111 @@
+{
+  "schema_version": "ac41-63-store-api-route-identity-r2.v1",
+  "status": "ISOLATED_FOLLOW_ON_CANDIDATE_PENDING_INDEPENDENT_QA",
+  "authorization": "NO_WRITE / LIVE_NO_GO; no provider authority or writer closure is claimed",
+  "base_lineage": {
+    "base_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+    "accepted_r4_patch_sha256": "37EA74FA86D600A5FFC47CBC9511C2215B10765EC791FA9DD6F65036EB867B00",
+    "follow_on_target_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA"
+  },
+  "changed_files": [
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "preimage_exists": true,
+      "preimage_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+      "target_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA",
+      "preimage_size_bytes": 782743,
+      "target_size_bytes": 791606
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_api_route_identity.py",
+      "preimage_exists": false,
+      "preimage_sha256": null,
+      "target_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A",
+      "target_size_bytes": 14375
+    }
+  ],
+  "patch_sha256": "AEF2BD46AA261576F936580502DF53C7FDC669856E3A7A59812CE43655493E59",
+  "replay": {
+    "base": "exact A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE Store preimage",
+    "git_apply": "PASS using git -c core.autocrlf=false apply --check, then apply",
+    "result_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA",
+    "candidate_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA",
+    "result_test_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A",
+    "candidate_test_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A",
+    "target_hashes_match": true
+  },
+  "verification": {
+    "focused_inert_checks": {
+      "route_identity_focus": "16 passed",
+      "r4_recovery_exit_matrix": "4 passed across market_data_only x managed_adapter combinations",
+      "p3_additional_fake_only_cases": [
+        "historical injected CTP mismatch blocked",
+        "historical mutable SDK route snapshot-to-CTP blocked",
+        "hidden __getattribute__ route residual reproduced",
+        "no-route injected non-CTP compatibility positive"
+      ],
+      "ruff": "PASS",
+      "py_compile": "PASS",
+      "exact_a039_patch_replay": "PASS; replay Store and test hashes match candidate"
+    },
+    "author_unguarded_compatibility_run": {
+      "reported": "461 passed, 1 skipped, 1 existing pytest configuration warning",
+      "raw_junit": "focused-junit.xml; preserved unchanged",
+      "runner": "run_candidate.py installed no SDK stub or import tripwire",
+      "classification": "MIXED_CONTAMINATED_NOT_FAKE_ONLY_NOT_NO_NATIVE_EVIDENCE",
+      "import_facts": "The scope includes 18 explicit optional_sdk(\"bt_api_ctp.ctp.client\") calls. The installed bt_api_ctp.ctp.client and bundled _ctp extension were imported in this unguarded run.",
+      "native_load_claim": "Do not claim SDK/native module absence; this run is not accepted as guarded fake-only evidence."
+    },
+    "p3_guarded_compatibility_run": {
+      "reported": "443 passed, 1 skipped, 18 import-tripwire-blocked",
+      "classification": "GUARDED_LOCAL_FAKE_COMPATIBILITY; blocked cases are not passes",
+      "guard": "P3 tripwire blocked imports before root bt_api_ctp package loader; P3 reports no native module loaded in this run.",
+      "blocked_node_count": 18,
+      "blocked_node_ids": [
+        "test_native_ctp_wrapper_rejects_market_before_req_order_insert",
+        "test_native_ctp_wrapper_defaults_to_read_only_and_rejects_implicit_settlement_write",
+        "test_create_ctp_wrapper_patches_missing_spi_callbacks",
+        "test_ctp_wrapper_accepts_dict_snapshots_from_trader_client",
+        "test_ctp_wrapper_positions_accept_float_string_ctp_codes",
+        "test_ctp_wrapper_positions_use_contract_multiplier_and_exchange_fields",
+        "test_ctp_wrapper_polls_order_insert_error_events_with_order_ref",
+        "test_ctp_wrapper_order_submit_reject_status_overrides_unknown_order_status",
+        "test_ctp_wrapper_trade_callback_accepts_float_string_ctp_codes",
+        "test_ctp_wrapper_fetch_open_orders_converts_ctp_rows",
+        "test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes",
+        "test_ctp_wrapper_submit_order_rejects_caller_forged_store_capability",
+        "test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access",
+        "test_ctp_wrapper_cancel_rejects_without_raw_action_access[missing-capability]",
+        "test_ctp_wrapper_cancel_rejects_without_raw_action_access[caller-forged-capability]",
+        "test_ctp_wrapper_submit_order_rejects_non_integer_lots[0]",
+        "test_ctp_wrapper_submit_order_rejects_non_integer_lots[1.5]",
+        "test_ctp_wrapper_submit_order_rejects_non_integer_lots[bad]"
+      ],
+      "independent_receipt": "Pending binding to corrected manifest and checksum identity."
+    },
+    "warning": "Existing local warning: unsupported pytest option asyncio_default_fixture_loop_scope."
+  },
+  "changes": [
+    "Checks Store provider identity against route snapshots and plain or class-level mapping exchange_kwargs without invoking descriptors.",
+    "Detects Store/API route mutation, including full-route suffix changes, at generic SDK queues, typed routes, managed worker pre-dispatch, and direct sink handoffs.",
+    "Rejects property/slot exchange_kwargs descriptors without evaluating them; malformed SDK route containers and conversion failures raise a controlled unavailable-identity error.",
+    "Recovery-exit identity-check failures abort/disarm recovery before re-raising.",
+    "Legacy synchronous direct submit/cancel recheck identity after lazy API readiness immediately before writer-method lookup; when a newly constructed API has no route source and the Store snapshot is empty, dispatch fails closed."
+  ],
+  "limitations": [
+    "Route identity metadata is caller-controlled and is not trusted provider authority; this patch is not a same-process sandbox and does not prove writer closure.",
+    "To preserve established injected-API positives, an already-present API with no statically visible exchange_kwargs and an empty Store snapshot is not universally rejected. P3 reproduced the residual where route information hidden behind custom __getattribute__ is unobservable.",
+    "Lazy synchronous API paths with an empty Store snapshot fail closed after construction when no static route source exists.",
+    "The author broad run imported installed bt_api_ctp.ctp.client and bundled _ctp; it is contaminated for no-SDK/no-native evidence. P3 guarded run blocked before root package loading and reports no native module loaded.",
+    "No G4, live, CTP write, or provider acceptance is claimed."
+  ],
+  "evidence_correction_history": [
+    {
+      "change": "Evidence-only correction after identifying unguarded optional SDK imports in author compatibility run.",
+      "date": "2026-09-27",
+      "code_patch_store_test_hashes_unchanged": true,
+      "author_broad_result_reclassified": "461 passed, 1 skipped; mixed/contaminated, not guarded fake-only or no-native evidence.",
+      "p3_guarded_result": "443 passed, 1 skipped, 18 import-tripwire-blocked; final receipt to bind corrected manifest and checksum."
+    }
+  ]
+}

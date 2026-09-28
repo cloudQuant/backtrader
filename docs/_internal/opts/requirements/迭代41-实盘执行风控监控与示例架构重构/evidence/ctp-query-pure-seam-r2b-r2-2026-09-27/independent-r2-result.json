@@ -1,0 +1,150 @@
+{
+  "zip_path": "D:\\temp\\iteration41-ctp-query-pure-seam-r2b-20260927-r2.zip",
+  "zip_sha256": "2840372130889784F6C691F0B7DE8CCC90812823FAC15E2871547E1C7463AC74",
+  "zip_size_bytes": 223302,
+  "zip_crc_test": "PASS",
+  "zip_member_count": 18,
+  "unique_zip_member_count": 18,
+  "zip_members_match_manifest": true,
+  "all_zip_member_bytes_match_package_directory": true,
+  "package_manifest_path": "D:\\temp\\iteration41-ctp-query-pure-seam-r2b-20260927-r2\\package-manifest.json",
+  "package_manifest_sha256": "AD6106E0542FABAD44A16D86F7AEE8A39B4EBE6342A152BCCAD491960C9A0C5E",
+  "sha256sums_file_sha256": "41387433B6F0997991711059C5CC0456EE3643C11AE6EA2812D39F1730569014",
+  "indexed_payload_count": 15,
+  "indexed_payload_paths_exist": true,
+  "indexed_payload_hash_and_size_checks": [
+    {
+      "path": "report.md",
+      "size_expected": 4938,
+      "size_actual": 4938,
+      "sha_expected": "92D7E5C7B5F6728459A42BE7793DA451215B14D06041E7B66C9185E01A04858E",
+      "sha_actual": "92D7E5C7B5F6728459A42BE7793DA451215B14D06041E7B66C9185E01A04858E",
+      "literal_path_exists": true
+    },
+    {
+      "path": "query-evidence-test-seam.patch",
+      "size_expected": 5058,
+      "size_actual": 5058,
+      "sha_expected": "6AAB9A66A328A545A5E724BADCC03C31C606F84E985F4EF5F8A8E754151F88A7",
+      "sha_actual": "6AAB9A66A328A545A5E724BADCC03C31C606F84E985F4EF5F8A8E754151F88A7",
+      "literal_path_exists": true
+    },
+    {
+      "path": "apply_slice.py",
+      "size_expected": 1912,
+      "size_actual": 1912,
+      "sha_expected": "1156412A93C54BBC0F1020EFD433CE10C7FD9EC6D0E560A14653A79C48552797",
+      "sha_actual": "1156412A93C54BBC0F1020EFD433CE10C7FD9EC6D0E560A14653A79C48552797",
+      "literal_path_exists": true
+    },
+    {
+      "path": "pure-test-source.py",
+      "size_expected": 2986,
+      "size_actual": 2986,
+      "sha_expected": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "sha_actual": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "literal_path_exists": true
+    },
+    {
+      "path": "qa_guarded_runner.py",
+      "size_expected": 2923,
+      "size_actual": 2923,
+      "sha_expected": "74E3FF7ECE57DFC9ABCCC89139C7B6203CBA598C3CE499DCEF96F631D7E9C575",
+      "sha_actual": "74E3FF7ECE57DFC9ABCCC89139C7B6203CBA598C3CE499DCEF96F631D7E9C575",
+      "literal_path_exists": true
+    },
+    {
+      "path": "qa-guarded-run.log",
+      "size_expected": 1425,
+      "size_actual": 1425,
+      "sha_expected": "3BF0324F6CDBBE9688F897C0540946DF5C8FFDAA245A12987889DEF855055FC6",
+      "sha_actual": "3BF0324F6CDBBE9688F897C0540946DF5C8FFDAA245A12987889DEF855055FC6",
+      "literal_path_exists": true
+    },
+    {
+      "path": "qa-autoload-failure.log",
+      "size_expected": 917,
+      "size_actual": 917,
+      "sha_expected": "C85C346284B985829FE2F12B0D1654D32FAD125C84BE20A2808E27EB802376D3",
+      "sha_actual": "C85C346284B985829FE2F12B0D1654D32FAD125C84BE20A2808E27EB802376D3",
+      "literal_path_exists": true
+    },
+    {
+      "path": "verify_slice.py",
+      "size_expected": 3397,
+      "size_actual": 3397,
+      "sha_expected": "EAF2DBB3C4BAD4654D7E3B2534D62725D2149C720C60792D98EB2DDE73277719",
+      "sha_actual": "EAF2DBB3C4BAD4654D7E3B2534D62725D2149C720C60792D98EB2DDE73277719",
+      "literal_path_exists": true
+    },
+    {
+      "path": "verify-slice.log",
+      "size_expected": 633,
+      "size_actual": 633,
+      "sha_expected": "5485E65803BC9C78C4C873C936885F2F2813E241B8C7A99C8605127B2D1836DE",
+      "sha_actual": "5485E65803BC9C78C4C873C936885F2F2813E241B8C7A99C8605127B2D1836DE",
+      "literal_path_exists": true
+    },
+    {
+      "path": "remaining-157-unmigrated-nodeids.csv",
+      "size_expected": 20734,
+      "size_actual": 20734,
+      "sha_expected": "440ADC4499AA7446A73DAED09F67D679372E69C8541E2C0B8C59ABEA95B5FBEE",
+      "sha_actual": "440ADC4499AA7446A73DAED09F67D679372E69C8541E2C0B8C59ABEA95B5FBEE",
+      "literal_path_exists": true
+    },
+    {
+      "path": "isolated/test_btapistore_iteration22.py",
+      "size_expected": 173553,
+      "size_actual": 173553,
+      "sha_expected": "C04745DE3D1FF2B42B425F9F3CFEA7C9B4A1F60C651C5ACA626964121944123E",
+      "sha_actual": "C04745DE3D1FF2B42B425F9F3CFEA7C9B4A1F60C651C5ACA626964121944123E",
+      "literal_path_exists": true
+    },
+    {
+      "path": "isolated/test_btapistore_ctp_query_evidence_pure.py",
+      "size_expected": 2986,
+      "size_actual": 2986,
+      "sha_expected": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "sha_actual": "E550F425E73877064F41059F1B8A42C04511DF413C519B6BDC38028AB59F86E8",
+      "literal_path_exists": true
+    },
+    {
+      "path": "base/main-test-btapistore-iteration22.py",
+      "size_expected": 173308,
+      "size_actual": 173308,
+      "sha_expected": "30EEAA2C9816E6D0792E801A6EA2A8960CC1BCAA3728679111318E5178AFA49D",
+      "sha_actual": "30EEAA2C9816E6D0792E801A6EA2A8960CC1BCAA3728679111318E5178AFA49D",
+      "literal_path_exists": true
+    },
+    {
+      "path": "base/r2b-btapistore.py",
+      "size_expected": 804142,
+      "size_actual": 804142,
+      "sha_expected": "24F8199E199BBE84BBB113C3EDBBEE9E71D4736FDD8573297E24EAD3298F2518",
+      "sha_actual": "24F8199E199BBE84BBB113C3EDBBEE9E71D4736FDD8573297E24EAD3298F2518",
+      "literal_path_exists": true
+    },
+    {
+      "path": "base/r2b-analysis-summary.json",
+      "size_expected": 114214,
+      "size_actual": 114214,
+      "sha_expected": "EE60B8A12C5C76035EF7A4A649F50261D17A7B68FF60A3668C28C49528EEB9D0",
+      "sha_actual": "EE60B8A12C5C76035EF7A4A649F50261D17A7B68FF60A3668C28C49528EEB9D0",
+      "literal_path_exists": true
+    }
+  ],
+  "r1_index_sha256": "41387433B6F0997991711059C5CC0456EE3643C11AE6EA2812D39F1730569014",
+  "r1_payload_count": 15,
+  "r1_r2_payloads_byte_identical": true,
+  "unpacked_verifier_command": [
+    "C:\\anaconda3\\python.exe",
+    "D:\\temp\\iteration41-ctp-query-pure-seam-r2b-r2-independent-qa-20260927\\unpacked\\verify_r2_package.py",
+    "--zip",
+    "D:\\temp\\iteration41-ctp-query-pure-seam-r2b-20260927-r2.zip"
+  ],
+  "unpacked_verifier_exit_code": 0,
+  "unpacked_verifier_stdout": "payloads_verified=15\nsupport_files_verified=1\nsha256sums_verified=15\npackage_manifest_sha256=AD6106E0542FABAD44A16D86F7AEE8A39B4EBE6342A152BCCAD491960C9A0C5E\nzip_testzip=None\nzip_members_verified=18\nzip_member_bytes=exact\nverification=PASS\n",
+  "core_i22_assertions_preserved": true,
+  "network_sdk_provider_touched": false
+}

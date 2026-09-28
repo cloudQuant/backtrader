@@ -1,0 +1,13 @@
+{
+  "archive_path": "D:\\temp\\iteration41-g6s-artifact-first-independent-qa-20260927-r1.zip",
+  "archive_sha256": "b37759f2ad32ee0b976a2df4ab7192715697c740e1d43fc6b2801dde3831156b",
+  "archive_size": 765648,
+  "archived_files": 161,
+  "candidate_source_manifest_sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+  "qa_checksums_sha256": "d674adcccb9a14c440bd19a8fae573f3a9a9adb9b8e49eb6e0d8b7d117e73012",
+  "qa_manifest_sha256": "e104a96fe757476268f55df1ec6d8315b4de82c6ddfc5fe036e822f107071ca0",
+  "qa_receipt_sha256": "8e78277e58f4c94aa2076da4ba0b809e61f5ea496a514a37b28d4302dcf4b429",
+  "qa_report_sha256": "c454618ac37c3396ca43db404de107c77c74213023a554f005c1ff549af51795",
+  "schema": "iteration41.g6s.artifact_first_independent_qa_archive_index.v1",
+  "scope": "fake-local independent QA; no G4/G6-S acceptance"
+}

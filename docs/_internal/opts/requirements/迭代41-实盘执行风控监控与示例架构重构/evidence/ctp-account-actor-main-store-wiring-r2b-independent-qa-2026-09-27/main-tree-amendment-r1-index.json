@@ -1,0 +1,27 @@
+{
+  "format": "iteration41-r2b-main-tree-amendment-index-v1",
+  "payload_count": 4,
+  "payloads": [
+    {
+      "path": "MAIN-TREE-AMENDMENT.md",
+      "size_bytes": 7299,
+      "sha256": "2b3b8a93a4613522d193aab0a499934b21f01cc42dad0948511fc6fbce1ee8e6"
+    },
+    {
+      "path": "main-tree-failure-groups.json",
+      "size_bytes": 112463,
+      "sha256": "1225de8eb3336d6b00e0a4355004d56bdeebef9063e14fc4481590561d6ca8b0"
+    },
+    {
+      "path": "main-tree-exact-invocation.txt",
+      "size_bytes": 244,
+      "sha256": "6431e418ae9c5fd5e70b95a4a281593bc52fb07a192f8e31293985f5bdc608ba"
+    },
+    {
+      "path": "summarize-main-tree-junit.py",
+      "size_bytes": 7581,
+      "sha256": "5a886150ff35769c990389699f03edbd79ef5fbaee12503d4938141a577f0ccb"
+    }
+  ],
+  "index_excludes_itself": true
+}

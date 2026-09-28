@@ -1,0 +1,1589 @@
+{
+  "classification": "READ-ONLY SOURCE SNAPSHOTS for isolated Store/runtime regression; not installed artifacts",
+  "parent": {
+    "commit": "e53b6b559bdc378d144cca5917814d0ac5beb2c1",
+    "composite_source_manifest": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\parent-r4-r3r3-composite-qa-2026-09-27\\qa\\composite-source-manifest.json",
+    "manifest_sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131",
+    "source_root": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\parent",
+    "upstream_root": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\parent-source",
+    "source_tree_sha256": "67e54513a839c433bd9fc6dad03f4f4a92813f0cacd66336685ab2ccb2d0be87",
+    "payload_count": 156,
+    "payloads": [
+      {
+        "path": "bt_api_py/__init__.py",
+        "size": 9082,
+        "sha256": "55993ab44696602986a258a814d620b662d5b200c57064fa0e6baebcbd91d69b"
+      },
+      {
+        "path": "bt_api_py/_compat.py",
+        "size": 91,
+        "sha256": "c6ec2a276107cc41e7987a43607aec58c35d28d5de504db7e5c83c50801fb500"
+      },
+      {
+        "path": "bt_api_py/_contracts/__init__.py",
+        "size": 2470,
+        "sha256": "9854ca8349497eaea4d84d942cbf01418a93601aecc75167a0ffb2ecf86a34b6"
+      },
+      {
+        "path": "bt_api_py/_contracts/cache_policy.py",
+        "size": 1583,
+        "sha256": "b2067d1cac711040cb64520ed261e46ed939503c622d77806531d147737a66d9"
+      },
+      {
+        "path": "bt_api_py/_contracts/capabilities.py",
+        "size": 771,
+        "sha256": "a5dd8ad64553a4f214b6b5d2f0cf07cf82fecc99ec39fa69a5df65490d6ac8f1"
+      },
+      {
+        "path": "bt_api_py/_contracts/errors.py",
+        "size": 5107,
+        "sha256": "73f2cbeffce0ddd510a9d6d88f823a37d12c9c88e675ec6f50cfa7df453ff3b1"
+      },
+      {
+        "path": "bt_api_py/_contracts/models.py",
+        "size": 43675,
+        "sha256": "22ee99738933a4b267fc7a346044969149bca898a9ca3bc557a4cb8ddf7cac4b"
+      },
+      {
+        "path": "bt_api_py/_contracts/subscriptions.py",
+        "size": 376,
+        "sha256": "cd571f7982b44a2b0c8ade7e58eb9539e4bc2a71a5fd370e25119f53e8237e98"
+      },
+      {
+        "path": "bt_api_py/_ctp_budget.py",
+        "size": 26804,
+        "sha256": "9e773dd36ccb8eab8d55a36303afd7558dad22972cb23e6ee162764c85b225ca"
+      },
+      {
+        "path": "bt_api_py/_ctp_credential_binding.py",
+        "size": 18200,
+        "sha256": "94356cdf93be9c557a2e9d5f5f6fe717f2a008d8b38904efe688bf4093ec9e37"
+      },
+      {
+        "path": "bt_api_py/_ctp_execution_authorization.py",
+        "size": 60302,
+        "sha256": "1b402d27bda50bd525934710dfe6ce8d53eea15b489dc46beccf1bac0c580c14"
+      },
+      {
+        "path": "bt_api_py/_ctp_probe.py",
+        "size": 3078,
+        "sha256": "987ab6b197cfa2e0756ccd29e12c2c9ec2f014d40b4298f76efd38b429db8d40"
+      },
+      {
+        "path": "bt_api_py/_direct_backend.py",
+        "size": 18320,
+        "sha256": "ebdca1502de50afa436a4187bb9727248405d29169cecc03c1bb8f1826291c08"
+      },
+      {
+        "path": "bt_api_py/_execution_session.py",
+        "size": 451118,
+        "sha256": "81a7fb8f8fd37f580aefb8b059a3d5684be0f2d199d2a30792e94879d26f448d"
+      },
+      {
+        "path": "bt_api_py/_feed_adapter.py",
+        "size": 2251,
+        "sha256": "321f2703d713d17b3ee3c752341f04a64b7c10e7693fbd97a7095659c7b0ac27"
+      },
+      {
+        "path": "bt_api_py/_normalization.py",
+        "size": 95121,
+        "sha256": "fd0efcbaeb086f667e0c50876966c782ade525d33ed2e92834f082101e32e544"
+      },
+      {
+        "path": "bt_api_py/_operation_backend.py",
+        "size": 3348,
+        "sha256": "9a71b8d9909655b2c5197ecba80ff75fb91ff2e6b0594ed6817715c8cb3ae684"
+      },
+      {
+        "path": "bt_api_py/_plugin_catalog.py",
+        "size": 5018,
+        "sha256": "2b8e5562cfecea1f0c39d3684486cdb2ef4e6df46c5a851ac8c57822c999addb"
+      },
+      {
+        "path": "bt_api_py/_venue_mappers/__init__.py",
+        "size": 1061,
+        "sha256": "650d3af5a789920e614ecbdc7d81045d184746c12109b328adac5a3cd4921df4"
+      },
+      {
+        "path": "bt_api_py/_venue_mappers/_position.py",
+        "size": 1124,
+        "sha256": "79af31a48180a13de9316a343f6560fe644f88e86701e78f55391b568e506f80"
+      },
+      {
+        "path": "bt_api_py/_venue_mappers/binance.py",
+        "size": 12350,
+        "sha256": "78fd7b3078472eac2d9f0b75c11d048409b350e15a5b8bd86df51c6739beac56"
+      },
+      {
+        "path": "bt_api_py/_venue_mappers/ctp.py",
+        "size": 1814,
+        "sha256": "9c5f5e89f8c2d512b31e3e077bf093d7655356565f9ee283d7387a53b3b16f40"
+      },
+      {
+        "path": "bt_api_py/_venue_mappers/okx.py",
+        "size": 12397,
+        "sha256": "59c6150a6d22fe1dc757c289d224f98fab29f152f018eeef28d68fe6d9c051f9"
+      },
+      {
+        "path": "bt_api_py/backtrader/__init__.py",
+        "size": 120,
+        "sha256": "6a3c12aca427989860f6249feed8c2df380f7ce4dac3b0bad85b6b97cace911f"
+      },
+      {
+        "path": "bt_api_py/backtrader/btapibroker.py",
+        "size": 994,
+        "sha256": "322debf4285f67ef95201c0d96ac7c195f0860801da6e239fdb405a794da741b"
+      },
+      {
+        "path": "bt_api_py/balance_manager.py",
+        "size": 3764,
+        "sha256": "9523efbe14860525b6911d37f4dedaa53a789a536a0f3454ce6fddc4e09a0cc9"
+      },
+      {
+        "path": "bt_api_py/brokers/__init__.py",
+        "size": 1002,
+        "sha256": "35ce5848de6d3e48478a89f8b7ab04b522713892593454c67fa201798f1e1fce"
+      },
+      {
+        "path": "bt_api_py/brokers/base.py",
+        "size": 2569,
+        "sha256": "c74222813bd8b73a7c2426059f340dea2c5500ae606ef91b969e9e7436556333"
+      },
+      {
+        "path": "bt_api_py/brokers/errors.py",
+        "size": 1108,
+        "sha256": "b0e5ed38c6c54800534285444c6a43ee983e12ca9389233c2d95c9afe872bba2"
+      },
+      {
+        "path": "bt_api_py/brokers/feed_bridge.py",
+        "size": 7374,
+        "sha256": "652fd3f0f00996901cc1a44a929cf627eaea75e69691ec53c2d59d9db9c9940d"
+      },
+      {
+        "path": "bt_api_py/brokers/gateway_bridge.py",
+        "size": 2934,
+        "sha256": "034e7d8a58a6832f890f66ad48ead7068d907aff6c06b60f6be40416b09e0e5b"
+      },
+      {
+        "path": "bt_api_py/brokers/loader.py",
+        "size": 2428,
+        "sha256": "ffbdd8c8be34ae2af771d3c9e265a238dbe8cc491b3a099eab39be4867fa1f38"
+      },
+      {
+        "path": "bt_api_py/brokers/mock.py",
+        "size": 6164,
+        "sha256": "0fc308a8f25c0900bebe3559cdef08885f6b664cb54d36967fe070fa630ed4ce"
+      },
+      {
+        "path": "bt_api_py/brokers/registry.py",
+        "size": 999,
+        "sha256": "f5fb7efd6bc2715968ffcacea95b129c3a2d2c696399b29d1efcfac6ded18722"
+      },
+      {
+        "path": "bt_api_py/brokers/types.py",
+        "size": 2943,
+        "sha256": "0eeb98b8a24a50d78ee8e893d8e8ed516776d87af1b3af8c928b90ca29316c19"
+      },
+      {
+        "path": "bt_api_py/bt_api.py",
+        "size": 398665,
+        "sha256": "3fd81359d4b0f5ea506a5af3dfae1b27b6a60b5ebd41cf078b78a69280c0883d"
+      },
+      {
+        "path": "bt_api_py/certification/__init__.py",
+        "size": 749,
+        "sha256": "1c0d0659f10da2f7d42ea36f2f0e6359a8ee1818bab737774e09a7292c7004e8"
+      },
+      {
+        "path": "bt_api_py/certification/audit.py",
+        "size": 4014,
+        "sha256": "3bf20e2fd51e07d89dd16c9f401def88b2521e48d6d3e7657190bab14a675a54"
+      },
+      {
+        "path": "bt_api_py/certification/scenarios.py",
+        "size": 8852,
+        "sha256": "65c684dc41effbbbc15ab0b6e485947f850cb64bd23ff5d8045b83b1b0419eee"
+      },
+      {
+        "path": "bt_api_py/configs/__init__.py",
+        "size": 69,
+        "sha256": "9965dc39111c5c53330b91988f63e5d7273d81c0243c506e513ecdfeaa3dd9ae"
+      },
+      {
+        "path": "bt_api_py/configs/account_config_example.yaml",
+        "size": 516,
+        "sha256": "16e591cb4f19782f05d58d55c750b67a56029feb8be2def4a1a8a8f6c3649315"
+      },
+      {
+        "path": "bt_api_py/configs/balancer.yaml",
+        "size": 16135,
+        "sha256": "4c79425f378f5862d8254a9dae914e1b47e6a47b09dfe5d5ac2a41653d97141b"
+      },
+      {
+        "path": "bt_api_py/configs/binance_spot_symbol_info.pkl",
+        "size": 14003248,
+        "sha256": "11059498b96875ecde7c6ec978a238d744a4d1966ea8887472d1a62499133ab4"
+      },
+      {
+        "path": "bt_api_py/configs/binance_swap_symbol_info.pkl",
+        "size": 557700,
+        "sha256": "9a3264bbd1bb721178c926669b8d1efa79297268a5ea74c3a81f5ad323223d58"
+      },
+      {
+        "path": "bt_api_py/configs/cow_swap.yaml",
+        "size": 1733,
+        "sha256": "7720d0358fac855a95bba2830ce62f032d53fb210b0e73277f1ab99a8f7bbb07"
+      },
+      {
+        "path": "bt_api_py/configs/curve.yaml",
+        "size": 2309,
+        "sha256": "67d0c288ad68f7a5a869ee0ce3587bf81277ed089987ab78107ac66e597c18a2"
+      },
+      {
+        "path": "bt_api_py/configs/exchange-bundles.toml",
+        "size": 1000,
+        "sha256": "d17303815e0e48d315a1893e3453c4941ad7c8f1cecd36e785a89824dc2d4e5e"
+      },
+      {
+        "path": "bt_api_py/configs/pancakeswap.yaml",
+        "size": 1049,
+        "sha256": "3389e02b77aefa10b809c42f7b6dae0146d2cee8106bee8a65abbcd8c9d82ec9"
+      },
+      {
+        "path": "bt_api_py/configs/raydium.yaml",
+        "size": 3132,
+        "sha256": "75b480132900ee665659b0d1b3532c816fb84033ea164247761cc5872cdeef53"
+      },
+      {
+        "path": "bt_api_py/configs/sushiswap.yaml",
+        "size": 5142,
+        "sha256": "5da1590d4495b22f2ccd05fd9a7da5f5b1d9a3c82720999ac095205a3c1b2a91"
+      },
+      {
+        "path": "bt_api_py/configs/uniswap.yaml",
+        "size": 6881,
+        "sha256": "81d9d5032d7f92b319d85dd34505d224c509c32d86878bea68a313add4c5f2ba"
+      },
+      {
+        "path": "bt_api_py/cross_venue.py",
+        "size": 35095,
+        "sha256": "7a33b3aa872e79266eafc15ed8dc07d1fcb1da49cbd98e1bb1856b31aa95d8c2"
+      },
+      {
+        "path": "bt_api_py/ctp_close_plan.py",
+        "size": 75267,
+        "sha256": "d365a681b47782645871b812b0534c627aa23d883cf6feb462135b148a0695eb"
+      },
+      {
+        "path": "bt_api_py/ctp_env_selector.py",
+        "size": 9081,
+        "sha256": "3c9068cd984a50987e1e587c6f9e85645c7ddaac6b9b1a7f412548d08a37dde0"
+      },
+      {
+        "path": "bt_api_py/data_downloader.py",
+        "size": 6839,
+        "sha256": "1bedb90078ffdfe48d59506ba95c3ce34b3f5afa52095e0e0a4f6a54dad88564"
+      },
+      {
+        "path": "bt_api_py/doctor.py",
+        "size": 1665,
+        "sha256": "ae23433de03bb90b8ecf9ef5f9a8659847ee9bdb7cb15835193ec3b864aaeaa3"
+      },
+      {
+        "path": "bt_api_py/exceptions.py",
+        "size": 1666,
+        "sha256": "eed1d3b9cf7d2953cde1d2b979eefe917bcfad896b22bb1e6444451d3dc368cc"
+      },
+      {
+        "path": "bt_api_py/forwarding/__init__.py",
+        "size": 1594,
+        "sha256": "767bf95bae111ed2941ccccab6b04e60bac2348345dc3bf1c0b2cb668a7754c5"
+      },
+      {
+        "path": "bt_api_py/forwarding/btapi_adapter.py",
+        "size": 499,
+        "sha256": "c9892076fbb3ead022c363a20e18d55ea15276b6d5325570ecaac569d8219762"
+      },
+      {
+        "path": "bt_api_py/forwarding/btapi_backend.py",
+        "size": 31386,
+        "sha256": "3f41d052e54633bcee439237a6cf7cf8af6157b0646fc470d7261102b41eb92b"
+      },
+      {
+        "path": "bt_api_py/forwarding/btapi_bridge.py",
+        "size": 4485,
+        "sha256": "7a34f2c8ef90eadcfc4867444f06b668ca099228ae6b8d1ce69443078dd76171"
+      },
+      {
+        "path": "bt_api_py/forwarding/client.py",
+        "size": 33014,
+        "sha256": "2e90c9ce295fe0cc6d44fa1dee9b18c08c7ebdfbb37222500761f659d6e0b023"
+      },
+      {
+        "path": "bt_api_py/forwarding/hub.py",
+        "size": 4477,
+        "sha256": "15cbe9329ed734a64a1d3a0f1c19d4aadffb9b317785ae21157d95952e31400a"
+      },
+      {
+        "path": "bt_api_py/forwarding/memory.py",
+        "size": 10219,
+        "sha256": "4df10e68b66d5445d2e04793cee9219e50bb883ac8ca196750e5749b0afc98f1"
+      },
+      {
+        "path": "bt_api_py/forwarding/private_event_pump.py",
+        "size": 1882,
+        "sha256": "b03e4e7db06868ffa8d05a26c9bda6d9a85de7252aeaaa6c9c960b782dbc035c"
+      },
+      {
+        "path": "bt_api_py/forwarding/router.py",
+        "size": 39645,
+        "sha256": "ae5215f1c36d2d6951b0b4fb19d1efaa6bd88fb91eb7d99ef8317bb256a3a55b"
+      },
+      {
+        "path": "bt_api_py/forwarding/schema.py",
+        "size": 12785,
+        "sha256": "60f0a2f1fb06db0f562dc502d7ceb521379556db9cc16d328d59ab0b5bacd4f6"
+      },
+      {
+        "path": "bt_api_py/forwarding/service.py",
+        "size": 9516,
+        "sha256": "7a84f886e9d590ba29e4b00b380af50b99e4ca206d06e90cb9ac50247c5cacd5"
+      },
+      {
+        "path": "bt_api_py/forwarding/source_supervisor.py",
+        "size": 2858,
+        "sha256": "df1d9c8903aba2f3e89e8fb2a622a779ba936c2ad87d3ea5a67550509dc06aa6"
+      },
+      {
+        "path": "bt_api_py/forwarding/state.py",
+        "size": 8628,
+        "sha256": "09cf2408cfbf496ae140a487ee671131a549bad8ff015dc69dd816023e1bcde4"
+      },
+      {
+        "path": "bt_api_py/forwarding/transport.py",
+        "size": 9222,
+        "sha256": "256ef497faae316de362a550ebca6897addc56d87e8b2420276333f5cac42285"
+      },
+      {
+        "path": "bt_api_py/gateway/__init__.py",
+        "size": 416,
+        "sha256": "e813cd7a29584783c203ce9025fb412a1818140763748371403dca672ff9a8a1"
+      },
+      {
+        "path": "bt_api_py/gateway/client.py",
+        "size": 3129,
+        "sha256": "25893a98d0519101a745538c17627f2542083f0aa428d9756742d461710dee28"
+      },
+      {
+        "path": "bt_api_py/gateway/config.py",
+        "size": 3348,
+        "sha256": "b8547eee0508ac206a23c6457a855a6f082a59e5ac3a42806c708b21f452a05a"
+      },
+      {
+        "path": "bt_api_py/gateway/safety.py",
+        "size": 968,
+        "sha256": "ec5635cc62000367d8226f7aeb634b9ce987af338fc0554aac4846301c39cbaa"
+      },
+      {
+        "path": "bt_api_py/monitoring/__init__.py",
+        "size": 3241,
+        "sha256": "7e396e1a7fba5810a70f1a613416428e4791f89c3198872a114388e03eab7a5c"
+      },
+      {
+        "path": "bt_api_py/monitoring/collector.py",
+        "size": 9862,
+        "sha256": "d71a42d0bbcac999fa333ccd18e7684e47d4dbf2d96fdfe7286366eeadfc7be7"
+      },
+      {
+        "path": "bt_api_py/monitoring/config.py",
+        "size": 10175,
+        "sha256": "a0fe2685afae9b54996ebf6a16d748ea7adf22712e9c770907e42e0d58a7aa42"
+      },
+      {
+        "path": "bt_api_py/monitoring/decorators.py",
+        "size": 8988,
+        "sha256": "0ff21eca092608a24de333f2f59ba3b298b61519557fe133b1aa4b019d0e6c5f"
+      },
+      {
+        "path": "bt_api_py/monitoring/elk.py",
+        "size": 19712,
+        "sha256": "af45ee743b760ff73a03e686287ca9e26daad84e09ade6165bda29c3bfb0cb9a"
+      },
+      {
+        "path": "bt_api_py/monitoring/exchange_health.py",
+        "size": 13952,
+        "sha256": "d127f2db85550a9aec72a7c84a5d5243163ce67d480719cfb6b8b0af150887d5"
+      },
+      {
+        "path": "bt_api_py/monitoring/grafana.py",
+        "size": 20950,
+        "sha256": "1c326ae12345ff4beab041060e8ef6dbedfcfddace6ee58c052d62302c5d2154"
+      },
+      {
+        "path": "bt_api_py/monitoring/metrics.py",
+        "size": 8286,
+        "sha256": "c1f116af942dc321eeac5e350cf0e6de3149692d720616ad0aa7280385ca38e0"
+      },
+      {
+        "path": "bt_api_py/monitoring/prometheus.py",
+        "size": 11461,
+        "sha256": "504d2ba9b772416ef45e769b906f88d61fa9bc9cf38cb450fcc536fdec72f25e"
+      },
+      {
+        "path": "bt_api_py/monitoring/system_metrics.py",
+        "size": 14015,
+        "sha256": "f6c48fb62a2e8c3816d296c159f4f587577c1da672e2176ea6c2ba46fdb8e5dc"
+      },
+      {
+        "path": "bt_api_py/py.typed",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "bt_api_py/risk_management/__init__.py",
+        "size": 1992,
+        "sha256": "f491aa8cfe777930505bf8ae0b990c3aa9dbb36e45c5faa5e76d7bfe9c189ae6"
+      },
+      {
+        "path": "bt_api_py/risk_management/containers/__init__.py",
+        "size": 332,
+        "sha256": "40c2259ab241fa6faa5dad9ad0541e0968e9a946de20a53f039ceaf99ec53d07"
+      },
+      {
+        "path": "bt_api_py/risk_management/containers/risk_events.py",
+        "size": 11047,
+        "sha256": "43632993f29d92c250c66654d75a6072871558aef9d02fbebc302547259dbaaf"
+      },
+      {
+        "path": "bt_api_py/risk_management/containers/risk_metrics.py",
+        "size": 10464,
+        "sha256": "e260265e54900c20ea5efd4b2c597606e8ec3e4f320290def44b4504434d1458"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/__init__.py",
+        "size": 383,
+        "sha256": "3951c85fcfaf8ac5a806056797fa6a6ccdc2310c81dd492d7ab97a169db06eb1"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/actions.py",
+        "size": 6214,
+        "sha256": "ffd8f07ad46686745f64dc6627827b688ca0cebe5bc20b619a30516db88a06c8"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/compliance_limits.py",
+        "size": 717,
+        "sha256": "8731b2ee8b9b935b4f098b62c7d36ce9a17a82838bcff82e3f06ccec93ba038c"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/compliance_risk.py",
+        "size": 3512,
+        "sha256": "6ea411378e4821382baf27c8bd1d80b5328b7802864d0704cafe95bfd2edf9c9"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/credit_risk.py",
+        "size": 3826,
+        "sha256": "3fae221afba73d08b08b2583c00e26c7482f26ae5b003a81256864d28957579f"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/limits_manager.py",
+        "size": 17125,
+        "sha256": "411bd2e841295cf9808d6fc3df201eda7415661ed3fac06caec4f903805e1fd9"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/limits_types.py",
+        "size": 2253,
+        "sha256": "77a2599084d55784a7921705e8be511f5c90eca52e9383cc91588144107874cd"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/liquidity_risk.py",
+        "size": 4735,
+        "sha256": "ac1e6e3f21a48b6b877e9dc6f39e4574e5ed0939cf7c76d63db44caaa8b80183"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/margin_limits.py",
+        "size": 2115,
+        "sha256": "63a9caf8c0806d18f05155f2c7e5279b6771021da16bb197fd2910b0bf34142e"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/market_risk.py",
+        "size": 7420,
+        "sha256": "78fe12ca72a4545dacbdb4c9da3b5df6aa492c9ecc8bcd5eb63085d0d9bd2470"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/operational_risk.py",
+        "size": 5368,
+        "sha256": "99cb2c6f3b89f2a3c57dfc6626073b0229aba47fe6074aba1255588599e51ac8"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/order_limits.py",
+        "size": 3632,
+        "sha256": "eeb785887861bd186aa9dddd18c5a22d5bb9a6a245662d7d3d3a40ab8b8a8050"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/policy_engine.py",
+        "size": 21022,
+        "sha256": "f1e5ba1157bbf9f9e3f9e1190dbcba1b14ed71759966ae04566cdf364093462c"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/policy_types.py",
+        "size": 946,
+        "sha256": "9918a80cad0da259ebd2ac9f7722a7ae51f74cec62c278e943fe15860c3c5ee7"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/position_limits.py",
+        "size": 7792,
+        "sha256": "da12687e11f63014fbf02453e4b77bd5187e30c1f38f53537aea65cbf88fe2f4"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/position_risk.py",
+        "size": 2230,
+        "sha256": "abe1e9bf9e6a87624bf4340578a5af8224fabb378300b34d191c61d449dca1f0"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/risk_assessor.py",
+        "size": 17402,
+        "sha256": "c652da48da1e78f79ca03bb65abe983c3f349210c997f968a244f86640fb0c05"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/risk_calculator.py",
+        "size": 10722,
+        "sha256": "55cf1d25959ce8448416f5a76eaa5e4b54082aa9568da1e6d4c3bf836600c4e5"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/risk_limits.py",
+        "size": 2371,
+        "sha256": "5ea996fd2305bcc0cf980eb246df7dd9a4c41659e1ef94086f2369e2917d2dfb"
+      },
+      {
+        "path": "bt_api_py/risk_management/core/risk_manager.py",
+        "size": 15407,
+        "sha256": "1c9f93787279b75ea8b6095b47328b58686b3967f59233f26f9c5dca0eeba5d9"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/__init__.py",
+        "size": 264,
+        "sha256": "b06c15929e74d671318bbb951a57a62dce53d4e38674e7fc5561b5a03ab69829"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/anomaly_detector.py",
+        "size": 22479,
+        "sha256": "811b3eb33159ecf0ef02cf2e3e919d847ac8f8b9165b7bed7da0214e85671d72"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/anomaly_detectors.py",
+        "size": 9317,
+        "sha256": "83c2a234e8a601e714650dc18909673c720129ee668bab0250d4abcc62bc7303"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/anomaly_types.py",
+        "size": 2226,
+        "sha256": "da61760f9005e8fe2e4e814d7545845c573c0b38429feb554e518a7a411d2510"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/ensemble_model.py",
+        "size": 25645,
+        "sha256": "7aee6dd9287a3d8f8d21a72e490c5623b2d2694f4a504729d14de7ffa6ce6e32"
+      },
+      {
+        "path": "bt_api_py/risk_management/ml_models/ml_base.py",
+        "size": 14376,
+        "sha256": "67572ccf135f2d522b4fd3f81400b7c260fad2afafb1dc5017e4f198a02266f6"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/__init__.py",
+        "size": 4359,
+        "sha256": "984011be8e830e018c82dd9adc46bc8d677d249360f0c73e484883c826f3e12f"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/cancellation_control.py",
+        "size": 105632,
+        "sha256": "8b7d2b02654d0b4a9fbea63f4bc359a0135df6410cf4034ea069a41e32b898cd"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/catalog.py",
+        "size": 5412,
+        "sha256": "57ab4152eeace62f324ea00f39e4a874c848e05b1315bc7d568baffaa1f0ef11"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/contracts.py",
+        "size": 8545,
+        "sha256": "59694e448de97d8d1517562a79d305a008aa2d8b56950beddc57b3c5ec7858a2"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/fake_dispatch_authority.py",
+        "size": 77976,
+        "sha256": "ff31893935aed8ac7944c5f720eb46553298cf593553dbbe64ad74583b89dc06"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/gateway_dispatch.py",
+        "size": 48985,
+        "sha256": "b2ca93b815d57901c82fdb126547a367564f65d5db4d0cee8101846e4da0eec2"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/instrument_risk.py",
+        "size": 30559,
+        "sha256": "0117a10db5f500d913ee9ef8a27b287d055d4c1822fb89fbf297236efb4b1db9"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/managed.py",
+        "size": 49594,
+        "sha256": "45708013afd32c0d97d87ba9ca92aaa773a14e272e12e11fdb0f85223b947aba"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/managed_recovery.py",
+        "size": 35660,
+        "sha256": "f80a953f2ce9e056ebb8362ff854b7a22e7eab3929b5d49ad50ca4a3f8a5387a"
+      },
+      {
+        "path": "bt_api_py/runtime_plugins/reconcile_control.py",
+        "size": 61078,
+        "sha256": "4f1933a4162063816140a456516ca2743ced61c2604074e06dc16c2f1e3ef50e"
+      },
+      {
+        "path": "bt_api_py/security_compliance/__init__.py",
+        "size": 2932,
+        "sha256": "658a12c56017cf3d5c96d0f08907b47efcc8c4b5bd244dafaa3431aeac0bedce"
+      },
+      {
+        "path": "bt_api_py/security_compliance/auth/__init__.py",
+        "size": 229,
+        "sha256": "730ddfefcadbc8c60909acc774cc899fe62518fad81f70d5036316a6657b0df7"
+      },
+      {
+        "path": "bt_api_py/security_compliance/auth/mfa_provider.py",
+        "size": 19661,
+        "sha256": "accc8e3f147d1d3ac80c8b8ba338aac982af0d73c15b01295043563ec719417b"
+      },
+      {
+        "path": "bt_api_py/security_compliance/auth/oauth2_provider.py",
+        "size": 26577,
+        "sha256": "500f013e34badd820f7348741e46e3ed0ee79ca09369ab646e9b381ded0d8573"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/__init__.py",
+        "size": 751,
+        "sha256": "642e6bf38ea31cfd0bb931586162ad71e570c235e33235a72789f91a8d084cf0"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/access_control.py",
+        "size": 15030,
+        "sha256": "f0ea17199fd9331ec792d83573859c3f419dde79812d83d0908bbd6bd3668e6b"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/audit_logger.py",
+        "size": 20194,
+        "sha256": "46efa64acc4ca090990e4d59c896f8b01da254539d728bd3fee6495d22c0de6e"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/compliance_monitor.py",
+        "size": 5350,
+        "sha256": "b8322ca3d8890be2664766bcc70df02db75a62f029a25a1756e7ebfc0722ca53"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/encryption_manager.py",
+        "size": 24689,
+        "sha256": "31e41e0aba4ed0331ae651bf4722fd233751abe076a20cf6bff394fab4b54dc8"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/identity_manager.py",
+        "size": 16075,
+        "sha256": "685f7a946ab4b61b0cf619b81e4fbf81636323efcd809e6feea0145c3ed8e7c4"
+      },
+      {
+        "path": "bt_api_py/security_compliance/core/threat_detection.py",
+        "size": 13145,
+        "sha256": "18e521779d5d940b3e69aba36dea397b991645283d682df7dd7cc56315bac7ed"
+      },
+      {
+        "path": "bt_api_py/security_compliance/data/__init__.py",
+        "size": 185,
+        "sha256": "9ebb5f3e133a9b6f48d3513cb93d65a06b7d3a29c63d5654c82ade300f56cc4e"
+      },
+      {
+        "path": "bt_api_py/security_compliance/data/protection.py",
+        "size": 15636,
+        "sha256": "1816f3967b5efc583fdaf86986c884d034ce842fc95587773a55771102c793a1"
+      },
+      {
+        "path": "bt_api_py/security_compliance/framework.py",
+        "size": 16528,
+        "sha256": "1d9682559c4ccf67a2d8b29fcce2bbadf28a2508b2f5deece2532879e9693eca"
+      },
+      {
+        "path": "bt_api_py/security_compliance/monitoring/__init__.py",
+        "size": 183,
+        "sha256": "7fd1b35ed68b85f0a9b9d7b307884b508ce099541148aab18ee140f138980b17"
+      },
+      {
+        "path": "bt_api_py/security_compliance/monitoring/security_monitoring.py",
+        "size": 4762,
+        "sha256": "886d5c35fdda4d7965b2b836166ca2bdb21167c4120587a1b386f6e753054ae8"
+      },
+      {
+        "path": "bt_api_py/security_compliance/network/__init__.py",
+        "size": 189,
+        "sha256": "2d830c6ae792e8271e0b4072acf2717177de779f0220366abbae317f3176ed83"
+      },
+      {
+        "path": "bt_api_py/security_compliance/network/tls_manager.py",
+        "size": 2499,
+        "sha256": "5cf0e3f4b63d1535b8309b54966c645e798f203361b4e86010933d9fb6319692"
+      },
+      {
+        "path": "bt_api_py/security_compliance/recovery/__init__.py",
+        "size": 189,
+        "sha256": "ec6feb3761587ff8e010085db840361253114e7e81c89241cdd4da663f9c6590"
+      },
+      {
+        "path": "bt_api_py/security_compliance/recovery/disaster_recovery.py",
+        "size": 7450,
+        "sha256": "07ceb85752b1967b2dbfa609bea948e45c4edd1adba1545f295953f29a536731"
+      },
+      {
+        "path": "bt_api_py/testing/__init__.py",
+        "size": 474,
+        "sha256": "ff0e2a69a1130d2025937db40a6b474592032c33dac2ed4d1c44add832f936a2"
+      },
+      {
+        "path": "bt_api_py/testing/contract_cases.py",
+        "size": 2569,
+        "sha256": "27b1d7c3baa97763ad0f5fbdc4e51c93e92a02535ae7a7a5902190067d309758"
+      },
+      {
+        "path": "bt_api_py/testing/fixtures.py",
+        "size": 1805,
+        "sha256": "f15a0f8b9da5e48735e41b8c44028dbf9ae1fb9f8b8631940872b1ea86c43ba2"
+      },
+      {
+        "path": "bt_api_py/utils/__init__.py",
+        "size": 38,
+        "sha256": "db7d6a1d5b42c4e4ac2c290793524bb5ee53245aca290fdf63e5403b4e6dafd2"
+      },
+      {
+        "path": "bt_api_py/utils/hyperliquid_types.py",
+        "size": 785,
+        "sha256": "a2f4ad19abea61b91f0f5db1884e4833a6c0c7c7511ef62577b3c97c702bff41"
+      },
+      {
+        "path": "pyproject.toml",
+        "size": 9589,
+        "sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39"
+      },
+      {
+        "path": "tests/fixtures/fake_dispatch_authority_v2.py",
+        "size": 43431,
+        "sha256": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058"
+      },
+      {
+        "path": "tests/test_cancel_dispatch_resolution_proof.py",
+        "size": 33411,
+        "sha256": "36acb7c8221ee313fd98d8995538f05bd6e7eb9d95b719f3b5e9bae8e5d52da8"
+      },
+      {
+        "path": "tests/test_cancel_dispatch_resolution_proof_store.py",
+        "size": 11081,
+        "sha256": "f9fbdd96587e0ea76375e64d0c1c0f5627dda1bc1c7db0d345543878409dde90"
+      },
+      {
+        "path": "tests/test_cancellation_dispatch_resolution_control.py",
+        "size": 42310,
+        "sha256": "03e797b03bf1c8d2f00407b677d2481b4a64ce096188ed4d5a4968358fedad4d"
+      }
+    ],
+    "pyproject_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39"
+  },
+  "ctp": {
+    "commit": "29f8ff171f61a71038328a7067e0909bf44774b2",
+    "git_status": "clean",
+    "source_root": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\reviewed-sources-r2c\\ctp\\src",
+    "repository_root": "D:\\q\\e",
+    "archive": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\bt-api-ctp-29f8ff171f61a710-source.tar",
+    "archive_sha256": "61324e3193b9138d51d1a509ecd6ee52050a3a7a666ab78edce6edc94b717938",
+    "client_py_sha256": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+    "payload_count": 155,
+    "payloads": [
+      {
+        "path": "pyproject.toml",
+        "size": 2780,
+        "sha256": "6295d10501ce71fd3aafcc2be2d2b28274bb82d6ca0e94230757d972976669a5"
+      },
+      {
+        "path": "src/bt_api_ctp/.DS_Store",
+        "size": 6148,
+        "sha256": "5635a31a24347358a515dc3ed252f40b41e451227e0099f6ccf97654fb9bb588"
+      },
+      {
+        "path": "src/bt_api_ctp/__init__.py",
+        "size": 1161,
+        "sha256": "d77316160d5e8c5dc8bfa9e8fb949b62b4e667dff904309b9a00539ca6b0cd35"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/__init__.py",
+        "size": 1005,
+        "sha256": "06d7dc7c1325214f7761525797b52a4060ce15247c3b3df2ea18ff6c63dd0ce4"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/__main__.py",
+        "size": 202,
+        "sha256": "1254e8ad612fe88f39e9397a0c76ccf8a624f63066c24c4c41c5683ac8cfb3fa"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/cli.py",
+        "size": 7913,
+        "sha256": "08f95e224b7aae85896e9d17af29c9e7898d394184f7919bc5d7b369d5d5109a"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/config.py",
+        "size": 10079,
+        "sha256": "0c8e2f943cdc71f7521d6ff6c0728c9b76373d6cb4857c9baf326ed2d66ae551"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/contracts.py",
+        "size": 1431,
+        "sha256": "112d6c73138dd916f49d04155e232379fb63645feb79b9f6aeda5bef21a86ddd"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/kline/__init__.py",
+        "size": 813,
+        "sha256": "3d850048d509daf018a32142e28470d13ed0f9a8669bb5346df20ce183625d47"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/kline/aggregator.py",
+        "size": 9046,
+        "sha256": "199e043f00e6a17685d387ff1d09b0adceaa017f860dfab5ad6b92b5075ff2c2"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/kline/build.py",
+        "size": 3780,
+        "sha256": "ccdc53618117f1dc5872e42de5352e81f5df08c85a64533abfc299cbb2570be1"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/kline/schema.py",
+        "size": 2317,
+        "sha256": "fb8cd68d8dd2fb3a8a28395745c0dfdaf5daf762bb03ff97edbff5c479217cc5"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/kline/writer.py",
+        "size": 2261,
+        "sha256": "f4edc4b68a84baf8ff1ef06dd0111089897b01566dc3a3719a224d3a1e4f50f4"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/manifest.py",
+        "size": 5734,
+        "sha256": "96ac3989372b725de6e9b59d3fa7a466c690303d585b70d52d895cb101ad322c"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/merge.py",
+        "size": 6898,
+        "sha256": "ea5b3a2b2791f274597725377de8481f3dabc85201306ddf5626c06a2e0b8b1d"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pipeline.py",
+        "size": 13519,
+        "sha256": "12f35adeabf0f91b1d2e8cc886cf7edad5f9f91ba21ad33077177e73db194ebc"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pull/__init__.py",
+        "size": 1191,
+        "sha256": "a98574edfab29c948626c8a4851ba15efda9d5ed16522e8286ee01a47cf58eef"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pull/backend.py",
+        "size": 3799,
+        "sha256": "abfec33927e213118e54fafd7167c8bb8c89c0f470e4e1c0c4bfdeb424422e98"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pull/local_backend.py",
+        "size": 3542,
+        "sha256": "c0dcc575d1f62ea61288a96f7f3f4a18907c89ca38c922c3a2d02424e01e0d20"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pull/rsync_backend.py",
+        "size": 6358,
+        "sha256": "f399b21fae868f384eda3f82faf94cad6f2a64f3f33971e324010c3d47c6713f"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/pull/sftp_backend.py",
+        "size": 7176,
+        "sha256": "1c2db213b95cdb30327bc6bbd635030eea900b55d8e0136991635eca7945de46"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/reclaim.py",
+        "size": 3941,
+        "sha256": "1347fdc93e6f0b07550203a1fd6c424848dbfacfc0481e2f87e17dd42b7e8499"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/report.py",
+        "size": 4779,
+        "sha256": "a83f72cdec245bc0b1e84631ff6a62488faac3a98ce3a223973f0fb1e0025421"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner/verify.py",
+        "size": 2791,
+        "sha256": "3a35fc3fdcad2e55d441fe64bd327e50824697fcc474510e9c0e4929edf01440"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner_ctp/__init__.py",
+        "size": 423,
+        "sha256": "23c6e0a420a9ba1145419c453275859fd7947794321b7eb6ac1f10ca2c2c0ba0"
+      },
+      {
+        "path": "src/bt_api_ctp/cleaner_ctp/symbols.py",
+        "size": 3095,
+        "sha256": "a3e8ffc0066de027041b6d56938cea57f563ce8e0d150c007efe54f214fc1ca4"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/__init__.py",
+        "size": 1888,
+        "sha256": "edb44772fbc1be32a700808c732687b5ddf4d05d4d0422ec092958cb26d70519"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/__main__.py",
+        "size": 206,
+        "sha256": "c747dddd23bd2b8df1cfee5737d96a86741e64d2a482651660156a9008bcef80"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/buffer.py",
+        "size": 3398,
+        "sha256": "ce942f0fee2486fb2116bd5214cfc4c812d05729b4f77374eff5d6bd4c06d11c"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/cli.py",
+        "size": 22031,
+        "sha256": "3ced74cbbd7fbae787b367e8c35f39497227ec16c8f5da53dfe5c4aa465c9268"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/engine.py",
+        "size": 17405,
+        "sha256": "d81199511492586e7333b30395b93244808b40924ef03c15c89d5bff16eb6da4"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/health.py",
+        "size": 6801,
+        "sha256": "81e863c1bcd70fed53595137fce48cfd4aeb92f1d19436e155f2e0884ff0c2b7"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/protocols.py",
+        "size": 4401,
+        "sha256": "08577bae04c1b81c1279f43b9ec4d5f5195f835e5283727787bf69cb4372e6c2"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/schedule.py",
+        "size": 10995,
+        "sha256": "deaec0155b0b4361574c4764b69a48a4eeb5a57a11ad774957ee9c28b79f1f53"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/shard.py",
+        "size": 3179,
+        "sha256": "f2517da68f2f6226d78517076b5d41d2398a96bacb3a2d0a53311201b88bd41c"
+      },
+      {
+        "path": "src/bt_api_ctp/collector/sink.py",
+        "size": 36046,
+        "sha256": "e229afe6cc1799d0bd97efb1aa7bb5f198eb4788fc7e62bbaa64aac4b5038c6f"
+      },
+      {
+        "path": "src/bt_api_ctp/collector_ctp/__init__.py",
+        "size": 560,
+        "sha256": "9c5a6f7040265ac82e408ad7ac806b495e5c52a3a54abc30836d627c20a9d267"
+      },
+      {
+        "path": "src/bt_api_ctp/collector_ctp/instrument_provider.py",
+        "size": 6605,
+        "sha256": "d9cb9b968795bb5b29c9ab6647ab24f14b9551efcc798d41c71c32bb80fc69ec"
+      },
+      {
+        "path": "src/bt_api_ctp/collector_ctp/normalizer.py",
+        "size": 3934,
+        "sha256": "ca621b6502299b7285e8adb7e24cd1db69009c8cebcb4c8ece7de7fd46eb594e"
+      },
+      {
+        "path": "src/bt_api_ctp/collector_ctp/subscriber.py",
+        "size": 15377,
+        "sha256": "0eb86fe6585a16b7eb039a1c155b4616755e38f276894f1126cfaa2bb0c9dc3e"
+      },
+      {
+        "path": "src/bt_api_ctp/configs/ctp.yaml",
+        "size": 1692,
+        "sha256": "5a3d683d8d72a567a9cc062632cf3d4f17b91a026471d137c3f8f0b378fe2ec3"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/__init__.py",
+        "size": 36,
+        "sha256": "6c515513d8d129cccdcb81e199e816a02e8a38bfcdade8fe6a0dfb0c0203cda0"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/__init__.py",
+        "size": 565,
+        "sha256": "1239a2dee52bc513414c0277654ee36170d289fe41e51d4d47134d1d7307e79e"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/_normalization.py",
+        "size": 1170,
+        "sha256": "88acf09f0249a2199aa59dbc68ba6fc313ff7b59a362290c1049f5a5b92de62a"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_account.py",
+        "size": 4124,
+        "sha256": "2864801345a402dbb612f18892d41a37e4e2e62976ef7f995a363db33caeebc0"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_bar.py",
+        "size": 4183,
+        "sha256": "5db640a0371a9b75d89554e4b13fb88a8e4374004c92333ddf036e4eca6eb525"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+        "size": 36271,
+        "sha256": "f93b271972c3cdd967e964c82bf02af8fc22aa7f8b53c6b64f24e08d091f9da5"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_order.py",
+        "size": 5619,
+        "sha256": "afa09d5bdf8e5e5c14ad94193c58ce3af460ad44cf835b5e98efa109c622a2de"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_position.py",
+        "size": 6474,
+        "sha256": "04d88d3c1a256ba88a6ca0cdb5ed06f1d7f7e0f9fe4d606c2ae9d61a85755575"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+        "size": 33398,
+        "sha256": "40ddc8381016070c300da4b2e8c722df20636b666ec3b7ce60adb66b43ce23c9"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_ticker.py",
+        "size": 14205,
+        "sha256": "40550e641eee14252c7874111a207afc8de3deb8b11a6b10ac0848e53ac39250"
+      },
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_trade.py",
+        "size": 5435,
+        "sha256": "6f2b149640c39b5d8c3d303bb86357af78671f3198f196fcf149d83e2ecf867d"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/__init__.py",
+        "size": 754,
+        "sha256": "472e644f88e8c8fa5ded4a95fa036db494abe82484e7a7f8c228c99d05ab2d42"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-310-darwin.so",
+        "size": 14478520,
+        "sha256": "6b61f242d73c559c933017cd21a49c0d9eea937901114cd92178a306591aba44"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+        "size": 13221896,
+        "sha256": "b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-312-darwin.so",
+        "size": 13543784,
+        "sha256": "8ee8f3ac5ddfaf6de277102341f6d293f2c9556b76a63ccef636c660af51ef06"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-313-darwin.so",
+        "size": 14247608,
+        "sha256": "07c119db25ed399fe61955ea8cce9ef7cfa9b76ff56105cf428f9bc01fe85869"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-314-darwin.so",
+        "size": 14363192,
+        "sha256": "78391252d3459373af8b986771ceda7396ab4a1c0226dbf3db55528d1687895e"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp.cpython-39-darwin.so",
+        "size": 28339384,
+        "sha256": "c88ef1940aa636e063720e70064b0874c02441ed45221df560dd1fa0088a82ad"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/_ctp_base.py",
+        "size": 13100,
+        "sha256": "a8535ecc876d6444ceeb1087d3459ca001cc26140c92cfe74094bae86c2ead73"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Headers",
+        "size": 24,
+        "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Resources",
+        "size": 26,
+        "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+        "size": 6558,
+        "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+        "size": 1342,
+        "sha256": "c3593adece4c7bb3e5da74622aa2ae9afbc5f8b82c3f8ad283bae112c9ca6847"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+        "size": 3047,
+        "sha256": "4c19e9071d5b4c90b4dea5e4321b0af1a94a2b09005ef0f4f5e0667cfc65ef45"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+        "size": 7777840,
+        "sha256": "ff5ac3928a131b24973b9900efa1175410e5db57b9d64c937e07ae553150f1bf"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/Current",
+        "size": 1,
+        "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/thostmduserapi_se",
+        "size": 34,
+        "sha256": "e225b3ab33ad76e76960ec22cc9ce14331f893388334eea6578bcc504e63dd31"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Headers",
+        "size": 24,
+        "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Resources",
+        "size": 26,
+        "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+        "size": 51238,
+        "sha256": "2713e7a2e1fdf689013d7e2627c5e1f516823c17424436f64b056ef1cedfd484"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+        "size": 1342,
+        "sha256": "60a4f438c90bb01a7c5452d5dc0b56bd8cd483beec9e33eec7b6b41dc95c9a7c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+        "size": 3051,
+        "sha256": "1bc4179f14541394a1b6495448e2f5d4ec0c4dc295e8734a55dbec877192fba3"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+        "size": 8701376,
+        "sha256": "e22611e2b844c0eeefe1df85f9c7008d6931c37c13ef10f68db73efb5e0d4be7"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/Current",
+        "size": 1,
+        "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/thosttraderapi_se",
+        "size": 34,
+        "sha256": "1b0fa34014a60260ef7d1d72d029e71f2ec0006125bef5946d16076ac4028f22"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcMdApi.h",
+        "size": 6558,
+        "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcTraderApi.h",
+        "size": 51263,
+        "sha256": "e52c2cb7a8c17571d47848ea0a946679f9c2e12b5c9f4057188707a15d1546b0"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/error.dtd",
+        "size": 184,
+        "sha256": "dd55164c51f78d5e75144bdfeb82732ff10adb9ef9d7b9acb1acfe660c40b93f"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/error.xml",
+        "size": 26199,
+        "sha256": "9d0a299eb68b87a60c54b2e4d9a37b6d46e4b0e1bce3d64eeea11f93fc81083b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/libthostmduserapi_se.so",
+        "size": 4869685,
+        "sha256": "6da3e23a041418b57506811a9a36b43c2dd53d5e9becf4b88ae083807d6084de"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/linux/libthosttraderapi_se.so",
+        "size": 5480894,
+        "sha256": "54a231681ba68b0462a693a078251e9d12f98bf55a1569ed8f9c63de39c8bd22"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcMdApi.h",
+        "size": 6558,
+        "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcTraderApi.h",
+        "size": 51263,
+        "sha256": "e52c2cb7a8c17571d47848ea0a946679f9c2e12b5c9f4057188707a15d1546b0"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/error.dtd",
+        "size": 184,
+        "sha256": "dd55164c51f78d5e75144bdfeb82732ff10adb9ef9d7b9acb1acfe660c40b93f"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/error.xml",
+        "size": 26199,
+        "sha256": "9d0a299eb68b87a60c54b2e4d9a37b6d46e4b0e1bce3d64eeea11f93fc81083b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.dll",
+        "size": 3044352,
+        "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.lib",
+        "size": 3822,
+        "sha256": "02dfc5ef9b70e30430a935807f8c61f926beab719cf85005bb408dd9dc6065a1"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.dll",
+        "size": 3428864,
+        "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.lib",
+        "size": 3960,
+        "sha256": "b345f201edc4d16efd5356aff5a0f1c875bbb7124b2a80fadb725dbf5b49ce76"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/callback_events.py",
+        "size": 7474,
+        "sha256": "01c6db47c9b56252788c8e54aeaeef57e74203e8fd38829e93bab350f92db2c1"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/callback_ingress.py",
+        "size": 72286,
+        "sha256": "a49465dc36ad4a60ab6a81cde58fd8963ab230be740d3832a792dc0184f48002"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/client.py",
+        "size": 351481,
+        "sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp.i",
+        "size": 11374,
+        "sha256": "47e3cd4f8e54381f2ebaddaa10d178303d300670d12b5c4d9167f4a7f245c9d4"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp.py",
+        "size": 979,
+        "sha256": "e2fe66ca79dd742dc9f85f3456f4fe453ac537672e62f42372e485e1831ccd6f"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp.py.bak",
+        "size": 1089431,
+        "sha256": "8178845ea02896f7d422a45b893cecd704c558edb869dae19b0c96536dad8334"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_constants.py",
+        "size": 121992,
+        "sha256": "d51edfe35c21e42dbe18b5566ae09fad589b0a589cf646d342eb54b038e28524"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_md_api.py",
+        "size": 6064,
+        "sha256": "9eaffb0729bef2a34a97a3a16d20d185b03d380e4c6386a8905e240a7d5f05c2"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_account.py",
+        "size": 21952,
+        "sha256": "c319c19e99d84a0632254c7b3102b0a12a88d43077c9aaa75f75da1bfe0b34b8"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_common.py",
+        "size": 194479,
+        "sha256": "5b8bd5888b23e833d54b939d287505877873d6eb657d70ba2023f27a6f154e8e"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_market.py",
+        "size": 55599,
+        "sha256": "195fe470821626702d46cb2a95886e95c4b0ecab00105eab42dc5fb6b9e742da"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_order.py",
+        "size": 214863,
+        "sha256": "f106acd770799ac635b9f2bd068737a551dc9ad4356fabb639fa174f269af6c7"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_position.py",
+        "size": 21696,
+        "sha256": "14150fa837aba5d56addf6d1a0eb8f831ee6bd74442bfc5b82174bbd724c81d6"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_query.py",
+        "size": 171254,
+        "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_risk.py",
+        "size": 267477,
+        "sha256": "9f5c54796253d7dd07ddd86f77fb3b28deea38f3ff5a8ec4638d816d18546adc"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_trade.py",
+        "size": 6064,
+        "sha256": "ef9fdcdf773d7cd4cf09d48ec0632b3dfe6d58ca7465d526903ee0ac51205e9e"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_structs_transfer.py",
+        "size": 165232,
+        "sha256": "de355eedffe43f8afe0a28d4eb7cbbc8c1bc36674ba327e20d8c252e5ad1ea7b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_trader_api.py",
+        "size": 58931,
+        "sha256": "26a1cab3d387c5afb79fc7c041a7f0e333cafca708283b05ce65c2b2efb08610"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_wrap.cpp",
+        "size": 20377289,
+        "sha256": "5b985c12976a406ae3ebe0084693cace584615b69cd4f2d48af57ff5995a031b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/ctp_wrap.h",
+        "size": 26614,
+        "sha256": "841ed9d7a8270c9605278b11b9f35983ae779165e85d375e25aa6f727c79b2c2"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/iconv.h",
+        "size": 386,
+        "sha256": "eaec7794bbf24b3d3d697f4f67f6d1d3077e80e79cdcd6b325f965d737118f15"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.dll",
+        "size": 3044352,
+        "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Headers",
+        "size": 24,
+        "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Resources",
+        "size": 26,
+        "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+        "size": 6558,
+        "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+        "size": 1342,
+        "sha256": "c3593adece4c7bb3e5da74622aa2ae9afbc5f8b82c3f8ad283bae112c9ca6847"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+        "size": 3047,
+        "sha256": "4c19e9071d5b4c90b4dea5e4321b0af1a94a2b09005ef0f4f5e0667cfc65ef45"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+        "size": 7777840,
+        "sha256": "ff5ac3928a131b24973b9900efa1175410e5db57b9d64c937e07ae553150f1bf"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current",
+        "size": 1,
+        "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se",
+        "size": 34,
+        "sha256": "e225b3ab33ad76e76960ec22cc9ce14331f893388334eea6578bcc504e63dd31"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.dll",
+        "size": 3428864,
+        "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Headers",
+        "size": 24,
+        "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Resources",
+        "size": 26,
+        "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+        "size": 51238,
+        "sha256": "2713e7a2e1fdf689013d7e2627c5e1f516823c17424436f64b056ef1cedfd484"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+        "size": 288713,
+        "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+        "size": 348447,
+        "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+        "size": 1342,
+        "sha256": "60a4f438c90bb01a7c5452d5dc0b56bd8cd483beec9e33eec7b6b41dc95c9a7c"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+        "size": 3051,
+        "sha256": "1bc4179f14541394a1b6495448e2f5d4ec0c4dc295e8734a55dbec877192fba3"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+        "size": 8701376,
+        "sha256": "e22611e2b844c0eeefe1df85f9c7008d6931c37c13ef10f68db73efb5e0d4be7"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current",
+        "size": 1,
+        "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se",
+        "size": 34,
+        "sha256": "1b0fa34014a60260ef7d1d72d029e71f2ec0006125bef5946d16076ac4028f22"
+      },
+      {
+        "path": "src/bt_api_ctp/ctp_env_selector.py",
+        "size": 20558,
+        "sha256": "90206295d274cf262fdc834b2b53da8d02bf1fa5c0c0c15f2905fe4c78a6f07c"
+      },
+      {
+        "path": "src/bt_api_ctp/errors/__init__.py",
+        "size": 139,
+        "sha256": "ba6534a03933bfd3e457b2de2b352153ffa29a10bba577bbf6efb64d2bc541ed"
+      },
+      {
+        "path": "src/bt_api_ctp/errors/ctp_translator.py",
+        "size": 190,
+        "sha256": "727f996de87f1cd9b1f719a0fc432f4a7fe4a352994361dbd41b5378a60523f9"
+      },
+      {
+        "path": "src/bt_api_ctp/exchange_data.py",
+        "size": 832,
+        "sha256": "fdad9316984f1ed007a3a270866ffc894e9ec9b40dfb7f69e809550b10f0fa3a"
+      },
+      {
+        "path": "src/bt_api_ctp/feeds/__init__.py",
+        "size": 377,
+        "sha256": "2f0c8fc417d8cb0436c6a562b60acdc881f40fd96c0896d59249aeccc5d8680d"
+      },
+      {
+        "path": "src/bt_api_ctp/feeds/base_stream.py",
+        "size": 2445,
+        "sha256": "93b2f327f59803103423f252aa9b03ede0f93e5360eda2439f9c10412d6ea459"
+      },
+      {
+        "path": "src/bt_api_ctp/feeds/live_ctp_feed.py",
+        "size": 90589,
+        "sha256": "279b60a77b4c71556c6acf7d4a02402dd3e66e0d090090bb2e08d5f15c6d8847"
+      },
+      {
+        "path": "src/bt_api_ctp/gateway/__init__.py",
+        "size": 131,
+        "sha256": "8e0e610de253925d53ebc12c22b509af73719bb04ac9787ed91d70a876ea10af"
+      },
+      {
+        "path": "src/bt_api_ctp/gateway/adapter.py",
+        "size": 43347,
+        "sha256": "02b358c7ee339ba5d2bb1cfa6e8e45cb0a874f5240ba30cee97d8da915b069bf"
+      },
+      {
+        "path": "src/bt_api_ctp/instrument.py",
+        "size": 16189,
+        "sha256": "5137651d992d6150fa8a12f4748e2beb7895781bb521c74be0c8cd5565343d9b"
+      },
+      {
+        "path": "src/bt_api_ctp/md_identity.py",
+        "size": 3992,
+        "sha256": "87f6f76d6eca7338981b1b9a32356eada52e92f7ea43405e0d552c409c392481"
+      },
+      {
+        "path": "src/bt_api_ctp/order_action.py",
+        "size": 1884,
+        "sha256": "be9b260df84e76c2915522d8aa6e3288facb6971d4229b67aca7f6cc0bbf8b17"
+      },
+      {
+        "path": "src/bt_api_ctp/plugin.py",
+        "size": 2766,
+        "sha256": "8d51cf8a63a29b687fdd07a294ae107ff471a1ceda76371d52bff1b9ca015d07"
+      },
+      {
+        "path": "src/bt_api_ctp/query.py",
+        "size": 12037,
+        "sha256": "b045f03c71b7c9d0c4c50e47a9f04049904f11c4a4eaaa20325af0265b228df9"
+      }
+    ]
+  },
+  "constraints": [
+    "No D:\\bt_api_py source/import",
+    "No private config",
+    "No native CTP import",
+    "No real provider/account/network",
+    "SOURCE-ONLY Python package origins only"
+  ]
+}

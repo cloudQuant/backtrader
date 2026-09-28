@@ -1,0 +1,179 @@
+{
+  "status": "FAKE_INERT_DIAGNOSTIC; G1 CLOSED",
+  "python": "C:\\anaconda3\\python.exe",
+  "api_returns": {
+    "terminate_null": {
+      "return": false,
+      "last_error": 6,
+      "elapsed_ns": 15000
+    },
+    "terminate_invalid_nonnull": {
+      "return": false,
+      "last_error": 6,
+      "elapsed_ns": 2200
+    },
+    "query_null_current_job": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 20900,
+      "active": 2,
+      "total": 2,
+      "bytes": 48
+    },
+    "query_invalid_nonnull": {
+      "return": false,
+      "last_error": 6,
+      "elapsed_ns": 2500,
+      "active": null,
+      "total": null,
+      "bytes": 0
+    },
+    "query_terminate_only_handle": {
+      "duplicate_return": true,
+      "duplicate_error": 0,
+      "return": false,
+      "last_error": 5,
+      "elapsed_ns": 2700,
+      "active": null,
+      "total": null,
+      "bytes": 0
+    },
+    "query_valid_empty_job": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 2600,
+      "active": 0,
+      "total": 0,
+      "bytes": 48
+    },
+    "job_control_close_first": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 4800
+    },
+    "job_control_close_repeat": {
+      "return": false,
+      "last_error": 6,
+      "elapsed_ns": 1400
+    },
+    "assign_inert_child": {
+      "return": true,
+      "last_error": 0,
+      "pid": 43368,
+      "test_pid": 12264
+    },
+    "query_active_job": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 9200,
+      "active": 1,
+      "total": 1,
+      "bytes": 48
+    },
+    "terminate_valid_job": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 11900
+    },
+    "process_wait": 0,
+    "query_empty_after_terminate": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 14100,
+      "active": 0,
+      "total": 1,
+      "bytes": 48
+    },
+    "pipe_close_first": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 6300
+    },
+    "pipe_close_repeat": {
+      "return": false,
+      "last_error": 6,
+      "elapsed_ns": 1500
+    },
+    "pipe_read_close": {
+      "return": true,
+      "last_error": 0,
+      "elapsed_ns": 4800
+    }
+  },
+  "wrapper_stalls": [
+    {
+      "operation": "terminate",
+      "classification": "user-mode wrapper sleep; target API not reached",
+      "marker": "WRAPPER_ENTERED:234394261781600:0\n",
+      "api_reached": false,
+      "api_returned": false,
+      "target_handle_valid_at_wrapper_entry": false,
+      "injected_wrapper_stall_ms": 100,
+      "wrapper_elapsed_to_outer_terminate_call_ns": 104038500,
+      "outer_job_active_before": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 25800,
+        "active": 2,
+        "total": 2,
+        "bytes": 48
+      },
+      "outer_terminate": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 25300
+      },
+      "wait_result": 0,
+      "outer_job_active_after": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 19100,
+        "active": 0,
+        "total": 2,
+        "bytes": 48
+      },
+      "child_exit_code": 59899
+    },
+    {
+      "operation": "channel-close",
+      "classification": "user-mode wrapper sleep; target API not reached",
+      "marker": "WRAPPER_ENTERED:234394521158200:1\n",
+      "api_reached": false,
+      "api_returned": false,
+      "target_handle_valid_at_wrapper_entry": true,
+      "injected_wrapper_stall_ms": 100,
+      "wrapper_elapsed_to_outer_terminate_call_ns": 104928100,
+      "outer_job_active_before": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 27700,
+        "active": 2,
+        "total": 2,
+        "bytes": 48
+      },
+      "outer_terminate": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 29700
+      },
+      "wait_result": 0,
+      "outer_job_active_after": {
+        "return": true,
+        "last_error": 0,
+        "elapsed_ns": 19500,
+        "active": 0,
+        "total": 2,
+        "bytes": 48
+      },
+      "child_exit_code": 59899
+    }
+  ],
+  "interpretation": [
+    "Invalid/restricted handle probes record actual kernel32 BOOL/last-error results.",
+    "Valid job probe records actual nonzero then zero Job query around successful TerminateJobObject on a disposable Python sleeper.",
+    "Wrapper stall children sleep in user mode before calling the target API; outer Job termination kills them before API_REACHED.",
+    "No true kernel/API hang was injected; P14 hang and hard whole-command deadline remain unproved.",
+    "No CTP/native/provider, network, credential, private config, account, or default route was used."
+  ]
+}
+RESULT_FILE=D:\temp\iteration41-g1-r10-p14-channel-faults-independent-qa-20260927\p14_channel_faults_reprobe.json

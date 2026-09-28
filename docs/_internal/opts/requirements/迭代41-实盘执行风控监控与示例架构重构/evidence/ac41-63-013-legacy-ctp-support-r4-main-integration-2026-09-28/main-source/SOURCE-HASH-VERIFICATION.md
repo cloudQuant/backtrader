@@ -1,0 +1,6 @@
+# Main tree source identity
+
+Main source hashes match the independently verified R4 candidate postimages.
+- `examples\013_1_midfreq_cross_arbitrage\ctp_example_support.py` — 560B5D60DF8BFDDDDABDCB8F6EB53468498328FA1E541B5323EBFFA4F968EBAC
+- `examples\013_2_highfreq_calendar_arbitrage\ctp_example_support.py` — 675A5E3315559C90A1D7E39AC7D3E1ED2F9555E4A27F6C8A9F5DB0D8196D40A9
+- `tests\unit\test_iteration41_legacy_ctp_support_inert_import.py` — 3832B447E9606BC00D75316B0BCF29FAF87404969B9DAB520784BAE209D45069

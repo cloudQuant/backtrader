@@ -1,7 +1,9 @@
 .env
 reports/
 __pycache__/
-runtime/
+/runtime/*
+!/runtime/.gitignore
+!/runtime/config.example.yaml
 *.orders.jsonl
 *.lock
 *.receipt.json

@@ -1,0 +1,12 @@
+{
+  "package_key": "execution",
+  "distribution": "bt_api_execution",
+  "version": "0.2.0",
+  "source_root": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927\\src",
+  "project_file": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927\\pyproject.toml",
+  "project_sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+  "source_file_count": 14,
+  "source_tree_sha256": "4cf3d09272a74c73a3d92ff9f41be7b3a6770432e3e77f036b3b09bd93c03b97",
+  "metadata_sha256": "a3083a5a283fcc2bed177c63f96b34fe429ae2a95ac16808a22714c69a3cbcd4",
+  "classification": "SOURCE-ONLY metadata; no wheel built or installed"
+}

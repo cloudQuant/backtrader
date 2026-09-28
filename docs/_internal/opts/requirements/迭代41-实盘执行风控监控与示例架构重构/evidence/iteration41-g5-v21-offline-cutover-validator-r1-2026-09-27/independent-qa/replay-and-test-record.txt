@@ -1,0 +1,39 @@
+Frozen-source replay record
+candidate_root=D:\temp\iteration41-g5-v21-offline-cutover-validator-r1-20260927
+qa_root=D:\temp\iteration41-g5-v21-offline-cutover-validator-r1-independent-qa-20260927
+base_payload_directory=D:\temp\iteration41-g5-v21-offline-cutover-validator-r0-20260927
+base_manifest=CANDIDATE-MANIFEST-final.json
+base_manifest_sha256=9252f88150efafe055dbaf4a134bfa056a651150d785b8cc1c2490669a60f2df
+r1_manifest_declared_r0_git_commit=213574e
+actual_r0_repo_head=103facd
+r1_declared_commit_resolution=not present in that repository object database (git cat-file exit 128)
+
+Exact replay commands (executed from the QA root):
+git -C <qa-root> -c core.autocrlf=false apply --check <qa-root>\r1.patch
+git -C <qa-root> -c core.autocrlf=false apply <qa-root>\r1.patch
+Both returned exit code 0. The QA root was initialized with only the four r0 source preimages named below.
+
+Four r0 preimage SHA256 values matched r1 manifest exactly before applying:
+src/offline_cutover_validator.py 2760a43ede16b8bfc680a75ce16f4c83c5a75fad42db27729fdf3beaba86a4bf
+tests/test_offline_cutover_validator.py 7515ab2e78d61aaf15dd918e240e324d43ef7784d540825e10a231f7067ddddc
+docs/CANDIDATE.md 62f0d33cc88295ba623073a4993e88de5dc561497338413d6cc7ec17981a6428
+docs/LIMITATIONS.md e4323bd0221e01786b3abfd3103fb1d8392d62f3bebbb51474e97cb40305754d
+
+Post-apply SHA256 values exactly equal r1 manifest target/replay_sha256:
+src/offline_cutover_validator.py ce13d2ca96c028e7bbe304082ef693d28caaf89fc65ad3086a0074584285b95a
+tests/test_offline_cutover_validator.py 1a49521e7387de6a0ed634685ef0c94c683255cc6bc5e12da7b7630bdc2b61bd
+docs/CANDIDATE.md a21998d6c73ec42db5ebcf86ffa45c36c0d1f11677de9402c993006b1d4b2b6d
+docs/LIMITATIONS.md ea7404497a6bf7c7804346ac14d832a14926e68a85effc6b32e9bbe00f87113f
+
+Independent full pytest command (PowerShell, QA root as current directory):
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'; $env:PYTHONDONTWRITEBYTECODE='1'; $env:PYTHONPATH='src'; D:\source_code\backtrader\.venv\Scripts\python.exe -B -m pytest -p no:asyncio -p no:cacheprovider tests/test_offline_cutover_validator.py -q --tb=short --junitxml=<qa-root>\independent.junit.xml
+result: 28 passed, 0 failed, 0 skipped, 0.48s, exit 0
+
+Adversarial subset exact node IDs:
+tests/test_offline_cutover_validator.py::test_state_mismatch_at_same_boundary_fails_closed
+tests/test_offline_cutover_validator.py::test_different_snapshot_boundaries_fail_closed
+tests/test_offline_cutover_validator.py::test_hostile_schema_comparison_is_not_invoked
+tests/test_offline_cutover_validator.py::test_malformed_row_callback_is_not_invoked_before_rejection
+tests/test_offline_cutover_validator.py::test_nonprimitive_row_field_is_rejected_without_comparison_callback
+PowerShell env: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; PYTHONDONTWRITEBYTECODE=1; PYTHONPATH=src; command uses `python -B -m pytest -p no:asyncio -p no:cacheprovider <five node IDs> -q --tb=short --junitxml=<qa-root>\adversarial.junit.xml`
+result: 5 passed, 0 failed, 0 skipped, 0.46s, exit 0

@@ -1,0 +1,12 @@
+Metadata-Version: 2.3
+Name: bt_api_risk
+Version: 0.1.0
+Summary: SOURCE-ONLY metadata for isolated Iteration 41 bridge tests; not installed
+X-Iteration41-Source-Only: true
+X-Iteration41-Source-Root: D:\temp\iteration41_risk_cancel_resolution_20260927\src
+X-Iteration41-Source-Tree-SHA256: 80e441cfa72ba8936bf8db0a557c3fc16497b538ef6e9a6806e09caa3cdf1373
+Requires-Dist: bt_api_base>=0.15.4,<0.16
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: typing-extensions>=4.8.0
+Requires-Dist: scikit-learn>=1.0.0

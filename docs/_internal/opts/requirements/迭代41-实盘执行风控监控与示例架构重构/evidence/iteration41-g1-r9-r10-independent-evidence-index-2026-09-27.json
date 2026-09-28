@@ -1,0 +1,45 @@
+{
+  "schema": "iteration41_g1_r9_r10_independent_evidence_index.v1",
+  "date": "2026-09-27",
+  "scope": "Windows local inert/fake-only; no CTP/provider/credentials/network/default route",
+  "disposition": "G1 CLOSED; R10 is async ticket prototype evidence only",
+  "r9_supplement": {
+    "directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r9-native-boundary-supplement-independent-qa-2026-09-27",
+    "raw_zip": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r9-native-boundary-supplement-independent-qa-2026-09-27\\iteration41-g1-r9-native-boundary-supplement-2026-09-27.raw.zip",
+    "sha256": "1749958a94b19a641745480b8f1b3ea5674b5150260b47707337ae2ea4d141c3",
+    "bytes": 759001,
+    "zip_members": 59,
+    "testzip": "passed",
+    "payload_count": 56,
+    "bundle_manifest_sha256": "4f81790db13aa06ed762184a0bbb9ea29dae4c3027f8c49c14d2c64a4a2f929d",
+    "bundle_receipt_sha256": "78497e006900348c7db46a5435833224ab8122eba0e6f1a5de5b2ac981043940",
+    "readme_sha256": "59e4e155dff92940280456719784e2728a652092325ba6a15b5a800d38e718d2",
+    "prior_qa_erratum_sha256": "1fe056fbbb1ec6bc1d022b7edb894e52a8f0d3fe009038c67482b7e85761ed9d",
+    "author_r9_archive": "iteration41-g1-r9-windows-inert-custodian-author-2026-09-27/r9_candidate_raw.zip",
+    "author_manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+    "note": "Old R9 independent QA files were not modified; provenance erratum is separate."
+  },
+  "r10_independent_qa": {
+    "directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-independent-qa-2026-09-27",
+    "raw_zip": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g1-r10-async-ticket-independent-qa-2026-09-27\\iteration41-g1-r10-independent-qa-2026-09-27.raw.zip",
+    "sha256": "1e980039f85f95b4f778fe4b568f95eb90a984f4d36582e89e2f4f8393164d24",
+    "bytes": 1655348,
+    "zip_members": 77,
+    "testzip": "passed",
+    "bundle_index_sha256": "b2a30e13f0c31c4673a07fc1d2df3e104eba694cf1936390436309ae9baba0f4",
+    "sha256sums_sha256": "4e01c9da6b0c35b8e6a14b00d5fa62aa9e25900b571298e39d2d23a0b878c101",
+    "report_sha256": "93eab18209b4d5a56971e09700fccd24415d28b045aee3fd9d7fa13ac04db2b7",
+    "receipt_sha256": "9c999578ca0b3bc7a1a74c8f3677c112f76b529a3936d0bd703e132af5863dd2",
+    "author_manifest_sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+    "payload_count": 23,
+    "independent_replay": "9/9 passed",
+    "late_intake_negative": "QA-only derivative accepted post-D SubmitTicket (0) at D+65ms; reaper UNKNOWN at D+81ms; child/outer Jobs emptied",
+    "status": "ASYNC_TICKET_PROTOTYPE_ONLY_G1_CLOSED",
+    "author_evidence": "iteration41-g1-r10-async-ticket-author-2026-09-27/AUTHOR_R10_EVIDENCE.md"
+  },
+  "validation": {
+    "r9_all_56_payload_hashes_match": true,
+    "r10_archive_index_and_sha256sums_verified": true,
+    "r10_all_23_author_payloads_match": true
+  }
+}

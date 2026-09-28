@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+"""VisualChart CSV Data Feed Module - VisualChart CSV parsing.
+
+This module provides the VChartCSVData feed for parsing VisualChart
+CSV exported files.
+
+Classes:
+    VChartCSVData: Parses VisualChart CSV format files.
+
+Example:
+    >>> data = bt.feeds.VChartCSVData(dataname='vchart.csv')
+    >>> cerebro.adddata(data)
+"""
+
+import datetime
+
+from .. import feed
+from ..dataseries import TimeFrame
+from ..utils import date2num
+
+
+# Process Visual Chart CSV files
+class VChartCSVData(feed.CSVDataBase):
+    """
+    Parses a `VisualChart <http://www.visualchart.com>`_ CSV exported file.
+
+    Specific parameters (or specific meaning):
+
+      - ``dataname``: The filename to parse or a file-like object
+    """
+
+    vctframes = {
+        "I": TimeFrame.Minutes,
+        "D": TimeFrame.Days,
+        "W": TimeFrame.Weeks,
+        "M": TimeFrame.Months,
+    }
+
+    def _loadline(self, linetokens):
+        itokens = iter(linetokens)
+
+        ticker = next(itokens)  # skip ticker name
+        if not self._name:
+            self._name = ticker
+
+        # day/intraday indication
+        timeframe = next(itokens)
+
+        self._timeframe = self.vctframes[timeframe]
+
+        dttxt = next(itokens)
+        y, m, d = int(dttxt[0:4]), int(dttxt[4:6]), int(dttxt[6:8])
+
+        tmtxt = next(itokens)
+        if timeframe == "I":
+            # use the provided time
+            hh, mmss = divmod(int(tmtxt), 10000)
+            mm, ss = divmod(mmss, 100)
+        else:
+            # put it at the end of the session parameter
+            hh = self.p.sessionend.hour
+            mm = self.p.sessionend.minute
+            ss = self.p.sessionend.second
+
+        dtnum = date2num(datetime.datetime(y, m, d, hh, mm, ss))
+
+        self.lines.datetime[0] = dtnum
+        self.lines.open[0] = float(next(itokens))
+        self.lines.high[0] = float(next(itokens))
+        self.lines.low[0] = float(next(itokens))
+        self.lines.close[0] = float(next(itokens))
+        self.lines.volume[0] = float(next(itokens))
+        self.lines.openinterest[0] = float(next(itokens))
+
+        return True
+
+
+class VChartCSV(feed.CSVFeedBase):
+    """VisualChart CSV feed class.
+
+    Wrapper class for VChartCSVData feed functionality.
+    """
+
+    DataCls = VChartCSVData

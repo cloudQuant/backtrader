@@ -1,0 +1,7 @@
+Independent Ruff on exact replay:
+python -m ruff check --no-cache src/bt_api_execution/store.py tests/_fake_native_action_ref_floor.py tests/test_ctp_dispatch_commands.py tests/test_ctp_callback_source_bridge.py tests/test_ctp_callback_session_router.py tests/test_g5_v21_actionref_contract.py
+Result: All checks passed!
+
+python -m ruff format --check tests/_fake_native_action_ref_floor.py tests/test_g5_v21_actionref_contract.py
+Result: 2 files already formatted
+

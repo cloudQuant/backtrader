@@ -12,26 +12,75 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 不能证明真实行情、成交、收益或 G3/G4。未在本机运行的 SimNow 项均应判为 `NOT_RUN`；
 缺少权威交易日历或上一完整 TradingDay 的全市场排名证据时应判为 `BLOCKED`。
 
-## 本机 SimNow 前置状态
+## Iteration 41：最简且受控的本地回放
 
-本目录的忽略文件 `.env` 已可保存 SimNow 的公开连接默认值（`CTP_BROKER_ID=9999`、
+从仓库根目录首次运行该本地 `simulation/replay` 路径时，用下面两条命令创建并执行它自己的启动配置：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/013_3_sa_midfreq_simnow/runtime
+bt-runtime run --strategy-dir examples/013_3_sa_midfreq_simnow/runtime
+```
+
+`bootstrap` 只在目标不存在时原子创建被忽略的 `runtime/config.yaml`；已有配置会以
+`CONFIG_EXISTS` 拒绝，绝不覆盖。`runtime/config.yaml` 是 schema-v4 的必填启动合同；缺失时
+`run` 会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、当前目录或父目录回退。
+
+首次建立配置始终使用上述 `bt-runtime bootstrap` 命令；受版本控制的 `runtime/config.example.yaml` 只供审阅，不能作为手工复制的启动替代。
+
+这个入口只接受 `simulation/replay` 和 `parameters.scenario`，报告固定标记
+`LOCAL_REPLAY_ONLY`。它不读取 `.env`、不使用 receipt、不进入 SimNow 路径，也不建立网络或
+写订单。下文所有根目录 `config.yaml` / `run.py` 流程都属于迭代 22 的历史 runner，不能得到
+Iteration 41 的受控运行。
+
+## Iteration 41：共用的 CTP 私有配置（当前为 SimNow 只读）
+
+CTP SimNow 只读预检专用的受保护配置是 `runtime-ctp-private/config.yaml`。它与上文 replay 路径的 `runtime/config.yaml` 属于不同登记 route，互不替代。该私有文件受本机权限保护、被该目录的
+`.gitignore` 精确忽略，使用规范的 `ctp:` 字段保存账号、合约、HedgeFlag 及明确填写的
+MD/TD 前置。当前受保护文件包含五组成对候选；最近一次无凭据 TCP 复查中，第 4 组（零基索引 3）的 MD/TD 各 3/3 次可达，其余四组各 0/3，详见[脱敏记录](../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-configured-front-check-2026-09-25.md)。此前文件和 probe 记录中的四候选数量属于历史快照。
+
+其后唯一一次 I11 受监督 MD-only 诊断以 `incomplete / native_join_pending` 结束：subscription ACK 已观察，但身份未验证，matching tick/TradingDay 未正证，native close 未通过；I11 marker 已消耗，不可重试。详见[I11 脱敏证据](../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-i11-md-diagnostic-2026-09-25.md)。TCP 可达不等于登录、交易或结算验收；维持 `NO_WRITE / LIVE_NO_GO`。其后唯一 I12 TD-only 受监督尝试在 `sdk_artifact` 以 `runtime_policy_rejected` 结束并消耗独立 marker；离线源码复核发现与该阶段相吻合的 Mapping/`CtpConfiguredFrontPair` 类型缺陷候选；原始 child exception 未保留，故真实运行的唯一根因未被最终证明。 login 未观察、query 未验证、close 未尝试且不可重试；详见[I12 脱敏证据](../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-i12-td-only-diagnostic-2026-09-25.md)。
+`runtime.mode: simulation`、`runtime.preset: sandbox`。运行时只读取这份 `config.yaml`，
+不会自行读取 `.env`，不会按 set 名称、时间或日历选择地址。多组配置会先做有界、
+无凭据的 TCP 探测，只在配置的地址对中选择测得最快且可达的一组；探测不证明登录成功。
+此前置对一旦选定，后续登录失败也不会在同次会话中换地址。
+
+首次创建此私有配置时，可从受保护的 `.env`、规范 `ctp:` YAML，或符合准备器约束的两个来源显式准备。准备命令只创建新文件，不能更新或覆盖已有文件。后续更新当前 SimNow 的账号、前置或合约时，直接编辑**同一份受保护的** `runtime-ctp-private/config.yaml`。未来 SimNow 与 production 沿用同一 CTP 执行 runner；production 仅在共享 runner 的 live dispatch 和 production-specific admission 实现并独立验收后，才通过编辑这同一文件的 `runtime.mode`/`runtime.preset` 与账号、认证、前置、合约字段切换。当前改 mode/preset 仍不会开启 production，也不得创建第二份配置。完成编辑后，`doctor` 是可选的离线检查；`check-ctp-fronts` 只检查配置候选的 MD/TD TCP 连通性，既不登录也不消耗一次性原生诊断标记。`preflight` 普通 CLI 路径当前已 fail-closed/不可运行：SDK native start/stop/Join/Release 可能在 CLI 进程内无界等待；在有总期限的 Windows Job supervisor 实现并独立验收前，不得启动该 provider 路径。I11 的历史受监督诊断不解锁普通 CLI。原因与未证实的 vendor 生命周期合同见[源码审查](../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-native-join-source-review-2026-09-25.md)。
+
+```powershell
+bt-runtime prepare-ctp-config --source-env "C:\private\owner-only.env"
+# 可选：配置变更后做离线校验，不连接 provider
+bt-runtime doctor --strategy-dir examples/013_3_sa_midfreq_simnow/runtime-ctp-private
+# 可选：仅对 config.yaml 中的地址做有界无凭据 TCP 检查
+bt-runtime check-ctp-fronts --strategy-dir examples/013_3_sa_midfreq_simnow/runtime-ctp-private
+# 当前已关闭：普通 CLI preflight fail-closes，等待有总期限的 Windows Job supervisor 与独立验收
+# bt-runtime preflight --strategy-dir examples/013_3_sa_midfreq_simnow/runtime-ctp-private
+```
+
+准备器检查来源权限与字段冲突、不覆盖配置且不授予运行权限；示例 env 路径仅为占位，不要把凭据放入命令、文档或 Git。前置 TCP 可达仅说明传输层，不能替代 CTP 登录、订单或结算验收。默认只登记 sandbox 私有只读 route（`sandbox_write_policy=deny`），没有写入运行器。
+
+I2 只读验收仍失败：TD 七项只读 query 完成但 native Join 关闭不完整；独立 MD-only 的一个登录回调因零 request ID 被判为 `request_id_mismatch`，登录超时、Join pending，且无 subscription ACK/tick。CTP SDK I3 one-shot 仅为未 build/pin/provider 验收的隔离候选，不改变 I2 当前状态；详见[验证汇总](../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/validation-summary-2026-09-24.md)。
+当前保持 `NO_WRITE / LIVE_NO_GO`，默认 live route fail closed。未来 production 沿用**同一受保护文件、同一 `ctp:` 字段和同一 CTP 执行 runner**；runner 内的 production-specific live admission、生产审批、制品与风险控制须另行实现并独立验收，单独修改配置不会开启生产交易，生产审批与 SimNow 审批仍须分别签发和核验。
+
+## 迭代 22 历史 SimNow 前置状态（不属于 Iteration 41）
+
+以下 `.env` 内容是 2026-09-10 前后 Iteration 22 的历史快照，不描述上方当前 Iteration 41 受保护配置。本目录当时的忽略文件 `.env` 可保存 SimNow 的公开连接默认值（`CTP_BROKER_ID=9999`、
 `CTP_APP_ID=simnow_client_test`、`CTP_AUTH_CODE=0000000000000000` 和第一套 profile），但
-`CTP_USER_ID` 与 `CTP_PASSWORD` 仍为空。它们只能由已在 SimNow 注册、激活后的账户提供；不能
+在该历史快照中，`CTP_USER_ID` 与 `CTP_PASSWORD` 为空。它们只能由已在 SimNow 注册、激活后的账户提供；不能
 从仓库根目录的交易所 API `.env` 推断或复制。新机器可从 `.env.example` 建立本地 `.env`，
 该文件同样不应提交。
 
-当前 checkout 的 `config.yaml` 引用了忽略的
-`state/iter22-czce-2026-calendar-20260910.json`，但该 artifact 并不随仓库分发且本机不存在。
-因此，在补入**当前、可追溯、SHA-256 一致**的 CZCE 交易日历（以及自动选约所需的上一完整
+该 Iteration 22 历史 checkout 快照中的 `config.yaml` 引用了忽略的
+`state/iter22-czce-2026-calendar-20260910.json`，但该 artifact 并不随仓库分发且在当时本机不存在。
+因此，该历史流程需补入**当次验收可追溯、SHA-256 一致**的 CZCE 交易日历（以及自动选约所需的上一完整
 TradingDay 排名证据，或重新审核的手工冻结合约配置）之前，网络预检会按设计失败关闭。不得
 用过期文件、自然日推算或手工修改 hash 绕过此门槛。
 
 自动选约的日历必须覆盖**全部 eligible SA 合约的 `ExpireDate`**，而不是只覆盖启动当月或
-2026 年；当前候选范围可能延伸到 2027。因此即使取得一份完整的 2026 日历，它也不一定足以
+2026 年；该历史候选范围当时可能延伸到 2027。因此即使取得一份完整的 2026 日历，它也不一定足以
 解除 auto 模式。没有交易所或期货公司提供的可审计逐日原件时，不能用“周一至周五减节假日”自行
 合成 artifact；可改走经审核的手工冻结合约路径，但该 artifact 仍须覆盖该合约的到期日。
 
-即使凭据和日历已齐全，`natural_signal` 目前仍不能写入订单：候选研究状态是
+即使当时凭据和日历已齐全，`natural_signal` 在该历史快照中仍不能写入订单：候选研究状态是
 `RESEARCH_NOT_ESTABLISHED`，尚没有其所需的研究准入、G1/G2/G3 通过事实、短时有效且身份绑定的
 admission receipt。下面的流程可以完成 replay、只读预检和影子观察；它不会伪造这些外部证据，
 也不会把策略变成无条件下单程序。
@@ -72,20 +121,23 @@ SimNow 模式、非 preflight、非 prepare、且 receipt 已通过校验时，r
 （只允许 API 或上述无写策略工程证据）、
 缺失费用/保证金/账户身份、成功但空或多行账户查询都会失败关闭。
 
-## SimNow 与期货公司生产 CTP 的隔离
+## 迭代 22 的 SimNow 与期货公司生产 CTP 隔离（历史资料）
 
 `ctp-deployment-profiles.example.yaml` 和
-`env.broker-production.NOT-SUPPORTED.example` 是未来生产接入的**分隔模板**，不是可执行配置。
-当前 runner 只识别 `config.yaml` 中冻结的 SimNow profiles；生产前置、生产 front 或把生产字段写进
-SimNow `.env` 都会在建连/下单前失败关闭。换成期货公司的账号将来可以复用策略逻辑和 CTP 抽象，
-但不能复用 SimNow 的账号、state、evidence、approval key 或 receipt，也不能把“改几个环境变量”
-视为生产准入。
+`env.broker-production.NOT-SUPPORTED.example` 是 Iteration 22 的历史迁移参考，
+不是 Iteration 41 的操作配置，也不是可执行的生产接入模板。旧 runner 只识别其冻结的
+SimNow profiles；这不定义 Iteration 41 的操作合同。
+Iteration 41 的目标是未来由同一 CTP 执行 runner 在同一受保护的
+`runtime-ctp-private/config.yaml` 中按 `runtime.mode/preset` 选择模式，并替换 `ctp:` 的账号、认证、前置和合约字段，无需创建第二份运行配置。共享 runner 的 live dispatch 与 production-specific admission 当前均未接入默认 registry，单改 mode/preset 或参数不会开启交易。SimNow 的 state、evidence、
+approval key 或 receipt 不能复用于生产；当前默认 live 路由仍关闭。
 
-未来生产实现至少需要单独评审并验收：期货公司签发的 TD/MD front、broker/native 身份，独立的
-账户风险上限和 durable journal，生产专用 approval trust root，以及预检、恢复和两轮对账。
-在这些实现和证据存在之前，请只按本 README 的 SimNow pilot 流程操作。
+production-specific live admission 仍须独立评审和验收：期货公司签发的 TD/MD front、broker/native 身份，独立的账户风险上限和 durable journal、生产专用 approval trust root，以及预检、恢复和两轮对账。这些是同一 runner 的模式特定准入条件，不是第二套 runner。在这些准入与证据通过前，`doctor` 仅做离线检查，`check-ctp-fronts` 只提供无凭据 TCP 可达性证据；普通 CLI `preflight`、live dispatch 和写入仍 fail closed。旧 pilot 命令不能代替本迭代的交易验收。
 
-## 快速运行
+## 迭代 22 历史 runner（不属于 Iteration 41 受控入口）
+
+以下命令保留为迭代 22 的审计和运维资料。它们直接调用旧 `run.py`，不加载
+`runtime/config.yaml` 的 schema-v4 合同，不能用来声明 Iteration 41 的受控运行。
+本节后续复制仓库内 `.env` 并填写账号密码、选择旧 profile 或运行旧网络命令的步骤也都是历史流程，不能用于当前 I2。当前只读 CTP 配置仍是上文受保护的 `runtime-ctp-private/config.yaml`；但普通 CLI `preflight` 已 fail-closed，只有有总期限的 Windows Job supervisor 实现并独立验收后才可重新评估。此前 I2/I11 观察保留为历史，不授权重试或普通 CLI 运行。
 
 所有 Python 命令使用 Anaconda base 环境：
 
@@ -147,7 +199,7 @@ python .\examples\013_3_sa_midfreq_simnow\operator_readiness.py `
   --output .\examples\013_3_sa_midfreq_simnow\reports\operator-readiness.json --strict
 ```
 
-当前 checkout 预计会以退出码 `2` 报出 `simnow_credentials_missing` 和/或
+该 Iteration 22 历史 checkout 当时预计会以退出码 `2` 报出 `simnow_credentials_missing` 和/或
 `calendar_artifact_unavailable`；这是有用的本地前置清单，不是程序故障。修正后再运行一次，直到
 `simnow_static.ready=true`。报告中的 `simnow_natural_signal.ready` 将始终为 `false`，因为离线工具
 不能替代 live G1/G2/G3、账户绑定和签名 receipt 的验收。
@@ -321,11 +373,11 @@ CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或
 历史上（2026-09-10）第一套 `shadow --preflight-only` 在会话和受控查询完成后明确返回
 `BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。2026-09-12（迭代26 T2）已把
 受控日历 artifact 的路径和预期 hash 接线进 `config.yaml`；但 artifact 本身是忽略的本地
-证据文件，本 checkout 当前没有它，因此门禁仍处于 fail-closed 状态。日历补齐后，如仍缺上一完整
+证据文件；该 Iteration 22 历史 checkout 当时没有它，因此门禁处于 fail-closed 状态。日历补齐后，如仍缺上一完整
 TradingDay 的全市场排名证据，自动选择将继续以
 `BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
 
-配置当前期望 `state/iter22-czce-2026-calendar-20260910.json` 的 SHA-256 为
+该历史 Iteration 22 配置当时期望 `state/iter22-czce-2026-calendar-20260910.json` 的 SHA-256 为
 `2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7`；该值不是让操作者
 伪造历史 artifact 的指令。应提供适用于本次 TradingDay 的权威日历，并同时更新审核过的 config
 和 hash。自动选择要求日历覆盖**每一个** eligible SA 的到期日；若当期 eligible 集合延伸到日历
@@ -538,3 +590,19 @@ python examples/013_3_sa_midfreq_simnow/run.py --mode replay --scenario no_signa
 经过单独审批、receipt 和真实时段资格验证的 `simnow` 入口才可能请求写入。每次运行应保存
 `manifest.json`、`daily_report.json`、TradeLogger 输出和配置/组件哈希；`LOCAL_REPLAY_PASS`
 仅证明本地回放，不证明实际成交、PnL、经济性或 G3/G4 通过。
+
+## Iteration 41 runtime 合同细节
+
+本 README 开头的 `bootstrap` 与 `run` 是本示例 `simulation/replay` 的唯一 Iteration 41 用户入口；CTP sandbox 只读 route 是另一条登记 route，但普通 `bt-runtime preflight` 因缺少硬进程监督而关闭。以下说明它与
+迭代 22 根目录 runner 和配置的边界。
+
+`bootstrap` 只会首次创建被忽略的 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置必须使用上述 `bt-runtime bootstrap` 命令，避免手工复制到错误目录。该 runtime 配置与本目录原有根 `config.yaml` 的冻结 fixture 参数是两个独立文件；模板不是运行时
+回退来源。
+
+`runtime/config.yaml` 是必填的 schema-v4 启动合同；缺失时会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、当前目录或
+父目录回退读取。
+
+该入口只接受 `simulation/replay` 和唯一的 `parameters.scenario`；没有 CLI 模式、审批、账户、凭据或输出目录覆盖项。它先校验代码拥有的运行时目录和 v4 配置，随后才读取原有根目录 `config.yaml` 作为冻结的本地 fixture 参数，并在内存中将旧的 `shadow` 默认值固定为 `replay`。它不读取 `.env`、不使用 receipt，也不进入 SimNow 路径；证据仅写在被忽略的 `runtime/reports/`。
+
+输出始终标记 `LOCAL_REPLAY_ONLY`、`RESEARCH_NOT_ESTABLISHED` 和
+`INDEPENDENT_SIMNOW_ADMISSION_REQUIRED`。因此本地 fixture 的通过不能替代 SimNow 的独立准入、真实行情/账户/成交/费用/PnL 或研究结论。

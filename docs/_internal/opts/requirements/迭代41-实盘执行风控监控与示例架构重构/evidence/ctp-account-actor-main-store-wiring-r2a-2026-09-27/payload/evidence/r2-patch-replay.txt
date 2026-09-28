@@ -1,0 +1,8 @@
+warning: in the working copy of 'backtrader/stores/btapistore.py', LF will be replaced by CRLF the next time Git touches it
+patch_sha256=6e8575874cefeab4c693f6fedd5f3fc89dcec935005f5ad3a0d64f0e1284f90f
+core.autocrlf=false scratch=C:\Users\yunji\AppData\Local\Temp\iter41-r2-apply-false-6ri_i3v9
+  {"backtrader/stores/btapistore.py": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8", "backtrader/stores/ctp_account_actor_port.py": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3", "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py": "04968d98ae476d4b9ec33d448be11d19e0ffc9adb79585f423b37b37b759154f"}
+core.autocrlf=true scratch=C:\Users\yunji\AppData\Local\Temp\iter41-r2-apply-true-m0t5o61a
+  {"backtrader/stores/btapistore.py": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8", "backtrader/stores/ctp_account_actor_port.py": "efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846", "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py": "00a59dc78f4dbac9a08139706ffb3561a0197aea6b5800b5feb4113a751c17b8"}
+  NOTE: core.autocrlf=true changed bytes; inspect separately
+PATCH_APPLY_CHECK_PASS

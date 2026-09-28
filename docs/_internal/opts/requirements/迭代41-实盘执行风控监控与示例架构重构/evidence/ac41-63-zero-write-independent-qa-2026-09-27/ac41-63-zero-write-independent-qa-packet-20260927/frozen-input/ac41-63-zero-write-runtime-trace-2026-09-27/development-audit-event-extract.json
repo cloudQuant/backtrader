@@ -1,0 +1,51 @@
+{
+  "schema_version": "iteration41.zero-write-development-audit-events.v1",
+  "evidence_class": "NON_FINAL_DEVELOPMENT_DIAGNOSTICS",
+  "note": "Sanitized event extracts captured while refining the isolated probe. These are not the final trace, are not a single composable run, and do not establish AC41-63 acceptance. The final frozen run is probe.stdout.jsonl.",
+  "observations": [
+    {
+      "capture": "default_import_diagnostic",
+      "event": "socket.gethostname",
+      "count": 2,
+      "caller_module": "not_recorded",
+      "caller_function": "_node",
+      "caller_line": 590,
+      "argument_types": [],
+      "classification": "LOCAL_HOST_IDENTITY_QUERY_NO_NETWORK_IO"
+    },
+    {
+      "capture": "default_import_diagnostic",
+      "event": "open",
+      "count": 2,
+      "device": "windows_null_device",
+      "caller_module": "not_recorded",
+      "caller_function": "_get_devnull",
+      "caller_line": 1137,
+      "mode": null,
+      "flags": 130,
+      "flag_components": ["O_RDWR=2", "O_NOINHERIT=128"],
+      "argument_types": ["str", "NoneType", "int"],
+      "classification": "NON_PERSISTENT_NULL_SINK_OPEN"
+    },
+    {
+      "capture": "default_import_before_platform_stub",
+      "event": "subprocess.Popen",
+      "count": 2,
+      "caller_module": "platform",
+      "caller_function": "_syscmd_ver",
+      "argument_types": ["str", "str", "NoneType", "NoneType"],
+      "blocked_before_process_creation": true,
+      "classification": "LOCAL_OS_VERSION_PROCESS_ATTEMPT_BLOCKED"
+    },
+    {
+      "capture": "default_import_after_platform_stub",
+      "event": "subprocess.Popen",
+      "count": 1,
+      "caller_module": "numpy.testing._private.utils",
+      "caller_function": "check_support_sve",
+      "argument_types": ["NoneType", "str", "NoneType", "NoneType"],
+      "blocked_before_process_creation": true,
+      "classification": "OPTIONAL_NUMPY_CPU_PROBE_PROCESS_ATTEMPT_BLOCKED"
+    }
+  ]
+}

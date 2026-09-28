@@ -1,0 +1,148 @@
+{
+  "schema": "iteration41.g1.r9.windows_inert_custodian_independent_qa.v1",
+  "classification": "INERT_WINDOWS_REBUILD_REPLAY_NEGATIVE_EVIDENCE_ONLY_G1_CLOSED",
+  "candidate_manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+  "author_zip_sha256": "2055fb8329a06d80abe8fc52ae2d2fec25674686300defe96192faf3a4e44f3a",
+  "author_index_sha256": "1957b0bdc47c26903de96eed6a8c08bb4d25613d56d495de2c3add2198852665",
+  "author_zip_testzip": "passed",
+  "author_index_entries_verified": 19,
+  "manifest_payloads_verified": 15,
+  "isolated_copy": "D:\\temp\\iteration41-g1-r9-independent-qa-20260927\\frozen-copy",
+  "platform": {
+    "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "system": "Windows-10-10.0.26100-SP0",
+    "windows_version": [
+      10,
+      0,
+      26200,
+      2,
+      ""
+    ]
+  },
+  "rebuild": {
+    "exe_exists": true,
+    "exe_sha256": "b5b8fb4df22110f9afb3c059c0caa8ba21038f2ee5d442bbc4f74435c3d83204",
+    "exit_code": 0,
+    "output": "r9_custodian.cpp\r\n"
+  },
+  "source_prepost": {
+    "indexed_file_count": 19,
+    "unchanged": 10,
+    "changed_generated_or_receipt_outputs": 9,
+    "source_code_inputs_unchanged": [
+      "r9_custodian.cpp",
+      "run_r9_trials.py",
+      "r9_sacrificial_popen.py"
+    ]
+  },
+  "replay": {
+    "harness_exit_code": 0,
+    "checks_passed": 6,
+    "checks_total": 9,
+    "failed_checks": [
+      "P05_caller_returns_UNKNOWN_by_D_with_pending_broker_IO",
+      "Popen_block_before_child_is_fenced_inside_prestarted_worker_Job",
+      "Popen_child_created_before_outer_call_returns_is_fenced_by_Job"
+    ],
+    "deadline_trials": {
+      "p05": {
+        "request_start_tick_ms": 224356140,
+        "deadline_tick_ms": 224357340,
+        "caller_api_return_tick_ms": 224357343,
+        "caller_return_lateness_ms": 3,
+        "caller_api_return_by_D": false,
+        "status": "CALLER_RETURN_LATE",
+        "helper_stage": null
+      },
+      "popen-before": {
+        "request_start_tick_ms": null,
+        "deadline_tick_ms": 224360996,
+        "caller_api_return_tick_ms": 224361000,
+        "caller_return_lateness_ms": 4,
+        "caller_api_return_by_D": false,
+        "status": "CALLER_RETURN_LATE",
+        "helper_stage": 1
+      },
+      "popen-after": {
+        "request_start_tick_ms": null,
+        "deadline_tick_ms": 224362621,
+        "caller_api_return_tick_ms": 224362625,
+        "caller_return_lateness_ms": 4,
+        "caller_api_return_by_D": false,
+        "status": "CALLER_RETURN_LATE",
+        "helper_stage": 3
+      }
+    }
+  },
+  "caller_death": {
+    "request_start_tick_ms": 224358015,
+    "deadline_tick_ms": 224359215,
+    "caller_killed": true,
+    "caller_terminal_event": "process-death",
+    "caller_api_returned": false,
+    "writer_pending_at_caller_terminal_event": true,
+    "writer_error": 995,
+    "writer_completion_tick_ms": 224359328,
+    "caller_dead_seen_by_broker": true,
+    "broker_alive_after_caller_death_or_return": true,
+    "caller_exact_exit_and_job_empty": true,
+    "broker_exact_exit_and_job_empty": true
+  },
+  "outer_job": {
+    "outer_job_active_before": 5,
+    "outer_job_active_after": 0,
+    "terminate_returned": true,
+    "terminate_and_empty_elapsed_ns": 15000000,
+    "process_wait_results": {
+      "broker": 0,
+      "caller": 0,
+      "launcher": 0,
+      "supervisor": 0,
+      "worker": 0
+    },
+    "launcher_exit_code": 3925803010,
+    "process_identities": {
+      "broker": {
+        "creation_time_100ns": 134349373707635280,
+        "pid": 42780
+      },
+      "caller": {
+        "creation_time_100ns": 134349373707118933,
+        "pid": 31188
+      },
+      "launcher": {
+        "creation_time_100ns": 134349373704146957,
+        "pid": 43984
+      },
+      "supervisor": {
+        "creation_time_100ns": 134349373704671629,
+        "pid": 35440
+      },
+      "worker": {
+        "creation_time_100ns": 134349373705215086,
+        "pid": 43976
+      }
+    }
+  },
+  "process_cleanup": {
+    "pid_count": 25,
+    "existing_trial_pids": [],
+    "suspected_candidate_processes": []
+  },
+  "boundaries": [
+    "P02/P03 are wrapper stalls, not kernel CreateProcessW hangs",
+    "P07 post-event completion hold is user-mode, not kernel delayed completion",
+    "P14 untested",
+    "no SCM/startup D or whole-command bound",
+    "local fake only; no CTP/provider/credential/network/default route"
+  ],
+  "disposition": "G1 CLOSED",
+  "raw_archive": {
+    "name": "iteration41-g1-r9-windows-inert-custodian-independent-qa-2026-09-27.raw.zip",
+    "sha256": "953a07f539f93fe96015659a673d5150303f04ffb192ff30b0173e3f826913c1",
+    "bytes": 340822,
+    "members": 32,
+    "indexed_members": 31,
+    "testzip": "passed"
+  }
+}

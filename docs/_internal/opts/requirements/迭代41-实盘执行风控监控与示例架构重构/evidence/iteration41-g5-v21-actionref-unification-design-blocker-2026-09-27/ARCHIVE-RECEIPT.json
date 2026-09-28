@@ -1,0 +1,10 @@
+{
+  "zip": "evidence.zip",
+  "zip_sha256": "DD1CCAC00170C39441883429AE38CC82EBE41130A20CA0AFA19C534104CDF5A8",
+  "zip_member_count": 15,
+  "zip_crc": "clean",
+  "archive_manifest": "ARCHIVE-MANIFEST.json",
+  "archive_manifest_sha256": "318AB53E1810D63DF1207E6C25845C34C601573A5DC466CE7CF472D829C40ADD",
+  "payload_entry_count": 14,
+  "verdict": "DESIGN_ONLY_BLOCKED_FOR_PATCH / G5_NOT_ACCEPTED / NO_WRITE / LIVE_NO_GO"
+}

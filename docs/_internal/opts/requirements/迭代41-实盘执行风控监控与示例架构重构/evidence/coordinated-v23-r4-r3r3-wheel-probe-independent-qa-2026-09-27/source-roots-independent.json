@@ -1,0 +1,13 @@
+{
+  "parent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+  "base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src",
+  "ctp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\ctp\\src",
+  "execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+  "risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src",
+  "monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src",
+  "gateway": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\gateway\\src",
+  "transport_zmq": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\transport_zmq\\src",
+  "agent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\agent\\src",
+  "skills": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\skills\\src",
+  "mcp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\mcp\\src"
+}

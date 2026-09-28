@@ -1,0 +1,1 @@
+﻿python -B -m pytest -p no:asyncio -p no:cacheprovider tests/unit/stores tests/unit/runtime -q --tb=short --junitxml=D:\temp\iteration41-ctp-account-actor-main-store-wiring-r2b-independent-qa-20260927-v1\run-artifacts\junit\stores-runtime-55.xml

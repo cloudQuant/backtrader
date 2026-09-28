@@ -1,0 +1,3 @@
+# This immutable qualification artifact is bound by a raw SHA-256 in the
+# candidate manifest.  Preserve its reviewed LF bytes across Windows checkouts.
+qualification-v3.json text eol=lf

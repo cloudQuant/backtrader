@@ -1,0 +1,365 @@
+{
+  "schema": "iteration41-g4-author-review-subset-v1",
+  "original_workspace": {
+    "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927",
+    "evidence_manifest_sha256": "d6e81a9c52e25f9af6d97372e48d959c0cd2800966404edd0bac8946eb7e77f4",
+    "original_sha256sums_sha256": "4adb46ae6f062437f60d062603cdbba89d1661c6997c53c0d6a4e4c8c551bf2c",
+    "original_checksum_verification_sha256": "f17abc08b8358d77ba4387d664fd5814c6412ccee9878d0403e72fa03aabd6cf",
+    "original_checksum_verification": "64 entries; zero errors"
+  },
+  "disposition": "PE_TIMESTAMP_CAUSE_IDENTIFIED / NO_EXACT_PIN_REBUILD / NO_G4_ACCEPTANCE",
+  "scope": "Offline source/build and static PE/wheel byte inspection only; no install, bt_api_ctp or _ctp import, provider DLL load, credentials, private configuration, session, or permitted outbound networking.",
+  "source": {
+    "archive_path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\archives\\bt_api_ctp-i2-28157ce33009f932fbf8b3a78f7e77cb42c9cc4b.tar",
+    "archive_sha256": "9005a1754210d1dacb02eb1545d2c0718c1fdfd08ee62141566fae4181194821",
+    "commit": "28157ce33009f932fbf8b3a78f7e77cb42c9cc4b",
+    "source_tree_digest": "b332edcf5b86b0447b07ea0d9b5a82d0293ab6e25513c24a0b99ae103bf176b8",
+    "files": 260
+  },
+  "pinned_artifacts": [
+    {
+      "kind": "pinned wheel",
+      "path": "D:\\c41sdki2_audit\\wheels\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401654,
+      "sha256": "988c52a91a12d3256caadf27df2ae1f1eb45e54fc6c4f63b7abba0363f34c4ff",
+      "pyd_sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47"
+    }
+  ],
+  "compared_build_artifacts": [
+    {
+      "label": "prior non-hermetic A",
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-a\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401616,
+      "sha256": "7759a11487ddb0067e3fb755366c989b1fe55a965f3d712526d59b6bb228817d",
+      "pyd_sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+      "pyd_size": 11889152
+    },
+    {
+      "label": "prior non-hermetic B",
+      "path": "D:\\temp\\iteration41-g4-base-ctp-pinned-wheel-rebuild-20260927\\build-b\\wheelhouse\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401615,
+      "sha256": "1de546d5c18b439d77d26dd0039e08b4facbbeaf1b0b865a38eafa211c2d46f8",
+      "pyd_sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+      "pyd_size": 11889152
+    },
+    {
+      "label": "controlled strict no-/Brepro C",
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-c\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401614,
+      "sha256": "7dad3140ab8a700939022282a78f75b165a612637bac90da5caa7df06f4d64f7",
+      "pyd_sha256": "06a4e2b158eed8c2766678a69476eb0601593efdbe1979f13383ab7ce0488539",
+      "pyd_size": 11889152
+    },
+    {
+      "label": "controlled /Brepro A",
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-a\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401614,
+      "sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78"
+    },
+    {
+      "label": "controlled /Brepro B",
+      "path": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\wheelhouse-b\\bt_api_ctp-2.0.3+iteration41.i2-cp311-cp311-win_amd64.whl",
+      "bytes": 5401614,
+      "sha256": "70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2",
+      "pyd_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78"
+    }
+  ],
+  "pe_timestamp_delta": {
+    "offsets": [
+      "0x120..0x122",
+      "0xa26c54..0xa26c56"
+    ],
+    "pinned_value": "0x6ab5394d",
+    "prior_a_value": "0x6ab8f82c",
+    "prior_b_value": "0x6ab8f8d9",
+    "second_field": "TimeDateStamp of the sole IMAGE_DEBUG_DIRECTORY type 13 POGO entry",
+    "finding": "No second unexplained binary delta in prior non-/Brepro A vs pin; all other compared .pyd bytes and listed matching section hashes agree."
+  },
+  "limits": [
+    "The /Brepro A/B wheel pair is reproducible under its recorded recipe but differs materially from the pinned native image and package/container bytes.",
+    "The no-/Brepro C build repeats the six timestamp-byte discrepancy; original pin timestamp-generation recipe is unavailable.",
+    "Venv package isolation was recorded, but Python base prefix/headers/library and MSVC/Windows SDK are not a complete hermetic lock.",
+    "No installed RECORD, wheel-origin, triwheel closure, native session, provider acceptance, or G4 acceptance is claimed."
+  ],
+  "copied_payloads": [
+    {
+      "path": "build_legacy_strict.cmd",
+      "bytes": 1454,
+      "sha256": "f57f558ae294ad24c274fad4bb86b589437e30cdfb0ace7d38642aff853a7142"
+    },
+    {
+      "path": "build_repro.cmd",
+      "bytes": 1548,
+      "sha256": "1a5090b40b0738daaa9a0b25894937327181b12357f5cf1986667a7556c61169"
+    },
+    {
+      "path": "compare_old_pyd.py",
+      "bytes": 907,
+      "sha256": "37ab19107925bfb0920fe89eadbcd7ebfbbdb322a9e27db0a5739b9ab21f2f4c"
+    },
+    {
+      "path": "controlled-repro-summary.json",
+      "bytes": 16799,
+      "sha256": "d5b39a6f24402102c29d9bca7fae91ad546f382917bebae20bb668d8449bbfd9"
+    },
+    {
+      "path": "inspect_pe_timestamps.py",
+      "bytes": 3480,
+      "sha256": "bf8bc72a4ace8b174a389b302f478d1d68a0a56e685d066b7733d1b380144771"
+    },
+    {
+      "path": "original-SHA256SUMS.txt",
+      "bytes": 5918,
+      "sha256": "4adb46ae6f062437f60d062603cdbba89d1661c6997c53c0d6a4e4c8c551bf2c"
+    },
+    {
+      "path": "postbuild-source-integrity.json",
+      "bytes": 1074,
+      "sha256": "4b1bc0c8600e503840212f0fdc2466ff067890708ad3e4cdb61dad667cb0ccb8"
+    },
+    {
+      "path": "pyd-pe-analysis.json",
+      "bytes": 7960,
+      "sha256": "850cc5613488b0b8b301bc789e71c42bbfe29107610f1d3126a85b528dda7cbc"
+    },
+    {
+      "path": "pyd-section-diff-summary.json",
+      "bytes": 13735,
+      "sha256": "6dea2f88ba5438ebbff31849823e8403801a538a922b0e4c1a969374aac4d348"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3272,
+      "sha256": "b64a2a46ea195f8581f5d243a3eaf2bccef72b1565e38739256f9b19f76d0ae3"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 9897,
+      "sha256": "e20890730e61d301e569b740374547677786167ea5506c69519507ec36e5d801"
+    },
+    {
+      "path": "run-statuses.json",
+      "bytes": 785,
+      "sha256": "c2f3755c123c7d281fb1808db3f0f50c07aef42987f49b7562e9daba00202948"
+    },
+    {
+      "path": "source-extraction-manifest.json",
+      "bytes": 48266,
+      "sha256": "21fd5dff8dbf2e05e1823ef75d7b11ed0648628e2b13fa9834713e0c14ff06cc"
+    },
+    {
+      "path": "toolchain-manifest-verification.json",
+      "bytes": 2469,
+      "sha256": "eedecb8f84049ca95bd7a2e7e0467f7c5f9f1f30fc2ba9171db893ed7d1aa5d7"
+    },
+    {
+      "path": "toolchain-manifest.json",
+      "bytes": 409119,
+      "sha256": "29a810fd81fa945466e6245a9861540089cf4ada7e444a697538da67c2056912"
+    },
+    {
+      "path": "toolchain65-copy-check.json",
+      "bytes": 588,
+      "sha256": "b5402534c1d713f4246a3f27a5bce58cef3185f1d0c118d2a263c075e6693563"
+    },
+    {
+      "path": "toolchain65-manifest.json",
+      "bytes": 483039,
+      "sha256": "1fc908eaa71a26252f3885926ccef3993f35ce4e89addda403491496b33fbe2c"
+    },
+    {
+      "path": "logs/build-a.log",
+      "bytes": 439039,
+      "sha256": "4a274f2529f40795580e17e29fb9ee659b4b487ddbc80b255f8e9b5d90429ff4"
+    },
+    {
+      "path": "logs/build-b.log",
+      "bytes": 439039,
+      "sha256": "382823f9b84013b3c6a07b136b6920290f5db87621dec9580e79560c5cfcaa19"
+    },
+    {
+      "path": "logs/build-c-legacy-strict.log",
+      "bytes": 440308,
+      "sha256": "5c90c7cd41fc004875d09a2a3a85f5f84502987bac5aa778439672727c6de153"
+    },
+    {
+      "path": "logs/cl-version-a.log",
+      "bytes": 1294,
+      "sha256": "f369a7da56f8bafe0555f03688b17df7790f970d9546fc2c6add232f4b41e38e"
+    },
+    {
+      "path": "logs/cl-version-b.log",
+      "bytes": 1294,
+      "sha256": "f369a7da56f8bafe0555f03688b17df7790f970d9546fc2c6add232f4b41e38e"
+    },
+    {
+      "path": "logs/guard-a.jsonl",
+      "bytes": 15523,
+      "sha256": "a2accd85bbb7367e85aa2396d35f5fc17cdab1ff56d226aac129c2c583c4c717"
+    },
+    {
+      "path": "logs/guard-b.jsonl",
+      "bytes": 73,
+      "sha256": "508ea4483b3f0f0c2cab1f42b63dd5b5bb50c36fc3372a4fd8f44f85095e3b6d"
+    },
+    {
+      "path": "logs/guard-c.jsonl",
+      "bytes": 148,
+      "sha256": "3b6790665291b72442b302d6ac4b08d9e7b8b89cd7d983b6c8018d34718fd02d"
+    },
+    {
+      "path": "logs/link-command-c.txt",
+      "bytes": 1404,
+      "sha256": "f519b35b586e72fb8cca06e880d0c93c7e7bd7c5d25066d4674623351149a9ec"
+    },
+    {
+      "path": "logs/pip-version-c.log",
+      "bytes": 131,
+      "sha256": "0624f644e9978a9b0f33d2e044c2bd29b054792a78b2b0979a81e3ba285ad714"
+    },
+    {
+      "path": "logs/vcvars64-a.log",
+      "bytes": 298,
+      "sha256": "6ae0449df92a1ed439d52e195c8631217433e86735dc40a21b05adcc88b25984"
+    },
+    {
+      "path": "logs/vcvars64-b.log",
+      "bytes": 298,
+      "sha256": "6ae0449df92a1ed439d52e195c8631217433e86735dc40a21b05adcc88b25984"
+    },
+    {
+      "path": "logs/vcvars64-c.log",
+      "bytes": 298,
+      "sha256": "6ae0449df92a1ed439d52e195c8631217433e86735dc40a21b05adcc88b25984"
+    },
+    {
+      "path": "logs/where-cl-a.log",
+      "bytes": 106,
+      "sha256": "bb66c6182fc603fe4657c9224529d5f6935189b9ccc23a44a09c2679e927c17a"
+    },
+    {
+      "path": "logs/where-cl-b.log",
+      "bytes": 106,
+      "sha256": "bb66c6182fc603fe4657c9224529d5f6935189b9ccc23a44a09c2679e927c17a"
+    },
+    {
+      "path": "logs/where-cl-c.log",
+      "bytes": 106,
+      "sha256": "bb66c6182fc603fe4657c9224529d5f6935189b9ccc23a44a09c2679e927c17a"
+    },
+    {
+      "path": "logs/where-link-a.log",
+      "bytes": 108,
+      "sha256": "a1d7acc623e8c31fc093e133fbd75ee3ca0e063287cd93ae090b166af1aac4ea"
+    },
+    {
+      "path": "logs/where-link-b.log",
+      "bytes": 108,
+      "sha256": "a1d7acc623e8c31fc093e133fbd75ee3ca0e063287cd93ae090b166af1aac4ea"
+    },
+    {
+      "path": "logs/where-link-c.log",
+      "bytes": 108,
+      "sha256": "a1d7acc623e8c31fc093e133fbd75ee3ca0e063287cd93ae090b166af1aac4ea"
+    },
+    {
+      "path": "independent-qa/initial-qa-report.md",
+      "bytes": 4197,
+      "sha256": "9d11413cc87c2f6f31b6479daf5a4281fc58d6aa9272a2a170b9ba17562e53d7"
+    },
+    {
+      "path": "independent-qa/initial-results.json",
+      "bytes": 8818,
+      "sha256": "94fcc2b3d99c368164d88f357e57521aefe011ce0d08325b8436ac1a26a7e1fa"
+    },
+    {
+      "path": "independent-qa/RECHECK-RECEIPT.md",
+      "bytes": 1499,
+      "sha256": "b6189a7b6d0e3b18943921b98f4b5f191b0e8657d8f3d0d9da8b5e4800d4aa00"
+    },
+    {
+      "path": "independent-qa/RECHECK-RESULTS.json",
+      "bytes": 3108,
+      "sha256": "560acdd68d0454260a88e08c0c6915106dbe03f57c8d9af6999a7215425c3ee5"
+    },
+    {
+      "path": "time-control-study/RESEARCH.md",
+      "bytes": 5372,
+      "sha256": "7bbad656b38ab6a9506c1016fc3dfa2db46af4ef612a74173ac5ff2346ae73b2"
+    },
+    {
+      "path": "time-control-study/link-help.txt",
+      "bytes": 3451,
+      "sha256": "1e98bccd5b5db5b5d5d7868a8fc3d5ec59f613b50be49509f196e463132965d8"
+    },
+    {
+      "path": "time-control-study/link-help-exit.txt",
+      "bytes": 27,
+      "sha256": "e609a891db91de838edbf04ef9bee1c6397a28137e162d510952bb1f5f33f0d5"
+    },
+    {
+      "path": "time-control-study/timestamp-comparison.json",
+      "bytes": 9533,
+      "sha256": "5a59be6d2e00eff07061f15bc33fd8724978b06d1ecf0425320b0083260fe97e"
+    },
+    {
+      "path": "time-control-study/compare_pinned_wheels.py",
+      "bytes": 5494,
+      "sha256": "1b7d0391a2684aede19f89a90da28f3cbb995da76cd1e8196aac32167d19666b"
+    },
+    {
+      "path": "time-control-study/wheel-byte-replay.log",
+      "bytes": 2477,
+      "sha256": "5282ecb140e7bc4c0ac192adcc14367714a93ad6d0df4cb9074fd474acdb97fd"
+    },
+    {
+      "path": "time-control-study/wheel-byte-replay-exit.txt",
+      "bytes": 46,
+      "sha256": "2486c0a1eafb5e270a453ec1301751bc4ff6eed87b73f71e1ad39840ebbd603d"
+    },
+    {
+      "path": "time-control-study/SHA256SUMS.txt",
+      "bytes": 614,
+      "sha256": "6bff20c6d6c7d77a12fb2efc58083b84ca3a2ac4887247e3bce1c99b5b660d18"
+    }
+  ],
+  "excluded_large_artifacts": [
+    "Built wheels and .pyd binaries are not copied; their full paths and SHA-256 values are listed in compared_build_artifacts and pinned_artifacts.",
+    "Frozen source tar and expanded source/build roots are not copied; source archive path and SHA-256 are listed under source.",
+    "Virtual environments, caches, and the 17 MB final-controlled-repro-summary.json are not copied."
+  ],
+  "review_status": "Author-side build comparison; separate read-only archive/binary QA attached. Initial QA found a stale README payload hash; recheck confirms the correction.",
+  "independent_review": {
+    "initial_report": {
+      "path": "independent-qa/initial-qa-report.md",
+      "sha256": "9d11413cc87c2f6f31b6479daf5a4281fc58d6aa9272a2a170b9ba17562e53d7",
+      "finding": "The report records the stale README hash in the nested manifest before repair."
+    },
+    "initial_results": {
+      "path": "independent-qa/initial-results.json",
+      "sha256": "94fcc2b3d99c368164d88f357e57521aefe011ce0d08325b8436ac1a26a7e1fa"
+    },
+    "recheck_receipt": {
+      "path": "independent-qa/RECHECK-RECEIPT.md",
+      "sha256": "b6189a7b6d0e3b18943921b98f4b5f191b0e8657d8f3d0d9da8b5e4800d4aa00",
+      "disposition": "Corrected archive hashes/links verified; NO_EXACT_PIN_REBUILD / NO_G4 unchanged."
+    },
+    "recheck_results": {
+      "path": "independent-qa/RECHECK-RESULTS.json",
+      "sha256": "560acdd68d0454260a88e08c0c6915106dbe03f57c8d9af6999a7215425c3ee5"
+    },
+    "scope": "Read-only evidence archive and inert wheel/PE bytes; no build, install, native import/load, provider, network, credentials, private configuration, or repository tests."
+  },
+  "time_control_study": {
+    "path": "time-control-study/",
+    "source_path": "D:\\temp\\g4-msvc-time-control-study-20260927",
+    "source_receipt_sha256": "6bff20c6d6c7d77a12fb2efc58083b84ca3a2ac4887247e3bce1c99b5b660d18",
+    "report_sha256": "7bbad656b38ab6a9506c1016fc3dfa2db46af4ef612a74173ac5ff2346ae73b2",
+    "comparison_json_sha256": "5a59be6d2e00eff07061f15bc33fd8724978b06d1ecf0425320b0083260fe97e",
+    "linker_help_sha256": "1e98bccd5b5db5b5d5d7868a8fc3d5ec59f613b50be49509f196e463132965d8",
+    "method": "Read-only build-script/linker-help audit and inert standard-library wheel/PE byte inspection; no build or native import/load.",
+    "finding": "No supported timestamp assignment input found in the audited MSVC linker interface; exact pin timestamp generation remains unknown.",
+    "disposition": "NO_EXACT_PIN / NO_G4"
+  }
+}

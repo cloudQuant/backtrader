@@ -1,0 +1,150 @@
+{
+  "acceptance_status": "NOT_ACCEPTED_FULL_MATRIX",
+  "baseline": {
+    "revision": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+    "source_python_file_count": 468,
+    "source_root": "D:\\temp\\iteration41-bm57-baseline-ad2c142b-20260926",
+    "source_tree_sha256": "a40c1e275921be31e70dcc1285e2a50102e721c30caeb77dcf6b864bcc4397d1"
+  },
+  "benchmark_script_sha256": "4b7a64e9381fc86a3d75291b972ae53684f9de70192c25e6def335c23236193f",
+  "benchmark_script_sha256_after": "4b7a64e9381fc86a3d75291b972ae53684f9de70192c25e6def335c23236193f",
+  "candidate": {
+    "revision": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+    "source_python_file_count_after": 480,
+    "source_root": "D:\\source_code\\backtrader",
+    "source_tree_sha256_after": "69b4a5e45c64d58d6c0233f7ac67915a6c3d83bbe02218cdcb26ab2494c5e9bd",
+    "source_tree_sha256_before": "69b4a5e45c64d58d6c0233f7ac67915a6c3d83bbe02218cdcb26ab2494c5e9bd"
+  },
+  "comparisons": {
+    "cancel": {
+      "p50": {
+        "median_ratio": 1.0028401022436808,
+        "per_round_candidate_over_baseline": [
+          0.9740750742641102,
+          1.0066648153290751,
+          0.9940994661421748,
+          1.0045312942509204,
+          1.0028401022436808
+        ]
+      },
+      "p99": {
+        "median_ratio": 0.9769871710091258,
+        "per_round_candidate_over_baseline": [
+          1.491492652745553,
+          0.9740417541146581,
+          0.8882893226176808,
+          1.0689218294691498,
+          0.9769871710091258
+        ]
+      }
+    },
+    "submit": {
+      "p50": {
+        "median_ratio": 1.0051457975986278,
+        "per_round_candidate_over_baseline": [
+          0.9820554649265906,
+          1.0123379339188625,
+          0.9928133586979497,
+          1.0102673796791444,
+          1.0051457975986278
+        ]
+      },
+      "p99": {
+        "median_ratio": 0.9819082489769545,
+        "per_round_candidate_over_baseline": [
+          1.455240017298544,
+          0.9728188218518848,
+          0.9270421014753508,
+          1.1132570588852735,
+          0.9819082489769545
+        ]
+      }
+    }
+  },
+  "fail_closed": false,
+  "finished_at_utc_epoch_seconds": 1790431388.7942579,
+  "harness_status": "PASS",
+  "limitations": [
+    "synthetic replay fixture and in-process fake API only",
+    "test profile observation is not a dispatch permit",
+    "does not enable a runtime or production direct route",
+    "does not include the required Windows/Linux full matrix unless separately run"
+  ],
+  "mode": "simulation/replay",
+  "performance_gate": {
+    "method": "median of five paired candidate/baseline percentile ratios",
+    "operations": {
+      "cancel": {
+        "p50": {
+          "limit": 1.05,
+          "median_candidate_over_baseline": 1.0028401022436808,
+          "passed": true
+        },
+        "p99": {
+          "limit": 1.05,
+          "median_candidate_over_baseline": 0.9769871710091258,
+          "passed": true
+        }
+      },
+      "submit": {
+        "p50": {
+          "limit": 1.05,
+          "median_candidate_over_baseline": 1.0051457975986278,
+          "passed": true
+        },
+        "p99": {
+          "limit": 1.05,
+          "median_candidate_over_baseline": 0.9819082489769545,
+          "passed": true
+        }
+      }
+    },
+    "passed": true,
+    "ratio_limit": 1.05
+  },
+  "performance_status": "THRESHOLD_PASSED_NOT_ACCEPTED_FULL_MATRIX",
+  "python_executable": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe",
+  "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "run_kind": "FULL_CANDIDATE",
+  "runtime_contract_sha256": "1b5c49f08d604af908f19e30c2674a12a5468cd9cc743c04ef0e5ebd57ef54a9",
+  "runtime_contract_sha256_after": "1b5c49f08d604af908f19e30c2674a12a5468cd9cc743c04ef0e5ebd57ef54a9",
+  "sample_protocol": {
+    "nearest_rank_percentiles": [
+      50,
+      95,
+      99,
+      100
+    ],
+    "operation_rate_limit_hz": null,
+    "paired_rounds": 5,
+    "samples_per_operation_per_round": 10000,
+    "warmup_per_operation": 1000
+  },
+  "schema": "iteration41.local_evidence.v1",
+  "started_at_utc_epoch_seconds": 1790431243.3643887,
+  "status": "THRESHOLD_PASSED_NOT_ACCEPTED_FULL_MATRIX",
+  "root_recomputed_percentiles_and_ratios_from_raw_samples": true,
+  "cpu_observations": {
+    "source": "Root tool observations, not a saved profiler trace",
+    "logical_cpus": 32,
+    "before_two_second_percent": 2.2,
+    "after_two_second_percent": 6.6,
+    "full_campaign_cpu_trace": false
+  },
+  "raw_zip_sha256": "a54575f6edcd7af635dc224292206813b784d90958b4eda784c41d61f948319f",
+  "raw_payload_sha256": {
+    "campaign-result.json": "5751e55c13f62ebee06a2218917a85859c09785e290da0ac65fae12957bf5817",
+    "command-output.log": "90469c054b9e909d1e2aead029f01865bbb6ad36ffd8bbbed038b124a8786e6f",
+    "harness/run_iteration41_direct_benchmark.py": "4b7a64e9381fc86a3d75291b972ae53684f9de70192c25e6def335c23236193f",
+    "round-01-baseline.json": "28d0ccb5aa8cc1ce279b29a1116c620f532fc3cd939dff76e1d0f1d491133fbf",
+    "round-01-candidate.json": "ec681f85bc784e5c8ccf8936ca75103b77b267a05800f6fc33a5bc85dc63ec34",
+    "round-02-baseline.json": "6f61abacb3f65c048d006f4dc05735d1beae5fb57c1884e36adc00b73fa9bb4f",
+    "round-02-candidate.json": "9087f8ff30a5f254fd199c55c02769e466c28d07b6ad98cb87f20f2bd5c5c5c2",
+    "round-03-baseline.json": "7eb51baf90d41eba14b314dd3a2815fd08f458f3ed845cc034eb2abf84d086ce",
+    "round-03-candidate.json": "6700c0ed9c75a970e48e33320b8363e027188c69c56b2aac528329386e00d8a6",
+    "round-04-baseline.json": "5314277cb9c50db87b26b71e58a19a746735b801fa911faa17cf9d44b1ce8ff2",
+    "round-04-candidate.json": "e24b7f9bc3667fd1d0ca215c9869805e4d94a18ef7e68c8e28beea4b7c833112",
+    "round-05-baseline.json": "776f5d5b703a3d0dac83bb0e1d9302a4444a5a7af188ca273376e3ab35aedfbb",
+    "round-05-candidate.json": "a796619b18b0ca6f61425e04e80662c18b4512920e440d418ebeaddb344e2991"
+  }
+}

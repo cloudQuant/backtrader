@@ -1,0 +1,9 @@
+{
+  "schema": "iteration41-i22-shared-session-readport-r2d-index-append-v1",
+  "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/README.md",
+  "archive_directory": "iteration41-i22-shared-session-readonly-port-r2d-independent-qa-2026-09-27",
+  "before_sha256": "c11fa64ca423a0c4e61c8311bca208be5af934012513387f23b83324e18e4a8a",
+  "after_sha256": "8aaaf36b9fd72b1eec4845eb9406b4fae0519ee391bc5c01e867df33dbbc9676",
+  "operation": "append-only UTF-8 suffix",
+  "entry_sha256": "05a030bbcbac5977f6ed639e322d2910303baead98fa1716ea39bfe98357562b"
+}

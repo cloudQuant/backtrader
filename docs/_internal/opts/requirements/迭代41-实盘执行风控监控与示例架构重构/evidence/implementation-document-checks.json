@@ -1,0 +1,315 @@
+{
+  "schema_version": 10,
+  "evidence_kind": "implementation_document_consistency",
+  "generated_at": "2026-09-22T14:02:37.2806803Z",
+  "scope": "Iteration 41 Markdown links/fences, YAML/JSON artifacts, runtime topology, writer-inventory counts, local fast-functional/slow-strategy/serial-performance evidence, Backtrader package-fixture wheel/L2 verification, external capability-wheel boundary, Windows-local CPython 3.8 versus Ubuntu 22.04 CI-artifact boundary, POSIX runtime-directory capability boundary, stale-claim scan, and retired blocker identifiers",
+  "status": "PASS",
+  "checks": {
+    "markdown_files": 23,
+    "local_links_checked": 200,
+    "line_anchored_local_links_checked": 4,
+    "missing_local_links": [],
+    "line_anchor_errors": [],
+    "unbalanced_fence_files": [],
+    "yaml_templates_checked": 4,
+    "yaml_template_parse_errors": [],
+    "json_artifacts_checked": 7,
+    "json_artifact_parse_errors": [],
+    "runtime_topology_registry_expected": {
+      "registrations": 13,
+      "nonmanaged_registrations": 11,
+      "offline_managed_registrations": 2,
+      "allowed_presets": [
+        "replay"
+      ],
+      "resolved_modes": [
+        "simulation"
+      ]
+    },
+    "runtime_topology_registry_actual": {
+      "registrations": 13,
+      "nonmanaged_registrations": 11,
+      "offline_managed_registrations": 2,
+      "allowed_presets": [
+        "replay"
+      ],
+      "resolved_modes": [
+        "simulation"
+      ]
+    },
+    "runtime_topology_matches_registry": true,
+    "runtime_topology_documents_checked": [
+      "README.md",
+      "配置与运行模式规格.md",
+      "templates\\README.md",
+      "evidence\\README.md",
+      "插件与ZMQ架构.md",
+      "验收文档.md"
+    ],
+    "runtime_topology_document_errors": [],
+    "writer_inventory_expected": {
+      "files_scanned": 178,
+      "writer_candidates": 137,
+      "dynamic_execution_candidates": 24,
+      "parse_errors": 0
+    },
+    "writer_inventory_artifact": {
+      "files_scanned": 178,
+      "writer_candidates": 137,
+      "dynamic_execution_candidates": 24,
+      "parse_errors": 0
+    },
+    "writer_inventory_list_lengths": {
+      "files_scanned": 178,
+      "writer_candidates": 137,
+      "dynamic_execution_candidates": 24,
+      "parse_errors": 0
+    },
+    "writer_inventory_status": "CANDIDATE_DISCOVERY_ONLY",
+    "writer_inventory_matches_artifact": true,
+    "writer_inventory_document_mentions": 11,
+    "writer_inventory_document_mismatches": [],
+    "fast_functional_result_expected": "5865 passed, 11 skipped, 35 warnings in 182.43s (0:03:02)",
+    "fast_functional_result_occurrences": 10,
+    "fast_functional_result_document_mentions": 9,
+    "fast_functional_result_document_paths": [
+      "evidence\\README.md",
+      "evidence\\validation-summary-2026-09-22.md",
+      "README.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "retired_fast_functional_result_document_paths": [],
+    "validation_summary_fast_functional_command_matches": 1,
+    "validation_summary_fast_functional_supersession_note_matches": 1,
+    "validation_summary_live_no_go_mentions": 5,
+    "slow_strategy_result_expected": "810 passed, 11 warnings in 272.80s (0:04:32)",
+    "slow_strategy_result_document_occurrences": 9,
+    "slow_strategy_result_document_paths": [
+      "evidence\\README.md",
+      "evidence\\validation-summary-2026-09-22.md",
+      "README.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "serial_performance_status": "LOCAL_SERIAL_PERFORMANCE_PASS",
+    "runner_capability_origin_result_expected": "32 passed, 2 skipped",
+    "runner_capability_origin_result_document_paths": [
+      "evidence\\validation-summary-2026-09-22.md",
+      "开发与QA交接清单.md"
+    ],
+    "retired_runner_capability_origin_result_document_paths": [],
+    "validation_summary_runner_capability_origin_result_matches": 1,
+    "qa_runner_capability_origin_result_matches": 1,
+    "stale_framework_projection_claims": [],
+    "stale_import_origin_claims": [],
+    "qa_framework_projection_current_evidence_matches": 1,
+    "qa_source_origin_fence_current_evidence_matches": 1,
+    "retired_identifiers_checked": [
+      "FRAMEWORK_PROJECTION_CRASH_RECOVERY_NOT_IMPLEMENTED",
+      "P1_WINDOWS_BOOTSTRAP_DIRECTORY_REPLACEMENT_SIDE_EFFECT",
+      "P1_RUNNER_PATHNAME_DIRECTORY_REPLACEMENT_SIDE_EFFECT",
+      "P1_EXTERNAL_CAPABILITY_IMPORT_PROVENANCE_NOT_ENFORCED",
+      "P1_CPYTHON38_RUNTIME_NOT_EXECUTED"
+    ],
+    "retired_identifier_matches": [],
+    "cpython38_current_identifier": "P1_CPYTHON38_UBUNTU22_CI_ARTIFACT_NOT_EXECUTED",
+    "cpython38_current_identifier_document_paths": [
+      "evidence\\README.md",
+      "evidence\\validation-summary-2026-09-22.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "retired_cpython38_identifier_document_paths": [],
+    "cpython38_windows_local_artifact": "cpython38-core-runtime-local-windows.json",
+    "cpython38_windows_local_expected": {
+      "interpreter": "CPython 3.8.20",
+      "platform": "Windows",
+      "result": "75 passed, 3 skipped, 1 warning in 2.17s",
+      "pytest_exit_code": 0,
+      "status": "PASSED",
+      "scope": "iteration41_core_config_operator_no_sdk"
+    },
+    "cpython38_windows_local_result_document_occurrences": 12,
+    "cpython38_ubuntu22_ci_artifact_not_executed_occurrences": 11,
+    "posix_runtime_directory_capability_expected": {
+      "registered_runners": 13,
+      "runner_signature_opt_in": 13,
+      "runtime_focus_result": "32 passed, 2 skipped",
+      "registered_runner_focus_result": "38 passed, 2 skipped",
+      "filesystem_rename_symlink_status_on_windows": "NOT_RUN",
+      "remaining_public_direct_bypass": "run_runtime(..., effective=None)"
+    },
+    "posix_runtime_directory_capability_actual": {
+      "registered_runners": 13,
+      "runner_signature_opt_in": 13,
+      "runner_signature_mismatches": [],
+      "runtime_focus_result_recorded": 10,
+      "registered_runner_focus_result_recorded": 9,
+      "filesystem_rename_symlink_not_run_recorded": 4
+    },
+    "posix_runner_signature_opt_in": [
+      {
+        "runtime_id": "example.012_1.midfreq_cross_exchange",
+        "runner_module": "examples.012_1_midfreq_cross_exchange.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.012_2.event_driven_cross_exchange",
+        "runner_module": "examples.012_2_event_driven_cross_exchange.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.013_1.midfreq_cross_arbitrage",
+        "runner_module": "examples.013_1_midfreq_cross_arbitrage.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.013_2.highfreq_calendar_arbitrage",
+        "runner_module": "examples.013_2_highfreq_calendar_arbitrage.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.013_3.sa_midfreq_simnow",
+        "runner_module": "examples.013_3_sa_midfreq_simnow.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.013_3.sa_midfreq_simnow.managed_replay_l2",
+        "runner_module": "examples.013_3_sa_midfreq_simnow.run_managed_replay_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.ctp_options_simnow.mechanical_managed_replay_l2",
+        "runner_module": "examples.ctp_options_simnow_managed_replay_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.014_1.ctp_options_lowfreq",
+        "runner_module": "examples.014_1_ctp_options_lowfreq.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.014_2.ctp_options_midfreq",
+        "runner_module": "examples.014_2_ctp_options_midfreq.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.015.ctp_options_highfreq",
+        "runner_module": "examples.015_ctp_options_highfreq.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.sample.ctp_legacy",
+        "runner_module": "examples.sample",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.007_ctp.legacy_direct",
+        "runner_module": "examples.007_ctp.run_runtime",
+        "accepts_runtime_directory": true
+      },
+      {
+        "runtime_id": "example.010_live_examples.simnow_legacy",
+        "runner_module": "examples.010_live_examples.run_runtime",
+        "accepts_runtime_directory": true
+      }
+    ],
+    "posix_p1_identifier_document_paths": [
+      "evidence\\validation-summary-2026-09-22.md",
+      "README.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "posix_required_p1_document_paths": [
+      "README.md",
+      "evidence\\validation-summary-2026-09-22.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "posix_document_errors": [],
+    "stale_posix_pathname_dispatch_claims": [],
+    "posix_validation_summary_rename_symlink_test_name_matches": 2,
+    "serial_performance_local_results": {
+      "main_command": "C:\\anaconda3\\python.exe -m pytest tests -m performance -n 0 -q --deselect=tests/unit/test_iteration22_ctp_benchmarks.py::test_short_stress_profile_waits_for_deadline_and_is_incomplete -p no:asyncio",
+      "main_result": "27 passed, 6687 deselected, 1 warning in 51.56s",
+      "isolated_short_stress_command": "C:\\anaconda3\\python.exe -m pytest -q -n 0 -p no:asyncio tests/unit/test_iteration22_ctp_benchmarks.py::test_short_stress_profile_waits_for_deadline_and_is_incomplete",
+      "isolated_short_stress_result": "1 passed, 1 warning in 0.73s",
+      "scope": "local serial; no xdist or coverage; not Windows/Linux matrix, capacity, long-soak, HFT, provider, or live evidence"
+    },
+    "stale_wheelhouse_isolated_consumer_claims": [],
+    "capability_isolated_consumer_status": "LOCAL_PACKAGE_FIXTURE_WHEEL_AND_L2_PASS / LOCAL_SOURCE_CAPABILITY_DEPENDENCY / EXTERNAL_CAPABILITY_WHEELS_NOT_PACKAGED",
+    "capability_isolated_consumer_scope": "Backtrader wheel members and RECORD hash/size were verified. A temporary venv installed the Backtrader wheel plus PyYAML; python -I -s imported both fixture runners from that venv's site-packages (origins verified) and loaded/resolved both schema-v4 simulation/replay configs. Direct fixture dispatch uses the D:\\bt_api_py source capability environment. External bt_api capability wheels were not installed or executed; their wheelhouse/clean-venv consumer is not packaged or verified.",
+    "serial_performance_document_paths": [
+      "evidence\\README.md",
+      "evidence\\validation-summary-2026-09-22.md",
+      "README.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "追溯矩阵.md",
+      "验收文档.md"
+    ],
+    "serial_performance_main_result_document_occurrences": 11,
+    "serial_performance_short_stress_result_document_occurrences": 11,
+    "serial_performance_false_not_run_claims": [],
+    "stale_full_isolated_consumer_claims": [],
+    "backtrader_package_fixture_wheel_status": "LOCAL_PACKAGE_FIXTURE_WHEEL_AND_L2_PASS",
+    "backtrader_package_fixture_wheel_contents": [
+      "fixture __init__",
+      "managed 013_3 runner",
+      "mechanical P1-B runner",
+      "shared mechanical cycle",
+      "managed_013_3/config.yaml",
+      "mechanical_p1b/config.yaml"
+    ],
+    "backtrader_package_fixture_wheel_verification": "wheel members and RECORD hash/size; temporary venv installs Backtrader wheel plus PyYAML; python -I -s imports both fixture runners from that venv site-packages (origins verified) and loads/resolves both schema-v4 simulation/replay configs",
+    "backtrader_package_fixture_direct_dispatch_integration": {
+      "result": "1 passed, 1 warning in 8.82s",
+      "managed_status": "LOCAL_MANAGED_FAKE_PROVIDER_L2_PASS",
+      "mechanical_status": "LOCAL_CTP_MECHANICAL_MANAGED_FAKE_PROVIDER_L2_PASS",
+      "fixture_loaded_without_source_wrapper": true,
+      "external_network_requests": 0,
+      "external_write_requests": 0,
+      "capability_dependency": "LOCAL_SOURCE_CAPABILITY_DEPENDENCY (D:\\bt_api_py source environment)",
+      "external_capability_wheels": "NOT_PACKAGED",
+      "wheel_qa_site_packages_origins_verified": true,
+      "wheel_qa_external_bt_api_capability_wheels": "NOT_INSTALLED_OR_EXECUTED"
+    },
+    "namespace_child_strict_trusted_path_runtime_unit_result": "36 passed, 3 skipped",
+    "backtrader_package_fixture_direct_dispatch_result_document_occurrences": 7,
+    "backtrader_package_fixture_namespace_child_result_document_occurrences": 5,
+    "backtrader_package_fixture_direct_dispatch_document_paths": [
+      "README.md",
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "追溯矩阵.md",
+      "验收文档.md",
+      "evidence\\README.md",
+      "evidence\\validation-summary-2026-09-22.md"
+    ],
+    "backtrader_package_fixture_namespace_child_document_paths": [
+      "实施状态与验收快照.md",
+      "开发与QA交接清单.md",
+      "迭代计划.md",
+      "验收文档.md",
+      "evidence\\validation-summary-2026-09-22.md"
+    ]
+  },
+  "limitations": "This mechanical documentation check does not prove provider behavior, package or deployment provenance, external account authority, actual POSIX filesystem rename/symlink behavior, test-suite success beyond the recorded local result, or live-trading admission."
+}

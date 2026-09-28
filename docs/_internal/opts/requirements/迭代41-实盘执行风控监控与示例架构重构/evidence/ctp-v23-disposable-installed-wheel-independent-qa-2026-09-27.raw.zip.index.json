@@ -1,0 +1,15 @@
+{
+  "archive": "V23-INDEPENDENT-QA-RAW.zip",
+  "archive_bytes": 2434697,
+  "archive_sha256": "1b3992c976d3af7b59d24e88af401bca10f988e8199f541e41cea991400f6df8",
+  "candidate_probe_archive_sha256": "fd2656dc2347daa6badf592764bd856a628c756291cd1c26d575e5dba327a312",
+  "default_route_changed": false,
+  "entry_count_excluding_internal_index": 90,
+  "frozen_source_manifest_sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+  "g1_acceptance": false,
+  "g5_acceptance": false,
+  "internal_content_index": "RAW-CONTENTS.index.json",
+  "probe_wheel_sha256": "9f7f61cc0ddea8953070fcfdfa6ac41e70d3bd594c2ceda35f9377db57419591",
+  "schema": "iteration41-v23-independent-qa-raw-archive-index.v1",
+  "testzip": "passed"
+}

@@ -1,0 +1,9 @@
+{
+  "schema": "iteration41-store-account-actor-r2d-index-append-v1",
+  "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/README.md",
+  "archive_directory": "iteration41-store-account-actor-r2d-independent-qa-2026-09-27",
+  "before_sha256": "c1b16f01b7cab60eeb38b6b60b29a1eb34127a421c94c8af3523f5d08e157dc0",
+  "after_sha256": "c11fa64ca423a0c4e61c8311bca208be5af934012513387f23b83324e18e4a8a",
+  "operation": "append-only UTF-8 suffix",
+  "entry_sha256": "b681f9a600d57608969f6faf8060a0161e487d3dfb8a267b4da8db3759b52ed1"
+}

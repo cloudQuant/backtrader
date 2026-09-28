@@ -1,0 +1,162 @@
+{
+  "btapistore_sha256": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+  "mode": "main",
+  "probes": [
+    {
+      "cli": "D:\\temp\\ac41-63-controlled-writer-slice-independent-qa-20260927-r2\\source-main\\backtrader_runtime\\cli.py",
+      "name": "runtime module provenance",
+      "outcome": "EXACT_FROZEN_TREE",
+      "runner": "D:\\temp\\ac41-63-controlled-writer-slice-independent-qa-20260927-r2\\source-main\\backtrader_runtime\\runner.py"
+    },
+    {
+      "exit_code": 2,
+      "name": "default registered CTP private preflight",
+      "outcome": "REJECTED_BEFORE_CONFIG_OR_PROVIDER",
+      "protected_open_attempts": 0,
+      "reason": "ctp_simnow_preflight_supervisor_required",
+      "sdk_modules_loaded": []
+    },
+    {
+      "cases": [
+        [
+          "live-profile",
+          true,
+          []
+        ],
+        [
+          "unavailable-sandbox",
+          true,
+          []
+        ]
+      ],
+      "import_attempts": [],
+      "name": "registered runner dynamic import gates",
+      "outcome": "REJECTED_BEFORE_IMPORT"
+    },
+    {
+      "backend": "gateway",
+      "env_keys_read": [
+        "BT_STORE_PROVIDER",
+        "BT_GATEWAY_COMMAND_ENDPOINT",
+        "BT_GATEWAY_EVENT_ENDPOINT",
+        "BT_GATEWAY_MARKET_ENDPOINT",
+        "BT_GATEWAY_ACCOUNT_ID",
+        "BT_GATEWAY_EXCHANGE_TYPE",
+        "BT_GATEWAY_ASSET_TYPE",
+        "BT_GATEWAY_STARTUP_TIMEOUT_SEC",
+        "BT_GATEWAY_COMMAND_TIMEOUT_SEC",
+        "BT_GATEWAY_STRATEGY_ID",
+        "BT_TRADING_INSTANCE_ID",
+        "BT_GATEWAY_START_LOCAL_RUNTIME"
+      ],
+      "final_ctp_classification": false,
+      "initial_provider": "ctp",
+      "name": "synthetic environment provider/exchange rewrite",
+      "no_client_or_writer_called": true,
+      "outcome": "RECLASSIFIED_TO_NON_CTP",
+      "resolved_exchange": "BINANCE",
+      "resolved_provider": "okx_gateway",
+      "synthetic_values_only": true
+    },
+    {
+      "api_boundary_calls": [
+        "fake-api.submit_order",
+        "fake-api.submit_order",
+        "fake-api.cancel_order",
+        "fake-api.cancel_order"
+      ],
+      "cases": [
+        [
+          "public submit_order",
+          "FAKE_BOUNDARY_REACHED",
+          "fake API submit trap"
+        ],
+        [
+          "direct private _submit_order_legacy",
+          "FAKE_BOUNDARY_REACHED",
+          "fake API submit trap"
+        ],
+        [
+          "public cancel_order",
+          "FAKE_BOUNDARY_REACHED",
+          "fake API cancel trap"
+        ],
+        [
+          "direct private _cancel_order_ref_legacy",
+          "FAKE_BOUNDARY_REACHED",
+          "fake API cancel trap"
+        ]
+      ],
+      "methods_from_frozen_ast": true,
+      "name": "main public and private CTP legacy methods",
+      "no_provider_io": true,
+      "outcome": "FAKE_BOUNDARIES_REACHED"
+    },
+    {
+      "fake_calls": [
+        "submit",
+        "submit",
+        "cancel"
+      ],
+      "methods_from_frozen_ast": true,
+      "name": "main gateway wrapper direct methods",
+      "no_sdk_import": true,
+      "outcome": "FAKE_BOUNDARY_TRAPPED"
+    },
+    {
+      "attempted_module_names": [
+        "bt_api_py"
+      ],
+      "name": "lazy CTP SDK resolver",
+      "outcome": "BLOCKED_AT_IMPORT_BOUNDARY"
+    },
+    {
+      "name": "CTP constructor gate ordering",
+      "notes": "Exact main source shows initial generic adapter getter; config/environment auth reads and api.exchange_kwargs lookup precede typed CTP adapter validation. No environment/config values accessed in this probe.",
+      "outcome": "STATIC_PRE_GATE_ATTRIBUTE_AND_ENV_READS",
+      "source_order": [
+        [
+          3500,
+          "self._resolve_provider"
+        ],
+        [
+          3502,
+          "require_managed_execution_adapter"
+        ],
+        [
+          3512,
+          "self._apply_env_gateway_overrides"
+        ],
+        [
+          3516,
+          "os.environ.get"
+        ],
+        [
+          3521,
+          "os.environ.get"
+        ],
+        [
+          3535,
+          "getattr"
+        ],
+        [
+          3538,
+          "getattr"
+        ],
+        [
+          3541,
+          "self._is_ctp_session_provider"
+        ],
+        [
+          3543,
+          "require_ctp_runtime_execution_adapter"
+        ],
+        [
+          3717,
+          "getattr"
+        ]
+      ]
+    }
+  ],
+  "source_root": "D:\\temp\\ac41-63-controlled-writer-slice-independent-qa-20260927-r2\\source-main"
+}

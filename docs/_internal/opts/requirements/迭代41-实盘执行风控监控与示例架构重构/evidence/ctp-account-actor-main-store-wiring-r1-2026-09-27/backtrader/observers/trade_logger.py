@@ -1,0 +1,2972 @@
+#!/usr/bin/env python
+"""Trade Logger Observer - Comprehensive logging for backtrader.
+
+This module provides the TradeLogger observer for automatically recording
+all trading activities including orders, trades, positions, indicators,
+and signals.
+
+Features:
+    - Order logging (order.log)
+    - Trade logging (trade.log)
+    - Position logging (position.log) - every bar
+    - Indicator logging (indicator.log) - every bar
+    - Signal logging (signal.log) - on buy/sell
+    - Tick logging (tick.log) - every tick received
+    - Bar logging (bar.log) - every synthesized bar
+    - Position snapshot (current_position.yaml)
+    - Optional MySQL support
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.TradeLogger,
+    ...                     log_dir='./logs',
+    ...                     log_orders=True,
+    ...                     log_trades=True,
+    ...                     log_positions=True,
+    ...                     log_indicators=True,
+    ...                     log_signals=True)
+    >>> cerebro.run()
+"""
+
+import collections
+import copy
+import json
+import logging
+import math
+import os
+import time
+import uuid
+from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
+
+from ..observer import Observer
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
+# Shanghai timezone (UTC+8) used for all log timestamps
+_SHANGHAI_TZ = timezone(timedelta(hours=8))
+
+# The report is deliberately an in-memory observer product.  It must stay
+# independent from the file/MySQL logging switches below so a caller can keep
+# a lightweight, real-time status view without producing another stream of
+# high-frequency log records.
+_REPORT_SCHEMA_VERSION = 1
+_REPORT_EVENT_KEYS = (
+    "orders",
+    "trades",
+    "signals",
+    "ticks",
+    "bars",
+    "store",
+    "data",
+    "errors",
+)
+# Completed feed callbacks are normally consumed by the immediately following
+# LineSeries observer step. Keep a bounded safety window for malformed/custom
+# events whose timestamp never reaches that step.
+_REPORT_PENDING_BAR_LIMIT = 1024
+_STARTUP_ACCOUNT_OBSERVATION_SCOPE = "authoritative_startup_account_observation"
+_STARTUP_ACCOUNT_OBSERVATION_SENSITIVE_KEY_FRAGMENTS = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "apikey",
+    "accesskey",
+    "privatekey",
+    "authorization",
+    "cookie",
+    "credential",
+    "passphrase",
+)
+
+# Optional MySQL support
+try:
+    import pymysql
+
+    MYSQL_AVAILABLE = True
+except ImportError:
+    MYSQL_AVAILABLE = False
+
+# Optional YAML support
+try:
+    import yaml
+
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
+
+
+class TradeLogger(Observer):
+    """Observer that automatically logs all trading activities.
+
+    This observer tracks and records:
+    - Order status changes (submitted, executed, canceled, etc.)
+    - Trade openings and closings with PnL
+    - Position changes on every bar
+    - Indicator values on every bar
+    - Buy/sell signals
+
+    Params:
+        log_dir (str): Directory for log files. Default: './logs'
+        log_orders (bool): Enable order logging. Default: True
+        log_trades (bool): Enable trade logging. Default: True
+        log_positions (bool): Enable position logging. Default: True
+        log_indicators (bool): Enable indicator logging. Default: True
+        log_signals (bool): Enable signal logging. Default: True
+        log_ticks (bool): Enable tick logging. Default: True
+        log_bars (bool): Enable bar logging. Default: True
+        log_position_snapshot (bool): Enable YAML position snapshot. Default: True
+        snapshot_file (str): Snapshot filename. Default: 'current_position.yaml'
+        startup_snapshot_file (str | None): Optional YAML filename for one
+            startup-only snapshot of the broker's already-cached report state.
+            The snapshot has no market-data mark and never invokes provider
+            getters. Default: None (disabled).
+        startup_account_observation (Mapping | None): Optional credential-free
+            authoritative account observation supplied by the caller before the
+            run. It is normalized once, retained separately from the broker's
+            local cache, and never triggers a provider request or market-price
+            read. Default: None (disabled).
+        log_format (str): Log format ('json' or 'text'). Default: 'json'
+        log_to_console (bool): Also print to console. Default: False
+
+        mysql_enabled (bool): Enable MySQL logging. Default: False
+        mysql_host (str): MySQL host. Default: 'localhost'
+        mysql_port (int): MySQL port. Default: 3306
+        mysql_user (str): MySQL user. Default: 'root'
+        mysql_password (str): MySQL password. Default: ''
+        mysql_database (str): MySQL database. Default: 'backtrader'
+
+        report_max_records (int): Maximum retained order and trade callback
+            summaries in the in-memory report. Default: 100. Set to 0 to
+            retain counters only.
+
+    Example:
+        >>> cerebro.addobserver(bt.observers.TradeLogger,
+        ...                     log_dir='./logs',
+        ...                     mysql_enabled=True,
+        ...                     mysql_database='trading_logs')
+    """
+
+    _stclock = True
+    _ltype = 2  # LineIterator.ObsType - ensure observer is registered for next() calls
+    lines = ("dummy",)  # Observer requires at least one line
+
+    params = {
+        # File logging settings
+        "log_dir": "./logs",
+        "log_orders": True,
+        "log_trades": True,
+        "log_positions": True,
+        "log_indicators": True,
+        "log_signals": True,
+        "log_ticks": True,
+        "log_bars": True,
+        "log_system": True,
+        "log_monitoring": True,
+        "log_errors": True,
+        "log_value": True,
+        "log_position_snapshot": True,
+        "snapshot_file": "current_position.yaml",
+        # An opt-in, separate file avoids changing the established legacy
+        # snapshot output while allowing live users to retain the account
+        # state observed before the first strategy bar.
+        "startup_snapshot_file": None,
+        # Caller-supplied, credential-free startup evidence. It intentionally
+        # remains separate from the broker-local cache and is not refreshed.
+        "startup_account_observation": None,
+        "log_format": "json",
+        "log_to_console": False,
+        "submit_count_warn_threshold": 0,
+        "cancel_count_warn_threshold": 0,
+        "submit_cancel_total_warn_threshold": 0,
+        "duplicate_order_warn_threshold": 0,
+        "duplicate_order_window_seconds": 60.0,
+        # In-memory generic report settings. These do not enable any file I/O.
+        "report_max_records": 100,
+        # MySQL settings - disabled by default
+        "mysql_enabled": False,
+        "mysql_host": "localhost",
+        "mysql_port": 3306,
+        "mysql_user": "root",
+        "mysql_password": "",
+        "mysql_database": "backtrader",
+    }
+
+    def __init__(self):
+        """Initialize the TradeLogger observer."""
+        super().__init__()
+        # CRITICAL: Set _ltype AFTER super().__init__() and ensure registration
+        self._ltype = 2  # LineIterator.ObsType
+        # Register self to owner's _lineiterators if not already done
+        if hasattr(self, "_owner") and self._owner is not None:
+            if hasattr(self._owner, "_lineiterators"):
+                if self._ltype in self._owner._lineiterators:
+                    if self not in self._owner._lineiterators[self._ltype]:
+                        self._owner._lineiterators[self._ltype].append(self)
+        self._order_logger = None
+        self._trade_logger = None
+        self._position_logger = None
+        self._indicator_logger = None
+        self._signal_logger = None
+        self._system_logger = None
+        self._monitor_logger = None
+        self._tick_logger = None
+        self._bar_logger = None
+        self._value_logger = None
+        self._error_logger = None
+        self._mysql_conn = None
+        self._last_position_state = {}
+        self._run_id = self._generate_run_id()
+        self._monitoring: collections.Counter = collections.Counter()
+        self._duplicate_requests = collections.defaultdict(collections.deque)
+        self._triggered_thresholds = set()
+        self._loggers_initialized = False
+        self._init_report_state()
+
+    # ------------------------------------------------------------------
+    # Generic in-memory report API
+    # ------------------------------------------------------------------
+
+    def _init_report_state(self):
+        """Initialize bounded, JSON-safe report state for this observer run."""
+        try:
+            record_limit = max(0, int(self.p.report_max_records))
+        except (AttributeError, TypeError, ValueError):
+            record_limit = 100
+
+        self._report_record_limit = record_limit
+        self._report_event_counts = collections.Counter(dict.fromkeys(_REPORT_EVENT_KEYS, 0))
+        self._report_dispatched_line_bars = collections.OrderedDict()
+        self._report_orders = collections.deque(maxlen=record_limit)
+        self._report_trades = collections.deque(maxlen=record_limit)
+        self._report_dropped_records = collections.Counter({"orders": 0, "trades": 0})
+        self._report_extensions = {}
+        self._report_portfolio = {"cash": None, "value": None}
+        self._report_positions = {}
+        self._report_startup_account_observation = self._capture_startup_account_observation()
+        self._report_strategy = {"name": "Unknown", "module": None}
+        self._report_provider = ""
+        self._report_session_id = ""
+        self._report_monitoring_thresholds = {}
+        self._report_started_at = None
+        self._report_last_updated_at = self._log_time_str()
+        self._report_last_event_at = None
+        self._report_finalized_at = None
+        self._report_finalized = False
+        self._final_report = None
+
+    @classmethod
+    def _normalize_report_context_value(cls, value, active=None):
+        """Strictly normalize a value accepted by ``update_report_context``.
+
+        Strategy context is part of an exported report, so accepting arbitrary
+        Python objects here would make the contract depend on ``json.dumps``
+        implementation details.  Only JSON primitives, mappings with string
+        keys, and list/tuple containers are accepted.  ``active`` tracks the
+        current recursion path to reject cycles while allowing shared values.
+        """
+        if active is None:
+            active = set()
+
+        if value is None or isinstance(value, (bool, str, int)):
+            return value
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError("report context floats must be finite")
+            return value
+
+        if isinstance(value, Mapping):
+            value_id = id(value)
+            if value_id in active:
+                raise ValueError("report context cannot contain cycles")
+            active.add(value_id)
+            try:
+                normalized = {}
+                for key, item in value.items():
+                    if not isinstance(key, str):
+                        raise TypeError("report context mapping keys must be strings")
+                    normalized[key] = cls._normalize_report_context_value(item, active)
+                return normalized
+            finally:
+                active.remove(value_id)
+
+        if isinstance(value, (list, tuple)):
+            value_id = id(value)
+            if value_id in active:
+                raise ValueError("report context cannot contain cycles")
+            active.add(value_id)
+            try:
+                return [cls._normalize_report_context_value(item, active) for item in value]
+            finally:
+                active.remove(value_id)
+
+        raise TypeError(f"report context value is not JSON-safe: {type(value).__name__}")
+
+    @classmethod
+    def _normalize_report_context(cls, mapping):
+        """Return a strict JSON-safe context mapping, or ``None`` when invalid."""
+        if not isinstance(mapping, Mapping):
+            return None
+        try:
+            normalized = cls._normalize_report_context_value(mapping)
+        except (TypeError, ValueError, RecursionError):
+            return None
+        return normalized if isinstance(normalized, dict) else None
+
+    @staticmethod
+    def _startup_observation_has_sensitive_key(value):
+        """Return whether a caller observation contains an obvious credential key."""
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                normalized_key = "".join(
+                    character for character in str(key).lower() if character.isalnum()
+                )
+                if any(
+                    fragment in normalized_key
+                    for fragment in _STARTUP_ACCOUNT_OBSERVATION_SENSITIVE_KEY_FRAGMENTS
+                ):
+                    return True
+                if TradeLogger._startup_observation_has_sensitive_key(item):
+                    return True
+            return False
+        if isinstance(value, (list, tuple)):
+            return any(TradeLogger._startup_observation_has_sensitive_key(item) for item in value)
+        return False
+
+    def _capture_startup_account_observation(self):
+        """Capture opt-in startup evidence without broker or feed reads.
+
+        The caller owns the observation's provenance. TradeLogger only accepts a
+        strict JSON mapping, rejects common credential-bearing keys, and wraps
+        the value under a distinct scope so it cannot be confused with the
+        broker-local cache used for ``portfolio`` and ``positions``.
+        """
+        raw_observation = getattr(getattr(self, "p", None), "startup_account_observation", None)
+        if raw_observation is None:
+            return None
+
+        normalized = self._normalize_report_context(raw_observation)
+        if normalized is None:
+            logger.warning("Ignoring invalid startup account observation")
+            return None
+        if self._startup_observation_has_sensitive_key(normalized):
+            logger.debug("Ignoring startup account observation containing a credential-like key")
+            return None
+        return {
+            "source": "caller_supplied",
+            "scope": _STARTUP_ACCOUNT_OBSERVATION_SCOPE,
+            "read_only": True,
+            # This observer never reads a feed line while retaining startup
+            # evidence, so an observation cannot gain a preloaded future mark
+            # through TradeLogger itself.
+            "market_data_status": "unmarked",
+            "observation": normalized,
+        }
+
+    @classmethod
+    def _report_json_safe_value(cls, value, active=None):
+        """Best-effort JSON-safe conversion for framework event summaries.
+
+        Incoming broker/store objects are intentionally less strict than
+        caller-provided report context.  A logging observer must never break a
+        trading run because a provider supplied an unusual value, so opaque
+        values are represented as strings and non-finite numbers become null.
+        """
+        if active is None:
+            active = set()
+
+        if value is None or isinstance(value, (bool, str, int)):
+            return value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, datetime):
+            return cls._event_time_str(value, "")
+
+        if isinstance(value, Mapping):
+            value_id = id(value)
+            if value_id in active:
+                return "<cycle>"
+            active.add(value_id)
+            try:
+                return {
+                    str(key): cls._report_json_safe_value(item, active)
+                    for key, item in value.items()
+                }
+            except Exception:
+                logger.warning("trade_logger:397 fallback on Exception")
+                return "<unavailable-mapping>"
+            finally:
+                active.remove(value_id)
+
+        if isinstance(value, (list, tuple, set, frozenset)):
+            value_id = id(value)
+            if value_id in active:
+                return "<cycle>"
+            active.add(value_id)
+            try:
+                return [cls._report_json_safe_value(item, active) for item in value]
+            except Exception:
+                logger.warning("trade_logger:409 fallback on Exception")
+                return ["<unavailable-sequence>"]
+            finally:
+                active.remove(value_id)
+
+        item_method = getattr(value, "item", None)
+        if callable(item_method):
+            try:
+                return cls._report_json_safe_value(item_method(), active)
+            except Exception:
+                logger.warning("trade_logger:419 suppressed Exception")
+        try:
+            return str(value)
+        except Exception:
+            logger.warning("trade_logger:422 fallback on Exception")
+            return f"<{type(value).__name__}>"
+
+    def _report_touch(self, event_time=None):
+        """Advance the report's in-memory as-of timestamp."""
+        if not hasattr(self, "_report_last_updated_at"):
+            return
+        timestamp = event_time or self._log_time_str()
+        self._report_last_updated_at = timestamp
+        self._report_last_event_at = timestamp
+
+    def _refresh_report_metadata(self):
+        """Cache framework metadata outside of ``snapshot()``."""
+        if not hasattr(self, "_report_strategy") or getattr(self, "_report_finalized", False):
+            return
+
+        owner = getattr(self, "_owner", None)
+        strategy_name = self._get_strategy_name()
+        strategy_module = None
+        try:
+            strategy_module = owner.__class__.__module__ if owner is not None else None
+        except Exception:
+            logger.warning("trade_logger:443 fallback on Exception")
+            strategy_module = None
+
+        self._report_strategy = {
+            "name": self._report_json_safe_value(strategy_name),
+            "module": self._report_json_safe_value(strategy_module),
+        }
+        self._report_provider = self._report_json_safe_value(self._store_provider())
+        self._report_session_id = self._report_json_safe_value(self._session_id())
+        try:
+            self._report_monitoring_thresholds = self._report_json_safe_value(
+                self._configured_risk_thresholds()
+            )
+        except Exception:
+            logger.warning("trade_logger:456 fallback on Exception")
+            self._report_monitoring_thresholds = {}
+
+    def _has_active_report_bar(self, owner):
+        """Return whether the strategy has advanced to a safe current bar.
+
+        With preloaded data, ``data.close[0]`` may point at the final buffered
+        value during ``start()``.  Strategy length is still zero then, so do
+        not construct a price-bearing position snapshot until a real strategy
+        callback has begun.
+        """
+        try:
+            return owner is not None and len(owner) > 0
+        except Exception:
+            logger.warning("trade_logger:469 fallback on Exception")
+            return False
+
+    @staticmethod
+    def _report_timestamp_key(value):
+        """Return a millisecond UTC key for a bar event or line datetime."""
+        if isinstance(value, datetime):
+            dt_value = value
+        elif isinstance(value, (int, float)):
+            try:
+                return int(round(float(value) * 1000.0))
+            except (TypeError, ValueError, OverflowError):
+                return None
+        else:
+            return None
+        if dt_value.tzinfo is None or dt_value.utcoffset() is None:
+            dt_value = dt_value.replace(tzinfo=timezone.utc)
+        try:
+            return int(round(dt_value.timestamp() * 1000.0))
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    @classmethod
+    def _report_bar_event_identity(cls, bar):
+        """Identify one dispatched bar using its symbol and event timestamp."""
+        name = getattr(bar, "symbol", None) or getattr(bar, "_name", None)
+        # BtApiFeed sets ``bar.datetime`` to the same bucket start it writes
+        # into LineSeries, while a completed BarEvent's transport timestamp
+        # can be the bucket end. Prefer the line timestamp for deduplication.
+        timestamp = cls._report_timestamp_key(getattr(bar, "datetime", None))
+        if timestamp is None:
+            timestamp = cls._report_timestamp_key(getattr(bar, "timestamp", None))
+        return (str(name), timestamp) if name not in (None, "") and timestamp is not None else None
+
+    @classmethod
+    def _report_data_bar_identities(cls, data):
+        """Identify the current line bar under every stable data name.
+
+        ``Cerebro.adddata(feed, name=...)`` decorates ``_name`` but leaves a
+        live feed's transport ``_dataname`` intact.  Feed callbacks carry the
+        latter, so both names must participate in completed-bar
+        deduplication.
+        """
+        names = cls._report_data_names(data)
+        if not names:
+            return set()
+        data_datetime = getattr(data, "datetime", None)
+        converter = getattr(data_datetime, "datetime", None)
+        if callable(converter):
+            try:
+                timestamp = cls._report_timestamp_key(converter(0))
+                if timestamp is not None:
+                    return {(name, timestamp) for name in names}
+            except Exception:
+                logger.warning("trade_logger:523 suppressed Exception")
+        try:
+            numeric = data_datetime[0]
+            to_datetime = getattr(data, "num2date", None)
+            if callable(to_datetime):
+                timestamp = cls._report_timestamp_key(to_datetime(numeric))
+                if timestamp is not None:
+                    return {(name, timestamp) for name in names}
+        except Exception:
+            logger.warning("trade_logger:532 suppressed Exception")
+        return set()
+
+    def _consume_dispatched_line_bar(self, owner):
+        """Return whether the current observer step already has a bar event.
+
+        BtApiFeed can dispatch a synthesized bar to native callbacks and then
+        deliver the same bar through its regular line buffer.  The callback
+        has already incremented ``bars``; consume its identity here so the
+        subsequent observer ``next`` does not double count it.
+        """
+        pending = getattr(self, "_report_dispatched_line_bars", None)
+        if not pending:
+            return False
+        current = set()
+        for data in getattr(owner, "datas", ()) or ():
+            current.update(self._report_data_bar_identities(data))
+        pending_identities = set(pending)
+        matching = pending_identities.intersection(current)
+        if not matching:
+            return False
+        if isinstance(pending, Mapping):
+            for identity in matching:
+                pending.pop(identity, None)
+        else:
+            # Tolerate legacy test fixtures/instances that created the old
+            # set before the bounded OrderedDict implementation landed.
+            pending.difference_update(matching)
+        return True
+
+    @classmethod
+    def _owner_line_data_names(cls, owner):
+        """Return all stable names represented by the owner's LineSeries feeds."""
+        names = set()
+        for data in getattr(owner, "datas", ()) or ():
+            names.update(cls._report_data_names(data))
+        return names
+
+    def _remember_dispatched_line_bar(self, identity, owner):
+        """Queue a dedup identity only for an active LineSeries feed.
+
+        Runtime strategies can forward diagnostic bars alongside their feed
+        bars. A foreign symbol has no corresponding observer ``next`` step,
+        so storing it would leak one identity per event in a long live run.
+        The ordered window also bounds malformed matching events that cannot
+        be consumed because their timestamps do not align with LineSeries.
+        """
+        if identity is None or identity[0] not in self._owner_line_data_names(owner):
+            return
+        pending = getattr(self, "_report_dispatched_line_bars", None)
+        if not isinstance(pending, collections.OrderedDict):
+            pending = collections.OrderedDict()
+            self._report_dispatched_line_bars = pending
+        pending[identity] = None
+        pending.move_to_end(identity)
+        while len(pending) > _REPORT_PENDING_BAR_LIMIT:
+            pending.popitem(last=False)
+
+    def _report_position_summary(self, data, position, data_name):
+        """Return local broker position state without requesting store metadata.
+
+        File logs retain their richer contract metadata path.  The generic
+        in-memory report must never trigger a provider/API lookup in a hot
+        strategy callback, so it derives only from the feed, broker position,
+        and configured commission object already resident in the process.
+        """
+        if data is None:
+            # A live broker can cache account positions for symbols the
+            # strategy has not subscribed to. Preserve the account state in
+            # the report without guessing a current mark or commission setup.
+            # This is also the only safe position representation during
+            # ``start``: preloaded LineSeries data can otherwise expose a
+            # future close before the first strategy callback.
+            return {
+                "size": self._report_json_safe_value(getattr(position, "size", None)),
+                "price": self._report_json_safe_value(getattr(position, "price", None)),
+                "value": None,
+                "current_price": None,
+                "multiplier": None,
+                "position_source": "broker_local_cache",
+                "market_data_status": "unmarked",
+            }
+
+        current_price = self._current_position_price(data, position)
+        comminfo = self._cached_commission_info_for_data(data)
+        multiplier = self._positive_float(self._comminfo_param(comminfo, "mult"), 1.0)
+        market_value = float(position.size) * current_price * multiplier
+        return {
+            "size": self._report_json_safe_value(position.size),
+            "price": self._report_json_safe_value(position.price),
+            "value": self._report_json_safe_value(market_value),
+            "current_price": self._report_json_safe_value(current_price),
+            "multiplier": self._report_json_safe_value(multiplier),
+        }
+
+    @staticmethod
+    def _report_data_names(data):
+        """Return stable report names for a feed, cache key, or plain symbol."""
+        names = set()
+        for name in (getattr(data, "_name", None), getattr(data, "_dataname", None)):
+            # PandasData keeps its source DataFrame in ``_dataname``. It is
+            # not an account identity and comparing it to an empty string
+            # raises an ambiguous-truth-value error, so accept scalar names
+            # only.
+            if isinstance(name, str) and name:
+                names.add(name)
+            elif isinstance(name, (int, float)) and not isinstance(name, bool):
+                names.add(str(name))
+        if not names:
+            if isinstance(data, str) and data:
+                names.add(data)
+            elif isinstance(data, (int, float)) and not isinstance(data, bool):
+                names.add(str(data))
+        return names
+
+    @classmethod
+    def _cached_position_for_data(cls, positions, data, data_name, aliases=()):
+        """Read a position from a broker's local report-state mapping only."""
+        if not isinstance(positions, Mapping):
+            return None
+
+        accepted_names = {str(data_name), *(str(alias) for alias in aliases)}
+        if data is not None:
+            try:
+                if data in positions:
+                    return positions[data]
+            except (TypeError, KeyError):
+                logger.debug("trade_logger:659 ignored TypeError,KeyError")
+        try:
+            direct = positions.get(data_name)
+            if direct is not None:
+                return direct
+        except (AttributeError, TypeError):
+            logger.debug("trade_logger:665 ignored AttributeError,TypeError")
+        try:
+            for key, value in positions.items():
+                if cls._report_data_names(key).intersection(accepted_names):
+                    return value
+        except Exception:
+            logger.warning("trade_logger:671 suppressed Exception")
+        return None
+
+    def _cached_position_legs_for_data(self, position_legs, data, data_name):
+        """Return the local long/short leg mapping for one data identity.
+
+        ``position_legs`` is optional because ordinary net-position brokers do
+        not need it.  Dual-side brokers use the same identity rules as their
+        net ``positions`` entry, so a feed object and its display name work
+        consistently for both maps.
+        """
+        legs = self._cached_position_for_data(
+            position_legs, data, data_name, self._report_data_names(data)
+        )
+        return legs if isinstance(legs, Mapping) else {}
+
+    def _report_position_entry(self, data, position, cached_legs, data_name):
+        """Build one net-plus-gross position entry from local cached objects."""
+        leg_summaries = {}
+        for side in ("long", "short"):
+            leg_position = cached_legs.get(side)
+            if leg_position is None:
+                continue
+            leg_summaries[side] = self._report_position_summary(data, leg_position, data_name)
+
+        if position is None and not leg_summaries:
+            return None
+
+        # A custom dual-side broker may intentionally expose only gross legs.
+        # Keep the absence of a normalized net view explicit rather than
+        # inventing a price or a signed value.
+        summary = (
+            self._report_position_summary(data, position, data_name)
+            if position is not None
+            else {
+                "size": None,
+                "price": None,
+                "value": None,
+                "current_price": None,
+                "multiplier": None,
+            }
+        )
+        if leg_summaries:
+            summary["position_mode"] = "dual_side"
+            summary["position_legs"] = leg_summaries
+        return summary
+
+    def _cached_broker_report_state(self):
+        """Read the explicit local-only broker report cache, if available."""
+        broker = getattr(getattr(self, "_owner", None), "broker", None)
+        getter = getattr(broker, "get_cached_report_state", None)
+        if not callable(getter):
+            return {}
+        try:
+            state = getter()
+        except Exception as exc:
+            logger.debug("Failed to read cached broker report state: %s", exc)
+            return {}
+        return state if isinstance(state, Mapping) else {}
+
+    def _refresh_report_state(self, *, include_positions=True):
+        """Cache explicit local broker state without file, MySQL, or provider I/O."""
+        if not hasattr(self, "_report_portfolio") or getattr(self, "_report_finalized", False):
+            return
+
+        self._refresh_report_metadata()
+        state = self._cached_broker_report_state()
+        self._report_portfolio = {
+            "cash": self._report_json_safe_value(state.get("cash")),
+            "value": self._report_json_safe_value(state.get("value")),
+        }
+
+        owner = getattr(self, "_owner", None)
+        if not include_positions:
+            return
+
+        positions = {}
+        cached_positions = state.get("positions", {})
+        cached_position_legs = state.get("position_legs", {})
+        known_cache_names = set()
+        if self._has_active_report_bar(owner):
+            for data in self._iter_position_datas():
+                try:
+                    data_name = str(
+                        getattr(data, "_name", None) or getattr(data, "_dataname", None) or data
+                    )
+                    aliases = self._report_data_names(data)
+                    known_cache_names.update(aliases)
+                    position = self._cached_position_for_data(
+                        cached_positions, data, data_name, aliases
+                    )
+                    cached_legs = self._cached_position_legs_for_data(
+                        cached_position_legs, data, data_name
+                    )
+                    summary = self._report_position_entry(data, position, cached_legs, data_name)
+                    if summary is None:
+                        continue
+                    positions[data_name] = summary
+                except Exception as exc:
+                    logger.debug("Failed to collect report position state: %s", exc)
+
+        # A broker's report cache represents account state, not only the
+        # current strategy subscription. Preserve cached symbols that are not
+        # LineSeries/HFT references, while making their unavailable mark and
+        # commission fields explicit. This keeps a live account's unrelated
+        # risk visible without initiating a provider query.
+        cache_keys = []
+        for cached_map in (cached_positions, cached_position_legs):
+            if not isinstance(cached_map, Mapping):
+                continue
+            try:
+                cache_keys.extend(cached_map.keys())
+            except Exception:
+                logger.warning("trade_logger:784 suppressed Exception")
+                continue
+        for cache_key in cache_keys:
+            cache_names = self._report_data_names(cache_key)
+            if not cache_names:
+                continue
+            data_name = sorted(cache_names)[0]
+            if cache_names.intersection(known_cache_names) or data_name in positions:
+                continue
+            try:
+                position = self._cached_position_for_data(
+                    cached_positions, cache_key, data_name, cache_names
+                )
+                cached_legs = self._cached_position_legs_for_data(
+                    cached_position_legs, cache_key, data_name
+                )
+                summary = self._report_position_entry(None, position, cached_legs, data_name)
+                if summary is not None:
+                    positions[data_name] = summary
+            except Exception as exc:
+                logger.debug("Failed to collect cached account position state: %s", exc)
+        self._report_positions = positions
+
+    def _start_report(self):
+        """Mark the report active and capture the initial framework state."""
+        if not hasattr(self, "_report_started_at") or getattr(self, "_report_finalized", False):
+            return
+        timestamp = self._log_time_str()
+        self._report_started_at = timestamp
+        # Do not read a price-bearing feed field during start: preloaded data
+        # can otherwise expose the final bar before strategy execution starts.
+        # ``_refresh_report_state`` still retains broker-cache positions here,
+        # but it represents all of them as unmarked cache entries.
+        self._refresh_report_state()
+        self._report_touch(timestamp)
+
+    @classmethod
+    def _report_position_has_exposure(cls, summary):
+        """Return whether a cached report position contains non-zero exposure."""
+        if not isinstance(summary, Mapping):
+            return False
+        size = cls._float_or_none(summary.get("size"))
+        if size is not None and size != 0.0:
+            return True
+        legs = summary.get("position_legs")
+        if not isinstance(legs, Mapping):
+            return False
+        return any(
+            cls._report_position_has_exposure(leg)
+            for leg in legs.values()
+            if isinstance(leg, Mapping)
+        )
+
+    def _save_startup_position_snapshot(self):
+        """Persist one opt-in, cache-only startup position snapshot.
+
+        This deliberately reads the already-built generic report cache rather
+        than ``owner.getposition()``, ``data.close[0]``, or any provider
+        getter.  It therefore remains safe when a live strategy starts with
+        preloaded history or an account containing positions outside the
+        strategy subscription.
+        """
+        if not YAML_AVAILABLE:
+            return
+        filename = getattr(self.p, "startup_snapshot_file", None)
+        if not isinstance(filename, str) or not filename.strip():
+            return
+
+        positions = copy.deepcopy(getattr(self, "_report_positions", {}))
+        if not isinstance(positions, Mapping):
+            positions = {}
+        position_entries = dict(positions)
+        snapshot = {
+            # Use wall-clock report time rather than the strategy's line time:
+            # the latter may refer to a preloaded future bar at startup.
+            "datetime": getattr(self, "_report_started_at", None) or self._log_time_str(),
+            "strategy": self._get_strategy_name(),
+            "snapshot_phase": "startup",
+            "snapshot_scope": "broker_local_cached_report_state",
+            "market_data_status": "unmarked",
+            "portfolio": copy.deepcopy(
+                getattr(self, "_report_portfolio", {"cash": None, "value": None})
+            ),
+            "position_entry_count": len(position_entries),
+            "nonzero_position_entry_count": sum(
+                self._report_position_has_exposure(summary) for summary in position_entries.values()
+            ),
+            "positions": position_entries,
+        }
+        startup_observation = getattr(self, "_report_startup_account_observation", None)
+        if startup_observation is not None:
+            snapshot["startup_account_observation"] = copy.deepcopy(startup_observation)
+
+        snapshot_path = os.path.join(self.p.log_dir, filename)
+        try:
+            with open(snapshot_path, "w", encoding="utf-8") as handle:
+                yaml.dump(
+                    snapshot, handle, allow_unicode=True, default_flow_style=False, sort_keys=False
+                )
+        except Exception as exc:
+            logger.debug("Failed to save startup position snapshot: %s", exc)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] Failed to save startup position snapshot: {exc}")
+
+    def _record_report_event(self, event_name, payload=None, record_kind=None):
+        """Record a generic callback count and optionally a bounded summary."""
+        if not hasattr(self, "_report_event_counts") or getattr(self, "_report_finalized", False):
+            return
+
+        if event_name in _REPORT_EVENT_KEYS:
+            self._report_event_counts[event_name] += 1
+
+        event_time = None
+        if isinstance(payload, Mapping):
+            event_time = (
+                payload.get("log_time") or payload.get("event_time") or payload.get("datetime")
+            )
+
+        if record_kind in {"orders", "trades"} and payload is not None:
+            records = self._report_orders if record_kind == "orders" else self._report_trades
+            maxlen = records.maxlen
+            if not maxlen:
+                self._report_dropped_records[record_kind] += 1
+            else:
+                if len(records) >= maxlen:
+                    self._report_dropped_records[record_kind] += 1
+                records.append(self._report_json_safe_value(payload))
+
+        self._report_touch(event_time)
+
+    def update_report_context(self, mapping, namespace="strategy"):
+        """Shallow-merge JSON-safe strategy context into a report namespace.
+
+        The operation is atomic: invalid values, cycles, non-string mapping
+        keys, and non-finite floats return ``False`` without changing any
+        existing context.  Context is immutable after the observer freezes its
+        final report in :meth:`stop`.
+        """
+        if (
+            not isinstance(namespace, str)
+            or not namespace.strip()
+            or not hasattr(self, "_report_extensions")
+            or getattr(self, "_report_finalized", False)
+        ):
+            return False
+
+        normalized = self._normalize_report_context(mapping)
+        if normalized is None:
+            return False
+
+        existing = self._report_extensions.get(namespace, {})
+        merged = dict(existing)
+        merged.update(normalized)
+        self._report_extensions[namespace] = merged
+        self._report_touch()
+        return True
+
+    def _report_monitoring_snapshot(self):
+        """Return a JSON-safe copy of monitoring state already held in memory."""
+        counts = getattr(self, "_monitoring", {}) or {}
+        triggered = getattr(self, "_triggered_thresholds", set()) or set()
+        try:
+            triggered_values = sorted("|".join(map(str, value)) for value in triggered)
+        except Exception:
+            logger.warning("trade_logger:947 fallback on Exception")
+            triggered_values = []
+        return {
+            "counts": self._report_json_safe_value(dict(counts)),
+            "configured_thresholds": copy.deepcopy(
+                getattr(self, "_report_monitoring_thresholds", {})
+            ),
+            "triggered_thresholds": triggered_values,
+        }
+
+    def _build_report_snapshot(self):
+        """Build a report from cached state only; never scan or write logs here."""
+        event_counts = getattr(self, "_report_event_counts", {})
+        records_dropped = getattr(self, "_report_dropped_records", {})
+        report = {
+            "schema_version": _REPORT_SCHEMA_VERSION,
+            "finalized": bool(getattr(self, "_report_finalized", False)),
+            "generated_at": getattr(self, "_report_last_updated_at", None),
+            "run_id": self._report_json_safe_value(getattr(self, "_run_id", None)),
+            "started_at": getattr(self, "_report_started_at", None),
+            "finalized_at": getattr(self, "_report_finalized_at", None),
+            "last_event_at": getattr(self, "_report_last_event_at", None),
+            "strategy": copy.deepcopy(getattr(self, "_report_strategy", {"name": "Unknown"})),
+            "provider": copy.deepcopy(getattr(self, "_report_provider", "")),
+            "session_id": copy.deepcopy(getattr(self, "_report_session_id", "")),
+            "portfolio": copy.deepcopy(
+                getattr(self, "_report_portfolio", {"cash": None, "value": None})
+            ),
+            "positions": copy.deepcopy(getattr(self, "_report_positions", {})),
+            "event_counts": {key: int(event_counts.get(key, 0)) for key in _REPORT_EVENT_KEYS},
+            "monitoring": self._report_monitoring_snapshot(),
+            "order_summaries": copy.deepcopy(list(getattr(self, "_report_orders", ()))),
+            "trade_summaries": copy.deepcopy(list(getattr(self, "_report_trades", ()))),
+            "records_dropped": {
+                "orders": int(records_dropped.get("orders", 0)),
+                "trades": int(records_dropped.get("trades", 0)),
+            },
+            "extensions": copy.deepcopy(getattr(self, "_report_extensions", {})),
+        }
+        startup_observation = getattr(self, "_report_startup_account_observation", None)
+        if startup_observation is not None:
+            report["startup_account_observation"] = copy.deepcopy(startup_observation)
+        return report
+
+    def snapshot(self):
+        """Return a deep-copied, real-time report from in-memory cached state.
+
+        This method does not initialize loggers, query log files, write to
+        files/MySQL, or request store/provider metadata.  Before returning it
+        refreshes local broker state when a strategy has reached a current bar,
+        so a call from ``Strategy.next`` sees that same bar rather than the
+        observer's previous callback.
+        """
+        final_report = getattr(self, "_final_report", None)
+        if getattr(self, "_report_finalized", False) and final_report is not None:
+            return copy.deepcopy(final_report)
+        self._refresh_report_state()
+        return copy.deepcopy(self._build_report_snapshot())
+
+    def final_report(self):
+        """Return the frozen final report after :meth:`stop`, otherwise ``None``."""
+        final_report = getattr(self, "_final_report", None)
+        return copy.deepcopy(final_report) if final_report is not None else None
+
+    def report(self):
+        """Return the current live snapshot, or the frozen final report after stop."""
+        return self.snapshot()
+
+    def _freeze_report(self):
+        """Freeze the final report exactly once after the strategy has stopped."""
+        if not hasattr(self, "_report_finalized") or self._report_finalized:
+            return
+        timestamp = self._log_time_str()
+        self._report_finalized = True
+        self._report_finalized_at = timestamp
+        self._report_last_updated_at = timestamp
+        self._report_last_event_at = timestamp
+        self._final_report = self._build_report_snapshot()
+
+    def start(self):
+        """Called at the start of the backtest/live run."""
+        # CRITICAL: Ensure registration to _lineiterators for next() to be called
+        self._ltype = 2  # LineIterator.ObsType
+        if hasattr(self, "_owner") and self._owner is not None:
+            if hasattr(self._owner, "_lineiterators"):
+                if self._ltype in self._owner._lineiterators:
+                    if self not in self._owner._lineiterators[self._ltype]:
+                        self._owner._lineiterators[self._ltype].append(self)
+        self._ensure_loggers_initialized()
+        self._start_report()
+        self._save_startup_position_snapshot()
+        self._log_event(
+            "system",
+            "session_started",
+            level="INFO",
+            details={"observer": self.__class__.__name__},
+        )
+        self._log_configured_risk_thresholds()
+
+    def _configured_risk_thresholds(self):
+        """Return enabled monitoring thresholds for certification evidence."""
+        thresholds = {
+            "submit_count": int(self.p.submit_count_warn_threshold or 0),
+            "cancel_count": int(self.p.cancel_count_warn_threshold or 0),
+            "submit_cancel_total": int(self.p.submit_cancel_total_warn_threshold or 0),
+            "duplicate_order": int(self.p.duplicate_order_warn_threshold or 0),
+        }
+        return {name: value for name, value in thresholds.items() if value > 0}
+
+    def _log_configured_risk_thresholds(self):
+        """Record threshold configuration using the canonical certification event."""
+        thresholds = self._configured_risk_thresholds()
+        if not thresholds:
+            return
+
+        self._log_event(
+            "monitor",
+            "risk_threshold_configured",
+            level="INFO",
+            details={
+                "thresholds": thresholds,
+                "repeat_window_sec": float(self.p.duplicate_order_window_seconds or 0.0),
+            },
+        )
+
+    def _ensure_loggers_initialized(self):
+        """Ensure loggers are initialized (lazy initialization)."""
+        if self._loggers_initialized:
+            return
+        self._loggers_initialized = True
+        self._init_loggers()
+        if self.p.mysql_enabled:
+            self._init_mysql()
+
+    def _init_loggers(self):
+        """Initialize all file loggers using Python standard logging."""
+        os.makedirs(self.p.log_dir, exist_ok=True)
+
+        if self.p.log_orders:
+            self._order_logger = self._create_file_logger(
+                "bt_order", os.path.join(self.p.log_dir, "order.log")
+            )
+
+        if self.p.log_trades:
+            self._trade_logger = self._create_file_logger(
+                "bt_trade", os.path.join(self.p.log_dir, "trade.log")
+            )
+
+        if self.p.log_positions:
+            self._position_logger = self._create_file_logger(
+                "bt_position", os.path.join(self.p.log_dir, "position.log")
+            )
+
+        if self.p.log_indicators:
+            self._indicator_logger = self._create_file_logger(
+                "bt_indicator", os.path.join(self.p.log_dir, "indicator.log")
+            )
+
+        if self.p.log_signals:
+            self._signal_logger = self._create_file_logger(
+                "bt_signal", os.path.join(self.p.log_dir, "signal.log")
+            )
+
+        if self.p.log_ticks:
+            self._tick_logger = self._create_file_logger(
+                "bt_tick", os.path.join(self.p.log_dir, "tick.log")
+            )
+
+        if self.p.log_bars:
+            self._bar_logger = self._create_file_logger(
+                "bt_bar", os.path.join(self.p.log_dir, "bar.log")
+            )
+
+        if self.p.log_system:
+            self._system_logger = self._create_file_logger(
+                "bt_system", os.path.join(self.p.log_dir, "system.log")
+            )
+
+        if self.p.log_monitoring:
+            self._monitor_logger = self._create_file_logger(
+                "bt_monitor", os.path.join(self.p.log_dir, "monitor.log")
+            )
+
+        if self.p.log_value:
+            self._value_logger = self._create_file_logger(
+                "bt_value", os.path.join(self.p.log_dir, "value.log")
+            )
+
+        if self.p.log_errors:
+            self._error_logger = self._create_file_logger(
+                "bt_error", os.path.join(self.p.log_dir, "error.log")
+            )
+
+    def _create_file_logger(self, name, file_path):
+        """Create a file logger using Python standard logging.
+
+        Args:
+            name: Logger name
+            file_path: Path to log file
+
+        Returns:
+            logging.Logger instance
+        """
+        logger = logging.getLogger(f"{name}:{id(self)}")
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        self._close_logger_handlers(logger)
+
+        # File handler - write to file
+        file_handler = logging.FileHandler(file_path, encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(file_handler)
+
+        # Console handler - optional
+        if self.p.log_to_console:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))
+            logger.addHandler(console_handler)
+
+        return logger
+
+    @staticmethod
+    def _close_logger_handlers(file_logger):
+        """Detach and close every handler owned by one per-instance file logger."""
+        for handler in list(getattr(file_logger, "handlers", ()) or ()):
+            remove_handler = getattr(file_logger, "removeHandler", None)
+            if callable(remove_handler):
+                try:
+                    remove_handler(handler)
+                except Exception:
+                    logger.warning("Failed to remove TradeLogger file handler", exc_info=True)
+            close_handler = getattr(handler, "close", None)
+            if callable(close_handler):
+                try:
+                    close_handler()
+                except Exception:
+                    logger.warning("Failed to close TradeLogger file handler", exc_info=True)
+
+    def _shutdown_file_loggers(self):
+        """Release each per-run log file before a caller cleans up its directory."""
+        for attribute in (
+            "_order_logger",
+            "_trade_logger",
+            "_position_logger",
+            "_indicator_logger",
+            "_signal_logger",
+            "_system_logger",
+            "_monitor_logger",
+            "_tick_logger",
+            "_bar_logger",
+            "_value_logger",
+            "_error_logger",
+        ):
+            file_logger = getattr(self, attribute, None)
+            if file_logger is not None:
+                self._close_logger_handlers(file_logger)
+                setattr(self, attribute, None)
+
+    @staticmethod
+    def _generate_run_id():
+        """Generate a stable per-run identifier for correlation."""
+        timestamp = datetime.now(_SHANGHAI_TZ).strftime("%Y%m%d%H%M%S")
+        return f"trade-log-{timestamp}-{uuid.uuid4().hex[:8]}"
+
+    @staticmethod
+    def _log_time_str():
+        """Return the current Shanghai (UTC+8) timestamp as an ISO string."""
+        return datetime.now(_SHANGHAI_TZ).isoformat(timespec="milliseconds")
+
+    @staticmethod
+    def _event_time_str(event_time, fallback):
+        """Return an ISO event timestamp with an explicit timezone offset."""
+        if event_time in (None, ""):
+            return fallback
+
+        if isinstance(event_time, datetime):
+            dt_value = event_time
+        elif isinstance(event_time, (int, float)):
+            try:
+                dt_value = datetime.fromtimestamp(float(event_time), timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return str(event_time)
+        elif isinstance(event_time, str):
+            value = event_time.strip()
+            if not value:
+                return fallback
+            try:
+                normalized = f"{value[:-1]}+00:00" if value.endswith("Z") else value
+                dt_value = datetime.fromisoformat(normalized)
+            except ValueError:
+                return value
+        else:
+            return str(event_time)
+
+        if dt_value.tzinfo is None or dt_value.utcoffset() is None:
+            dt_value = dt_value.replace(tzinfo=timezone.utc)
+        return dt_value.isoformat(timespec="milliseconds")
+
+    def _normalize_event_time_fields(self, payload, fallback=None):
+        """Normalize human-facing event time fields without touching epoch timestamps."""
+        normalized = dict(payload)
+        fallback = fallback or self._log_time_str()
+        for key in ("datetime", "time", "local_time"):
+            if key in normalized:
+                normalized[key] = self._event_time_str(normalized.get(key), fallback)
+        return normalized
+
+    def _store_provider(self):
+        """Return the active live provider when available."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            store = getattr(broker, "store", None)
+            if store is not None:
+                return getattr(store, "provider", "")
+            return getattr(broker, "provider", "")
+        except Exception as e:
+            logger.debug("Failed to read store provider: %s", e)
+            return ""
+
+    def _session_id(self):
+        """Return the active store session id when available."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            store = getattr(broker, "store", None)
+            return getattr(store, "session_id", "") if store is not None else ""
+        except Exception as e:
+            logger.debug("Failed to read session id: %s", e)
+            return ""
+
+    @staticmethod
+    def _safe_order_info(order, key, default=None):
+        """Read a value from order.info with a stable fallback."""
+        info = getattr(order, "info", None)
+        if info is None:
+            return default
+
+        try:
+            value = getattr(info, key)
+            if isinstance(value, Mapping) and not value:
+                return default
+            return value
+        except AttributeError:
+            # No attribute named `key`; try the dict-style .get() path below.
+            logger.debug("trade_logger:1259 ignored AttributeError")
+        except Exception:
+            # Attribute access raised unexpectedly; this is a best-effort read
+            # for logging only, so fall back to the .get() path below. Logged
+            # at debug to keep the failure visible without breaking logging.
+            logger.debug("order.info attribute read failed for key %r", key, exc_info=True)
+
+        get_method = getattr(info, "get", None)
+        if callable(get_method):
+            try:
+                value = get_method(key, default)
+                if isinstance(value, Mapping) and not value:
+                    return default
+                return value
+            except Exception:
+                logger.warning("trade_logger:1274 fallback on Exception")
+                return default
+
+        return default
+
+    def _base_event(self, event_type, level="INFO", event_time=None, **fields):
+        """Create a common structured event payload."""
+        log_time = self._log_time_str()
+        payload = {
+            "log_time": log_time,
+            "event_time": self._event_time_str(event_time, log_time),
+            "event_type": event_type,
+            "level": str(level).upper(),
+            "run_id": self._run_id,
+            "session_id": self._session_id(),
+            "provider": self._store_provider(),
+            "strategy_name": self._get_strategy_name(),
+        }
+        payload.update(fields)
+        return payload
+
+    def _emit_payload(self, logger, payload, text_line=None):
+        """Write a structured payload to a logger."""
+        if logger is None:
+            return
+
+        if self.p.log_format == "json":
+            logger.info(json.dumps(payload, ensure_ascii=False, default=str))
+            return
+
+        if text_line is None:
+            parts = [
+                payload.get("log_time", ""),
+                payload.get("level", "INFO"),
+                payload.get("event_type", ""),
+            ]
+            for key in ("data_name", "status", "error_code", "error_msg"):
+                value = payload.get(key)
+                if value not in ("", None):
+                    parts.append(f"{key}={value}")
+            details = payload.get("details")
+            if details:
+                parts.append(str(details))
+            text_line = " | ".join(str(part) for part in parts if part != "")
+
+        logger.info(text_line)
+
+    def _log_event(self, category, event_type, level="INFO", text_line=None, **fields):
+        """Route a structured event into the appropriate runtime log."""
+        logger_map = {
+            "system": self._system_logger,
+            "monitor": self._monitor_logger,
+            "error": self._error_logger,
+        }
+        payload = self._base_event(event_type, level=level, **fields)
+        self._emit_payload(logger_map.get(category), payload, text_line=text_line)
+        return payload
+
+    def _log_internal_error(self, source, exc):
+        self._record_report_event("errors")
+        try:
+            self._log_event(
+                "error",
+                "observer_internal_error",
+                level="ERROR",
+                error_code=str(source),
+                error_msg=str(exc),
+                details={"source": str(source)},
+            )
+        except Exception:
+            logger.error("TradeLogger internal error in %s: %s", source, exc)
+
+    def _monitor_threshold(self, counter_name, threshold, event_type):
+        """Emit a warning event when a monitoring threshold is crossed."""
+        if threshold <= 0:
+            return
+
+        value = int(self._monitoring.get(counter_name, 0))
+        if value < threshold:
+            return
+
+        key = (counter_name, threshold)
+        if key in self._triggered_thresholds:
+            return
+
+        self._triggered_thresholds.add(key)
+        self._log_event(
+            "monitor",
+            event_type,
+            level="WARNING",
+            details={"counter": counter_name, "value": value, "threshold": threshold},
+        )
+        self._log_event(
+            "monitor",
+            "risk_threshold_triggered",
+            level="WARNING",
+            details={
+                "counter": counter_name,
+                "value": value,
+                "threshold": threshold,
+                "source_event_type": event_type,
+            },
+        )
+
+    def _make_duplicate_key(self, action_type, details):
+        """Build a duplicate-request key within the configured time window."""
+
+        def normalize(value):
+            return "" if value is None else str(value)
+
+        if action_type == "cancel":
+            return (
+                action_type,
+                normalize(details.get("data_name")),
+                "",
+                "",
+                "",
+                "",
+                "",
+            )
+
+        return (
+            action_type,
+            normalize(details.get("data_name")),
+            normalize(details.get("side")),
+            normalize(details.get("offset")),
+            normalize(details.get("size")),
+            normalize(details.get("price")),
+            normalize(details.get("order_ref")),
+        )
+
+    def _track_request_monitoring(self, action_type, details):
+        """Update request counters, duplicate detection, and threshold checks."""
+        if action_type == "submit":
+            self._monitoring["submit_count"] += 1
+            self._monitoring["submit_cancel_total"] += 1
+            self._log_event(
+                "monitor",
+                "risk_monitor_event",
+                level="INFO",
+                details={
+                    "metric": "submitted_order_count",
+                    "value": int(self._monitoring["submit_count"]),
+                    "action_type": action_type,
+                    **details,
+                },
+            )
+            self._monitor_threshold(
+                "submit_count",
+                int(self.p.submit_count_warn_threshold or 0),
+                "submit_count_threshold_reached",
+            )
+            self._monitor_threshold(
+                "submit_cancel_total",
+                int(self.p.submit_cancel_total_warn_threshold or 0),
+                "submit_cancel_total_threshold_reached",
+            )
+        elif action_type == "cancel":
+            self._monitoring["cancel_count"] += 1
+            self._monitoring["submit_cancel_total"] += 1
+            self._log_event(
+                "monitor",
+                "risk_monitor_event",
+                level="INFO",
+                details={
+                    "metric": "cancel_order_count",
+                    "value": int(self._monitoring["cancel_count"]),
+                    "action_type": action_type,
+                    **details,
+                },
+            )
+            self._monitor_threshold(
+                "cancel_count",
+                int(self.p.cancel_count_warn_threshold or 0),
+                "cancel_count_threshold_reached",
+            )
+            self._monitor_threshold(
+                "submit_cancel_total",
+                int(self.p.submit_cancel_total_warn_threshold or 0),
+                "submit_cancel_total_threshold_reached",
+            )
+
+        key = self._make_duplicate_key(action_type, details)
+        window = float(self.p.duplicate_order_window_seconds or 0.0)
+        if window <= 0:
+            return
+
+        now = time.time()
+        queue = self._duplicate_requests[key]
+        queue.append(now)
+        while queue and (now - queue[0]) > window:
+            queue.popleft()
+
+        if len(queue) <= 1:
+            return
+
+        counter_name = f"duplicate_{action_type}_count"
+        self._monitoring[counter_name] += 1
+        self._log_event(
+            "monitor",
+            "duplicate_order_detected",
+            level="WARNING",
+            details={
+                "action_type": action_type,
+                "duplicate_count": len(queue),
+                **details,
+            },
+        )
+        repeat_event_type = (
+            "risk_repeat_cancel_detected"
+            if action_type == "cancel"
+            else "risk_repeat_order_detected"
+        )
+        self._log_event(
+            "monitor",
+            repeat_event_type,
+            level="WARNING",
+            details={
+                "action_type": action_type,
+                "repeat_key": "|".join(str(part) for part in key),
+                "repeat_count": len(queue),
+                **details,
+            },
+        )
+        self._monitor_threshold(
+            counter_name,
+            int(self.p.duplicate_order_warn_threshold or 0),
+            "duplicate_order_threshold_reached",
+        )
+
+    def _init_mysql(self):
+        """Initialize MySQL connection and create tables."""
+        if not MYSQL_AVAILABLE:
+            logger.warning("pymysql not installed, MySQL logging disabled")
+            if self.p.log_to_console:
+                logger.warning(
+                    "[TradeLogger] Warning: pymysql not installed, MySQL logging disabled"
+                )
+            return
+
+        try:
+            self._mysql_conn = pymysql.connect(
+                host=self.p.mysql_host,
+                port=self.p.mysql_port,
+                user=self.p.mysql_user,
+                password=self.p.mysql_password,
+                database=self.p.mysql_database,
+                charset="utf8mb4",
+                autocommit=True,
+            )
+            self._create_mysql_tables()
+        except Exception as e:
+            logger.error("MySQL connection failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL connection failed: {e}")
+            self._mysql_conn = None
+
+    def _create_mysql_tables(self):
+        """Create MySQL tables if they don't exist."""
+        if not self._mysql_conn:
+            return
+
+        cursor = self._mysql_conn.cursor()
+
+        # Orders table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bt_orders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                datetime DATETIME,
+                ref INT,
+                order_type VARCHAR(10),
+                status VARCHAR(20),
+                size DOUBLE,
+                price DOUBLE,
+                executed_price DOUBLE,
+                executed_size DOUBLE,
+                executed_value DOUBLE,
+                commission DOUBLE,
+                data_name VARCHAR(50),
+                strategy_name VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_datetime (datetime),
+                INDEX idx_ref (ref),
+                INDEX idx_data_name (data_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
+        # Trades table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bt_trades (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                datetime DATETIME,
+                ref INT,
+                data_name VARCHAR(50),
+                size DOUBLE,
+                price DOUBLE,
+                value DOUBLE,
+                pnl DOUBLE,
+                pnlcomm DOUBLE,
+                commission DOUBLE,
+                isclosed BOOLEAN,
+                isopen BOOLEAN,
+                baropen INT,
+                barclose INT,
+                barlen INT,
+                strategy_name VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_datetime (datetime),
+                INDEX idx_data_name (data_name),
+                INDEX idx_isclosed (isclosed)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
+        # Positions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bt_positions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                datetime DATETIME,
+                data_name VARCHAR(50),
+                size DOUBLE,
+                price DOUBLE,
+                value DOUBLE,
+                strategy_name VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_datetime (datetime),
+                INDEX idx_data_name (data_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
+        # Indicators table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bt_indicators (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                datetime DATETIME,
+                indicator_name VARCHAR(100),
+                indicator_value DOUBLE,
+                data_name VARCHAR(50),
+                strategy_name VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_datetime (datetime),
+                INDEX idx_indicator_name (indicator_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
+        # Signals table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bt_signals (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                datetime DATETIME,
+                action VARCHAR(10),
+                size DOUBLE,
+                price DOUBLE,
+                data_name VARCHAR(50),
+                reason VARCHAR(255),
+                strategy_name VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_datetime (datetime),
+                INDEX idx_action (action)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
+        cursor.close()
+
+    def _get_datetime_str(self):
+        """Get current strategy datetime as an ISO string with an explicit offset."""
+        fallback = self._log_time_str()
+        try:
+            dt = self._owner.datetime.datetime()
+        except Exception as e:
+            logger.debug("Failed to read strategy datetime: %s", e)
+            return fallback
+        return self._event_time_str(dt, fallback)
+
+    @staticmethod
+    def _is_epoch_zero_text(value):
+        """Return True when a normalized timestamp is the platform zero date."""
+        text = str(value or "").strip()
+        return text.startswith(("1970-01-01T00:00:00", "1970-01-01 00:00:00"))
+
+    def _event_time_str_or_none(self, event_time, fallback):
+        """Normalize an event time, treating empty/zero dates as missing."""
+        if event_time in (None, "", 0, 0.0):
+            return None
+        text = self._event_time_str(event_time, fallback)
+        if self._is_epoch_zero_text(text):
+            return None
+        return text
+
+    def _trade_numdate_str(self, trade, value, fallback):
+        """Convert a backtrader numeric trade date into an ISO timestamp."""
+        if value in (None, "", 0, 0.0):
+            return None
+        data = getattr(trade, "data", None)
+        try:
+            if data is None or not hasattr(data, "num2date"):
+                return None
+            dt_value = data.num2date(value)
+        except Exception as e:
+            logger.debug("Failed to convert trade datetime: %s", e)
+            return None
+        return self._event_time_str_or_none(dt_value, fallback)
+
+    def _data_current_datetime_str(self, data, fallback):
+        """Return the current data timestamp as an ISO string when available."""
+        if data is None:
+            return None
+
+        data_datetime = getattr(data, "datetime", None)
+        datetime_reader = getattr(data_datetime, "datetime", None)
+        if callable(datetime_reader):
+            for args in ((), (0,)):
+                try:
+                    text = self._event_time_str_or_none(datetime_reader(*args), fallback)
+                except Exception as e:
+                    logger.debug("Failed to read data datetime: %s", e)
+                    continue
+                if text is not None:
+                    return text
+
+        try:
+            numeric_dt = data_datetime[0]
+        except Exception:
+            logger.warning("trade_logger:1695 fallback on Exception")
+            return None
+
+        try:
+            if hasattr(data, "num2date"):
+                return self._event_time_str_or_none(data.num2date(numeric_dt), fallback)
+        except Exception as e:
+            logger.debug("Failed to convert current data datetime: %s", e)
+        return None
+
+    def _trade_time_fields(self, trade, log_time=None):
+        """Return event/open/close timestamps for a trade without zero-date leaks."""
+        fallback = log_time or self._log_time_str()
+        data = getattr(trade, "data", None)
+
+        dtopen = self._trade_numdate_str(trade, getattr(trade, "dtopen", None), fallback)
+        dtclose = self._trade_numdate_str(trade, getattr(trade, "dtclose", None), fallback)
+        data_current = self._data_current_datetime_str(data, fallback)
+        owner_current = self._event_time_str_or_none(self._get_datetime_str(), fallback)
+
+        if getattr(trade, "isclosed", False):
+            event_time = dtclose or data_current or owner_current or fallback
+            dtclose = dtclose or event_time
+        else:
+            event_time = dtopen or data_current or owner_current or fallback
+
+        if getattr(trade, "isopen", False):
+            dtopen = dtopen or event_time
+
+        return event_time, dtopen, dtclose
+
+    def _get_strategy_name(self):
+        """Get the strategy class name."""
+        if self._owner is None:
+            return "Unknown"
+        try:
+            return self._owner.__class__.__name__
+        except Exception as e:
+            logger.debug("Failed to read strategy name: %s", e)
+            return "Unknown"
+
+    def _get_broker_value(self):
+        """Get current broker portfolio value."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            if broker is None:
+                return 0.0
+            return float(broker.getvalue())
+        except Exception as e:
+            logger.debug("Failed to read broker value: %s", e)
+            return 0.0
+
+    def _get_broker_cash(self):
+        """Get current broker cash."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            if broker is None:
+                return 0.0
+            return float(broker.getcash())
+        except Exception as e:
+            logger.debug("Failed to read broker cash: %s", e)
+            return 0.0
+
+    def _iter_position_datas(self):
+        """Yield known data identities without creating broker-side state."""
+        if not hasattr(self, "_owner") or self._owner is None:
+            return []
+
+        result = []
+        names = set()
+
+        def add(data):
+            if data is None:
+                return
+            name = str(getattr(data, "_name", None) or getattr(data, "_dataname", None) or data)
+            if name in names:
+                return
+            names.add(name)
+            result.append(data)
+
+        for data in getattr(self._owner, "datas", []) or []:
+            add(data)
+
+        placeholder_data = getattr(self._owner, "placeholder_data", None)
+        if isinstance(placeholder_data, dict):
+            for _, data in sorted(placeholder_data.items()):
+                add(data)
+        elif placeholder_data:
+            try:
+                for data in placeholder_data:
+                    add(data)
+            except TypeError:
+                logger.debug("trade_logger:1784 ignored TypeError")
+
+        # Channel-only strategies receive these stable references from Cerebro
+        # before their event callbacks.  They are required when a strategy
+        # intentionally has neither a LineSeries data feed nor a hand-made
+        # placeholder object.
+        hft_refs = getattr(self._owner, "_hft_data_refs", None)
+        if isinstance(hft_refs, Mapping):
+            for _, data in sorted(hft_refs.items()):
+                add(data)
+
+        return result
+
+    @staticmethod
+    def _float_or_none(value):
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _positive_float(value, default=1.0):
+        number = TradeLogger._float_or_none(value)
+        if number is None or number <= 0:
+            return default
+        return number
+
+    def _current_position_price(self, data, position):
+        """Best-effort local mark price for generic position valuation."""
+        try:
+            return float(data.close[0])
+        except Exception:
+            logger.warning("trade_logger:1818 suppressed Exception")
+
+        # TickBroker and compatible brokers expose this explicit local-cache
+        # hook. Do not fall back to a generic broker getter here: live
+        # implementations may make an account/provider request from those.
+        try:
+            broker = getattr(self._owner, "broker", None)
+            mark_price = getattr(broker, "get_cached_mark_price", None)
+            if callable(mark_price):
+                value = mark_price(data)
+                if value is not None:
+                    return float(value)
+        except (TypeError, ValueError):
+            logger.debug("trade_logger:1831 ignored TypeError,ValueError")
+        except Exception as exc:
+            logger.debug("Failed to read cached broker mark price: %s", exc)
+        return float(getattr(position, "price", 0.0) or 0.0)
+
+    def _cached_commission_info_for_data(self, data):
+        """Return configured commission info without calling a broker method."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            comminfo = getattr(broker, "comminfo", None)
+            if isinstance(comminfo, Mapping):
+                name = getattr(data, "_name", None) or getattr(data, "_dataname", None)
+                return comminfo.get(name, comminfo.get(None))
+        except Exception as exc:
+            logger.warning("Failed to read commission info: %s", exc)
+        return None
+
+    def _commission_info_for_data(self, data):
+        """Return broker commission info for legacy file log enrichment."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            getter = getattr(broker, "getcommissioninfo", None)
+            if callable(getter):
+                return getter(data)
+        except Exception as exc:
+            logger.debug("Failed to read commission info: %s", exc)
+        return None
+
+    @staticmethod
+    def _comminfo_param(comminfo, name, default=None):
+        if comminfo is None:
+            return default
+        getter = getattr(comminfo, "get_param", None)
+        if callable(getter):
+            try:
+                value = getter(name)
+                if value is not None:
+                    return value
+            except Exception:
+                logger.warning("trade_logger:1870 suppressed Exception")
+        params = getattr(comminfo, "p", None)
+        if params is not None:
+            try:
+                value = getattr(params, name)
+                if value is not None:
+                    return value
+            except Exception:
+                logger.warning("trade_logger:1878 suppressed Exception")
+        return getattr(comminfo, name, default)
+
+    def _contract_metadata_for_data(self, data, data_name):
+        """Return configured contract metadata from broker/store if present."""
+        metadata = {}
+        try:
+            broker = getattr(self._owner, "broker", None)
+            resolver = getattr(broker, "_contract_rules_for", None)
+            if callable(resolver):
+                value = resolver(data_name)
+                if isinstance(value, dict):
+                    metadata.update(value)
+
+            broker_metadata = getattr(broker, "_contract_metadata", None)
+            if isinstance(broker_metadata, dict):
+                value = broker_metadata.get(str(data_name))
+                if isinstance(value, dict):
+                    metadata.update(value)
+
+            store = getattr(broker, "store", None) if broker is not None else None
+            getter = getattr(store, "get_contract_metadata", None)
+            if callable(getter):
+                value = getter(data_name)
+                if isinstance(value, dict):
+                    metadata.update(value)
+        except Exception as exc:
+            logger.debug("Failed to read contract metadata for %s: %s", data_name, exc)
+        return metadata
+
+    def _position_contract_fields(self, data, position, data_name):
+        """Build valuation metadata for position logs and snapshots."""
+        current_price = self._current_position_price(data, position)
+        comminfo = self._commission_info_for_data(data)
+        metadata = self._contract_metadata_for_data(data, data_name)
+
+        multiplier = self._positive_float(
+            metadata.get("multiplier")
+            or metadata.get("mult")
+            or metadata.get("contract_multiplier")
+            or metadata.get("contract_size")
+            or self._comminfo_param(comminfo, "mult"),
+            1.0,
+        )
+
+        margin_rate = self._float_or_none(
+            metadata.get("margin_rate") or metadata.get("margin") or metadata.get("margin_ratio")
+        )
+        if margin_rate is None:
+            margin_param = self._float_or_none(self._comminfo_param(comminfo, "margin"))
+            class_name = comminfo.__class__.__name__ if comminfo is not None else ""
+            if margin_param is not None and (
+                0.0 <= margin_param <= 1.0 or class_name.startswith("ComminfoFutures")
+            ):
+                margin_rate = margin_param
+
+        commission_rate = self._float_or_none(
+            metadata.get("commission_rate")
+            or metadata.get("fee_rate")
+            or metadata.get("open_fee_rate")
+            or self._comminfo_param(comminfo, "commission")
+        )
+        margin_value = None
+        if abs(float(position.size or 0.0)) > 0:
+            margin_getter = getattr(comminfo, "get_margin", None)
+            if callable(margin_getter):
+                try:
+                    margin_value = abs(float(position.size)) * float(margin_getter(current_price))
+                except Exception:
+                    logger.warning("trade_logger:1949 fallback on Exception")
+                    margin_value = None
+            if margin_value is None and margin_rate is not None:
+                margin_value = abs(float(position.size)) * current_price * multiplier * margin_rate
+
+        fields = {
+            "current_price": current_price,
+            "multiplier": multiplier,
+            "contract_multiplier": multiplier,
+            "contract_size": multiplier,
+        }
+        if margin_rate is not None:
+            fields["margin"] = margin_rate
+            fields["margin_rate"] = margin_rate
+        if margin_value is not None:
+            fields["margin_value"] = margin_value
+        if commission_rate is not None:
+            fields["commission_rate"] = commission_rate
+        for key in (
+            "commission_method",
+            "commission_amount",
+            "open_commission_rate",
+            "open_fee_rate",
+            "open_fee_amount",
+            "long_margin_rate",
+            "short_margin_rate",
+            "exchange",
+            "exchange_id",
+            "asset_type",
+        ):
+            value = metadata.get(key)
+            if value not in (None, ""):
+                fields[key] = value
+        return fields
+
+    def _position_market_value(self, data, position):
+        """Best-effort mark-to-market notional exposure for position logs."""
+        if position.size == 0:
+            return 0.0
+
+        data_name = getattr(data, "_name", str(data))
+        fields = self._position_contract_fields(data, position, data_name)
+        current_price = fields.get("current_price", 0.0)
+        multiplier = fields.get("multiplier", 1.0)
+        return float(position.size) * float(current_price or 0.0) * float(multiplier or 1.0)
+
+    def _log_bar_snapshots(self):
+        """Log per-bar OHLC snapshots during regular backtests."""
+        if not self._bar_logger:
+            return
+
+        if not hasattr(self, "_owner") or self._owner is None:
+            return
+
+        if not hasattr(self._owner, "datas") or not self._owner.datas:
+            return
+
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
+        for data in self._owner.datas:
+            try:
+                data_name = getattr(data, "_name", str(data))
+                log_data = {
+                    "log_time": self._log_time_str(),
+                    "event_type": "bar",
+                    "strategy_name": self._get_strategy_name(),
+                    "data_name": data_name,
+                    "datetime": self._get_datetime_str(),
+                    "open": float(data.open[0]),
+                    "high": float(data.high[0]),
+                    "low": float(data.low[0]),
+                    "close": float(data.close[0]),
+                    "volume": float(data.volume[0]) if hasattr(data, "volume") else 0.0,
+                    "openinterest": (
+                        float(data.openinterest[0]) if hasattr(data, "openinterest") else 0.0
+                    ),
+                    "broker_value": broker_value,
+                    "broker_cash": broker_cash,
+                }
+                self._emit_payload(
+                    self._bar_logger,
+                    log_data,
+                    text_line=(
+                        f"{log_data['log_time']} | BAR | datetime={log_data['datetime']} | "
+                        f"data_name={data_name} | open={log_data['open']:.4f} | "
+                        f"high={log_data['high']:.4f} | low={log_data['low']:.4f} | "
+                        f"close={log_data['close']:.4f} | volume={log_data['volume']:.2f} | "
+                        f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
+                    ),
+                )
+            except Exception as e:
+                logger.debug(
+                    "Failed to log bar snapshot for %s: %s", getattr(data, "_name", str(data)), e
+                )
+                continue
+
+    def next(self):
+        """Called on every bar - log positions and indicators."""
+        self._ensure_loggers_initialized()
+        # In a regular Cerebro run, an observer step is one real bar unless a
+        # feed already dispatched that same bar to ``notify_bar_event``.  In a
+        # channel-only run Cerebro invokes ``_next`` for every event, including
+        # ticks/order books/funding; channel bars are counted exclusively by
+        # ``notify_bar_event`` so they are neither misclassified nor doubled.
+        owner = getattr(self, "_owner", None)
+        if owner is None or (
+            bool(getattr(owner, "datas", ())) and not self._consume_dispatched_line_bar(owner)
+        ):
+            self._record_report_event("bars")
+
+        # Set dummy line value (required for observer)
+        self.lines.dummy[0] = 0
+
+        try:
+            if self.p.log_bars:
+                self._log_bar_snapshots()
+
+            if self.p.log_value:
+                self._log_value()
+
+            if self.p.log_positions:
+                self._log_positions()
+
+            if self.p.log_indicators:
+                self._log_indicators()
+
+            if self.p.log_position_snapshot:
+                self._save_position_snapshot()
+        except Exception as e:
+            self._log_internal_error("next", e)
+            if self.p.log_to_console:
+                import traceback
+
+                logger.error(f"[TradeLogger] Error in next(): {e}")
+                traceback.print_exc()
+
+    def notify_order(self, order):
+        """Log order status changes."""
+        self._ensure_loggers_initialized()
+
+        try:
+            log_data = self._format_order(order)
+            self._record_report_event("orders", log_data, record_kind="orders")
+        except Exception as exc:
+            logger.warning("trade_logger:2093 fallback on Exception")
+            self._record_report_event("orders")
+            self._log_internal_error("notify_order", exc)
+            return
+
+        is_rejected = str(order.getstatusname()).lower() == "rejected"
+        if is_rejected:
+            self._record_report_event("errors")
+
+        # Reporting is independent from file logging.  Preserve the existing
+        # output behavior when order logging itself is disabled.
+        if not self.p.log_orders:
+            return
+
+        self._emit_payload(self._order_logger, log_data, text_line=self._format_order_text(order))
+
+        if is_rejected:
+            self._log_event(
+                "error",
+                "order_rejected",
+                level="ERROR",
+                data_name=log_data.get("data_name"),
+                order_ref=order.ref,
+                error_code=log_data.get("error_code", ""),
+                error_msg=log_data.get("error_msg", ""),
+                status=log_data.get("status"),
+                details={"order_type": log_data.get("order_type")},
+            )
+
+        # MySQL logging
+        if self.p.mysql_enabled and self._mysql_conn:
+            self._insert_order_mysql(log_data)
+
+    def notify_trade(self, trade):
+        """Log trade information."""
+        self._ensure_loggers_initialized()
+
+        try:
+            log_data = self._format_trade(trade)
+            self._record_report_event("trades", log_data, record_kind="trades")
+        except Exception as exc:
+            logger.warning("trade_logger:2133 fallback on Exception")
+            self._record_report_event("trades")
+            self._log_internal_error("notify_trade", exc)
+            return
+
+        if not self.p.log_trades:
+            return
+
+        self._emit_payload(self._trade_logger, log_data, text_line=self._format_trade_text(trade))
+
+        # MySQL logging
+        if self.p.mysql_enabled and self._mysql_conn:
+            self._insert_trade_mysql(log_data)
+
+    def log_signal(self, action, size, price, data_name=None, reason=None):
+        """Log a trading signal.
+
+        Args:
+            action (str): 'buy' or 'sell'
+            size (float): Order size
+            price (float): Signal price
+            data_name (str, optional): Data feed name
+            reason (str, optional): Signal reason/description
+        """
+        self._ensure_loggers_initialized()
+
+        owner_data_name = getattr(getattr(self._owner, "data", None), "_name", None)
+        if owner_data_name is None:
+            position_datas = self._iter_position_datas()
+            if position_datas:
+                owner_data_name = getattr(position_datas[0], "_name", None)
+
+        log_data = {
+            "log_time": self._log_time_str(),
+            "datetime": self._get_datetime_str(),
+            "action": action,
+            "size": size,
+            "price": price,
+            "data_name": data_name or owner_data_name,
+            "reason": reason or "",
+            "strategy_name": self._get_strategy_name(),
+        }
+        self._record_report_event("signals", log_data)
+
+        if not self.p.log_signals:
+            return
+
+        self._emit_payload(
+            self._signal_logger,
+            log_data,
+            text_line=(
+                f"{log_data['log_time']} | {action.upper()} | datetime={log_data['datetime']} | "
+                f"data_name={log_data['data_name'] or ''} | size={size} | "
+                f"price={price} | reason={reason or ''}"
+            ),
+        )
+
+        # MySQL logging
+        if self.p.mysql_enabled and self._mysql_conn:
+            self._insert_signal_mysql(log_data)
+
+    def notify_tick_event(self, tick):
+        """Log a tick event.
+
+        Called by the strategy's _notify_tick_to_observers when a new tick arrives.
+
+        Args:
+            tick: Tick data object with attributes like symbol, price, volume, etc.
+        """
+        self._ensure_loggers_initialized()
+        self._record_report_event("ticks")
+
+        if not self.p.log_ticks or not self._tick_logger:
+            return
+
+        try:
+            # Extract tick fields — support both dict-like and attribute-based objects
+            if hasattr(tick, "to_dict") and callable(tick.to_dict):
+                tick_dict = tick.to_dict()
+            elif isinstance(tick, dict):
+                tick_dict = dict(tick)
+            else:
+                tick_dict = {}
+                for attr in (
+                    "symbol",
+                    "price",
+                    "volume",
+                    "timestamp",
+                    "datetime",
+                    "bid_price",
+                    "ask_price",
+                    "bid_volume",
+                    "ask_volume",
+                    "openinterest",
+                    "turnover",
+                    "trade_id",
+                    "exchange",
+                    "exchange_id",
+                    "instrument_id",
+                    "trading_day",
+                    "update_time",
+                    "update_millisec",
+                    "asset_type",
+                    "local_time",
+                ):
+                    val = getattr(tick, attr, None)
+                    if val is not None:
+                        tick_dict[attr] = val
+
+            tick_dict = self._normalize_event_time_fields(tick_dict)
+            log_data = {
+                "log_time": self._log_time_str(),
+                "event_type": "tick",
+                "strategy_name": self._get_strategy_name(),
+                **tick_dict,
+            }
+            self._emit_payload(
+                self._tick_logger,
+                log_data,
+                text_line=(
+                    f"{log_data['log_time']} | TICK | "
+                    f"symbol={tick_dict.get('symbol', '')} | "
+                    f"price={tick_dict.get('price', '')} | "
+                    f"volume={tick_dict.get('volume', '')} | "
+                    f"bid={tick_dict.get('bid_price', '')} | "
+                    f"ask={tick_dict.get('ask_price', '')}"
+                ),
+            )
+        except Exception as e:
+            logger.warning("trade_logger:2261 fallback on Exception")
+            self._log_internal_error("notify_tick_event", e)
+
+    def notify_bar_event(self, bar):
+        """Log a bar event.
+
+        Called by the strategy's _notify_bar_to_observers when a new bar is synthesized.
+
+        Args:
+            bar: Bar data object with attributes like symbol, open, high, low, close, volume.
+        """
+        self._ensure_loggers_initialized()
+        self._record_report_event("bars")
+        owner = getattr(self, "_owner", None)
+        # Feed-origin completed bars are also delivered into LineSeries for a
+        # subsequent standard observer step.  Remember only those line-backed
+        # bars; incomplete diagnostic bars have no matching ``next`` call.
+        if (
+            owner is not None
+            and bool(getattr(owner, "datas", ()))
+            and getattr(bar, "complete", True) is not False
+        ):
+            identity = self._report_bar_event_identity(bar)
+            self._remember_dispatched_line_bar(identity, owner)
+
+        if not self.p.log_bars or not self._bar_logger:
+            return
+
+        try:
+            if hasattr(bar, "to_dict") and callable(bar.to_dict):
+                bar_dict = bar.to_dict()
+            elif isinstance(bar, dict):
+                bar_dict = dict(bar)
+            else:
+                bar_dict = {}
+                for attr in (
+                    "symbol",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "timestamp",
+                    "datetime",
+                    "interval",
+                    "period",
+                    "exchange",
+                    "asset_type",
+                    "turnover",
+                    "openinterest",
+                    "trading_day",
+                ):
+                    val = getattr(bar, attr, None)
+                    if val is not None:
+                        bar_dict[attr] = val
+
+            bar_dict = self._normalize_event_time_fields(bar_dict)
+            broker_value = self._get_broker_value()
+            broker_cash = self._get_broker_cash()
+            log_data = {
+                "log_time": self._log_time_str(),
+                "event_type": "bar",
+                "strategy_name": self._get_strategy_name(),
+                "broker_value": broker_value,
+                "broker_cash": broker_cash,
+                **bar_dict,
+            }
+            self._emit_payload(
+                self._bar_logger,
+                log_data,
+                text_line=(
+                    f"{log_data['log_time']} | BAR | "
+                    f"symbol={bar_dict.get('symbol', '')} | "
+                    f"O={bar_dict.get('open', '')} H={bar_dict.get('high', '')} "
+                    f"L={bar_dict.get('low', '')} C={bar_dict.get('close', '')} | "
+                    f"vol={bar_dict.get('volume', '')} | "
+                    f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
+                ),
+            )
+        except Exception as e:
+            logger.warning("trade_logger:2340 fallback on Exception")
+            self._log_internal_error("notify_bar_event", e)
+
+    def notify_store_event(self, msg, *args, **kwargs):
+        """Log a structured runtime event forwarded from a store."""
+        self._ensure_loggers_initialized()
+        self._record_report_event("store")
+
+        event = kwargs.get("event")
+        if not isinstance(event, dict):
+            event = {
+                "event_type": str(msg),
+                "level": "INFO",
+                "details": {"args": args, "kwargs": kwargs},
+            }
+
+        event_type = str(event.get("event_type") or msg or "runtime_event")
+        level = str(event.get("level") or "INFO").upper()
+        details = dict(event.get("details") or {})
+        data_name = details.get("data_name")
+
+        category = "system"
+        if level in {"ERROR", "CRITICAL"} or event.get("error_code") or event.get("error_msg"):
+            category = "error"
+            self._record_report_event("errors")
+        elif event_type.startswith(("order_", "duplicate_", "batch_cancel_")):
+            category = "monitor"
+
+        self._log_event(
+            category,
+            event_type,
+            level=level,
+            event_time=event.get("timestamp"),
+            data_name=data_name,
+            order_ref=event.get("order_ref") or details.get("order_ref"),
+            error_code=event.get("error_code", ""),
+            error_msg=event.get("error_msg", ""),
+            account_id_masked=event.get("account_id_masked", ""),
+            provider=event.get("provider") or self._store_provider(),
+            session_id=event.get("session_id") or self._session_id(),
+            status=event.get("status", ""),
+            details=details,
+        )
+
+        if event_type in {"order_submit_request", "order_reject_local", "order_reject_remote"}:
+            self._track_request_monitoring("submit", details)
+        elif event_type == "order_cancel_request":
+            self._track_request_monitoring("cancel", details)
+
+    def notify_data_event(self, data, status, *args, **kwargs):
+        """Log data-feed runtime status forwarded from Cerebro."""
+        self._ensure_loggers_initialized()
+        self._record_report_event("data")
+
+        data_name = getattr(data, "_name", None) or getattr(data, "_dataname", None) or repr(data)
+        status_names = getattr(data, "_NOTIFNAMES", ())
+        if isinstance(status, int) and 0 <= status < len(status_names):
+            status_name = status_names[status]
+        else:
+            status_name = str(status)
+
+        level = "INFO"
+        if status_name in {"DISCONNECTED", "CONNBROKEN"}:
+            level = "ERROR"
+            self._record_report_event("errors")
+        elif status_name == "DELAYED":
+            level = "WARNING"
+
+        self._log_event(
+            "system" if level == "INFO" else "error",
+            "data_status",
+            level=level,
+            data_name=data_name,
+            status=status_name,
+            details={"args": args, "kwargs": kwargs},
+        )
+
+    def _log_value(self):
+        """Log portfolio value and cash on every bar."""
+        if not self._value_logger:
+            return
+
+        if not hasattr(self, "_owner") or self._owner is None:
+            return
+
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
+        log_data = {
+            "log_time": self._log_time_str(),
+            "datetime": self._get_datetime_str(),
+            "strategy_name": self._get_strategy_name(),
+            "broker_value": broker_value,
+            "broker_cash": broker_cash,
+        }
+
+        self._emit_payload(
+            self._value_logger,
+            log_data,
+            text_line=(
+                f"{log_data['log_time']} | "
+                f"datetime={log_data['datetime']} | "
+                f"value={broker_value:.2f} | cash={broker_cash:.2f}"
+            ),
+        )
+
+    def _log_positions(self):
+        """Log position information for all data feeds."""
+        if not self._position_logger and not (self.p.mysql_enabled and self._mysql_conn):
+            return
+
+        if not hasattr(self, "_owner") or self._owner is None:
+            return
+
+        position_datas = self._iter_position_datas()
+        if not position_datas:
+            return
+
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
+        for data in position_datas:
+            position = self._owner.getposition(data)
+            data_name = getattr(data, "_name", str(data))
+            contract_fields = self._position_contract_fields(data, position, data_name)
+            market_value = (
+                float(position.size)
+                * float(contract_fields.get("current_price") or 0.0)
+                * float(contract_fields.get("multiplier") or 1.0)
+            )
+
+            log_data = {
+                "log_time": self._log_time_str(),
+                "datetime": self._get_datetime_str(),
+                "data_name": data_name,
+                "size": position.size,
+                "price": position.price,
+                "value": market_value,
+                **contract_fields,
+                "broker_value": broker_value,
+                "broker_cash": broker_cash,
+                "strategy_name": self._get_strategy_name(),
+            }
+
+            # File logging
+            if self._position_logger:
+                self._emit_payload(
+                    self._position_logger,
+                    log_data,
+                    text_line=(
+                        f"{log_data['log_time']} | POSITION | datetime={log_data['datetime']} | "
+                        f"data_name={data_name} | size={position.size} | "
+                        f"price={position.price:.4f} | "
+                        f"value={log_data['value']:.2f} | "
+                        f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
+                    ),
+                )
+
+            # MySQL logging
+            if self.p.mysql_enabled and self._mysql_conn:
+                self._insert_position_mysql(log_data)
+
+    def _log_indicators(self):
+        """Log all indicator values from the strategy."""
+        if not self._indicator_logger and not (self.p.mysql_enabled and self._mysql_conn):
+            return
+
+        indicators_data = self._collect_indicators()
+
+        if not indicators_data:
+            return
+
+        log_data = {
+            "log_time": self._log_time_str(),
+            "datetime": self._get_datetime_str(),
+            "strategy_name": self._get_strategy_name(),
+            **indicators_data,
+        }
+
+        # File logging
+        if self._indicator_logger:
+            indicator_str = " | ".join(
+                [f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))]
+            )
+            self._emit_payload(
+                self._indicator_logger,
+                log_data,
+                text_line=(
+                    f"{log_data['log_time']} | INDICATOR | datetime={log_data['datetime']} | "
+                    f"{indicator_str}"
+                ),
+            )
+
+        # MySQL logging - insert each indicator separately
+        if self.p.mysql_enabled and self._mysql_conn:
+            for name, value in indicators_data.items():
+                if isinstance(value, (int, float)):
+                    self._insert_indicator_mysql(name, value)
+
+    def _collect_indicators(self):
+        """Collect all indicator values from the strategy.
+
+        Returns:
+            dict: Dictionary of indicator names and their current values.
+        """
+        indicators: dict = {}
+
+        try:
+            # Get all indicators from the strategy
+            if hasattr(self._owner, "_lineiterators"):
+                for item in self._owner._lineiterators.get(self._owner.IndType, []):
+                    self._extract_indicator_values(item, indicators)
+
+            # Also check for indicators stored as attributes
+            for attr_name in dir(self._owner):
+                if attr_name.startswith("_"):
+                    continue
+                try:
+                    attr = getattr(self._owner, attr_name)
+                    if hasattr(attr, "lines") and hasattr(attr, "__len__"):
+                        self._extract_indicator_values(attr, indicators, attr_name)
+                except Exception as e:
+                    logger.debug("Failed to read indicator attr %s: %s", attr_name, e)
+                    continue
+
+        except Exception as e:
+            logger.debug("Failed to collect indicator values: %s", e)
+
+        # Check for custom indicators method on the strategy
+        if hasattr(self._owner, "get_custom_indicators") and callable(
+            self._owner.get_custom_indicators
+        ):
+            try:
+                custom = self._owner.get_custom_indicators()
+                if isinstance(custom, dict):
+                    indicators.update(custom)
+            except Exception as e:
+                logger.debug("Failed to get custom indicators: %s", e)
+
+        return indicators
+
+    def _extract_indicator_values(self, indicator, indicators_dict, prefix=""):
+        """Extract values from an indicator object.
+
+        Args:
+            indicator: The indicator object
+            indicators_dict: Dictionary to store values
+            prefix: Optional prefix for indicator names
+        """
+        try:
+            # Get indicator class name
+            ind_name = indicator.__class__.__name__
+            if prefix:
+                ind_name = f"{prefix}_{ind_name}"
+
+            # Get line values
+            if hasattr(indicator, "lines"):
+                for line_name in indicator.lines.getlinealiases():
+                    try:
+                        line = getattr(indicator.lines, line_name)
+                        if len(line) > 0:
+                            value = line[0]
+                            if value is not None and not (
+                                hasattr(value, "__float__") and float(value) != float(value)
+                            ):
+                                full_name = (
+                                    f"{ind_name}_{line_name}"
+                                    if line_name != ind_name.lower()
+                                    else ind_name
+                                )
+                                indicators_dict[full_name] = float(value)
+                    except Exception as e_line:
+                        logger.debug("Failed to read indicator line %s: %s", line_name, e_line)
+                        continue
+        except Exception as e:
+            logger.debug("Failed to extract indicator values: %s", e)
+
+    def _save_position_snapshot(self):
+        """Save current position snapshot to YAML file."""
+        if not YAML_AVAILABLE:
+            return
+
+        snapshot = {
+            "datetime": self._get_datetime_str(),
+            "strategy": self._get_strategy_name(),
+            "positions": {},
+        }
+
+        for data in self._iter_position_datas():
+            position = self._owner.getposition(data)
+            data_name = getattr(data, "_name", str(data))
+            contract_fields = self._position_contract_fields(data, position, data_name)
+
+            if position.size != 0:
+                current_price = round(float(contract_fields.get("current_price") or 0.0), 4)
+                market_value = (
+                    float(position.size)
+                    * float(contract_fields.get("current_price") or 0.0)
+                    * float(contract_fields.get("multiplier") or 1.0)
+                )
+                snapshot_fields = {
+                    key: round(value, 8) if isinstance(value, float) else value
+                    for key, value in contract_fields.items()
+                    if key != "current_price"
+                }
+                snapshot["positions"][data_name] = {
+                    "size": position.size,
+                    "price": round(position.price, 4),
+                    "value": round(market_value, 8),
+                    "current_price": current_price,
+                    **snapshot_fields,
+                }
+
+        snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)
+        try:
+            with open(snapshot_path, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    snapshot, f, allow_unicode=True, default_flow_style=False, sort_keys=False
+                )
+        except Exception as e:
+            logger.debug("Failed to save position snapshot: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] Failed to save position snapshot: {e}")
+
+    def _format_order(self, order):
+        """Format order data for logging."""
+        data = getattr(order, "data", None)
+        return {
+            "log_time": self._log_time_str(),
+            "datetime": self._get_datetime_str(),
+            "ref": order.ref,
+            "order_type": "Buy" if order.isbuy() else "Sell",
+            "status": order.getstatusname(),
+            "size": order.size,
+            "price": order.price,
+            "executed_price": order.executed.price if order.executed.size else None,
+            "executed_size": order.executed.size,
+            "executed_value": order.executed.value,
+            "commission": order.executed.comm,
+            "data_name": getattr(data, "_name", None) if data is not None else None,
+            "strategy_name": self._get_strategy_name(),
+            "external_order_id": self._safe_order_info(order, "external_order_id"),
+            "error_code": self._safe_order_info(order, "error_code", ""),
+            "error_msg": self._safe_order_info(order, "error_msg", ""),
+        }
+
+    def _format_order_text(self, order):
+        """Format order data as text."""
+        return (
+            f"{self._log_time_str()} | "
+            f"{'BUY' if order.isbuy() else 'SELL'} | "
+            f"datetime={self._get_datetime_str()} | "
+            f"ref={order.ref} | status={order.getstatusname()} | "
+            f"size={order.size} | price={order.price} | "
+            f"executed_price={order.executed.price if order.executed.size else None}"
+        )
+
+    def _format_trade(self, trade):
+        """Format trade data for logging."""
+        log_time = self._log_time_str()
+        event_time, dtopen, dtclose = self._trade_time_fields(trade, log_time)
+        return {
+            "log_time": log_time,
+            "datetime": event_time,
+            "dtopen": dtopen,
+            "dtclose": dtclose if trade.isclosed else None,
+            "ref": trade.ref,
+            "data_name": trade.data._name,
+            "size": trade.size,
+            "price": trade.price,
+            "value": trade.value,
+            "pnl": trade.pnl,
+            "pnlcomm": trade.pnlcomm,
+            "commission": trade.commission,
+            "isclosed": trade.isclosed,
+            "isopen": trade.isopen,
+            "baropen": trade.baropen,
+            "barclose": trade.barclose if trade.isclosed else None,
+            "barlen": trade.barlen,
+            "strategy_name": self._get_strategy_name(),
+        }
+
+    def _format_trade_text(self, trade):
+        """Format trade data as text."""
+        status = "CLOSED" if trade.isclosed else ("OPEN" if trade.isopen else "UPDATE")
+        log_time = self._log_time_str()
+        event_time, dtopen, dtclose = self._trade_time_fields(trade, log_time)
+        return (
+            f"{log_time} | {status} | "
+            f"datetime={event_time} | dtopen={dtopen or ''} | "
+            f"dtclose={dtclose or ''} | ref={trade.ref} | data={trade.data._name} | "
+            f"size={trade.size} | price={trade.price:.4f} | value={trade.value:.4f} | "
+            f"commission={trade.commission:.4f} | pnl={trade.pnl:.2f} | pnlcomm={trade.pnlcomm:.2f}"
+        )
+
+    def _insert_order_mysql(self, log_data):
+        """Insert order record into MySQL."""
+        if not self._mysql_conn:
+            return
+
+        try:
+            cursor = self._mysql_conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO bt_orders (datetime, ref, order_type, status, size, price,
+                    executed_price, executed_size, executed_value, commission, data_name, strategy_name)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["ref"],
+                    log_data["order_type"],
+                    log_data["status"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["executed_price"],
+                    log_data["executed_size"],
+                    log_data["executed_value"],
+                    log_data["commission"],
+                    log_data["data_name"],
+                    log_data["strategy_name"],
+                ),
+            )
+            cursor.close()
+        except Exception as e:
+            logger.debug("MySQL insert order failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL insert order failed: {e}")
+
+    def _insert_trade_mysql(self, log_data):
+        """Insert trade record into MySQL."""
+        if not self._mysql_conn:
+            return
+
+        try:
+            cursor = self._mysql_conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO bt_trades (datetime, ref, data_name, size, price, value,
+                    pnl, pnlcomm, commission, isclosed, isopen, baropen, barclose, barlen, strategy_name)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["ref"],
+                    log_data["data_name"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["value"],
+                    log_data["pnl"],
+                    log_data["pnlcomm"],
+                    log_data["commission"],
+                    log_data["isclosed"],
+                    log_data["isopen"],
+                    log_data["baropen"],
+                    log_data["barclose"],
+                    log_data["barlen"],
+                    log_data["strategy_name"],
+                ),
+            )
+            cursor.close()
+        except Exception as e:
+            logger.debug("MySQL insert trade failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL insert trade failed: {e}")
+
+    def _insert_position_mysql(self, log_data):
+        """Insert position record into MySQL."""
+        if not self._mysql_conn:
+            return
+
+        try:
+            cursor = self._mysql_conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO bt_positions (datetime, data_name, size, price, value, strategy_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["data_name"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["value"],
+                    log_data["strategy_name"],
+                ),
+            )
+            cursor.close()
+        except Exception as e:
+            logger.debug("MySQL insert position failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL insert position failed: {e}")
+
+    def _insert_indicator_mysql(self, indicator_name, indicator_value):
+        """Insert indicator record into MySQL."""
+        if not self._mysql_conn:
+            return
+
+        try:
+            cursor = self._mysql_conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO bt_indicators (datetime, indicator_name, indicator_value, strategy_name)
+                VALUES (%s, %s, %s, %s)
+            """,
+                (
+                    self._get_datetime_str(),
+                    indicator_name,
+                    indicator_value,
+                    self._get_strategy_name(),
+                ),
+            )
+            cursor.close()
+        except Exception as e:
+            logger.debug("MySQL insert indicator failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL insert indicator failed: {e}")
+
+    def _insert_signal_mysql(self, log_data):
+        """Insert signal record into MySQL."""
+        if not self._mysql_conn:
+            return
+
+        try:
+            cursor = self._mysql_conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO bt_signals (datetime, action, size, price, data_name, reason, strategy_name)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["action"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["data_name"],
+                    log_data["reason"],
+                    log_data["strategy_name"],
+                ),
+            )
+            cursor.close()
+        except Exception as e:
+            logger.debug("MySQL insert signal failed: %s", e)
+            if self.p.log_to_console:
+                logger.warning(f"[TradeLogger] MySQL insert signal failed: {e}")
+
+    def stop(self):
+        """Called at the end of the backtest/live run."""
+        # Strategy.stop() runs before Observer.stop() in both normal and
+        # channel lifecycles, so any final update_report_context call is now
+        # present. Legacy file sinks can fail independently of the generic
+        # report, so finalization belongs in ``finally``.
+        try:
+            self._refresh_report_state()
+            if self.p.log_monitoring:
+                self._log_event(
+                    "monitor",
+                    "monitoring_summary",
+                    level="INFO",
+                    details=dict(self._monitoring),
+                )
+
+            self._log_event(
+                "system",
+                "session_stopped",
+                level="INFO",
+                details={"observer": self.__class__.__name__},
+            )
+
+            # Save final position snapshot
+            if self.p.log_position_snapshot:
+                self._save_position_snapshot()
+        except Exception as exc:
+            logger.warning("trade_logger:2912 fallback on Exception")
+            self._log_internal_error("stop", exc)
+        finally:
+            # Close MySQL connection and always freeze the generic report.
+            try:
+                if self._mysql_conn:
+                    self._mysql_conn.close()
+            except Exception as exc:
+                logger.debug("Failed to close MySQL connection: %s", exc)
+            finally:
+                try:
+                    self._shutdown_file_loggers()
+                finally:
+                    self._freeze_report()

@@ -1,0 +1,86 @@
+{
+  "schema": "iteration41.g5_order_authority_independent_qa.v1",
+  "disposition": "G5_NOT_ACCEPTED",
+  "files": [
+    {
+      "path": "candidate.zip",
+      "size_bytes": 476519,
+      "sha256": "92b3add8e73dc51e7552a1c439d2663ebb20053e755c4dcf9194cab39c53b4b3"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 4268,
+      "sha256": "c55d6b4171fdabe11945abc51d20f4d6e3aef4ed6aa91fad5b65ea2ed2926c5b"
+    },
+    {
+      "path": "candidate-metadata\\final-output-manifest.json",
+      "size_bytes": 17378,
+      "sha256": "d9641aaf6757cf5aeff4a5246c42edb36b4bf6036268e05ff2134f41235d0e62"
+    },
+    {
+      "path": "candidate-metadata\\frozen-input-manifest.json",
+      "size_bytes": 9691,
+      "sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827"
+    },
+    {
+      "path": "candidate-metadata\\README.md",
+      "size_bytes": 9417,
+      "sha256": "0f3414ae37e5ab76f43007a4215482dcae8f2b73688b639202758a98f54b18c2"
+    },
+    {
+      "path": "candidate-metadata\\source-hashes.json",
+      "size_bytes": 1638,
+      "sha256": "96e90b4ba9b710f967aa378395436d1c0e2884950a0da366a38a871f4a0a75b7"
+    },
+    {
+      "path": "evidence\\adversarial-probes.log",
+      "size_bytes": 100,
+      "sha256": "f0895e69932121356e9473862f80ed829969bf0432f1aac759ec9a4d5cbf5948"
+    },
+    {
+      "path": "evidence\\candidate-archive.sha256.txt",
+      "size_bytes": 66,
+      "sha256": "ab9a06754fc2ffff8e90b0e0893cdbbdd39b84468fde51ddf8dc3eb36478c01f"
+    },
+    {
+      "path": "evidence\\candidate-focus.log",
+      "size_bytes": 101,
+      "sha256": "bbf97f35f0d27b091f8613bba3370c15ed67de3496dc7040d20a7a5204a6a280"
+    },
+    {
+      "path": "evidence\\frozen-integrity.log",
+      "size_bytes": 242,
+      "sha256": "d709e237a0bc23cabbca79f70a90374720e2b114cf76f66a2e5212b654f98a37"
+    },
+    {
+      "path": "evidence\\frozen-sdk-tests.log",
+      "size_bytes": 101,
+      "sha256": "729ba4733f97f7f6f420d4cd84bfc05b13718092d44acec486b0bec9d2301d42"
+    },
+    {
+      "path": "evidence\\module-origins.log",
+      "size_bytes": 754,
+      "sha256": "4849b03c221ba1f0c2cc7f70df29a7edb80056cfa9fb39e34fec1b4141cd42cc"
+    },
+    {
+      "path": "evidence\\patch-apply-check.log",
+      "size_bytes": 522,
+      "sha256": "6659a6a4bc2fce2511375ac932cdf516adb1ceb78e9ffcf49f219fc5396f3380"
+    },
+    {
+      "path": "evidence\\ruff.log",
+      "size_bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "evidence\\target-producer-static-scan.txt",
+      "size_bytes": 240,
+      "sha256": "1b6d21e1ef8752a78a86e09a77617b5590b86490c96c144303621357845d32ae"
+    },
+    {
+      "path": "qa-probes\\test_worker_handoff_independent_probe.py",
+      "size_bytes": 4063,
+      "sha256": "3c109c7651e037fa426496c4989ed585fe2c97a7fdaa494170efba4363d2b98a"
+    }
+  ]
+}

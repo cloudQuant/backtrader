@@ -1,0 +1,571 @@
+{
+  "schema": "iteration41_independent_qa_archive.v1",
+  "archive_directory": "ctp-account-actor-port-r5-independent-qa-2026-09-27",
+  "source_snapshots": [
+    {
+      "label": "author-r5",
+      "source_directory": "D:\\temp\\iteration41-ctp-account-actor-port-r5-20260927",
+      "raw_zip": "author-r5.raw.zip",
+      "zip_size": 38802,
+      "zip_sha256": "6e22847dd6309b92d603ec1abce257fa3945c20c6bafd3333e543934625b57fb",
+      "member_count": 20,
+      "members": [
+        {
+          "path": "author-r5/evidence/compile-results.txt",
+          "size": 222,
+          "sha256": "430f256e3c70a1736feded8c8e4123831128dee2c7b9220ab2f8f272f09920b5"
+        },
+        {
+          "path": "author-r5/evidence/patch-application-check.txt",
+          "size": 326,
+          "sha256": "3270f1d5991dc76226e8b7e94d338b814bba5409f6d69bb1ef9e686d3902d146"
+        },
+        {
+          "path": "author-r5/evidence/pytest-junit.log",
+          "size": 202,
+          "sha256": "94a18286c0eddb16f625a79148b5e05ebc0ffabe3b9c660de715c9487992c66e"
+        },
+        {
+          "path": "author-r5/evidence/R4-INPUT-VERIFICATION.md",
+          "size": 798,
+          "sha256": "795ef7b964502b77023804f01dcad334ff43cc16863470a7ade7a67592f058a7"
+        },
+        {
+          "path": "author-r5/evidence/REPORT.md",
+          "size": 3159,
+          "sha256": "63cee3f42d935f9ae83bb2a0ce69524e7d956375bdcca58d234b8970de9f4aea"
+        },
+        {
+          "path": "author-r5/evidence/ruff-results.txt",
+          "size": 200,
+          "sha256": "295ef634a11d0a4ea18fc21f80bbba9ecda3a62d0cce79872cc16bc47199936d"
+        },
+        {
+          "path": "author-r5/evidence/unittest.log",
+          "size": 7242,
+          "sha256": "950774a192deb7fd2c9d2d4864ab9cdf37653ae634f715b2e873fee14fe4c104"
+        },
+        {
+          "path": "author-r5/hashes/manifest.json",
+          "size": 2940,
+          "sha256": "73521009058983a0e34172c4ca0020c5f32f4cbf25da7b1fb554f4d68baaa4bd"
+        },
+        {
+          "path": "author-r5/hashes/manifest.sha256",
+          "size": 81,
+          "sha256": "6c9d4ce20fe9fb7bfeb6c11f333081283655022e3fd48326f29a72aacf001d44"
+        },
+        {
+          "path": "author-r5/hashes/README.md",
+          "size": 393,
+          "sha256": "68046997237fb1d78d5487f8158618dd8dd262fef6b0a96261eeacbd497ae832"
+        },
+        {
+          "path": "author-r5/hashes/SHA256SUMS.txt",
+          "size": 1700,
+          "sha256": "15d9981840e0963aff196f6111c7c3c0bbe74d5fee612f6f5cb24f12142a72d0"
+        },
+        {
+          "path": "author-r5/JUnit/r5-results.xml",
+          "size": 6562,
+          "sha256": "5b0c0477cca008a3637d47cd823043748bb09b328cc42ff5b2ab653ed72fb284"
+        },
+        {
+          "path": "author-r5/patch/r5.patch",
+          "size": 31903,
+          "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c"
+        },
+        {
+          "path": "author-r5/source/account_actor_port.py",
+          "size": 30975,
+          "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492"
+        },
+        {
+          "path": "author-r5/source/INTEGRATION_CONTRACT.md",
+          "size": 6369,
+          "sha256": "7cd77a60718015eb28f36763c34b81e791b756d2fff7a9e3f26508b0bbd1471d"
+        },
+        {
+          "path": "author-r5/source/MAIN_SOURCE_INVENTORY.md",
+          "size": 2730,
+          "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+        },
+        {
+          "path": "author-r5/source/README.md",
+          "size": 1572,
+          "sha256": "79426fa218d8694543a53516ef44034c75b20e4fc17a6a5b5b337a336dc44116"
+        },
+        {
+          "path": "author-r5/source/store_boundary_harness.py",
+          "size": 6020,
+          "sha256": "d6068b0ede8f281fcc9e33e869949be38e2791d1c42c18446eab7bbd2936bfce"
+        },
+        {
+          "path": "author-r5/source/store_boundary_harness_testonly.py",
+          "size": 1970,
+          "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05"
+        },
+        {
+          "path": "author-r5/tests/test_store_boundary_harness.py",
+          "size": 37568,
+          "sha256": "b63de6a5f2ea5aa75e5216198e0ef9da4b471763837462fbcc7899dcfdd9fb54"
+        }
+      ]
+    },
+    {
+      "label": "independent-qa-r5",
+      "source_directory": "D:\\temp\\iteration41-ctp-account-actor-port-r5-independent-qa-20260927",
+      "raw_zip": "independent-qa-r5.raw.zip",
+      "zip_size": 141777,
+      "zip_sha256": "c1cce8c965188cd3382e5bc8e91e4575e4ac5b6e0dd44178fb27d0b2179edc76",
+      "member_count": 81,
+      "members": [
+        {
+          "path": "independent-qa-r5/adversarial-controls-replay2.junit.xml",
+          "size": 802,
+          "sha256": "e7e4572fd6644a60c41f4cfaa124b9d54e43b1f9ceeea7179c9595d1d00ed007"
+        },
+        {
+          "path": "independent-qa-r5/adversarial-controls-replay2.log",
+          "size": 234,
+          "sha256": "3b34468cfa23a703600e03aceb9229434ca6f9b86ec7a8c116a0748d3ccbdf48"
+        },
+        {
+          "path": "independent-qa-r5/adversarial-controls.junit.xml",
+          "size": 802,
+          "sha256": "df8c4fc51e76c0117a6f81d6fc8859dae0ecb33ebdf49b1ce0665e8d3985208a"
+        },
+        {
+          "path": "independent-qa-r5/adversarial-controls.log",
+          "size": 226,
+          "sha256": "abbf8cc300224d6c1edebea41cee7b6d9fd5d1dd713ce5b14548763706573297"
+        },
+        {
+          "path": "independent-qa-r5/adversarial-probe.log",
+          "size": 1063,
+          "sha256": "011329ddf30bde9eca43053044e1aef10ce40ef33c15c7c3bfe9a0deef2bb7ad"
+        },
+        {
+          "path": "independent-qa-r5/adversarial_probe.py",
+          "size": 5762,
+          "sha256": "31bedabb04d6389c9d0be43e7231bc5a33220b4599397821d6179a43dd2b8b66"
+        },
+        {
+          "path": "independent-qa-r5/compare_replay.py",
+          "size": 1032,
+          "sha256": "e877394f51098d71f9b5560b02528cd79b2c7a44406b156846bbd77f41e991fb"
+        },
+        {
+          "path": "independent-qa-r5/compare_replay2.py",
+          "size": 1153,
+          "sha256": "b214328e3472929cbc273f1172fcafa34514e940cc3125b5f4bb421838d8b3a3"
+        },
+        {
+          "path": "independent-qa-r5/constructor-toctou-replay2.junit.xml",
+          "size": 765,
+          "sha256": "0fc51d7821c2afb8c5899f2b933e3c459f0880fcb82b4df616963567708bc0fc"
+        },
+        {
+          "path": "independent-qa-r5/constructor-toctou-replay2.log",
+          "size": 874,
+          "sha256": "3008a94f2a9c657e9d68aa19b106ed61209fac347f2c0110728c000f2e7d87b9"
+        },
+        {
+          "path": "independent-qa-r5/constructor-toctou.junit.xml",
+          "size": 765,
+          "sha256": "87792dc9f45eda78a7ba305b3df8e52507ca3d1f1e2004fbb7940a55fe3834b8"
+        },
+        {
+          "path": "independent-qa-r5/constructor-toctou.log",
+          "size": 866,
+          "sha256": "6cd7a379fe613f4c485ebcd7261c8ae4ac2764ef570fbada63e181d8e375e60a"
+        },
+        {
+          "path": "independent-qa-r5/guard/sitecustomize.py",
+          "size": 645,
+          "sha256": "289afbf45ca71bf484bf7817d8e583c3589a7c9c51eb8125ad0271b6f078ac37"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/account_actor_port.py",
+          "size": 25739,
+          "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/compile-results.txt",
+          "size": 59,
+          "sha256": "4cac00d710806727905ea0eee943ebe8c690fbeaa9507328c8a36342fc002337"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/INTEGRATION_CONTRACT.md",
+          "size": 5574,
+          "sha256": "0a68828d986a5c942c6fb76ac3b5aa1414e86f35b5a11f55cd70739bf3b8ba0b"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/MAIN_SOURCE_INVENTORY.md",
+          "size": 2730,
+          "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/manifest.json",
+          "size": 1654,
+          "sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/manifest.sha256",
+          "size": 80,
+          "sha256": "f24bb9ad2a22e3f2e46a4034dd60895418761a2f0ca0ba113b139ed121d37a3b"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/README.md",
+          "size": 1232,
+          "sha256": "de8288865b7174d09936d3e285ee5d52da16b142c023ce10b1d157e239b638ad"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/ruff-results.txt",
+          "size": 33,
+          "sha256": "b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/store_boundary_harness.py",
+          "size": 5114,
+          "sha256": "087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/test-results.txt",
+          "size": 6119,
+          "sha256": "8aa1807fdc356d7b6059a330731179b5a82d4ebc09924b20a3c939c5a6804099"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r4-base/tests/test_store_boundary_harness.py",
+          "size": 31213,
+          "sha256": "f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/compile-results.txt",
+          "size": 222,
+          "sha256": "430f256e3c70a1736feded8c8e4123831128dee2c7b9220ab2f8f272f09920b5"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/patch-application-check.txt",
+          "size": 326,
+          "sha256": "3270f1d5991dc76226e8b7e94d338b814bba5409f6d69bb1ef9e686d3902d146"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/pytest-junit.log",
+          "size": 202,
+          "sha256": "94a18286c0eddb16f625a79148b5e05ebc0ffabe3b9c660de715c9487992c66e"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/R4-INPUT-VERIFICATION.md",
+          "size": 798,
+          "sha256": "795ef7b964502b77023804f01dcad334ff43cc16863470a7ade7a67592f058a7"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/REPORT.md",
+          "size": 3159,
+          "sha256": "63cee3f42d935f9ae83bb2a0ce69524e7d956375bdcca58d234b8970de9f4aea"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/ruff-results.txt",
+          "size": 200,
+          "sha256": "295ef634a11d0a4ea18fc21f80bbba9ecda3a62d0cce79872cc16bc47199936d"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/evidence/unittest.log",
+          "size": 7242,
+          "sha256": "950774a192deb7fd2c9d2d4864ab9cdf37653ae634f715b2e873fee14fe4c104"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/hashes/manifest.json",
+          "size": 2940,
+          "sha256": "73521009058983a0e34172c4ca0020c5f32f4cbf25da7b1fb554f4d68baaa4bd"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/hashes/manifest.sha256",
+          "size": 81,
+          "sha256": "6c9d4ce20fe9fb7bfeb6c11f333081283655022e3fd48326f29a72aacf001d44"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/hashes/README.md",
+          "size": 393,
+          "sha256": "68046997237fb1d78d5487f8158618dd8dd262fef6b0a96261eeacbd497ae832"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/hashes/SHA256SUMS.txt",
+          "size": 1700,
+          "sha256": "15d9981840e0963aff196f6111c7c3c0bbe74d5fee612f6f5cb24f12142a72d0"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/JUnit/r5-results.xml",
+          "size": 6562,
+          "sha256": "5b0c0477cca008a3637d47cd823043748bb09b328cc42ff5b2ab653ed72fb284"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/patch/r5.patch",
+          "size": 31903,
+          "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/account_actor_port.py",
+          "size": 30975,
+          "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/INTEGRATION_CONTRACT.md",
+          "size": 6369,
+          "sha256": "7cd77a60718015eb28f36763c34b81e791b756d2fff7a9e3f26508b0bbd1471d"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/MAIN_SOURCE_INVENTORY.md",
+          "size": 2730,
+          "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/README.md",
+          "size": 1572,
+          "sha256": "79426fa218d8694543a53516ef44034c75b20e4fc17a6a5b5b337a336dc44116"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/store_boundary_harness.py",
+          "size": 6020,
+          "sha256": "d6068b0ede8f281fcc9e33e869949be38e2791d1c42c18446eab7bbd2936bfce"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/source/store_boundary_harness_testonly.py",
+          "size": 1970,
+          "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05"
+        },
+        {
+          "path": "independent-qa-r5/inputs/r5-candidate/tests/test_store_boundary_harness.py",
+          "size": 37568,
+          "sha256": "b63de6a5f2ea5aa75e5216198e0ef9da4b471763837462fbcc7899dcfdd9fb54"
+        },
+        {
+          "path": "independent-qa-r5/make_qa_manifest.py",
+          "size": 1753,
+          "sha256": "a1df61ea36ce9e047afb1fe97bc908cc439197a212d9016431763fdd13aab458"
+        },
+        {
+          "path": "independent-qa-r5/manifest-verification.log",
+          "size": 522,
+          "sha256": "033a9882578597b4714475924df769e626a63d151db6700cb00164d6d0762906"
+        },
+        {
+          "path": "independent-qa-r5/module-origins.log",
+          "size": 423,
+          "sha256": "5ce4f8f3c0709b90a1f11bdca1e599ddcb1d83210ea29d26c71859c3b7c2e3f2"
+        },
+        {
+          "path": "independent-qa-r5/newline_probe.py",
+          "size": 440,
+          "sha256": "18eaaf9858d42bdcaf9206e0cad87f56471aa4ddac4d5c275ad0ee6829c3b44e"
+        },
+        {
+          "path": "independent-qa-r5/patch-apply-ignore-whitespace.log",
+          "size": 14,
+          "sha256": "b38224805a5dc578ae50e3bd74706fe3de1f00efe119aaa0866a033913fb16a7"
+        },
+        {
+          "path": "independent-qa-r5/patch-check-ignore-whitespace.log",
+          "size": 14,
+          "sha256": "09f311d146b212476ac26b2a1b1316659d779d6a4437f8f98ca34ee2f282ea0b"
+        },
+        {
+          "path": "independent-qa-r5/patch-check.log",
+          "size": 182,
+          "sha256": "c6e379aa0a3c120afe7b8b9ba0648275cce7d76aec798fc4d1c79bf58fb7620b"
+        },
+        {
+          "path": "independent-qa-r5/pytest-40-replay2.junit.xml",
+          "size": 6562,
+          "sha256": "c285813f767b59fba78dbec56de8e0dce466f6ca32bd5a77c66cc4bc3411d2b7"
+        },
+        {
+          "path": "independent-qa-r5/pytest-40-replay2.log",
+          "size": 224,
+          "sha256": "2849d6363e56935d8c6ee191009a195f936363f9b7774e8ec719ac0be6fb86bb"
+        },
+        {
+          "path": "independent-qa-r5/pytest-40.junit.xml",
+          "size": 6562,
+          "sha256": "e9eed9e57291bd2ecb54c7747367fe25be0613fafe046e42a5ce8ad3dcd04b8e"
+        },
+        {
+          "path": "independent-qa-r5/pytest-40.log",
+          "size": 216,
+          "sha256": "9a377a54ac64f2c8d1f5d324de781b20eeceac9787e024ea2f9456ca37aa871a"
+        },
+        {
+          "path": "independent-qa-r5/qa-manifest.json",
+          "size": 15503,
+          "sha256": "71f4ded3f58b6b8264b27374ed574f7834e5bea1ddbc5bb08e4749a9fa69dcff"
+        },
+        {
+          "path": "independent-qa-r5/r5.patch",
+          "size": 31903,
+          "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c"
+        },
+        {
+          "path": "independent-qa-r5/receipt.md",
+          "size": 5036,
+          "sha256": "823190e5647a33a38ed2d9da615be8f5a39f5e5ed107b275a8ba0dbdfebf59fb"
+        },
+        {
+          "path": "independent-qa-r5/replay/account_actor_port.py",
+          "size": 30975,
+          "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492"
+        },
+        {
+          "path": "independent-qa-r5/replay/INTEGRATION_CONTRACT.md",
+          "size": 6369,
+          "sha256": "7cd77a60718015eb28f36763c34b81e791b756d2fff7a9e3f26508b0bbd1471d"
+        },
+        {
+          "path": "independent-qa-r5/replay/MAIN_SOURCE_INVENTORY.md",
+          "size": 2730,
+          "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+        },
+        {
+          "path": "independent-qa-r5/replay/README.md",
+          "size": 1571,
+          "sha256": "859204c09f1b2fa78dbe4bc8c908c969b7a0d962d30e0841daabbbe2c8771099"
+        },
+        {
+          "path": "independent-qa-r5/replay/store_boundary_harness.py",
+          "size": 6020,
+          "sha256": "d6068b0ede8f281fcc9e33e869949be38e2791d1c42c18446eab7bbd2936bfce"
+        },
+        {
+          "path": "independent-qa-r5/replay/store_boundary_harness_testonly.py",
+          "size": 1970,
+          "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05"
+        },
+        {
+          "path": "independent-qa-r5/replay/tests/test_r5_adversarial_controls.py",
+          "size": 5026,
+          "sha256": "4405f975b76b1e2fa0fc74724dafcda942495e567c4ff13dcb56b32d0d0b7b87"
+        },
+        {
+          "path": "independent-qa-r5/replay/tests/test_r5_constructor_toctou.py",
+          "size": 844,
+          "sha256": "4959efce597e1c922064c5f630b1443172e52f60131e231594dc981dafc08daa"
+        },
+        {
+          "path": "independent-qa-r5/replay/tests/test_store_boundary_harness.py",
+          "size": 37568,
+          "sha256": "b63de6a5f2ea5aa75e5216198e0ef9da4b471763837462fbcc7899dcfdd9fb54"
+        },
+        {
+          "path": "independent-qa-r5/replay2/account_actor_port.py",
+          "size": 30975,
+          "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492"
+        },
+        {
+          "path": "independent-qa-r5/replay2/INTEGRATION_CONTRACT.md",
+          "size": 6369,
+          "sha256": "7cd77a60718015eb28f36763c34b81e791b756d2fff7a9e3f26508b0bbd1471d"
+        },
+        {
+          "path": "independent-qa-r5/replay2/MAIN_SOURCE_INVENTORY.md",
+          "size": 2730,
+          "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+        },
+        {
+          "path": "independent-qa-r5/replay2/README.md",
+          "size": 1571,
+          "sha256": "859204c09f1b2fa78dbe4bc8c908c969b7a0d962d30e0841daabbbe2c8771099"
+        },
+        {
+          "path": "independent-qa-r5/replay2/store_boundary_harness.py",
+          "size": 6020,
+          "sha256": "d6068b0ede8f281fcc9e33e869949be38e2791d1c42c18446eab7bbd2936bfce"
+        },
+        {
+          "path": "independent-qa-r5/replay2/store_boundary_harness_testonly.py",
+          "size": 1970,
+          "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05"
+        },
+        {
+          "path": "independent-qa-r5/replay2/tests/test_r5_adversarial_controls.py",
+          "size": 5026,
+          "sha256": "4405f975b76b1e2fa0fc74724dafcda942495e567c4ff13dcb56b32d0d0b7b87"
+        },
+        {
+          "path": "independent-qa-r5/replay2/tests/test_r5_constructor_toctou.py",
+          "size": 844,
+          "sha256": "4959efce597e1c922064c5f630b1443172e52f60131e231594dc981dafc08daa"
+        },
+        {
+          "path": "independent-qa-r5/replay2/tests/test_store_boundary_harness.py",
+          "size": 37568,
+          "sha256": "b63de6a5f2ea5aa75e5216198e0ef9da4b471763837462fbcc7899dcfdd9fb54"
+        },
+        {
+          "path": "independent-qa-r5/replay2-compare.json",
+          "size": 1747,
+          "sha256": "93b24da458efc7ef2f0c4621e944807d2701d9322b475d1d75ae8497b66b93f9"
+        },
+        {
+          "path": "independent-qa-r5/unittest-40-guarded.log",
+          "size": 7242,
+          "sha256": "ec8c61c321c3b6b92aa473a766920a6875766262078ad8adba4db0363d7d3e06"
+        },
+        {
+          "path": "independent-qa-r5/unittest-40.log",
+          "size": 7242,
+          "sha256": "d5196ae75482387251f736377b3ed2dd81055814d93d6f205edfb74e16c1a024"
+        },
+        {
+          "path": "independent-qa-r5/verify_manifests.py",
+          "size": 1904,
+          "sha256": "d9377fcc784b5a19dbe3b7555820c66363a907b6c834795d306def748004cf38"
+        },
+        {
+          "path": "independent-qa-r5/verify_origins.py",
+          "size": 569,
+          "sha256": "0d8b8afb5a707ec45904f6151c79b36cb7563de34a035c65a60d44b53cc0e9f5"
+        }
+      ]
+    }
+  ],
+  "copied_reference_files": [
+    {
+      "path": "independent-qa-receipt.md",
+      "size": 5036,
+      "sha256": "823190e5647a33a38ed2d9da615be8f5a39f5e5ed107b275a8ba0dbdfebf59fb",
+      "source": "D:\\temp\\iteration41-ctp-account-actor-port-r5-independent-qa-20260927\\receipt.md"
+    },
+    {
+      "path": "author-report.md",
+      "size": 3159,
+      "sha256": "63cee3f42d935f9ae83bb2a0ce69524e7d956375bdcca58d234b8970de9f4aea",
+      "source": "D:\\temp\\iteration41-ctp-account-actor-port-r5-20260927\\evidence\\REPORT.md"
+    },
+    {
+      "path": "author-manifest.json",
+      "size": 2940,
+      "sha256": "73521009058983a0e34172c4ca0020c5f32f4cbf25da7b1fb554f4d68baaa4bd",
+      "source": "D:\\temp\\iteration41-ctp-account-actor-port-r5-20260927\\hashes\\manifest.json"
+    },
+    {
+      "path": "author-patch.patch",
+      "size": 31903,
+      "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c",
+      "source": "D:\\temp\\iteration41-ctp-account-actor-port-r5-20260927\\patch\\r5.patch"
+    }
+  ],
+  "assessment": {
+    "author_tests": "40/40 local fake",
+    "independent_disposition": "PARTIAL / NEEDS_REVISION",
+    "counterexample": "Constructor TOCTOU: route snapshots NON_CTP, injected resolver mutates shared config to CTP, then fake gateway_factory is called once before later submit rejects.",
+    "r5_patch_sha256": "5646BCD7959D2BE35F0EB38299B26F4D3CFFEA5C8CD4A6AB5ADD902E3B3E8D6C",
+    "r5_author_manifest_sha256": "73521009058983A0E34172C4CA0020C5F32F4CBF25DA7B1FB554F4D68BAAA4BD",
+    "independent_receipt_sha256": "823190e5647a33a38ed2d9da615be8f5a39f5e5ed107b275a8ba0dbdfebf59fb",
+    "scope": "Local fake only; no external actor, durable cross-process authority, G6-P/F14, SDK/provider, native module, network, private config, account, or order."
+  },
+  "readme": {
+    "path": "README.md",
+    "sha256": "d10ffe9ab6e0a205d3c21e0152d56923e145ca2690ca4707282c92e941b95256",
+    "size": 980
+  }
+}

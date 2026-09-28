@@ -1,0 +1,1529 @@
+{
+  "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3",
+  "changed_file_audit": {
+    "execution-project": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\execution-project",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\execution-project",
+      "changed_count": 1,
+      "changes": [
+        {
+          "after": {
+            "sha256": "b41c04b596af118f53579b9d8d4851cb3a3bd446bfd8f930e730facc036c0d84",
+            "size_bytes": 1722
+          },
+          "before": {
+            "sha256": "ebadc0fc056191252e5c73f8745e39fa30434f1e12cad9b967ff80ce4a2176bf",
+            "size_bytes": 1739
+          },
+          "path": "pyproject.toml",
+          "status": "modified"
+        }
+      ]
+    },
+    "main-overlay": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\main-overlay",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+      "changed_count": 13,
+      "changes": [
+        {
+          "after": {
+            "sha256": "b8f99a9dea38dfee3d93c5a6ff48c622e252d281fe1b6888218da0d3ad838c5f",
+            "size_bytes": 43248
+          },
+          "before": {
+            "sha256": "4ad5f0620accf75692d970e39797b703a3d9776e6b42640f25c568256c85b2e0",
+            "size_bytes": 43265
+          },
+          "path": "backtrader/stores/ctp_i9_managed_dispatch.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "5e830d2fe5a1acb4b8f56b212eab564e977efdc4193885a8e0f95eca65fa979b",
+            "size_bytes": 38586
+          },
+          "before": {
+            "sha256": "d31aabcfc4e1c2ffd2c02e03ab262ddeddf1f9dbe6a69875b96b3d5012e42859",
+            "size_bytes": 38619
+          },
+          "path": "backtrader/stores/ctp_i9_parent_request_builder.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "fe1361a22b761942e8620789b9c4f3ebcc18f28336093af4d980f23225ebaeb8",
+            "size_bytes": 24183
+          },
+          "before": {
+            "sha256": "76884b14ccae185198d630e458b3994d35a40157361bc57016e0416f6dd9f0a2",
+            "size_bytes": 24200
+          },
+          "path": "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "593898957b88c76574df406bb573bb17b5d4742c7cbdbd27a56df08671861008",
+            "size_bytes": 38096
+          },
+          "before": {
+            "sha256": "821bc2b7f2064e9a9fac9deaa7be453db636a969f7e6be093b6586049bcbad74",
+            "size_bytes": 38113
+          },
+          "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "87ff764cfe76cfd588f34d2c71c867ab200d86d6a4a99f1cf130b86fddf2926d",
+            "size_bytes": 45994
+          },
+          "before": {
+            "sha256": "dc268bdb6923adfcb8d7ada0c4a3aac35e2eefd8d167de2ee2e78ed1671cf552",
+            "size_bytes": 46011
+          },
+          "path": "backtrader_runtime/ctp_i9_account_session_candidate.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "301a2d32b0abcdc19a2f4a5a09d45432a1fd942e5c391b3b509a40cf9c176f22",
+            "size_bytes": 21061
+          },
+          "before": {
+            "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a",
+            "size_bytes": 21033
+          },
+          "path": "backtrader_runtime/ctp_i9_candidate_artifact_set.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "5b177d912b70bc4edaaa64cdf039eb097feb5da4556fa1013499f55a1f5eea2f",
+            "size_bytes": 31596
+          },
+          "before": {
+            "sha256": "3c13eab85e4fd58afb7db866a642eac31e44dacd1f53bc0785f5e7773d24b9f9",
+            "size_bytes": 31613
+          },
+          "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "c0ee69c282521a082ab511ad761aacf09936946799ea5193a534e63983c69d17",
+            "size_bytes": 48129
+          },
+          "before": {
+            "sha256": "16c361887fa2316b90e9ab5500131adbb1c23700c5cfe359d1821bc0cf79e3b2",
+            "size_bytes": 48163
+          },
+          "path": "backtrader_runtime/ctp_managed_action_authority.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "12fa98334553e9b1a60fc08301bd3c034074bc924f9f5c974a14fee84f84d91c",
+            "size_bytes": 23110
+          },
+          "before": {
+            "sha256": "c77355033d76aff9dcb97c52a78e11195e6c3dd616d211293e2f4cc9982b0067",
+            "size_bytes": 23144
+          },
+          "path": "backtrader_runtime/ctp_managed_action_scope_resolver.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "68222a2317b8f94950c5b4cf3dd7c26c706ef934b885f3ee3bcb8732ee838213",
+            "size_bytes": 1298
+          },
+          "before": null,
+          "path": "iteration41-coordinated-release-probe-v3.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "sha256": "695a144a0eb26d00b8cb13eeac1fbdbba076aecad4d7e80c61434e8329554d48",
+            "size_bytes": 58349
+          },
+          "before": {
+            "sha256": "806b64521467ab0559215170ed8f587e7cd1a8375f1c9a4b86ff9060be11ee4c",
+            "size_bytes": 58383
+          },
+          "path": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "84cc2046dfad3b720ea501eb79a32cd21a599bbac2e35576964799f83007d8ec",
+            "size_bytes": 9609
+          },
+          "before": {
+            "sha256": "8e96384a24eb37c4d6e2b8d7b4aba14d39f9b4fd19436bbf5dda534d962ccd84",
+            "size_bytes": 9597
+          },
+          "path": "tests/unit/runtime/test_ctp_i9_candidate_artifact_set.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "36417686a7b1154bbe1ead74ab64c735c447332245750a9ab32bca7c18f93858",
+            "size_bytes": 5351
+          },
+          "before": {
+            "sha256": "cd89290d586233ada06b2fc302770a27c634e8de5d6218aa9be37636bccf6a9f",
+            "size_bytes": 5385
+          },
+          "path": "tests/unit/runtime/test_iteration41_l2_fixture_package.py",
+          "status": "modified"
+        }
+      ]
+    },
+    "parent-source": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\parent-source",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\parent-source",
+      "changed_count": 2,
+      "changes": [
+        {
+          "after": {
+            "sha256": "3729fa3d937863b89fb3e46cd88ce0050baa1551a6053b68930fd069c8a1c86a",
+            "size_bytes": 441292
+          },
+          "before": {
+            "sha256": "5eda28bb2d79f489dc8aa80be64f28434347e54cc3f15d8bff084038ed9c2d48",
+            "size_bytes": 441326
+          },
+          "path": "bt_api_py/_execution_session.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "07a1ddd92e3372253bf80ea33c022c5cc236f13af921938d09db22ac5bf92002",
+            "size_bytes": 9303
+          },
+          "before": {
+            "sha256": "bead044d9f1f65cf54fec5d67b8a2a5dd113abc5040027853504bb62fdd1472a",
+            "size_bytes": 9319
+          },
+          "path": "pyproject.toml",
+          "status": "modified"
+        }
+      ]
+    }
+  },
+  "created_utc": "2026-09-27T00:36:55.172006+00:00",
+  "evidence_generator": {
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\freeze_coordinated_probe_evidence.py",
+    "sha256": "db57283555719c258c48dd37f46a6e9e44a0d23daf4777387a3471366d3ebab8"
+  },
+  "final_source_manifest": {
+    "file_count": 843,
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\coordinated-probe-source-manifest-final.json",
+    "root_tree_summaries": {
+      "execution-project": {
+        "absolute_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\execution-project",
+        "bytes": 1711438,
+        "file_count": 36,
+        "tree_sha256": "eb7ad59b09ade99cb2426c84f82e93f0b1ca9a770fecbd1e14e622500f8326ed"
+      },
+      "main-overlay": {
+        "absolute_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+        "bytes": 10169283,
+        "file_count": 631,
+        "tree_sha256": "bb7354e0f02bca607fe5a46a2cbef096ced51aaa4c68c9a61649599b0e4a5910"
+      },
+      "parent-source": {
+        "absolute_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\parent-source",
+        "bytes": 17235087,
+        "file_count": 156,
+        "tree_sha256": "3825727b6e31c187e42a13097c0d8bddaff48b7a9195f038bcde77ca873ec7b3"
+      },
+      "source-only-metadata": {
+        "absolute_path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\source-only-metadata",
+        "bytes": 6731,
+        "file_count": 20,
+        "tree_sha256": "4a4ddea68eef81b3197dfce3a0d384d2ff9935bfc6a667200e7119cfa79fefb4"
+      }
+    },
+    "sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6"
+  },
+  "final_status": "offline disposable wheel coordination and fake-test evidence only; not a release, G1, G4, or G5 acceptance",
+  "inputs": {
+    "parent_composite": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-source-manifest.json",
+      "sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131"
+    },
+    "parent_r3r3": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\snapshot-manifest.json",
+      "sha256": "50b0d8b99afdacdaf2055246010e5766bbe630bc66d71c2aeeaca117baf3ce7a"
+    },
+    "parent_r4": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r4-payload-manifest.json",
+      "sha256": "60b020202ed89169e24afca30b1b1b16680151a11c6f52c518d0f5bbfa7fab0d"
+    },
+    "risk_cancel": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\risk-cancel-resolution-manifest.json",
+      "sha256": "b5b066e901e656e3ce42599e0701b731df16be742121a43604b58d69e35ded5d"
+    },
+    "v23_composite": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41_v23_g1_owner_binding_freeze_20260927-r3\\COMPOSITE-SOURCE-MANIFEST.json",
+      "sha256": "00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd"
+    },
+    "v23_execution": {
+      "exists": true,
+      "path": "D:\\temp\\iteration41_v23_g1_owner_binding_freeze_20260927-r3\\V23-SOURCE-MANIFEST.json",
+      "sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330"
+    }
+  },
+  "installed_wheels": {
+    "base_wheel_uninstalled_for_source-origin-proof": true,
+    "install_log_sha256": "c96032da4ba2cd7e3090aa19ad1742a939c563f8d3d56eeecd302e8bcae3466a",
+    "no_system_site_packages": true,
+    "pip_check_exit": 0,
+    "pip_check_log_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+    "pip_check_result": "No broken requirements found.",
+    "private_venv": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean",
+    "python": "CPython 3.11.5 Anaconda Windows x64",
+    "record_verification_exit": 0,
+    "record_verification_log_sha256": "5d9f6076cdd7c30c381fd64f600f27baf25b7a00eb3344b4be495cb3e36f76e4"
+  },
+  "limitations": [
+    "This is a unique-version feasibility/installed-wheel probe, not a product release or default pin change.",
+    "Execution combines V23 process binding with R3r3 atomic cancellation evidence; the frozen source uses a fake attestor and does not prove OS-enforced G1/G5 isolation.",
+    "Parent combines R4 cancellation control and the R3r3 fake proof issuer; this does not establish real provider or native CTP authority.",
+    "No actual bt_api_ctp wheel was built or installed in this probe; the CTP candidate source root appeared in test PYTHONPATH/source map but no bt_api_ctp module origin was loaded.",
+    "Absence of native imports is a guard result only and is not G4 acceptance.",
+    "The test overlay uses a disposable artifact-set identifier and wheel hash; current main-repository default pins/production files were not edited in this probe.",
+    "One final main bridge suite warning is the existing Quandl deprecation warning."
+  ],
+  "runtime_guards": {
+    "ctp_source_root_mapped_but_unimported": true,
+    "event_counts": {
+      "guard-started": 13,
+      "source-import": 1031,
+      "source-namespace": 7
+    },
+    "final_clean_run_guard_files": [
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-10208.jsonl",
+        "sha256": "736276bd98f195b6a070f42707ae88e95414d0230c9594402a857768fef47613",
+        "size_bytes": 31129
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-14156.jsonl",
+        "sha256": "d9dce8829d12d6268b4bc7e5d7b75eaf021a8bc397ff6d3dd75f13278e7ef187",
+        "size_bytes": 31129
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-22288.jsonl",
+        "sha256": "74fe1f6cdbbc8c3e004e52947150457e280ce16230f241e503799721024307e4",
+        "size_bytes": 31129
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-39476.jsonl",
+        "sha256": "c3b98811e1d359215056fd415221aa807aab4f3e213710b58c8eee4e1c40ff1e",
+        "size_bytes": 31129
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-39600.jsonl",
+        "sha256": "0b25610cb1ec1821cc66d2a5416e6f99272fe58eaa8033d11a3d7d2a5fb87ed6",
+        "size_bytes": 31129
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-guard\\origin-guard-40224.jsonl",
+        "sha256": "df0673605c9d281105657860849c87b80d307b746b6c300072ed02c9e9efabc9",
+        "size_bytes": 25697
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-cancel-control-installed-wheel-v3-clean-guard\\origin-guard-13752.jsonl",
+        "sha256": "8a1519b2b5beb1723f7877e83bd2b2533020c891ab8c93860bad8cd6b6bd8bd3",
+        "size_bytes": 32057
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-cancel-control-installed-wheel-v3-clean-guard\\origin-guard-14404.jsonl",
+        "sha256": "4ccd2aead72bc02e0f616670b2e29d965769f2179efa9915ef9a50610d51fc24",
+        "size_bytes": 1558
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-cancel-control-installed-wheel-v3-clean-guard\\origin-guard-20932.jsonl",
+        "sha256": "f3ba8860b170a4d6d0337491339408688fe5678ce1f712d4883a118de95882f6",
+        "size_bytes": 1558
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-artifact-set-installed-wheel-v3-clean-guard\\origin-guard-10960.jsonl",
+        "sha256": "42933afc79ba7b1440a0b0422bb1cd9d3f224156475e0753b20f501f58a69455",
+        "size_bytes": 1556
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\parent-issuer-control-installed-wheel-v3-clean-guard\\origin-guard-14892.jsonl",
+        "sha256": "39f187d812f3b815ec42d10b435ba373053238976f752b8accfed37c68c3cb91",
+        "size_bytes": 1560
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\parent-issuer-control-installed-wheel-v3-clean-guard\\origin-guard-24840.jsonl",
+        "sha256": "186ee3f0a1a7809aded2da229528f2cb93e50991cb9ea6bd2ff1762bd232332f",
+        "size_bytes": 32059
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\parent-issuer-control-installed-wheel-v3-clean-guard\\origin-guard-39024.jsonl",
+        "sha256": "25b476bb2a2e14a6182a550f65e5a06ea15c026e6482ba36890b48e8f5e69c01",
+        "size_bytes": 1560
+      }
+    ],
+    "installed_origins": [
+      {
+        "origins": {
+          "bt_api_base": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src\\bt_api_base\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages\\bt_api_py\\__init__.py"
+        },
+        "suite": "main-bridge-installed-wheel-v3-clean.xml"
+      },
+      {
+        "origins": {
+          "bt_api_base": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src\\bt_api_risk\\__init__.py"
+        },
+        "suite": "main-cancel-control-installed-wheel-v3-clean.xml"
+      },
+      {
+        "origins": {},
+        "suite": "main-artifact-set-installed-wheel-v3-clean.xml"
+      },
+      {
+        "origins": {
+          "bt_api_base": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src\\bt_api_risk\\__init__.py"
+        },
+        "suite": "parent-issuer-control-installed-wheel-v3-clean.xml"
+      }
+    ],
+    "native_module_lines": [
+      {
+        "modules": [],
+        "suite": "main-bridge-installed-wheel-v3-clean.xml"
+      },
+      {
+        "modules": [],
+        "suite": "main-cancel-control-installed-wheel-v3-clean.xml"
+      },
+      {
+        "modules": [],
+        "suite": "main-artifact-set-installed-wheel-v3-clean.xml"
+      },
+      {
+        "modules": [],
+        "suite": "parent-issuer-control-installed-wheel-v3-clean.xml"
+      }
+    ],
+    "native_modules_loaded_all_empty": true,
+    "network_policy": "loopback-only guard; no network-blocked or provider attempts in final clean suites",
+    "prohibited_guard_events": []
+  },
+  "schema": "iteration41-coordinated-release-probe-final-receipt-v2",
+  "source_diffs": {
+    "note": "13 main-overlay differences relative to its staging input are listed individually; this isolated candidate overlay does not alter the Backtrader working tree or default pins.",
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\coordinated-probe-source-diffs.json",
+    "sha256": "eea5a3574ce6cc4b14121e4735a66ac8485a24d9ccc160f23f749544df6b3a24"
+  },
+  "source_map": {
+    "mapping": {
+      "agent": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\agent\\src",
+      "base": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+      "ctp": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\src",
+      "execution": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages",
+      "gateway": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\gateway\\src",
+      "mcp": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\mcp\\src",
+      "monitor": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src",
+      "parent": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Lib\\site-packages",
+      "risk": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src",
+      "skills": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\skills\\src",
+      "transport_zmq": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\transport_zmq\\src"
+    },
+    "origin_constraints": {
+      "ctp_source_root_was_on_test_path_but_no_bt_api_ctp_origin_was_loaded": true,
+      "installed_wheels": [
+        "bt_api_py",
+        "bt_api_execution"
+      ],
+      "parent_execution_source_roots_are_installed_site_packages": true,
+      "source_only_actual_roots": [
+        "bt_api_base",
+        "bt_api_risk",
+        "bt_api_monitor",
+        "bt_api_ctp",
+        "bt_api_gateway",
+        "bt_api_transport_zmq",
+        "backtrader_agent",
+        "backtrader_skills",
+        "backtrader_mcp"
+      ]
+    },
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\source-roots-installed-wheel-v3.json",
+    "sha256": "506b9707f4cf85ab6864feebb8496bbc2bee67950d3317f1102a075a7154d4f8"
+  },
+  "source_only_metadata": {
+    "files": [
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_base-0.15.4.dist-info\\METADATA",
+        "sha256": "2a6596b0f23dea2978e2d8e2b2d3a7ec406a0fc51704597596cb954e0f1b1add",
+        "size_bytes": 989
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_base-0.15.4.dist-info\\SOURCE-ONLY.json",
+        "sha256": "842b0011594e99bdbb602f67678e1b7ca1a6667562174f8d1ffb4ef6140e79d2",
+        "size_bytes": 646
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_base-0.15.4.dist-info\\top_level.txt",
+        "sha256": "eb47c6048b7663ed63c5f9bdcb1bc6b1a5a6e7a9ac92e83382780dc3032a51ef",
+        "size_bytes": 13
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\METADATA",
+        "sha256": "cd140a6a1b21bd49fecb0f7d0b38ca95d27da79d9edc22254c93a4f7608cbc15",
+        "size_bytes": 410
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\SOURCE-ONLY.json",
+        "sha256": "c2cf52e0e9981a02751f4498aa7a6b7d48aa9e25b765776dfae54e78f3aac1fb",
+        "size_bytes": 636
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\top_level.txt",
+        "sha256": "e4a2fc98a32d379081f0b943a500d5480013a8fe87fa223522bb36178086d769",
+        "size_bytes": 12
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_monitor-0.1.0.dist-info\\METADATA",
+        "sha256": "c6a3790cd5151eb05a6d773e989df5c48ebd805557abecc6e78a57c1f19ef231",
+        "size_bytes": 546
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_monitor-0.1.0.dist-info\\SOURCE-ONLY.json",
+        "sha256": "23ae9e65c953abfdf8f66f6680d924263fae2c17dbab127a10b20feff44f5ad8",
+        "size_bytes": 656
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_monitor-0.1.0.dist-info\\top_level.txt",
+        "sha256": "7d8521d99d1037db179ba60df2314c299c50c8ed175d82ecf9ebe9868725f6e3",
+        "size_bytes": 16
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_risk-0.1.0.dist-info\\METADATA",
+        "sha256": "4181cf9efcadca470b3524e8e93e3461c050bc412b2e14120d538ac88a710d13",
+        "size_bytes": 541
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_risk-0.1.0.dist-info\\SOURCE-ONLY.json",
+        "sha256": "bb85e99ead997cd1f6272642c1edfb642975568410712039ba27ce3fa1833b08",
+        "size_bytes": 634
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\bt_api_risk-0.1.0.dist-info\\top_level.txt",
+        "sha256": "c00273b327eabbef02d7ba18ddbf2e49829ba77007a4e68d79ad051faca2268a",
+        "size_bytes": 13
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\SOURCE-ONLY-MANIFEST.json",
+        "sha256": "ff1153be4490c7c9ebe45ac5cad0e096de5eb1547c8036a56d0f01145655fc2c",
+        "size_bytes": 718
+      },
+      {
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3\\SOURCE-ONLY.txt",
+        "sha256": "a8c92c26886a47d8f6a7f66d229baff3462fc9fbbe58838079c6e263a9af3978",
+        "size_bytes": 85
+      }
+    ],
+    "manifest_sha256": "ff1153be4490c7c9ebe45ac5cad0e096de5eb1547c8036a56d0f01145655fc2c",
+    "meaning": "dependency metadata for source roots only; parent/execution metadata in installed-wheel test environment comes from installed wheel distributions",
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3"
+  },
+  "tests": {
+    "case_executions": 143,
+    "commands": [
+      {
+        "argv": [
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Scripts\\python.exe",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_wheel_pytest_v3.py",
+          "--import-mode=importlib",
+          "-q",
+          "--basetemp",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean-fixtures",
+          "--junitxml=D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-installed-wheel-v3-clean.xml",
+          "tests/unit/runtime/test_managed_execution_bridge.py",
+          "tests/unit/runtime/test_iteration41_l2_fixture_package.py",
+          "tests/integration/test_iteration41_managed_cancellation_composition.py",
+          "tests/integration/test_iteration41_managed_execution_composition.py",
+          "tests/integration/test_iteration41_managed_replay_l2.py"
+        ],
+        "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+        "env_contract": {
+          "BT_API_TEST_GUARD_ROOT": "D:\\temp\\iteration41-main-source-qa-20260926\\origin-guard-r4",
+          "BT_API_TEST_METADATA_ROOT": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3",
+          "BT_API_TEST_SOURCE_ROOTS": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\source-roots-installed-wheel-v3.json",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+          "network": "origin guard loopback-only"
+        },
+        "powershell_command": "& 'D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_suite_v3.ps1' main-bridge"
+      },
+      {
+        "argv": [
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Scripts\\python.exe",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_wheel_pytest_v3.py",
+          "--import-mode=importlib",
+          "-q",
+          "--basetemp",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-cancel-control-installed-wheel-v3-clean-fixtures",
+          "--junitxml=D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-cancel-control-installed-wheel-v3-clean.xml",
+          "tests/test_cancellation_dispatch_resolution_control.py"
+        ],
+        "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+        "env_contract": {
+          "BT_API_TEST_GUARD_ROOT": "D:\\temp\\iteration41-main-source-qa-20260926\\origin-guard-r4",
+          "BT_API_TEST_METADATA_ROOT": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3",
+          "BT_API_TEST_SOURCE_ROOTS": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\source-roots-installed-wheel-v3.json",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+          "network": "origin guard loopback-only"
+        },
+        "powershell_command": "& 'D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_suite_v3.ps1' main-cancel-control"
+      },
+      {
+        "argv": [
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Scripts\\python.exe",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_wheel_pytest_v3.py",
+          "--import-mode=importlib",
+          "-q",
+          "--basetemp",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-artifact-set-installed-wheel-v3-clean-fixtures",
+          "--junitxml=D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-artifact-set-installed-wheel-v3-clean.xml",
+          "tests/unit/runtime/test_ctp_i9_candidate_artifact_set.py"
+        ],
+        "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+        "env_contract": {
+          "BT_API_TEST_GUARD_ROOT": "D:\\temp\\iteration41-main-source-qa-20260926\\origin-guard-r4",
+          "BT_API_TEST_METADATA_ROOT": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3",
+          "BT_API_TEST_SOURCE_ROOTS": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\source-roots-installed-wheel-v3.json",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+          "network": "origin guard loopback-only"
+        },
+        "powershell_command": "& 'D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_suite_v3.ps1' main-artifact-set"
+      },
+      {
+        "argv": [
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\venv-installed-wheel-v3-clean\\Scripts\\python.exe",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_wheel_pytest_v3.py",
+          "--import-mode=importlib",
+          "-q",
+          "--basetemp",
+          "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\parent-issuer-control-installed-wheel-v3-clean-fixtures",
+          "--junitxml=D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\parent-issuer-control-installed-wheel-v3-clean.xml",
+          "tests/test_cancel_dispatch_resolution_proof.py",
+          "tests/test_cancel_dispatch_resolution_proof_store.py",
+          "tests/test_cancellation_dispatch_resolution_control.py"
+        ],
+        "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\parent-installed-tests-v3b",
+        "env_contract": {
+          "BT_API_TEST_GUARD_ROOT": "D:\\temp\\iteration41-main-source-qa-20260926\\origin-guard-r4",
+          "BT_API_TEST_METADATA_ROOT": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\dependency-source-only-metadata-v3",
+          "BT_API_TEST_SOURCE_ROOTS": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\source-roots-installed-wheel-v3.json",
+          "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+          "network": "origin guard loopback-only"
+        },
+        "powershell_command": "& 'D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\run_installed_suite_v3.ps1' parent-issuer-control"
+      }
+    ],
+    "duplicates": [
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_authorization_callback_returned_after_expiry_is_rejected"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_corrupt_replay_proof_reasserts_both_latches"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_expiry_after_release_audit_commit_reasserts_latches_and_marks_expired"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[ctp_provider]"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_account]"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_strategy]"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_fake_resolution_authority_rejects_ctp_labeled_execution_scope"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_first_release_rejects_monitor_event_deleted_after_append"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_missing_authority_rejects_without_clearing_either_latch"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_monitor_fact_readback_connection_is_closed"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_proof_issuance_failure_reasserts_both_latches"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_readback_connection_is_closed_after_exact_monitor_check"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_release_holds_monitor_writer_boundary_against_cross_process_delete"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_released_replay_requires_exact_prepared_monitor_fact[corrupt]"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_released_replay_requires_exact_prepared_monitor_fact[delete]"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_restart_finishes_last_latch_after_released_audit_commit"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_restart_replays_exact_proof_after_risk_commit_before_unknown_clear"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_risk_write_failure_reasserts_latches_and_releases_monitor_lock"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_same_user_schema_writer_can_bypass_sqlite_only_guard_after_commit"
+      },
+      {
+        "classname": "tests.test_cancellation_dispatch_resolution_control",
+        "executions": 2,
+        "name": "test_typed_cancel_proof_resolves_dispatch_then_unknown_with_final_barrier"
+      }
+    ],
+    "errors": 0,
+    "failures": 0,
+    "final_main_bridge_warning": "one existing Quandl DeprecationWarning; other final suites emitted no warnings",
+    "passed": 143,
+    "prior_diagnostic_attempts": [
+      {
+        "errors": 0,
+        "exit": 1,
+        "failures": 5,
+        "junit": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-73.xml",
+        "junit_sha256": "17e9545ba0db21250e7cfc5cedce2104be42eb381edbfe9de2ee57f899cac35b",
+        "log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-clean-runs\\main-bridge-73.log",
+        "log_sha256": "6a5bd1ecaf26ba0ffc5c0116b5e55bd87c428e95af66350d6b9fe4dc9fe836e1",
+        "skipped": 1,
+        "tests": 73,
+        "title": "nonfinal main bridge run: origin guard caught installed bt_api_base shadowing expected source; 67 pass, 5 fail, 1 skip; one additional L2 runner failure; corrected clean venv run passed all 73"
+      },
+      {
+        "errors": 2,
+        "exit": 2,
+        "failures": 0,
+        "junit": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-runs\\parent-issuer-control-installed-wheel-v3.xml",
+        "junit_sha256": "7fc5e4aeb7662017ba6b309e01d0b008dec6ab897543d23deb47af2e38ce4c46",
+        "log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-runs\\parent-issuer-control-installed-wheel-v3.log",
+        "log_sha256": "efb90cb564c4e0df3bfa12866396c8be19eda44815a776006ee491cefe248e6f",
+        "skipped": 0,
+        "tests": 2,
+        "title": "nonfinal parent copied-test harness collection setup: exit 2; corrected v3b copy run passed 44"
+      },
+      {
+        "errors": 0,
+        "exit": 0,
+        "failures": 0,
+        "junit": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-runs\\parent-issuer-control-installed-wheel-v3b.xml",
+        "junit_sha256": "856d4f470f275b6f657b6e39d891281c51afe07023f91cea427bf381f0986d83",
+        "log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\installed-wheel-v3-runs\\parent-issuer-control-installed-wheel-v3b.log",
+        "log_sha256": "a4aef95b3dcfe5190f32d43657ba9576f150ac4405a79cab70921c629ac8dc29",
+        "skipped": 0,
+        "tests": 44,
+        "title": "nonfinal corrected v3b parent issuer/control run: 44 pass; superseded by final clean installed-wheel rerun also 44"
+      }
+    ],
+    "repeated_node_executions": 20,
+    "skipped": 0,
+    "suites": [
+      {
+        "errors": 0,
+        "exit": 0,
+        "failures": 0,
+        "junit": "main-bridge-installed-wheel-v3-clean.xml",
+        "sha256": "a38eecddf872b65621df24eed73a7ca3000ea02ec574bf78e8157965de19e7bd",
+        "skipped": 0,
+        "test_cases": [
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_strict_projection_requires_explicit_stable_metadata_and_maps_limit_order"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_position_effect_is_bound_to_exact_legacy_offset_and_reduce_only_payload[OPEN-open-False]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_position_effect_is_bound_to_exact_legacy_offset_and_reduce_only_payload[CLOSE-close-True]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_position_effect_is_bound_to_exact_legacy_offset_and_reduce_only_payload[CLOSE_TODAY-close_today-True]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_position_effect_is_bound_to_exact_legacy_offset_and_reduce_only_payload[CLOSE_YESTERDAY-close_yesterday-True]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_missing_stable_managed_metadata_blocks_before_runtime_dispatch[managed_intent_id]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_missing_stable_managed_metadata_blocks_before_runtime_dispatch[managed_signal_id]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_missing_stable_managed_metadata_blocks_before_runtime_dispatch[managed_metadata_version]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_missing_stable_managed_metadata_blocks_before_runtime_dispatch[managed_instrument_metadata_digest]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_bridge_uses_legacy_port_once_only_after_managed_intent_is_constructed"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_managed_runtime_order_id_is_stable_scoped_and_independent_of_order_ref"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_managed_runtime_order_id_cannot_be_overridden_by_order_info"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_payload_metadata_mismatch_blocks_before_risk_admission_and_legacy_dispatch[info0-data symbol]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_payload_metadata_mismatch_blocks_before_risk_admission_and_legacy_dispatch[info1-position effect.*offset]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_payload_metadata_mismatch_blocks_before_risk_admission_and_legacy_dispatch[info2-position effect.*reduce_only]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_declared_limit_cannot_admit_an_actual_market_order"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_mutable_quantity_unit_cannot_change_live_intent_or_legacy_payload"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_live_intent_cannot_substitute_the_sealed_quantity_unit"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[instrument-substituted/contract]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[side-_Side.SELL]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[quantity-value2]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[price-value3]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[position_effect-_PositionEffect.CLOSE]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_risk_intent_cannot_describe_a_different_payload[reduce_only-True]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[quantity_unit-base]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[position_side-short]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[position_id-position.mutated]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[position_mode-dual_side]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[exchange_id-SHFE]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[time_in_force-IOC]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[client_order_id-client.mutated]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[front_id-7]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[session_id-8]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[order_ref-mutated]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[execution_cycle_id-cycle.mutated]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[execution_role-exit]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_execution_shaping_metadata_mutation_after_risk_admission_blocks_dispatch[strategy_identity_sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_legacy_dispatch_receives_an_immutable_canonical_provider_projection"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[data-value0-data symbol]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[_is_buy-False-admitted intent does not match Backtrader order side]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[size-3-admitted intent does not match Backtrader order quantity]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[price-11.0-admitted intent does not match Backtrader order price]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[offset-close-position effect.*offset]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[reduce_only-True-position effect.*reduce_only]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_order_mutation_after_risk_admission_blocks_before_legacy_dispatch[exectype-0-Order.Limit]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_unconfirmed_provider_response_projects_unknown_and_never_asks_store_to_retry"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_fill_status_requires_explicit_normalized_fill_evidence"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_existing_durable_acceptance_replays_its_provider_identity_without_a_second_dispatch"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_durable_fill_replay_keeps_normalized_progress_evidence"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_store_and_bridge_combined_still_block_bad_intent_before_provider_write"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_binding_requires_resolved_managed_route_and_uses_store_attach_port"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_ctp_binding_uses_typed_placeholder_and_refuses_before_sdk_dispatch"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_ctp_binding_rejects_wrong_provider_or_environment_scope_before_attachment"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_binding_rejects_runtime_scope_that_differs_from_the_effective_config"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_binding_rejects_an_sdk_store_with_a_different_strategy_namespace"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_binding_rejects_a_runtime_contract_from_a_different_effective_config"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_binding_rejects_gateway_contract_without_a_sealed_gateway_dispatcher"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_gateway_binding_discards_the_store_legacy_provider_callback"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_gateway_cancellation_cannot_restore_the_store_legacy_provider_callback"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_gateway_bridge_never_scans_the_direct_cancellation_recovery_journal"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_direct_bridge_recovers_interrupted_cancel_dispatch_before_freeze_scan"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_direct_bridge_fails_closed_when_interrupted_cancel_recovery_is_unavailable"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_direct_bridge_fails_closed_when_account_cancel_scan_is_unavailable"
+          },
+          {
+            "classname": "tests.unit.runtime.test_managed_execution_bridge",
+            "name": "test_direct_bridge_defers_only_writer_contention_and_blocks_until_recovery"
+          },
+          {
+            "classname": "tests.unit.runtime.test_iteration41_l2_fixture_package",
+            "name": "test_packaged_l2_fixture_registry_and_configs_are_replay_only"
+          },
+          {
+            "classname": "tests.unit.runtime.test_iteration41_l2_fixture_package",
+            "name": "test_packaged_l2_fixture_pins_each_sdk_distribution_version[managed_013_3]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_iteration41_l2_fixture_package",
+            "name": "test_packaged_l2_fixture_pins_each_sdk_distribution_version[mechanical_p1b]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_iteration41_l2_fixture_package",
+            "name": "test_packaged_l2_capability_catalog_rejects_a_wrong_source_version"
+          },
+          {
+            "classname": "tests.integration.test_iteration41_managed_cancellation_composition",
+            "name": "test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[offline_fake-3-2-reconciled]"
+          },
+          {
+            "classname": "tests.integration.test_iteration41_managed_cancellation_composition",
+            "name": "test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[production_synthetic-1-0-dispatch_resolution_required]"
+          },
+          {
+            "classname": "tests.integration.test_iteration41_managed_cancellation_composition",
+            "name": "test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart"
+          },
+          {
+            "classname": "tests.integration.test_iteration41_managed_execution_composition",
+            "name": "test_resolved_managed_config_composes_real_durability_before_one_store_provider_call"
+          },
+          {
+            "classname": "tests.integration.test_iteration41_managed_replay_l2",
+            "name": "test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline"
+          }
+        ],
+        "tests": 73
+      },
+      {
+        "errors": 0,
+        "exit": 0,
+        "failures": 0,
+        "junit": "main-cancel-control-installed-wheel-v3-clean.xml",
+        "sha256": "af147ab501723da0355086258e1825c42b72bf21a2fc468c98074350e91330f9",
+        "skipped": 0,
+        "test_cases": [
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_typed_cancel_proof_resolves_dispatch_then_unknown_with_final_barrier"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_missing_authority_rejects_without_clearing_either_latch"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_proof_issuance_failure_reasserts_both_latches"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_restart_replays_exact_proof_after_risk_commit_before_unknown_clear"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_restart_finishes_last_latch_after_released_audit_commit"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_corrupt_replay_proof_reasserts_both_latches"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_released_replay_requires_exact_prepared_monitor_fact[delete]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_released_replay_requires_exact_prepared_monitor_fact[corrupt]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_authorization_callback_returned_after_expiry_is_rejected"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_expiry_after_release_audit_commit_reasserts_latches_and_marks_expired"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_first_release_rejects_monitor_event_deleted_after_append"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_release_holds_monitor_writer_boundary_against_cross_process_delete"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_same_user_schema_writer_can_bypass_sqlite_only_guard_after_commit"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_readback_connection_is_closed_after_exact_monitor_check"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_monitor_fact_readback_connection_is_closed"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_risk_write_failure_reasserts_latches_and_releases_monitor_lock"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_resolution_authority_rejects_ctp_labeled_execution_scope"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[ctp_provider]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_account]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_strategy]"
+          }
+        ],
+        "tests": 20
+      },
+      {
+        "errors": 0,
+        "exit": 0,
+        "failures": 0,
+        "junit": "main-artifact-set-installed-wheel-v3-clean.xml",
+        "sha256": "70ebd3639943736a429112f5dbde7926a4975dc9888b2775078f487459d727df",
+        "skipped": 0,
+        "test_cases": [
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_i9_artifact_set_manifest_pins_the_reviewed_wheel_trio"
+          },
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_exact_wheel_install_passes_and_source_import_is_rejected"
+          },
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_editable_source_origin_is_rejected"
+          },
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_mixed_wheel_digest_is_rejected"
+          },
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_public_verifier_rejects_preloaded_module_with_forged_spec_origin[bt_api_base]"
+          },
+          {
+            "classname": "tests.unit.runtime.test_ctp_i9_candidate_artifact_set",
+            "name": "test_public_verifier_rejects_preloaded_module_with_forged_spec_origin[bt_api_ctp.injected]"
+          }
+        ],
+        "tests": 6
+      },
+      {
+        "errors": 0,
+        "exit": 0,
+        "failures": 0,
+        "junit": "parent-issuer-control-installed-wheel-v3-clean.xml",
+        "sha256": "28f1e54e480a14599021ada0da3d597789b15080a47c5a225abfec3081fe0d74",
+        "skipped": 0,
+        "test_cases": [
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_reconcile_source_uses_same_atomic_cancel_commit_contract"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_resolution_proof_uses_distinct_action_and_persisted_readback[CANCELLED-TARGET_TERMINAL]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_resolution_proof_uses_distinct_action_and_persisted_readback[REJECTED-TARGET_REMAINS_OPEN]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_nonterminal_cancel_action_cannot_issue_resolution_proof[ACKED]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_nonterminal_cancel_action_cannot_issue_resolution_proof[UNKNOWN]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_proof_requires_exactly_one_dispatch_attempt[0]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_proof_requires_exactly_one_dispatch_attempt[2]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_acknowledged_cancel_is_not_a_terminal_cancel_proof"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancelled_action_must_have_matching_target_cancel_event"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_rejected_cancel_cannot_claim_no_fill_or_terminal_target"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_rejected_cancel_target_event_must_match_current_exposure"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_terminal_cancel_requires_provider_or_reconcile_source_and_event"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_missing_terminal_cancel_outbox_event_fails_closed"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_resolution_rejects_cross_risk_scope_and_target_rebinding"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_old_proof_is_stale_after_a_new_writer_fence_generation"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_v2_schema_migrates_and_cancel_proof_survives_reopen"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_proof_guard_rechecks_target_freshness"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_cancel_proof_guard_rechecks_cancel_event_and_persisted_row"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_order_only_proof_type_cannot_enter_cancel_resolution_guard"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_missing_atomic_cancel_readback_never_falls_back_to_outbox_pages"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof",
+            "name": "test_atomic_cancel_readback_digest_is_recomputed_by_parent_issuer"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof_store",
+            "name": "test_proof_issuer_uses_real_r3_terminal_cancel_commit_snapshot[CANCELLED]"
+          },
+          {
+            "classname": "tests.test_cancel_dispatch_resolution_proof_store",
+            "name": "test_proof_issuer_uses_real_r3_terminal_cancel_commit_snapshot[REJECTED]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_typed_cancel_proof_resolves_dispatch_then_unknown_with_final_barrier"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_missing_authority_rejects_without_clearing_either_latch"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_proof_issuance_failure_reasserts_both_latches"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_restart_replays_exact_proof_after_risk_commit_before_unknown_clear"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_restart_finishes_last_latch_after_released_audit_commit"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_corrupt_replay_proof_reasserts_both_latches"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_released_replay_requires_exact_prepared_monitor_fact[delete]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_released_replay_requires_exact_prepared_monitor_fact[corrupt]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_authorization_callback_returned_after_expiry_is_rejected"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_expiry_after_release_audit_commit_reasserts_latches_and_marks_expired"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_first_release_rejects_monitor_event_deleted_after_append"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_release_holds_monitor_writer_boundary_against_cross_process_delete"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_same_user_schema_writer_can_bypass_sqlite_only_guard_after_commit"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_readback_connection_is_closed_after_exact_monitor_check"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_monitor_fact_readback_connection_is_closed"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_risk_write_failure_reasserts_latches_and_releases_monitor_lock"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_resolution_authority_rejects_ctp_labeled_execution_scope"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[ctp_provider]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_account]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_strategy]"
+          },
+          {
+            "classname": "tests.test_cancellation_dispatch_resolution_control",
+            "name": "test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_policy]"
+          }
+        ],
+        "tests": 44
+      }
+    ],
+    "unique_node_identities": 123
+  },
+  "version_collision_scan": {
+    "exact_collisions": [],
+    "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\logs\\version-collision-scan.json",
+    "sha256": "29a49d98fc3cb46385e80eb480c0721b5b4d6677306e81ff3a3e907c6418435d"
+  },
+  "versions": {
+    "bt_api_execution": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+    "bt_api_py": "0.15.7.dev0+r4r3r3.67e54513",
+    "identity_status": "local disposable unique PEP 440 probe tags; no release tag or default pin allocated"
+  },
+  "wheel_build": {
+    "all_package_source_files_match_build_inputs": {
+      "execution": {
+        "build_input_file_count": 36,
+        "changed": [],
+        "exact_match": true,
+        "extra": [],
+        "missing": [],
+        "source_file_count": 36
+      },
+      "parent": {
+        "build_input_file_count": 156,
+        "changed": [],
+        "exact_match": true,
+        "extra": [],
+        "missing": [],
+        "source_file_count": 156
+      }
+    },
+    "build_input_manifest_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+    "build_network_constraints": "pip wheel --no-deps --no-build-isolation --no-index; PIP_NO_INDEX=1; guarded loopback-only runtime; four build exit codes 0",
+    "dual_build_verification": {
+      "build_inputs_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+      "byte_identical_builds": true,
+      "packages": {
+        "bt_api_execution": {
+          "build-a": {
+            "filename": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+            "member_count": 18,
+            "metadata_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/METADATA",
+            "metadata_version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+            "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\execution\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+            "record_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/RECORD",
+            "record_rows_verified": 18,
+            "record_sha256": "9f6e5c34a1e3234fcd9a4441b7a3ae8ed89e178ff4c0d3709ea3484874d518fe",
+            "size_bytes": 177675,
+            "wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+          },
+          "build-b": {
+            "filename": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+            "member_count": 18,
+            "metadata_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/METADATA",
+            "metadata_version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+            "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\execution\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+            "record_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/RECORD",
+            "record_rows_verified": 18,
+            "record_sha256": "9f6e5c34a1e3234fcd9a4441b7a3ae8ed89e178ff4c0d3709ea3484874d518fe",
+            "size_bytes": 177675,
+            "wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+          }
+        },
+        "bt_api_py": {
+          "build-a": {
+            "filename": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+            "member_count": 144,
+            "metadata_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/METADATA",
+            "metadata_version": "0.15.7.dev0+r4r3r3.67e54513",
+            "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\parent\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+            "record_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/RECORD",
+            "record_rows_verified": 144,
+            "record_sha256": "5ae8306e16193a5bcd438104b62369bc57151b6f4f4fd7088499dd0b09b22728",
+            "size_bytes": 534260,
+            "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+          },
+          "build-b": {
+            "filename": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+            "member_count": 144,
+            "metadata_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/METADATA",
+            "metadata_version": "0.15.7.dev0+r4r3r3.67e54513",
+            "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\parent\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+            "record_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/RECORD",
+            "record_rows_verified": 144,
+            "record_sha256": "5ae8306e16193a5bcd438104b62369bc57151b6f4f4fd7088499dd0b09b22728",
+            "size_bytes": 534260,
+            "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+          }
+        }
+      },
+      "schema": "iteration41-coordinated-wheel-dual-build-verification-v1",
+      "source_date_epoch": "1790467200",
+      "source_manifest_sha256": "70c22b02a741084ca12d20fb19cbc98ca20606ee921a4cd5f8ff058e09eec4df"
+    },
+    "dual_build_verification_sha256": "3dbb35f1736eb8c61b2d44e40ab829158993f313be7f6031eea281e7012c74f8",
+    "preserved_failed_build_attempts": [
+      {
+        "diagnosis": "execution pyproject uses egg_base=src; initial staging lacked src/.",
+        "exit": 1,
+        "name": "first build staging layout",
+        "stderr": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs\\build-a-execution.stderr.log",
+        "stderr_sha256": "0b795caf8f057733e4685f5c2993b1e5f50f93491ea7ad222ecd93f1befff7d4",
+        "stdout": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs\\build-a-execution.stdout.log",
+        "stdout_sha256": "5224d854b7017c99c484523a8d6f21cbeb59323ee19dbc96c68542bf58f35dfc"
+      },
+      {
+        "diagnosis": "long PEP 440 filename exceeded Windows temporary wheel path; final disposable tags shortened.",
+        "exit": 1,
+        "name": "long wheel filename path attempt",
+        "stderr": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v2\\build-a-execution.stderr.log",
+        "stderr_sha256": "c41c239a58025ccf20412c49795de19b08d732c321369a6dd2d2e0ad6cbfd912",
+        "stdout": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v2\\build-a-execution.stdout.log",
+        "stdout_sha256": "5224d854b7017c99c484523a8d6f21cbeb59323ee19dbc96c68542bf58f35dfc"
+      }
+    ],
+    "run_manifest": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-runs-v4.json",
+    "run_manifest_sha256": "4ac67841692d16ce155fce79d6594547f8fdcde79f6bf9e836d62fd614ad9512"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "archive": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g1-r8-windows-inert-custodian-author-2026-09-27.raw.zip",
+  "archive_sha256": "f49e8394f788e7431f1b77a40dde51b111765e1dfd71bff715700be399906701",
+  "zip_testzip": "passed",
+  "file_count": 14,
+  "manifest_sha256": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb",
+  "receipt_sha256": "66b556a7dc7a17613cc7d87b34fa0168876058c9b881d68186cba8c6c81df2d1",
+  "payload_hashes_verified": 10,
+  "files": [
+    {
+      "path": "R8_FINDINGS.md",
+      "size_bytes": 4080,
+      "sha256": "60232c8d974e14e6881775292db1a5c36bc24591b8fc9025118fec73ac7700f0"
+    },
+    {
+      "path": "R8_REAPER_REVIEW_CHECKLIST.md",
+      "size_bytes": 21570,
+      "sha256": "ba9c16e90be9f3ff96a181a53755eb40e26c29e4cb41e176ed174333ca4cb816"
+    },
+    {
+      "path": "build_r8.bat",
+      "size_bytes": 356,
+      "sha256": "de516d30d6cd3d9624500c82b0e5061dba413422d4ca8636966b1a4538a0482d"
+    },
+    {
+      "path": "g1_r8_probe.cpp",
+      "size_bytes": 39897,
+      "sha256": "f1959f9f6a4246bbdd186a965cca192ea80ce16255976d1245833b4783995e49"
+    },
+    {
+      "path": "r8_build.log",
+      "size_bytes": 18,
+      "sha256": "49bdf6281cef9bdc64c7c5399724b3ae054a4e61dffd7e39e823d2da8575483d"
+    },
+    {
+      "path": "r8_custodian.cpp",
+      "size_bytes": 41869,
+      "sha256": "c843712eb3e999b88790f0adb18848cd6d2341db5f2efeb19a8eee3a32a80dce"
+    },
+    {
+      "path": "r8_custodian.exe",
+      "size_bytes": 317952,
+      "sha256": "a6a1270cd4a5a868f6a8ee51c14fbcc1b463906e45488a7f92676ac070aac9a0"
+    },
+    {
+      "path": "r8_custodian.obj",
+      "size_bytes": 690983,
+      "sha256": "77c12781cc9d742153d53ab7d2986944239ad13366e0c33cff39abb4f7954c3e"
+    },
+    {
+      "path": "r8_trials.json",
+      "size_bytes": 85616,
+      "sha256": "4c412a14af1cb5fe5ea5f6ff39f23d7952187e5f60bc2015f70d0098af6cf58a"
+    },
+    {
+      "path": "run_r8_trials.py",
+      "size_bytes": 26370,
+      "sha256": "ae5fa864ea511135e6d08a97ef778eadf635ce47dc1ce696f6dc169475f76c6e"
+    },
+    {
+      "path": "r8_manifest.json",
+      "size_bytes": 1356,
+      "sha256": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb"
+    },
+    {
+      "path": "r8_manifest.sha256",
+      "size_bytes": 84,
+      "sha256": "9ef6c9c9a6ca795724eea45754a288116a597c5a82aa5a49c26587a7ec3a29c9"
+    },
+    {
+      "path": "r8_receipt.json",
+      "size_bytes": 639,
+      "sha256": "66b556a7dc7a17613cc7d87b34fa0168876058c9b881d68186cba8c6c81df2d1"
+    },
+    {
+      "path": "r8_receipt.sha256",
+      "size_bytes": 83,
+      "sha256": "453dc0da3f88d27c4ad73f02e91a72996db0ed0cd3830d97048c75d207d7a957"
+    }
+  ]
+}

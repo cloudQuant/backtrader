@@ -1,0 +1,206 @@
+{
+  "schema": "iteration41-g4-parent-sdk-independent-qa-archive-index-v1",
+  "member_count": 40,
+  "members": [
+    {
+      "path": "artifact-audit.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "artifact-audit.stdout.json",
+      "size_bytes": 2559,
+      "sha256": "173771c4cf15e97c9fa8c6ace4a9803ace43aac15e243e117206ef13c930002c"
+    },
+    {
+      "path": "audit_parent_artifacts.py",
+      "size_bytes": 9293,
+      "sha256": "344b18718043af1c29410fe9378e9a673efd899ccc2e2f8311dfb3cef0d2a231"
+    },
+    {
+      "path": "consumer-pip-check-source-metadata.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "consumer-pip-check-source-metadata.log",
+      "size_bytes": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    {
+      "path": "consumer-pip-check.exit.txt",
+      "size_bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "consumer-pip-check.log",
+      "size_bytes": 85,
+      "sha256": "38470d8ebd9ff06c83a944f3818c86ec60896cc86ef687dbb03b438ff59b8103"
+    },
+    {
+      "path": "consumer-pip-version.txt",
+      "size_bytes": 130,
+      "sha256": "dc0837a6a6530e2cf796be5cd9b0f1e16b13557779d08957bfe8812c7762f7b1"
+    },
+    {
+      "path": "historical-parent-wheel.txt",
+      "size_bytes": 843,
+      "sha256": "ec56022908fa32849993df9bed1a88d7c120a3e73a98f0e6f8fa5aba18f0ffdc"
+    },
+    {
+      "path": "independent-review.md",
+      "size_bytes": 10315,
+      "sha256": "91d534800b6ebdc9f2df43fe8cb20d5b60175c08b17c4395c8a894533822d3a2"
+    },
+    {
+      "path": "initial-metadata-comparator-failure.exit.txt",
+      "size_bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "initial-metadata-comparator-failure.log",
+      "size_bytes": 277,
+      "sha256": "2dbbe7d9ef971398aceb8175cf3c78499b650f96950b43a7faaf19f496899409"
+    },
+    {
+      "path": "pip-check-command-context.txt",
+      "size_bytes": 1139,
+      "sha256": "356457933ec761e982f45d03138bbd5b708f6e2ce8971ebcb9646b0249ba676a"
+    },
+    {
+      "path": "record-count-comparator-failure.exit.txt",
+      "size_bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "record-count-comparator-failure.log",
+      "size_bytes": 312,
+      "sha256": "61c4096f9ce725d8021190fe77df226744be81d279b8edc8d9027110bb34923a"
+    },
+    {
+      "path": "record-install-a-install.log",
+      "size_bytes": 286,
+      "sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7"
+    },
+    {
+      "path": "record-install-a-install.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "record-install-a-pip-version.log",
+      "size_bytes": 130,
+      "sha256": "65deb733a72abef44626b25233dff2ccea142c57d46537a668fb4aa3664e449c"
+    },
+    {
+      "path": "record-install-a-pip-version.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "record-install-a-venv.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "record-install-a-venv.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "record-install-b-install.log",
+      "size_bytes": 286,
+      "sha256": "8800fb752d726a544844a7ecccaeabf39d3c6da5b30e5c9fc52e605f3913b3f7"
+    },
+    {
+      "path": "record-install-b-install.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "record-install-b-pip-version.log",
+      "size_bytes": 130,
+      "sha256": "518515e40d18601f466e89c101c308343c3f9707ab466f0f02fe85b5cdabea33"
+    },
+    {
+      "path": "record-install-b-pip-version.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "record-install-b-venv.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "record-install-b-venv.log.exit.txt",
+      "size_bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "reproduce_installed_record.py",
+      "size_bytes": 3356,
+      "sha256": "3ce826d72350057e37520919f06d0881cd451e52175c380e3441c2b85e5296e4"
+    },
+    {
+      "path": "seal_qa_archive.py",
+      "size_bytes": 2989,
+      "sha256": "df7ca664c4254ed3c74766d05550f466ede7fc3f68afb081f03199ebe568114a"
+    },
+    {
+      "path": "settlement-wheelhouse-author-review.md",
+      "size_bytes": 6628,
+      "sha256": "33320bdcf715a8475741078e4b89e08499e9f12a60d80dbe86bbd9922bbe20f4"
+    },
+    {
+      "path": "source-tree-status.txt",
+      "size_bytes": 2184,
+      "sha256": "c89301048c0b9080ef5740c996e7bf68453bb1a10d3f6fbe021d0004b30956be"
+    },
+    {
+      "path": "status-audit.json",
+      "size_bytes": 5460,
+      "sha256": "b88ab5c2fa84fd25ecb4dbe8bdabc9d6012e35dd2a27540ba5e3c466a01091f6"
+    },
+    {
+      "path": "two-venv-installed-record-reproduction.json",
+      "size_bytes": 1657,
+      "sha256": "d9034eb52f3b5e91c414b337fa34b48ac3bddfb2a7311aba744047f904e0c928"
+    },
+    {
+      "path": "upstream-author-review.md",
+      "size_bytes": 4694,
+      "sha256": "c6c2c11656d8b78d4365e454a4e1ac9decf0ccd03a21b0ac513cda5d51511bb4"
+    },
+    {
+      "path": "upstream-independent-qa-receipt.json",
+      "size_bytes": 8948,
+      "sha256": "a7111b1c3709828287195e0e64678700a7760e351cd8fc9de03eec7a078951e3"
+    },
+    {
+      "path": "upstream-independent-qa-report.md",
+      "size_bytes": 2412,
+      "sha256": "c4f75cf8c7bfefd4110c7e93ef8c213238ef98916681f948cd131e347c813bb3"
+    },
+    {
+      "path": "upstream-input-audit.json",
+      "size_bytes": 3376,
+      "sha256": "7cf5b4c84c36f753d0ae010d86dd901d5280d528c703230f32f9164906b441a4"
+    },
+    {
+      "path": "upstream-installation-audit.json",
+      "size_bytes": 4011,
+      "sha256": "a17267072d895568ac3f91820379441380fe5f232b840d418b1d6b1944c1633e"
+    },
+    {
+      "path": "upstream-test-summary.json",
+      "size_bytes": 6801,
+      "sha256": "a1feb0d15d6e7e1ac4f021687981c900b2802f5e506556c767bcd44659452beb"
+    },
+    {
+      "path": "wheel-candidate-inventory.txt",
+      "size_bytes": 1311,
+      "sha256": "c2a3fc0bd21ce1a57153dc4680efa4b2964d8623cc7626b790a762ad1c791bc3"
+    }
+  ]
+}

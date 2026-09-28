@@ -9,6 +9,9 @@ description: Complete Sizer class API reference for position sizing
 
 Position Sizers determine the size of orders placed during trading. They calculate position sizes based on available cash, risk parameters, and other factors. Backtrader provides several built-in sizers and allows custom sizer development.
 
+For the optional managed risk allocation reader and sizer, see
+[Managed notional allocation sizing](allocation_sizing.md).
+
 ## Class Definition
 
 ```python

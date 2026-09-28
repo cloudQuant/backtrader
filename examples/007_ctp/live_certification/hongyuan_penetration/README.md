@@ -1,82 +1,27 @@
-# 宏源期货穿透式认证场景集
+# 宏源期货 穿透式认证场景集（历史 source，当前禁用）
 
-基于宏源期货 CTP 仿真环境，覆盖监管测试报告中的 **33 个穿透式认证测试点**。
+这 33 个场景仍保留为历史认证设计和后续 managed migration 的测试素材，但当前代码包含
+旧的 direct CTP/SimNow provider、报单和撤单路径。它们不属于 Iteration 41 的受管执行
+入口，不能用于账户、沙盒或生产验收。
 
-## 环境信息
+所有 `run_case.py`、`run_all.py` 和 `cases/*.py` 直启路径现在都会在 Backtrader、CTP
+或 provider 导入前 fail-closed。旧参数（包括 `--list`、场景 ID、`--all`、
+`--report-root`）也不能恢复 direct child process。真实认证操作是 `NOT_SUPPORTED`，直到
+独立的 managed TestExecutionProfile、账户预算/TTL、清理对账和 provider admission 都
+完成审查。
 
-| 项目 | 值 |
-
-|------|-----|
-
-| BrokerID | 3070 |
-
-| 交易前置(电信) | tcp://101.230.79.235:32205 |
-
-| 行情前置(电信) | tcp://101.230.79.235:32213 |
-
-| 交易前置(联通) | tcp://112.65.19.116:32205 |
-
-| 行情前置(联通) | tcp://112.65.19.116:32213 |
-
-| API 版本 | v6.7.10_20250422 |
-
-| AppID | client_wtyj_1.0.9.9 |
-
-## 前置条件
-
-1. 宏源期货仿真 CTP 账户凭据，通过环境变量或 `.env` 设置：
-   - `HONGYUAN_USER_ID`
-   - `HONGYUAN_PASSWORD`
-1. `bt_api_py` 已安装或在 `PYTHONPATH` 中
-2. `backtrader` 项目根目录在 `PYTHONPATH` 中（脚本会自动添加）
-
-## 可选环境变量
-
-| 变量 | 默认值 | 说明 |
-
-|------|--------|------|
-
-| `HONGYUAN_ENV` | `telecom` | 环境键名（telecom/unicom） |
-
-| `HONGYUAN_ORDER_SYMBOL` | `rb2701` | 委托测试合约（rb2605/rb2610 已不活跃；rb2701 行情稀疏，认证建议 `SA2701`） |
-
-| `HONGYUAN_TICK_SYMBOL` | `rb2701` | 行情测试合约（建议 `SA2701`） |
-
-| `HONGYUAN_POSITION_MODE` | `dual_side` | 持仓模式；宏源仿真账户在 SHFE 同时持有多空两腿，net 模式会在 `broker.start()` 直接失败 |
-
-## 运行方式
+当前唯一可运行的 Iteration 41 路径是 007 的本地零 I/O migration report：
 
 ```bash
+bt-runtime bootstrap --strategy-dir examples/007_ctp/runtime
+bt-runtime run --strategy-dir examples/007_ctp/runtime
+```
 
-# 从项目根目录运行
+`runtime/config.yaml` 必须存在且由 Git 忽略。缺少时返回 `CONFIG_REQUIRED`；已有文件
+不会被 bootstrap 覆盖（`CONFIG_EXISTS`）。输出 `LOCAL_REPLAY_ONLY` 仅证明 config gate
+与 no-action probe；它不是 CTP 连通、SimNow/宏源账户、报撤单、成交、PnL 或实盘准入证据。
 
-# 列出所有场景
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_case.py --list
-
-# 运行单个场景
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_case.py C01
-
-# 运行多个场景
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_case.py C01 T01 T02 T03
-
-# 运行全部 33 个场景
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_case.py --all
-
-# 或使用快捷脚本
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_all.py
-
-# 指定报告目录
-
-python examples/007_ctp/live_certification/hongyuan_penetration/run_case.py --all --report-root ./my_reports
-
-```bash
-
-## 目录结构
+## 历史目录结构
 
 ```bash
 hongyuan_penetration/

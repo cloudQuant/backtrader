@@ -1,0 +1,132 @@
+{
+  "disposition_entries": 389,
+  "input_sha256": {
+    "frozen-source-manifest.json": "423CB56E86375019307D252AD774706A259161D7D4EF7B605410EDB0FC889FC6",
+    "live-execution-inventory-candidates.json": "FACBBC93067D77A317E3A0ABDE5EF89BC77BD53E4A4EB18722B51124E3E20780",
+    "live-execution-writer-dispositions.json": "95116E8866A50D645664764856F1CEB6E855B3D05E540F7E38D59F30EA65C7FD"
+  },
+  "inventory_counts": {
+    "dynamic_execution_candidates": 62,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 327
+  },
+  "overall_status": "NOT_CLOSED_STATIC_REVIEW_REQUIRED",
+  "selected_count": 10,
+  "selected_ids_all_present": true,
+  "selected_items": [
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "api.submit_order",
+      "candidate_id": "i41-writer-6b64c967597ca9a30e13",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "_submit_order_legacy",
+      "kind": "writer_call_candidate",
+      "line": 7938,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "api.cancel_order",
+      "candidate_id": "i41-writer-ed12303a6c97d433f979",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "_cancel_order_ref_legacy",
+      "kind": "writer_call_candidate",
+      "line": 8245,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "self._client.submit_order",
+      "candidate_id": "i41-writer-e25ef08c3d066b243298",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "submit_order",
+      "kind": "writer_call_candidate",
+      "line": 3327,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "self.submit_order",
+      "candidate_id": "i41-writer-8f9ca48eab400d71e549",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "create_order",
+      "kind": "writer_call_candidate",
+      "line": 3341,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "self._client.cancel_order",
+      "candidate_id": "i41-writer-8739a8fd4212eca086b0",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "cancel_order",
+      "kind": "writer_call_candidate",
+      "line": 3353,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "adapter.submit_order",
+      "candidate_id": "i41-writer-f8f51de9f2f4a3fdf72c",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "submit_order",
+      "kind": "writer_call_candidate",
+      "line": 7735,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "importlib.import_module",
+      "candidate_id": "i41-writer-b71354cccd4aa34361ee",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "_resolve_bt_api_client",
+      "kind": "dynamic_execution_candidate",
+      "line": 1764,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "getattr",
+      "candidate_id": "i41-writer-fbe05d71d70ed65a9838",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "_send_native_order_insert",
+      "kind": "dynamic_execution_candidate",
+      "line": 1935,
+      "path": "backtrader/stores/btapistore.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "importlib.import_module",
+      "candidate_id": "i41-writer-174e9667065d97aae5dd",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "_loaded_registered_runner",
+      "kind": "dynamic_execution_candidate",
+      "line": 1144,
+      "path": "backtrader_runtime/runner.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "call": "exec",
+      "candidate_id": "i41-writer-7d767677b3f095e8da32",
+      "disposition": "REVIEW_REQUIRED",
+      "function": "load_module",
+      "kind": "dynamic_execution_candidate",
+      "line": 1081,
+      "path": "backtrader_runtime/runner.py",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    }
+  ],
+  "status_counts": {
+    "('REVIEW_REQUIRED', 'NOT_AVAILABLE')": 389
+  }
+}

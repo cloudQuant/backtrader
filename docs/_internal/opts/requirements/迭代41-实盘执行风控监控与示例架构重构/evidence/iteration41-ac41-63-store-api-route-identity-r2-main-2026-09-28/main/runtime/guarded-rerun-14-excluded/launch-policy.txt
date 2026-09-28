@@ -1,0 +1,3 @@
+credential_env_removed_count=0
+PYTHONPATH guard+repo+prior
+PYTHONDONTWRITEBYTECODE=1

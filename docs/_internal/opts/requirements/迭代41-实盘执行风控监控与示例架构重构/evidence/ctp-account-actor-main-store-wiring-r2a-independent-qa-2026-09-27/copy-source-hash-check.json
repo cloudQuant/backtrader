@@ -1,0 +1,279 @@
+{
+  "status": "ALL_COPIED_FILES_MATCH_SOURCE_BYTES",
+  "checked_count": 39,
+  "checks": [
+    {
+      "archive_path": "identity/candidate-manifest.json",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate-manifest.json",
+      "source_sha256": "5ad9cce0851fbebd9ac07d520919b7a02f793ab99a133cf96e91f58cede405fb",
+      "copied_sha256": "5ad9cce0851fbebd9ac07d520919b7a02f793ab99a133cf96e91f58cede405fb",
+      "match": true
+    },
+    {
+      "archive_path": "identity/parent-r2-manifest.json",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\parent-r2-manifest.json",
+      "source_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+      "copied_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+      "match": true
+    },
+    {
+      "archive_path": "identity/r2-apply.patch",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\r2-apply.patch",
+      "source_sha256": "6e8575874cefeab4c693f6fedd5f3fc89dcec935005f5ad3a0d64f0e1284f90f",
+      "copied_sha256": "6e8575874cefeab4c693f6fedd5f3fc89dcec935005f5ad3a0d64f0e1284f90f",
+      "match": true
+    },
+    {
+      "archive_path": "identity/r2a-apply.patch",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\r2a-apply.patch",
+      "source_sha256": "7708df2f0923b74e5f95315390580eb417e9ca05cfa4c6fe41422bc410908e99",
+      "copied_sha256": "7708df2f0923b74e5f95315390580eb417e9ca05cfa4c6fe41422bc410908e99",
+      "match": true
+    },
+    {
+      "archive_path": "sources/store-base.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\input-sources\\btapistore.py",
+      "source_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "copied_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "match": true
+    },
+    {
+      "archive_path": "sources/store-r2.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\input-sources\\r2\\backtrader-stores-btapistore.py",
+      "source_sha256": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8",
+      "copied_sha256": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8",
+      "match": true
+    },
+    {
+      "archive_path": "sources/test-r2-candidate.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\input-sources\\r2\\test-ctp-account-actor-store-wiring-candidate.py",
+      "source_sha256": "04968d98ae476d4b9ec33d448be11d19e0ffc9adb79585f423b37b37b759154f",
+      "copied_sha256": "04968d98ae476d4b9ec33d448be11d19e0ffc9adb79585f423b37b37b759154f",
+      "match": true
+    },
+    {
+      "archive_path": "sources/store-r2a.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\backtrader\\stores\\btapistore.py",
+      "source_sha256": "18a02f00ec3b2031932284c9e855395c1c70c3e448dbafcd054e4f079048c4d0",
+      "copied_sha256": "18a02f00ec3b2031932284c9e855395c1c70c3e448dbafcd054e4f079048c4d0",
+      "match": true
+    },
+    {
+      "archive_path": "sources/ctp-account-actor-port.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\backtrader\\stores\\ctp_account_actor_port.py",
+      "source_sha256": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3",
+      "copied_sha256": "2e4b04d00c45ba9c6524c5ad0364273e6ecc1a1f653f595d21c3891be2644ee3",
+      "match": true
+    },
+    {
+      "archive_path": "sources/test-r2a-candidate.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\tests\\unit\\stores\\test_ctp_account_actor_store_wiring_candidate.py",
+      "source_sha256": "6b8eab8156f40e5b14403e4063b323386edb3671e9c614c882604e2c02f6ca4b",
+      "copied_sha256": "6b8eab8156f40e5b14403e4063b323386edb3671e9c614c882604e2c02f6ca4b",
+      "match": true
+    },
+    {
+      "archive_path": "sources/test-managed-execution-adapter.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\tests\\unit\\stores\\test_managed_execution_store_adapter.py",
+      "source_sha256": "c9262dc03c3905a54b1397c10db12b1a5dc68508874e550590039d22a482a030",
+      "copied_sha256": "c9262dc03c3905a54b1397c10db12b1a5dc68508874e550590039d22a482a030",
+      "match": true
+    },
+    {
+      "archive_path": "sources/test-managed-ctp-store-adapter.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+      "source_sha256": "2b5f929cac960ed6a7105eb2cc0b7401961fdb7c7b97761288d279b415b15e3f",
+      "copied_sha256": "2b5f929cac960ed6a7105eb2cc0b7401961fdb7c7b97761288d279b415b15e3f",
+      "match": true
+    },
+    {
+      "archive_path": "sources/test-runtime-live-dispatch-guard.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\tests\\unit\\runtime\\test_runtime_live_dispatch_guard.py",
+      "source_sha256": "95ea7b68ad48430eafa1c5a7d2456a63aeb31fac2f7aabedb41917b39ed24ea5",
+      "copied_sha256": "95ea7b68ad48430eafa1c5a7d2456a63aeb31fac2f7aabedb41917b39ed24ea5",
+      "match": true
+    },
+    {
+      "archive_path": "sources/r1-legacy-migration-review.md",
+      "source_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-account-actor-main-store-wiring-r1-legacy-delta-audit-2026-09-27\\r1-test-delta-migration-review.md",
+      "source_sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+      "copied_sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+      "match": true
+    },
+    {
+      "archive_path": "junit/explicit-env.xml",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\evidence\\r2a-independent-explicit-env.junit.xml",
+      "source_sha256": "dca16b1617b2bae44ef1efd917f23c3c34f5e3aaf84cb2a6959ab794dcb5fa89",
+      "copied_sha256": "dca16b1617b2bae44ef1efd917f23c3c34f5e3aaf84cb2a6959ab794dcb5fa89",
+      "match": true
+    },
+    {
+      "archive_path": "junit/candidate-boundary.xml",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\evidence\\r2a-independent-candidate.junit.xml",
+      "source_sha256": "ce108ae58cfb24768157f6a19a0dd9a3ee0a7ccd9d8804769d3d64b1a9ec7031",
+      "copied_sha256": "ce108ae58cfb24768157f6a19a0dd9a3ee0a7ccd9d8804769d3d64b1a9ec7031",
+      "match": true
+    },
+    {
+      "archive_path": "junit/combined-focus.xml",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\evidence\\r2a-independent-focus.junit.xml",
+      "source_sha256": "f16b96529753aa6f5e25641050fb64e3387da2200a0c1b516360ca07fe50a52d",
+      "copied_sha256": "f16b96529753aa6f5e25641050fb64e3387da2200a0c1b516360ca07fe50a52d",
+      "match": true
+    },
+    {
+      "archive_path": "junit/legacy-candidate.xml",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate\\evidence\\r2a-independent-legacy.junit.xml",
+      "source_sha256": "e82e417303b7e4c73f6fdd11b8eaff8961fc81319877c69814852e76f456afbf",
+      "copied_sha256": "e82e417303b7e4c73f6fdd11b8eaff8961fc81319877c69814852e76f456afbf",
+      "match": true
+    },
+    {
+      "archive_path": "junit/legacy-exact-base.xml",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\exact-base\\evidence\\r2a-independent-exact-base-legacy.junit.xml",
+      "source_sha256": "d1463c9cad77122ddd9aa56b60f558e61f97dc640a2d580cb0b041298257bc15",
+      "copied_sha256": "d1463c9cad77122ddd9aa56b60f558e61f97dc640a2d580cb0b041298257bc15",
+      "match": true
+    },
+    {
+      "archive_path": "commands/explicit-env.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\explicit-env-command.txt",
+      "source_sha256": "bd2ae3c9767c6f3f599d4fdd3a46625f4b9ca792d783a428f9ba5613296ba1d1",
+      "copied_sha256": "bd2ae3c9767c6f3f599d4fdd3a46625f4b9ca792d783a428f9ba5613296ba1d1",
+      "match": true
+    },
+    {
+      "archive_path": "commands/candidate-boundary.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate-command.txt",
+      "source_sha256": "f20233adfdc0fac7037d19b8f480f6038ecdc64c6563aa6c1a8a1bc777cc947b",
+      "copied_sha256": "f20233adfdc0fac7037d19b8f480f6038ecdc64c6563aa6c1a8a1bc777cc947b",
+      "match": true
+    },
+    {
+      "archive_path": "commands/combined-focus.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\focus-command.txt",
+      "source_sha256": "f2929c2b6e2a6864c1bb64b988de9391604daf6a9030a0a2ec0ebd6996232168",
+      "copied_sha256": "f2929c2b6e2a6864c1bb64b988de9391604daf6a9030a0a2ec0ebd6996232168",
+      "match": true
+    },
+    {
+      "archive_path": "commands/legacy-candidate.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\legacy-command.txt",
+      "source_sha256": "707306faeef58da4df20d6b985adb11e8479a735a588c4cf78497efa8bb484db",
+      "copied_sha256": "707306faeef58da4df20d6b985adb11e8479a735a588c4cf78497efa8bb484db",
+      "match": true
+    },
+    {
+      "archive_path": "commands/legacy-exact-base.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\exact-base-command.txt",
+      "source_sha256": "f94381b47e321408fd28922537947a4a15cdf163e25fa5ec43419dcff70ba166",
+      "copied_sha256": "f94381b47e321408fd28922537947a4a15cdf163e25fa5ec43419dcff70ba166",
+      "match": true
+    },
+    {
+      "archive_path": "logs/test-summary.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\test-summary.txt",
+      "source_sha256": "e70399c4732438c0a69a934971f93f94ec44ec3ec6a5f64ac38f19814c9e9587",
+      "copied_sha256": "e70399c4732438c0a69a934971f93f94ec44ec3ec6a5f64ac38f19814c9e9587",
+      "match": true
+    },
+    {
+      "archive_path": "logs/patch-replay-preparation.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\prepare.log",
+      "source_sha256": "a3373bf4a39e60eb8e79d09b94b723d14cb8933c2bc30fced54cba8340929ef3",
+      "copied_sha256": "a3373bf4a39e60eb8e79d09b94b723d14cb8933c2bc30fced54cba8340929ef3",
+      "match": true
+    },
+    {
+      "archive_path": "logs/explicit-env.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\explicit-env-output.log",
+      "source_sha256": "eb58d52ce0ba94a02b702863779342558a27fa3012c4887715832b095c424c72",
+      "copied_sha256": "eb58d52ce0ba94a02b702863779342558a27fa3012c4887715832b095c424c72",
+      "match": true
+    },
+    {
+      "archive_path": "logs/candidate-boundary.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\candidate-output.log",
+      "source_sha256": "7424ab06b0133138da6f2a0a1eea6c99c93d2ee897e90ef011060ba90e890f77",
+      "copied_sha256": "7424ab06b0133138da6f2a0a1eea6c99c93d2ee897e90ef011060ba90e890f77",
+      "match": true
+    },
+    {
+      "archive_path": "logs/combined-focus.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\focus-output.log",
+      "source_sha256": "2862b3928f694fc447637d00c6527a21c88556f8691d08e4cd93a07e1bc76885",
+      "copied_sha256": "2862b3928f694fc447637d00c6527a21c88556f8691d08e4cd93a07e1bc76885",
+      "match": true
+    },
+    {
+      "archive_path": "logs/legacy-candidate.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\legacy-output.log",
+      "source_sha256": "1ea0e756a474da26b8d480ed81dcd7886350d42d9f00ee03f5c75ec0382bcfae",
+      "copied_sha256": "1ea0e756a474da26b8d480ed81dcd7886350d42d9f00ee03f5c75ec0382bcfae",
+      "match": true
+    },
+    {
+      "archive_path": "logs/legacy-exact-base.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\exact-base-output.log",
+      "source_sha256": "b409ecf4c8f7cc7cb3fab4408df109e96606172c26b33c7ad0704b556277a248",
+      "copied_sha256": "b409ecf4c8f7cc7cb3fab4408df109e96606172c26b33c7ad0704b556277a248",
+      "match": true
+    },
+    {
+      "archive_path": "probes/access-order-probe.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\independent-access-order-probe.py",
+      "source_sha256": "7b5b40b1fd155435c8437805d7beddaedc047a5662819c323cf7fff1755f99ba",
+      "copied_sha256": "7b5b40b1fd155435c8437805d7beddaedc047a5662819c323cf7fff1755f99ba",
+      "match": true
+    },
+    {
+      "archive_path": "probes/access-order-probe.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\independent-access-order-probe.log",
+      "source_sha256": "27ded962b43bc7732a2c5e5c290523b225b27d9b82af3b8361f91e9b5f5c5ead",
+      "copied_sha256": "27ded962b43bc7732a2c5e5c290523b225b27d9b82af3b8361f91e9b5f5c5ead",
+      "match": true
+    },
+    {
+      "archive_path": "probes/source-origin-and-hashes.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\source-origin-and-hashes.py",
+      "source_sha256": "d72034bc0c44eb0ed386ba7ff1441c7e7b179fc8d2b7e19320287a1bcdf8f4c3",
+      "copied_sha256": "d72034bc0c44eb0ed386ba7ff1441c7e7b179fc8d2b7e19320287a1bcdf8f4c3",
+      "match": true
+    },
+    {
+      "archive_path": "probes/source-origin-and-hashes.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\source-origin-and-hashes.log",
+      "source_sha256": "4d9ee8f754b080cfd1cb0c744e02a75e1dde03e76b4b9637e23aadc1911fb904",
+      "copied_sha256": "4d9ee8f754b080cfd1cb0c744e02a75e1dde03e76b4b9637e23aadc1911fb904",
+      "match": true
+    },
+    {
+      "archive_path": "probes/compare-legacy.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\compare-legacy.py",
+      "source_sha256": "978e31f926bd7b08a730f0c73d105570ccd754979bd5b6bc3c31bb160b81e1dd",
+      "copied_sha256": "978e31f926bd7b08a730f0c73d105570ccd754979bd5b6bc3c31bb160b81e1dd",
+      "match": true
+    },
+    {
+      "archive_path": "probes/legacy-disposition-comparison.txt",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\legacy-disposition-comparison.txt",
+      "source_sha256": "3dd07a413b29c26236d83f410887efa76019310fbd5ac1f4f2b8faa4e57534fe",
+      "copied_sha256": "3dd07a413b29c26236d83f410887efa76019310fbd5ac1f4f2b8faa4e57534fe",
+      "match": true
+    },
+    {
+      "archive_path": "probes/legacy-disposition-comparison.log",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\legacy-disposition-comparison.log",
+      "source_sha256": "3b5585c4612b188deec9be060fe68b731e9afeec55e0db4a9bad9b6a7c9e5158",
+      "copied_sha256": "3b5585c4612b188deec9be060fe68b731e9afeec55e0db4a9bad9b6a7c9e5158",
+      "match": true
+    },
+    {
+      "archive_path": "probes/prepare.py",
+      "source_path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927\\prepare.py",
+      "source_sha256": "d7367d90c607f58ef61a387a0a359734c6b9d110da72dd2abf2e3d8ec13326c1",
+      "copied_sha256": "d7367d90c607f58ef61a387a0a359734c6b9d110da72dd2abf2e3d8ec13326c1",
+      "match": true
+    }
+  ]
+}

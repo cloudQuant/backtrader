@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.351" timestamp="2026-09-21T23:48:23.305919" hostname="yun"><testcase classname="" name="" time="0.000"><error message="collection failure">C:\anaconda3\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+C:\anaconda3\Lib\site-packages\pytest_asyncio\plugin.py:610: in pytest_collectstart
+    collector.obj.__pytest_asyncio_scoped_event_loop = scoped_event_loop
+E   AttributeError: 'Package' object has no attribute 'obj'</error></testcase></testsuite></testsuites>

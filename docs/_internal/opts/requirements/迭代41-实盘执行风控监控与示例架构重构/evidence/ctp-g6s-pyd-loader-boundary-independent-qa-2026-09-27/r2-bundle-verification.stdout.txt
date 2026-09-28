@@ -1,0 +1,13 @@
+{
+  "base_r1_archive_sha256": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0",
+  "base_r1_manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+  "mismatched": [],
+  "missing": [],
+  "payload_count": 191,
+  "r2_binder_sha256": "a7a27a318d4c3efeb5cc781c4c6479d56439da579d46da669c6f9349f96fb049",
+  "r2_custody_test_sha256": "14a643deca3aa8f259fca54d3c6066dc77817c4537e2e8a0eccbb034685db841",
+  "zip_crc": "clean",
+  "zip_entries": 193,
+  "zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14"
+}

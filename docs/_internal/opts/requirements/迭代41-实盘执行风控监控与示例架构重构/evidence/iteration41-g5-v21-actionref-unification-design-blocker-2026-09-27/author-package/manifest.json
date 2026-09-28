@@ -1,0 +1,13 @@
+{
+  "status": "DESIGN_ONLY_BLOCKED_FOR_PATCH",
+  "write_authority": "NO_WRITE_LIVE_NO_GO",
+  "root": "D:\\temp\\iteration41-g5-actionref-unification-design-blocker-20260927",
+  "changed_trees": [],
+  "patch": null,
+  "verifier": "verify_static_blocker.py",
+  "verifier_scope": "AST/source hash only; no package imports",
+  "proof_readme_sha256": "D83F57F483FF401AFD8DB17B8F2EE6C86A4BCBC24C8D4E20D4512ED610E5AEA5",
+  "v21_source_manifest_sha256": "B3A614D62B2A4CF1B0DBDFEFEE463015157DEE38BF4C9C5119C64EF2D71D6D24",
+  "report": "design-blocker.md",
+  "sources": "source-preimages.sha256"
+}

@@ -1,0 +1,19 @@
+{
+  "archive_crc_bad_member": null,
+  "archive_member_count": 140,
+  "archive_member_set_matches_manifest": true,
+  "archive_path": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate.zip",
+  "archive_sha256": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283",
+  "archive_sha_sidecar_match": true,
+  "candidate_root": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate",
+  "file_hash_or_size_mismatches": [],
+  "format": "iteration41-g5-send-entry-r2-archive-content-verification.v1",
+  "manifest_file_count": 138,
+  "manifest_member_bytes_match": true,
+  "manifest_sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+  "manifest_sha_member_bytes_match": true,
+  "manifest_sha_sidecar_match": true,
+  "passed": true,
+  "r1_regression_copy_hashes_match": true,
+  "status": "R2_FAIL_CLOSED / G5 NOT ACCEPTED"
+}

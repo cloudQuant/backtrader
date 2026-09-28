@@ -1,0 +1,912 @@
+{
+  "title": "Ruff incident preimage candidate recovery, read-only",
+  "incident_time_utc": "2026-09-27T12:30:28.947388+00:00",
+  "snapshot_zip": {
+    "source_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\tests-py-current-snapshot.zip",
+    "bytes": 9322373,
+    "sha256": "4A7459B80FD85AFDBAA6FC22A1C6E77EBCE5DD90D8D7C0C0E7AB72D713076258"
+  },
+  "repository_path": "D:\\source_code\\backtrader",
+  "scope": "all incident-mtime paths under tests/integration/**, tests/unit/scripts/**, tests/unit/stores/**, and root tests/*.py; plus two parent-requested adjacent paths",
+  "formatter": {
+    "version": "ruff 0.16.2",
+    "command": "python -m ruff format --config D:\\\\source_code\\\\backtrader\\\\pyproject.toml <isolated D:\\\\temp candidate copies>",
+    "config_sha256": "2E65494605E0BCB7EDAA5C2A9899355EB4255B6EF9D4292F9A1FF33562870F48",
+    "main_tree_was_formatted": false
+  },
+  "candidate_search": {
+    "source_roots": [
+      "D:\\\\temp",
+      "D:\\\\source_code\\\\backtrader\\\\docs\\\\_internal\\\\opts\\\\requirements\\\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\\\evidence"
+    ],
+    "method": "rg --files by exact basename, file mtime before incident, deduplicate source bytes by SHA-256, format each unique candidate in an isolated copy, compare full bytes to incident ZIP member",
+    "zip_files_used_as_source_candidates": false,
+    "incident_zip_used_as_target_snapshot": true
+  },
+  "counts": {
+    "in_scope_paths": 17,
+    "scope_paths_with_exact_ruff_replay_source": 16,
+    "scope_copy_plan_pending": 15,
+    "scope_already_restored": 1,
+    "scope_empty_snapshot_missing_no_source": 1,
+    "supplementary_paths": 2,
+    "supplementary_with_exact_ruff_replay_source": 2
+  },
+  "limitations": [
+    "A byte-exact formatter replay validates that the frozen candidate source formats to the incident ZIP member; formatter output can be many-to-one, so this is a plausible preimage, not proof of uniqueness of original working-tree bytes.",
+    "Candidate selection is latest matching source among scanned pre-incident loose files in D:\\\\temp and repository evidence; ZIP-contained source candidates were not searched as source input.",
+    "No repository files were modified by this recovery task. No pytest, SDK, provider, credential, network, or native action was used."
+  ],
+  "targets": [
+    {
+      "target_path": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+        "bytes": 52247,
+        "sha256": "BC7D6B8C1A469B837C84DF4C5DB1E6D74047059E4766FE31369BB620E50BE3DF",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\integration\\test_iteration41_managed_cancellation_composition.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\integration\\test_iteration41_managed_cancellation_composition.py",
+        "exists": true,
+        "bytes": 52247,
+        "sha256": "BC7D6B8C1A469B837C84DF4C5DB1E6D74047059E4766FE31369BB620E50BE3DF",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_iteration41_managed_cancellation_composition.py",
+        "source_bytes": 52259,
+        "source_sha256": "4C83ABE0F8DB3DFC1522C411DF5B27F9D27BBC887838CB78EE69DD2B9C3A98EC",
+        "source_mtime_utc": "2026-09-27T04:58:52.254774+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\integration\\test_iteration41_managed_cancellation_composition.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\integration\\test_iteration41_managed_cancellation_composition.py",
+        "bytes": 52247,
+        "sha256": "BC7D6B8C1A469B837C84DF4C5DB1E6D74047059E4766FE31369BB620E50BE3DF",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 6
+    },
+    {
+      "target_path": "tests/test_offline_cutover_validator.py",
+      "scope": "scope",
+      "status": "EMPTY_INCIDENT_MEMBER_NO_PREINCIDENT_SOURCE_CURRENT_PATH_MISSING",
+      "needs_copy_to_main": false,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/test_offline_cutover_validator.py",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\test_offline_cutover_validator.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\test_offline_cutover_validator.py",
+        "exists": false,
+        "bytes": null,
+        "sha256": "MISSING",
+        "equals_incident_snapshot": false
+      },
+      "selected_preimage_candidate": null,
+      "ruff_replay": null,
+      "search_candidate_unique_hashes": 0,
+      "search_scope": "preincident same-basename loose files under D:\\\\temp and repository evidence; no source candidate replayed to the incident member"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_ai_producer_inventory.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_collect_iteration41_ai_producer_inventory.py",
+        "bytes": 5301,
+        "sha256": "0101579AEC89376FC845283B76A84BB88B10EAD6B22CAE48D2BDDD3DDA748CCD",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py",
+        "exists": true,
+        "bytes": 5301,
+        "sha256": "0101579AEC89376FC845283B76A84BB88B10EAD6B22CAE48D2BDDD3DDA748CCD",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py",
+        "source_bytes": 5270,
+        "source_sha256": "E8E00071CC737C9956162BAB35D9BF9BCD0566AA25C3F4DE710A794E011D62DB",
+        "source_mtime_utc": "2026-09-27T04:58:52.949615+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py",
+        "bytes": 5301,
+        "sha256": "0101579AEC89376FC845283B76A84BB88B10EAD6B22CAE48D2BDDD3DDA748CCD",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py",
+        "bytes": 2376,
+        "sha256": "3523A3EBB4D8DCA0BD68F6D1F5BC89E3FA041A767EA36C6FBD27DE2554DEE9E7",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_collect_iteration41_writer_indirect_dispatch.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_collect_iteration41_writer_indirect_dispatch.py",
+        "exists": true,
+        "bytes": 2376,
+        "sha256": "3523A3EBB4D8DCA0BD68F6D1F5BC89E3FA041A767EA36C6FBD27DE2554DEE9E7",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-scanner-expansion-r2c2-main-integration-2026-09-27-final\\main\\targets\\test_collect_iteration41_writer_indirect_dispatch.py",
+        "source_bytes": 2392,
+        "source_sha256": "BE777538AC686463EDF07C96D3848715B714D368126A160E42888C4331931DB6",
+        "source_mtime_utc": "2026-09-27T07:37:36.844766+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_collect_iteration41_writer_indirect_dispatch.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_collect_iteration41_writer_indirect_dispatch.py",
+        "bytes": 2376,
+        "sha256": "3523A3EBB4D8DCA0BD68F6D1F5BC89E3FA041A767EA36C6FBD27DE2554DEE9E7",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 4
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_writer_inventory.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_collect_iteration41_writer_inventory.py",
+        "bytes": 9409,
+        "sha256": "791725B0E148F369FD9AA86C2F78748C47B2C9EBE9267CA98FA53A4B4C5E2F8C",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py",
+        "exists": true,
+        "bytes": 9409,
+        "sha256": "791725B0E148F369FD9AA86C2F78748C47B2C9EBE9267CA98FA53A4B4C5E2F8C",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\iteration41-ac41-63-scanner-expansion-qa-20260927\\isolated-source-r2c2\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py",
+        "source_bytes": 9372,
+        "source_sha256": "C133E3DF976E572EBE2D1017497D10549A0DF7398A88F1B0FFD25E8E80C5ED6E",
+        "source_mtime_utc": "2026-09-27T07:22:07.238625+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py",
+        "bytes": 9409,
+        "sha256": "791725B0E148F369FD9AA86C2F78748C47B2C9EBE9267CA98FA53A4B4C5E2F8C",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+        "bytes": 25132,
+        "sha256": "8E893CF6F1D50D86394101585A69D35ADDC56B2BC9B0B228C1B08F3EE17665AB",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+        "exists": true,
+        "bytes": 25132,
+        "sha256": "8E893CF6F1D50D86394101585A69D35ADDC56B2BC9B0B228C1B08F3EE17665AB",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+        "source_bytes": 25302,
+        "source_sha256": "D3445AC4C6CB1EF3D870A9F5708F528ADEC90759536B0C23310D6AA0BE581728",
+        "source_mtime_utc": "2026-09-27T04:58:52.953926+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+        "bytes": 25132,
+        "sha256": "8E893CF6F1D50D86394101585A69D35ADDC56B2BC9B0B228C1B08F3EE17665AB",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 3
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_guardian_deployment_anchor.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_guardian_deployment_anchor.py",
+        "bytes": 42182,
+        "sha256": "D65B9A4787B27ED9278BD4FA6906203D3C0BAAE73D4393F1FD43CB2A7CBE00C6",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py",
+        "exists": true,
+        "bytes": 42182,
+        "sha256": "D65B9A4787B27ED9278BD4FA6906203D3C0BAAE73D4393F1FD43CB2A7CBE00C6",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py",
+        "source_bytes": 42152,
+        "source_sha256": "4CBA432227421F8606040D91057D51E07F5779037D568D7909E9107F653AE4DC",
+        "source_mtime_utc": "2026-09-27T04:58:52.954984+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py",
+        "bytes": 42182,
+        "sha256": "D65B9A4787B27ED9278BD4FA6906203D3C0BAAE73D4393F1FD43CB2A7CBE00C6",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 5
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+        "bytes": 30733,
+        "sha256": "5EC2AC0580335FB9C2A9AF36448A3E1E706DCF22CCE48469E0713885956DC7DC",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py",
+        "exists": true,
+        "bytes": 30733,
+        "sha256": "5EC2AC0580335FB9C2A9AF36448A3E1E706DCF22CCE48469E0713885956DC7DC",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py",
+        "source_bytes": 30787,
+        "source_sha256": "9A4B059D7007881933A8AF5BEA94D1A6831554ACEE9912CE9F14C92E4279A8BA",
+        "source_mtime_utc": "2026-09-27T04:58:52.958121+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py",
+        "bytes": 30733,
+        "sha256": "5EC2AC0580335FB9C2A9AF36448A3E1E706DCF22CCE48469E0713885956DC7DC",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_parent_launcher.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_parent_launcher.py",
+        "bytes": 33097,
+        "sha256": "8330DD9C0E612AB9CFAA36381C3EA1C13B270B46AC3D250133ECA5296C77550A",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py",
+        "exists": true,
+        "bytes": 33097,
+        "sha256": "8330DD9C0E612AB9CFAA36381C3EA1C13B270B46AC3D250133ECA5296C77550A",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py",
+        "source_bytes": 33078,
+        "source_sha256": "E6D470CFFECD5F72819EC0806311C02499E88C097C270AF331E554F8FA6EB1A6",
+        "source_mtime_utc": "2026-09-27T04:58:52.960159+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py",
+        "bytes": 33097,
+        "sha256": "8330DD9C0E612AB9CFAA36381C3EA1C13B270B46AC3D250133ECA5296C77550A",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_sealed_import.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_sealed_import.py",
+        "bytes": 62100,
+        "sha256": "EA27A41326F9532BD7E231EC2DE4294222009553B6058B419971AD50E04ED0EE",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py",
+        "exists": true,
+        "bytes": 62100,
+        "sha256": "EA27A41326F9532BD7E231EC2DE4294222009553B6058B419971AD50E04ED0EE",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py",
+        "source_bytes": 61940,
+        "source_sha256": "036ED2249476FA82A70EB4439AC0444F37750893DCF69FD3C23DCFCCF3467930",
+        "source_mtime_utc": "2026-09-27T04:58:52.964465+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py",
+        "bytes": 62100,
+        "sha256": "EA27A41326F9532BD7E231EC2DE4294222009553B6058B419971AD50E04ED0EE",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 2
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian.py",
+        "bytes": 1748,
+        "sha256": "A0E2ADA9E03C05096FC1B10E38932901C826D2AD4B6A5B8AB9C5AAC03C261D8B",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py",
+        "exists": true,
+        "bytes": 1748,
+        "sha256": "A0E2ADA9E03C05096FC1B10E38932901C826D2AD4B6A5B8AB9C5AAC03C261D8B",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py",
+        "source_bytes": 1749,
+        "source_sha256": "399461AA8D0398A1ED1496D6167690807D4407B480202364D94B1A1DEB5960DB",
+        "source_mtime_utc": "2026-09-27T04:58:52.965462+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py",
+        "bytes": 1748,
+        "sha256": "A0E2ADA9E03C05096FC1B10E38932901C826D2AD4B6A5B8AB9C5AAC03C261D8B",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+        "bytes": 128994,
+        "sha256": "C07045E5349A9B90C1B75FCEDA9DAA9926285018B026184F70F07F910AFD4DB1",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py",
+        "exists": true,
+        "bytes": 128994,
+        "sha256": "C07045E5349A9B90C1B75FCEDA9DAA9926285018B026184F70F07F910AFD4DB1",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py",
+        "source_bytes": 129016,
+        "source_sha256": "A9BC8107DD365F7B5EBABE301950118C019A60F23DF44F68E63F145EF24F6814",
+        "source_mtime_utc": "2026-09-27T04:58:52.967457+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py",
+        "bytes": 128994,
+        "sha256": "C07045E5349A9B90C1B75FCEDA9DAA9926285018B026184F70F07F910AFD4DB1",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 6
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+        "bytes": 30883,
+        "sha256": "10084898385EE32B829BC8840900BF2558472F6CE2A3FE0401DD5DFB78C0D652",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py",
+        "exists": true,
+        "bytes": 30883,
+        "sha256": "10084898385EE32B829BC8840900BF2558472F6CE2A3FE0401DD5DFB78C0D652",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py",
+        "source_bytes": 31415,
+        "source_sha256": "7DEBBE58CCF690FB2103E1441EB9DBF813CA30BD478C4048F622C0F8A70B59FD",
+        "source_mtime_utc": "2026-09-27T04:58:52.968452+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py",
+        "bytes": 30883,
+        "sha256": "10084898385EE32B829BC8840900BF2558472F6CE2A3FE0401DD5DFB78C0D652",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 1
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+        "bytes": 26905,
+        "sha256": "80BC4EA66E7C03A828F23524DF1D3DE892CB5F1F42994E275178EF4504407DA9",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py",
+        "exists": true,
+        "bytes": 26905,
+        "sha256": "80BC4EA66E7C03A828F23524DF1D3DE892CB5F1F42994E275178EF4504407DA9",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py",
+        "source_bytes": 27139,
+        "source_sha256": "10F814F004843DBD404640FB2041763BDB087FA18EC7478C48C4B21EC43A287C",
+        "source_mtime_utc": "2026-09-27T04:58:52.970690+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py",
+        "bytes": 26905,
+        "sha256": "80BC4EA66E7C03A828F23524DF1D3DE892CB5F1F42994E275178EF4504407DA9",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 5
+    },
+    {
+      "target_path": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py",
+        "bytes": 14028,
+        "sha256": "F5FB5B8BD275EF90C262EA7B1BD9589D38A672B62B252CC47981F57EF541F415",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py",
+        "exists": true,
+        "bytes": 14028,
+        "sha256": "F5FB5B8BD275EF90C262EA7B1BD9589D38A672B62B252CC47981F57EF541F415",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-scanner-disposition-rebaseline-r2-main-integration-2026-09-27\\main-targets\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py",
+        "source_bytes": 13992,
+        "source_sha256": "4CE31FE03CF0671FD573157E27DBF3E8D35266B6FBACE96A830CF8F0F8A73824",
+        "source_mtime_utc": "2026-09-27T10:37:20.905457+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py",
+        "bytes": 14028,
+        "sha256": "F5FB5B8BD275EF90C262EA7B1BD9589D38A672B62B252CC47981F57EF541F415",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 6
+    },
+    {
+      "target_path": "tests/unit/stores/test_btapistore_sdk_api_none.py",
+      "scope": "scope",
+      "status": "ALREADY_RESTORED_EXACT",
+      "needs_copy_to_main": false,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/stores/test_btapistore_sdk_api_none.py",
+        "bytes": 2599,
+        "sha256": "A3F77D5A3A19603A2FBD76A68FDFBBCE16DCCC7A967559AF0D3980D5CC61C3FD",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\stores\\test_btapistore_sdk_api_none.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore_sdk_api_none.py",
+        "exists": true,
+        "bytes": 2544,
+        "sha256": "477225A7668DD10FE26A532EF49AAF018FE8FF4187C5446C42AD7D97A2AFD7D6",
+        "equals_incident_snapshot": false
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\main-tree\\test_btapistore_sdk_api_none.py",
+        "source_bytes": 2544,
+        "source_sha256": "477225A7668DD10FE26A532EF49AAF018FE8FF4187C5446C42AD7D97A2AFD7D6",
+        "source_mtime_utc": "2026-09-27T11:33:17.505984+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\stores\\test_btapistore_sdk_api_none.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\stores\\test_btapistore_sdk_api_none.py",
+        "bytes": 2599,
+        "sha256": "A3F77D5A3A19603A2FBD76A68FDFBBCE16DCCC7A967559AF0D3980D5CC61C3FD",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 2
+    },
+    {
+      "target_path": "tests/unit/stores/test_managed_ctp_store_adapter.py",
+      "scope": "scope",
+      "status": "PREIMAGE_CANDIDATE_EXACT_RUFF_REPLAY_MATCH",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/stores/test_managed_ctp_store_adapter.py",
+        "bytes": 38818,
+        "sha256": "627EEDB6A0F37D32AF72040E3903A053B48A7C68CAEE17DD1DEA961E42F7BAA2",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+        "exists": true,
+        "bytes": 38818,
+        "sha256": "627EEDB6A0F37D32AF72040E3903A053B48A7C68CAEE17DD1DEA961E42F7BAA2",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+        "source_bytes": 39133,
+        "source_sha256": "8A2BA574398649B260038B9E029D060F92F9A338A50245616DD99130B57B2918",
+        "source_mtime_utc": "2026-09-27T04:58:53.007544+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+        "bytes": 38818,
+        "sha256": "627EEDB6A0F37D32AF72040E3903A053B48A7C68CAEE17DD1DEA961E42F7BAA2",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 5
+    },
+    {
+      "target_path": "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+      "scope": "supplementary",
+      "status": "SUPPLEMENTARY_PREIMAGE_SOURCE_VERIFIED_PENDING_PARENT_ACTION",
+      "needs_copy_to_main": true,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+        "bytes": 5353,
+        "sha256": "EC471E85B28B675699BEE3906B2C37A60D003561E8571D2E8996218FFF5AB316",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py",
+        "exists": true,
+        "bytes": 5353,
+        "sha256": "EC471E85B28B675699BEE3906B2C37A60D003561E8571D2E8996218FFF5AB316",
+        "equals_incident_snapshot": true
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-013-legacy-ctp-support-r2-main-integration-2026-09-27\\main-source\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py",
+        "source_bytes": 5127,
+        "source_sha256": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+        "source_mtime_utc": "2026-09-27T09:00:30.598747+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py",
+        "bytes": 5353,
+        "sha256": "EC471E85B28B675699BEE3906B2C37A60D003561E8571D2E8996218FFF5AB316",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 4
+    },
+    {
+      "target_path": "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py",
+      "scope": "supplementary",
+      "status": "ALREADY_RESTORED_EXACT",
+      "needs_copy_to_main": false,
+      "incident_snapshot_member": {
+        "path_in_incident_zip": "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py",
+        "bytes": 5579,
+        "sha256": "DFDED6287715819B2E2AEAF15DA4852CD20DE7DFFA17737E34E8673F9FECCC16",
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\incident-members\\tests\\unit\\test_ctp_options_simnow_mechanical_api_boundary.py"
+      },
+      "current_main": {
+        "path": "D:\\source_code\\backtrader\\tests\\unit\\test_ctp_options_simnow_mechanical_api_boundary.py",
+        "exists": true,
+        "bytes": 5595,
+        "sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+        "equals_incident_snapshot": false
+      },
+      "selected_preimage_candidate": {
+        "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\main-tree\\test_ctp_options_simnow_mechanical_api_boundary.py",
+        "source_bytes": 5595,
+        "source_sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+        "source_mtime_utc": "2026-09-27T11:23:30.083507+00:00",
+        "source_mtime_is_frozen_copy_provenance": true,
+        "frozen_copy": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\preimage-candidates\\tests\\unit\\test_ctp_options_simnow_mechanical_api_boundary.py",
+        "latest_matching_candidate_among_scanned_preincident_loose_files": true,
+        "distinct_matching_source_sha_groups": 1
+      },
+      "ruff_replay": {
+        "version": "ruff 0.16.2",
+        "config": "D:\\source_code\\backtrader\\pyproject.toml",
+        "isolated_output": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\preimage-recovery-r1\\ruff-output\\tests\\unit\\test_ctp_options_simnow_mechanical_api_boundary.py",
+        "bytes": 5579,
+        "sha256": "DFDED6287715819B2E2AEAF15DA4852CD20DE7DFFA17737E34E8673F9FECCC16",
+        "exact_bytes_equal_incident_zip_member": true
+      },
+      "search_candidate_unique_hashes": 3
+    }
+  ],
+  "copy_plan_pending": [
+    {
+      "target_path": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_iteration41_managed_cancellation_composition.py",
+      "source_sha256": "4C83ABE0F8DB3DFC1522C411DF5B27F9D27BBC887838CB78EE69DD2B9C3A98EC",
+      "source_bytes": 52259,
+      "source_mtime_utc": "2026-09-27T04:58:52.254774+00:00",
+      "ruff_output_sha256": "BC7D6B8C1A469B837C84DF4C5DB1E6D74047059E4766FE31369BB620E50BE3DF",
+      "incident_zip_member_sha256": "BC7D6B8C1A469B837C84DF4C5DB1E6D74047059E4766FE31369BB620E50BE3DF"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_ai_producer_inventory.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_collect_iteration41_ai_producer_inventory.py",
+      "source_sha256": "E8E00071CC737C9956162BAB35D9BF9BCD0566AA25C3F4DE710A794E011D62DB",
+      "source_bytes": 5270,
+      "source_mtime_utc": "2026-09-27T04:58:52.949615+00:00",
+      "ruff_output_sha256": "0101579AEC89376FC845283B76A84BB88B10EAD6B22CAE48D2BDDD3DDA748CCD",
+      "incident_zip_member_sha256": "0101579AEC89376FC845283B76A84BB88B10EAD6B22CAE48D2BDDD3DDA748CCD"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py",
+      "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-scanner-expansion-r2c2-main-integration-2026-09-27-final\\main\\targets\\test_collect_iteration41_writer_indirect_dispatch.py",
+      "source_sha256": "BE777538AC686463EDF07C96D3848715B714D368126A160E42888C4331931DB6",
+      "source_bytes": 2392,
+      "source_mtime_utc": "2026-09-27T07:37:36.844766+00:00",
+      "ruff_output_sha256": "3523A3EBB4D8DCA0BD68F6D1F5BC89E3FA041A767EA36C6FBD27DE2554DEE9E7",
+      "incident_zip_member_sha256": "3523A3EBB4D8DCA0BD68F6D1F5BC89E3FA041A767EA36C6FBD27DE2554DEE9E7"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_collect_iteration41_writer_inventory.py",
+      "source_path_absolute": "D:\\temp\\iteration41-ac41-63-scanner-expansion-qa-20260927\\isolated-source-r2c2\\tests\\unit\\scripts\\test_collect_iteration41_writer_inventory.py",
+      "source_sha256": "C133E3DF976E572EBE2D1017497D10549A0DF7398A88F1B0FFD25E8E80C5ED6E",
+      "source_bytes": 9372,
+      "source_mtime_utc": "2026-09-27T07:22:07.238625+00:00",
+      "ruff_output_sha256": "791725B0E148F369FD9AA86C2F78748C47B2C9EBE9267CA98FA53A4B4C5E2F8C",
+      "incident_zip_member_sha256": "791725B0E148F369FD9AA86C2F78748C47B2C9EBE9267CA98FA53A4B4C5E2F8C"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_bootstrap_receipt_runtime.py",
+      "source_sha256": "D3445AC4C6CB1EF3D870A9F5708F528ADEC90759536B0C23310D6AA0BE581728",
+      "source_bytes": 25302,
+      "source_mtime_utc": "2026-09-27T04:58:52.953926+00:00",
+      "ruff_output_sha256": "8E893CF6F1D50D86394101585A69D35ADDC56B2BC9B0B228C1B08F3EE17665AB",
+      "incident_zip_member_sha256": "8E893CF6F1D50D86394101585A69D35ADDC56B2BC9B0B228C1B08F3EE17665AB"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_guardian_deployment_anchor.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py",
+      "source_sha256": "4CBA432227421F8606040D91057D51E07F5779037D568D7909E9107F653AE4DC",
+      "source_bytes": 42152,
+      "source_mtime_utc": "2026-09-27T04:58:52.954984+00:00",
+      "ruff_output_sha256": "D65B9A4787B27ED9278BD4FA6906203D3C0BAAE73D4393F1FD43CB2A7CBE00C6",
+      "incident_zip_member_sha256": "D65B9A4787B27ED9278BD4FA6906203D3C0BAAE73D4393F1FD43CB2A7CBE00C6"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_outer_watchdog.py",
+      "source_sha256": "9A4B059D7007881933A8AF5BEA94D1A6831554ACEE9912CE9F14C92E4279A8BA",
+      "source_bytes": 30787,
+      "source_mtime_utc": "2026-09-27T04:58:52.958121+00:00",
+      "ruff_output_sha256": "5EC2AC0580335FB9C2A9AF36448A3E1E706DCF22CCE48469E0713885956DC7DC",
+      "incident_zip_member_sha256": "5EC2AC0580335FB9C2A9AF36448A3E1E706DCF22CCE48469E0713885956DC7DC"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_parent_launcher.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_parent_launcher.py",
+      "source_sha256": "E6D470CFFECD5F72819EC0806311C02499E88C097C270AF331E554F8FA6EB1A6",
+      "source_bytes": 33078,
+      "source_mtime_utc": "2026-09-27T04:58:52.960159+00:00",
+      "ruff_output_sha256": "8330DD9C0E612AB9CFAA36381C3EA1C13B270B46AC3D250133ECA5296C77550A",
+      "incident_zip_member_sha256": "8330DD9C0E612AB9CFAA36381C3EA1C13B270B46AC3D250133ECA5296C77550A"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_sealed_import.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_sealed_import.py",
+      "source_sha256": "036ED2249476FA82A70EB4439AC0444F37750893DCF69FD3C23DCFCCF3467930",
+      "source_bytes": 61940,
+      "source_mtime_utc": "2026-09-27T04:58:52.964465+00:00",
+      "ruff_output_sha256": "EA27A41326F9532BD7E231EC2DE4294222009553B6058B419971AD50E04ED0EE",
+      "incident_zip_member_sha256": "EA27A41326F9532BD7E231EC2DE4294222009553B6058B419971AD50E04ED0EE"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian.py",
+      "source_sha256": "399461AA8D0398A1ED1496D6167690807D4407B480202364D94B1A1DEB5960DB",
+      "source_bytes": 1749,
+      "source_mtime_utc": "2026-09-27T04:58:52.965462+00:00",
+      "ruff_output_sha256": "A0E2ADA9E03C05096FC1B10E38932901C826D2AD4B6A5B8AB9C5AAC03C261D8B",
+      "incident_zip_member_sha256": "A0E2ADA9E03C05096FC1B10E38932901C826D2AD4B6A5B8AB9C5AAC03C261D8B"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py",
+      "source_sha256": "A9BC8107DD365F7B5EBABE301950118C019A60F23DF44F68E63F145EF24F6814",
+      "source_bytes": 129016,
+      "source_mtime_utc": "2026-09-27T04:58:52.967457+00:00",
+      "ruff_output_sha256": "C07045E5349A9B90C1B75FCEDA9DAA9926285018B026184F70F07F910AFD4DB1",
+      "incident_zip_member_sha256": "C07045E5349A9B90C1B75FCEDA9DAA9926285018B026184F70F07F910AFD4DB1"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_job_backend.py",
+      "source_sha256": "7DEBBE58CCF690FB2103E1441EB9DBF813CA30BD478C4048F622C0F8A70B59FD",
+      "source_bytes": 31415,
+      "source_mtime_utc": "2026-09-27T04:58:52.968452+00:00",
+      "ruff_output_sha256": "10084898385EE32B829BC8840900BF2558472F6CE2A3FE0401DD5DFB78C0D652",
+      "incident_zip_member_sha256": "10084898385EE32B829BC8840900BF2558472F6CE2A3FE0401DD5DFB78C0D652"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\scripts\\test_ctp_i13_i15_worker_output_channel.py",
+      "source_sha256": "10F814F004843DBD404640FB2041763BDB087FA18EC7478C48C4B21EC43A287C",
+      "source_bytes": 27139,
+      "source_mtime_utc": "2026-09-27T04:58:52.970690+00:00",
+      "ruff_output_sha256": "80BC4EA66E7C03A828F23524DF1D3DE892CB5F1F42994E275178EF4504407DA9",
+      "incident_zip_member_sha256": "80BC4EA66E7C03A828F23524DF1D3DE892CB5F1F42994E275178EF4504407DA9"
+    },
+    {
+      "target_path": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py",
+      "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-scanner-disposition-rebaseline-r2-main-integration-2026-09-27\\main-targets\\tests\\unit\\scripts\\test_verify_iteration41_writer_dispositions.py",
+      "source_sha256": "4CE31FE03CF0671FD573157E27DBF3E8D35266B6FBACE96A830CF8F0F8A73824",
+      "source_bytes": 13992,
+      "source_mtime_utc": "2026-09-27T10:37:20.905457+00:00",
+      "ruff_output_sha256": "F5FB5B8BD275EF90C262EA7B1BD9589D38A672B62B252CC47981F57EF541F415",
+      "incident_zip_member_sha256": "F5FB5B8BD275EF90C262EA7B1BD9589D38A672B62B252CC47981F57EF541F415"
+    },
+    {
+      "target_path": "tests/unit/stores/test_managed_ctp_store_adapter.py",
+      "source_path_absolute": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_managed_ctp_store_adapter.py",
+      "source_sha256": "8A2BA574398649B260038B9E029D060F92F9A338A50245616DD99130B57B2918",
+      "source_bytes": 39133,
+      "source_mtime_utc": "2026-09-27T04:58:53.007544+00:00",
+      "ruff_output_sha256": "627EEDB6A0F37D32AF72040E3903A053B48A7C68CAEE17DD1DEA961E42F7BAA2",
+      "incident_zip_member_sha256": "627EEDB6A0F37D32AF72040E3903A053B48A7C68CAEE17DD1DEA961E42F7BAA2"
+    }
+  ],
+  "supplementary_copy_plan": [
+    {
+      "target_path": "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+      "status": "SUPPLEMENTARY_PREIMAGE_SOURCE_VERIFIED_PENDING_PARENT_ACTION",
+      "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-013-legacy-ctp-support-r2-main-integration-2026-09-27\\main-source\\tests\\unit\\test_iteration41_legacy_ctp_support_inert_import.py",
+      "source_sha256": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+      "source_bytes": 5127,
+      "source_mtime_utc": "2026-09-27T09:00:30.598747+00:00",
+      "ruff_output_sha256": "EC471E85B28B675699BEE3906B2C37A60D003561E8571D2E8996218FFF5AB316",
+      "incident_zip_member_sha256": "EC471E85B28B675699BEE3906B2C37A60D003561E8571D2E8996218FFF5AB316",
+      "needs_copy_to_main": true
+    },
+    {
+      "target_path": "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py",
+      "status": "ALREADY_RESTORED_EXACT",
+      "source_path_absolute": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\main-tree\\test_ctp_options_simnow_mechanical_api_boundary.py",
+      "source_sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+      "source_bytes": 5595,
+      "source_mtime_utc": "2026-09-27T11:23:30.083507+00:00",
+      "ruff_output_sha256": "DFDED6287715819B2E2AEAF15DA4852CD20DE7DFFA17737E34E8673F9FECCC16",
+      "incident_zip_member_sha256": "DFDED6287715819B2E2AEAF15DA4852CD20DE7DFFA17737E34E8673F9FECCC16",
+      "needs_copy_to_main": false
+    }
+  ],
+  "artifact_frozen_utc": "2026-09-27T13:09:02.364137+00:00",
+  "main_observation_cutoff_utc": "2026-09-27T13:09:02.364137+00:00"
+}

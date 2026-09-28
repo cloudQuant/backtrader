@@ -1,0 +1,25 @@
+{
+  "added_ids": 0,
+  "counts": {
+    "dynamic_execution_candidates": 97,
+    "files_scanned": 355,
+    "parse_errors": 0,
+    "writer_candidates": 363
+  },
+  "full_record_delta_artifact": "r2-r3-id-delta.json",
+  "full_record_delta_sha256": "8F3D0FBDE10DCD1A3F9914EAC1DDB9BEF4DF4623CC00A473B5B30184D5D24631",
+  "only_generated_at_differs": true,
+  "ordered_ids_identical": true,
+  "parse_errors": 0,
+  "r2_candidate_count": 460,
+  "r2_candidate_id_digest": "9f1a15399fe380693bd5bd3ef1def13a77aeb688b6d9f00e156021ce2717099b",
+  "r2_generated_at": "2026-09-27T10:16:12.082430+00:00",
+  "r3_candidate_count": 460,
+  "r3_candidate_id_digest": "9f1a15399fe380693bd5bd3ef1def13a77aeb688b6d9f00e156021ce2717099b",
+  "r3_generated_at": "2026-09-27T11:52:35.172735+00:00",
+  "r3_inventory_sha256": "4C457DC29888D501E0A3A9E15458E5C6D976AB7CE3D3B0AB4D701735A358B83D",
+  "removed_ids": 0,
+  "same_id_locator_changes": 0,
+  "schema": "iteration41-writer-nochange-r3-delta-summary.v1",
+  "unclassified_paths": 0
+}

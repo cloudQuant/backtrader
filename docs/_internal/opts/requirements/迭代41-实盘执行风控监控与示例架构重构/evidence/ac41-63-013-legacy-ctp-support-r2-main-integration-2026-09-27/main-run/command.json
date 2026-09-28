@@ -1,0 +1,41 @@
+{
+  "schema": "ac41-63.legacy-ctp-support-r2-main-rerun.v1",
+  "cwd": "D:\\source_code\\backtrader",
+  "interpreter": "C:\\anaconda3\\python.exe",
+  "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.26100-SP0",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "BT_WRITER_AUDIT_SOURCE_ROOT": "unset"
+  },
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-p",
+    "no:asyncio",
+    "tests/unit/test_ctp_pair_examples.py",
+    "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+    "-q",
+    "--tb=short",
+    "--junitxml",
+    "<archive>/main-run/pytest.junit.xml"
+  ],
+  "result": {
+    "tests": 33,
+    "passed": 33,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "existing_pytest_config_warning": 1,
+    "exit_code": 0
+  },
+  "ruff": {
+    "all_three_files_exit_code": 1,
+    "findings": "four SIM112 lower-case environment alias findings on lines not touched by r2 patch",
+    "test_only_exit_code": 0
+  },
+  "compile_exit_code": 0,
+  "diff_check_exit_code": 0
+}

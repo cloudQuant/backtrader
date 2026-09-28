@@ -220,7 +220,10 @@ def test_dedup_requires_an_explicit_cooldown(notifier_env):
 
 def test_dedup_window_expires(notifier_env, monkeypatch):
     """After the cooldown elapses the key is delivered again."""
-    clock = {"now": 0.0}
+    clock = {"now": 100.0}
+    # The test must not depend on the process-wide ``time`` module: other xdist
+    # tests exercise clocks through module aliases.  Replace only this module's
+    # clock dependency, leaving the worker's real sleep implementation intact.
     monkeypatch.setattr(
         notify_core,
         "time",
@@ -231,13 +234,14 @@ def test_dedup_window_expires(notifier_env, monkeypatch):
     assert first.outcomes[0].ok is True
     assert len(transport.requests) == 1
 
-    # Stay 1 ms inside the window, then advance 1 ms beyond its expiry.
-    clock["now"] = 0.05 - 0.001
     suppressed = bt.send_message("second", dedup_key="k", wait=True)
     assert suppressed.outcomes[0].error_category == "deduped"
-    assert len(transport.requests) == 1
 
-    clock["now"] = 0.05 + 0.001
+    clock["now"] = 100.049
+    still_suppressed = bt.send_message("still suppressed", dedup_key="k", wait=True)
+    assert still_suppressed.outcomes[0].error_category == "deduped"
+
+    clock["now"] = 100.051
     delivered = bt.send_message("third", dedup_key="k", wait=True)
     assert delivered.outcomes[0].ok is True
     assert len(transport.requests) == 2

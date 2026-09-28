@@ -1,0 +1,70 @@
+{
+  "schema": "iteration41.g4.native_lifecycle_receipt.r2_independent_review.v1",
+  "status": "SOURCE_IDENTITY_QA_PASS_G4_CLOSED",
+  "candidate_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927_r2",
+  "independent_qa_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_r2_independent_qa_20260927",
+  "snapshot_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_r2_independent_qa_20260927\\snapshot",
+  "freeze_manifest_sha256": "E55D077572EE7F071D3D0AD0FD74522618E1E338A6E38E9963ED6EF76D2F15EE",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "base_worktree_clean": true,
+  "candidate_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "not_e75_source": true,
+  "candidate_files": [
+    {"path":"src/bt_api_ctp/ctp/client.py","sha256":"C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF","r1_sha256":"AA166BAF87B391EECED45A503EFF3B8772D4F17D1BD7E6BA8430A67ED39F80E3","independent_copy_match":true},
+    {"path":"tests/test_ctp_native_lifecycle_receipt.py","sha256":"6CB3837065BBF3A78ADDE5771CF26EF4593A7FEBF7ED8CBC5D0DEBDDB74CA320","r1_sha256":"B604849B6146D10E1133C58FC2C0E835B04546CD8DB94CDE9D948593A52B3247","independent_copy_match":true}
+  ],
+  "r1_unchanged": {
+    "freeze_manifest_sha256":"6571328EBBF41E7D168577BE392B04F9FBF23F2A476DD73DF2C6854CE0D82385",
+    "client_sha256":"AA166BAF87B391EECED45A503EFF3B8772D4F17D1BD7E6BA8430A67ED39F80E3",
+    "test_sha256":"B604849B6146D10E1133C58FC2C0E835B04546CD8DB94CDE9D948593A52B3247",
+    "verified":true
+  },
+  "guard": {"path":"D:\\temp\\g5-r3-test-guard\\sitecustomize.py","sha256":"57A5F39297F24CAFFD689B89BC3E06F4C8E8FB580FC684A789B2BBD4FE01AB5D","blocks_native_ctp_import":true},
+  "independent_test_runs": {
+    "blocked_init_targeted":"1 passed, 2 warnings, exit 0",
+    "full_three_file_focus":"66 passed, 2 warnings, exit 0; no deselection",
+    "r1_exact_object_probe_reused":"2 passed, 1 warning, exit 0",
+    "md_trader_failure_negative_matrix":"10 passed, 2 warnings, exit 0",
+    "native_provider_network_credentials":"not used"
+  },
+  "negative_matrix_cases": [
+    "MD and Trader detach RegisterSpi(None) exception poisons, skips Release, and cannot retry",
+    "MD and Trader unexpected detach return type is non-clean and prevents Release",
+    "MD and Trader Join exception remains failed and prevents Release",
+    "MD and Trader Init exception remains non-clean even after Join and Release return",
+    "MD and Trader Release exception is recorded exactly once and repeated close cannot retry"
+  ],
+  "provenance_probe": {
+    "blocked_init_state":"entered; not clean",
+    "exact_api_spi_ids_match":true,
+    "session_and_connection_generation_match":true,
+    "native_api_generation_receipt_client_spi_match":true,
+    "native_client_epoch_receipt_client_spi_match":true,
+    "native_api_source_id_receipt_client_spi_match":true,
+    "native_spi_source_id_receipt_spi_match":true,
+    "final_state":"fake Join returned; Release once returned; receipt clean=true with the same frozen tags",
+    "wrong_api_lookup":"None; exact API lookup returns the exact lifecycle state",
+    "probe_sha256":"C70EF582F5BC260151B577556CE374DE731D5B5E47D3AB26896F92C642B80E0C"
+  },
+  "static_checks": {"ruff_check":"passed","ruff_format_check":"passed","py_compile":"passed","git_diff_check":"passed"},
+  "race_history":"r1 independent QA first full focus: 64 passed, 1 intermittent trader startup timing failure; unfiltered rerun: 65 passed. r2 independent full focus: 66 passed; no test was skipped.",
+  "limitations": [
+    "Source/fake-only QA; not Windows native SDK lifecycle or clean-close proof.",
+    "No wheel build/install, provider, network, credentials, bounded supervisor, or real trading.",
+    "Synchronous native calls can block; G4 remains CLOSED pending native/supervisor acceptance. G5 and real SimNow/production trading remain closed."
+  ],
+  "archive": {
+    "file":"ctp-native-lifecycle-receipt-r2-independent-review-2026-09-27.raw.zip",
+    "sha256":"20d372bc78e66df741796941be850ec04013b72d1c7ba5833a0304b9a6598e9c",
+    "entries":31,
+    "testzip":null,
+    "index_sha256":"f6588fe577dea0e2a6c3c43b8ad021dc8ea3990b0f2f954cb783c674af95ad5a"
+  },
+  "evidence_hashes": {
+    "independent_focus_log_sha256":"6A83620166A8D8DB311E9FB454D34D03EBABCB829A8B0573B9028FAB621F75E",
+    "independent_focus_junit_sha256":"CD01DADDBB7D96907F26F08F415726449940AE675E86D683BD2D1DD4B2CE6E70",
+    "blocked_init_targeted_log_sha256":"0285DD126E93F80FCAAFD8A4D4AE23FEC56AC92CB951CBB310AD6B007A7D8E04",
+    "negative_matrix_log_sha256":"0DF2397FA7E45E348A1BD15B95B31BBB0DC049D65D4BE1850FE6FA146308FB09",
+    "static_check_log_sha256":"8F167035EEDB8CDEF63A5D74E9BC4BA201FCE15F29A9FA3314EE5EF3BFB80405"
+  }
+}

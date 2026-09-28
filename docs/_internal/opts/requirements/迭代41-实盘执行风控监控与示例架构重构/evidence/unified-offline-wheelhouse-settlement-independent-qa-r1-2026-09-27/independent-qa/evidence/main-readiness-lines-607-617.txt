@@ -1,0 +1,11 @@
+                        return CtpSimNowNativeReadiness(
+                            config_digest=selection.config_digest,
+                            registration_digest=registration.digest,
+                            account_fingerprint_sha256=registration.account_fingerprint_sha256,
+                            md_front=registration.md_front,
+                            td_front=registration.td_front,
+                            td_ready=True,
+                            md_ready=True,
+                        )
+            with condition:
+                if events["error"] is not None:

@@ -1,0 +1,20 @@
+{
+  "schema": "iteration41.unified.ctp-settlement-unique-version-build-inputs.v1",
+  "source_settlement_manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+  "g4_base_source_manifest_sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A",
+  "old_collision_version": "2.0.4+g4r2.probe.20260927",
+  "new_unique_version": "2.0.4+g4r2.settlement.probe.20260927",
+  "copies_identical": true,
+  "file_count": 367,
+  "files_sha256": "9aa7870d91d91d7b63cc0bded2c1f562f41915e0b2ffafde6d11c780ead04e2f",
+  "required_hashes": {
+    "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+    "src/bt_api_ctp/__init__.py": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+    "tests/test_ctp_settlement_query_evidence.py": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65",
+    "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF"
+  },
+  "copy_roots": [
+    "D:\\temp\\iteration41-unified-offline-wheelhouse-20260927-v2\\ctp-build-unique\\a\\source\\source-a",
+    "D:\\temp\\iteration41-unified-offline-wheelhouse-20260927-v2\\ctp-build-unique\\b\\source\\source-a"
+  ]
+}

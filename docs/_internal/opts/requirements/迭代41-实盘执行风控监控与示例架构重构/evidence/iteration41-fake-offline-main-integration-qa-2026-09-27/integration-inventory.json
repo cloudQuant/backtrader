@@ -1,0 +1,67 @@
+[
+  {
+    "path": "tests/integration/test_iteration41_economic_fact_projection.py",
+    "disposition": "SKIPPED_COLLECTION",
+    "reason": "bt_api_execution optional source unavailable; no test body executed"
+  },
+  {
+    "path": "tests/integration/test_iteration41_framework_projection_recovery.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_gateway_store_composition.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable; three parametrized cases"
+  },
+  {
+    "path": "tests/integration/test_iteration41_managed_execution_composition.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_managed_multidata_parity.py",
+    "disposition": "PASS_FAKE_OFFLINE",
+    "reason": "runonce/runnext parity; local fakes and socket-connect guard"
+  },
+  {
+    "path": "tests/integration/test_iteration41_managed_projection_sides.py",
+    "disposition": "PASS_FAKE_OFFLINE",
+    "reason": "signed/reverse projection; local fake and socket guards"
+  },
+  {
+    "path": "tests/integration/test_iteration41_managed_replay_l2.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_packaged_l2_fixture_dispatch.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_ctp_mechanical_managed_replay_l2.py",
+    "disposition": "SKIPPED_SOURCE_GATE",
+    "reason": "bt_api_execution optional source unavailable"
+  },
+  {
+    "path": "tests/integration/test_iteration41_ctp_i9_account_session_candidate.py",
+    "disposition": "EXCLUDED_STATIC",
+    "reason": "imports CTP TraderClient/native-adjacent account session path"
+  },
+  {
+    "path": "tests/integration/test_iteration41_ctp_managed_account_runtime_candidate.py",
+    "disposition": "EXCLUDED_STATIC",
+    "reason": "CTP managed account session path; excluded by request"
+  },
+  {
+    "path": "tests/integration/test_iteration41_deployment_evidence_interop.py",
+    "disposition": "EXCLUDED_STATIC",
+    "reason": "optional external product/deployment composition outside fake-only scope"
+  }
+]

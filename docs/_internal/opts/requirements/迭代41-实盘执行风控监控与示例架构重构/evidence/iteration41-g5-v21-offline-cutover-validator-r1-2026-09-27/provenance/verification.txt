@@ -1,0 +1,13 @@
+Read-only correction recheck; no tests or formatter rerun.
+Candidate manifest SHA256: 39f4922be5ed43bc021b0813ae84ef0e99fa2b8c5c2e0352b6a3a595502bffd9
+Previous manifest SHA256: ff9b2ac5e8e688c10fb22d95328b923d8f4c7dc972db2068c1a6106d5254f7ef
+Only manifest differences: r0_candidate_base.git_commit changed from 213574e to 103facd; provenance_correction note added. No other manifest field changed.
+r0 HEAD: 103facd51aebf2e47cccb2d22640dec091d23030
+r0 cat-file 103facd: commit
+r0 cat-file 213574e: absent (exit 128)
+r0 final manifest SHA256: 9252f88150efafe055dbaf4a134bfa056a651150d785b8cc1c2490669a60f2df
+Candidate patch SHA256 unchanged: 339c8450722f18c9061d4960377ca0939032c2dc7f0453592d05674f18f093a4
+Candidate author JUnit SHA256 unchanged and manifest-bound: 79fe3a868619062271fbbd8c0c0d02f4d8a0bcee9b704a4261c8404630a5cc27
+All four changed payload SHA256 values remain identical to previous QA and corrected manifest targets; see receipt.
+Prior independent QA receipt SHA256: d730c692b34f8b08bfb63c6282d45863a2cc64b10b56e460da950db5f4881876
+Result: provenance pointer corrected and verified; previous exact patch replay and 28+5 test results remain bound to unchanged payloads. Scope remains LOCAL_TYPED_CONTRACT_ONLY, not migration or authority.

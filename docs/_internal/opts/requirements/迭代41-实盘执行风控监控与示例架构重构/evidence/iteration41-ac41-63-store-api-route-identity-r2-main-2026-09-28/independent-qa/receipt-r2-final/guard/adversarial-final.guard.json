@@ -1,0 +1,6 @@
+{
+  "events": [
+    "fake_optional_sdk_stub:bt_api_py",
+    "local_loopback_only:('127.0.0.1', 64812)"
+  ]
+}

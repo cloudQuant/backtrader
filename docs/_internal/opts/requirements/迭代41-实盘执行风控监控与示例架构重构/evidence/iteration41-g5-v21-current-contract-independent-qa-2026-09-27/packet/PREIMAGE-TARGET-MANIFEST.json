@@ -1,0 +1,136 @@
+{
+  "authority_boundary": "Current G5 verifier validates Store command/payload consistency; the V21 Store claim transaction checks the committed allocation mapping before returning a claimed command to the worker sender. The floor port is unregistered and fake-only. No G5/V21 history migration, external authenticated account writer service, or provider route is included.",
+  "candidate": "r0",
+  "candidate_documents": {
+    "CURRENT-G5-V21-INTERFACE.md": "4b5df34f66e0e944792921111ab17f7bf7242488bd0c2489b46ae0b766a2db7a",
+    "LIMITATIONS.md": "01bf8701844bfe1f48f8f8c2976c4d77466ac0d58422fb40b2d4c6c916b6a6e3"
+  },
+  "changed_payloads": [
+    {
+      "bytes": 759891,
+      "path": "src/bt_api_execution/store.py",
+      "preimage_sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a",
+      "replay_sha256": "eb4c1b14e3f042f737950bc27e7bd6750f30753c2f4f93695c282eae8587dea6",
+      "target_sha256": "eb4c1b14e3f042f737950bc27e7bd6750f30753c2f4f93695c282eae8587dea6"
+    },
+    {
+      "bytes": 179311,
+      "path": "tests/test_ctp_dispatch_commands.py",
+      "preimage_sha256": "a4bc0e5d3ef3245cb86f6195b76921662901ec64a17d25157aa077f44b741ffc",
+      "replay_sha256": "8968fccef247a5e74ee250d261936c29f0ccd4799182304011891e40b07f2820",
+      "target_sha256": "8968fccef247a5e74ee250d261936c29f0ccd4799182304011891e40b07f2820"
+    },
+    {
+      "bytes": 82206,
+      "path": "tests/test_ctp_callback_source_bridge.py",
+      "preimage_sha256": "37a06b85f1c3d87f824456d983076fda20efad25d1597938cc4daba4536f98a6",
+      "replay_sha256": "88cd49b360e2a306300404829e114ffc9a3b2871a4efd7aaee354b67ec800cb5",
+      "target_sha256": "88cd49b360e2a306300404829e114ffc9a3b2871a4efd7aaee354b67ec800cb5"
+    },
+    {
+      "bytes": 78880,
+      "path": "tests/test_ctp_callback_session_router.py",
+      "preimage_sha256": "a546096b98198580ad8d2fd5d3d79c6a1b6e9d3747218a70de6328f9470450c2",
+      "replay_sha256": "e1c8b80ee2ab782a2af2f9f0039530df482862a30dac640d535e872e89e761f9",
+      "target_sha256": "e1c8b80ee2ab782a2af2f9f0039530df482862a30dac640d535e872e89e761f9"
+    },
+    {
+      "bytes": 1649,
+      "path": "tests/_fake_native_action_ref_floor.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "b0d928788ed3fcc476b3a27ecd75b08dd3a6452987c7df389b91c234205c8c0c",
+      "target_sha256": "b0d928788ed3fcc476b3a27ecd75b08dd3a6452987c7df389b91c234205c8c0c"
+    },
+    {
+      "bytes": 12248,
+      "path": "tests/test_g5_v21_actionref_contract.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "866a5d88ba4a21cf4f180894afbf87550ef36175b2e0804a5585904399a49c40",
+      "target_sha256": "866a5d88ba4a21cf4f180894afbf87550ef36175b2e0804a5585904399a49c40"
+    },
+    {
+      "bytes": 48077,
+      "exact_main_source_path": "backtrader_runtime/ctp_managed_action_authority.py",
+      "exact_main_source_sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "path": "tests/fixtures/g5/ctp_managed_action_authority.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "target_sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66"
+    },
+    {
+      "bytes": 31570,
+      "exact_main_source_path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "exact_main_source_sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "path": "tests/fixtures/g5/ctp_managed_account_runtime_candidate.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "target_sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da"
+    },
+    {
+      "bytes": 45968,
+      "exact_main_source_path": "backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "exact_main_source_sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "path": "tests/fixtures/g5/ctp_i9_account_session_candidate.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "target_sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+    },
+    {
+      "bytes": 16457,
+      "exact_main_source_path": "backtrader_runtime/inventory.py",
+      "exact_main_source_sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb",
+      "path": "tests/fixtures/g5/inventory.py",
+      "preimage": "absent in V21 r3",
+      "replay_sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb",
+      "target_sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb"
+    }
+  ],
+  "current_main_g5_read_only_sources": {
+    "backtrader_runtime/ctp_i9_account_session_candidate.py": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+    "backtrader_runtime/ctp_managed_account_runtime_candidate.py": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+    "backtrader_runtime/ctp_managed_action_authority.py": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+    "backtrader_runtime/inventory.py": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb",
+    "tests/unit/runtime/test_ctp_managed_action_authority.py": "6a6435bc8857016204c75e0a45e402b4ba2f1a89ac1d347284b65b6a2acf16ab"
+  },
+  "disposition": "SOURCE_IDENTITY_AUDIT / LOCAL_FAKE_ONLY / NO_AUTHORITY / NO_WRITE / LIVE_NO_GO",
+  "historical_dual_ledger_evidence": {
+    "old_g5_allocator_path": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\implementation\\sdk\\src\\bt_api_execution\\ctp_identity_authority.py",
+    "old_g5_allocator_sha256": "8e7abdd2819f66b6ec3d5ff1d5a049fcbb91ae8e71327665ee925098d35f647d",
+    "readme_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-dual-actionref-collision-proof-2026-09-27\\README.md",
+    "readme_sha256": "d83f57f483ff401afd8db17b8f2ee6c86a4bcbc24c8d4e20d4512ed610e5aea5",
+    "repro_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-dual-actionref-collision-proof-2026-09-27\\author\\repro_actionref_collision.py",
+    "repro_sha256": "23033d685ff63b4d28f9fa9e3c306f9018b7424a0299f9f7ee7e7f9714315659",
+    "scope": "Older separate SDK-side G5 candidate only. The archived repro issues duplicate value 1 in synthetic local ledgers but does not stage a complete V21 cancel or create a V21 allocation row; no provider duplicate is established."
+  },
+  "main_tree_changes": [],
+  "patch": {
+    "applies_to": "V21 r3 snapshot only; not a main-tree patch",
+    "bytes": 276877,
+    "path": "G5-V21-CURRENT-CONTRACT.patch",
+    "sha256": "ac5f984b6b49ec5e6eb5c99dd31f7e0b8d0a3548b68b8263d629ad71fcdc2b3a"
+  },
+  "replay": {
+    "apply": "passed",
+    "changed_payloads_exact_match": true,
+    "git_apply_check": "passed with core.autocrlf=false",
+    "path": "D:\\temp\\iteration41-g5-v21-current-contract-replay-r1-20260927"
+  },
+  "schema": "iteration41.g5-v21-current-actionref-cross-contract.manifest.v1",
+  "test_results": {
+    "cross_contract": "4 passed on candidate and fresh patch replay",
+    "full_junit_sha256": "3d3557f8d7f3768a97d64cd5299a388f267e7642737ca319874cb769f60df656",
+    "full_suite": "275 passed, 2 skipped in 16.44s",
+    "full_suite_command": "PYTHONPATH=src python -m pytest -q tests --junitxml=artifacts/g5-v21-contract-r0-junit.xml",
+    "replay_junit_sha256": "6a962246a26c767886595a1cc85b4054d0e0b5c0e73745faa08943d15072e549",
+    "ruff": "check passed for changed Store/tests; format check passed for new fake helpers and cross-contract test"
+  },
+  "v21_preimage": {
+    "contracts_sha256": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219",
+    "facade_sha256": "5b0f4086d2e900823b93abb4e7887ea2ca2523dc62591846ea53ee4458ba438a",
+    "legacy_manifest_discrepancy": "manifest.json lists stale store.py SHA 75b01d7badbf67043c65082bee8dc27efbe4a309a739ff9f5cadd50f21ccde72; actual store bytes and SOURCE-MANIFEST agree at 1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a.",
+    "snapshot_path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927",
+    "source_manifest_sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+    "store_sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a",
+    "worker_sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3"
+  }
+}

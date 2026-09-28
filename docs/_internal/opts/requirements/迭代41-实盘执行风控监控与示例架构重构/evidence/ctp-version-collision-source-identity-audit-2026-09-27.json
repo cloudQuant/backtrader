@@ -1,0 +1,78 @@
+{
+  "schema": "iteration41-version-collision-source-identity-audit.v1",
+  "classification": "read-only local planning evidence; not release or provider acceptance",
+  "scope": {
+    "network_used": false,
+    "source_or_tag_modified": false,
+    "tag_patterns": ["*0.2.2*", "*0.1.1*", "*0.15.7*"],
+    "pyproject_scan_roots": ["D:\\temp", "D:\\q", "D:\\bt_api* project trees"],
+    "wheel_scan_roots": ["D:\\temp", "D:\\q", "D:\\bt_api*", "C:\\Users\\yunji\\AppData\\Local\\Temp"]
+  },
+  "local_collision_result": {
+    "target_versions": {
+      "bt_api_execution": "0.2.2",
+      "bt_api_risk": "0.1.1",
+      "bt_api_py": "0.15.7"
+    },
+    "matching_local_git_tags": [],
+    "matching_exact_pyproject_versions": [],
+    "matching_exact_final_wheels": [],
+    "cannot_prove_global_unallocated": true,
+    "recommendation": "Use manifest-keyed temporary probe versions only; do not assign or announce stable release versions from this local-only scan."
+  },
+  "existing_related_probe_wheel": {
+    "distribution": "bt_api_execution",
+    "version": "0.2.2.dev0+v22.8244038ab975",
+    "sha256": "BFA0583BE8F97CC62F979B5848D7B798D440789617BF3DEC813BE53641D0702A",
+    "copies": 3,
+    "note": "Same bytes in three local build folders; not stable 0.2.2."
+  },
+  "inputs": {
+    "execution_composite": {
+      "manifest_sha256": "00577665667A33C9A7D62D331C0CAD99B0B660790D0B475D0BD8C1B6CAA6E2DD",
+      "metadata_version": "0.2.0",
+      "v22_source_manifest_sha256": "8244038AB975F30DE6C0BA56C140F033DDD5B5CE5FB3CABC9E60ABB7BF24066D",
+      "v22_store_sha256": "1C7EDD065B0167D7C50442762F99A29E4972752BD77636EB7052F022DCEFECB6",
+      "v21_store_sha256": "799319096DE17D4FE60560240C9424F249B3AFED34A2DAED1DBCC07D486D605D",
+      "v22_status": "SOURCE_ONLY_CANDIDATE_NOT_G5_ACCEPTANCE"
+    },
+    "risk_cancel_resolution": {
+      "manifest_sha256": "B5B066E901E656E3CE42599E0701B731DF16BE742121A43604B58D69E35DED5D",
+      "metadata_version": "0.1.0",
+      "pyproject_sha256": "DB1EB4FEECED90358F2367CED58720C8C367663D8183FAE45F0362BA040FEAAB"
+    },
+    "parent_cancel_control_r2": {
+      "manifest_sha256": "B52E918A07195847B4011D1F68B476486AB4FB17E6DCFF8E49EAAABE1BABAE3D",
+      "metadata_version": "0.15.5",
+      "pyproject_sha256": "7AA5FAD4C7C5408199457836FD659E19EC85445460EFE5F867359C5E6E28AA39"
+    },
+    "parent_issuer_r2": {
+      "manifest_sha256": "50B0D8B99AFDACDAF2055246010E5766BBE630BC66D71C2AEEACA117BAF3CE7A",
+      "merged_with_control_r2": false
+    }
+  },
+  "probe_version_schemes": {
+    "bt_api_execution": "0.2.2.dev0+audit.<final-source-manifest-prefix>",
+    "bt_api_risk": "0.1.1.dev0+audit.b5b066e901e6",
+    "bt_api_py": "0.15.7.dev0+audit.<merged-parent-manifest-prefix> (only after control+issuer merge and freeze)"
+  },
+  "minimum_composite_lock_fields": [
+    "artifact-set ID and lock schema",
+    "canonical distribution name and exact PEP 440 version",
+    "complete sorted source-file manifest SHA256; source commit and tree SHA256 or null plus immutable evidence reference/archive hash",
+    "pyproject SHA256, merge-input manifest hashes, and merge audit",
+    "build backend/tool versions and Python/platform/wheel tags",
+    "exact direct and transitive dependency versions and wheel SHA256s",
+    "wheel filename and SHA256; embedded METADATA identity and exact Requires-Dist; RECORD hash",
+    "installed distribution metadata and verified module import origins",
+    "per-package/composed test commands, JUnit/stdout hashes, skip reasons, and lock/source manifest hash",
+    "execution schema and migration lineage, including V22 store.py SHA256"
+  ],
+  "release_blockers": [
+    "V22 is a source-only candidate, not G5 acceptance; no production Windows process-exit verifier is included.",
+    "Main runtime cancel-resolution wiring is absent.",
+    "Parent cancel-control and issuer remain separate source snapshots; parent r3 is not frozen.",
+    "Risk remains metadata version 0.1.0; no final combined wheel tuple or installed-origin/RECORD proof exists.",
+    "The earlier audit records an unresolved main-versus-consumer CTP source hash mismatch."
+  ]
+}

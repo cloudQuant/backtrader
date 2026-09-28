@@ -1,0 +1,13 @@
+{
+  "all_checks_passed": true,
+  "archive_file_members": 48,
+  "archive_members_including_dirs": 49,
+  "archive_sha256": "546cd325f670629e6d56798f6abd6c444bcf1d954e589c10860b3696d4f84749",
+  "content_errors": [],
+  "crc": "ok",
+  "duplicate_names": false,
+  "expected_payload_hashes_checked": 47,
+  "explicit_directory_members": [
+    "candidate-copy/input-snapshots/clean-g4r2/bt_api_ctp/containers"
+  ]
+}

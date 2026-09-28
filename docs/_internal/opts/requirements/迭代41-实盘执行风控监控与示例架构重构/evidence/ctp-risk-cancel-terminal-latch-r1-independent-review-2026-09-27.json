@@ -1,0 +1,59 @@
+{
+  "schema": "iteration41.risk_cancel_terminal_r1.root_review.v1",
+  "status": "ACCEPTED_LOCAL_FAKE_RISK_CONTRACT_ONLY",
+  "source_manifest_sha256": "b5b066e901e656e3ce42599e0701b731df16be742121a43604b58d69e35ded5d",
+  "independent_focus": "72 passed, 1 existing pytest configuration warning",
+  "author_full_package": "222 passed, 1 existing pytest configuration warning",
+  "limitations": [
+    "Fake authority only; no trusted parent issuer",
+    "No Execution atomic terminal event API or main runtime composition",
+    "No native/provider or real-account authority"
+  ],
+  "archive": {
+    "file": "ctp-risk-cancel-terminal-latch-r1-independent-review-2026-09-27.raw.zip",
+    "sha256": "03b0127bbd32c6c6605d10382756679ce73f8742f9fc60ef0915aeee8d0dcc74",
+    "entries": 8
+  },
+  "files": [
+    {
+      "path": "independent/focused.junit.xml",
+      "sha256": "959345c4f91d6988f3d50b7684fa747c02df7b98cc7c39bbb1b20a6ae7a70c41",
+      "bytes": 10360
+    },
+    {
+      "path": "independent/focused.log",
+      "sha256": "d82b2f203d33beada0d83c28d0b80e98252bed84c4eeeb59e90e4c2f0d63e148",
+      "bytes": 643
+    },
+    {
+      "path": "source/review.md",
+      "sha256": "5f625eecc3c7c0bbc915f536ae73622b7d397e3415147c5ed73f256ac8fe8005",
+      "bytes": 1465
+    },
+    {
+      "path": "source/risk-cancel-resolution-manifest.json",
+      "sha256": "b5b066e901e656e3ce42599e0701b731df16be742121a43604b58d69e35ded5d",
+      "bytes": 1795
+    },
+    {
+      "path": "source/src/bt_api_risk/__init__.py",
+      "sha256": "3914399361d5956171cbbd71f728b8d5eb64b7695342ee97d19185cd1e8e21d7",
+      "bytes": 5234
+    },
+    {
+      "path": "source/src/bt_api_risk/core/__init__.py",
+      "sha256": "7fa2ea3a20028da0f61312bf22176c25768f86d50f2c8e98513e4d20e04f0f97",
+      "bytes": 2827
+    },
+    {
+      "path": "source/src/bt_api_risk/core/admission.py",
+      "sha256": "c9491ed33ca8fd8347bd3cc9ff5962de402b202703ba78db95720d3cf3b67005",
+      "bytes": 145931
+    },
+    {
+      "path": "source/tests/test_cancel_dispatch_resolution.py",
+      "sha256": "27e09869e03ffb99f601fe07da3a410faca2842b96fed5b24cf9c044f8fbc353",
+      "bytes": 14395
+    }
+  ]
+}

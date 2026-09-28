@@ -1,0 +1,31 @@
+{
+  "candidate": "Iteration 41 CTP gateway wrapper direct-write default-deny R2 rebased on Store R5",
+  "frozen_date": "2026-09-27",
+  "store_r5_target_sha256": "40F776E783388DFA0A5499501E5886744FFD1D74D259E17D3ADECD9A20A5C457",
+  "candidate_source_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "fresh_replay_source_sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+  "patch_sha256": "DCD748DBF2D1041F5B524278F32E2CE696BDC9080980BB3430415D6F1BFF1451",
+  "test_sha256": "7CFB514C466A300A0A47339748F6D0ECF88B2A409B114373A131F2B7B2101BE9",
+  "external_static_reference_sha256": {
+    "sdk_gateway_config_static_reference": "DEDFB3A9CD3752E712F2316D047111003E6BBFB8D441819FBE86A4A7ABBCC1F2",
+    "sdk_gateway_runtime_static_reference": "09775F5E81480612AF299AE9F35FBF33C1B50F02475740502DFD1B1BEC692EA2",
+    "sdk_gateway_client_static_reference": "EE5124135AFE01986D65F3702ED736A7FC4911E45F4591C0534D62810F8622C7"
+  },
+  "fresh_replay_matches_candidate": true,
+  "patch_replay": "Copy the Store R5 source-preimage to replay/backtrader/stores/btapistore.py, then run git -C <candidate-root>\\replay -c core.autocrlf=false apply --check -p2 <candidate-root>\\r2.patch followed by git -C <candidate-root>\\replay -c core.autocrlf=false apply -p2 <candidate-root>\\r2.patch.",
+  "test_command": "$env:BT_GATEWAY_WRAPPER_TEST_SOURCE='D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\replay\\backtrader\\stores\\btapistore.py'; python -B -m unittest discover -s 'D:\\temp\\iteration41-ctp-gateway-wrapper-default-deny-r2-store-r5-20260927\\tests' -v; Remove-Item Env:\\BT_GATEWAY_WRAPPER_TEST_SOURCE",
+  "test_result": "6 passed",
+  "test_boundary": "AST-evaluated wrapper factory; fake bt_api_py.gateway.client module/client only. CTP denials assert zero provider import attempts and zero fake GatewayClient construction. No real SDK/native import, credentials/config reads, network, or broker/provider I/O.",
+  "exchange_policy": "CTP exact and any CTP triple-underscore venue prefix deny; only exact BINANCE, IB_WEB, OKX, MT5 values allow direct delegation; unknown/non-string/malformed values deny. Store CTP-session classification overrides a non-CTP exchange label.",
+  "construction_policy": "CTP/unknown wrapper construction creates no GatewayClient and imports no SDK; non-write operations can lazily create it through _client. Explicit supported non-CTP wrappers preserve eager client construction.",
+  "compatibility_impact": "CTP Store read/connect paths retain lazy GatewayClient access, but wrapper construction no longer imports/constructs the SDK client. Non-CTP BINANCE fake construction and direct submit/create/cancel are preserved.",
+  "main_tree_modified_by_candidate_author": false,
+  "residuals": [
+    "wrapper._client remains directly accessible; on a CTP wrapper this property lazily constructs and returns the raw GatewayClient, bypassing public wrapper guards.",
+    "Direct SDK GatewayClient construction and custom Store api/api_cls injection are unaffected.",
+    "Private guard flags/methods can be mutated or overridden by same-process Python code; this is not a hostile-code boundary.",
+    "A read/connect call on a CTP wrapper can still lazily import/construct GatewayClient and may perform provider I/O when connect is invoked; no such call was tested.",
+    "The supported non-CTP allowlist is tied to the inspected local gateway runtime registry; future exchanges require review/update.",
+    "This is not account-level authorization, production/SimNow acceptance, or writer-closure evidence."
+  ]
+}
