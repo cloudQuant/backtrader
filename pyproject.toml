@@ -185,6 +185,12 @@ module = [
 ]
 disable_error_code = ["attr-defined", "misc", "assignment", "arg-type", "union-attr"]
 
+# The core mypy gate targets backtrader/. Iteration 41's separate runtime package
+# has its own tests and is not part of this gate's transitive import scope.
+[[tool.mypy.overrides]]
+module = ["backtrader_runtime", "backtrader_runtime.*"]
+follow_imports = "skip"
+
 [tool.coverage.run]
 source = ["backtrader"]
 omit = [
