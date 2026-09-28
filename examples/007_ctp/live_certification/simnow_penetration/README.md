@@ -24,7 +24,11 @@ bt-runtime run --strategy-dir examples/007_ctp/runtime
 runtime/front-check 注册。受保护配置和目录 ACL 已与 013_3 对齐。离线 `doctor` 成功
 （exit 0，`provider_preflight_started=false`，识别到 5 组 front pairs，
 `preflight_available=false`）。普通 `preflight` 仍 fail-closed，等待有界 Windows Job
-supervisor 和独立验收。2026-09-28 root 使用显式
+supervisor 的子进程终止与清理行为可验证，并通过独立验收。用户已取消“整条 CLI 命令
+必须在 0.8 秒内结束”的硬时限要求；历史 `G1_STRICT_WHOLE_COMMAND = NO_GO` 仅保留为
+旧时限方案的审计证据，不代表当前时限要求，也不构成 G1 通过。当前 Gateway 源码与
+parent SDK pins 已有提交候选，仍待独立来源与兼容性审查；候选提交不证明真实 provider
+已通过。2026-09-28 root 使用显式
 `check-ctp-fronts` 做了一次无凭据 TCP 检查：索引 3 的 MD/TD 各 3/3 可达并被选择，
 其余索引 0/1/2/4 均为 0/3。它只是本机当时的 TCP 可达性观察，不证明账号登录、行情
 订阅、报单、撤单或后续持续可达。
@@ -346,4 +350,4 @@ C01 r3 的 17 个目标已主树集成。冻结候选完整套件为 482 passed�
 
 隔离 ledger 原型按完整 C01 序列建模八个 RequestID（auth、login、baseline 与 final 的 orders/positions/funds 查询），16 项 fake-only 测试通过。它只证明本地请求/回调关联合同，不能证明真实 native/provider callback，也没有接入当前 runner。
 
-G1 六项故障注入审计结论为 `G1_STRICT_WHOLE_COMMAND = NO_GO`：backend 创建、launcher resume、Job termination、句柄释放、control escrow 和回执写入中的同步调用都可能超过配置期限后才返回。G4 parent/gateway 来源审计及独立 QA 结论为 `HOLD_PROVENANCE`；候选的离线 fake 和制品一致性结果不认证上游源码来源。以上均未启用 preflight、真实 provider 或任何写路由。详细记录见[验收证据增补](../../../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-007-simnow-33-case-staging-acceptance-2026-09-28.md)。
+历史 G1 六项故障注入审计结论为 `G1_STRICT_WHOLE_COMMAND = NO_GO`：backend 创建、launcher resume、Job termination、句柄释放、control escrow 和回执写入中的同步调用都可能超过当时配置期限后才返回。用户已取消整条 CLI 命令 0.8 秒硬时限；该 NO_GO 仅保留为旧要求的历史审计证据，不代表当前时限要求或 G1 通过。普通 `preflight` 仍关闭，直至 Windows Job 子进程终止与清理可验证并完成独立验收。此前 G4 parent/gateway 来源审计的 `HOLD_PROVENANCE` 仍是历史证据；当前 Gateway 源码与 parent SDK pins 已有提交候选，但尚未完成独立来源/兼容性及真实 native/provider 验收，不能据此称真实 provider 已通过。以上均未启用 preflight、真实 provider 或任何写路由。详细记录见[验收证据增补](../../../../docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-007-simnow-33-case-staging-acceptance-2026-09-28.md)。
