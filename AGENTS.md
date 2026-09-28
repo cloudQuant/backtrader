@@ -1109,7 +1109,11 @@ test doubles are retained for local tests.
 - WeChat ClawBot and QQ bot are **session-anchored**: they need an inbound
   message (a `context_token` / an `openid`) before they can push, so an unbound
   channel returns `not_bound` and is never retried. Anchor files are written
-  `0600` under `~/.backtrader/notifications/`.
+  `0600` under `~/.backtrader/notifications/` on POSIX. On Windows,
+  `notifications/_windows_anchor.py` uses handle-relative creation and update
+  with a protected TokenUser ACL; it rejects reparse points, unsafe ancestors,
+  external file ACEs, and volumes without persistent ACLs before content writes.
+  Windows updates are in place and can leave partial JSON after interruption.
 - Child processes default to `worker_silent` so `cerebro.run(maxcpus>1)` cannot
   become a message storm; `cerebro.run()` never flushes — long-running processes
   call `flush_notifications()` themselves. Process *exit* is covered by an `atexit`

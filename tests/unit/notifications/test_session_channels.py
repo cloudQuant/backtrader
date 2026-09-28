@@ -8,7 +8,10 @@ handling, which is what the acceptance case requires.
 
 import json
 import os
+from pathlib import Path
 import stat
+import subprocess
+import tempfile
 
 import pytest
 
@@ -16,6 +19,16 @@ import backtrader as bt
 from backtrader.notifications import session as notify_session
 
 from .conftest import FakeTransport, json_response
+
+
+@pytest.fixture
+def anchor_dir(tmp_path):
+    """Use a path beneath the user profile on Windows, avoiding AppData ACLs."""
+    if os.name != "nt":
+        yield tmp_path
+        return
+    with tempfile.TemporaryDirectory(dir=os.environ["USERPROFILE"]) as directory:
+        yield Path(directory)
 
 
 def _clawbot(*, context_token=None, transport=None, **options):
@@ -26,6 +39,27 @@ def _clawbot(*, context_token=None, transport=None, **options):
         config["context_token"] = context_token
     bt.configure_notifications([config], transport=transport, **options)
     return transport
+
+
+def _assert_windows_owner_only_acl(path, grant):
+    """Check the Windows ACL rather than POSIX mode bits.
+
+    Windows ``stat`` mode bits only describe the read-only attribute.  Anchor
+    credential protection is therefore validated through the native ACL that
+    ``persist_anchor`` installs.
+    """
+
+    result = subprocess.run(
+        ["icacls", str(path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    entries = [line.strip() for line in result.stdout.splitlines() if ":(" in line]
+    assert len(entries) == 1, result.stdout
+    assert os.environ["USERNAME"].casefold() in entries[0].casefold()
+    assert grant in entries[0].replace(" ", "")
 
 
 def test_clawbot_unbound_reports_not_bound_without_network():
@@ -133,17 +167,57 @@ def test_clawbot_poll_classifies_transport_failure():
     assert bt.poll_clawbot_once() == 0
 
 
-def test_anchor_persistence_uses_owner_only_permissions(tmp_path):
-    """Anchor files are written with mode 0600 under a 0700 directory."""
-    path = tmp_path / "nested" / "wechat_clawbot.json"
+def test_anchor_persistence_uses_owner_only_permissions(anchor_dir):
+    """Anchor files have an owner-only POSIX mode or Windows ACL."""
+    path = anchor_dir / "nested" / "wechat_clawbot.json"
     notify_session.persist_anchor(str(path), {"bot_token": "t", "to_user_id": "u"})
     assert path.exists()
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    if os.name == "nt":
+        _assert_windows_owner_only_acl(path, "(F)")
+        _assert_windows_owner_only_acl(path.parent, "(F)")
+    else:
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
     assert notify_session.load_anchor(str(path))["bot_token"] == "t"
 
 
-def test_bind_clawbot_runs_the_qr_flow_and_persists(tmp_path):
+@pytest.mark.skipif(os.name != "nt", reason="Windows same-handle update contract")
+def test_anchor_in_place_update_is_visible_through_old_handle():
+    """Windows updates the opened file object, so existing handles see new bytes."""
+    from backtrader.notifications import _windows_anchor
+
+    with tempfile.TemporaryDirectory(dir=os.environ["USERPROFILE"]) as temp_root:
+        path = Path(temp_root) / "nested" / "anchor.json"
+        old = {"bot_token": "old-token", "to_user_id": "old-user"}
+        new = {"bot_token": "new-token", "to_user_id": "new-user"}
+        notify_session.persist_anchor(str(path), old)
+
+        api = _windows_anchor._WindowsAnchorApi()
+        token_sid = api.token_user_sid()
+        descriptor = api.security_descriptor(token_sid)
+        parent_handle, handles = _windows_anchor._open_secure_directory(
+            api, str(path.parent), token_sid, descriptor
+        )
+        old_handle = None
+        try:
+            old_handle = api.open_relative_read_file(parent_handle, path.name)
+            old_bytes = api.read_handle_bytes(old_handle)
+            old_identity = api.identity(old_handle)
+            notify_session.persist_anchor(str(path), new)
+            api.seek_start(old_handle)
+            assert json.loads(api.read_handle_bytes(old_handle).decode("utf-8")) == new
+            assert api.identity(old_handle)[:3] == old_identity[:3]
+            assert json.loads(old_bytes.decode("utf-8")) == old
+            assert notify_session.load_anchor(str(path)) == new
+        finally:
+            if old_handle is not None:
+                api.close(old_handle)
+            for handle in reversed(handles):
+                api.close(handle)
+            api.free_security_descriptor(descriptor)
+
+
+def test_bind_clawbot_runs_the_qr_flow_and_persists(anchor_dir):
     """The QR flow stores the anchor and applies it to the live driver."""
     transport = FakeTransport(
         responses=[
@@ -158,11 +232,13 @@ def test_bind_clawbot_runs_the_qr_flow_and_persists(tmp_path):
     )
     seen = []
     anchor = bt.bind_wechat_clawbot(
-        qr_callback=seen.append, persist_path=str(tmp_path / "clawbot.json"), poll_interval=0.0
+        qr_callback=seen.append,
+        persist_path=str(anchor_dir / "nested" / "clawbot.json"),
+        poll_interval=0.0,
     )
     assert seen == ["https://example.com/qr"]
     assert anchor["bot_token"] == "bot-1"
-    assert (tmp_path / "clawbot.json").exists()
+    assert (anchor_dir / "nested" / "clawbot.json").exists()
 
     outcome = bt.send_message("after binding", wait=True).outcomes[0]
     assert outcome.ok is True
@@ -322,20 +398,20 @@ def test_bind_qq_bot_requires_an_anchor():
         bt.bind_qq_bot()
 
 
-def test_bind_qq_bot_persists_and_applies_the_anchor(tmp_path):
+def test_bind_qq_bot_persists_and_applies_the_anchor(anchor_dir):
     """An explicit anchor registration is persisted and applied live."""
     transport = _qq()
     assert bt.send_message("before", wait=True).outcomes[0].error_category == "not_bound"
-    path = tmp_path / "qq.json"
+    path = anchor_dir / "nested" / "qq.json"
     bt.bind_qq_bot(user_openid="openid-9", persist_path=str(path))
     assert path.exists()
     assert bt.send_message("after", wait=True).outcomes[0].ok is True
     assert any("/v2/users/openid-9/messages" in r.url for r in transport.requests)
 
 
-def test_qq_loads_no_anchor_from_disk_automatically(tmp_path):
+def test_qq_loads_no_anchor_from_disk_automatically(anchor_dir):
     """Anchors are never read implicitly: the default-silence rule holds."""
-    path = tmp_path / "qq.json"
+    path = anchor_dir / "nested" / "qq.json"
     notify_session.persist_anchor(str(path), {"user_openid": "openid-from-disk"})
     _qq()
     # Nothing was configured with the file, so the channel stays unbound.
