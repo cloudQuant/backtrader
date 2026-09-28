@@ -154,15 +154,21 @@ def test_012_1_calibration_loader_remains_strict_without_operator_demo_override(
         )
 
 
-def test_012_1_canonical_stale_qualification_artifact_hash_fails_closed():
+def test_012_1_qualification_artifact_hash_mismatch_fails_closed():
     runner = RUNNERS[0]
     _manifest, candidate = _candidate_for(runner)
     artifact_path = runner.HERE / candidate["qualification_artifact"]["path"]
+    artifact_sha256 = runner._file_sha256(artifact_path, "qualification artifact")
+    wrong_sha256 = ("0" if artifact_sha256[0] != "0" else "1") + artifact_sha256[1:]
+    candidate = {
+        **candidate,
+        "qualification_artifact": {
+            **candidate["qualification_artifact"],
+            "sha256": wrong_sha256,
+        },
+    }
 
-    assert (
-        runner._file_sha256(artifact_path, "qualification artifact")
-        != candidate["qualification_artifact"]["sha256"]
-    )
+    assert wrong_sha256 != artifact_sha256
     with pytest.raises(runner.RunnerConfigurationError, match="fingerprint mismatch"):
         runner._load_model_qualification(
             candidate,
