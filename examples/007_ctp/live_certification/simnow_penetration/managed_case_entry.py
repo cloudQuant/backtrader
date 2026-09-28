@@ -22,6 +22,43 @@ _SUITE_DIR = Path(__file__).resolve().parent
 _CASES_ROOT = _SUITE_DIR / "cases"
 _CERTIFICATION_SOURCE = _SUITE_DIR / "common" / "certification.py"
 _CASE_ID_RE = re.compile(r"^[A-Z][A-Z0-9]{1,3}$")
+_CURRENT_REQUIRED_CASE_IDS = frozenset(
+    (
+        "B01",
+        "B02",
+        "C01",
+        "E01",
+        "E02",
+        "E03",
+        "EM01",
+        "EM02",
+        "EM03",
+        "L01",
+        "L02",
+        "L03",
+        "L04",
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "O01",
+        "O02",
+        "O03",
+        "T01",
+        "T02",
+        "T03",
+        "TH01",
+        "TH02",
+        "TH03",
+        "TH04",
+        "TH05",
+        "TH06",
+        "V01",
+        "V02",
+        "V03",
+    )
+)
 _REQUIRED_TOP_LEVEL_KEYS = frozenset(
     ("config_schema_version", "strategy", "runtime", "parameters")
 )
@@ -35,6 +72,13 @@ class _ScopeRejected(Exception):
     def __init__(self, reason: str) -> None:
         self.reason = reason
         super().__init__(reason)
+
+
+def _validate_current_required_case_ids(case_ids: set[str]) -> None:
+    """Fail closed unless the canonical registry contains every current case."""
+
+    if case_ids != _CURRENT_REQUIRED_CASE_IDS:
+        raise _ScopeRejected("managed_ctp_certification_registry_invalid")
 
 
 def _load_code_owned_scenarios() -> dict[str, Any]:
@@ -86,6 +130,7 @@ def _load_code_owned_scenarios() -> dict[str, Any]:
         if mapping.get(row.case_id) != row:
             raise _ScopeRejected("managed_ctp_certification_registry_invalid")
 
+    _validate_current_required_case_ids(set(row_ids))
     return mapping
 
 
