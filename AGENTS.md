@@ -216,6 +216,8 @@ The `mypy backtrader` gate checks the core package. Its `pyproject.toml`
 override keeps type information from the separate `backtrader_runtime` package
 but silences that package's diagnostics; runtime is not yet covered by a
 dedicated mypy gate.
+The release wheel consumer verifies every packaged Python source file in both
+`backtrader/` and `backtrader_runtime/` against the source and isolated install.
 
 ### Docs & utilities
 

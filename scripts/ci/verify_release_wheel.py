@@ -11,6 +11,8 @@ import json
 import pathlib
 import zipfile
 
+SOURCE_PACKAGES = ("backtrader/", "backtrader_runtime/")
+
 
 def verify(wheel, source_root, install_root, expected_version):
     """Check every packaged source and execute deterministic consumer trades."""
@@ -28,11 +30,13 @@ def verify(wheel, source_root, install_root, expected_version):
         unexpected = [
             name
             for name in names
-            if not name.startswith(("backtrader/", "backtrader-" + expected_version + ".dist-info/"))
+            if not name.startswith(
+                (*SOURCE_PACKAGES, "backtrader-" + expected_version + ".dist-info/")
+            )
         ]
         assert not unexpected, f"Non-library files in wheel: {unexpected[:10]}"
         for name in names:
-            if not name.startswith("backtrader/") or not name.endswith(".py"):
+            if not name.startswith(SOURCE_PACKAGES) or not name.endswith(".py"):
                 continue
             expected = package.read(name)
             assert (source_root / name).read_bytes() == expected, name
@@ -46,7 +50,8 @@ def verify(wheel, source_root, install_root, expected_version):
         assert expected_private.issubset(checked)
         expected_sources = {
             p.relative_to(source_root).as_posix()
-            for p in (source_root / "backtrader").rglob("*.py")
+            for package_root in SOURCE_PACKAGES
+            for p in (source_root / package_root.rstrip("/")).rglob("*.py")
         }
         assert set(checked) == expected_sources, "Wheel omits or adds package source files"
         assert not any("account_config.yaml" in name for name in names)
