@@ -948,6 +948,10 @@ native market-data objects; there is no second Backtrader trading client.
 `examples/strategy_candidate_approval.py` binds the two example candidates'
 manifest, offline receipt and source provenance. It is example admission policy,
 not a Backtrader utility or SDK protocol.
+The two folder-local 012 manifests hash the raw bytes of each folder's `run.py`,
+`strategy.py` and `config.yaml`; root `.gitattributes` pins those six exact paths
+to LF so strict SHA-256 values match Git blobs across Windows, Linux and macOS.
+The canonical manifest remains unchanged and demo approval stays `NOT_APPROVED`.
 OKX endpoint selection belongs to the SDK through
 `api_region=global|eea|us|tr`: REST plus public/private/business WebSockets use
 one atomic region/environment profile. Global/EEA/US support production and

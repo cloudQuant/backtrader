@@ -1,0 +1,6 @@
+examples/012_1_midfreq_cross_exchange/run.py text eol=lf
+examples/012_1_midfreq_cross_exchange/strategy.py text eol=lf
+examples/012_1_midfreq_cross_exchange/config.yaml text eol=lf
+examples/012_2_event_driven_cross_exchange/run.py text eol=lf
+examples/012_2_event_driven_cross_exchange/strategy.py text eol=lf
+examples/012_2_event_driven_cross_exchange/config.yaml text eol=lf
