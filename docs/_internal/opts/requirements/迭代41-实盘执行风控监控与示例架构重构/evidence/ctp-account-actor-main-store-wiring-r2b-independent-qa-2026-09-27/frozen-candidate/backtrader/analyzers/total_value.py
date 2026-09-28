@@ -1,0 +1,75 @@
+"""TotalValue Analyzer Module - Portfolio value tracking.
+
+This module provides the TotalValue analyzer for tracking the total
+portfolio value over time.
+
+Classes:
+    TotalValue: Analyzer that records portfolio value at each step.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.TotalValue, _name='val')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.val.get_analysis())
+"""
+
+import math
+from collections import OrderedDict
+from typing import Optional
+
+from ..analyzer import Analyzer
+
+
+def _finite_real_or_zero(value):
+    try:
+        if isinstance(value, complex) or not math.isfinite(value):
+            return 0.0
+    except TypeError:
+        return 0.0
+    return value
+
+
+class TotalValue(Analyzer):
+    """This analyzer will get total value from every next.
+
+    Params:
+    Methods:
+
+      - Get_analysis
+
+        Returns a dictionary with returns as values and the datetime points for
+        each return as keys
+    """
+
+    params = ()
+    rets: Optional[dict] = None
+
+    def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Creates the ordered dictionary to store value history.
+        """
+        super().start()
+        self.rets = OrderedDict()
+        # PERFORMANCE OPTIMIZATION: Cache broker reference
+        self._broker = self.strategy.broker
+
+    # PERFORMANCE OPTIMIZATION: Cache attribute access, called 522K+ times
+    def next(self):
+        """Record the total portfolio value for the current bar.
+
+        Gets the current portfolio value from the broker and stores it
+        keyed by datetime.
+        """
+        # Calculate the return
+        super().next()
+        # Cache attribute access for performance
+        self.rets[self.datas[0].datetime.datetime()] = _finite_real_or_zero(self._broker.getvalue())
+
+    def get_analysis(self):
+        """Return the total value analysis results.
+
+        Returns:
+            OrderedDict: Dictionary mapping datetimes to portfolio values.
+        """
+        return self.rets

@@ -1,0 +1,9 @@
+{
+  "schema": "iteration41-g4-status-evidence-index-append-v1",
+  "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/README.md",
+  "archive_directory": "iteration41-g4-parent-sdk-status-qa-2026-09-27",
+  "before_sha256": "8f350253043e55868967b1178874cd02a79be56b5d9fbb7ba51923c18173b52b",
+  "after_sha256": "6d183ebb5a15df582346e1458f3c69152f002a269db1d2dc765f93282715e8d8",
+  "operation": "append-only UTF-8 suffix",
+  "entry_sha256": "6f3981a92aa7df531bf5d5a225d93202193b9da7bd19a2de3dbc3486cdabe8fa"
+}

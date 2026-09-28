@@ -1,0 +1,490 @@
+{
+  "authority": "evidence_only_no_approval_or_runtime_authority",
+  "candidate_extra_profiles": [
+    "set1_group1_vpn",
+    "set2_7x24_4000x",
+    "set2_7x24_vpn"
+  ],
+  "candidate_missing_runtime_profiles": [],
+  "candidate_pin_material": {},
+  "candidate_runtime_profile_differences": {},
+  "candidate_runtime_profile_matches": {
+    "set1_group1": [
+      "tcp://180.168.146.187:10201",
+      "tcp://180.168.146.187:10211"
+    ],
+    "set1_group2": [
+      "tcp://180.168.146.187:10202",
+      "tcp://180.168.146.187:10212"
+    ],
+    "set2_7x24": [
+      "tcp://180.168.146.187:10130",
+      "tcp://180.168.146.187:10131"
+    ]
+  },
+  "candidate_runtime_profile_table_matches": false,
+  "candidate_wheels": [
+    {
+      "distribution": "bt_api_base",
+      "member_scan": {
+        "private_or_secret_member_count": 0,
+        "public_configuration_members": [],
+        "scanned_file_count": 110
+      },
+      "module": "bt_api_base",
+      "python_source_file_count": 105,
+      "python_source_snapshot_sha256": "d2b7189abe17364d738e33cd94b4692f22ddc357556c63dd6483b5f0bab03299",
+      "requires_dist": [
+        "aiohttp>=3.9.0",
+        "eval-type-backport>=0.2.0; python_version < \"3.10\"",
+        "httpx>=0.27.0",
+        "mypy>=1.0; extra == \"dev\"",
+        "numpy>=1.26.0",
+        "packaging>=24.0",
+        "pandas>=2.0.0",
+        "pyarrow>=14.0.0",
+        "pydantic>=2.0.0",
+        "pytest-asyncio>=0.21.0; extra == \"dev\"",
+        "pytest>=7.0; extra == \"dev\"",
+        "python-dotenv>=1.0.0",
+        "python-rapidjson>=1.10",
+        "pytz>=2023.3",
+        "pyyaml>=6.0",
+        "pyzmq>=26.0.0",
+        "requests>=2.31.0",
+        "ruff>=0.1.0; extra == \"dev\"",
+        "spdlog>=2.0.0",
+        "typing-extensions>=4.8.0",
+        "websocket-client>=1.6.0",
+        "websockets>=12.0"
+      ],
+      "requires_python": ">=3.9",
+      "selector_fronts": null,
+      "selector_sha256": null,
+      "version": "0.15.4",
+      "wheel_filename": "bt_api_base-0.15.4-py3-none-any.whl",
+      "wheel_record_file_count": 109,
+      "wheel_record_sha256": "8fef3bd9627cfdfb725d4b522f1dceff8d1f9ee25ad03868989f3225c6cc6d8a",
+      "wheel_sha256": "d9a3bcd8183cf532dcbb5d16573d3a0af479a88df1e37e267f738379285ce548"
+    },
+    {
+      "distribution": "bt_api_ctp",
+      "member_scan": {
+        "private_or_secret_member_count": 0,
+        "public_configuration_members": [
+          "bt_api_ctp/configs/ctp.yaml"
+        ],
+        "scanned_file_count": 87
+      },
+      "module": "bt_api_ctp",
+      "python_source_file_count": 78,
+      "python_source_snapshot_sha256": "e800957ff6ca86b358648a5e69c753597bbbd092ea0a1afece8bd857417121b8",
+      "requires_dist": [
+        "bt_api_base<1.0,>=0.15.4",
+        "paramiko>=3.0; extra == \"cleaner\""
+      ],
+      "requires_python": ">=3.9",
+      "selector_fronts": {
+        "set1_group1": [
+          "tcp://180.168.146.187:10201",
+          "tcp://180.168.146.187:10211"
+        ],
+        "set1_group1_vpn": [
+          "tcp://182.254.243.31:30001",
+          "tcp://182.254.243.31:30011"
+        ],
+        "set1_group2": [
+          "tcp://180.168.146.187:10202",
+          "tcp://180.168.146.187:10212"
+        ],
+        "set2_7x24": [
+          "tcp://180.168.146.187:10130",
+          "tcp://180.168.146.187:10131"
+        ],
+        "set2_7x24_4000x": [
+          "tcp://182.254.243.31:40001",
+          "tcp://182.254.243.31:40011"
+        ],
+        "set2_7x24_vpn": [
+          "tcp://182.254.243.31:40001",
+          "tcp://182.254.243.31:40011"
+        ]
+      },
+      "selector_sha256": "1fadca9398cc7f5d00025ca1d563db4e8e423909cff7c80014a1f1dc81dfc861",
+      "version": "2.0.3",
+      "wheel_filename": "bt_api_ctp-2.0.3-cp311-cp311-win_amd64.whl",
+      "wheel_record_file_count": 86,
+      "wheel_record_sha256": "68cb71f3f952f13cd4f823c5f261f76351a2354d782f21e1a2bb44dd6c028f65",
+      "wheel_sha256": "3c80720e4bc092a6dadc7b096683c00511ab9549c31a097521f73f2e27e85f3e"
+    }
+  ],
+  "catalog_approval": "none",
+  "ctp_selector_matches_wheel_source": true,
+  "independent_release_review_required": true,
+  "installed_artifacts": {},
+  "observed_artifact_identities": {
+    "bt_api_base": {
+      "distribution": "bt_api_base",
+      "installed_record_sha256": null,
+      "version": "0.15.4",
+      "wheel_filename": "bt_api_base-0.15.4-py3-none-any.whl",
+      "wheel_record_sha256": "8fef3bd9627cfdfb725d4b522f1dceff8d1f9ee25ad03868989f3225c6cc6d8a",
+      "wheel_sha256": "d9a3bcd8183cf532dcbb5d16573d3a0af479a88df1e37e267f738379285ce548"
+    },
+    "bt_api_ctp": {
+      "distribution": "bt_api_ctp",
+      "installed_record_sha256": null,
+      "version": "2.0.3",
+      "wheel_filename": "bt_api_ctp-2.0.3-cp311-cp311-win_amd64.whl",
+      "wheel_record_sha256": "68cb71f3f952f13cd4f823c5f261f76351a2354d782f21e1a2bb44dd6c028f65",
+      "wheel_sha256": "3c80720e4bc092a6dadc7b096683c00511ab9549c31a097521f73f2e27e85f3e"
+    }
+  },
+  "pin_material_status": "refused_dirty_source",
+  "runtime_reviewed_simnow_profiles": {
+    "set1_group1": [
+      "tcp://180.168.146.187:10201",
+      "tcp://180.168.146.187:10211"
+    ],
+    "set1_group2": [
+      "tcp://180.168.146.187:10202",
+      "tcp://180.168.146.187:10212"
+    ],
+    "set2_7x24": [
+      "tcp://180.168.146.187:10130",
+      "tcp://180.168.146.187:10131"
+    ]
+  },
+  "schema": "ctp-artifact-review-evidence-v1",
+  "sdk_source": {
+    "ctp_selector_fronts": {
+      "set1_group1": [
+        "tcp://180.168.146.187:10201",
+        "tcp://180.168.146.187:10211"
+      ],
+      "set1_group1_vpn": [
+        "tcp://182.254.243.31:30001",
+        "tcp://182.254.243.31:30011"
+      ],
+      "set1_group2": [
+        "tcp://180.168.146.187:10202",
+        "tcp://180.168.146.187:10212"
+      ],
+      "set2_7x24": [
+        "tcp://180.168.146.187:10130",
+        "tcp://180.168.146.187:10131"
+      ],
+      "set2_7x24_4000x": [
+        "tcp://182.254.243.31:40001",
+        "tcp://182.254.243.31:40011"
+      ],
+      "set2_7x24_vpn": [
+        "tcp://182.254.243.31:40001",
+        "tcp://182.254.243.31:40011"
+      ]
+    },
+    "ctp_selector_sha256": "1fadca9398cc7f5d00025ca1d563db4e8e423909cff7c80014a1f1dc81dfc861",
+    "packages": {
+      "bt_api_base": {
+        "git": {
+          "available": true,
+          "change_count": 3,
+          "dirty": true,
+          "head": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f"
+        },
+        "project": {
+          "available": true,
+          "build_system": {
+            "build-backend": "setuptools.build_meta",
+            "requires": [
+              "setuptools>=65",
+              "wheel"
+            ]
+          },
+          "dependencies": [
+            "aiohttp>=3.9.0",
+            "eval-type-backport>=0.2.0; python_version < '3.10'",
+            "httpx>=0.27.0",
+            "numpy>=1.26.0",
+            "packaging>=24.0",
+            "pandas>=2.0.0",
+            "pyarrow>=14.0.0",
+            "pydantic>=2.0.0",
+            "python-dotenv>=1.0.0",
+            "python-rapidjson>=1.10",
+            "pytz>=2023.3",
+            "pyyaml>=6.0",
+            "pyzmq>=26.0.0",
+            "requests>=2.31.0",
+            "spdlog>=2.0.0",
+            "typing-extensions>=4.8.0",
+            "websocket-client>=1.6.0",
+            "websockets>=12.0"
+          ],
+          "name": "bt_api_base",
+          "requires_python": ">=3.9",
+          "version": "0.15.4"
+        },
+        "python_source_file_count": 105,
+        "python_source_map": {
+          "bt_api_base/__init__.py": "e816a2a3df2cbec23ac482b7f1efd6c4829fb6a90ce70f3136c71b56c5f6c6ea",
+          "bt_api_base/_compat.py": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869",
+          "bt_api_base/_plugin_shims.py": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4",
+          "bt_api_base/_version.py": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d",
+          "bt_api_base/auth_config.py": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43",
+          "bt_api_base/balance_utils.py": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3",
+          "bt_api_base/cache.py": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9",
+          "bt_api_base/config_loader.py": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672",
+          "bt_api_base/connection_pool.py": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5",
+          "bt_api_base/containers/__init__.py": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810",
+          "bt_api_base/containers/accounts/__init__.py": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627",
+          "bt_api_base/containers/accounts/account.py": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675",
+          "bt_api_base/containers/auto_init_mixin.py": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed",
+          "bt_api_base/containers/balances/__init__.py": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3",
+          "bt_api_base/containers/balances/balance.py": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7",
+          "bt_api_base/containers/bars/__init__.py": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000",
+          "bt_api_base/containers/bars/bar.py": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495",
+          "bt_api_base/containers/exchanges/__init__.py": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b",
+          "bt_api_base/containers/exchanges/exchange_data.py": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059",
+          "bt_api_base/containers/fundingrates/__init__.py": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7",
+          "bt_api_base/containers/fundingrates/funding_rate.py": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968",
+          "bt_api_base/containers/greeks/__init__.py": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a",
+          "bt_api_base/containers/greeks/greeks.py": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a",
+          "bt_api_base/containers/incomes/__init__.py": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf",
+          "bt_api_base/containers/incomes/income.py": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490",
+          "bt_api_base/containers/instrument.py": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027",
+          "bt_api_base/containers/liquidations/__init__.py": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df",
+          "bt_api_base/containers/liquidations/liquidation.py": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff",
+          "bt_api_base/containers/markprices/__init__.py": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb",
+          "bt_api_base/containers/markprices/mark_price.py": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a",
+          "bt_api_base/containers/orderbooks/__init__.py": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3",
+          "bt_api_base/containers/orderbooks/orderbook.py": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324",
+          "bt_api_base/containers/orders/__init__.py": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe",
+          "bt_api_base/containers/orders/order.py": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b",
+          "bt_api_base/containers/positions/__init__.py": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0",
+          "bt_api_base/containers/positions/position.py": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9",
+          "bt_api_base/containers/requestdatas/__init__.py": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6",
+          "bt_api_base/containers/requestdatas/request_data.py": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43",
+          "bt_api_base/containers/symbols/__init__.py": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58",
+          "bt_api_base/containers/symbols/symbol.py": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56",
+          "bt_api_base/containers/tickers/__init__.py": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7",
+          "bt_api_base/containers/tickers/ticker.py": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63",
+          "bt_api_base/containers/timers/__init__.py": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116",
+          "bt_api_base/containers/timers/timer.py": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274",
+          "bt_api_base/containers/trades/__init__.py": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545",
+          "bt_api_base/containers/trades/trade.py": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb",
+          "bt_api_base/core/__init__.py": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd",
+          "bt_api_base/core/async_context.py": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20",
+          "bt_api_base/core/dependency_injection.py": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993",
+          "bt_api_base/core/interfaces.py": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523",
+          "bt_api_base/core/services.py": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05",
+          "bt_api_base/deployment_evidence.py": "3a0834ab015601c4d86c90a86caea03cb6aa5f9d81220010f7244228d8994017",
+          "bt_api_base/error.py": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653",
+          "bt_api_base/event_bus.py": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1",
+          "bt_api_base/event_clock.py": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c",
+          "bt_api_base/exceptions.py": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631",
+          "bt_api_base/feeds/__init__.py": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4",
+          "bt_api_base/feeds/abstract_feed.py": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c",
+          "bt_api_base/feeds/base_stream.py": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235",
+          "bt_api_base/feeds/capability.py": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4",
+          "bt_api_base/feeds/connection_mixin.py": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0",
+          "bt_api_base/feeds/feed.py": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4",
+          "bt_api_base/feeds/http_client.py": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47",
+          "bt_api_base/feeds/my_websocket_app.py": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6",
+          "bt_api_base/feeds/transport_safety.py": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae",
+          "bt_api_base/functions/__init__.py": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960",
+          "bt_api_base/functions/async_base.py": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400",
+          "bt_api_base/functions/calculate_time.py": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c",
+          "bt_api_base/functions/log_message.py": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9",
+          "bt_api_base/functions/rate_limiters.py": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8",
+          "bt_api_base/functions/signers.py": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1",
+          "bt_api_base/functions/timestamps.py": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740",
+          "bt_api_base/functions/utils.py": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829",
+          "bt_api_base/gateway/__init__.py": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe",
+          "bt_api_base/gateway/adapters/__init__.py": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300",
+          "bt_api_base/gateway/adapters/base.py": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616",
+          "bt_api_base/gateway/adapters/plugin_adapter.py": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0",
+          "bt_api_base/gateway/config.py": "fae8eb730fe3a2a6f372c3871ef3ca1a2f52ad07c426c62a5ea40e043eff0224",
+          "bt_api_base/gateway/health.py": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7",
+          "bt_api_base/gateway/models.py": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d",
+          "bt_api_base/gateway/order_identity_map.py": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28",
+          "bt_api_base/gateway/order_ref_allocator.py": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758",
+          "bt_api_base/gateway/protocol.py": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121",
+          "bt_api_base/gateway/registrar.py": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202",
+          "bt_api_base/gateway/runtime.py": "6e9c58e4c6400b21eaa4abdcd12e18fb78de74a56fb9d58d42406be04b47d16c",
+          "bt_api_base/gateway/runtime_remote.py": "5ea66e96016f48fa53d48ca65ffb30c339b3d4066e4d96a90039a50dd2707b7f",
+          "bt_api_base/gateway/storage/__init__.py": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522",
+          "bt_api_base/gateway/storage/tick_writer.py": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95",
+          "bt_api_base/gateway/subscription_manager.py": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971",
+          "bt_api_base/instrument_manager.py": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0",
+          "bt_api_base/logging_factory.py": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d",
+          "bt_api_base/plugins/__init__.py": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f",
+          "bt_api_base/plugins/errors.py": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151",
+          "bt_api_base/plugins/loader.py": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413",
+          "bt_api_base/plugins/protocol.py": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7",
+          "bt_api_base/rate_limiter.py": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0",
+          "bt_api_base/registry.py": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de",
+          "bt_api_base/security.py": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17",
+          "bt_api_base/testing/__init__.py": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c",
+          "bt_api_base/testing/fixtures.py": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7",
+          "bt_api_base/utils/__init__.py": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0",
+          "bt_api_base/utils/time.py": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4",
+          "bt_api_base/websocket/__init__.py": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532",
+          "bt_api_base/websocket/exchange_adapters.py": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a",
+          "bt_api_base/websocket_manager.py": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a"
+        },
+        "python_source_snapshot_sha256": "d2b7189abe17364d738e33cd94b4692f22ddc357556c63dd6483b5f0bab03299"
+      },
+      "bt_api_ctp": {
+        "git": {
+          "available": true,
+          "change_count": 15,
+          "dirty": true,
+          "head": "ce1edd60785eb4c66fefa16a994a66946a1e068f"
+        },
+        "project": {
+          "available": true,
+          "build_system": {
+            "build-backend": "setuptools.build_meta",
+            "requires": [
+              "setuptools>=69",
+              "wheel"
+            ]
+          },
+          "dependencies": [
+            "bt_api_base>=0.15.4,<1.0"
+          ],
+          "name": "bt_api_ctp",
+          "requires_python": ">=3.9",
+          "version": "2.0.3"
+        },
+        "python_source_file_count": 78,
+        "python_source_map": {
+          "bt_api_ctp/__init__.py": "0edd27fd3b7abaaaf76c865c911ea1a65bcbc32c7afcb7f53fc91197f26bbd32",
+          "bt_api_ctp/cleaner/__init__.py": "06d7dc7c1325214f7761525797b52a4060ce15247c3b3df2ea18ff6c63dd0ce4",
+          "bt_api_ctp/cleaner/__main__.py": "1254e8ad612fe88f39e9397a0c76ccf8a624f63066c24c4c41c5683ac8cfb3fa",
+          "bt_api_ctp/cleaner/cli.py": "08f95e224b7aae85896e9d17af29c9e7898d394184f7919bc5d7b369d5d5109a",
+          "bt_api_ctp/cleaner/config.py": "0c8e2f943cdc71f7521d6ff6c0728c9b76373d6cb4857c9baf326ed2d66ae551",
+          "bt_api_ctp/cleaner/contracts.py": "112d6c73138dd916f49d04155e232379fb63645feb79b9f6aeda5bef21a86ddd",
+          "bt_api_ctp/cleaner/kline/__init__.py": "3d850048d509daf018a32142e28470d13ed0f9a8669bb5346df20ce183625d47",
+          "bt_api_ctp/cleaner/kline/aggregator.py": "199e043f00e6a17685d387ff1d09b0adceaa017f860dfab5ad6b92b5075ff2c2",
+          "bt_api_ctp/cleaner/kline/build.py": "ccdc53618117f1dc5872e42de5352e81f5df08c85a64533abfc299cbb2570be1",
+          "bt_api_ctp/cleaner/kline/schema.py": "fb8cd68d8dd2fb3a8a28395745c0dfdaf5daf762bb03ff97edbff5c479217cc5",
+          "bt_api_ctp/cleaner/kline/writer.py": "f4edc4b68a84baf8ff1ef06dd0111089897b01566dc3a3719a224d3a1e4f50f4",
+          "bt_api_ctp/cleaner/manifest.py": "96ac3989372b725de6e9b59d3fa7a466c690303d585b70d52d895cb101ad322c",
+          "bt_api_ctp/cleaner/merge.py": "ea5b3a2b2791f274597725377de8481f3dabc85201306ddf5626c06a2e0b8b1d",
+          "bt_api_ctp/cleaner/pipeline.py": "12f35adeabf0f91b1d2e8cc886cf7edad5f9f91ba21ad33077177e73db194ebc",
+          "bt_api_ctp/cleaner/pull/__init__.py": "a98574edfab29c948626c8a4851ba15efda9d5ed16522e8286ee01a47cf58eef",
+          "bt_api_ctp/cleaner/pull/backend.py": "abfec33927e213118e54fafd7167c8bb8c89c0f470e4e1c0c4bfdeb424422e98",
+          "bt_api_ctp/cleaner/pull/local_backend.py": "c0dcc575d1f62ea61288a96f7f3f4a18907c89ca38c922c3a2d02424e01e0d20",
+          "bt_api_ctp/cleaner/pull/rsync_backend.py": "f399b21fae868f384eda3f82faf94cad6f2a64f3f33971e324010c3d47c6713f",
+          "bt_api_ctp/cleaner/pull/sftp_backend.py": "1c2db213b95cdb30327bc6bbd635030eea900b55d8e0136991635eca7945de46",
+          "bt_api_ctp/cleaner/reclaim.py": "1347fdc93e6f0b07550203a1fd6c424848dbfacfc0481e2f87e17dd42b7e8499",
+          "bt_api_ctp/cleaner/report.py": "a83f72cdec245bc0b1e84631ff6a62488faac3a98ce3a223973f0fb1e0025421",
+          "bt_api_ctp/cleaner/verify.py": "3a35fc3fdcad2e55d441fe64bd327e50824697fcc474510e9c0e4929edf01440",
+          "bt_api_ctp/cleaner_ctp/__init__.py": "23c6e0a420a9ba1145419c453275859fd7947794321b7eb6ac1f10ca2c2c0ba0",
+          "bt_api_ctp/cleaner_ctp/symbols.py": "a3e8ffc0066de027041b6d56938cea57f563ce8e0d150c007efe54f214fc1ca4",
+          "bt_api_ctp/collector/__init__.py": "edb44772fbc1be32a700808c732687b5ddf4d05d4d0422ec092958cb26d70519",
+          "bt_api_ctp/collector/__main__.py": "c747dddd23bd2b8df1cfee5737d96a86741e64d2a482651660156a9008bcef80",
+          "bt_api_ctp/collector/buffer.py": "ce942f0fee2486fb2116bd5214cfc4c812d05729b4f77374eff5d6bd4c06d11c",
+          "bt_api_ctp/collector/cli.py": "3ced74cbbd7fbae787b367e8c35f39497227ec16c8f5da53dfe5c4aa465c9268",
+          "bt_api_ctp/collector/engine.py": "d81199511492586e7333b30395b93244808b40924ef03c15c89d5bff16eb6da4",
+          "bt_api_ctp/collector/health.py": "81e863c1bcd70fed53595137fce48cfd4aeb92f1d19436e155f2e0884ff0c2b7",
+          "bt_api_ctp/collector/protocols.py": "08577bae04c1b81c1279f43b9ec4d5f5195f835e5283727787bf69cb4372e6c2",
+          "bt_api_ctp/collector/schedule.py": "deaec0155b0b4361574c4764b69a48a4eeb5a57a11ad774957ee9c28b79f1f53",
+          "bt_api_ctp/collector/shard.py": "f2517da68f2f6226d78517076b5d41d2398a96bacb3a2d0a53311201b88bd41c",
+          "bt_api_ctp/collector/sink.py": "e229afe6cc1799d0bd97efb1aa7bb5f198eb4788fc7e62bbaa64aac4b5038c6f",
+          "bt_api_ctp/collector_ctp/__init__.py": "9c5a6f7040265ac82e408ad7ac806b495e5c52a3a54abc30836d627c20a9d267",
+          "bt_api_ctp/collector_ctp/instrument_provider.py": "d9cb9b968795bb5b29c9ab6647ab24f14b9551efcc798d41c71c32bb80fc69ec",
+          "bt_api_ctp/collector_ctp/normalizer.py": "ca621b6502299b7285e8adb7e24cd1db69009c8cebcb4c8ece7de7fd46eb594e",
+          "bt_api_ctp/collector_ctp/subscriber.py": "0eb86fe6585a16b7eb039a1c155b4616755e38f276894f1126cfaa2bb0c9dc3e",
+          "bt_api_ctp/containers/__init__.py": "6c515513d8d129cccdcb81e199e816a02e8a38bfcdade8fe6a0dfb0c0203cda0",
+          "bt_api_ctp/containers/ctp/__init__.py": "1239a2dee52bc513414c0277654ee36170d289fe41e51d4d47134d1d7307e79e",
+          "bt_api_ctp/containers/ctp/_normalization.py": "88acf09f0249a2199aa59dbc68ba6fc313ff7b59a362290c1049f5a5b92de62a",
+          "bt_api_ctp/containers/ctp/ctp_account.py": "2864801345a402dbb612f18892d41a37e4e2e62976ef7f995a363db33caeebc0",
+          "bt_api_ctp/containers/ctp/ctp_bar.py": "5db640a0371a9b75d89554e4b13fb88a8e4374004c92333ddf036e4eca6eb525",
+          "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "aa67958145f6527e64e62c490b89633b42e6133770b664436bcc03ac515de8bf",
+          "bt_api_ctp/containers/ctp/ctp_order.py": "afa09d5bdf8e5e5c14ad94193c58ce3af460ad44cf835b5e98efa109c622a2de",
+          "bt_api_ctp/containers/ctp/ctp_position.py": "04d88d3c1a256ba88a6ca0cdb5ed06f1d7f7e0f9fe4d606c2ae9d61a85755575",
+          "bt_api_ctp/containers/ctp/ctp_position_evidence.py": "2fb3b1611ec2b00e377120efdc4a34535f7080cd6f7410933e25ce5168f46a2b",
+          "bt_api_ctp/containers/ctp/ctp_ticker.py": "40550e641eee14252c7874111a207afc8de3deb8b11a6b10ac0848e53ac39250",
+          "bt_api_ctp/containers/ctp/ctp_trade.py": "6f2b149640c39b5d8c3d303bb86357af78671f3198f196fcf149d83e2ecf867d",
+          "bt_api_ctp/ctp/__init__.py": "472e644f88e8c8fa5ded4a95fa036db494abe82484e7a7f8c228c99d05ab2d42",
+          "bt_api_ctp/ctp/_ctp_base.py": "a8535ecc876d6444ceeb1087d3459ca001cc26140c92cfe74094bae86c2ead73",
+          "bt_api_ctp/ctp/client.py": "6524256ccd58e9660b5179826a45455d3f7e36c6bff2da45fbac52b87173fdb5",
+          "bt_api_ctp/ctp/ctp.py": "e2fe66ca79dd742dc9f85f3456f4fe453ac537672e62f42372e485e1831ccd6f",
+          "bt_api_ctp/ctp/ctp_constants.py": "d51edfe35c21e42dbe18b5566ae09fad589b0a589cf646d342eb54b038e28524",
+          "bt_api_ctp/ctp/ctp_md_api.py": "9eaffb0729bef2a34a97a3a16d20d185b03d380e4c6386a8905e240a7d5f05c2",
+          "bt_api_ctp/ctp/ctp_structs_account.py": "c319c19e99d84a0632254c7b3102b0a12a88d43077c9aaa75f75da1bfe0b34b8",
+          "bt_api_ctp/ctp/ctp_structs_common.py": "5b8bd5888b23e833d54b939d287505877873d6eb657d70ba2023f27a6f154e8e",
+          "bt_api_ctp/ctp/ctp_structs_market.py": "195fe470821626702d46cb2a95886e95c4b0ecab00105eab42dc5fb6b9e742da",
+          "bt_api_ctp/ctp/ctp_structs_order.py": "f106acd770799ac635b9f2bd068737a551dc9ad4356fabb639fa174f269af6c7",
+          "bt_api_ctp/ctp/ctp_structs_position.py": "14150fa837aba5d56addf6d1a0eb8f831ee6bd74442bfc5b82174bbd724c81d6",
+          "bt_api_ctp/ctp/ctp_structs_query.py": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48",
+          "bt_api_ctp/ctp/ctp_structs_risk.py": "9f5c54796253d7dd07ddd86f77fb3b28deea38f3ff5a8ec4638d816d18546adc",
+          "bt_api_ctp/ctp/ctp_structs_trade.py": "ef9fdcdf773d7cd4cf09d48ec0632b3dfe6d58ca7465d526903ee0ac51205e9e",
+          "bt_api_ctp/ctp/ctp_structs_transfer.py": "de355eedffe43f8afe0a28d4eb7cbbc8c1bc36674ba327e20d8c252e5ad1ea7b",
+          "bt_api_ctp/ctp/ctp_trader_api.py": "26a1cab3d387c5afb79fc7c041a7f0e333cafca708283b05ce65c2b2efb08610",
+          "bt_api_ctp/ctp_env_selector.py": "1fadca9398cc7f5d00025ca1d563db4e8e423909cff7c80014a1f1dc81dfc861",
+          "bt_api_ctp/errors/__init__.py": "ba6534a03933bfd3e457b2de2b352153ffa29a10bba577bbf6efb64d2bc541ed",
+          "bt_api_ctp/errors/ctp_translator.py": "727f996de87f1cd9b1f719a0fc432f4a7fe4a352994361dbd41b5378a60523f9",
+          "bt_api_ctp/exchange_data.py": "fdad9316984f1ed007a3a270866ffc894e9ec9b40dfb7f69e809550b10f0fa3a",
+          "bt_api_ctp/feeds/__init__.py": "2f0c8fc417d8cb0436c6a562b60acdc881f40fd96c0896d59249aeccc5d8680d",
+          "bt_api_ctp/feeds/base_stream.py": "93b2f327f59803103423f252aa9b03ede0f93e5360eda2439f9c10412d6ea459",
+          "bt_api_ctp/feeds/live_ctp_feed.py": "ff27bae030cba4e34fc9b1cee18a7a3ae2210b63016269078babf2446247c41c",
+          "bt_api_ctp/gateway/__init__.py": "8e0e610de253925d53ebc12c22b509af73719bb04ac9787ed91d70a876ea10af",
+          "bt_api_ctp/gateway/adapter.py": "02b358c7ee339ba5d2bb1cfa6e8e45cb0a874f5240ba30cee97d8da915b069bf",
+          "bt_api_ctp/instrument.py": "5137651d992d6150fa8a12f4748e2beb7895781bb521c74be0c8cd5565343d9b",
+          "bt_api_ctp/order_action.py": "19944f78dd3f2c68ee3234e39af66483dbfc60b4976750eb7dd58d275fc8e079",
+          "bt_api_ctp/plugin.py": "8d51cf8a63a29b687fdd07a294ae107ff471a1ceda76371d52bff1b9ca015d07",
+          "bt_api_ctp/query.py": "0971065af01fbc1dc96787ec291b092a1c29a095483bdc903df13287fb72f7b8"
+        },
+        "python_source_snapshot_sha256": "5911a1dc9f892f40ad5e341207148abce6ce3ddec68ec2da1a4c24a0a045b07d"
+      }
+    },
+    "sdk_repository": {
+      "available": true,
+      "change_count": 57,
+      "dirty": true,
+      "head": "d3674e19a11b9f35f19ae756899bcf18854c8c46"
+    },
+    "sdk_root": "D:\\bt_api_py"
+  },
+  "source_artifact_matches": false,
+  "source_metadata_matches_wheels": {
+    "bt_api_base": true,
+    "bt_api_ctp": true
+  },
+  "source_python_mismatches": {
+    "bt_api_base": {
+      "changed_paths": [],
+      "mismatch_file_count": 0,
+      "source_only_paths": [],
+      "wheel_only_paths": []
+    },
+    "bt_api_ctp": {
+      "changed_paths": [
+        "bt_api_ctp/ctp/client.py"
+      ],
+      "mismatch_file_count": 1,
+      "source_only_paths": [],
+      "wheel_only_paths": []
+    }
+  },
+  "source_python_snapshots": {
+    "bt_api_base": {
+      "matching": true,
+      "source_file_count": 105,
+      "source_snapshot_sha256": "d2b7189abe17364d738e33cd94b4692f22ddc357556c63dd6483b5f0bab03299",
+      "wheel_file_count": 105,
+      "wheel_snapshot_sha256": "d2b7189abe17364d738e33cd94b4692f22ddc357556c63dd6483b5f0bab03299"
+    },
+    "bt_api_ctp": {
+      "matching": false,
+      "source_file_count": 78,
+      "source_snapshot_sha256": "5911a1dc9f892f40ad5e341207148abce6ce3ddec68ec2da1a4c24a0a045b07d",
+      "wheel_file_count": 78,
+      "wheel_snapshot_sha256": "e800957ff6ca86b358648a5e69c753597bbbd092ea0a1afece8bd857417121b8"
+    }
+  }
+}

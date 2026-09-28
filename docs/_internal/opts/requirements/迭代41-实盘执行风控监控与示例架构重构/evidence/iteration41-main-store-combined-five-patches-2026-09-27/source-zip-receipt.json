@@ -1,0 +1,226 @@
+{
+  "archive": "D:\\temp\\i41-store-merge\\iteration41-isolated-composition-evidence.zip",
+  "archive_bytes": 714779,
+  "archive_sha256": "F1966D18808E414ADF1B49ED6667E3056C3313F9EBD6E1581F5CF3DFE2CE6A96",
+  "crc_test": "PASS",
+  "entry_count": 36,
+  "all_entry_hashes_match_sources": true,
+  "entries": [
+    {
+      "path": "evidence/combined-five-patch-delta.patch",
+      "bytes": 190904,
+      "crc32": "AB94B38C",
+      "sha256": "51182BAC574C27B5E22F2E289232E2ABE21EFE7833EAB8A4714586B0E7F2ABAD"
+    },
+    {
+      "path": "evidence/failure-nodeid-diff.json",
+      "bytes": 73808,
+      "crc32": "D85D4D3F",
+      "sha256": "DEEBC75CECC9B4C0C768D86D3AA31070B53A339ED30414DEBF8D0CA2DF29DB66"
+    },
+    {
+      "path": "evidence/focus-0133-formal-r2-environment.json",
+      "bytes": 2238,
+      "crc32": "6B7F1EF0",
+      "sha256": "1D13AACBE28BA5D7F295AC788602975ED1841962B195610904C99590CCD97EBA"
+    },
+    {
+      "path": "evidence/focus-0133-formal-r2-sdk-guard.jsonl",
+      "bytes": 538,
+      "crc32": "1FC38D8F",
+      "sha256": "797558526D2D80ED2CE0D7F1E9BD7E4423378ACDEBF42CB5BEB5CE8630C1BB27"
+    },
+    {
+      "path": "evidence/focus-0133-formal-r2.exit",
+      "bytes": 1,
+      "crc32": "F4DBDF21",
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "evidence/focus-0133-formal-r2.junit.xml",
+      "bytes": 708,
+      "crc32": "0DAFE8D1",
+      "sha256": "A60949BC2E08E0D45A02B24B846F039351A996709DAE295E002746F68FE71D7A"
+    },
+    {
+      "path": "evidence/focus-0133-formal-r2.log",
+      "bytes": 1494,
+      "crc32": "B0790826",
+      "sha256": "89318D925A1CD61289B12EF668BA0CC7050AA40240001E79D640BDB3F9F2498C"
+    },
+    {
+      "path": "evidence/focus-candidate-run1-environment.json",
+      "bytes": 2266,
+      "crc32": "A13B753D",
+      "sha256": "4E61D148F2B0B35F615C786CD5BC4D7473965546059CAA33270361CA2A36315F"
+    },
+    {
+      "path": "evidence/focus-candidate-run1-sdk-guard.jsonl",
+      "bytes": 538,
+      "crc32": "1B30EB0A",
+      "sha256": "5091A2311BB2CE05A03D29103DD6AE06CF135EA105D37C356420B7BA896C7EF3"
+    },
+    {
+      "path": "evidence/focus-candidate-run1.exit",
+      "bytes": 1,
+      "crc32": "83DCEFB7",
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+    },
+    {
+      "path": "evidence/focus-candidate-run1.junit.xml",
+      "bytes": 242719,
+      "crc32": "5207CBCF",
+      "sha256": "D47BDC6119309BD6F14070240D2026D78A40A83D787886D72877922131BA2926"
+    },
+    {
+      "path": "evidence/focus-candidate-run1.log",
+      "bytes": 178415,
+      "crc32": "B6A1C221",
+      "sha256": "32A4203CC467684B829E535C6CD45D559DD9A54842E4EEC34112DAC0D99E4C66"
+    },
+    {
+      "path": "evidence/integration-report.json",
+      "bytes": 124109,
+      "crc32": "AB5D491B",
+      "sha256": "F647304F5E6C385E3D602F3FF87FA0F5980646C9ACF7D7284AC11EEDA15E2863"
+    },
+    {
+      "path": "evidence/README.md",
+      "bytes": 4635,
+      "crc32": "14334A76",
+      "sha256": "6A53902103DA5A0F00A4EBCA4367215E0718A19417616AC995F7547740DCE91E"
+    },
+    {
+      "path": "evidence/stores-runtime-baseline-run1-environment.json",
+      "bytes": 3154,
+      "crc32": "5B8261A1",
+      "sha256": "E1687470E21AF198FAF24107EDC4835FFD4CA50AD85589E652E192442CE94978"
+    },
+    {
+      "path": "evidence/stores-runtime-baseline-run1-sdk-guard.jsonl",
+      "bytes": 68100,
+      "crc32": "11EFBF71",
+      "sha256": "492A95875E761DD242B6026D645071417F7A8CAC1F152D655E55CF5A87C41296"
+    },
+    {
+      "path": "evidence/stores-runtime-baseline-run1.exit",
+      "bytes": 1,
+      "crc32": "83DCEFB7",
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+    },
+    {
+      "path": "evidence/stores-runtime-baseline-run1.junit.xml",
+      "bytes": 523652,
+      "crc32": "9D41FA74",
+      "sha256": "37ECABCA872CB4B8A741F0EA4310E45295EA9D3052F06001AEF6663DFF61422C"
+    },
+    {
+      "path": "evidence/stores-runtime-baseline-run1.log",
+      "bytes": 81155,
+      "crc32": "1AA4B2B6",
+      "sha256": "279675C6CAD1CDCC41FAB29D8BE72CCCCB5270359C45150DA5EF1C99FB073E69"
+    },
+    {
+      "path": "evidence/stores-runtime-candidate-run1-environment.json",
+      "bytes": 3011,
+      "crc32": "AA62F63B",
+      "sha256": "4FE92F07CB092E3B55103FE498C4FC7332DA359BDE5622DFB07C9FB25436CE43"
+    },
+    {
+      "path": "evidence/stores-runtime-candidate-run1-sdk-guard.jsonl",
+      "bytes": 58702,
+      "crc32": "67ADECF7",
+      "sha256": "A42BE1ECEACDC7D67D87F4209C8EA3FB3A128DC7277A1871D869A974A63442C2"
+    },
+    {
+      "path": "evidence/stores-runtime-candidate-run1.exit",
+      "bytes": 1,
+      "crc32": "83DCEFB7",
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+    },
+    {
+      "path": "evidence/stores-runtime-candidate-run1.junit.xml",
+      "bytes": 701910,
+      "crc32": "EAEA0B77",
+      "sha256": "F8D6B2D9400B0132B6F48C0563EE79193CE6B9723CDE83DEF8084C1750027489"
+    },
+    {
+      "path": "evidence/stores-runtime-candidate-run1.log",
+      "bytes": 221566,
+      "crc32": "3616D397",
+      "sha256": "F35C38155A4C9C36D757FCCAAAD5D6D4711A0BAE5D94822A0224FB353A7FCBC4"
+    },
+    {
+      "path": "inputs/01-r2b-main-base.patch",
+      "bytes": 120107,
+      "crc32": "D91CE17B",
+      "sha256": "1A16AADB94EDB99924553D6472BF72DCB02BD04C7F994276816D91991A729F37"
+    },
+    {
+      "path": "inputs/02-r2c-store-safety.patch",
+      "bytes": 42755,
+      "crc32": "0734021B",
+      "sha256": "4EEAB367C80D1D4B5545892DB56376DCB170557DD3098BC4787A5AC5BD8B14FC"
+    },
+    {
+      "path": "inputs/03-route-test-migration-r2.patch",
+      "bytes": 6309,
+      "crc32": "A444F2DC",
+      "sha256": "38A7615F760803D140DAB3546355CF20733D3B6A2410E210D456114EF1F2096A"
+    },
+    {
+      "path": "inputs/04-query-evidence-test-seam-r2.patch",
+      "bytes": 5058,
+      "crc32": "9FAECB44",
+      "sha256": "6AAB9A66A328A545A5E724BADCC03C31C606F84E985F4EF5F8A8E754151F88A7"
+    },
+    {
+      "path": "inputs/05-0133-local-replay-r2.patch",
+      "bytes": 15950,
+      "crc32": "587EC7B5",
+      "sha256": "B8DD2AE3B0BD108B4445E9D7B261515F0062DB678D6792364F4E22EF32034473"
+    },
+    {
+      "path": "BASE-COPY-MANIFEST.json",
+      "bytes": 1201924,
+      "crc32": "EFDAF314",
+      "sha256": "2741DF7A063A827CD595BC6D5DBE43AB38D099EBE803B96DE59315896BAFBE4C"
+    },
+    {
+      "path": "BASE-COPY-MANIFEST-baseline.json",
+      "bytes": 1201924,
+      "crc32": "EFDAF314",
+      "sha256": "2741DF7A063A827CD595BC6D5DBE43AB38D099EBE803B96DE59315896BAFBE4C"
+    },
+    {
+      "path": "guarded_pytest.py",
+      "bytes": 2619,
+      "crc32": "F3263253",
+      "sha256": "BB9F30E887FC1AF055923FA1A751481864F2A2AC2BE0810C74A45A3BA83FDBB8"
+    },
+    {
+      "path": "logs/01-replay.log",
+      "bytes": 445,
+      "crc32": "74609A5C",
+      "sha256": "947BE0E8119F4EE09278E806ADF9AC151508C8BE84876016A1EF487928550586"
+    },
+    {
+      "path": "logs/02-replay.log",
+      "bytes": 793,
+      "crc32": "9977872A",
+      "sha256": "6E3A37399408B9F41094557A0A33E111CB2A9E61CA7BC740AD376D4EF16B95D9"
+    },
+    {
+      "path": "logs/guard-smoke.jsonl",
+      "bytes": 1261,
+      "crc32": "1C372417",
+      "sha256": "D3767718EC3E5F4F2634B3A3FA94F448A1677A83923BB8017C7D52E07004111E"
+    },
+    {
+      "path": "guard/sitecustomize.py",
+      "bytes": 1771,
+      "crc32": "37728CB6",
+      "sha256": "8B5E7A1C4AAA0FAE1E56A885E2338750286F0E7BA30BD5B5A46692A3A893BDC1"
+    }
+  ]
+}

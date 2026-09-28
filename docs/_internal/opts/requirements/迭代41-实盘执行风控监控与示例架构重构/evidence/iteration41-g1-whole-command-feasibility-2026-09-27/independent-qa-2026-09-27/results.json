@@ -1,0 +1,122 @@
+{
+  "status": "FEASIBILITY_ONLY; G1 CLOSED",
+  "platform": "win32",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "qpc_frequency": 10000000,
+  "trials": [
+    {
+      "mode": "api_wait",
+      "budget_ms": 700,
+      "controller_pid": 43200,
+      "qpc_frequency": 10000000,
+      "t0_qpc": 2373954998955,
+      "deadline_qpc": 2373961998955,
+      "events": {
+        "entered": "Local\\g1deadline_80e573f4adc942abaca3a0c7d80dbe13_entered",
+        "wrapper": "Local\\g1deadline_80e573f4adc942abaca3a0c7d80dbe13_wrapper",
+        "returned": "Local\\g1deadline_80e573f4adc942abaca3a0c7d80dbe13_returned",
+        "gate": "Local\\g1deadline_80e573f4adc942abaca3a0c7d80dbe13_gate"
+      },
+      "worker_result_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-g1-independent-qa-20260927\\api_wait-worker-return.json",
+      "worker_pid": 14236,
+      "resume_previous_suspend_count": 1,
+      "first_marker_wait_result": 0,
+      "first_marker": "api_call_begin",
+      "marker_seen_by_deadline": true,
+      "process_wait_at_deadline": 258,
+      "api_return_marker_before_cleanup": false,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "job_process_ids_at_deadline": {
+        "assigned": 2,
+        "returned": 2,
+        "pids": [
+          14236,
+          24968
+        ],
+        "images": [
+          {
+            "pid": 14236,
+            "image": "C:\\anaconda3\\python.exe"
+          },
+          {
+            "pid": 24968,
+            "image": "C:\\Windows\\System32\\conhost.exe"
+          }
+        ]
+      },
+      "caller_result": "UNKNOWN",
+      "bounded_function_return_qpc": 2373962024911,
+      "bounded_function_return_delta_ms": 702.5956,
+      "post_deadline_terminate_job_bool": true,
+      "post_deadline_terminate_job_error": 0,
+      "post_deadline_process_wait": 0,
+      "post_deadline_job_active": 0,
+      "post_deadline_job_process_ids": {
+        "assigned": 0,
+        "returned": 0,
+        "pids": [],
+        "images": []
+      },
+      "worker_exit_code": 91,
+      "post_deadline_cleanup_delta_ms": 8.6794
+    },
+    {
+      "mode": "wrapper_sleep",
+      "budget_ms": 700,
+      "controller_pid": 43200,
+      "qpc_frequency": 10000000,
+      "t0_qpc": 2373962113168,
+      "deadline_qpc": 2373969113168,
+      "events": {
+        "entered": "Local\\g1deadline_3c9ea6543d824679ac952aa336999500_entered",
+        "wrapper": "Local\\g1deadline_3c9ea6543d824679ac952aa336999500_wrapper",
+        "returned": "Local\\g1deadline_3c9ea6543d824679ac952aa336999500_returned",
+        "gate": "Local\\g1deadline_3c9ea6543d824679ac952aa336999500_gate"
+      },
+      "worker_result_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-g1-independent-qa-20260927\\wrapper_sleep-worker-return.json",
+      "worker_pid": 40700,
+      "resume_previous_suspend_count": 1,
+      "first_marker_wait_result": 0,
+      "first_marker": "wrapper_sleep_begin",
+      "marker_seen_by_deadline": true,
+      "process_wait_at_deadline": 258,
+      "api_return_marker_before_cleanup": false,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "job_process_ids_at_deadline": {
+        "assigned": 2,
+        "returned": 2,
+        "pids": [
+          40700,
+          43128
+        ],
+        "images": [
+          {
+            "pid": 40700,
+            "image": "C:\\anaconda3\\python.exe"
+          },
+          {
+            "pid": 43128,
+            "image": "C:\\Windows\\System32\\conhost.exe"
+          }
+        ]
+      },
+      "caller_result": "UNKNOWN",
+      "bounded_function_return_qpc": 2373969136967,
+      "bounded_function_return_delta_ms": 702.3799,
+      "post_deadline_terminate_job_bool": true,
+      "post_deadline_terminate_job_error": 0,
+      "post_deadline_process_wait": 0,
+      "post_deadline_job_active": 0,
+      "post_deadline_job_process_ids": {
+        "assigned": 0,
+        "returned": 0,
+        "pids": [],
+        "images": []
+      },
+      "worker_exit_code": 91,
+      "post_deadline_cleanup_delta_ms": 4.9226
+    }
+  ]
+}

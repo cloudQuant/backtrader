@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+"""CCI Indicator Module - Commodity Channel Index.
+
+This module provides the CCI (Commodity Channel Index) indicator
+introduced by Donald Lambert in 1980 for identifying cyclical trends.
+
+Classes:
+    CommodityChannelIndex: CCI indicator (alias: CCI).
+
+Example:
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.cci = bt.indicators.CCI(self.data, period=20)
+
+        def next(self):
+            if self.cci[0] > 100:
+                self.sell()
+            elif self.cci[0] < -100:
+                self.buy()
+"""
+
+from . import DivByZero, Indicator, MeanDev, MovAv
+
+
+class CommodityChannelIndex(Indicator):
+    """
+    Introduced by Donald Lambert in 1980 to measure variations of the
+    "typical price" (see below) from its mean to identify extremes and
+    reversals
+
+    Formula:
+      - tp = typical_price = (high + low + close) / 3
+      - tpmean = MovingAverage(tp, period)
+      - deviation = tp - tpmean
+      - meandev = MeanDeviation(tp)
+      - cci = deviation / (meandeviation * factor)
+
+    See:
+      - https://en.wikipedia.org/wiki/Commodity_channel_index
+    """
+
+    alias = ("CCI",)
+
+    lines = ("cci",)
+
+    params = (
+        ("period", 20),
+        ("factor", 0.015),
+        ("movav", MovAv.Simple),
+        ("upperband", 100.0),
+        ("lowerband", -100.0),
+    )
+
+    def _plotlabel(self):
+        plabels = [self.p.period, self.p.factor]
+        plabels += [self.p.movav] * self.p.notdefault("movav")
+        return plabels
+
+    def _plotinit(self):
+        self.plotinfo.plotyhlines = [0.0, self.p.upperband, self.p.lowerband]
+
+    def __init__(self):
+        """Initialize the CCI indicator calculation.
+
+        Calculates:
+        1. Typical price: (high + low + close) / 3
+        2. Moving average of typical price
+        3. Deviation from the mean
+        4. Mean deviation
+        5. CCI = deviation / (factor * mean deviation)
+        """
+        # CRITICAL: Use line objects to match master branch behavior
+        # tp = typical price
+        tp = (self.data.high + self.data.low + self.data.close) / 3.0
+
+        # tpmean = SMA of tp
+        tpmean = self.p.movav(tp, period=self.p.period)
+
+        # dev = tp - tpmean
+        dev = tp - tpmean
+
+        # meandev = MeanDev using tp and tpmean as two data sources
+        # This matches master branch's behavior: SMA(|tp - tpmean|) where tpmean varies
+        meandev = MeanDev(tp, tpmean, period=self.p.period)
+
+        # A zero mean deviation makes CCI mathematically undefined. Preserve that
+        # state while avoiding a division-by-zero exception, rather than treating
+        # it as the neutral (and signal-bearing) value 0.0.
+        self.lines.cci = DivByZero(dev, self.p.factor * meandev, zero=float("nan"))

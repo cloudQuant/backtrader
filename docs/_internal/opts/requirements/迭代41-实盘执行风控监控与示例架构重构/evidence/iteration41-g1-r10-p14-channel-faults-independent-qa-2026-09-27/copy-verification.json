@@ -1,0 +1,320 @@
+{
+  "schema": "iteration41.g1_r10_p14_independent_qa_copy_verification.v1",
+  "source_packet_manifest_sha256": "f5ccb8d929e4e725cf716c3270c3c417807a5b324e4b021091f7af2807d4815c",
+  "copied_entries": 39,
+  "mismatches": 0,
+  "files": [
+    {
+      "path": "frozen-input/freeze-r1/channel-close-wrapper.marker",
+      "expected_sha256": "7506a29cb6f142271183d2bac3cf0a8aa5976378e9ac1a13010dff4549ec585d",
+      "actual_sha256": "7506a29cb6f142271183d2bac3cf0a8aa5976378e9ac1a13010dff4549ec585d",
+      "expected_size": 35,
+      "actual_size": 35,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/evidence.zip",
+      "expected_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd",
+      "actual_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd",
+      "expected_size": 122358,
+      "actual_size": 122358,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/evidence.zip.sha256",
+      "expected_sha256": "6c5159c00f236828a3403410692d4c955f0ad34e8d7a7ac9c7141afa6529ac7e",
+      "actual_sha256": "6c5159c00f236828a3403410692d4c955f0ad34e8d7a7ac9c7141afa6529ac7e",
+      "expected_size": 80,
+      "actual_size": 80,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/manifest.json",
+      "expected_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5",
+      "actual_sha256": "8eb904c372046b233c474dc5c9825ebbe82c95cfb3ece4277aa6eaffdc4994c5",
+      "expected_size": 2608,
+      "actual_size": 2608,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/manifest.sha256",
+      "expected_sha256": "cf1869b3091d9cbc813640f596b2b5fff3eccbf8f1d543a2919bd184af1a076c",
+      "actual_sha256": "cf1869b3091d9cbc813640f596b2b5fff3eccbf8f1d543a2919bd184af1a076c",
+      "expected_size": 81,
+      "actual_size": 81,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/p14_channel_faults_reprobe.exit.txt",
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "actual_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "expected_size": 1,
+      "actual_size": 1,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/p14_channel_faults_reprobe.json",
+      "expected_sha256": "a57ef5be0e0d732685b972f462a449438c22fbbba50fe4a3245a281eaa6e01a4",
+      "actual_sha256": "a57ef5be0e0d732685b972f462a449438c22fbbba50fe4a3245a281eaa6e01a4",
+      "expected_size": 4820,
+      "actual_size": 4820,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/p14_channel_faults_reprobe.py",
+      "expected_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577",
+      "actual_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577",
+      "expected_size": 10297,
+      "actual_size": 10297,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/p14_channel_faults_reprobe.stdout.txt",
+      "expected_sha256": "68c9d1dc3193e13562418630f4d9b203c41739b593ccea2e5d2b9a972a67b98f",
+      "actual_sha256": "68c9d1dc3193e13562418630f4d9b203c41739b593ccea2e5d2b9a972a67b98f",
+      "expected_size": 4920,
+      "actual_size": 4920,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/receipt.md",
+      "expected_sha256": "47f62bebf2148b9a58cc870c05ab02a0606dd56812b2dee0723a0bfee0974675",
+      "actual_sha256": "47f62bebf2148b9a58cc870c05ab02a0606dd56812b2dee0723a0bfee0974675",
+      "expected_size": 4161,
+      "actual_size": 4161,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/source/r10_custodian.cpp",
+      "expected_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "actual_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "expected_size": 46073,
+      "actual_size": 46073,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/source/r10_r1_manifest.json",
+      "expected_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "actual_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "expected_size": 4416,
+      "actual_size": 4416,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/source/r10_r1_manifest.sha256",
+      "expected_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "actual_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "expected_size": 88,
+      "actual_size": 88,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/source/run_r10_r1_trials.py",
+      "expected_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "actual_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "expected_size": 15186,
+      "actual_size": 15186,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/source/run_r10_trials_r10_frozen.py",
+      "expected_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "actual_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "expected_size": 27823,
+      "actual_size": 27823,
+      "ok": true
+    },
+    {
+      "path": "frozen-input/freeze-r1/terminate-wrapper.marker",
+      "expected_sha256": "d8feb4a49da3420f44e6436b393674f58579c9b92c7424fe88ad15f49764b100",
+      "actual_sha256": "d8feb4a49da3420f44e6436b393674f58579c9b92c7424fe88ad15f49764b100",
+      "expected_size": 35,
+      "actual_size": 35,
+      "ok": true
+    },
+    {
+      "path": "independent-qa.raw.zip",
+      "expected_sha256": "bde42010ec9a3026b318ba9f8d151574f0e0b12bd52c703bcf3d09b2428a9011",
+      "actual_sha256": "bde42010ec9a3026b318ba9f8d151574f0e0b12bd52c703bcf3d09b2428a9011",
+      "expected_size": 107993,
+      "actual_size": 107993,
+      "ok": true
+    },
+    {
+      "path": "independent-run/assignment-preflight.exit.txt",
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "actual_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "expected_size": 1,
+      "actual_size": 1,
+      "ok": true
+    },
+    {
+      "path": "independent-run/assignment-preflight.py",
+      "expected_sha256": "5d7bbfaf83dd8bc0a7deed5ec6ac256a50f3b4957ee4fc81523a1b8ad1b30370",
+      "actual_sha256": "5d7bbfaf83dd8bc0a7deed5ec6ac256a50f3b4957ee4fc81523a1b8ad1b30370",
+      "expected_size": 2138,
+      "actual_size": 2138,
+      "ok": true
+    },
+    {
+      "path": "independent-run/assignment-preflight.stderr.txt",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_size": 0,
+      "actual_size": 0,
+      "ok": true
+    },
+    {
+      "path": "independent-run/assignment-preflight.stdout.txt",
+      "expected_sha256": "039242ca29ba7dc24ecc6bf7a46eb79439b8914415d044ebc8c235bf8a536987",
+      "actual_sha256": "039242ca29ba7dc24ecc6bf7a46eb79439b8914415d044ebc8c235bf8a536987",
+      "expected_size": 167,
+      "actual_size": 167,
+      "ok": true
+    },
+    {
+      "path": "independent-run/channel-close-wrapper.marker",
+      "expected_sha256": "8a13231a7fe555aa05658e842a8c20844ff99505f92f21af9c302fa32a031e9c",
+      "actual_sha256": "8a13231a7fe555aa05658e842a8c20844ff99505f92f21af9c302fa32a031e9c",
+      "expected_size": 35,
+      "actual_size": 35,
+      "ok": true
+    },
+    {
+      "path": "independent-run/frozen-zip-verification.exit.txt",
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "actual_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "expected_size": 1,
+      "actual_size": 1,
+      "ok": true
+    },
+    {
+      "path": "independent-run/frozen-zip-verification.stderr.txt",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_size": 0,
+      "actual_size": 0,
+      "ok": true
+    },
+    {
+      "path": "independent-run/frozen-zip-verification.stdout.txt",
+      "expected_sha256": "bc4092f93fa6becfce3774f3f25432f571d05361dcdb8cd89572b60f807d1ea6",
+      "actual_sha256": "bc4092f93fa6becfce3774f3f25432f571d05361dcdb8cd89572b60f807d1ea6",
+      "expected_size": 309,
+      "actual_size": 309,
+      "ok": true
+    },
+    {
+      "path": "independent-run/frozen-zip-verify.py",
+      "expected_sha256": "81d67458ddeb5c09f513cfb5fcba4c7eecd6e97a25703286ddefed5d4d34821c",
+      "actual_sha256": "81d67458ddeb5c09f513cfb5fcba4c7eecd6e97a25703286ddefed5d4d34821c",
+      "expected_size": 1558,
+      "actual_size": 1558,
+      "ok": true
+    },
+    {
+      "path": "independent-run/independent.exit.txt",
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "actual_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "expected_size": 1,
+      "actual_size": 1,
+      "ok": true
+    },
+    {
+      "path": "independent-run/independent.stderr.txt",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected_size": 0,
+      "actual_size": 0,
+      "ok": true
+    },
+    {
+      "path": "independent-run/independent.stdout.txt",
+      "expected_sha256": "3539be36664390bfe4ccf22663e0ab6269a1d29634f7472440c931bed5ebc20e",
+      "actual_sha256": "3539be36664390bfe4ccf22663e0ab6269a1d29634f7472440c931bed5ebc20e",
+      "expected_size": 4936,
+      "actual_size": 4936,
+      "ok": true
+    },
+    {
+      "path": "independent-run/p14_channel_faults_reprobe.json",
+      "expected_sha256": "ecddc864d0cbb0eca15f4a6690fd1a4fe5c098cfee7edf6ef8db2376e42ba5ce",
+      "actual_sha256": "ecddc864d0cbb0eca15f4a6690fd1a4fe5c098cfee7edf6ef8db2376e42ba5ce",
+      "expected_size": 4821,
+      "actual_size": 4821,
+      "ok": true
+    },
+    {
+      "path": "independent-run/p14_channel_faults_reprobe.py",
+      "expected_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577",
+      "actual_sha256": "00fa8322a2f2804e008c6799d9923a74aeb19976f0c61f30cf7fdcad4acbd577",
+      "expected_size": 10297,
+      "actual_size": 10297,
+      "ok": true
+    },
+    {
+      "path": "independent-run/source/r10_custodian.cpp",
+      "expected_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "actual_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+      "expected_size": 46073,
+      "actual_size": 46073,
+      "ok": true
+    },
+    {
+      "path": "independent-run/source/r10_r1_manifest.json",
+      "expected_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "actual_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+      "expected_size": 4416,
+      "actual_size": 4416,
+      "ok": true
+    },
+    {
+      "path": "independent-run/source/r10_r1_manifest.sha256",
+      "expected_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "actual_sha256": "c4f3c287b426d899773c61a794b2bf26e6c194a566bae767957691863e0291a5",
+      "expected_size": 88,
+      "actual_size": 88,
+      "ok": true
+    },
+    {
+      "path": "independent-run/source/run_r10_r1_trials.py",
+      "expected_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "actual_sha256": "5360b235b7d0046696512e9840ee9a5c1695716328f508fcfc88e08a906cb9ee",
+      "expected_size": 15186,
+      "actual_size": 15186,
+      "ok": true
+    },
+    {
+      "path": "independent-run/source/run_r10_trials_r10_frozen.py",
+      "expected_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "actual_sha256": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+      "expected_size": 27823,
+      "actual_size": 27823,
+      "ok": true
+    },
+    {
+      "path": "independent-run/terminate-wrapper.marker",
+      "expected_sha256": "38266b4a3952a8da94707149be176f3b1e9d63a9871b444793d6b8f6194c4354",
+      "actual_sha256": "38266b4a3952a8da94707149be176f3b1e9d63a9871b444793d6b8f6194c4354",
+      "expected_size": 35,
+      "actual_size": 35,
+      "ok": true
+    },
+    {
+      "path": "make-packet-zip.py",
+      "expected_sha256": "b5f65ee08846ff9986fe7741db771d4b47af9bae456e01ed09447a4487f752bd",
+      "actual_sha256": "b5f65ee08846ff9986fe7741db771d4b47af9bae456e01ed09447a4487f752bd",
+      "expected_size": 363,
+      "actual_size": 363,
+      "ok": true
+    },
+    {
+      "path": "REPORT.md",
+      "expected_sha256": "b3a510f78702c62f93cc538771c484929f1d7551e6428cedf99a2090ecf37b12",
+      "actual_sha256": "b3a510f78702c62f93cc538771c484929f1d7551e6428cedf99a2090ecf37b12",
+      "expected_size": 4124,
+      "actual_size": 4124,
+      "ok": true
+    }
+  ]
+}

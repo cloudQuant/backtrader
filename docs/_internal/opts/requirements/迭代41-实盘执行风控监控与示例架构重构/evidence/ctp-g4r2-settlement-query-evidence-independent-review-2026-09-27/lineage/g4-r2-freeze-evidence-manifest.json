@@ -1,0 +1,215 @@
+{
+  "schema": "iteration41.g4.r2.disposable_probe_evidence_manifest.v1",
+  "classification": "fake-only disposable wheel probe; G4 remains closed",
+  "probe_root": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927",
+  "source_manifest": "source-manifest.json",
+  "wheel_repro_manifest": "wheel-repro-manifest.json",
+  "wheel_record_validation": "wheel-record-validation.json",
+  "installed_consumer_result": "consumer-fake-result.json",
+  "installed_audit": "installed-audit.json",
+  "pip_check": "pip-check.txt",
+  "files": [
+    {
+      "path": "audit-installed.py",
+      "size": 3990,
+      "sha256": "f40ce105c790b5069c672919069c70b15eebde8f39256a01f5c5d504b82ad8b1"
+    },
+    {
+      "path": "build-a-status.txt",
+      "size": 264,
+      "sha256": "4d23b0cf338a16ff644f1d078137af39cde1964f0ca9dafda579e4a37273f45e"
+    },
+    {
+      "path": "build-a.cmd",
+      "size": 2133,
+      "sha256": "032826e1ef84dd38307c67da600fe0eb21e81b0f881aa4a1ab24684794a7cdc6"
+    },
+    {
+      "path": "build-a.log",
+      "size": 794,
+      "sha256": "c30d01012aebf23f2f3a3cf75cfdcf0a215cc8d8f67e44f6cab5ef7951eeaf2d"
+    },
+    {
+      "path": "build-b-status.txt",
+      "size": 264,
+      "sha256": "0e7adf59728a406d3926dc2720d38efa64fddbfd7511594eb37b850abfd8a965"
+    },
+    {
+      "path": "build-b.cmd",
+      "size": 2133,
+      "sha256": "a1ef6be53d610e51d3c27de3bae5d7cbf63b9b792a5acc130356c82afc3fe2bd"
+    },
+    {
+      "path": "build-b.log",
+      "size": 794,
+      "sha256": "7f97bfe4b440b6df0eee12b0bd4f85024c32a5d898addd3c792569563de079b7"
+    },
+    {
+      "path": "build-object-audit.json",
+      "size": 2718,
+      "sha256": "866be71cf393e58047f9f3012134f028e4b21cf4a9d6fe4f0c884cc2b64be947"
+    },
+    {
+      "path": "build-toolchain.json",
+      "size": 1624,
+      "sha256": "901661c2bc26b62c6a13e014683b2b707ecc12430e214c601c423fa786afeaa3"
+    },
+    {
+      "path": "cl-version.log",
+      "size": 1294,
+      "sha256": "5e86d0e310fb5b89b433b98b5b771f442fa1d49024854638e02954342bde3125"
+    },
+    {
+      "path": "commands-and-environment.txt",
+      "size": 2299,
+      "sha256": "5e38325c8dbaee7af1f9364000154a4fc079a2767a9922c06ed625a3b114d1cd"
+    },
+    {
+      "path": "consumer-fake-junit.xml",
+      "size": 9494,
+      "sha256": "6ebf94cf77b303c45e8d9d4cfbeacb9d6d089a5ff4bf8f86038979ec66ef6e95"
+    },
+    {
+      "path": "consumer-fake-result.json",
+      "size": 1398,
+      "sha256": "ff6ecac5c4eb7768d06c3c039a081b00d6a381abadeed570b8a7d3dfad98bcb1"
+    },
+    {
+      "path": "consumer-fake-tests.log",
+      "size": 2752,
+      "sha256": "0c2debdeac3e2a0a7572fd9602a1a7c96da2cc4bcb1d771f1a81b5dcffcd4757"
+    },
+    {
+      "path": "consumer-input-wheel-hashes.json",
+      "size": 12195,
+      "sha256": "4a0c8654505812ab4109d1257c93cb4a8c22a58bc4799d56505c2c9b3061a9d8"
+    },
+    {
+      "path": "consumer-install.log",
+      "size": 8301,
+      "sha256": "a5b072e676c7aaf3f1d1e7819f95074c268943eb80e36169b95d9b76bcd16f4a"
+    },
+    {
+      "path": "existing-wheel-identities.json",
+      "size": 14676,
+      "sha256": "85c3ea847e9e1b1e1c2145bb10a6bc74d3c20214044c4ec03260d20217de0e07"
+    },
+    {
+      "path": "installed-audit.json",
+      "size": 7796,
+      "sha256": "c1c8e8cc3ed5c19b1fe9049ff8865fba5dfca793e7610971b4449250a96d0b4e"
+    },
+    {
+      "path": "installed-audit.log",
+      "size": 8434,
+      "sha256": "52071d1ae11caeb655a367ec8384ddd440a5ebbedd01523b06a0600f78b496d5"
+    },
+    {
+      "path": "installed-packages.json",
+      "size": 2216,
+      "sha256": "37595d91292daf4bcbeff177b01b0c1a00f1444ff4e23c8d32a238d4cfcf0725"
+    },
+    {
+      "path": "native-guard/sitecustomize.py",
+      "size": 686,
+      "sha256": "f4a604e7faf93b837891fdf67cc15f97319c04f1710b9608ff05f49ba0dda998"
+    },
+    {
+      "path": "native-import-guard-tests.log",
+      "size": 104,
+      "sha256": "6463ce66b8fa48627afdd01a3013a6109690e7436cd173f44e6c7ea021989508"
+    },
+    {
+      "path": "native-import-guard.log",
+      "size": 104,
+      "sha256": "6463ce66b8fa48627afdd01a3013a6109690e7436cd173f44e6c7ea021989508"
+    },
+    {
+      "path": "pip-check-exit.txt",
+      "size": 13,
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "path": "pip-check.txt",
+      "size": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    {
+      "path": "README.md",
+      "size": 2318,
+      "sha256": "96eeb81ebce64b5512a43572d9847b9f8f8572854f21c499add98a65fc0c18a7"
+    },
+    {
+      "path": "run-installed-fake-tests.py",
+      "size": 2475,
+      "sha256": "01fca8f33f911acd4dea080453c76cd596c2d91086e9803c83495af38d98d4d5"
+    },
+    {
+      "path": "source-input-hashes.json",
+      "size": 3175,
+      "sha256": "4acbc789c1b05ce3b425bc4a209a9581004cfac898c2bc9a5c93be5e3a18bcbf"
+    },
+    {
+      "path": "source-manifest.json",
+      "size": 1908,
+      "sha256": "10aa5dae8464dcccff6ac831ff7e6e63106efef6adcae81c00eac38618d45b9a"
+    },
+    {
+      "path": "tool-paths-a.txt",
+      "size": 642,
+      "sha256": "ba1251a36b8857334ed3f42ed1910579c277fdb94f741331113a79bb3cdf6e8d"
+    },
+    {
+      "path": "tool-paths-b.txt",
+      "size": 642,
+      "sha256": "ba1251a36b8857334ed3f42ed1910579c277fdb94f741331113a79bb3cdf6e8d"
+    },
+    {
+      "path": "toolchain-facts.txt",
+      "size": 834,
+      "sha256": "5b6351d6ddfc8f92fc9357ebb2937dbe24f90040c8a3063dd1b4446f8ac55768"
+    },
+    {
+      "path": "toolchain-probe.cmd",
+      "size": 1419,
+      "sha256": "2e311d94fcd3472d55b0b0b1cc9ddd284dd0ac6d493f8f30c3e09e2f171fcebc"
+    },
+    {
+      "path": "toolchain-vcvarsall.log",
+      "size": 302,
+      "sha256": "613217881e4c11e2191c40bb5856e089d6b62121b2edae6ea7e678db5ff015c6"
+    },
+    {
+      "path": "vcvarsall-a.log",
+      "size": 302,
+      "sha256": "613217881e4c11e2191c40bb5856e089d6b62121b2edae6ea7e678db5ff015c6"
+    },
+    {
+      "path": "vcvarsall-b.log",
+      "size": 302,
+      "sha256": "613217881e4c11e2191c40bb5856e089d6b62121b2edae6ea7e678db5ff015c6"
+    },
+    {
+      "path": "wheel-record-validation.json",
+      "size": 1128,
+      "sha256": "7df6984c090fd9430964aa34b43c57fefbfdcfdfd862bb07ba68a59ffebfde6c"
+    },
+    {
+      "path": "wheel-repro-manifest.json",
+      "size": 36907,
+      "sha256": "5b9925582e5cf25a80e50e60e9731de38ef11a83bf4b230c446654dca4d40333"
+    }
+  ],
+  "wheels": [
+    {
+      "path": "wheel-a\\bt_api_ctp-2.0.4+g4r2.probe.20260927-cp311-cp311-win_amd64.whl",
+      "size": 5433813,
+      "sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384"
+    },
+    {
+      "path": "wheel-b\\bt_api_ctp-2.0.4+g4r2.probe.20260927-cp311-cp311-win_amd64.whl",
+      "size": 5433813,
+      "sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384"
+    }
+  ]
+}

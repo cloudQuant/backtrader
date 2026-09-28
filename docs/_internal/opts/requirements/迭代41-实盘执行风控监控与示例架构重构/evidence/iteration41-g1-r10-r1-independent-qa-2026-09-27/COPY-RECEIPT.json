@@ -1,0 +1,55 @@
+{
+  "kind": "G1 R10-r1 independent QA archive copy receipt",
+  "status": "COPIED_AND_HASH_VERIFIED; G1 CLOSED",
+  "source_directory": "D:\\temp\\iteration41-g1-r10-r1-independent-qa-20260927\\frozen-independent-qa",
+  "destination_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-g1-r10-r1-independent-qa-2026-09-27",
+  "source_manifest_sha256": "460fe775cb79d0801d1e83e9863d497c56cbb0cfd54e4298c709481b3dfb6de4",
+  "source_zip_sha256": "f064f7bd214e03b31be896a701baba46a61ffa72be2ee8000f70600dc726f752",
+  "copied_files": [
+    {
+      "file": "independent-qa-evidence.zip",
+      "size_bytes": 860802,
+      "source_sha256": "f064f7bd214e03b31be896a701baba46a61ffa72be2ee8000f70600dc726f752",
+      "destination_sha256": "f064f7bd214e03b31be896a701baba46a61ffa72be2ee8000f70600dc726f752"
+    },
+    {
+      "file": "independent-qa-manifest.json",
+      "size_bytes": 4326,
+      "source_sha256": "460fe775cb79d0801d1e83e9863d497c56cbb0cfd54e4298c709481b3dfb6de4",
+      "destination_sha256": "460fe775cb79d0801d1e83e9863d497c56cbb0cfd54e4298c709481b3dfb6de4"
+    },
+    {
+      "file": "independent-qa-manifest.sha256",
+      "size_bytes": 96,
+      "source_sha256": "51c34e77d1fd94fb258778efef3a591f58ca9ab2d21401c561b6684e947a5afa",
+      "destination_sha256": "51c34e77d1fd94fb258778efef3a591f58ca9ab2d21401c561b6684e947a5afa"
+    },
+    {
+      "file": "independent-qa-evidence-index.json",
+      "size_bytes": 4117,
+      "source_sha256": "8e83647e8049adad6d8e7b89f31d2f03d1cd9511b0ee08a66ba9606c518e382f",
+      "destination_sha256": "8e83647e8049adad6d8e7b89f31d2f03d1cd9511b0ee08a66ba9606c518e382f"
+    },
+    {
+      "file": "independent-qa-evidence-index.sha256",
+      "size_bytes": 102,
+      "source_sha256": "e4ff84097916612b195bd49e3985318cf28d89981ff9a281fe590d9dfe99642d",
+      "destination_sha256": "e4ff84097916612b195bd49e3985318cf28d89981ff9a281fe590d9dfe99642d"
+    },
+    {
+      "file": "independent-qa-receipt.md",
+      "size_bytes": 5659,
+      "source_sha256": "f2001aa10b9fd4d86669879a03e564dadf0204ad0dfef0c5312cd60848b4f1af",
+      "destination_sha256": "f2001aa10b9fd4d86669879a03e564dadf0204ad0dfef0c5312cd60848b4f1af"
+    }
+  ],
+  "destination_zip_testzip": "PASS",
+  "readme": {
+    "path": "README.md",
+    "sha256_after_link_insertion": "d03f522240c790040759b6293d2a407d916dfa04771bf451040030a8e979ada3"
+  },
+  "limitations": [
+    "Inert Windows harness only; no provider, CTP/native SDK, account, credentials, private config, or network.",
+    "G1 remains closed; no hard whole-command deadline or real kernel/API hang guarantee is established."
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "counters": {
+    "blocked_writer_entry_calls": 0,
+    "file_write_attempts": 1,
+    "filesystem_mutations": 1,
+    "native_import_attempts": 1,
+    "network_attempts": 1,
+    "process_attempts": 1,
+    "protected_input_attempts": 0,
+    "runtime_only_writer_entry_calls": 0
+  },
+  "direct_os_write_added_file_write_counter": 0,
+  "direct_os_write_to_anonymous_pipe": {
+    "blocked": false,
+    "read_back": "x",
+    "returned_bytes": 1
+  },
+  "filesystem_mkdir": {
+    "blocked": true,
+    "outcome": "filesystem mutation blocked"
+  },
+  "filesystem_open_write": {
+    "blocked": true,
+    "outcome": "file write blocked"
+  },
+  "guard_behavior": "representative audited Python entry points were blocked before side effect; raw os.write to an already-open anonymous pipe was not observed by this audit hook",
+  "network_getaddrinfo": {
+    "blocked": true,
+    "outcome": "network entry blocked"
+  },
+  "observed_events": {
+    "file_write_attempts": [
+      "open-write"
+    ],
+    "filesystem_mutations": [
+      "os.mkdir"
+    ],
+    "native_import_attempts": [
+      "bt_api_ctp"
+    ],
+    "network_attempts": [
+      "socket.getaddrinfo"
+    ],
+    "process_attempts": [
+      "subprocess.Popen"
+    ]
+  },
+  "protected_side_effects": {
+    "mkdir_path_exists": false,
+    "provider_module_loaded": false,
+    "write_file_exists": false
+  },
+  "provider_import": {
+    "blocked": true,
+    "outcome": "provider or native module import blocked"
+  },
+  "subprocess_launch": {
+    "blocked": true,
+    "outcome": "process launch blocked"
+  }
+}

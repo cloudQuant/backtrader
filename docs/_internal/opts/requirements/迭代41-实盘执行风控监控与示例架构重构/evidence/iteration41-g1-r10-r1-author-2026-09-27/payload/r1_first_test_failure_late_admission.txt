@@ -1,0 +1,4 @@
+﻿Failed final-run attempt before correction.
+Observed failure: first late-admission probe used GetTickCount64 deadlineTick+1 but the QPC request deadline was 4,674 QPC ticks later; SubmitTicket returned ACCEPTED while QPC submit return was D-4,669 ticks. This is a test-driver clock-domain mismatch, not an after-D acceptance.
+The repeated second sample did reject after D. Full failure rows are preserved in r10_r1_trials_failure-late-admission-tick-mismatch.json.
+Correction: inject late admission using the same requestDeadlineQpc used by SubmitTicket.

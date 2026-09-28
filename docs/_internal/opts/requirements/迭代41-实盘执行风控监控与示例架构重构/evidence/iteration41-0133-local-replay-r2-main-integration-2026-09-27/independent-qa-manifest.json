@@ -1,0 +1,212 @@
+{
+  "file_count": 41,
+  "files": [
+    {
+      "path": "evidence/author-input/author-candidate.zip",
+      "sha256": "EF6C629784077E016B1B6E8FFA34F3BD23ADB35C6184D68560A672B1F396A186",
+      "size_bytes": 499672
+    },
+    {
+      "path": "evidence/author-input/local-replay.patch",
+      "sha256": "B8DD2AE3B0BD108B4445E9D7B261515F0062DB678D6792364F4E22EF32034473",
+      "size_bytes": 15950
+    },
+    {
+      "path": "evidence/author-input/manifest.json",
+      "sha256": "14F75238DFAB2959DF32642017E52F9AB0E1D54C6B6E02BCC87FF47906A9642D",
+      "size_bytes": 17596
+    },
+    {
+      "path": "evidence/historical/r1/author-candidate.zip",
+      "sha256": "B544A4B670B1525AE39580CB0A3DCDC0CBDE0A2AE859DB4BBD7A3379B992C9CC",
+      "size_bytes": 532404
+    },
+    {
+      "path": "evidence/historical/r1/bt-api-py-initializer-static-impact.md",
+      "sha256": "49A74953F046AC4090153EB364DA3BA1177934AB4E4A98D4124370CAE8E1CBBE",
+      "size_bytes": 1452
+    },
+    {
+      "path": "evidence/historical/r1/qa-manifest.json",
+      "sha256": "4C9DDEB92E15CB7874115B9A77E8B83EDA589C0D8648579CC2024C3FEC0510C9",
+      "size_bytes": 7365
+    },
+    {
+      "path": "evidence/historical/r1/qa-receipt.md",
+      "sha256": "3FC464042BE91966730D7C2AB7527722AC4B5D2E543671D558EBB8080F612038",
+      "size_bytes": 7918
+    },
+    {
+      "path": "evidence/qa-receipt.md",
+      "sha256": "250B2D5F2534659A63E7EBBAE830E9B090295A3340E5BA80219AE5D6639BAB08",
+      "size_bytes": 7926
+    },
+    {
+      "path": "evidence/qa-source-manifest.json",
+      "sha256": "45B4637E18F7A978E77E7F3BB5AE8E543AFEC93A38A7D338A52500BD5A617EF6",
+      "size_bytes": 113590
+    },
+    {
+      "path": "evidence/replay-output-manifest.json",
+      "sha256": "11B31856793B8277213DC834714BE2F94115B6D2E117BD1429CED0F76D6C6F5D",
+      "size_bytes": 4234
+    },
+    {
+      "path": "logs/author-package-verification.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/author-package-verification.log",
+      "sha256": "7E7908914BFE867754B2A1A80E1E2F9A18942127E0CD6346DA7F2C5B84667E16",
+      "size_bytes": 498
+    },
+    {
+      "path": "logs/focused-final.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/focused-final.junit.xml",
+      "sha256": "7C5A82B80005FECDE507DF0BE3B97A6398CC67F804FD6EC4C3725F70834B31D1",
+      "size_bytes": 707
+    },
+    {
+      "path": "logs/focused-final.stdout.log",
+      "sha256": "54FD447C1BCB18CD5D836526421A88E8F9B4F55CEC12B426019AABA6E7FD8110",
+      "size_bytes": 793
+    },
+    {
+      "path": "logs/focused-guard-final.json",
+      "sha256": "5DB564F707999CC7EB7EB3C448F054C0FE7A11015053939F3D0C00F7AA287465",
+      "size_bytes": 892
+    },
+    {
+      "path": "logs/focused-guard-rerun.json",
+      "sha256": "5DB564F707999CC7EB7EB3C448F054C0FE7A11015053939F3D0C00F7AA287465",
+      "size_bytes": 892
+    },
+    {
+      "path": "logs/focused-guard.json",
+      "sha256": "5DB564F707999CC7EB7EB3C448F054C0FE7A11015053939F3D0C00F7AA287465",
+      "size_bytes": 892
+    },
+    {
+      "path": "logs/focused-rerun.exit",
+      "sha256": "7C468F5E59F2871B946E051445493BBCACE531D597EDBBCC9935E7D02D025114",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/focused-rerun.stdout.log",
+      "sha256": "1119F6B9465004EA833D598C134D315C5390C05955E8D22048D7582852BCC435",
+      "size_bytes": 158
+    },
+    {
+      "path": "logs/focused.exit",
+      "sha256": "7C468F5E59F2871B946E051445493BBCACE531D597EDBBCC9935E7D02D025114",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/focused.stdout.log",
+      "sha256": "4C4EBE93E6DBF598BB131C25EEA485E11B09C0DD0521B0D89662D63DAE1F9EB2",
+      "size_bytes": 203
+    },
+    {
+      "path": "logs/freeze-qa-evidence.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/freeze-qa-evidence.log",
+      "sha256": "BA3B51F2E341184AB3DBDB3C65D808C07A15842318326ED5DF49722238425070",
+      "size_bytes": 688
+    },
+    {
+      "path": "logs/invariants-guard.json",
+      "sha256": "5DB564F707999CC7EB7EB3C448F054C0FE7A11015053939F3D0C00F7AA287465",
+      "size_bytes": 892
+    },
+    {
+      "path": "logs/invariants.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/invariants.stdout.log",
+      "sha256": "7E1487B4B664FF08D06CCFED77B4FBD4424A4AFB5D4617866CBB68A67FA8069D",
+      "size_bytes": 1208
+    },
+    {
+      "path": "logs/patch-diff-check.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/patch-exact-main-repro.log",
+      "sha256": "B9FE7B2CB4CCB4F8E27F7206032B62A698DCBB1906092D0AD180606A28E617ED",
+      "size_bytes": 897
+    },
+    {
+      "path": "logs/python-version.log",
+      "sha256": "96F3BF82F7F9E36956A7D4B5F09696127C39F6CBCE1D7B982773ECE928B29CC2",
+      "size_bytes": 149
+    },
+    {
+      "path": "logs/source-output-hash.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/source-output-hash.log",
+      "sha256": "590D42F3422BDA2B1BE43331ABEEB3DB757B129ED91FC0A172B789F00936F93A",
+      "size_bytes": 276
+    },
+    {
+      "path": "logs/startup-guard-probe.exit",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3
+    },
+    {
+      "path": "logs/startup-guard-probe.json",
+      "sha256": "5DB564F707999CC7EB7EB3C448F054C0FE7A11015053939F3D0C00F7AA287465",
+      "size_bytes": 892
+    },
+    {
+      "path": "logs/startup-guard-probe.log",
+      "sha256": "5F52A74F675EE60DD730BA0B40D475F6AAD8E4E3D3010D7E46AFCFD947C5DA49",
+      "size_bytes": 114
+    },
+    {
+      "path": "scripts/freeze_qa_evidence.py",
+      "sha256": "28622BAE9E77391D6639F1E44B9ADC00FDF56996F9367D3B78ED846C068921EF",
+      "size_bytes": 3241
+    },
+    {
+      "path": "scripts/hash_qa_source_and_outputs.py",
+      "sha256": "CD8417C12ADCBE11EE2B64E8AD2CC42B7979587035E565DD8048A19E42D30593",
+      "size_bytes": 1425
+    },
+    {
+      "path": "scripts/replay_invariant_probe.py",
+      "sha256": "3684F4F0FECC996550113D1FDFBD0C6B15D6B3F84699AEDF8782FBB634D22E27",
+      "size_bytes": 4693
+    },
+    {
+      "path": "scripts/verify_author_package.py",
+      "sha256": "7800C6D2201A5D3C118B380E7BD8CE8DCF0377295722FFCF2E5DF973C647B849",
+      "size_bytes": 2851
+    },
+    {
+      "path": "source/guard/sitecustomize.py",
+      "sha256": "414F33F95DF6D387DF46734F53F50BC0F645452E2C3769AEC6C0333D08E650C7",
+      "size_bytes": 2018
+    },
+    {
+      "path": "source/pytest.ini",
+      "sha256": "578FC1CD12D8D642DF8EFF41D71D5119626E9F88F21FAFADBA6B1092AC840A93",
+      "size_bytes": 10
+    }
+  ],
+  "schema": "iteration41-0133-local-replay-r2-independent-qa-v1",
+  "verdict": "SAFE_TO_APPLY_LOCAL_REPLAY_ONLY"
+}

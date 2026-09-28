@@ -1,0 +1,148 @@
+#!/usr/bin/env python
+"""Technical Analysis Indicators Module.
+
+This module provides a comprehensive collection of technical analysis
+indicators for trading strategies. It includes moving averages,
+oscillators, momentum indicators, volatility indicators, and more.
+
+Indicator Categories:
+    - Moving Averages: SMA, EMA, SMMA, WMA, DEMA, KAMA, HMA, etc.
+    - Oscillators: RSI, Stochastic, MACD, CCI, etc.
+    - Volatility: ATR, Bollinger Bands, Standard Deviation
+    - Momentum: ROC, Momentum, Ultimate Oscillator
+    - Trend: ADX, Aroon, Parabolic SAR, Ichimoku
+    - Volume: OBV, Money Flow Index
+    - Custom: Additional custom indicators
+
+Example:
+    Using indicators in a strategy:
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         self.sma = bt.indicators.SMA(self.data.close, period=20)
+    ...         self.rsi = bt.indicators.RSI(self.data.close, period=14)
+"""
+
+import os as _os
+
+from ..indicator import Indicator as Indicator
+from ..functions import *
+
+if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    from .mabase import MovAv as MovAv
+    from .mabase import MovingAverage as MovingAverage
+    from .mabase import MovingAverageBase as MovingAverageBase
+    from .basicops import Highest as Highest
+    from .basicops import Lowest as Lowest
+    from .sma import SMA as SMA
+    from .sma import MovingAverageSimple as MovingAverageSimple
+    from .smma import SmoothedMovingAverage as SmoothedMovingAverage
+    from .ema import EMA as EMA
+    from .ema import ExponentialMovingAverage as ExponentialMovingAverage
+    from .deviation import StandardDeviation as StandardDeviation
+    from .deviation import StdDev as StdDev
+    from .atr import ATR as ATR
+    from .atr import AverageTrueRange as AverageTrueRange
+    from .bollinger import BollingerBands as BollingerBands
+    from .crossover import CrossOver as CrossOver
+    from .directionalmove import AverageDirectionalMovementIndex as AverageDirectionalMovementIndex
+    from .directionalmove import MinusDirectionalIndicator as MinusDirectionalIndicator
+    from .directionalmove import PlusDirectionalIndicator as PlusDirectionalIndicator
+    from .rsi import RSI as RSI
+    from .rsi import RelativeStrengthIndex as RelativeStrengthIndex
+    from .obv import OnBalanceVolume as OnBalanceVolume
+
+    OBV = OnBalanceVolume
+
+    SimpleMovingAverage = MovingAverageSimple
+    SMMA = SmoothedMovingAverage
+    ADX = AverageDirectionalMovementIndex
+    MinusDI = MinusDirectionalIndicator
+    PlusDI = PlusDirectionalIndicator
+else:
+    # The modules below should/must define __all__ with the Indicator objects
+    # of prepend an "_" (underscore) to private classes/variables
+    from .basicops import *
+
+    # base for moving averages
+    from .mabase import *
+
+    # moving averages (so envelope and oscillators can be auto-generated)
+    from .sma import *
+    from .ema import *
+    from .smma import *
+    from .wma import *
+    from .dema import *
+    from .kama import *
+    from .zlema import *
+    from .hma import *
+    from .zlind import *
+    from .dma import *
+
+    # depends on moving averages
+    from .deviation import *
+
+    # depend on basicops, moving averages and deviations
+    from .atr import *
+    from .mt5atr import *
+    from .aroon import *
+    from .bollinger import *
+    from .cci import *
+    from .crossover import *
+    from .dpo import *
+    from .directionalmove import *
+    from .envelope import *
+    from .heikinashi import *
+    from .lrsi import *
+    from .spread import *
+    from .macd import *
+    from .momentum import *
+    from .oscillator import *
+    from .percentchange import *
+    from .percentrank import *
+    from .pivotpoint import *
+    from .prettygoodoscillator import *
+    from .priceoscillator import *
+    from .psar import *
+    from .rsi import *
+    from .stochastic import *
+    from .trix import *
+    from .tsi import *
+    from .ultimateoscillator import *
+    from .williams import *
+    from .rmi import *
+    from .awesomeoscillator import *
+    from .accdecoscillator import *
+    from .priceops_ext import *
+    from .moneyflow import *
+    from .obv import *
+    from .demarker import *
+    from .channels_ext import *
+    from .trend_ext import *
+    from .supertrend import *
+
+    from .dv2 import *  # depends on percentrank
+
+    # Depends on Momentum
+    from .kst import *
+
+    from .ichimoku import *
+
+    from .hurst import *
+    from .ols import *
+    from .hadelta import *
+    from .vortex import *
+
+    # Add some custom indicators
+    from .myind import *
+    from .contrib import *
+
+# # At the end of the file, after all imports
+# from .mabase import _register_common_moving_averages
+#
+# # Register moving averages after all modules are loaded to avoid circular imports
+# _register_common_moving_averages()

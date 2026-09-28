@@ -1,0 +1,12 @@
+{
+  "archive_index_sha256": "bc724124c072df8d6f89f023c74106b2cc7832affb60c6ed62f21c4e0c9613a7",
+  "author_page_sha256": "bfc8d594b377277b204672e5205603435a565a46f56a329e333f0176abdbbea6",
+  "candidate_freeze_receipt_sha256": "79b633ff8bac9d9c18e3cfacd4c54382db1d9c8e999d133a7edc20080f4e0738",
+  "candidate_source_manifest_sha256": "bbf863557deb20dcadf766fcb98eeabca97922c0cc72e543f5468e59fce480c4",
+  "classification": "AUTHOR_CANDIDATE/NO_WRITE",
+  "payload_count": 139,
+  "payload_total_bytes": 3186860,
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.archive_bundle_receipt.v1",
+  "zip_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-g6s-artifact-first-sdk-binding-author-candidate-2026-09-27\\artifact-first-candidate.zip",
+  "zip_sha256": "6652fbb1375454485b81f7216415a3333e4b2645fb2aa01441a9f09f99ba87d5"
+}

@@ -1,0 +1,37 @@
+{
+  "archive_index_sha256": "ce4fd689a090c8a3a409f30039937ccdc0ee8c8ce53392f8e5740ea0098f7727",
+  "candidate_archive_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+  "candidate_head": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+  "candidate_input_manifest_sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827",
+  "candidate_output_manifest_sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf",
+  "candidate_patch_sha256": "a64175be7ca4c855c7cffdfee727463962ff00def4fdc1ca4b18e2839b5c95a6",
+  "candidate_root": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate",
+  "disposition": "G5_BLOCKED / NOT_ACCEPTED / LOCAL_FAKE_OFFLINE_ONLY",
+  "failures": [
+    "three schema-v5 version assertions observe candidate schema v6",
+    "one legacy CANCEL test omits typed projection/ActionRef and is rejected"
+  ],
+  "format": "iteration41-g5-independent-qa-receipt.v1",
+  "independent_results": {
+    "candidate_focus": "26 passed",
+    "focused_boundary": "8 passed",
+    "frozen_sdk_57_base": "57 passed",
+    "frozen_sdk_57_candidate": "53 passed / 4 failed",
+    "patch_replay": "8/8 touched outputs line-ending-normalized match"
+  },
+  "key_limits": [
+    "default verifier rejects untrusted input; no trusted native query producer",
+    "sync sender wrapper returning awaitable is entered before UNKNOWN",
+    "TTL can expire inside sender after worker pre-entry check",
+    "V21 action_identity keyword is incompatible",
+    "caller-supplied ActionRef watermark is not native proof"
+  ],
+  "packet_source_copy_mismatches": [],
+  "raw_zip": "g5-worker-projection-durable-independent-qa.raw.zip",
+  "raw_zip_sha256": "8983f62fc14ba9b23453da99ecc54afdfbed1af454a4a00217bb10cd471c7b0d",
+  "raw_zip_testzip": null,
+  "report_sha256": "1e8da5f58906bd46703d1d511b2b965d3cf312983d8126d2621a1be4526becfa",
+  "v21_source_manifest_sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+  "v21_store_sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a",
+  "v21_worker_sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3"
+}

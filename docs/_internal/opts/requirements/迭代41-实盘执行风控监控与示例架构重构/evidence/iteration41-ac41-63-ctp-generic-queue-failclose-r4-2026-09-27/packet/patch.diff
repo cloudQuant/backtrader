@@ -1,0 +1,567 @@
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -6646,6 +6646,8 @@
+         return completion
+ 
+     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
++        if operation in {"submit", "cancel"} and self._is_ctp_write_provider():
++            raise BtApiStoreError("direct CTP SDK command dispatch is disabled")
+         if operation == "submit":
+             self._validate_approval_lease_command(command)
+         method_names = {
+@@ -7161,23 +7163,34 @@
+             result["account_risk_snapshot"] = account_risk_snapshot
+         return result
+ 
+-    def enqueue_order(self, order) -> Dict[str, Any]:
+-        """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
+-
+-        if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+-            raise BtApiStoreError(
+-                "managed CTP orders must pass through the typed runtime adapter"
+-            )
++    def enqueue_order(self, order) -> Dict[str, Any]:
++        """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
++
++        info = getattr(order, "info", {})
++        get_info = getattr(info, "get", lambda *_args: None)
++        recovery_exit = get_info("execution_role") == "recovery_exit"
++        is_ctp_write = self._is_ctp_write_provider()
++        if self._managed_execution_adapter is not None and is_ctp_write:
++            if recovery_exit:
++                self.abort_execution_recovery("execution_recovery_dispatch_failed")
++            raise BtApiStoreError(
++                "managed CTP orders must pass through the typed runtime adapter"
++            )
+ 
+         if self._is_sdk_market_data_only():
++            if is_ctp_write and recovery_exit:
++                self.abort_execution_recovery("execution_recovery_dispatch_failed")
++                raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
+             return self._reject_market_data_only_command(
+                 "submit",
+                 bt_order_ref=getattr(order, "ref", None),
+             )
+ 
+-        info = getattr(order, "info", {})
+-        get_info = getattr(info, "get", lambda *_args: None)
+-        recovery_exit = get_info("execution_role") == "recovery_exit"
++        if is_ctp_write:
++            if recovery_exit:
++                self.abort_execution_recovery("execution_recovery_dispatch_failed")
++            raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
++
+         try:
+             receipt = self._enqueue_order_command(order)
+         except Exception:
+@@ -7185,12 +7198,12 @@
+             if recovery_exit:
+                 self.abort_execution_recovery("execution_recovery_dispatch_failed")
+             raise
+-        if recovery_exit and (
+-            not isinstance(receipt, Mapping) or receipt.get("queued") is not True
+-        ):
+-            self.abort_execution_recovery("execution_recovery_dispatch_failed")
+-        return deepcopy(receipt)
+-
++        if recovery_exit and (
++            not isinstance(receipt, Mapping) or receipt.get("queued") is not True
++        ):
++            self.abort_execution_recovery("execution_recovery_dispatch_failed")
++        return deepcopy(receipt)
++
+     @staticmethod
+     def _apply_ctp_managed_order_identity(
+         payload: Dict[str, Any], identity: CtpManagedOrderDispatch
+@@ -7323,7 +7336,7 @@
+         """Queue a typed cancellation while preserving its reserved capacity."""
+         if (
+             self._managed_execution_adapter is not None
+-            and self._is_ctp_session_provider()
++            and self._is_ctp_write_provider()
+         ):
+             raise BtApiStoreError(
+                 "managed CTP cancellations cannot use the generic SDK queue"
+@@ -7333,6 +7346,8 @@
+                 "cancel",
+                 bt_order_ref=order_ref,
+             )
++        if self._is_ctp_write_provider():
++            raise BtApiStoreError("direct CTP SDK cancel enqueue is disabled")
+         self._ensure_api_ready()
+         self._require_async_sdk_commands()
+         self._start_command_worker()
+@@ -8340,27 +8355,65 @@
+             raise BtApiStoreError("Exactly one configured CTP SDK exchange is required")
+         return venues[0]
+ 
+-    def _is_ctp_write_provider(self) -> bool:
+-        """Include CTP forwarding signals when closing direct Store writes."""
+-        provider = str(self.provider or "").strip().lower()
+-        if provider in {"ctp", "ctp_gateway"}:
+-            return True
+-        if self.backend == "forwarding":
+-            config = getattr(self, "_config", {})
+-            api_kwargs = getattr(self, "_api_kwargs", {})
+-            if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+-                return True
+-            try:
+-                # Match _create_forwarding_client's effective exchange exactly.
+-                kwargs = dict(config)
+-                kwargs.update(api_kwargs)
+-                exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
+-            except Exception:
+-                return True
+-            if str(exchange or "").strip().upper().partition("___")[0] == "CTP":
+-                return True
+-        return self._is_ctp_session_provider()
+-
++    def _is_ctp_write_provider(self) -> bool:
++        """Fail-close CTP writes from Store route/config snapshots.
++
++        The SDK route snapshot may fall back to injected API exchange_kwargs at
++        initialization. These route hints are not authorization; this method
++        itself does not dereference _api.
++        """
++
++        provider = str(self.provider or "").strip().lower()
++        if provider in {"ctp", "ctp_gateway"}:
++            return True
++        config = getattr(self, "_config", {})
++        api_kwargs = getattr(self, "_api_kwargs", {})
++        if self.backend == "forwarding":
++            if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
++                return True
++            try:
++                kwargs = dict(config)
++                kwargs.update(api_kwargs)
++                exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
++            except Exception:
++                return True
++            return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
++        if provider == "btapi":
++            sdk_exchanges = getattr(self, "_sdk_exchanges", {})
++            sdk_routes = getattr(self, "_sdk_routes", {})
++            if not all(
++                isinstance(value, Mapping)
++                for value in (config, api_kwargs, sdk_exchanges, sdk_routes)
++            ):
++                return True
++            candidates = list(sdk_exchanges) + list(sdk_routes.values())
++            for values in (config, api_kwargs):
++                candidates.extend((values.get("exchange"), values.get("exchange_type")))
++                exchange_kwargs = values.get("exchange_kwargs")
++                if isinstance(exchange_kwargs, Mapping):
++                    candidates.extend(exchange_kwargs)
++                elif exchange_kwargs is not None:
++                    return True
++            candidates = [value for value in candidates if value not in (None, "")]
++            if not candidates:
++                return True
++            return any(
++                str(value or "").strip().upper().partition("___")[0] == "CTP"
++                for value in candidates
++            )
++        if self.backend != "gateway":
++            return False
++        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
++            return True
++        exchange = (
++            api_kwargs.get("exchange_type")
++            or api_kwargs.get("exchange")
++            or config.get("exchange_type")
++            or config.get("exchange")
++            or "CTP"
++        )
++        return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
++
+     def _is_ctp_session_provider(self) -> bool:
+         if self.backend == "forwarding":
+             return False
+--- a/tests/unit/stores/test_btapistore_iteration22.py
++++ b/tests/unit/stores/test_btapistore_iteration22.py
+@@ -2776,9 +2776,10 @@
+     assert "not completable" in str(errors[0])
+ 
+ 
+-@pytest.mark.parametrize("dispatch_outcome", ["rejected", "exception"])
+-def test_recovery_exit_dispatch_failure_strictly_aborts_before_native_write(
+-    monkeypatch, dispatch_outcome
++@pytest.mark.parametrize("market_data_only", [True, False])
++@pytest.mark.parametrize("managed_adapter", [False, True])
++def test_recovery_exit_generic_ctp_enqueue_rejects_and_aborts_before_native_write(
++    monkeypatch, market_data_only, managed_adapter
+ ):
+     client, store, proof, _grant, _configured = _authorized_store()
+     client.recovery_report = _recovery_report()
+@@ -2787,24 +2788,26 @@
+         proof,
+         recovery_token_sha256=plan["recovery_token_sha256"],
+     )
++    store._sdk_execution_config["market_data_only"] = market_data_only
++    if managed_adapter:
++        store._managed_execution_adapter = object()
+     order = type("RecoveryOrder", (), {"info": {"execution_role": "recovery_exit"}})()
+-
+-    if dispatch_outcome == "exception":
+-
+-        def fail_enqueue(_order):
+-            raise RuntimeError("queue unavailable")
+-
+-        monkeypatch.setattr(store, "_enqueue_order_command", fail_enqueue)
+-        with pytest.raises(RuntimeError, match="queue unavailable"):
+-            store.enqueue_order(order)
+-    else:
+-        monkeypatch.setattr(
+-            store,
+-            "_enqueue_order_command",
+-            lambda _order: {"queued": False, "status": "rejected"},
+-        )
+-        assert store.enqueue_order(order) == {"queued": False, "status": "rejected"}
+-
++    queue_calls = []
++
++    def unexpected_enqueue(_order):
++        queue_calls.append(_order)
++        raise AssertionError("generic CTP queue must not be reached")
++
++    monkeypatch.setattr(store, "_enqueue_order_command", unexpected_enqueue)
++    error_message = (
++        "managed CTP orders must pass through the typed runtime adapter"
++        if managed_adapter
++        else "direct CTP SDK order enqueue is disabled"
++    )
++    with pytest.raises(BtApiStoreError, match=error_message):
++        store.enqueue_order(order)
++
++    assert queue_calls == []
+     assert client.request_counts["order_insert"] == 0
+     assert client.submitted_orders == []
+     assert client.armed is False
+--- a/tests/unit/stores/test_btapistore_entry_approval_arm.py
++++ b/tests/unit/stores/test_btapistore_entry_approval_arm.py
+@@ -11,6 +11,7 @@
+ import pytest
+ 
+ from tests.test_utils.optional_sdk import optional_sdk
++from backtrader.stores.btapistore import BtApiStoreError
+ 
+ CtpExecutionApprovalCapability = optional_sdk(
+     allow_module_level=True
+@@ -20,6 +21,7 @@
+ from test_btapistore_iteration22 import (  # noqa: E402
+     ManagedBtApiClient,
+     _authorized_store,
++    make_store,
+ )
+ 
+ 
+@@ -172,7 +174,6 @@
+ 
+ 
+ def test_store_invoke_sdk_command_passes_budget_capability_to_async_make_order():
+-    _client, store, proof, _grant, _configured = _authorized_store()
+     capability = _capability_stub()
+     seen = []
+ 
+@@ -181,10 +182,10 @@
+             seen.append((venue, request, normalized, kwargs))
+             return {"kind": "order", "status": "submitted"}
+ 
+-    store._api = _Api()
++    store = make_store(api=_Api(), provider="binance")
+     command = {
+         "operation": "submit",
+-        "venue": "CTP___FUTURE",
++        "venue": "BINANCE___FUTURE",
+         "request": object(),
+         "budget_capability": capability,
+     }
+@@ -194,10 +195,7 @@
+     assert len(seen) == 1
+     assert seen[0][2] is True
+     assert seen[0][3] == {"budget_capability": capability}
+-
+-
+ def test_store_invoke_sdk_command_omits_budget_capability_when_absent():
+-    _client, store, proof, _grant, _configured = _authorized_store()
+     seen = []
+ 
+     class _Api:
+@@ -205,12 +203,37 @@
+             seen.append(kwargs)
+             return {"kind": "order", "status": "submitted"}
+ 
+-    store._api = _Api()
++    store = make_store(api=_Api(), provider="binance")
+     command = {
+         "operation": "submit",
+-        "venue": "CTP___FUTURE",
++        "venue": "BINANCE___FUTURE",
+         "request": object(),
+     }
+     asyncio.run(store._invoke_sdk_command("submit", command))
+ 
+     assert seen == [{}]
++
++
++def test_ctp_generic_sdk_sink_rejects_before_writer_method_lookup():
++    _client, store, _proof, _grant, _configured = _authorized_store()
++    method_lookups = []
++
++    class _Api:
++        def __getattribute__(self, name):
++            if name == "async_make_order":
++                method_lookups.append(name)
++            return object.__getattribute__(self, name)
++
++        async def async_make_order(self, venue, request, *, normalized=False, **kwargs):
++            raise AssertionError("CTP writer method must not be called")
++
++    store._api = _Api()
++    command = {
++        "operation": "submit",
++        "venue": "CTP___FUTURE",
++        "request": object(),
++    }
++    with pytest.raises(BtApiStoreError, match="direct CTP SDK command dispatch is disabled"):
++        asyncio.run(store._invoke_sdk_command("submit", command))
++
++    assert method_lookups == []
+diff --git a/tests/test_ctp_generic_sdk_queue_failclose.py b/tests/test_ctp_generic_sdk_queue_failclose.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_ctp_generic_sdk_queue_failclose.py
+@@ -0,0 +1,232 @@
++from __future__ import annotations
++
++import asyncio
++from types import SimpleNamespace
++
++import pytest
++
++from backtrader.stores.btapistore import (
++    BtApiStore,
++    BtApiStoreError,
++    ManagedCtpHandoffError,
++)
++
++
++class SpyApi:
++    def __init__(self):
++        self.reads = []
++        self.calls = []
++
++    def __getattribute__(self, name):
++        if name not in {"reads", "calls"} and not name.startswith("__"):
++            object.__getattribute__(self, "reads").append(name)
++        return object.__getattribute__(self, name)
++
++    async def async_make_order(self, venue, request, **kwargs):
++        self.calls.append(("submit", venue))
++        return {"ok": True}
++
++    async def async_cancel_order(self, venue, request, **kwargs):
++        self.calls.append(("cancel", venue))
++        return {"ok": True}
++
++    async def async_query_order(self, venue, request, **kwargs):
++        self.calls.append(("query", venue))
++        return {"ok": True, "items": []}
++
++
++class SpyAdapter:
++    ctp_managed_execution_version = 1
++
++    def __init__(self):
++        self.lookups = []
++        self.calls = 0
++
++    def __getattribute__(self, name):
++        if name in {"submit_order", "cancel_order"}:
++            object.__getattribute__(self, "lookups").append(name)
++        return object.__getattribute__(self, name)
++
++    def submit_order(self, *args):
++        return None
++
++    def cancel_order(self, *args):
++        self.calls += 1
++        raise RuntimeError("fake typed adapter reached")
++
++
++def make_store(
++    *,
++    provider="ctp",
++    backend="sdk",
++    config=None,
++    api_kwargs=None,
++    sdk_exchanges=None,
++    sdk_routes=None,
++    market_data_only=False,
++    managed_adapter=None,
++):
++    store = object.__new__(BtApiStore)
++    store.provider = provider
++    store.backend = backend
++    store._config = dict(config or {})
++    store._api_kwargs = dict(api_kwargs or {})
++    store._sdk_exchanges = dict(sdk_exchanges or {})
++    store._sdk_routes = dict(sdk_routes or {})
++    store._managed_execution_adapter = managed_adapter
++    store._sdk_mode = True
++    store._sdk_execution_config = {"market_data_only": market_data_only}
++    store._api = SpyApi()
++    store._connected = True
++    return store
++
++
++@pytest.mark.parametrize(
++    "provider,backend,config,api_kwargs,exchanges,routes",
++    [
++        pytest.param("ctp", "sdk", {}, {}, {}, {}, id="direct-ctp"),
++        pytest.param("other", "gateway", {"exchange": "CTP"}, {}, {}, {}, id="gateway"),
++        pytest.param(
++            "other",
++            "gateway",
++            {},
++            {"exchange_type": "CTP___TEST"},
++            {},
++            {},
++            id="gateway-suffixed-route",
++        ),
++        pytest.param("other", "forwarding", {"exchange": "CTP"}, {}, {}, {}, id="forwarding"),
++        pytest.param("btapi", "sdk", {}, {}, {"CTP___TEST": {}}, {}, id="btapi-snapshot"),
++    ],
++)
++def test_ctp_submit_cancel_and_queues_fail_before_api_or_queue_sinks(
++    provider, backend, config, api_kwargs, exchanges, routes
++):
++    store = make_store(
++        provider=provider,
++        backend=backend,
++        config=config,
++        api_kwargs=api_kwargs,
++        sdk_exchanges=exchanges,
++        sdk_routes=routes,
++    )
++    reached = []
++    store._enqueue_order_command = lambda order: reached.append("submit")
++    store._ensure_api_ready = lambda: reached.append("ensure")
++    store._require_async_sdk_commands = lambda: reached.append("contract")
++    store._start_command_worker = lambda: reached.append("worker")
++    store._sdk_cancel_request = lambda *args: (
++        "CTP___TEST",
++        SimpleNamespace(client_order_id=None, symbol="FAKE"),
++    )
++    store._sdk_local_refs = {}
++    store._sdk_client_refs = {}
++    store._cancel_queued_opening_before_send = lambda *args: None
++    store._enqueue_sdk_command = lambda *args, **kwargs: reached.append("cancel")
++    command = {"venue": "CTP___TEST", "request": object()}
++
++    for operation in ("submit", "cancel"):
++        with pytest.raises(BtApiStoreError, match="direct CTP SDK command dispatch is disabled"):
++            asyncio.run(store._invoke_sdk_command(operation, command))
++    with pytest.raises(BtApiStoreError, match="direct CTP SDK order enqueue is disabled"):
++        store.enqueue_order(SimpleNamespace(info={}))
++    with pytest.raises(BtApiStoreError, match="direct CTP SDK cancel enqueue is disabled"):
++        store.enqueue_cancel("fake-ref")
++
++    assert store._api.reads == []
++    assert store._api.calls == []
++    assert reached == []
++
++
++def test_btapi_route_classification_never_reads_api_properties():
++    store = make_store(provider="btapi", sdk_exchanges={"CTP___TEST": {}})
++    assert store._is_ctp_write_provider() is True
++    assert store._api.reads == []
++
++
++def test_unknown_btapi_route_fails_closed_without_api_property_read():
++    store = make_store(provider="btapi")
++    assert store._is_ctp_write_provider() is True
++    assert store._api.reads == []
++
++
++def test_managed_btapi_ctp_enqueue_rejects_without_api_or_adapter_lookup():
++    adapter = SpyAdapter()
++    store = make_store(provider="btapi", sdk_exchanges={"CTP___TEST": {}}, managed_adapter=adapter)
++    with pytest.raises(BtApiStoreError, match="managed CTP orders"):
++        store.enqueue_order(SimpleNamespace(info={}))
++    with pytest.raises(BtApiStoreError, match="managed CTP cancellations"):
++        store.enqueue_cancel("fake-ref")
++    assert store._api.reads == []
++    assert adapter.lookups == []
++
++
++def test_market_data_only_keeps_local_rejection_before_ctp_guard():
++    store = make_store(market_data_only=True)
++    rejected = []
++    store._reject_market_data_only_command = lambda operation, **kwargs: (
++        rejected.append(operation) or {"status": "rejected", "operation": operation}
++    )
++    store._enqueue_order_command = lambda order: pytest.fail("submit queue reached")
++    store._ensure_api_ready = lambda: pytest.fail("cancel startup reached")
++
++    assert store.enqueue_order(SimpleNamespace(ref=7, info={})) == {
++        "status": "rejected",
++        "operation": "submit",
++    }
++    assert store.enqueue_cancel("fake-ref") == {"status": "rejected", "operation": "cancel"}
++    assert rejected == ["submit", "cancel"]
++    assert store._api.reads == []
++
++
++def test_ctp_query_remains_read_only_and_dispatchable():
++    store = make_store(provider="ctp")
++    result = asyncio.run(
++        store._invoke_sdk_command("query", {"venue": "CTP___TEST", "request": object()})
++    )
++    assert result == {"ok": True, "items": []}
++    assert store._api.reads == ["async_query_order"]
++    assert [item[0] for item in store._api.calls] == ["query"]
++
++
++def test_non_ctp_fake_submit_cancel_and_enqueue_remain_available():
++    store = make_store(provider="binance", backend="sdk")
++    command = {"venue": "BINANCE", "request": object()}
++    assert asyncio.run(store._invoke_sdk_command("submit", command)) == {"ok": True}
++    assert asyncio.run(store._invoke_sdk_command("cancel", command)) == {"ok": True}
++
++    hooks = []
++    store._enqueue_order_command = lambda order: {"queued": True, "op": "submit"}
++    store._ensure_api_ready = lambda: hooks.append("ensure")
++    store._require_async_sdk_commands = lambda: hooks.append("contract")
++    store._start_command_worker = lambda: hooks.append("worker")
++    store._sdk_cancel_request = lambda *args: (
++        "BINANCE",
++        SimpleNamespace(client_order_id=None, symbol="FAKE"),
++    )
++    store._sdk_local_refs = {}
++    store._sdk_client_refs = {}
++    store._cancel_queued_opening_before_send = lambda *args: None
++    store._enqueue_sdk_command = lambda *args, **kwargs: {"queued": True, "op": "cancel"}
++    assert store.enqueue_order(SimpleNamespace(info={})) == {"queued": True, "op": "submit"}
++    assert store.enqueue_cancel("fake-ref") == {"queued": True, "op": "cancel"}
++    assert hooks == ["ensure", "contract", "worker"]
++    assert [item[0] for item in store._api.calls] == ["submit", "cancel"]
++
++
++def test_ctp_managed_cancel_reaches_typed_adapter_without_api_fallback():
++    adapter = SpyAdapter()
++    store = make_store(provider="ctp", managed_adapter=adapter)
++    events = []
++    store.emit_runtime_event = lambda *args, **kwargs: events.append(args[0])
++
++    with pytest.raises(ManagedCtpHandoffError, match="outcome is unknown"):
++        store._cancel_managed("fake-ref")
++
++    assert "cancel_order" in adapter.lookups
++    assert adapter.calls == 1
++    assert events == [
++        "managed_execution_cancel_requested",
++        "managed_execution_cancel_unconfirmed",
++    ]
++    assert store._api.reads == []

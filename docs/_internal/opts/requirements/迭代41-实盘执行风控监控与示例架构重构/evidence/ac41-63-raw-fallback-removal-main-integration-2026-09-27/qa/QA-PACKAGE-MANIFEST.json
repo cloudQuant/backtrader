@@ -1,0 +1,254 @@
+{
+  "schema": "ac41-63-writer-slice2-r2-rev2-independent-qa-package-v1",
+  "verdict": "SAFE_TO_APPLY_RAW_FALLBACK_REMOVAL_ONLY",
+  "status": "AUTHOR_CANDIDATE_NO_WRITE_LIVE_NO_GO; independent scope limited to raw fallback removal",
+  "artifact_count": 48,
+  "author_input": {
+    "zip_sha256": "c9a2456d6fff2a1d5743f2402d423eb783720dff90cbe02164e83d27216e3e0b",
+    "manifest_sha256": "ad48e4dd52404bcb97180aa7fd49f7312bc39dce1cabf3194d0288f39658226a",
+    "store_patch_sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+    "test_patch_sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b"
+  },
+  "artifacts": [
+    {
+      "path": "input/BYTE-REPLACEMENTS.json",
+      "bytes": 6155,
+      "sha256": "e4ac5024dee4642ba74970126a8411fbcc7b927f3beac1486874521cd93c0a37"
+    },
+    {
+      "path": "input/patches/PATCH-GIT.diff",
+      "bytes": 2730,
+      "sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291"
+    },
+    {
+      "path": "input/patches/TEST-MIGRATION.diff",
+      "bytes": 6240,
+      "sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b"
+    },
+    {
+      "path": "input/R2-REV2-PACKAGE-MANIFEST.json",
+      "bytes": 10820,
+      "sha256": "ad48e4dd52404bcb97180aa7fd49f7312bc39dce1cabf3194d0288f39658226a"
+    },
+    {
+      "path": "input/R2-REV2-REPORT.md",
+      "bytes": 5187,
+      "sha256": "accd4d4ca212506c82c23a53997fb68853e60a4c25fff8b1006e21f9f5f0363e"
+    },
+    {
+      "path": "input/source/btapistore.base.py",
+      "bytes": 780123,
+      "sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826"
+    },
+    {
+      "path": "input/source/btapistore.target.py",
+      "bytes": 780464,
+      "sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9"
+    },
+    {
+      "path": "input/tests/test_btapistore.migrated.py",
+      "bytes": 137738,
+      "sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1"
+    },
+    {
+      "path": "input/tests/test_btapistore.original.py",
+      "bytes": 129921,
+      "sha256": "23b6b6f901ec5b6b5989cf40700d7a3061df78c894c0c711d406972fe08dfe4e"
+    },
+    {
+      "path": "qa/harness/test_btapistore_iteration22.py",
+      "bytes": 173308,
+      "sha256": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d"
+    },
+    {
+      "path": "qa/harness/tests-conftest.py",
+      "bytes": 5403,
+      "sha256": "72f8d9150a514f1b4c92d7eeef70e092a41af043c76e6a2a7cc3fdbbe52b0d69"
+    },
+    {
+      "path": "qa/logs/baseline-boundary-probe.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/baseline-boundary-probe.log",
+      "bytes": 215,
+      "sha256": "42d4b0b7437e022994daee09b62545f570bfa1a597ebf34aee8438d1a223036f"
+    },
+    {
+      "path": "qa/logs/baseline-focus-guarded.exit",
+      "bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "qa/logs/baseline-focus-guarded.log",
+      "bytes": 3147,
+      "sha256": "d9b494d55d367261ad1a0f956cb9d32d34a9d6b991e88db252c3b97949195ed7"
+    },
+    {
+      "path": "qa/logs/baseline-focus.junit.xml",
+      "bytes": 2803,
+      "sha256": "5ed5ef9fb3ea1030c3516ccf8c9481d39863a6537be7f9c739307a4650aa8133"
+    },
+    {
+      "path": "qa/logs/baseline-two-files.exit",
+      "bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "qa/logs/baseline-two-files.junit.xml",
+      "bytes": 61089,
+      "sha256": "38e174e31a29a8e927b84f2a20214851cfdd93d088cd1c3ed3bccd7a9efbac4e"
+    },
+    {
+      "path": "qa/logs/baseline-two-files.log",
+      "bytes": 5014,
+      "sha256": "776b26d21114e5b7859299d1db390e42120a560f8c5a4d070cade75e1f29f09e"
+    },
+    {
+      "path": "qa/logs/byte-identity.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/byte-identity.log",
+      "bytes": 496,
+      "sha256": "c4c3451c104a56734e4c31c984129522b6692c1289f051e85b90af208c0e13c2"
+    },
+    {
+      "path": "qa/logs/candidate-boundary-probe.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/candidate-boundary-probe.log",
+      "bytes": 215,
+      "sha256": "c4607b7c5bf254afae96a1b2b6c4db692e03005e77a0baadd93fd5713681de33"
+    },
+    {
+      "path": "qa/logs/candidate-focus-guarded.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/candidate-focus-guarded.log",
+      "bytes": 715,
+      "sha256": "62f7ee162e4abf3ef928b9406f37ab18082309018e887e299f5170f522369e45"
+    },
+    {
+      "path": "qa/logs/candidate-focus.junit.xml",
+      "bytes": 843,
+      "sha256": "81a3dbc39bd04b17bfec5e7b30c751b8410f27fc4d852a4de76792522008c3ab"
+    },
+    {
+      "path": "qa/logs/candidate-two-files.exit",
+      "bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "qa/logs/candidate-two-files.junit.xml",
+      "bytes": 59130,
+      "sha256": "996ab2d39e268ff3e0dec8f70a2a774cbcdb8d3204b3d729c2f98adc9b8a6caa"
+    },
+    {
+      "path": "qa/logs/candidate-two-files.log",
+      "bytes": 2756,
+      "sha256": "150b83b0a30bb6e6dd1b8762615eaba8e753e945cb6182f994e8b43f413f9c26"
+    },
+    {
+      "path": "qa/logs/pycompile.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/pycompile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/logs/ruff.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "qa/logs/ruff.log",
+      "bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "qa/QA-RECEIPT.md",
+      "bytes": 7234,
+      "sha256": "4a5c318c71da32d70699a7f0c5a4c48a71cedef518df2164602b21239eb1636a"
+    },
+    {
+      "path": "qa/results/baseline-boundary-probe.json",
+      "bytes": 3395,
+      "sha256": "a22fb1fa29ce153726d29542d5db9db1105ee1b2796bd96e04bf4d50ddf5946d"
+    },
+    {
+      "path": "qa/results/baseline-focus-guard.json",
+      "bytes": 189,
+      "sha256": "74ebb57d3c1ef3ff10683ea92ec12e3df5b2baf06b1081db3ac65be745978696"
+    },
+    {
+      "path": "qa/results/baseline-guard.json",
+      "bytes": 189,
+      "sha256": "74ebb57d3c1ef3ff10683ea92ec12e3df5b2baf06b1081db3ac65be745978696"
+    },
+    {
+      "path": "qa/results/byte-identity.json",
+      "bytes": 578,
+      "sha256": "9ef1cb0522072e4f4cee0dfd4f81d7f726e7d003bea73a5714f9ec4f108134fe"
+    },
+    {
+      "path": "qa/results/candidate-boundary-probe.json",
+      "bytes": 3646,
+      "sha256": "6725a7e4b1a765079ea99fecf7ce1785b7de30c1e1e39b1ad02a92539afe5c35"
+    },
+    {
+      "path": "qa/results/candidate-focus-guard.json",
+      "bytes": 189,
+      "sha256": "74ebb57d3c1ef3ff10683ea92ec12e3df5b2baf06b1081db3ac65be745978696"
+    },
+    {
+      "path": "qa/results/candidate-guard.json",
+      "bytes": 189,
+      "sha256": "74ebb57d3c1ef3ff10683ea92ec12e3df5b2baf06b1081db3ac65be745978696"
+    },
+    {
+      "path": "qa/results/extra-script-identity.json",
+      "bytes": 777,
+      "sha256": "5c4316e9bd2785c86bbaac58e93d3cbbd3d9114b3853922a23489e13430dc04d"
+    },
+    {
+      "path": "qa/results/nodeid-delta.json",
+      "bytes": 1454,
+      "sha256": "17c7735368616435995cf0cdc7e3ae531520ca171127ddfd744efe1aa955b6e6"
+    },
+    {
+      "path": "qa/scripts/build-qa-package.py",
+      "bytes": 2078,
+      "sha256": "2405a870f36c488c80a8a6267b7dcad3309ee43519d21b2023b16beaf4fb7562"
+    },
+    {
+      "path": "qa/scripts/independent-inspect-package.py",
+      "bytes": 508,
+      "sha256": "363b9b1aca79a9378c4424d07428bf08b0ff66523ae5309cae687be4648f45da"
+    },
+    {
+      "path": "qa/scripts/probe-boundary.py",
+      "bytes": 4627,
+      "sha256": "eea0f555f1fb922a1bb344583a2e9cffeac1802020354b21f61d1d4401b8b514"
+    },
+    {
+      "path": "qa/scripts/verify-byte-identity.py",
+      "bytes": 2579,
+      "sha256": "6d4fa35f1c0bafa35389021f3fba777242335ac872042614c47c8345a82214b8"
+    },
+    {
+      "path": "qa/scripts/verify-package.py",
+      "bytes": 2269,
+      "sha256": "3e9331437936e536e352c3383f2ce246b82b5456af39c810723e28e00685655e"
+    }
+  ]
+}

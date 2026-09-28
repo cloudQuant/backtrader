@@ -1,0 +1,133 @@
+{
+  "authorization": "NO_WRITE / LIVE_NO_GO; not full Runtime acceptance, SDK/native acceptance, provider acceptance, G4 acceptance, or writer closure",
+  "copy_scope": "One current Store file, one identity test file, inventory/checklist JSON artifacts, frozen candidate packet, independent QA receipt, and selected raw logs/manifests only. No full source tree, secrets, or private configuration copied.",
+  "guard_summaries": {
+    "runtime_clean": {
+      "blocked_ctp_import_events": 1,
+      "guard_processes": 32,
+      "meaning": "Guard diagnostic only; one CTP import was blocked at optional importorskip collection. No native modules or external network events were recorded.",
+      "native_modules_loaded": [],
+      "network_or_dns_events": 0,
+      "observed_events": [
+        "blocked_provider_import:bt_api_ctp"
+      ]
+    }
+  },
+  "main_results": {
+    "author_unguarded_candidate_broad": {
+      "classification": "MIXED / CONTAMINATED: imported installed bt_api_ctp.ctp.client and bundled _ctp; not fake-only or no-native evidence.",
+      "result": "461 passed, 1 skipped"
+    },
+    "focused_identity": {
+      "exit": "0",
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 28
+      },
+      "result": "28 passed, 1 existing pytest config warning"
+    },
+    "guarded_runtime_diagnostic": {
+      "blocked_nodeids_file": "main/runtime/diagnostics/import-blocked-14/blocked-nodeids.txt",
+      "classification": "Initial diagnostic only: 14 import-tripwire failures; not code regressions or passes. Superseded as a guarded subset run by the corrected 14-exclusion rerun; raw logs retained.",
+      "external_network_events": 0,
+      "guard_process_count": 31,
+      "guarded_import_block_event_count": 15,
+      "junit_counts": {
+        "errors": 0,
+        "failures": 14,
+        "skipped": 32,
+        "tests": 2056
+      },
+      "native_modules_loaded": [],
+      "result": "2010 passed, 30 skipped, 2 xfailed, 14 failed"
+    },
+    "guarded_runtime_rerun": {
+      "blocked_ctp_import_events": 1,
+      "classification": "Guarded Runtime subset only; the 14 exact CTP-import cases remain excluded. No full Runtime or SDK/native/provider acceptance.",
+      "deselected_nodeids_file": "main/runtime/guarded-rerun-14-excluded/deselected-nodeids.txt",
+      "exit": "0",
+      "guard_process_count": 32,
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 32,
+        "tests": 2042
+      },
+      "native_modules_loaded": [],
+      "network_or_dns_events": 0,
+      "result": "2010 passed, 30 skipped, 14 exact deselected, 2 xfailed, 0 failures; 108.14 seconds"
+    },
+    "guarded_store_final": {
+      "deselection_audit": "AST source check confirmed all 18 excluded test functions contain explicit optional_sdk(\"bt_api_ctp.ctp.client\") calls.",
+      "deselection_audit_exit": "0",
+      "exit": "0",
+      "guard_native_modules_loaded": [],
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 13,
+        "tests": 743
+      },
+      "result": "730 passed, 13 skipped, 18 exact deselected, 1 existing pytest config warning"
+    },
+    "guarded_store_first_filter_diagnostic": {
+      "classification": "Harness exclusion list was short by two explicit SDK-import tests; not a code regression.",
+      "exit": "1",
+      "junit_counts": {
+        "errors": 0,
+        "failures": 2,
+        "skipped": 13,
+        "tests": 745
+      },
+      "result": "730 passed, 13 skipped, 16 deselected, 2 import-tripwire blocks, 1 existing pytest config warning"
+    },
+    "interrupted_broad_diagnostic": {
+      "classification": "Invalid harness: entire bt_api_py package stubbed; top-level pytest.main() re-executed by Windows multiprocessing; partial artifacts only, not code regressions.",
+      "exit": "-1",
+      "partial_failure_count": 164,
+      "stopped": "82% after >5 minutes without progress; partial failures observed; not a pass or complete result"
+    }
+  },
+  "runtime_clean_run_hashes": {
+    "exit_sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+    "junit_sha256": "99C23D69E004DA5A3C82B33501439770ABD89B4E1947D948EBEBE8738ACB38D8",
+    "log_sha256": "78FEA5B6454E933BA976618C73F4BD9C900B79CD362AF816332EF158CE870A17"
+  },
+  "scanner_integrity": {
+    "checklist_entries": 460,
+    "disposition_scope": "All active inventory rows remain REVIEW_REQUIRED / NOT_AVAILABLE; this does not authorize a route.",
+    "inventory_candidates": 460,
+    "inventory_sha256": "0874A81AC23BA4F659ACAAC833A976ECEC44FA892A3A97778EA3D9779DB67A67",
+    "scanner_tests": {
+      "exit": "0",
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 15
+      },
+      "result": "15 passed, 1 existing pytest config warning"
+    },
+    "verifier_status": "PASS; STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION"
+  },
+  "schema_version": "iteration41-ac41-63-store-api-route-identity-r2-main-evidence.v1",
+  "status": "STORE_AND_GUARDED_RUNTIME_SUBSETS_RECORDED / FULL_RUNTIME_AND_SDK_NATIVE_ACCEPTANCE_NOT_ESTABLISHED",
+  "store_identity": {
+    "base_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+    "candidate_sha256sums_sha256": "AA0161F9299A21B1BB8B7CDCB292A7C228BEFBEB12A62BED027A7D4A94630F49",
+    "code_bytes_unchanged_by_evidence_correction": true,
+    "corrected_candidate_manifest_sha256": "14CA1DDD9EA18CA5BB09B5B851470164042510BFD3C202FC287F265E4F9EC15A",
+    "documented_residual": "Custom __getattribute__ can hide CTP exchange_kwargs from static inspection on an already-injected API with empty Store snapshot and reach local fake direct submit/cancel sinks; this is not general identity closure.",
+    "identity_test_sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A",
+    "p3_receipt_manifest_sha256": "4B0BA9493D91CCDBBE6930ADAC3A5F23BE7D86A49EE58B9F9826A9527BA22A5A",
+    "p3_receipt_report_sha256": "689CC7743C160190DB470E514425077B3D16869CA0067132FCC27F83541DE8D2",
+    "p3_receipt_sha256sums_sha256": "32571F5D4704473B9108193F0ADDCC5F77D85D301980CBA0243438EA42D387AB",
+    "p3_verdict": "PASS_NARROW_CONDITIONAL_WITH_DOCUMENTED_RESIDUAL",
+    "patch_sha256": "AEF2BD46AA261576F936580502DF53C7FDC669856E3A7A59812CE43655493E59",
+    "superseded_pre-correction_manifest_sha256": "7770B105335576518B1B8A0A4E63B2788B78A23ECCFE6ABC28D466B3CA627964",
+    "superseded_pre-correction_sha256sums_sha256": "C5FD40182FA47C593887612E74D4D35CB2CADB6E491B990A48F453F4D5B039E1",
+    "target_store_sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA"
+  }
+}

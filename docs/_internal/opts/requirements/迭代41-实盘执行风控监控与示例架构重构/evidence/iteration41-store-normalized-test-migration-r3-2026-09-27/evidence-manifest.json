@@ -1,0 +1,71 @@
+{
+  "schema": "iteration41-evidence-copy-manifest.v1",
+  "created_utc": "2026-09-27",
+  "files": {
+    "author/MANIFEST-R3.md": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\MANIFEST-R3.md",
+      "sha256": "8D95E8227CF0E0E69AC00A21ED7334B2EA93CA112BA5332299AD6A860859A6ED",
+      "size_bytes": 5066
+    },
+    "author/manifest.json": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\manifest.json",
+      "sha256": "32961DB2EDFD8069EB3C74F43AA6B4C916F18333BD9435C1085576974457AB63",
+      "size_bytes": 2693
+    },
+    "author/TEST-MIGRATION-R3.diff": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\TEST-MIGRATION-R3.diff",
+      "sha256": "56E0EEEC9D7F9764E6516CB6ECFCA4AF33FDF351CA19630F8DF32AF9A490D56F",
+      "size_bytes": 10977
+    },
+    "author/test-target-r3.py": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\test_btapistore_normalized.py",
+      "sha256": "C3004A537AED8DF41B106F2A8D03287B02F54720B468E12C423BE2A82A5994F5",
+      "size_bytes": 57294
+    },
+    "author/focused.junit.xml": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\focused.junit.xml",
+      "sha256": "D62BC3D9AE2DA444BC44B5B50E10302DA7D0C4EA1602829F4B2A843869032D3E",
+      "size_bytes": 1363
+    },
+    "author/focused.stdout.txt": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\focused.stdout.txt",
+      "sha256": "8BAED0EB12E44D4799432E6F515494561D0DE20F02F3602B61DF804D061C369E",
+      "size_bytes": 661
+    },
+    "author/guard-report.json": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\guard-report.json",
+      "sha256": "10665BBC87EE603079935C6554A35769E5EE3B668E271AC31EC40CB88EB38C20",
+      "size_bytes": 338
+    },
+    "author/normalized_guard_plugin.py": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\normalized_guard_plugin.py",
+      "sha256": "E18961E7A362FA74E336415BA3F58B24ACCCB7585F665ABEC1E169D9DCBD1876",
+      "size_bytes": 2405
+    },
+    "independent/pytest.junit.xml": {
+      "source_path": "D:\\temp\\iteration41-store-r5-normalized-migration-r3-independent-qa-20260927\\independent.junit.xml",
+      "sha256": "C27935DB1F301163790CFA5E71F8BC3A09871C3B13ABE07F4E0B14711C6C37A9",
+      "size_bytes": 1363
+    },
+    "independent/pytest.stdout.txt": {
+      "source_path": "D:\\temp\\iteration41-store-r5-normalized-migration-r3-independent-qa-20260927\\independent.stdout.txt",
+      "sha256": "583541E042DAAE6E1C6F77F4D360F83DE8E6BF6E3737252C52CE93BDF27DE96C",
+      "size_bytes": 658
+    },
+    "independent/exit-code.txt": {
+      "source_path": "D:\\temp\\iteration41-store-r5-normalized-migration-r3-independent-qa-20260927\\exit-code.txt",
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+      "size_bytes": 1
+    },
+    "independent/guard-report.json": {
+      "source_path": "D:\\temp\\iteration41-store-r5-normalized-migration-r3-independent-qa-20260927\\guard-report.json",
+      "sha256": "10665BBC87EE603079935C6554A35769E5EE3B668E271AC31EC40CB88EB38C20",
+      "size_bytes": 338
+    },
+    "main/test_btapistore_normalized.py": {
+      "source_path": "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore_normalized.py",
+      "sha256": "4A8A7FC5922A77F8356D9A189041C125F8384FABC35A6F09E43BE1E1D6F542DB",
+      "size_bytes": 57281
+    }
+  }
+}

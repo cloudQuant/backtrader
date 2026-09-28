@@ -1,0 +1,3 @@
+....................................................                     [100%]
+- generated xml file: D:\temp\iteration41-g6s-r2-independent-qa-20260927\evidence\r2-independent-qa\pytest-focus.junit.xml -
+52 passed in 3.36s

@@ -1,0 +1,253 @@
+#!/usr/bin/env python
+"""Plot Scheme Module - Plotting configuration and styling.
+
+This module provides the PlotScheme class and color schemes for
+customizing the appearance of backtrader plots.
+
+Variables:
+    tableau20: 20-color palette for plots.
+    tableau10: 10-color palette for plots.
+    tableau10_light: 10 light-color palette.
+    tab10_index: Color index mapping.
+
+Classes:
+    PlotScheme: Configuration class for plot appearance.
+
+Example:
+    Using PlotScheme:
+    >>> scheme = PlotScheme()
+    >>> scheme.ytight = True
+    >>> cerebro.plot(scheme=scheme)
+"""
+
+tableau20 = [
+    "steelblue",  # 0
+    "lightsteelblue",  # 1
+    "darkorange",  # 2
+    "peachpuff",  # 3
+    "green",  # 4
+    "lightgreen",  # 5
+    "crimson",  # 6
+    "lightcoral",  # 7
+    "mediumpurple",  # 8
+    "thistle",  # 9
+    "saddlebrown",  # 10
+    "rosybrown",  # 11
+    "orchid",  # 12
+    "lightpink",  # 13
+    "gray",  # 14
+    "lightgray",  # 15
+    "olive",  # 16
+    "palegoldenrod",  # 17
+    "mediumturquoise",  # 18
+    "paleturquoise",  # 19
+]
+
+tableau10 = [
+    "blue",  # 'steelblue',  # 0
+    "darkorange",  # 1
+    "green",  # 2
+    "crimson",  # 3
+    "mediumpurple",  # 4
+    "saddlebrown",  # 5
+    "orchid",  # 6
+    "gray",  # 7
+    "olive",  # 8
+    "mediumturquoise",  # 9
+]
+
+tableau10_light = [
+    "lightsteelblue",  # 0
+    "peachpuff",  # 1
+    "lightgreen",  # 2
+    "lightcoral",  # 3
+    "thistle",  # 4
+    "rosybrown",  # 5
+    "lightpink",  # 6
+    "lightgray",  # 7
+    "palegoldenrod",  # 8
+    "paleturquoise",  # 9
+]
+
+tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
+
+
+class PlotScheme:
+    """Configuration class for plot appearance and styling.
+
+    This class defines the visual appearance of backtrader plots, including
+    colors, fonts, margins, and other styling parameters. It can be customized
+    and passed to cerebro.plot() to change the look of generated charts.
+
+    Attributes:
+        ytight (bool): Whether to use tight packing on y-axis.
+        yadjust (float): Y-margin (top/bottom) for subcharts.
+        zdown (bool): Whether new lines are painted below previous ones.
+        tickrotation (int): Rotation of date labels on x-axis.
+        rowsmajor (int): Subparts for major charts (data feeds).
+        rowsminor (int): Subparts for minor charts (indicators/observers).
+        plotdist (float): Distance between subcharts.
+        grid (bool): Whether to show grid in charts.
+        style (str): Plot style for OHLC bars ('line', 'bar', or 'candle').
+        loc (str): Color for line-on-close plots.
+        barup (str): Color for bullish bars/candles.
+        barupfill (bool): Whether bullish candles are filled.
+        baralpha (float): Opacity for filled candlesticks.
+        fillalpha (float): Alpha blending for fill areas.
+        volume (bool): Whether to plot volume.
+        voloverlay (bool): Whether to overlay volume on data chart.
+        volscaling (float): Scaling factor for volume when overlaying.
+        volpushup (float): Vertical offset for overlaid volume.
+        volup (str): Color for bullish volume.
+        voldown (str): Color for bearish volume.
+        voltrans (float): Transparency for volume when overlaying.
+        subtxttrans (float): Transparency for text labels.
+        subtxtsize (int): Font size for labels on chart.
+        legendind (bool): Whether indicators have legend display.
+        legendindloc (str): Location of legend for indicators.
+        legenddataloc (str): Location of legend for data feeds.
+        linevalues (bool): Whether to plot last value after object name.
+        valuetags (bool): Whether to plot tags with last values.
+        hlinescolor (str): Default color for horizontal lines.
+        hlinesstyle (str): Default style for horizontal lines.
+        hlineswidth (float): Default width for horizontal lines.
+        lcolors (list): Default color scheme for lines.
+        fmt_x_ticks (str): strftime format for x-axis ticks.
+        fmt_x_data (str): strftime format for data point values.
+
+    Example:
+        >>> scheme = PlotScheme()
+        >>> scheme.ytight = True
+        >>> scheme.style = 'candle'
+        >>> cerebro.plot(scheme=scheme)
+    """
+
+    def __init__(self):
+        """Initialize PlotScheme with default styling values.
+
+        Sets all plotting parameters to their default values, which can be
+        customized after initialization to achieve the desired chart appearance.
+        """
+        self.ytight = False
+
+        # y-margin (top/bottom) for the subcharts. This will not overrule the
+        # option plotinfo.plotymargin
+        self.yadjust = 0.0
+        # Each new line is in z-order below the previous one. change it False
+        # to have lines painted above the previous line
+        self.zdown = True
+        # Rotation of the date labes on the x-axis
+        self.tickrotation = 15
+
+        # How many "subparts" takes a major chart (datas) in the overall chart
+        # This is proportional to the total number of subcharts
+        self.rowsmajor = 5
+
+        # How many "subparts" takes a minor chart (indicators/observers) in the
+        # overall chart. This is proportional to the total number of subcharts
+        # Together with rowsmajor, this defines a proportion ratio between data
+        # charts and indicators/observers charts
+        self.rowsminor = 1
+
+        # Distance in between subcharts
+        self.plotdist = 0.0
+
+        # Have a grid in the background of all charts
+        self.grid = True
+
+        # Default plotstyle for the OHLC bars which (line -> line on close)
+        # Other options: 'bar' and 'candle'
+        self.style = "line"
+
+        # Default color for the 'line on close' plot
+        self.loc = "black"
+        # Default color for a bullish bar/candle (0.75 -> intensity of gray)
+        self.barup = "0.75"
+        # Default color for a bearish bar/candle
+        self.bardown = "red"
+        # Level of transparency to apply to bars/cancles (NOT USED)
+        self.bartrans = 1.0
+
+        # Whether the candlesticks have to be filled or be transparent
+        self.barupfill = True
+        self.bardownfill = True
+
+        # Opacity for the filled candlesticks (1.0 opaque - 0.0 transparent)
+        self.baralpha = 1.0
+
+        # Alpha blending for fill areas between lines (_fill_gt and _fill_lt)
+        self.fillalpha = 0.20
+
+        # Whether to plot volume or not.Note: if the data in question has no
+        # volume values, volume plotting will be skipped even if this is True
+        self.volume = True
+
+        # Whether to overlay the volume on the data or use a separate subchart
+        self.voloverlay = True
+        # Scaling of the volume to the data when plotting as overlay
+        self.volscaling = 0.33
+        # Pushing overlay volume up for better visibility.
+        # Experimentation
+        # needed if the volume and data overlap too much
+        self.volpushup = 0.00
+
+        # Default color for the volume of a bullish day
+        self.volup = "#aaaaaa"  # 0.66 of gray
+        # Default color for the volume of a bearish day
+        self.voldown = "#cc6073"  # (204, 96, 115)
+        # Transparency to apply to the volume when overlaying
+        self.voltrans = 0.50
+
+        # Transparency for text labels (NOT USED CURRENTLY)
+        self.subtxttrans = 0.66
+        # Default font text size for labels on the chart
+        self.subtxtsize = 9
+
+        # Transparency for the legend (NOT USED CURRENTLY)
+        self.legendtrans = 0.25
+        # Whether indicators have a legend display in their charts
+        self.legendind = True
+        # Location of the legend for indicators (see matplotlib)
+        self.legendindloc = "upper left"
+
+        # Location of the legend for datafeeds (see matplotlib)
+        self.legenddataloc = "upper left"
+
+        # Plot the last value of a line after the Object name
+        self.linevalues = True
+
+        # Plot a tag at the end of each line with the last value
+        self.valuetags = True
+
+        # Default color for horizontal lines (see plotinfo.plothlines)
+        self.hlinescolor = "0.66"  # shade of gray
+        # Default style for horizontal lines
+        self.hlinesstyle = "--"
+        # Default width for horizontal lines
+        self.hlineswidth = 1.0
+
+        # Default color scheme: Tableau 10
+        self.lcolors = tableau10
+
+        # strftime Format string for the display of ticks on the x-axis
+        self.fmt_x_ticks = "%Y-%m-%d %H:%M"
+
+        # strftime Format string for the display of data points values
+        self.fmt_x_data = None
+
+    def color(self, idx):
+        """Get color from color scheme for given index.
+
+        Args:
+            idx (int): Color index to retrieve.
+
+        Returns:
+            str: Color name or hex string from the color scheme.
+
+        Example:
+            >>> scheme = PlotScheme()
+            >>> scheme.color(0)  # Returns first color in scheme
+            'blue'
+        """
+        colidx = tab10_index[idx % len(tab10_index)]
+        return self.lcolors[colidx]

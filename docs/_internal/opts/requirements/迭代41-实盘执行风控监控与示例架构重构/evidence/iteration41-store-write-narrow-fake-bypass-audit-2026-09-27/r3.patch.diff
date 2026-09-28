@@ -1,0 +1,161 @@
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -6646,6 +6646,8 @@
+         return completion
+ 
+     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
++        if operation in {"submit", "cancel"} and self._is_ctp_write_provider():
++            raise BtApiStoreError("direct CTP SDK command dispatch is disabled")
+         if operation == "submit":
+             self._validate_approval_lease_command(command)
+         method_names = {
+@@ -7164,7 +7166,7 @@
+     def enqueue_order(self, order) -> Dict[str, Any]:
+         """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
+ 
+-        if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
++        if self._managed_execution_adapter is not None and self._is_ctp_write_provider():
+             raise BtApiStoreError(
+                 "managed CTP orders must pass through the typed runtime adapter"
+             )
+@@ -7174,6 +7176,9 @@
+                 "submit",
+                 bt_order_ref=getattr(order, "ref", None),
+             )
++
++        if self._is_ctp_write_provider():
++            raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
+ 
+         info = getattr(order, "info", {})
+         get_info = getattr(info, "get", lambda *_args: None)
+@@ -7323,7 +7328,7 @@
+         """Queue a typed cancellation while preserving its reserved capacity."""
+         if (
+             self._managed_execution_adapter is not None
+-            and self._is_ctp_session_provider()
++            and self._is_ctp_write_provider()
+         ):
+             raise BtApiStoreError(
+                 "managed CTP cancellations cannot use the generic SDK queue"
+@@ -7333,6 +7338,8 @@
+                 "cancel",
+                 bt_order_ref=order_ref,
+             )
++        if self._is_ctp_write_provider():
++            raise BtApiStoreError("direct CTP SDK cancel enqueue is disabled")
+         self._ensure_api_ready()
+         self._require_async_sdk_commands()
+         self._start_command_worker()
+@@ -8056,7 +8063,7 @@
+         if adapter is None:
+             raise BtApiStoreError("managed execution adapter is not attached")
+         order_ref = getattr(order_or_ref, "ref", order_or_ref)
+-        is_ctp = self._is_ctp_session_provider()
++        is_ctp = self._is_ctp_write_provider()
+         dispatched_identity: List[CtpManagedCancelDispatch] = []
+         dispatch_attempted = False
+         local_queue_receipts: List[Any] = []
+@@ -8065,6 +8072,16 @@
+             order_ref=order_ref,
+             status="admission_pending",
+         )
++        if is_ctp:
++            self.emit_runtime_event(
++                "managed_execution_cancel_rejected",
++                level="ERROR",
++                order_ref=order_ref,
++                status="rejected",
++                error_code="managed_execution_cancel_not_supported",
++                error_msg="Managed CTP cancellation is closed until the single execution outbox owns OrderRef/action binding.",
++            )
++            raise BtApiStoreError("managed_execution_cancel_not_supported")
+         try:
+             if self._is_ctp_session_provider():
+                 if not self._sdk_mode:
+@@ -8340,27 +8357,65 @@
+             raise BtApiStoreError("Exactly one configured CTP SDK exchange is required")
+         return venues[0]
+ 
+-    def _is_ctp_write_provider(self) -> bool:
+-        """Include CTP forwarding signals when closing direct Store writes."""
+-        provider = str(self.provider or "").strip().lower()
+-        if provider in {"ctp", "ctp_gateway"}:
+-            return True
+-        if self.backend == "forwarding":
+-            config = getattr(self, "_config", {})
+-            api_kwargs = getattr(self, "_api_kwargs", {})
+-            if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+-                return True
+-            try:
+-                # Match _create_forwarding_client's effective exchange exactly.
+-                kwargs = dict(config)
+-                kwargs.update(api_kwargs)
+-                exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
+-            except Exception:
+-                return True
+-            if str(exchange or "").strip().upper().partition("___")[0] == "CTP":
+-                return True
+-        return self._is_ctp_session_provider()
+-
++    def _is_ctp_write_provider(self) -> bool:
++        """Fail-close CTP writes from Store route/config snapshots.
++
++        The SDK route snapshot may fall back to injected API exchange_kwargs at
++        initialization. These route hints are not authorization; this method
++        itself does not dereference _api.
++        """
++
++        provider = str(self.provider or "").strip().lower()
++        if provider in {"ctp", "ctp_gateway"}:
++            return True
++        config = getattr(self, "_config", {})
++        api_kwargs = getattr(self, "_api_kwargs", {})
++        if self.backend == "forwarding":
++            if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
++                return True
++            try:
++                kwargs = dict(config)
++                kwargs.update(api_kwargs)
++                exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
++            except Exception:
++                return True
++            return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
++        if provider == "btapi":
++            sdk_exchanges = getattr(self, "_sdk_exchanges", {})
++            sdk_routes = getattr(self, "_sdk_routes", {})
++            if not all(
++                isinstance(value, Mapping)
++                for value in (config, api_kwargs, sdk_exchanges, sdk_routes)
++            ):
++                return True
++            candidates = list(sdk_exchanges) + list(sdk_routes.values())
++            for values in (config, api_kwargs):
++                candidates.extend((values.get("exchange"), values.get("exchange_type")))
++                exchange_kwargs = values.get("exchange_kwargs")
++                if isinstance(exchange_kwargs, Mapping):
++                    candidates.extend(exchange_kwargs)
++                elif exchange_kwargs is not None:
++                    return True
++            candidates = [value for value in candidates if value not in (None, "")]
++            if not candidates:
++                return True
++            return any(
++                str(value or "").strip().upper().partition("___")[0] == "CTP"
++                for value in candidates
++            )
++        if self.backend != "gateway":
++            return False
++        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
++            return True
++        exchange = (
++            api_kwargs.get("exchange_type")
++            or api_kwargs.get("exchange")
++            or config.get("exchange_type")
++            or config.get("exchange")
++            or "CTP"
++        )
++        return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
++
+     def _is_ctp_session_provider(self) -> bool:
+         if self.backend == "forwarding":
+             return False

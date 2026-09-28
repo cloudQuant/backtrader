@@ -1,0 +1,91 @@
+{
+  "candidate": {
+    "author_sidecar_sha256": "7b1bc78ab5e0159fa30698b95b20ad41d4f132b0ce3e2641aadab7859010eedb",
+    "directory": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2",
+    "freeze_receipt_sha256": "624ba96440e9099dc667fe840b5d73b0fac8aec28d88355506302fe5944b90ee",
+    "manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+    "payload_count": 191,
+    "payload_integrity_errors": 0,
+    "zip_crc": "passed",
+    "zip_entries": 193,
+    "zip_payload_match": true,
+    "zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14"
+  },
+  "independent_copy": "D:\\temp\\iteration41-g6s-r2-independent-qa-20260927",
+  "limitations": [
+    "Default code-owned SDK artifact policy remains None.",
+    "_ctp still delegates to path-based CPython ExtensionFileLoader and no handle-bound image mapping or mapped-image identity proof exists.",
+    "No real SDK/native/image load, wheel/signature, trust root, or full runtime closure.",
+    "Same-process guards only establish the tested mutation rejection contract; they do not provide process isolation against arbitrary hostile code."
+  ],
+  "probes": {
+    "importlib_mutation_matrix": {
+      "all_rejected_before_replacement_call": true,
+      "cases": 4,
+      "reason": "sdk_artifact_importlib_machinery_changed",
+      "stdout_sha256": "f39a853b4bcec6b705fddea618673989660dce6c4318b8fb6286985bea9b9558"
+    },
+    "r1_extension_loader_hook_replay": {
+      "actual_pyd_loaded": false,
+      "reason": "sdk_artifact_importlib_machinery_changed",
+      "replacement_calls": 0,
+      "stdout_sha256": "3903952c3c3cf797b4d1616fc8c34dccf17288e6329778b530b29ab38c58c231"
+    },
+    "retained_pyd_handle": {
+      "actual_pyd_loaded": false,
+      "fixture": "inert bytes only",
+      "overwrite": "PermissionError",
+      "rename": "PermissionError Win32 32",
+      "stdout_sha256": "282c5a14f1ae2ff0a7638e4a73f131bc3199b4bda84d035fd8946e3a8ddf0bca"
+    }
+  },
+  "runtime": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "D:\\temp\\iteration41-g6s-r2-independent-qa-20260927",
+    "interpreter": "C:\\anaconda3\\python.exe",
+    "python_version": "3.11.5"
+  },
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.independent_qa.r2.v1",
+  "scope": {
+    "account_accessed": false,
+    "credentials_or_private_config_read": false,
+    "default_route_changed": false,
+    "native_loaded_or_called": false,
+    "provider_or_network_called": false,
+    "real_sdk_loaded": false
+  },
+  "source_sha256": {
+    "backtrader_runtime/ctp_sdk_artifact_binding.py": "a7a27a318d4c3efeb5cc781c4c6479d56439da579d46da669c6f9349f96fb049",
+    "backtrader_runtime/ctp_simnow_td_trading_readiness.py": "25ceb62fd9ec0aa2c9280f555e6c95b92e4a24c0d201ee7d4ffb92c3027bf48a",
+    "backtrader_runtime/ctp_windows_artifact_custody.py": "eaf794fceed98ed18bc23d21bc9d1d962575d27ceee9b78bfd84d86b2003f421",
+    "tests/unit/runtime/test_ctp_sdk_artifact_binding.py": "dfdea407d33858118286b6ed5fdcf7c1691dcdd2e53b31dad49bcd26860c4dbb",
+    "tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py": "136e94204c418ad452cb67e155c827cfa0ef57697b77d4ae607c1fa109235377",
+    "tests/unit/runtime/test_ctp_windows_artifact_custody.py": "14a643deca3aa8f259fca54d3c6066dc77817c4537e2e8a0eccbb034685db841"
+  },
+  "status": "PARTIAL_CUSTODY_NO_G4_NO_G6S",
+  "tests": [
+    {
+      "command": "python -m pytest --noconftest tests\\unit\\runtime\\test_ctp_sdk_artifact_binding.py tests\\unit\\runtime\\test_ctp_windows_artifact_custody.py tests\\unit\\runtime\\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml=evidence\\r2-independent-qa\\pytest-focus.junit.xml",
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 52
+      },
+      "junit": "evidence/r2-independent-qa/pytest-focus.junit.xml",
+      "stdout_sha256": "b15ba97b37fa422c5df44cb6bc048371e4e998a3f3d558424e6be432aaedcfce"
+    },
+    {
+      "command": "target nodes: extension loader replacement after gate; parameterized ModuleSpec/module_from_spec/PathFinder.find_spec replacement; extension loader replacement during retained hash read",
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 5
+      },
+      "junit": "evidence/r2-independent-qa/pytest-loader-guard.junit.xml",
+      "stdout_sha256": "977f482f4167e438c263cc6e9402ba31625673798ead001a79d9aad20656bee6"
+    }
+  ]
+}

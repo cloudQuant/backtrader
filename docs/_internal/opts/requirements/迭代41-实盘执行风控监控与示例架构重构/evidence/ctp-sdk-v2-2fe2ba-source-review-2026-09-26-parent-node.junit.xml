@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.920" timestamp="2026-09-26T20:10:50.720087" hostname="yun"><testcase classname="tests.test_iter22_contracts" name="test_gateway_quote_v2_serialized_payload_reaches_parent_normalizer" time="0.004" /></testsuite></testsuites>

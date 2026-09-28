@@ -1,0 +1,82 @@
+{
+  "status": "COPIED_AND_VERIFIED; FEASIBILITY_ONLY; G1 CLOSED",
+  "source_freeze": "D:\\temp\\iteration41-g1-whole-command-feasibility-20260927\\freeze-r1",
+  "canonical_destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-g1-whole-command-feasibility-2026-09-27",
+  "source_manifest_sha256": "687dc04c052e48674cba867e4c6220292314cd3fbf207d3afedce4f6c64dca78",
+  "copied_manifest_sha256": "687dc04c052e48674cba867e4c6220292314cd3fbf207d3afedce4f6c64dca78",
+  "source_zip_sha256": "1b7f6a1dde6401d859d7a09029118ada01ded6ae544967a5fba780ae3bf1955a",
+  "copied_zip_sha256": "1b7f6a1dde6401d859d7a09029118ada01ded6ae544967a5fba780ae3bf1955a",
+  "source_manifest_payloads_verified": 5,
+  "zip_crc": "PASS",
+  "zip_member_count": 7,
+  "copied_file_count": 11,
+  "files": [
+    {
+      "path": "DESIGN.md",
+      "size_bytes": 4909,
+      "source_sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e",
+      "copied_sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e"
+    },
+    {
+      "path": "evidence.zip",
+      "size_bytes": 9787,
+      "source_sha256": "1b7f6a1dde6401d859d7a09029118ada01ded6ae544967a5fba780ae3bf1955a",
+      "copied_sha256": "1b7f6a1dde6401d859d7a09029118ada01ded6ae544967a5fba780ae3bf1955a"
+    },
+    {
+      "path": "evidence.zip.sha256",
+      "size_bytes": 79,
+      "source_sha256": "6a2bfee6c803d71697a6f072a43cc5e7dc4a9e0d8070b765da2233cc8822b8f6",
+      "copied_sha256": "6a2bfee6c803d71697a6f072a43cc5e7dc4a9e0d8070b765da2233cc8822b8f6"
+    },
+    {
+      "path": "freeze-receipt.json",
+      "size_bytes": 1717,
+      "source_sha256": "fa2d06991a356ea795ef6157ccfff7a1aa709d7b43f74b1b9a190831416410ca",
+      "copied_sha256": "fa2d06991a356ea795ef6157ccfff7a1aa709d7b43f74b1b9a190831416410ca"
+    },
+    {
+      "path": "freeze-receipt.sha256",
+      "size_bytes": 86,
+      "source_sha256": "4ab838b50e2f16257ab5944d83eb00a0ef94761130f229d4054d16d85be787c5",
+      "copied_sha256": "4ab838b50e2f16257ab5944d83eb00a0ef94761130f229d4054d16d85be787c5"
+    },
+    {
+      "path": "manifest.json",
+      "size_bytes": 2534,
+      "source_sha256": "687dc04c052e48674cba867e4c6220292314cd3fbf207d3afedce4f6c64dca78",
+      "copied_sha256": "687dc04c052e48674cba867e4c6220292314cd3fbf207d3afedce4f6c64dca78"
+    },
+    {
+      "path": "manifest.sha256",
+      "size_bytes": 80,
+      "source_sha256": "a383d1890d03a31b49cdaf8e81ab99f28bbd7b843398aef6abd831d11990f2ed",
+      "copied_sha256": "a383d1890d03a31b49cdaf8e81ab99f28bbd7b843398aef6abd831d11990f2ed"
+    },
+    {
+      "path": "probe.py",
+      "size_bytes": 14622,
+      "source_sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139",
+      "copied_sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139"
+    },
+    {
+      "path": "results.json",
+      "size_bytes": 4210,
+      "source_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40",
+      "copied_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40"
+    },
+    {
+      "path": "run.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "copied_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "run.stdout.txt",
+      "size_bytes": 4210,
+      "source_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40",
+      "copied_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40"
+    }
+  ],
+  "scope_note": "WaitForSingleObject(INFINITE) was called and intentionally waits on an unsignaled event; this is a controlled Win32 wait, not a kernel/driver hang. Both UNKNOWN classification returns were after D. T0 excludes top-level Python bootstrap. G1 remains CLOSED."
+}

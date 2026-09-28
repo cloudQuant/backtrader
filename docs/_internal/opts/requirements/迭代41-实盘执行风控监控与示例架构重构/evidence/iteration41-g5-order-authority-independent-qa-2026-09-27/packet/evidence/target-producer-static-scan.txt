@@ -1,0 +1,2 @@
+Search root: D:\temp\iteration41-g5-order-authority-independent-qa-20260927-r1\candidate\inputs\sdk\src\bt_api_execution Pattern: read_ctp_order_target_projection|CtpOrderTargetProjection|target_projection Exit code: 1
+No source matches.

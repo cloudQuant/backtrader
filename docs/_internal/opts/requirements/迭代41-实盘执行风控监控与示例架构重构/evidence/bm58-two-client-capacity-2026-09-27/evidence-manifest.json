@@ -1,0 +1,87 @@
+{
+  "schema": "iteration41.bm58_evidence_manifest.v1",
+  "status": "FAKE_LOCAL_DIAGNOSTIC",
+  "acceptance_status": "NOT_ACCEPTED",
+  "files": [
+    {
+      "path": "INDEX.md",
+      "size_bytes": 2330,
+      "sha256": "9b285a0ad61d39b1314a47ec9b5a972927a30d69446397c6bfacef0c95a1862f"
+    },
+    {
+      "path": "pytest-py311.log",
+      "size_bytes": 550,
+      "sha256": "9c0175c9a335fe4eeaae278fcd9c73d83dedb5f845df3cf6019c8746b7f726f8"
+    },
+    {
+      "path": "python38-grammar.log",
+      "size_bytes": 38,
+      "sha256": "ff30612a118f4d9114419f5517896ba7dc6aae1ea226565c4d61453f8f438c28"
+    },
+    {
+      "path": "ruff-check.log",
+      "size_bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "ruff-format.log",
+      "size_bytes": 27,
+      "sha256": "97d85b4b6c185a05396e2d09a3c304ff0f7cc77f8b7b7bb7989ec6cd875b3898"
+    },
+    {
+      "path": "raw-python312-default-smoke\\authority.sqlite3",
+      "size_bytes": 49152,
+      "sha256": "c8abc2d856740237933cce7d27eab21e5583cf67843d5fdb4b2ae2bd1d4780ac"
+    },
+    {
+      "path": "raw-python312-default-smoke\\backpressure-client-0.csv",
+      "size_bytes": 76,
+      "sha256": "7e40ac6ae66b41d43b173769e72060d8d857b872cc77383d5f51046ccf2f4bcf"
+    },
+    {
+      "path": "raw-python312-default-smoke\\backpressure-client-1.csv",
+      "size_bytes": 76,
+      "sha256": "7e40ac6ae66b41d43b173769e72060d8d857b872cc77383d5f51046ccf2f4bcf"
+    },
+    {
+      "path": "raw-python312-default-smoke\\backpressure-samples.csv",
+      "size_bytes": 86,
+      "sha256": "0d23a4b2b174b45b216e90e52a3a64a1bac279b57badda796880f3b0a0abfef1"
+    },
+    {
+      "path": "raw-python312-default-smoke\\client-results.json",
+      "size_bytes": 573,
+      "sha256": "c1513fd3b46ed1254ac0221e47e706d6130479e5b9ca919a7bc5dfb2e52a72b3"
+    },
+    {
+      "path": "raw-python312-default-smoke\\intent-samples.csv",
+      "size_bytes": 5313,
+      "sha256": "a1520d2a7996a3ad3b95a924dc450c2837c9ccb145abe2fb382d43cf9c4cff38"
+    },
+    {
+      "path": "raw-python312-default-smoke\\request-attempts.csv",
+      "size_bytes": 3329,
+      "sha256": "3bbe312cdcb38640a37dc2f2546b7aa25899b4eaca4e92d6fbfd567364bc7246"
+    },
+    {
+      "path": "raw-python312-default-smoke\\result.json",
+      "size_bytes": 3243,
+      "sha256": "1d68b664bf94323d1ee83354c5cacce834daecb0a4e915fec7fed22fedb0c3fa"
+    },
+    {
+      "path": "raw-python312-default-smoke\\stdout.txt",
+      "size_bytes": 913,
+      "sha256": "21715ea8e53947049a4ad54f7cfb7b24b7a5f7d19fa04df97e013d3daecadcb8"
+    },
+    {
+      "path": "source\\run_iteration41_actor_capacity_benchmark.py",
+      "size_bytes": 35084,
+      "sha256": "b1f02883d706c6d5449c5483a9a67fc32dae99f903c16fd2738e5e1b278759b1"
+    },
+    {
+      "path": "source\\test_run_iteration41_actor_capacity_benchmark.py",
+      "size_bytes": 5252,
+      "sha256": "20db109b2525bf507d20277c8674f6459b64a1a4da9f3c5383a858ffc8b2fabb"
+    }
+  ]
+}

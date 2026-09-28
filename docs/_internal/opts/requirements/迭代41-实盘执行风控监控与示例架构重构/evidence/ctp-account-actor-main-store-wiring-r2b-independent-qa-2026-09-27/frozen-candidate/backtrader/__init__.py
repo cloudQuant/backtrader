@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+"""Backtrader - Python Trading Framework.
+
+A feature-rich Python framework for backtesting and trading with support for
+multiple data feeds, brokers, and analysis tools.
+
+This module serves as the main entry point for the backtrader package,
+exposing all public APIs through a unified namespace.
+
+Example:
+    Basic usage::
+
+        import backtrader as bt
+
+        cerebro = bt.Cerebro()
+        data = bt.feeds.GenericCSVData(dataname='data.csv')
+        cerebro.adddata(data)
+        cerebro.addstrategy(MyStrategy)
+        results = cerebro.run()
+        cerebro.plot()
+
+Core Components:
+    - **Cerebro**: Main engine that orchestrates backtesting
+    - **Strategy**: Base class for trading strategies
+    - **Indicator**: Base class for technical indicators
+    - **Analyzer**: Base class for performance analyzers
+    - **Broker**: Simulated broker for order execution
+    - **Feed**: Data feed classes for market data input
+
+Subpackages:
+    - analyzers: Performance analysis tools (Sharpe, Drawdown, etc.)
+    - brokers: Broker implementations (backtesting + unified bt_api_py live broker)
+    - feeds: Data feed implementations (CSV, Pandas, Yahoo, bt_api_py live feed)
+    - indicators: Technical indicators (SMA, RSI, MACD, etc.)
+    - observers: Chart observers for visualization
+    - sizers: Position sizing algorithms
+    - stores: Data store implementations
+    - filters: Data filtering utilities
+
+Attributes:
+    __version__ (str): Package version string
+    __btversion__ (tuple): Package version as tuple
+
+See Also:
+    - Documentation: https://www.backtrader.com/docu/
+    - GitHub: https://github.com/mementum/backtrader
+"""
+
+import os as _os
+
+_LIGHT_IMPORT = _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+if _LIGHT_IMPORT:
+    from . import broker as broker
+    from . import brokers as brokers
+    from . import errors as errors
+    from . import feeds as feeds
+    from . import indicators as ind
+    from . import indicators as indicators
+    from . import observers as obs
+    from . import observers as observers
+    from . import stores as stores
+    from .broker import *
+    from .cerebro import *
+    from .comminfo import *
+    from .dataseries import *
+    from .errors import *
+    from .feed import *
+    from .functions import *
+    from .indicator import *
+    from .linebuffer import *
+    from .lineiterator import *
+    from .lineseries import *
+    from .observer import *
+    from .order import *
+    from .position import *
+    from .signal import *
+    from .strategy import *
+    from .timer import *
+    from .trade import *
+    from .utils import date2num, num2date, num2dt, num2time, time2num
+    from .utils import configure_logging, get_logger, reset_logging, set_level
+    from .notifications import (
+        ERROR_CATEGORIES,
+        bind_qq_bot,
+        bind_wechat_clawbot,
+        configure_notifications,
+        configure_notifications_from_env,
+        default_anchor_path,
+        flush_notifications,
+        load_anchor,
+        notification_stats,
+        poll_clawbot_once,
+        reset_notifications,
+        send_message,
+        update_anchor,
+    )
+    from .version import __btversion__, __version__
+else:
+    # Load contributed indicators and studies (lazy import to avoid circular dependency)
+    # from .indicators import contrib as _indicators_contrib
+
+    from . import analyzers as analyzers
+    from . import broker as broker
+    from . import brokers as brokers
+    from . import channels as channels
+    from . import commissions as commissions
+    from . import commissions as comms
+    from . import errors as errors
+    from . import feeds as feeds
+    from . import filters as filters
+    from . import indicators as ind
+    from . import indicators as indicators
+    from . import observers as obs
+    from . import observers as observers
+    from . import signals as signals
+    from . import sizers as sizers
+    from . import stores as stores
+    from . import talib as talib
+    from . import timer as timer
+    from . import utils as utils
+    from .analyzer import *
+    from .broker import *
+    from .cerebro import *
+    from .comminfo import *
+    from .dataseries import *
+    from .errors import *
+    from .feed import *
+    from .flt import *
+    from .functions import *
+    from .indicator import *
+    from .linebuffer import *
+    from .lineiterator import *
+    from .lineseries import *
+    from .observer import *
+    from .order import *
+    from .position import *
+    from .resamplerfilter import *
+    from .signal import *
+    from .sizer import *
+    from .sizers import SizerFix  # old sizer for compatibility
+    from .store import Store
+    from .strategy import *
+    from .timer import *
+    from .trade import *
+    from .utils import date2num, num2date, num2dt, num2time, time2num
+    from .utils import configure_logging, get_logger, reset_logging, set_level
+    from .notifications import (
+        ERROR_CATEGORIES,
+        bind_qq_bot,
+        bind_wechat_clawbot,
+        configure_notifications,
+        configure_notifications_from_env,
+        default_anchor_path,
+        flush_notifications,
+        load_anchor,
+        notification_stats,
+        poll_clawbot_once,
+        reset_notifications,
+        send_message,
+        update_anchor,
+    )
+    from .version import __btversion__, __version__
+    from .writer import *
+    from .profiles import LiveProfile, build_cerebro
+
+    # Iteration 138: Tick-level backtesting and live trading
+    from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent
+    from .channel import Event, EventPriority, StreamingEventQueue
+
+    # import backtrader.studies.contrib
+
+    # from backtrader import vectors

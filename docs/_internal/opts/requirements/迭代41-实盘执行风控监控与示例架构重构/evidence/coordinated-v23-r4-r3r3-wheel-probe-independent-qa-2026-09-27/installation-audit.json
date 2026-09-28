@@ -1,0 +1,61 @@
+{
+  "schema": "independent-coordinated-wheel-qa-install-v1",
+  "created_utc": "2026-09-27T00:56:16.678386+00:00",
+  "python_executable": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Scripts\\python.exe",
+  "venv_no_system_site_packages": true,
+  "pip_install_exit": 0,
+  "base_wheel_uninstall_exit": 0,
+  "pip_check_exit": 0,
+  "pip_check_output": "No broken requirements found.",
+  "wheel_builds": {
+    "execution": {
+      "build_a_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+      "build_b_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+      "copied_wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+      "size_bytes": 177675,
+      "byte_identical": true
+    },
+    "parent": {
+      "build_a_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "build_b_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "copied_wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "size_bytes": 534260,
+      "byte_identical": true
+    }
+  },
+  "installed_record_pep610": {
+    "bt_api_execution": {
+      "record_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info\\RECORD",
+      "installed_record_rows_all_valid": 34,
+      "wheel_payload_members_checked": 17,
+      "all_installed_wheel_payloads_byte_identical": true,
+      "pip_generated_extra_record_rows": 17,
+      "direct_url_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+      "direct_url": "file:///D:/temp/iteration41-coordinated-release-probe-independent-qa-20260927/wheelhouse/bt_api_execution-0.2.4.dev0%2Bv23r3r3.f94b924e1e20-py3-none-any.whl"
+    },
+    "bt_api_py": {
+      "record_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info\\RECORD",
+      "installed_record_rows_all_valid": 286,
+      "wheel_payload_members_checked": 143,
+      "all_installed_wheel_payloads_byte_identical": true,
+      "pip_generated_extra_record_rows": 143,
+      "direct_url_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+      "direct_url": "file:///D:/temp/iteration41-coordinated-release-probe-independent-qa-20260927/wheelhouse/bt_api_py-0.15.7.dev0%2Br4r3r3.67e54513-py3-none-any.whl"
+    }
+  },
+  "source_roots": {
+    "parent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+    "base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src",
+    "ctp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\ctp\\src",
+    "execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+    "risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src",
+    "monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src",
+    "gateway": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\gateway\\src",
+    "transport_zmq": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\transport_zmq\\src",
+    "agent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\agent\\src",
+    "skills": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\skills\\src",
+    "mcp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\mcp\\src"
+  },
+  "base_runtime_distribution_uninstalled": true,
+  "tests": "not run yet"
+}

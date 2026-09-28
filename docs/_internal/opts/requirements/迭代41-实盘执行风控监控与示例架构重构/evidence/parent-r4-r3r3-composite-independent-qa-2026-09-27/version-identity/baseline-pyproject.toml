@@ -1,0 +1,307 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bt_api_py"
+version = "0.15.5"
+description = "Implement backtesting and trading of quantitative strategy"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "cloudQuant", email = "yunjinqi@gmail.com"},
+]
+dependencies = [
+    "bt_api_base>=0.15.4",
+    "numpy>=1.26.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "websocket-client>=1.6.0",
+    "pyyaml>=6.0",
+    "pandas>=2.0.0",
+    "aiohttp>=3.9.0",
+    "spdlog>=2.0.0",
+    "pytz>=2023.3",
+    "python-rapidjson>=1.10",
+    "httpx>=0.27.0",
+    "pyzmq>=26.0.0",
+    "pydantic>=2.0.0",
+    "websockets>=12.0",
+    "typing-extensions>=4.8.0",
+    "eval-type-backport>=0.2.0; python_version < '3.10'",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://github.com/cloudQuant/bt_api_py"
+Repository = "https://github.com/cloudQuant/bt_api_py"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may require external services)",
+    "slow: Slow tests (> 1s)",
+    "network: Tests requiring network access",
+    "contract: Contract tests for API and feed behavior",
+    "performance: Performance and benchmark tests",
+    "e2e: End-to-end workflow tests",
+    "flaky: Tests known to be timing-sensitive or environment-sensitive",
+    "ctp: CTP related tests",
+    "binance: Binance exchange tests",
+    "okx: OKX exchange tests",
+    "ib: Interactive Brokers tests",
+    "mt5: MetaTrader 5 tests (requires MT5_LOGIN / MT5_PASSWORD env vars)",
+    "asyncio: Async tests",
+    "timeout: Tests using pytest-timeout marker",
+    # 行情数据测试（不需要鉴权）
+    "ticker: Public ticker/tick data tests (no auth required)",
+    "kline: Public kline/bar/candle data tests (no auth required)",
+    "orderbook: Public orderbook/depth data tests (no auth required)",
+    "public_trade: Public market trade data tests (no auth required)",
+    "server_time: Server time tests (no auth required)",
+    # 需要鉴权的测试
+    "auth_account: Account and balance tests (auth required)",
+    "auth_order: Order management tests (auth required)",
+    "auth_position: Position management tests (auth required)",
+    "auth_private_trade: Private trade history tests (auth required)",
+]
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["bt_api_py"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/ctp/_ctp.*.so",
+    "*/ctp/ctp_wrap.*",
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 40
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".venv",
+    "venv",
+    "*.bak",
+    "bt_api_py/ctp/ctp.py.bak",
+    "bt_api_py/ctp/ctp_wrap.*",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear (includes B904 raise-from)
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "RUF100",  # unused noqa directives
+    "S",   # flake8-bandit security
+    "PERF",  # perflint performance
+    "PIE790",  # no-unnecessary-pass
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "N802",  # function name should be lowercase (CTP uses CamelCase)
+    "N803",  # argument name should be lowercase (CTP uses CamelCase)
+    "N806",  # variable in function should be lowercase (CTP uses CamelCase)
+    "S101",  # use of assert (allowed in tests)
+    "S104",  # possible binding to all interfaces (false positive for dev servers)
+    "S105",  # possible hardcoded password (false positive for config keys, token addresses)
+    "S107",  # false positive for param defaults like input_token="base"
+    "S311",  # random for non-crypto: tests use random, crypto uses secrets
+    "S307",  # verify=False: IB demo uses for local testing
+    "PERF203",  # existing loop try/except patterns accepted for now
+    "S108",  # /tmp path: dev defaults acceptable
+    "S301",  # pickle: ML model serialization, fix with joblib/safe format
+    "S506",  # yaml.FullLoader: config files from trusted source
+    "TC001",  # deferred annotations make many runtime imports appear type-only
+    "TC003",  # gradual cleanup for stdlib type-only imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+"bt_api_py/ctp/*.py" = ["N801", "N802", "N803", "N806", "S110", "S112", "S324"]  # CTP vendor wrapper
+"tests/*.py" = ["N802", "N803", "S106", "S108", "S301", "S501", "S603"]
+# 子仓测试与示例脚本沿用同一套测试约定：其中的凭据一律是占位夹具（非真实密钥），
+# 与上面 "tests/*.py" 的 S106 豁免保持一致。
+"bt_api/*/tests/**/*.py" = ["S106"]
+"examples/**/*.py" = ["S106"]
+# 注：原 "tests/integration/test_{kraken,mexc}_integration.py" 两条豁免已删除——
+# 这两个路径在本仓库中不存在（真实文件位于 examples/network_tests/integration/），
+# 且真实文件已在文件头用 `# ruff: noqa: F401` 自行声明豁免。
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = true
+strict_equality = true
+ignore_missing_imports = true
+# Ignore untyped imports for third-party libs without stubs (pytz, requests, yaml)
+# These are handled by types-* packages in dev dependencies
+plugins = []
+# Gradual typing: disable noisy codes for brownfield codebase (can tighten later)
+disable_error_code = [
+    "override", "name-defined", "has-type",
+    "call-overload", "return-value", "assignment", "index", "operator",
+    "no-any-return", "misc", "valid-type", "empty-body",
+    "no-redef", "union-attr", "list-item", "dict-item",
+    "import-untyped",
+]
+
+[[tool.mypy.overrides]]
+module = "bt_api_py.exceptions"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "bt_api_py.ctp_env_selector"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "bt_api_py.bt_api"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.bandit]
+exclude_dirs = ["tests", "bt_api_py/ctp", "build", "dist", ".venv", "venv"]
+skips = [
+    "B101",  # assert_used - allowed in tests (ruff S101)
+    "B104",  # bind all interfaces - explicit default for Prometheus exporters
+    "B105",  # hardcoded_password_string - false positives on enum values (PASS),
+             # empty config defaults, and field names ("refresh_token"); real
+             # secret leakage is covered by gitleaks diff scanning in CI
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.0.0",
+    "wheel",
+    "cython",
+    "types-PyYAML>=6.0",
+    "types-pytz>=2023.3",
+    "types-requests>=2.31.0",
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-sugar>=1.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-html>=4.0.0",
+    "pytest-rerunfailures>=12.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-picked>=0.5.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "pre-commit>=3.0.0",
+    "bandit[toml]>=1.7.0",
+    "pip-audit>=2.7.0",
+    "setuptools>=83.0.0",
+    "hypothesis>=6.0.0",
+    "psutil>=5.9.0",
+    "scikit-learn>=1.3.0",
+    "pyarrow>=14.0.0",
+]
+security = [
+    "pyjwt>=2.8.0",
+    "pyotp>=2.9.0",
+    "cryptography>=41.0.0",
+    "bcrypt>=4.1.0",
+]
+visualization = [
+    "matplotlib>=3.7.0",
+    "pyecharts>=2.0.0",
+]
+monitoring = [
+    "psutil>=5.9.0",
+    "aiohttp>=3.9.0",
+]
+email = [
+    "aiosmtplib>=2.0.0",
+]
+time = [
+    "ntplib>=0.4.0",
+]
+ib = [
+    "ib-insync>=0.9.86",
+]
+ib_web = [
+    "pyjwt>=2.8.0",
+    "cryptography>=41.0.0",
+    "playwright>=1.45.0",
+]
+mt5 = [
+    "pymt5>=0.5.0",
+]
+cookies = [
+    "browser-cookie3>=0.19.0",
+]
+all = [
+    "bt_api_py[dev,security,visualization,email,time,ib,ib_web,mt5,cookies,monitoring]",
+]
+core-reference = [
+    "bt_api_binance>=2.0.0",
+    "bt_api_ctp>=2.0.2,<3.0",
+]

@@ -1,0 +1,64 @@
+--- a/examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py
++++ b/examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py
+@@ -75,7 +75,6 @@
+         pass
+ 
+ 
+-load_dotenv_if_available()
+ 
+ 
+ def resolve_config_path(config_arg: str | None, base_dir: Path, default_name: str) -> Path:
+@@ -746,6 +745,10 @@
+     Returns:
+         Tuple of (BtApiStore, connection_info).
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_live_store"
++    )
+     config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
+     env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
+     requested_env = config_env or DEFAULT_SIMNOW_ENV
+@@ -792,6 +795,10 @@
+     Returns:
+         BtApiBroker instance.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_live_broker"
++    )
+     broker_kwargs = dict(config.get("broker") or {})
+     return BtApiBroker(store=store, **broker_kwargs)
+ 
+--- a/examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py
++++ b/examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py
+@@ -75,7 +75,6 @@
+         pass
+ 
+ 
+-load_dotenv_if_available()
+ 
+ 
+ def resolve_config_path(config_arg: str | None, base_dir: Path, default_name: str) -> Path:
+@@ -746,6 +745,10 @@
+     Returns:
+         Tuple of (BtApiStore, connection_info).
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:create_live_store"
++    )
+     config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
+     env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
+     requested_env = config_env or DEFAULT_SIMNOW_ENV
+@@ -792,6 +795,10 @@
+     Returns:
+         BtApiBroker instance.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:create_live_broker"
++    )
+     broker_kwargs = dict(config.get("broker") or {})
+     return BtApiBroker(store=store, **broker_kwargs)
+ 

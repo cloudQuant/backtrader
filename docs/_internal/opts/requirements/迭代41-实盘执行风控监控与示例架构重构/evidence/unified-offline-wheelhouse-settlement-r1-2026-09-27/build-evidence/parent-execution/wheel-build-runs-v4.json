@@ -1,0 +1,98 @@
+{
+  "build_backend": "pip wheel --no-deps --no-build-isolation --no-index",
+  "build_input_manifest_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+  "network_policy": "PIP_NO_INDEX=1 plus socket guard",
+  "runs": [
+    {
+      "argv": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-deps",
+        "--no-build-isolation",
+        "--no-index",
+        "--disable-pip-version-check",
+        "--wheel-dir",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\execution",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-a\\execution"
+      ],
+      "build": "build-a",
+      "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-a\\execution",
+      "exit_code": 0,
+      "package": "execution",
+      "stderr_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-execution.stderr.log",
+      "stdout_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-execution.stdout.log",
+      "wheel_output_dir": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\execution"
+    },
+    {
+      "argv": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-deps",
+        "--no-build-isolation",
+        "--no-index",
+        "--disable-pip-version-check",
+        "--wheel-dir",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\parent",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-a\\parent"
+      ],
+      "build": "build-a",
+      "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-a\\parent",
+      "exit_code": 0,
+      "package": "parent",
+      "stderr_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-parent.stderr.log",
+      "stdout_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-parent.stdout.log",
+      "wheel_output_dir": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\parent"
+    },
+    {
+      "argv": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-deps",
+        "--no-build-isolation",
+        "--no-index",
+        "--disable-pip-version-check",
+        "--wheel-dir",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\execution",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-b\\execution"
+      ],
+      "build": "build-b",
+      "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-b\\execution",
+      "exit_code": 0,
+      "package": "execution",
+      "stderr_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-execution.stderr.log",
+      "stdout_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-execution.stdout.log",
+      "wheel_output_dir": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\execution"
+    },
+    {
+      "argv": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-deps",
+        "--no-build-isolation",
+        "--no-index",
+        "--disable-pip-version-check",
+        "--wheel-dir",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\parent",
+        "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-b\\parent"
+      ],
+      "build": "build-b",
+      "cwd": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\builds-v4\\build-b\\parent",
+      "exit_code": 0,
+      "package": "parent",
+      "stderr_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-parent.stderr.log",
+      "stdout_log": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-parent.stdout.log",
+      "wheel_output_dir": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\parent"
+    }
+  ],
+  "schema": "iteration41-coordinated-wheel-build-runs-v3",
+  "source_date_epoch": "1790467200",
+  "temporary_path": "D:\\temp\\i41crb"
+}

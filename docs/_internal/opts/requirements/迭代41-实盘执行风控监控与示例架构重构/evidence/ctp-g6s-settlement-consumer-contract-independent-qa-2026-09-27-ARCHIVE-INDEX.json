@@ -1,0 +1,29 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.independent_qa_archive_index.v1",
+  "classification": "PARTIAL_CONSUMER_CONTRACT_ONLY / G6-S CLOSED / G7-S CLOSED",
+  "candidate_manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+  "candidate_zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+  "qa_package_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-2026-09-27",
+  "qa_package_zip": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-2026-09-27.zip",
+  "qa_package_zip_sha256": "546cd325f670629e6d56798f6abd6c444bcf1d954e589c10860b3696d4f84749",
+  "sha256sums_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-2026-09-27\\SHA256SUMS.txt",
+  "sha256sums_sha256": "517af45573d7dd3c0d70ed687b61656d851b9e49c46b919f11d842bc9eee0bd2",
+  "zip_verification_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-2026-09-27-archive-verification.json",
+  "zip_verification_sha256": "bafd6c35fcef4d4af3966c388221b086878baeeeddcfbd4ab3efda3cbc2050ba",
+  "report_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-independent-qa-2026-09-27\\REPORT.md",
+  "raw_results": [
+    "candidate verification stdout/exit",
+    "35-test focused stdout/JUnit/exit",
+    "21-test adversarial stdout/JUnit/exit",
+    "failed QA-fixture setup attempt stdout/JUnit/exit",
+    "import guard smoke stdout/exit",
+    "static main-runtime search"
+  ],
+  "limitations": [
+    "QA-only local fake contract",
+    "candidate is not wired to main runtime",
+    "strict bool-as-int validation gap",
+    "no provider trust or execution authority",
+    "no G6-S/G7-S acceptance"
+  ]
+}

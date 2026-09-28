@@ -1,0 +1,13 @@
+{
+  "agent": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\agent\\src",
+  "base": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\base\\src",
+  "ctp": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\ctp\\src",
+  "execution": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\execution\\src",
+  "gateway": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\gateway\\src",
+  "mcp": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\mcp\\src",
+  "monitor": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\monitor\\src",
+  "parent": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source",
+  "risk": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\risk\\src",
+  "skills": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\skills\\src",
+  "transport_zmq": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\package-roots\\transport_zmq\\src"
+}

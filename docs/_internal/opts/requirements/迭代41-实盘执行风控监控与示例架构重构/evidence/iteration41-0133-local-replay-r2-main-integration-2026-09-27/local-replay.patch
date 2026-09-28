@@ -1,0 +1,385 @@
+--- a/examples/013_3_sa_midfreq_simnow/run.py
++++ b/examples/013_3_sa_midfreq_simnow/run.py
+@@ -24,7 +24,7 @@
+ import hashlib
+ import hmac
+ import importlib.metadata
+-import importlib.util
++import importlib.machinery
+ import inspect
+ import json
+ import math
+@@ -683,15 +683,31 @@
+     return source_tree_hash(HERE / name for name in SOURCE_FILES)
+ 
+ 
++def _find_spec_without_importing_parents(module_name: str) -> Any:
++    """Resolve a module spec without executing any package initializer."""
++
++    parts = module_name.split(".")
++    if not parts or any(not part for part in parts):
++        return None
++    qualified_name = parts[0]
++    spec = importlib.machinery.PathFinder.find_spec(qualified_name)
++    if spec is None:
++        return None
++    for part in parts[1:]:
++        search_path = spec.submodule_search_locations
++        if search_path is None:
++            return None
++        qualified_name = f"{qualified_name}.{part}"
++        spec = importlib.machinery.PathFinder.find_spec(qualified_name, search_path)
++        if spec is None:
++            return None
++    return spec
++
++
+ def module_identity(module_name: str, distribution_name: str | None = None) -> dict[str, Any]:
+-    """Identify one installed/importable component without importing native code."""
+-
+-    try:
+-        spec = importlib.util.find_spec(module_name)
+-    except ModuleNotFoundError:
+-        # A dotted optional module can raise when its parent distribution is
+-        # absent; replay provenance should record that absence, not abort.
+-        spec = None
++    """Identify a component without importing its module or package parents."""
++
++    spec = _find_spec_without_importing_parents(module_name)
+     # Manifests are exchanged between Windows and POSIX acceptance hosts, so
+     # serialize provenance paths deterministically while retaining normal Path
+     # behavior for the hash and existence checks below.
+@@ -2626,8 +2642,8 @@
+         self.monotonic_value += float(seconds)
+ 
+ 
+-class ReplayClient:
+-    """Read-only local event source consumed through ``BtApiStore``."""
++class ReplayClient:
++    """Explicit read-only local event source for the replay-only composition."""
+ 
+     def __init__(self, ticks, clock: ReplayClock, *, eof_event_time_watermark: float) -> None:
+         """Buffer fixture ``ticks``, bind ``clock``, and record the end-of-source watermark."""
+@@ -2665,7 +2681,7 @@
+         """Return the fixed event-time watermark for the end of source."""
+         return self.eof_event_time_watermark
+ 
+-    def poll_tick(self, symbol):
++    def poll_tick(self, symbol):
+         """Pop the next buffered tick for ``symbol`` and advance the replay clock.
+ 
+         Returns ``None`` when the buffer is empty or the head tick belongs
+@@ -2677,8 +2693,114 @@
+         if tick.symbol != symbol:
+             return None
+         tick = self.ticks.popleft()
+-        self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
+-        return tick
++        self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
++        return tick
++
++
++class LocalReplayStore:
++    """Minimal in-process source adapter for :class:`ReplayClient`.
++
++    This deliberately does not inherit from ``BtApiStore`` and has no provider
++    tag, SDK factory, or order methods.  The only source accepted is an
++    explicitly constructed local ``ReplayClient``; there is no default or
++    fallback client construction.
++    """
++
++    def __init__(self, client: ReplayClient, *, contract_metadata: Mapping[str, Any]) -> None:
++        if type(client) is not ReplayClient:
++            raise RunnerConfigurationError("local replay requires an explicit ReplayClient")
++        self._client = client
++        self.contract_metadata = deepcopy(dict(contract_metadata))
++        self._feeds = []
++        self._started = False
++        self.delivered_events = 0
++
++    def start(self, data=None, broker=None) -> None:
++        del broker
++        if data is not None:
++            self.register(data)
++        if not self._started:
++            self._client.connect()
++            self._started = True
++
++    def register(self, feed) -> None:
++        if feed not in self._feeds:
++            self._feeds.append(feed)
++
++    def subscribe(self, symbol) -> None:
++        self._client.subscribe(symbol)
++
++    def poll_tick(self, symbol):
++        return self._client.poll_tick(symbol)
++
++    def poll_live(self, _symbol):
++        return None
++
++    def is_source_exhausted(self, symbol) -> bool:
++        return self._client.is_source_exhausted(symbol)
++
++    def get_source_event_time_watermark(self, symbol) -> float:
++        return self._client.get_source_event_time_watermark(symbol)
++
++    def mark_strategy_delivered(self, _event) -> None:
++        self.delivered_events += 1
++
++    def get_notifications(self):
++        return []
++
++    def getdata(self, *args, **kwargs):
++        """Create the known feed with a non-CTP local replay label."""
++        from backtrader.feeds.btapifeed import BtApiFeed
++
++        if "data_cls" in kwargs:
++            raise RunnerConfigurationError("local replay feed class is fixed")
++        kwargs["store"] = self
++        kwargs["provider"] = "local_replay"
++        feed = BtApiFeed(*args, **kwargs)
++        feed._store = self
++        return feed
++
++    def stop(self) -> None:
++        if self._started:
++            self._client.disconnect()
++            self._started = False
++
++
++class LocalReplayBroker(bt.brokers.BackBroker):
++    """In-memory valuation broker with no order-entry or matching engine."""
++
++    def submit(self, order, check=True):
++        del order, check
++        raise RunnerConfigurationError("read-only local replay does not accept orders")
++
++    def cancel(self, order, bracket=False):
++        del order, bracket
++        raise RunnerConfigurationError("read-only local replay does not accept cancels")
++
++    def buy(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept buys")
++
++    def sell(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept sells")
++
++    def transmit(self, order, check=True):
++        del order, check
++        raise RunnerConfigurationError("read-only local replay does not accept order transmission")
++
++    def submit_accept(self, order):
++        del order
++        raise RunnerConfigurationError("read-only local replay does not accept order acceptance")
++
++    def add_order_history(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept order history")
++
++    def next(self):
++        if self.pending or self.submitted or self._userhist:
++            raise RunnerConfigurationError("read-only local replay has no order fill path")
++        return None
+ 
+ 
+ def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
+@@ -3088,13 +3210,14 @@
+     scenario: str,
+     run_id: str | None = None,
+     retention_root: Path | None = None,
+-) -> dict[str, Any]:
+-    """Execute the frozen synthetic fixture through the native replay path.
+-
+-    Drives the real Store/Feed/Broker/strategy chain with ``ReplayClient``
+-    and ``ReplayClock``: no network, no local fill model, zero SDK write
+-    requests.  Fails closed unless the strategy stays read-only and ends
+-    flat; the manifest and evidence are finalized either way.
++) -> dict[str, Any]:
++    """Execute the frozen synthetic fixture through the local replay path.
++
++    Drives the Backtrader Feed/strategy chain with an explicit ``ReplayClient``
++    and ``ReplayClock``, a minimal local-only Store, and a no-order valuation
++    broker. There is no CTP Store/Broker construction, SDK fallback, network,
++    or provider write route. Fails closed unless the strategy stays read-only
++    and ends flat; the manifest and evidence are finalized either way.
+     """
+     output_directory = _claim_output_directory(output_directory)
+     replay = _mapping(config.get("replay"))
+@@ -3217,26 +3340,12 @@
+             "quantity_step": 1,
+             "currency": "CNY",
+         }
+-        store = BtApiStore(
+-            provider="ctp",
+-            api=client,
+-            cash=float(replay["starting_cash"]),
+-            value=float(replay["starting_cash"]),
+-            contract_metadata={instrument: broker_metadata},
+-        )
+-        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+-        broker = BtApiBroker(
+-            store=store,
+-            provider="ctp",
+-            cash=float(replay["starting_cash"]),
+-            value=float(replay["starting_cash"]),
+-            position_mode="net",
+-            contract_metadata={instrument: broker_metadata},
+-            validation_enabled=True,
+-            sdk_preflight=False,
+-            flatten_on_stop=False,
+-            force_refresh_queries=False,
+-        )
++        store = LocalReplayStore(client, contract_metadata={instrument: broker_metadata})
++        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
++        broker = LocalReplayBroker(
++            cash=float(replay["starting_cash"]),
++            position_mode="net",
++        )
+         cerebro.setbroker(broker)
+         feed = store.getdata(
+             dataname=instrument,
+@@ -3295,8 +3404,9 @@
+             runtime_chain={
+                 "cerebro": f"{type(cerebro).__module__}.{type(cerebro).__name__}",
+                 "store": f"{type(store).__module__}.{type(store).__name__}",
+-                "feed": f"{type(feed).__module__}.{type(feed).__name__}",
+-                "broker": f"{type(broker).__module__}.{type(broker).__name__}",
++                "feed": f"{type(feed).__module__}.{type(feed).__name__}",
++                "feed_provider": getattr(feed, "provider", None),
++                "broker": f"{type(broker).__module__}.{type(broker).__name__}",
+                 "strategy": (f"{type(strategies[0]).__module__}.{type(strategies[0]).__name__}"),
+             },
+         )
+--- a/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py
++++ b/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py
+@@ -188,15 +188,30 @@
+ 
+     if case["name"] == "013_3":
+         from backtrader.brokers.btapibroker import BtApiBroker
++        from backtrader.brokers.bbroker import BackBroker
+         from backtrader.stores.btapistore import BtApiStore
+ 
++        provider_calls = {"constructors": 0, "order_writes": 0, "inherited_matcher": 0}
++
++        def reject_provider_construction(*args, **kwargs):
++            provider_calls["constructors"] += 1
++            pytest.fail("local replay must not construct a CTP Store or Broker")
++
+         def reject_write(*args, **kwargs):
+-            pytest.fail("the native replay must not submit or cancel a provider order")
+-
++            provider_calls["order_writes"] += 1
++            pytest.fail("local replay must not submit or cancel a provider order")
++
++        def reject_inherited_matcher(*args, **kwargs):
++            provider_calls["inherited_matcher"] += 1
++            pytest.fail("local replay must not invoke BackBroker's matching engine")
++
++        monkeypatch.setattr(BtApiBroker, "__init__", reject_provider_construction)
+         monkeypatch.setattr(BtApiBroker, "submit", reject_write)
+         monkeypatch.setattr(BtApiBroker, "cancel", reject_write)
++        monkeypatch.setattr(BtApiStore, "__init__", reject_provider_construction)
+         monkeypatch.setattr(BtApiStore, "submit_order", reject_write)
+         monkeypatch.setattr(BtApiStore, "cancel_order", reject_write)
++        monkeypatch.setattr(BackBroker, "next", reject_inherited_matcher)
+ 
+     report = _run_sealed(runner, directory, registry)
+ 
+@@ -216,6 +231,17 @@
+     if case["name"] == "013_3":
+         assert report["orders"] == []
+         assert report["sdk_write_requests"] == 0
++        assert provider_calls == {
++            "constructors": 0,
++            "order_writes": 0,
++            "inherited_matcher": 0,
++        }
++        chain = report["runtime_chain"]
++        assert chain["store"].endswith(".LocalReplayStore")
++        assert chain["broker"].endswith(".LocalReplayBroker")
++        assert chain["feed_provider"] == "local_replay"
++        assert "ctp" not in chain["store"].lower()
++        assert "ctp" not in chain["broker"].lower()
+         assert accepted["research_status"] == "RESEARCH_NOT_ESTABLISHED"
+         assert accepted["simnow_admission_boundary"] == "INDEPENDENT_SIMNOW_ADMISSION_REQUIRED"
+     else:
+@@ -225,6 +251,76 @@
+         assert (
+             accepted["evidence_boundary"] == "SYNTHETIC_CPF_REPLAY_ONLY_NOT_CTP_OR_SIMNOW_EVIDENCE"
+         )
++
++
++def test_runtime_identity_probe_does_not_import_sdk_parent_package(tmp_path, monkeypatch):
++    replay = importlib.import_module("examples.013_3_sa_midfreq_simnow.run")
++    package = tmp_path / "bt_api_py"
++    package.mkdir()
++    marker = tmp_path / "provider-parent-initialized.txt"
++    (package / "__init__.py").write_text(
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('initialized', encoding='utf-8')\n"
++        "raise RuntimeError('poisoned provider parent initializer executed')\n",
++        encoding="utf-8",
++    )
++    (package / "bt_api.py").write_text("# inert fake facade\n", encoding="utf-8")
++    (package / "_execution_session.py").write_text(
++        "# inert fake session module\n", encoding="utf-8"
++    )
++    monkeypatch.syspath_prepend(str(tmp_path))
++    importlib.invalidate_caches()
++    for name in tuple(sys.modules):
++        if name == "bt_api_py" or name.startswith("bt_api_py."):
++            monkeypatch.delitem(sys.modules, name, raising=False)
++
++    identities = replay.runtime_component_identities()
++
++    assert identities["bt_api_py"]["found"]
++    assert identities["bt_api_py_facade"]["found"]
++    assert identities["bt_api_py_execution_session"]["found"]
++    assert not marker.exists()
++    assert "bt_api_py" not in sys.modules
++
++
++def test_0133_local_replay_composition_has_no_provider_or_order_entry(monkeypatch):
++    replay = importlib.import_module("examples.013_3_sa_midfreq_simnow.run")
++    from backtrader.brokers.bbroker import BackBroker
++
++    def reject_inherited_matcher(*args, **kwargs):
++        pytest.fail("local replay must not invoke BackBroker's matching engine")
++
++    monkeypatch.setattr(BackBroker, "next", reject_inherited_matcher)
++
++    client = replay.ReplayClient((), replay.ReplayClock(0.0), eof_event_time_watermark=1.0)
++    store = replay.LocalReplayStore(client, contract_metadata={})
++    assert not hasattr(store, "provider")
++    assert not hasattr(store, "submit_order")
++    assert not hasattr(store, "cancel_order")
++    with pytest.raises(replay.RunnerConfigurationError, match="explicit ReplayClient"):
++        replay.LocalReplayStore(object(), contract_metadata={})
++
++    broker = replay.LocalReplayBroker(cash=1000.0)
++    assert broker.next() is None
++    forbidden = (
++        lambda: broker.submit(object()),
++        lambda: broker.cancel(object()),
++        lambda: broker.transmit(object()),
++        lambda: broker.submit_accept(object()),
++        lambda: broker.add_order_history([]),
++        lambda: broker.buy(owner=object(), data=object(), size=1),
++        lambda: broker.sell(owner=object(), data=object(), size=1),
++    )
++    for operation in forbidden:
++        with pytest.raises(replay.RunnerConfigurationError):
++            operation()
++    assert broker.orders == []
++    assert list(broker.pending) == []
++    assert list(broker.submitted) == []
++    broker.pending.append(object())
++    with pytest.raises(replay.RunnerConfigurationError, match="no order fill path"):
++        broker.next()
++    broker.pending.clear()
+ 
+ 
+ def _copied_wrapper(tmp_path, case):

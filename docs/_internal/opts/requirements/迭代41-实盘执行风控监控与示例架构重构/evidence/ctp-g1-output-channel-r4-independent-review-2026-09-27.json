@@ -1,0 +1,63 @@
+{
+  "schema": "iteration41.g1_output_r4.root_review.v1",
+  "status": "ACCEPTED_LOCAL_HELPER_CONTRACT_ONLY",
+  "source_manifest_sha256": "1f2c78c5842ce96f7946db9afc42a780803a640507acef3c57dda26597b5c447",
+  "independent_focus": "20 passed, 0 failed, 0 skipped",
+  "limitations": [
+    "No full coordinator/worker/receipt-writer composition",
+    "No protected service deployment or real token transfer",
+    "No native CTP/provider"
+  ],
+  "archive": {
+    "file": "ctp-g1-output-channel-r4-independent-review-2026-09-27.raw.zip",
+    "sha256": "b7f0c4771c3a8755aa716451b323f9d91b73d1f32cda11ece178a4f0574ec5df",
+    "entries": 9
+  },
+  "files": [
+    {
+      "path": "independent/focused.junit.xml",
+      "sha256": "90b1947e175868b38100e66149ff648862fdf93e4546455e5ca849109d528fd7",
+      "bytes": 3623
+    },
+    {
+      "path": "independent/focused.log",
+      "sha256": "b67dfea60e2c8c7f069b2bb86ab7f9ef66957fc27a8922c50ebc7c91d7d73c3d",
+      "bytes": 198
+    },
+    {
+      "path": "independent/prepare_copy.py",
+      "sha256": "8923b206dcc57e72ea003da720c631cf77f2dd488574ac62a0d8ec65565236e4",
+      "bytes": 818
+    },
+    {
+      "path": "independent/source-manifest.json",
+      "sha256": "1f2c78c5842ce96f7946db9afc42a780803a640507acef3c57dda26597b5c447",
+      "bytes": 965
+    },
+    {
+      "path": "source-r4/manifest.json",
+      "sha256": "1f2c78c5842ce96f7946db9afc42a780803a640507acef3c57dda26597b5c447",
+      "bytes": 965
+    },
+    {
+      "path": "source-r4/scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719",
+      "bytes": 23510
+    },
+    {
+      "path": "source-r4/scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "bytes": 46080
+    },
+    {
+      "path": "source-r4/scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "b545a4b2aeb045ed4177d5690c72b35cbf59f2867957323d992afd57a3f64304",
+      "bytes": 49144
+    },
+    {
+      "path": "source-r4/tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+      "sha256": "eaa795f05429117f3ed9a9ee021d9508e7516978deee6dc2183723910e6980ce",
+      "bytes": 24304
+    }
+  ]
+}

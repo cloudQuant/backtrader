@@ -1,0 +1,20 @@
+F.                                                                       [100%]
+================================== FAILURES ===================================
+___________ test_sdk_api_none_fails_before_private_ensure_api_ready ___________
+tests\unit\test_ctp_options_simnow_mechanical_api_boundary.py:62: in test_sdk_api_none_fails_before_private_ensure_api_ready
+    mechanical.run_mechanical_cycle(
+examples\ctp_options_simnow_mechanical_operator.py:968: in run_mechanical_cycle
+    api = store._ensure_api_ready()
+tests\unit\test_ctp_options_simnow_mechanical_api_boundary.py:54: in _ensure_api_ready
+    raise AssertionError("private lazy-connect fallback must not run")
+E   AssertionError: private lazy-connect fallback must not run
+============================== warnings summary ===============================
+..\..\..\source_code\backtrader\backtrader\feeds\__init__.py:69
+  D:\source_code\backtrader\backtrader\feeds\__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\temp\iteration41-mechanical-sdk-api-failclose-testpatch-r0-independent-qa-20260927\baseline-junit.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py::test_sdk_api_none_fails_before_private_ensure_api_ready
+1 failed, 1 passed, 1 warning in 4.56s

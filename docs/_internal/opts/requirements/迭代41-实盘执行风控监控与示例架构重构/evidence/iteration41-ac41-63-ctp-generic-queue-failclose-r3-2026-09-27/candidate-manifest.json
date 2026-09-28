@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "status": "ISOLATED_CANDIDATE_FOR_INDEPENDENT_QA",
+  "scope": "LOCAL_FAIL_CLOSE_ONLY; no admission, route authorization, writer closure, or checklist change",
+  "current_source_preimage": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "size_bytes": 780178
+  },
+  "candidate_source_target": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+    "size_bytes": 782769
+  },
+  "current_collector_inventory_sha256": "9EE444C395E02CAC4CEBADEFFB23D97B07E5C15D587490950CBEBBFC4A660239",
+  "checked_in_inventory_sha256": "D81C98A73E32B8D2CFB39034FCC1DCEAD7EA5434CDF38C8ADC30AB6B47A60710",
+  "dispositions_sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426",
+  "historical_new56_partition_sha256": "F4EBD9943F1EE613EF64FEC89096B8021AE945EECF158DD5B92A7E4725A598F5",
+  "selected_candidate_ids": [
+    "i41-writer-716fa6d57bd60cca1c95",
+    "i41-writer-a5104365b2d37af86d15"
+  ],
+  "selected_current_inventory_rows": [
+    {
+      "call": "cancel",
+      "class_name": "BtApiStore",
+      "column": 23,
+      "dynamic_reason": "writer_alias_dispatch",
+      "function_name": "_cancel_managed",
+      "kind": "writer_call_candidate",
+      "line": 8104,
+      "method": "cancel_order",
+      "path": "backtrader/stores/btapistore.py",
+      "review_status": "REVIEW_REQUIRED"
+    },
+    {
+      "call": "async_method",
+      "class_name": "BtApiStore",
+      "column": 17,
+      "dynamic_reason": "indirect_callable_alias",
+      "function_name": "_invoke_sdk_command",
+      "kind": "dynamic_execution_candidate",
+      "line": 6668,
+      "path": "backtrader/stores/btapistore.py",
+      "review_status": "REVIEW_REQUIRED"
+    }
+  ],
+  "selected_checked_in_dispositions": [
+    {
+      "availability": "NOT_AVAILABLE",
+      "candidate": {
+        "call": "cancel",
+        "class_name": "BtApiStore",
+        "column": 23,
+        "dynamic_reason": "writer_alias_dispatch",
+        "function_name": "_cancel_managed",
+        "kind": "writer_call_candidate",
+        "line": 8132,
+        "method": "cancel_order",
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "candidate_id": "i41-writer-716fa6d57bd60cca1c95",
+      "disposition": "REVIEW_REQUIRED",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "owner": "core-execution-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    },
+    {
+      "availability": "NOT_AVAILABLE",
+      "candidate": {
+        "call": "async_method",
+        "class_name": "BtApiStore",
+        "column": 17,
+        "dynamic_reason": "indirect_callable_alias",
+        "function_name": "_invoke_sdk_command",
+        "kind": "dynamic_execution_candidate",
+        "line": 6665,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "candidate_id": "i41-writer-a5104365b2d37af86d15",
+      "disposition": "REVIEW_REQUIRED",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "owner": "core-execution-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    }
+  ],
+  "source_line_drift": "Current collector locations are _invoke_sdk_command:6668 and _cancel_managed:8104; checked-in disposition line hints remain 6665 and 8132. Candidate IDs and semantic locators remain stable. No checklist modified.",
+  "candidate_test": {
+    "path": "tests/test_ctp_generic_sdk_queue_failclose.py",
+    "sha256": "3201896CBC984054BB8124CBBB1489A207DB349AE6CEB74CEB701DA08F21D29A"
+  },
+  "baseline_probe": {
+    "path": "probes/test_baseline_open_routes.py",
+    "sha256": "013BF5B69B425B8CC2CCA667903E1CA360F329933CC130FA8F83F4EAA2F0BD72"
+  },
+  "patch_points": [
+    "Reject generic CTP submit/cancel enqueue after the existing market_data_only local rejection and before API/worker/queue hooks.",
+    "Reject CTP submit/cancel at the SDK sink before API writer-method attribute lookup.",
+    "Reject managed CTP cancel before reading or invoking the injected adapter alias; current durable outbox cancel queue is hard-closed.",
+    "Classify CTP using Store route/config snapshots; _sdk_exchanges may originate from injected API exchange_kwargs at initialization and is not authorization. The classifier itself does not dereference _api during dispatch.",
+    "Guard only the generic _invoke_sdk_command fallback; managed typed _execute_sdk_command branches remain outside this sink guard."
+  ],
+  "limits": [
+    "LOCAL_FAIL_CLOSE_ONLY; no admission, route authorization, writer closure, or checklist change.",
+    "Does not close every arbitrary internal command construction path or same-process adapter implementation outside the Store callback.",
+    "The route classifier is operational fail-close logic, not a trusted admission authority; initialization may read injected API route metadata.",
+    "Selected official dispositions remain REVIEW_REQUIRED / NOT_AVAILABLE.",
+    "No private config/credentials, real SDK, native CTP, network, provider, account, order, or cancel was accessed."
+  ],
+  "scanner_source_sha256": "B37ED7A309C057B4F97AB8E96FE20D3E840D54084B6BCA8EDBEF3491230AB6E3",
+  "scanner_scope_sha256": "C473B4390D70477978C0EB9673E267244D78A57D0ACB2E8DF6D5F7D3BFA60DD7",
+  "qa_report": {
+    "path": "qa-results.md",
+    "sha256": "75E088996F765B7A96C4A7B9C610A504896ADAC25A9B688BA4FF837BE4A7FCC9"
+  },
+  "existing_regression_tests": [
+    {
+      "path": "tests/unit/stores/test_ctp_managed_projection_bridge.py",
+      "sha256": "08095B558369F1C9674F10F0994E1344FC91A5A2BC6AED8A9ACEEC98872832BB"
+    },
+    {
+      "path": "tests/unit/stores/test_ctp_i9_managed_dispatch_bridge.py",
+      "sha256": "697CF8CB65C2AC383C501D4EC5BF612B80C4EAF7C8F037A8F247458B7DE0BFB9"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "sha256": "400EBD411122155E1E35F16A6BC0B4A675A1C65E83AE09F9E224449EF770BC4D"
+    }
+  ]
+}

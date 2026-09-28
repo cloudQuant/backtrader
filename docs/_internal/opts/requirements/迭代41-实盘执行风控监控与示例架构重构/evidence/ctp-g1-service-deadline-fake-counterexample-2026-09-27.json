@@ -1,0 +1,75 @@
+{
+  "schema": "iteration41.g1_service_deadline.root_review.v1",
+  "status": "REJECTED_WHOLE_COMMAND_HARD_DEADLINE",
+  "independent_qa_receipt_sha256": "08e9a9d50c53c344966e7c590099f98ffbb656d349252d29aac02cfd0f6ffe1f",
+  "source_manifest_sha256": "cce1dc9e78ca5c124863981934d26eb9b6897381822ca9ca7817977f8b085fb6",
+  "reproduction": "Fake synchronous create_receipt remains blocked after request deadline and 250ms independent wait despite worker Job empty; returns observed after release; no late response",
+  "root_independent": "Exact source copy reran same fake seam in separate directory with identical decisive fields",
+  "limits": [
+    "Fake OS/service seam only; no real SCM, Job API, CTP, provider, network or protected config",
+    "Does not establish host supervisor ability to terminate the service process",
+    "Current ordinary CTP preflight remains fail-closed"
+  ],
+  "archive": {
+    "file": "ctp-g1-service-deadline-fake-counterexample-2026-09-27.raw.zip",
+    "sha256": "8458cb2dafda5e7af082ae502b87671608f897ab9433dcb450e4a9a1663ceceb",
+    "entries": 11
+  },
+  "files": [
+    {
+      "path": "qa/qa-receipt.json",
+      "sha256": "08e9a9d50c53c344966e7c590099f98ffbb656d349252d29aac02cfd0f6ffe1f",
+      "bytes": 7731
+    },
+    {
+      "path": "qa/source-manifest.json",
+      "sha256": "cce1dc9e78ca5c124863981934d26eb9b6897381822ca9ca7817977f8b085fb6",
+      "bytes": 1370
+    },
+    {
+      "path": "qa/reproduce_service_deadline_v2.py",
+      "sha256": "eeff08fc7cc99345887827df8f99953420da2aa2857f07e01bef9508bfbe6c16",
+      "bytes": 8686
+    },
+    {
+      "path": "qa/service-deadline-repro-v2.json",
+      "sha256": "83ac34eab6e53b93c94e5728a1dcf8dc84c8957310a42e06c5107a9dcfcd2fec",
+      "bytes": 1330
+    },
+    {
+      "path": "qa/reproduce-v2.log",
+      "sha256": "c6f7b24b4dc37fcce24da022e5e71fd17d7a1d34a46caf228a6c4f48ad689a89",
+      "bytes": 1332
+    },
+    {
+      "path": "source/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "686b44cd11d73523a9293d8cd674599fc2a2141f294c06e2f1ebba59b970a117",
+      "bytes": 152353
+    },
+    {
+      "path": "source/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "bytes": 24746
+    },
+    {
+      "path": "source/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "bytes": 46080
+    },
+    {
+      "path": "source/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641",
+      "bytes": 7732
+    },
+    {
+      "path": "independent/root-repro.log",
+      "sha256": "c7f3ea6a4cd559a580b55d300a502f47b9ac820066eccbc5a55cc71fe820d3af",
+      "bytes": 1320
+    },
+    {
+      "path": "independent/service-deadline-repro-v2.json",
+      "sha256": "fc7c570a547eb772a9467a00a49734a3b204c248e96e597dc36860a462e249fc",
+      "bytes": 1318
+    }
+  ]
+}

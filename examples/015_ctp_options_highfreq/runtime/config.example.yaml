@@ -1,0 +1,11 @@
+# LOCAL_REPLAY_ONLY: synthetic C/P/F tick fixture, zero network/provider writes.
+# Copy this file to config.yaml in this registered directory.  Do not add
+# credentials, approvals, provider settings, or command-line mode overrides.
+config_schema_version: 4
+strategy:
+  id: example.015.ctp_options_highfreq
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: valid_cohort

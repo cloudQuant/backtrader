@@ -1,0 +1,54 @@
+Iteration 41 SDK V2 ActionRef source-only regression evidence
+Date: 2026-09-26
+
+Candidate
+- SDK root: D:\bt_api_ctp_i13_g5_manual_candidate_20260926
+- SDK base HEAD: f90568c15196f1507f13d3fe0ad661f92d270bee
+- Modified candidate files only:
+  - src/bt_api_ctp/ctp/client.py SHA256 A80D060577C210C5FAAFC57E72B5F2435D6E7B25F6B4FAD7EB5797827ABE6BD6
+  - tests/test_ctp_callback_ingress_client.py SHA256 82DE7C2539EDFA7E7C6F2A84DC821D09FE8F7D2927638EA4ED18507D081313CE
+- Parent integration source root: D:\bt_api_py_codex_i9_integrated_20260926 (HEAD 62e683bc5ec9a04117e39f4a5dcbba1f6e3b16ec)
+  - bt_api_py/_contracts/models.py SHA256 A325326825E958A0CC0D885C34E391BDE9751199745863E87914D426D6213C11
+  - bt_api_py/_execution_session.py SHA256 925ABBE05D33B36A0D3C37DD2D4B5733190CF9C3A6BD0B7ECBEB0A152FD2D82F
+  - tests/bt_api_contract/test_ctp_orderref_consume.py SHA256 BF9999BA32FF2457113F2B20C2438E8746AEB6EABFA4754EA3462E764CFA9677
+- Clean bt_api_base source root: D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base (HEAD 3de0fa4f6cfe8d1973e9f4b9b47b01254259524f)
+- Backtrader test source root: D:\source_code\backtrader (HEAD observed after run ad2c142b9a8b42cede85886528c681abdfcb8096; working tree contains unrelated/current Iteration 41 changes)
+
+Focused fake test
+- Command: $env:PYTHONPATH=(Resolve-Path 'src').Path; python -m pytest tests/test_ctp_callback_ingress_client.py -q --tb=short
+- Result: 44 passed, 2 warnings.
+
+14-file source union
+- Command environment: PYTHONPATH=D:\bt_api_ctp_i13_g5_manual_candidate_20260926\src;D:\source_code\backtrader;D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py;D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src ; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+- Test files:
+  tests/test_ctp_callback_ingress.py
+  tests/test_ctp_callback_ingress_client.py
+  tests/test_ctp_g5_source_unification.py
+  tests/test_ctp_trader_login_identity.py
+  tests/test_ctp_native_callback_events.py
+  tests/test_ctp_md_disconnect_observability.py
+  tests/test_ctp_md_subscribe_batched.py
+  tests/test_md_identity.py
+  tests/test_md_client_identity.py
+  tests/test_md_startup_locking.py
+  tests/test_ctp_shutdown.py
+  tests/test_ctp_feed.py
+  tests/test_iter22_contracts.py
+  tests/test_ctp_native_query_certificate.py
+- Result: 472 passed, 2 warnings, 59.00 seconds, exit 0.
+- JUnit: D:\temp\iteration41-sdk-v2-union-20260926.xml
+- Console log: D:\temp\iteration41-sdk-v2-union-20260926.log
+- Warnings: existing unknown pytest option asyncio_default_fixture_loop_scope; no matching Windows _ctp extension, so package fallback loaded. This is source/fake evidence only, not native ABI verification.
+
+Static checks on the two modified SDK files
+- ruff check --no-fix: passed
+- python -m py_compile: passed
+- git diff --check: passed
+- Installed black --check fails both unchanged HEAD versions too; no whole-file reformat was applied.
+
+Scope
+- No wheel/build, native extension load, provider session, network, default pin, or production route was used.
+- Main Store/account-session V2 end-to-end remains a separate pending integration gate.
+
+POST-RUN SOURCE-PROVENANCE CORRECTION (2026-09-26)
+The original 14-file 472-pass run's PYTHONPATH mistakenly used the package directory `D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py` instead of its repository root `D:\bt_api_py_codex_i9_integrated_20260926`. A later import-origin check showed the normalizer node could resolve the old dirty `D:\bt_api_py\bt_api_py\__init__.py`. Keep the original log/JUnit unchanged, but do not treat that 472-pass run as proof that `test_gateway_quote_v2_serialized_payload_reaches_parent_normalizer` used the frozen parent source. The other SDK-side results remain recorded. The corrected one-node origin-asserted rerun is documented in `iteration41-sdk-v2-parent-normalizer-20260926.manifest.txt`.

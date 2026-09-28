@@ -1,0 +1,122 @@
+{
+  "status": "FEASIBILITY_ONLY; G1 CLOSED",
+  "platform": "win32",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "qpc_frequency": 10000000,
+  "trials": [
+    {
+      "mode": "api_wait",
+      "budget_ms": 700,
+      "controller_pid": 41016,
+      "qpc_frequency": 10000000,
+      "t0_qpc": 2370774903737,
+      "deadline_qpc": 2370781903737,
+      "events": {
+        "entered": "Local\\g1deadline_8252262ef7974c2780c05016860f8ddb_entered",
+        "wrapper": "Local\\g1deadline_8252262ef7974c2780c05016860f8ddb_wrapper",
+        "returned": "Local\\g1deadline_8252262ef7974c2780c05016860f8ddb_returned",
+        "gate": "Local\\g1deadline_8252262ef7974c2780c05016860f8ddb_gate"
+      },
+      "worker_result_path": "D:\\temp\\iteration41-g1-whole-command-feasibility-20260927\\api_wait-worker-return.json",
+      "worker_pid": 4652,
+      "resume_previous_suspend_count": 1,
+      "first_marker_wait_result": 0,
+      "first_marker": "api_call_begin",
+      "marker_seen_by_deadline": true,
+      "process_wait_at_deadline": 258,
+      "api_return_marker_before_cleanup": false,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "job_process_ids_at_deadline": {
+        "assigned": 2,
+        "returned": 2,
+        "pids": [
+          4652,
+          35996
+        ],
+        "images": [
+          {
+            "pid": 4652,
+            "image": "C:\\anaconda3\\python.exe"
+          },
+          {
+            "pid": 35996,
+            "image": "C:\\Windows\\System32\\conhost.exe"
+          }
+        ]
+      },
+      "caller_result": "UNKNOWN",
+      "bounded_function_return_qpc": 2370781926850,
+      "bounded_function_return_delta_ms": 702.3113,
+      "post_deadline_terminate_job_bool": true,
+      "post_deadline_terminate_job_error": 0,
+      "post_deadline_process_wait": 0,
+      "post_deadline_job_active": 0,
+      "post_deadline_job_process_ids": {
+        "assigned": 0,
+        "returned": 0,
+        "pids": [],
+        "images": []
+      },
+      "worker_exit_code": 91,
+      "post_deadline_cleanup_delta_ms": 4.7981
+    },
+    {
+      "mode": "wrapper_sleep",
+      "budget_ms": 700,
+      "controller_pid": 41016,
+      "qpc_frequency": 10000000,
+      "t0_qpc": 2370781975589,
+      "deadline_qpc": 2370788975589,
+      "events": {
+        "entered": "Local\\g1deadline_67c970f7348d44ee877f94e260aeca4f_entered",
+        "wrapper": "Local\\g1deadline_67c970f7348d44ee877f94e260aeca4f_wrapper",
+        "returned": "Local\\g1deadline_67c970f7348d44ee877f94e260aeca4f_returned",
+        "gate": "Local\\g1deadline_67c970f7348d44ee877f94e260aeca4f_gate"
+      },
+      "worker_result_path": "D:\\temp\\iteration41-g1-whole-command-feasibility-20260927\\wrapper_sleep-worker-return.json",
+      "worker_pid": 45508,
+      "resume_previous_suspend_count": 1,
+      "first_marker_wait_result": 0,
+      "first_marker": "wrapper_sleep_begin",
+      "marker_seen_by_deadline": true,
+      "process_wait_at_deadline": 258,
+      "api_return_marker_before_cleanup": false,
+      "worker_alive_at_deadline": true,
+      "job_active_at_deadline": 2,
+      "job_process_ids_at_deadline": {
+        "assigned": 2,
+        "returned": 2,
+        "pids": [
+          45508,
+          31820
+        ],
+        "images": [
+          {
+            "pid": 45508,
+            "image": "C:\\anaconda3\\python.exe"
+          },
+          {
+            "pid": 31820,
+            "image": "C:\\Windows\\System32\\conhost.exe"
+          }
+        ]
+      },
+      "caller_result": "UNKNOWN",
+      "bounded_function_return_qpc": 2370789070674,
+      "bounded_function_return_delta_ms": 709.5085,
+      "post_deadline_terminate_job_bool": true,
+      "post_deadline_terminate_job_error": 0,
+      "post_deadline_process_wait": 0,
+      "post_deadline_job_active": 0,
+      "post_deadline_job_process_ids": {
+        "assigned": 0,
+        "returned": 0,
+        "pids": [],
+        "images": []
+      },
+      "worker_exit_code": 91,
+      "post_deadline_cleanup_delta_ms": 5.573
+    }
+  ]
+}

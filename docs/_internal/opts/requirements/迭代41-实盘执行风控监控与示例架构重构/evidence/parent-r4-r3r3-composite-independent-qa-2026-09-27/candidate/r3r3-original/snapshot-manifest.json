@@ -1,0 +1,60 @@
+{
+  "schema": "rqa-isolated-review-snapshot-v1",
+  "snapshot": "iteration41_parent76_cancel_resolution_issuer_r3r3_review_20260927_freeze_r2",
+  "source_context": {
+    "parent_outer_root": "D:\\bt_api_py_codex_i9_integrated_20260926",
+    "parent_outer_head": "76d5e0e60883263e0e79b67df321e7053ed46179",
+    "original_parent_fake_authority_sha256": "BF6B2DB7A65463D8F3DDC3B55232961103DF75EDC2BDB8CC20080C6034EE0058",
+    "original_parent_fake_authority_readonly_attribute": false,
+    "original_parent_fake_authority_was_read_without_modification": true,
+    "execution_root": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927",
+    "execution_manifest_sha256": "7655307FB90C959DABF5DC14786D02C60EDD3FCF3D1FC3CEFC32F2512E34EEEC",
+    "risk_root": "D:\\temp\\iteration41_risk_cancel_resolution_20260927",
+    "risk_manifest_sha256": "B5B066E901E656E3CE42599E0701B731DF16BE742121A43604B58D69E35DED5D",
+    "dependency_copy_scope": "Only listed direct execution/risk source files and manifests are copied here; test imports assert the separately frozen package roots above."
+  },
+  "verification": {
+    "working_directory": "D:\\temp\\iteration41_parent76_cancel_resolution_issuer_r3r3_review_20260927_freeze_r2",
+    "python": "Python 3.11.5",
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONPATH": "not set for pytest; test modules insert and assert the exact frozen execution/risk source roots"
+    },
+    "command": "python -m pytest -q --color=no --basetemp qa\\freeze-r2-basetemp --junitxml qa\\freeze-r2-junit.xml tests\\test_cancel_dispatch_resolution_proof.py tests\\test_cancel_dispatch_resolution_proof_store.py --tb=short",
+    "result": "23 passed in 2.10s",
+    "test_log_sha256": "08CE4FD3B3CAF801E14D79BC8B5CCA9B22AC70A745D42C7E38D5D99AADFD30CA",
+    "junit_sha256": "30D2A7B5914A753E2705D31AC2EB10DF854185C981D4BF3E2D2C35E02FABB464",
+    "exit_file_sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+    "ruff": "python -m ruff check --select 'E,F,I' --ignore E501 on the four parent source/test files: passed",
+    "py_compile": "passed on the four parent source/test files",
+    "loaded_package_origins": {
+      "bt_api_execution": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927\\src\\bt_api_execution\\__init__.py",
+      "bt_api_risk": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src\\bt_api_risk\\__init__.py"
+    }
+  },
+  "files": [
+    {"path": "src/fake_dispatch_authority.py", "sha256": "D902A376CB28FD40BBAB6A13542491D1080F2D8E477F695345E06BACD3349BA5"},
+    {"path": "tests/test_cancel_dispatch_resolution_proof.py", "sha256": "AB1CCC88BCBDDC05812EC56F5CB9FC3BD7BF46B1A3944354CF85C8A79C639EE0"},
+    {"path": "tests/test_cancel_dispatch_resolution_proof_store.py", "sha256": "39EBC5BF0404A7D76CFFBF737C83E56ABA67AD904687E19A186DB06BD3E135C9"},
+    {"path": "tests/fixtures/fake_dispatch_authority_v2.py", "sha256": "BF6B2DB7A65463D8F3DDC3B55232961103DF75EDC2BDB8CC20080C6034EE0058"},
+    {"path": "qa/parent-cancel-resolution-issuer-r3r3-review.json", "sha256": "4488183AFEEC53E5008DBF3DDC0E91AD38B5FCDC29F94BB37EFB2D399956EBF1"},
+    {"path": "qa/parent-issuer-r3r3-review.log", "sha256": "1F189206B47C1EC39A42C85B9E8DF0521E053B4CC41DB199916B9E4DA810CA42"},
+    {"path": "qa/parent-issuer-r3r3-review.xml", "sha256": "990245663ECB3A4298BFEFBED9ACB89CFBC8E6C6ED5841D40FE24FD5EEC6D1B3"},
+    {"path": "qa/freeze-r2-pytest.log", "sha256": "08CE4FD3B3CAF801E14D79BC8B5CCA9B22AC70A745D42C7E38D5D99AADFD30CA"},
+    {"path": "qa/freeze-r2-junit.xml", "sha256": "30D2A7B5914A753E2705D31AC2EB10DF854185C981D4BF3E2D2C35E02FABB464"},
+    {"path": "qa/freeze-r2-exit.txt", "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"},
+    {"path": "inputs/execution/source-manifest-r3r3.json", "sha256": "7655307FB90C959DABF5DC14786D02C60EDD3FCF3D1FC3CEFC32F2512E34EEEC"},
+    {"path": "inputs/execution/store.py", "sha256": "F5D6DB87E0698832B0E76A01D857D2B3A5CB58B633D82961CC546E3DAD986F6E"},
+    {"path": "inputs/execution/contracts.py", "sha256": "4CEE90AE9C8B414877E7A7B917AF85D518D45E6074418DC5B0F4BC713FAD8219"},
+    {"path": "inputs/risk/risk-cancel-resolution-manifest.json", "sha256": "B5B066E901E656E3CE42599E0701B731DF16BE742121A43604B58D69E35DED5D"},
+    {"path": "inputs/risk/admission.py", "sha256": "C9491ED33CA8FD8347BD3CC9FF5962DE402B202703BA78DB95720D3CF3B67005"}
+  ],
+  "acceptance_boundary": {
+    "fake_only": true,
+    "provider_or_native": false,
+    "production_direct_release": false,
+    "main_composition_wiring_included": false,
+    "normalized_source_digest_is_not_provider_authentication": true,
+    "rejected_target_change": "A new proof requires the R3r3 atomic readback to return the current exact target projection/event; an old proof fails guard re-read comparison. Later target facts whose event timestamp exceeds the terminal cancel event are rejected by the Store snapshot contract."
+  }
+}

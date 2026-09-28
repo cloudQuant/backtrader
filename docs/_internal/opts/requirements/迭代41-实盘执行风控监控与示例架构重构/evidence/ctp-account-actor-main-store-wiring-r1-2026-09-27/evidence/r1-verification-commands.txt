@@ -1,0 +1,15 @@
+Candidate verification commands (PowerShell, candidate root cwd)
+
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short
+
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short
+
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -B -m pytest -p no:asyncio tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short
+
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -m ruff check --config 'D:\source_code\backtrader\pyproject.toml' backtrader\stores\btapistore.py backtrader\stores\ctp_account_actor_port.py tests\unit\stores\test_ctp_account_actor_store_wiring_candidate.py tests\unit\stores\test_managed_execution_store_adapter.py
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -B -m py_compile backtrader\stores\btapistore.py backtrader\stores\ctp_account_actor_port.py tests\unit\stores\test_ctp_account_actor_store_wiring_candidate.py tests\unit\stores\test_managed_execution_store_adapter.py
+
+& 'D:\source_code\backtrader\.venv\Scripts\python.exe' -B evidence\replay_r1_patch.py --out-root <new-empty-D-temp-path>

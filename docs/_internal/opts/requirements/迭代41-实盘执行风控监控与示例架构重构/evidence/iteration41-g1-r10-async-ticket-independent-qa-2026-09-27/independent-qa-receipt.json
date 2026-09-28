@@ -1,0 +1,92 @@
+{
+  "schema": "r10_independent_qa_receipt.v1",
+  "date": "2026-09-27",
+  "scope": "local inert Windows fake/offline only",
+  "author_root": "D:\\temp\\iteration41-g1-r10-async-ticket-inert-20260927",
+  "author_manifest_sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+  "payload_count": 23,
+  "all_payloads_match_author_manifest": true,
+  "independent_replay_root": "D:\\temp\\iteration41-g1-r10-independent-qa-20260927\\replay",
+  "independent_replay_exit_code": 0,
+  "independent_check_count": 9,
+  "independent_checks_passed": 9,
+  "independent_failed_checks": [],
+  "rebuilt_exe_sha256": "934b039175ce7382c815ffce2e077fb69d39182d5d942b6421a5049b510bd3bd",
+  "source_sha256_before_after": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+  "runner_sha256_before_after": "6871645b9cecf3fd6d8d0d3520776814d4dc3ab683d6a09d8424146a39ddef7b",
+  "first_run_failed_assertion": {
+    "count": 1,
+    "failed_check_names": [
+      "P05_async_submit_returns_before_D_with_pending_IO_reaper_owned_UNKNOWN"
+    ],
+    "cause": "runner queried submit_result; trial output field was caller_submit_result; captured submit result was 0; retained in source archive"
+  },
+  "p05": {
+    "request_start_tick_ms": 227030953,
+    "deadline_tick_ms": 227032153,
+    "caller_submit_return_tick_ms": 227030953,
+    "caller_submit_elapsed_us": 0.1,
+    "caller_submit_result": 0,
+    "ticket_unknown_tick_ms": 227032156,
+    "reaper_unknown_lateness_ms": 3,
+    "ticket_state_final": 3,
+    "writer_pending_at_unknown": true,
+    "writer_error": 995,
+    "writer_completion_tick_ms": 227032250,
+    "late_success_blocked_by_unknown": true,
+    "second_submit_busy_result": 1,
+    "post_unknown_submit_result": 2,
+    "worker_job_empty": true,
+    "broker_exact_exit_and_job_empty": true
+  },
+  "caller_death": {
+    "request_start_tick_ms": 227032812,
+    "deadline_tick_ms": 227034012,
+    "caller_submit_return_tick_ms": 227032812,
+    "caller_killed": true,
+    "caller_pending_at_kill": true,
+    "caller_poll_final_state": 0,
+    "ticket_state_final": 3,
+    "writer_error": 995,
+    "writer_completion_tick_ms": 227034125,
+    "caller_job_empty": true,
+    "worker_job_empty": true,
+    "broker_exact_exit_and_job_empty": true
+  },
+  "outer_job": {
+    "outer_job_active_before": 5,
+    "outer_job_active_after": 0,
+    "terminate_returned": true,
+    "wait_object_0": 0
+  },
+  "late_intake_qa_only_negative": {
+    "tested": true,
+    "method": "separate QA-only C++ derivative waits until D+50ms immediately before SubmitTicket; a non-writing late-intake mode exercises the same API code",
+    "author_source_sha256": "4f16dc02d960488e1d36dc9a0cc48d8d3a273630fa504c21de9894869fe01ef3",
+    "qa_only_source_sha256": "5be5f889fe417d0cd583af3b680906f824d218c6cc26a7e53ddabe860ddaa963",
+    "source_delta_sha256": "e79707de7d37f2960e5cb327b14fb2530f10cc59392206d549d7054195a245d6",
+    "tested_binary_sha256": "9421238d693101d7a0b8a2c2dadb815a3f25c02d57d299ceefac03e0fc0e54b4",
+    "request_start_tick_ms": 227607625,
+    "deadline_tick_ms": 227608825,
+    "submit_return_tick_ms": 227608890,
+    "submit_result": 0,
+    "submit_return_before_D": false,
+    "unknown_tick_ms": 227608906,
+    "unknown_lateness_ms": 81,
+    "ticket_state_final": 3,
+    "slot_state_final": 2,
+    "outer_job_active_after": 0,
+    "caller_broker_worker_empty": true,
+    "conclusion": "post-D SubmitTicket returns ACCEPTED (0), then is changed to UNKNOWN by reaper; author production route remains closed"
+  },
+  "residual_process_check": "none found by executable path or Python command line referencing the QA root",
+  "source_review_limits": [
+    "Popen before/after are wrapper stalls, not true CreateProcessW kernel hangs (P02/P03 unproved).",
+    "No P14 blocking/failure injection or higher custodian for a wedged broker/reaper.",
+    "Broker uses WaitForSingleObject(writer, INFINITE) after cancel; a wedged writer can block shutdown.",
+    "QA-only negative reproduced post-D SubmitTicket acceptance before UNKNOWN; author API does not reject expired intake.",
+    "Launcher/prewarm setup is outside request D; no whole-command/startup D or SCM test.",
+    "No CTP/G4/F14/provider/production/default-route acceptance."
+  ],
+  "disposition": "ASYNC_TICKET_PROTOTYPE_ONLY_G1_CLOSED"
+}

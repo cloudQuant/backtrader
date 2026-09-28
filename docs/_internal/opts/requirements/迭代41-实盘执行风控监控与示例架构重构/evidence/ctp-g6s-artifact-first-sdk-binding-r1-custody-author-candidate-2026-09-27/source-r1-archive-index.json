@@ -1,0 +1,13 @@
+{
+  "acceptance": "NO_G4_NO_G6S; source/fake-only partial Windows custody attempt",
+  "archive_file_count": 180,
+  "archive_path": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1.zip",
+  "archive_sha256": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0",
+  "archive_size": 839417,
+  "candidate_root": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r1",
+  "manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "payload_count": 141,
+  "receipt_sha256": "9e42739f3357032cd4c0c8d67b493bd52a2a114272c45b3223ce38874b331473",
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.r1_archive_index.v1",
+  "zip_crc_check": "passed"
+}

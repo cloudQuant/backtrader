@@ -1,0 +1,15 @@
+{
+  "interpreter": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "python": "3.11.5",
+  "pytest": "8.2.2",
+  "pip_check": "No broken requirements found.",
+  "pytest_plugin_autoload": "disabled",
+  "asyncio_plugin": "disabled with -p no:asyncio",
+  "bytecode_writes": "disabled with PYTHONDONTWRITEBYTECODE=1 and -B",
+  "light_import": "BT_API_PY_LIGHT_IMPORT=1",
+  "source_mode": "explicit source roots plus matching SOURCE-ONLY dist-info metadata shims; no SDK wheels installed",
+  "network_guard": "loopback-only per worker; no non-loopback access observed",
+  "native_import_guard": "_ctp and ctp_wrap imports denied; none loaded",
+  "private_config": "protected CTP config not copied; synthetic config allowed only below test-owned basetemp",
+  "pytest_xdist": "not used; broad suite ran serially"
+}

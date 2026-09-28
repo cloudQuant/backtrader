@@ -1,0 +1,57 @@
+{
+  "candidate": "ctp-account-actor-port-r4-exact-binding-20260928-01",
+  "base_freeze": "D:\\temp\\iteration41-ctp-account-actor-port-freeze-20260927-r3-r1",
+  "base_manifest_sha256": "417ebef0fc2a85b4e37ee22122024b0118211c161795abb79dac438840b960a1",
+  "files": [
+    {
+      "path": "account_actor_port.py",
+      "size_bytes": 25739,
+      "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48"
+    },
+    {
+      "path": "store_boundary_harness.py",
+      "size_bytes": 5928,
+      "sha256": "0126c81c87a207b8e9585bc0608533574156a631f4c03e9be1b34fbd4ce23aa6"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1087,
+      "sha256": "bb3a38c4ed0561c9768be6bc3718cffe55e3dc971f96b0061ff26ff2654e0a84"
+    },
+    {
+      "path": "INTEGRATION_CONTRACT.md",
+      "size_bytes": 5789,
+      "sha256": "299a4fc9438d1e52a72497f58f7f4bd99215eb692da3d0ec8e46d88a47f81f4c"
+    },
+    {
+      "path": "MAIN_SOURCE_INVENTORY.md",
+      "size_bytes": 2730,
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+    },
+    {
+      "path": "tests\\test_store_boundary_harness.py",
+      "size_bytes": 33710,
+      "sha256": "51bd221458165f970ec10d7d1e0403663f7ca5b9e0a6a4ea69d3ab7bfc702dc3"
+    },
+    {
+      "path": "changes.patch",
+      "size_bytes": 45618,
+      "sha256": "0b25b71e953b582ac45e1217f03ecddb0897b168dfde8f32e448ef4c6f6f8ae2"
+    },
+    {
+      "path": "test-results.txt",
+      "size_bytes": 6482,
+      "sha256": "f0392b017767ea48d7418e4fbb0a6fd3593dad3c66efc3192e0fac372178f90d"
+    },
+    {
+      "path": "ruff-results.txt",
+      "size_bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "compile-results.txt",
+      "size_bytes": 28,
+      "sha256": "91d6144a4b3c46234ee8efbcf61faa4384bca0b47855e5788106de263b50e87e"
+    }
+  ]
+}

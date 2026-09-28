@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "purpose": "plan_revision_source_snapshot_not_implementation_acceptance",
+  "created_at": "2026-09-21T15:51:36.362855+00:00",
+  "plan_baseline": "baseline-2",
+  "configuration_contract": "schema-v4 mandatory local ignored config.yaml; version-controlled config.example.yaml; mode/preset sealed by registry",
+  "python": "3.11.5",
+  "repositories": [
+    {
+      "repository": "cloudQuant/backtrader",
+      "resolved_checkout": "D:\\source_code\\backtrader",
+      "commit": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": false,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_py",
+      "resolved_checkout": "D:\\bt_api_py",
+      "commit": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": false,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_base",
+      "resolved_checkout": "D:\\bt_api_py\\bt_api\\bt_api_base",
+      "commit": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_execution",
+      "resolved_checkout": "D:\\bt_api_py\\bt_api\\bt_api_execution",
+      "commit": "2700cb5454ef4c3d1780eda28b6f33307a860998",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": false,
+        "src": false,
+        "tests": false
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_risk",
+      "resolved_checkout": "D:\\bt_api_py\\bt_api\\bt_api_risk",
+      "commit": "d0c18a9d503a6792b582d0927244ceb55395032b",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_monitor",
+      "resolved_checkout": "D:\\bt_api_py\\bt_api\\bt_api_monitor",
+      "commit": "d515a8209324d56742c095d70976593bb3ba3eff",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/bt_api_gateway",
+      "resolved_checkout": "D:\\bt_api_py\\bt_api\\bt_api_gateway",
+      "commit": "44fd2fe26b51f1d8b573c84415a6cff660f33dea",
+      "branch": "dev",
+      "package_skeleton": {
+        "pyproject.toml": false,
+        "src": false,
+        "tests": false
+      }
+    },
+    {
+      "repository": "cloudQuant/backtrader-agent",
+      "resolved_checkout": "D:\\source_code\\backtrader-agent",
+      "commit": "90aabcf0bbd2fd06fcc114713c21fc0aac9ad88b",
+      "branch": "master",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/backtrader-mcp",
+      "resolved_checkout": "D:\\source_code\\backtrader-mcp",
+      "commit": "ad6312a11c2fe7ff9a4c3fcfcfab5037a951b58c",
+      "branch": "master",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    },
+    {
+      "repository": "cloudQuant/backtrader-skills",
+      "resolved_checkout": "D:\\source_code\\backtrader-skills",
+      "commit": "de68788439444cba2ec764e722db1818e455376a",
+      "branch": "master",
+      "package_skeleton": {
+        "pyproject.toml": true,
+        "src": true,
+        "tests": true
+      }
+    }
+  ],
+  "not_created": [
+    "bt_api_transport_zmq"
+  ],
+  "source_files": [
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader\\observers\\trade_logger.py",
+      "sha256": "47e410240a0f5c4270ac2751dca4e8cd4d524f32124093bc5082b0b0b47a2ca7"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+      "sha256": "6bcde4fbccecd77563a3bd0f9772c007bd923c24c3a978bc0d602e19475d7a37"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader\\sizer.py",
+      "sha256": "c35e4a5ea11be849b0e8257a97e750b46b24e45f4a7c65f69fb70c9f58fc0cf8"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\_execution_session.py",
+      "sha256": "b8868ca40b65f6ecec61ad0e0ee55a68324488ae7b0ce007aafdc15c2cb27eda"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\bt_api.py",
+      "sha256": "1211c54c41ada1872136d4fd657b031a3757c411ce8c163d62e5b2bf61f5b739"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_risk\\src\\bt_api_risk\\core\\risk_manager.py",
+      "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_risk\\src\\bt_api_risk\\core\\limits_manager.py",
+      "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_monitor\\src\\bt_api_monitor\\collector.py",
+      "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06"
+    }
+  ],
+  "review_inputs": [
+    {
+      "path": "AI系统架构师审阅意见.md",
+      "sha256": "478847bd41df451724a9293611a4add74ba9d6bfe82c1d9a8ffcb98b371c38d4"
+    },
+    {
+      "path": "技术经理审阅意见.md",
+      "sha256": "f3d276469f4694488b1cf04c963105d4cbb96bb42b97f98df31e6a858c889248"
+    },
+    {
+      "path": "量化交易员审阅意见.md",
+      "sha256": "41ffa413bf50800a18646f1ba8d4a0fbedad366925a9bfc68a9fa20088a29fd6"
+    },
+    {
+      "path": "高级需求分析师审阅意见.md",
+      "sha256": "63a5b8caeef3c1536f6b82f95c62d0bf462566d4ddc88e271df4eca12826c6df"
+    }
+  ],
+  "baseline_changes": {
+    "gateway": "ATTACHED / NOT_PACKAGED; installable=false missing in .gitmodules; planned A6 fix",
+    "risk_monitor": "updated pinned commits supersede historical review snapshot"
+  },
+  "notes": [
+    "Initial Backtrader worktree already had README modification and three untracked review inputs; preserved.",
+    "No source implementation changed by this plan revision.",
+    "No provider network or trading writes performed.",
+    "Source snapshot is not proof of package or runtime acceptance."
+  ]
+}

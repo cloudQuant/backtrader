@@ -1,0 +1,309 @@
+{
+  "audit": "G6-P external AccountActor resource discovery",
+  "date": "2026-09-27",
+  "scope": "Static source/document/test review only; no configs, credentials, SDK/native imports, provider, endpoint, network, tests, account or order operations",
+  "repositories": [
+    {
+      "root": "D:\\source_code\\backtrader",
+      "head": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+      "note": "target files individually hashed; no edits"
+    },
+    {
+      "root": "D:\\source_code\\bt_api_py",
+      "head": "7a5335017bffff35d433bdb8d475a66e50aa50f6",
+      "note": "gateway/feed/test target paths clean; unrelated worktree entries were not opened"
+    },
+    {
+      "root": "D:\\bt_api_py",
+      "head": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+      "note": "dirty checkout; runtime_plugins and transport package untracked; bt_api_gateway and bt_api_ctp submodules modified"
+    },
+    {
+      "root": "D:\\bt_api_py\\bt_api\\bt_api_gateway",
+      "head": "44fd2fe26b51f1d8b573c84415a6cff660f33dea",
+      "note": "dirty: README modified; src/tests/build/pyproject untracked"
+    },
+    {
+      "root": "D:\\bt_api_py\\bt_api\\bt_api_ctp",
+      "head": "ce1edd60785eb4c66fefa16a994a66946a1e068f",
+      "note": "dirty source/test worktree; adapter file individually hashed"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\_local_fake_account_actor_candidate\\account_actor_port.py",
+      "size_bytes": 25738,
+      "sha256": "1CB3CFA6534DA6974E7EC656AC54C413445401C819B3EFD48E57C6BE54CB7409"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\_local_fake_account_actor_candidate\\account_actor_server_core.py",
+      "size_bytes": 63111,
+      "sha256": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\_local_fake_account_actor_candidate\\fake_actor_service.py",
+      "size_bytes": 10622,
+      "sha256": "A268127F1E9D0A04CD1C326C0C72EFC6372E5B0B643D87E4D2B71878D603DC0C"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\_local_fake_account_actor_candidate\\fake_actor_client.py",
+      "size_bytes": 21723,
+      "sha256": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\_local_fake_account_actor_candidate\\store_boundary_harness.py",
+      "size_bytes": 5114,
+      "sha256": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_local_fake_account_actor_candidate.py",
+      "size_bytes": 11335,
+      "sha256": "4FCE80027D16D4618B82BD9C6CBC93CFD05A3C45301B4453227C21BB08923EE5"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_local_fake_account_actor_server_core_candidate.py",
+      "size_bytes": 29759,
+      "sha256": "4BBF23974897FE8B37B4D59294BE468376E7B761AE807C6B0763F2E0AD06C0F5"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_local_fake_account_actor_store_boundary_candidate.py",
+      "size_bytes": 31331,
+      "sha256": "31BA27D73FDFAD55BA0DAFCB1C22D08FC851D29863ECFC62BF30689DAD4C001B"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_f14_external_admission.py",
+      "size_bytes": 14044,
+      "sha256": "7BA54C6C658EF269F1049FAB1A6D2C14D85D0A7B777767479081CE3F53B7016B"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_f14_signed_receipt_contract.py",
+      "size_bytes": 31238,
+      "sha256": "F16B3C9B02B19DCFD1E8F06F4C7CADC9553E80C290CBBED17E437A8376E1EC86"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_managed_action_authority.py",
+      "size_bytes": 48077,
+      "sha256": "7CAED2A83447173FF93755C5561713C2E2F8F410D21AE78E4A07CCCD3F681C66"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simulation_execution.py",
+      "size_bytes": 115265,
+      "sha256": "7618C31D119BA906D49090585623ADF91952A67D78C0B81EE38A629651FFB9EC"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_managed_composition.py",
+      "size_bytes": 9998,
+      "sha256": "F8A3A51DF5FBD10E84658D27D3E80311209372BC9A926592BF70FAD8E012AD08"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_managed_runtime.py",
+      "size_bytes": 30573,
+      "sha256": "46E5D5E887CC4472E0388E5F36E0A66343FA23B57F9FDECFFD701140A7DA7958"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\inventory.py",
+      "size_bytes": 16457,
+      "sha256": "0EBC77EFD22E21B299E794E09C8CB879899B5DC4EFD3302E86D2D9C626B0F6CB"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py",
+      "size_bytes": 780178,
+      "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\ctp-current-acceptance-matrix.md",
+      "size_bytes": 100539,
+      "sha256": "DEEA1BF4CBD913E12F4AEE79356E01170E7B0C71F77F169CAE0DF977F4DAB84D"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-accountwide-control-feasibility-2026-09-23.md",
+      "size_bytes": 2863,
+      "sha256": "561B2EC8F6E576FF6AA2BD08E02783AF6B87636CA12FA12374C7B7A7DB15D289"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\ADR-41-16-simnow-f14-writer-fence-proposal.md",
+      "size_bytes": 16213,
+      "sha256": "376E299EA9939A904EB5C9B725BC03880B0058CE35153E0A12E972916EBED08D"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\ADR-41-17-session-snapshot-config-scope-proposal.md",
+      "size_bytes": 12318,
+      "sha256": "843BF332DCE3BAD9EE65F40C28153223F9D455398322EC8E4D1BFF64FA4F2D0B"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\runtime.py",
+      "size_bytes": 13721,
+      "sha256": "09775F5E81480612AF299AE9F35FBF33C1B50F02475740502DFD1B1BEC692EA2"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\process.py",
+      "size_bytes": 9112,
+      "sha256": "03B41FF1B778753277A554A9279B25139B1A79F498DFF80BAE9CACF31FE1D782"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\protocol.py",
+      "size_bytes": 1068,
+      "sha256": "E190530DB983A54144395C2EF204FF3C858A77015C2F7C2B6CA79E1BB26BE918"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\client.py",
+      "size_bytes": 10603,
+      "sha256": "EE5124135AFE01986D65F3702ED736A7FC4911E45F4591C0534D62810F8622C7"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\config.py",
+      "size_bytes": 4589,
+      "sha256": "DEDFB3A9CD3752E712F2316D047111003E6BBFB8D441819FBE86A4A7ABBCC1F2"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\adapters\\ctp_adapter.py",
+      "size_bytes": 14606,
+      "sha256": "379288E2BD9B3ABD1E30CC84F25EDB24107C6E8454A30D741667B37B9C86DDDF"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\order_ref_allocator.py",
+      "size_bytes": 6267,
+      "sha256": "5BD88BC227B78D39F2EDAA8858A7BB7A8929BAE94A20D4AFC744D1297B0E02F5"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\gateway\\order_identity_map.py",
+      "size_bytes": 7719,
+      "sha256": "44AB7465077D328633005D1D55187DF490D82F7840CE8D680F7ECE431B3824C1"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\bt_api_py\\feeds\\live_ctp_feed.py",
+      "size_bytes": 23852,
+      "sha256": "1A6AE16DD2A62B650B3155A18B5C806DECD8ED236A54FCC9D8ACF20C71E198BD"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\tests\\test_gateway_runtime.py",
+      "size_bytes": 30639,
+      "sha256": "8FF26381557DF4A05FF3B8522923E528691E305799B8F3FA7B8D2F8CD75F45C8"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\tests\\test_gateway_health_process.py",
+      "size_bytes": 7066,
+      "sha256": "D76E6EA5DD1155DB065508BA47053B69A8D38162CF3088B20DA431575207A132"
+    },
+    {
+      "path": "D:\\source_code\\bt_api_py\\AGENTS.md",
+      "size_bytes": 13833,
+      "sha256": "002D0FC3CEC3EACEEFD18A6D06BD5623C8B0CDDAB0E4A45A1ADAA45D3937DFF3"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_gateway\\README.md",
+      "size_bytes": 2910,
+      "sha256": "66AD3C7D4757626169AEF97D36222C5B1A3AE172DF7FCE10556230CB7AA1870E"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_gateway\\src\\bt_api_gateway\\router.py",
+      "size_bytes": 29851,
+      "sha256": "FB0C18B68331A571C1530311A084EA5FA71709A81B068B9D37D17538EA528D62"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_gateway\\src\\bt_api_gateway\\writer_authority.py",
+      "size_bytes": 32910,
+      "sha256": "4DA4D95CFF6F5BAB987173822C636611B441AAAC422771A79CAC349061A0676F"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_gateway\\src\\bt_api_gateway\\database_identity.py",
+      "size_bytes": 2796,
+      "sha256": "A66CF0C742C08AB6B17C69D00DC8EBFA817CED209B82C76A0A42D573890D2002"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_gateway\\src\\bt_api_gateway\\event_journal.py",
+      "size_bytes": 21711,
+      "sha256": "CC8361368DC3F5DE7B3FEBBAB1A63D3975BCAEF699ADE1FEF0EE8F01614E212B"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_transport_zmq\\README.md",
+      "size_bytes": 1363,
+      "sha256": "7589E13E75754CBCB24577AE90950F5F75E0A8FF183C770D85E69A7A59E57818"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_transport_zmq\\src\\bt_api_transport_zmq\\server.py",
+      "size_bytes": 16489,
+      "sha256": "DF91CB9CE695BACF305AD05D5B92364FC6637FE52E1A509DBBD0455FE3F688D8"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_transport_zmq\\src\\bt_api_transport_zmq\\client.py",
+      "size_bytes": 4208,
+      "sha256": "3C42842494BB5A28245AEBCCE0AFDD500943CC6A8D7677F080C69551377EC354"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_transport_zmq\\src\\bt_api_transport_zmq\\wire.py",
+      "size_bytes": 6621,
+      "sha256": "60EF5EA0EA89FF11D1E62C65865A39256CF91C31981553A301F7687394F6372B"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_execution\\README.md",
+      "size_bytes": 4919,
+      "sha256": "213BCE5D6188608729BF0DA48C20A1971633A7BB0617F1ECED44BE71C5B84C7A"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_execution\\src\\bt_api_execution\\store.py",
+      "size_bytes": 146030,
+      "sha256": "1DE4E83B9163B941E941E4ADB71B1C8D2DB5A92740D79B55B77AE5B7DD1B4BC4"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_execution\\src\\bt_api_execution\\admission.py",
+      "size_bytes": 3330,
+      "sha256": "66C3338C717F9333826F90FABA8A5E4DFB5056C50A1E6C9947A2F8B9EF076713"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\runtime_plugins\\gateway_dispatch.py",
+      "size_bytes": 48345,
+      "sha256": "2D13FF8D23117A2EF9A1FAC05A719B3F13DB2B00960CB7BED917CD8721FB88BE"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\runtime_plugins\\gateway_transport_server.py",
+      "size_bytes": 8931,
+      "sha256": "5F5A74B068FA0576C8D41C86F5526AFE605F377EC443840E4549E15C4571A0CE"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\runtime_plugins\\contracts.py",
+      "size_bytes": 8345,
+      "sha256": "BF00684CD9C7D76A391B034CE61E5572BDAA7B7A4B3C00653ABC12238791FC84"
+    },
+    {
+      "path": "D:\\bt_api_py\\tests\\runtime_plugins\\test_gateway_transport_server.py",
+      "size_bytes": 10111,
+      "sha256": "69CB1CD980A226B8383E433A4AC183521BFBFBE3896D5DD07BEA8D52616749C1"
+    },
+    {
+      "path": "D:\\bt_api_py\\tests\\runtime_plugins\\test_gateway_managed_dispatch.py",
+      "size_bytes": 30285,
+      "sha256": "9595245BE493B16F7146144E51F3B88D0B7929E97229F0B41A5D831F54F130DB"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\gateway\\adapter.py",
+      "size_bytes": 43347,
+      "sha256": "02B358C7EE339BA5D2BB1CFA6E8E45CB0A874F5240BA30CEE97D8DA915B069BF"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\feeds\\live_ctp_feed.py",
+      "size_bytes": 90928,
+      "sha256": "FF27BAE030CBA4E34FC9B1CEE18A7A3AE2210B63016269078BABF2446247C41C"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\_ctp_credential_binding.py",
+      "size_bytes": 17260,
+      "sha256": "3DB818E2F5EE733789EE8159F6CA230B1927C069EAAE6541B84AED54A11A2890"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\_ctp_production_execution_approval.py",
+      "size_bytes": 33464,
+      "sha256": "2E6E6156D1C5F65525CC24789CCF1FFD0CA57153A9E4F29AFC580A170DB90F6A"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\_ctp_execution_authorization.py",
+      "size_bytes": 63212,
+      "sha256": "139ED946B150418BB9DA0988B06AF2068830E8D794723EDB2CB9035872910036"
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api_py\\_execution_session.py",
+      "size_bytes": 451930,
+      "sha256": "DD14EC9EA88022DBFDD422BA788A82B3A7A1F321E32BE518B65C43F4D55D6B56"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "iteration41-parent-r4-r3r3-independent-qa-commands.v1",
+  "interpreter": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "python_version": "3.11.5",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "BT_API_TEST_SOURCE_ROOTS": "raw JSON in qa/source-roots.json",
+    "BT_API_TEST_GUARD_ROOT": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\origin-guard",
+    "BT_API_TEST_METADATA_ROOT": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\source-only-metadata",
+    "BT_API_TEST_FIXTURE_ROOT": "unique qa/fixture-root-independent-* per group",
+    "BT_API_TEST_GUARD_LOG_ROOT": "unique qa/origin-guard-independent-* per group",
+    "TEMP": "same as group fixture root",
+    "TMP": "same as group fixture root",
+    "PYTHONPATH": "guard; independent parent source; independent execution/risk/base/monitor src; source-only metadata"
+  },
+  "commands": [
+    {
+      "group": "parent_r4_final_guarded",
+      "cwd": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\parent-source",
+      "args": "-m pytest -p no:asyncio -q --color=no --tb=short --basetemp <unique> --junitxml qa/ind-parent-r4-final.xml tests/test_cancel_dispatch_resolution_proof.py tests/test_cancel_dispatch_resolution_proof_store.py tests/test_cancellation_dispatch_resolution_control.py",
+      "result": {
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 14.509
+      }
+    },
+    {
+      "group": "main_bridge_three",
+      "cwd": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\main-overlay",
+      "args": "-m pytest -q --color=no --tb=short --basetemp <unique> --junitxml qa/ind-main-three-rerun.xml <exact three node ids recorded in frozen candidate qa/commands.txt>",
+      "result": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 14.065
+      }
+    },
+    {
+      "group": "main_bridge_five_file",
+      "cwd": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\main-overlay",
+      "args": "-m pytest -q --color=no --tb=short --basetemp <unique> --junitxml qa/ind-main-five.xml tests/integration/test_iteration41_managed_cancellation_composition.py tests/integration/test_iteration41_managed_execution_composition.py tests/integration/test_iteration41_managed_replay_l2.py tests/unit/runtime/test_iteration41_l2_fixture_package.py tests/unit/runtime/test_managed_execution_bridge.py",
+      "result": {
+        "tests": 73,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 20.393
+      }
+    },
+    {
+      "group": "main_cancel_control_extra",
+      "cwd": "D:\\temp\\iteration41-parent-r4-r3r3-independent-qa-20260927\\main-overlay",
+      "args": "-m pytest -q --color=no --tb=short --basetemp <unique> --junitxml qa/ind-main-control-rerun.xml tests/test_cancellation_dispatch_resolution_control.py",
+      "result": {
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 11.426
+      }
+    }
+  ],
+  "note": "Only QA-copy test path constants were changed so the frozen source guard validates imports from the independent source copies. Exact diff is test-path-adaptations.diff; production candidate files are unchanged."
+}

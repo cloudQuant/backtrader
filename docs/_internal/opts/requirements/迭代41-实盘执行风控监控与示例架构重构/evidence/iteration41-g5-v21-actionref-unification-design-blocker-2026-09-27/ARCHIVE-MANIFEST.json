@@ -1,0 +1,78 @@
+{
+  "schema": "iteration41-evidence-archive-manifest.v1",
+  "verdict": "DESIGN_ONLY_BLOCKED_FOR_PATCH / G5_NOT_ACCEPTED / NO_WRITE / LIVE_NO_GO",
+  "author_manifest_sha256": "47BFFEEF1C94E2B6478F389DFA0C4653EB7993FA8B0DB71C3CA1E36963E0650E",
+  "independent_report_sha256": "516767E65FEEFD897203ACC1E459CB63610DBBE3944715F67123AB5052DFE486",
+  "entries": [
+    {
+      "path": "author-package/design-blocker.md",
+      "size": 9917,
+      "sha256": "4F0153890961A677DDF9D934FCE0F4CF03AAA5D1FF4FC9829E06043B0097DD0C"
+    },
+    {
+      "path": "author-package/manifest.json",
+      "size": 601,
+      "sha256": "47BFFEEF1C94E2B6478F389DFA0C4653EB7993FA8B0DB71C3CA1E36963E0650E"
+    },
+    {
+      "path": "author-package/SHA256SUMS.txt",
+      "size": 369,
+      "sha256": "B6412EBBC8FCDBDB6154B9F369616AD0252A5C9037597888447B8C80D33B1ABE"
+    },
+    {
+      "path": "author-package/source-preimages.sha256",
+      "size": 3839,
+      "sha256": "EB34351D33C00D43F399D00257DF023E89D24BE042EB3D4687B9496D38F3607C"
+    },
+    {
+      "path": "author-package/verification.json",
+      "size": 1384,
+      "sha256": "E7880498B0DEED8D0212C57D4EC906FB2529950FEB7DB152D39CDB154A5AF720"
+    },
+    {
+      "path": "author-package/verify_static_blocker.py",
+      "size": 5942,
+      "sha256": "A98F792D298346DB29290B6C3CF09A7FBA23B65967B064C572D788931138FF26"
+    },
+    {
+      "path": "independent-qa/extract_source.py",
+      "size": 2849,
+      "sha256": "4177580192DD1245572CDB52B35B9702B2713DB35BBE938DD190233A688937A7"
+    },
+    {
+      "path": "independent-qa/independent-qa-report.md",
+      "size": 4442,
+      "sha256": "516767E65FEEFD897203ACC1E459CB63610DBBE3944715F67123AB5052DFE486"
+    },
+    {
+      "path": "independent-qa/independent-qa-SHA256SUMS.txt",
+      "size": 3554,
+      "sha256": "050395C748D75349E50F37363F3E1CD35874181A4942514BAFEEFCEEAC3C8108"
+    },
+    {
+      "path": "independent-qa/source-extract.log",
+      "size": 64404,
+      "sha256": "4B2E27100BA3975A1322994C8D322829EDF541845C73205A6E3862ACAB635E91"
+    },
+    {
+      "path": "independent-qa/verification.json",
+      "size": 11810,
+      "sha256": "2CB0C3B426F58450BB8121138E2867FE9C0F4989B50DB28BC1A5B096603E317C"
+    },
+    {
+      "path": "independent-qa/verification.log",
+      "size": 11810,
+      "sha256": "2CB0C3B426F58450BB8121138E2867FE9C0F4989B50DB28BC1A5B096603E317C"
+    },
+    {
+      "path": "independent-qa/verify_sources.py",
+      "size": 2561,
+      "sha256": "EF1EC2FD91AF6A23EB2310ED04E55D076C297358CD8E4C0134C394F858CD66DF"
+    },
+    {
+      "path": "README.md",
+      "size": 2239,
+      "sha256": "5CFD79963A9729AECCE7C1A593A89B7B545A4EEE928A6F8A7BCE636E40C7CD94"
+    }
+  ]
+}

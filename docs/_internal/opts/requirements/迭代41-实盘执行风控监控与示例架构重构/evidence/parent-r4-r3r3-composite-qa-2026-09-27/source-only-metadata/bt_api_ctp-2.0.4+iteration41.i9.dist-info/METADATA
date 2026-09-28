@@ -1,0 +1,8 @@
+Metadata-Version: 2.3
+Name: bt_api_ctp
+Version: 2.0.4+iteration41.i9
+Summary: SOURCE-ONLY metadata for isolated Iteration 41 bridge tests; not installed
+X-Iteration41-Source-Only: true
+X-Iteration41-Source-Root: D:\bt_api_ctp_i13_g5_manual_candidate_20260926\src
+X-Iteration41-Source-Tree-SHA256: cd7ff1375adfa8c5505f2a5bda1c704d233d8d825d9c98799ba640299e6e9006
+Requires-Dist: bt_api_base>=0.15.4,<1.0

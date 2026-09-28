@@ -1,0 +1,54 @@
+{
+  "btapistore_sha256": "18A02F00EC3B2031932284C9E855395C1C70C3E448DBAFCD054E4F079048C4D0",
+  "mode": "r2a",
+  "probes": [
+    {
+      "caller_object_reads": [],
+      "env_reads": [],
+      "error": "external account actor unavailable",
+      "name": "r2a explicit CTP constructor order",
+      "outcome": "REJECTED_BEFORE_ENV_OR_OBJECT_READ",
+      "provider_api_not_constructed": true
+    },
+    {
+      "api_boundary_calls": [],
+      "cases": [
+        [
+          "direct _submit_order_legacy",
+          "BLOCKED",
+          "CTP legacy submit is forbidden on the actor route"
+        ],
+        [
+          "direct _cancel_order_ref_legacy",
+          "BLOCKED",
+          "CTP legacy cancel is forbidden on the actor route"
+        ],
+        [
+          "direct _submit_ctp_managed_order",
+          "BLOCKED",
+          "local SDK managed submit is forbidden on the actor route"
+        ],
+        [
+          "direct _cancel_managed",
+          "BLOCKED",
+          "local SDK managed cancel is forbidden on the actor route"
+        ]
+      ],
+      "methods_from_frozen_ast": true,
+      "name": "r2a actor-only internal legacy methods",
+      "outcome": "BLOCKED_AT_METHOD_ENTRY"
+    },
+    {
+      "fake_calls": [
+        "submit",
+        "submit",
+        "cancel"
+      ],
+      "methods_from_frozen_ast": true,
+      "name": "r2a gateway wrapper direct methods",
+      "no_sdk_import": true,
+      "outcome": "FAKE_BOUNDARY_TRAPPED"
+    }
+  ],
+  "source_root": "D:\\temp\\ac41-63-controlled-writer-slice-independent-qa-20260927-r2\\source-r2a"
+}

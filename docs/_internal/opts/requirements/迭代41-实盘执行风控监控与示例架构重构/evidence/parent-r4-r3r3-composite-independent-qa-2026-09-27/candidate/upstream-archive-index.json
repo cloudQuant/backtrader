@@ -1,0 +1,717 @@
+{
+  "archive_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\parent-r4-r3r3-composite-qa-2026-09-27",
+  "copied_file_count": 118,
+  "copy_policy": "regular files only; source-only metadata, QA records and provenance; basetemp/fixture roots omitted",
+  "files": [
+    {
+      "archived_path": "README.md",
+      "sha256": "970dea7319c04a922c208fc2e6a42305aa2cf14ce128a190a06d0d813e215746",
+      "size_bytes": 1126,
+      "source_path": "generated for evidence archive"
+    },
+    {
+      "archived_path": "provenance/main-overlay-origin-map-test.diff",
+      "sha256": "b5aeb22f9125b6f5993b95cd67866f42b4ae59a57cbfdc534606a5304598cd86",
+      "size_bytes": 735,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\main-overlay-origin-map-test.diff"
+    },
+    {
+      "archived_path": "provenance/parent-76d5-base-pyproject-bt_api_py.tar",
+      "sha256": "314d034253bd73c0a00535ec63208ec1303113acccc5184e3523839b6f15f3f2",
+      "size_bytes": 17172480,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\parent-76d5-base-pyproject-bt_api_py.tar"
+    },
+    {
+      "archived_path": "provenance/premerge-input-audit.json",
+      "sha256": "0e3ea9dc3bc3dc6e5060606575df87fa10008cc347066717d51512435f0dd62f",
+      "size_bytes": 33614,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\premerge-input-audit.json"
+    },
+    {
+      "archived_path": "provenance/r3r3-authority-to-r4-stricter-source.diff",
+      "sha256": "5a61c362ecb7c902291d8bdb590468e038444ced095a5241409ddaf9b7adf6d9",
+      "size_bytes": 3995,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-authority-to-r4-stricter-source.diff"
+    },
+    {
+      "archived_path": "provenance/r3r3-issuer-proof-adapted-to-r4.diff",
+      "sha256": "ea265dda57039cf98e04aecb6cf18bed048d06be05456fd64348ea9a3d3b9112",
+      "size_bytes": 3003,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-issuer-proof-adapted-to-r4.diff"
+    },
+    {
+      "archived_path": "provenance/r3r3-issuer-store-adapted-to-r4.diff",
+      "sha256": "7fc8579197c7c8b5cfb7ff50f175349d343b9089e0e1f26a28ad1b66d20bb8e5",
+      "size_bytes": 4773,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-issuer-store-adapted-to-r4.diff"
+    },
+    {
+      "archived_path": "provenance/r3r3-original/fake_dispatch_authority.py",
+      "sha256": "d902a376cb28fd40bbab6a13542491d1080f2d8e477f695345e06bacd3349ba5",
+      "size_bytes": 75980,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\fake_dispatch_authority.py"
+    },
+    {
+      "archived_path": "provenance/r3r3-original/fake_dispatch_authority_v2.py",
+      "sha256": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058",
+      "size_bytes": 43431,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\fake_dispatch_authority_v2.py"
+    },
+    {
+      "archived_path": "provenance/r3r3-original/snapshot-manifest.json",
+      "sha256": "50b0d8b99afdacdaf2055246010e5766bbe630bc66d71c2aeeaca117baf3ce7a",
+      "size_bytes": 4964,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\snapshot-manifest.json"
+    },
+    {
+      "archived_path": "provenance/r3r3-original/test_cancel_dispatch_resolution_proof.py",
+      "sha256": "ab1ccc88bcbddc05812ec56f5cb9fc3bd7bf46b1a3944354cf85c8a79c639ee0",
+      "size_bytes": 31388,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\test_cancel_dispatch_resolution_proof.py"
+    },
+    {
+      "archived_path": "provenance/r3r3-original/test_cancel_dispatch_resolution_proof_store.py",
+      "sha256": "39ebc5bf0404a7d76cffbf737c83e56aba67ad904687e19a186db06bd3e135c9",
+      "size_bytes": 9265,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r3r3-original\\test_cancel_dispatch_resolution_proof_store.py"
+    },
+    {
+      "archived_path": "provenance/r4-payload-manifest.json",
+      "sha256": "60b020202ed89169e24afca30b1b1b16680151a11c6f52c518d0f5bbfa7fab0d",
+      "size_bytes": 26146,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r4-payload-manifest.json"
+    },
+    {
+      "archived_path": "provenance/r4-wrong-policy-negative-test.diff",
+      "sha256": "0f7a7a059b7edb1c7a9a567ba10d59620374d43f2ed3ed0ecd3b1312d00a5fb2",
+      "size_bytes": 1869,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\provenance\\r4-wrong-policy-negative-test.diff"
+    },
+    {
+      "archived_path": "qa/commands.txt",
+      "sha256": "85ea86973b8455fef5aecd0cb4e4038506478b8c720604a1850d1bc8264e1d8c",
+      "size_bytes": 5078,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\commands.txt"
+    },
+    {
+      "archived_path": "qa/composite-qa-receipt.json",
+      "sha256": "09955e718281214440c4917654172a152675ea05f99e02722b5b8fc4ecadabe5",
+      "size_bytes": 10215,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-qa-receipt.json"
+    },
+    {
+      "archived_path": "qa/composite-qa-receipt.md",
+      "sha256": "d9367b0851fb23594ccefc97e8214b00bb7be645791811d955f3faab5830bda0",
+      "size_bytes": 1628,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-qa-receipt.md"
+    },
+    {
+      "archived_path": "qa/composite-source-manifest.json",
+      "sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131",
+      "size_bytes": 194876,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\composite-source-manifest.json"
+    },
+    {
+      "archived_path": "qa/finalize_composite.py",
+      "sha256": "950519746fb9621abf3ee688621ca1111d588cb3578dfb62c99df8720bb61950",
+      "size_bytes": 18045,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\finalize_composite.py"
+    },
+    {
+      "archived_path": "qa/five-file-focus-r1.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\five-file-focus-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/five-file-focus-r1.log",
+      "sha256": "6b65df32c102c6fd48b5ea279d24f604be34805ef469c14567eaef3c4473ba9b",
+      "size_bytes": 769,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\five-file-focus-r1.log"
+    },
+    {
+      "archived_path": "qa/five-file-focus-r1.xml",
+      "sha256": "7a3ecb4020ec749b7a1a186158b9c07fa0b6bd2366ac66a856b70c85405a3823",
+      "size_bytes": 13569,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\five-file-focus-r1.xml"
+    },
+    {
+      "archived_path": "qa/main-cancel-control-r1.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-cancel-control-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/main-cancel-control-r1.log",
+      "sha256": "9c598a096111470b506e51ee6ddee0cd1f3df2cbb64b5ce4f9e53cbc266a0781",
+      "size_bytes": 214,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-cancel-control-r1.log"
+    },
+    {
+      "archived_path": "qa/main-cancel-control-r1.xml",
+      "sha256": "f7f0c2e18be5e6673b4c868001bc9164035667b13e6c96a2adcad0855dbaff93",
+      "size_bytes": 3474,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-cancel-control-r1.xml"
+    },
+    {
+      "archived_path": "qa/main-three-r1.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/main-three-r1.log",
+      "sha256": "8e71bd52e222be28196e68994eba88ceffc590331b7b2e03d7c3e41b0e297c9c",
+      "size_bytes": 4506,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r1.log"
+    },
+    {
+      "archived_path": "qa/main-three-r1.xml",
+      "sha256": "c68efa3e6f35f972ce8d4ac35a42255ed75b65837280a9e5e354348e5ac075c1",
+      "size_bytes": 5816,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r1.xml"
+    },
+    {
+      "archived_path": "qa/main-three-r2.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r2.exit.txt"
+    },
+    {
+      "archived_path": "qa/main-three-r2.log",
+      "sha256": "6a7dadcdd1ceeb7a68914f99220032144b089935c4b050031d511b129dcde94c",
+      "size_bytes": 682,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r2.log"
+    },
+    {
+      "archived_path": "qa/main-three-r2.xml",
+      "sha256": "e445a4583343716fdc17307d439ed03206f0b3449685ddc52857a8157e8d8af0",
+      "size_bytes": 1029,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\main-three-r2.xml"
+    },
+    {
+      "archived_path": "qa/origin-guard-cancel-control-r1/origin-guard-34476.jsonl",
+      "sha256": "5195821549e60c3d4fb1769089c223fb56f1d0f381a36738df552206668b1a2d",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-cancel-control-r1\\origin-guard-34476.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-cancel-control-r1/origin-guard-36156.jsonl",
+      "sha256": "5aee4652e52f808a43315db6bc80be20239acb4543fa717353966612b60b13a5",
+      "size_bytes": 29388,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-cancel-control-r1\\origin-guard-36156.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-cancel-control-r1/origin-guard-39796.jsonl",
+      "sha256": "995b241f7e30dde32b2724ed9bcec41fe477fa1254b6059670afccf8f2c573f6",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-cancel-control-r1\\origin-guard-39796.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-cancel-control-r1/origin-guard-41628.jsonl",
+      "sha256": "b22e94d1d779957b83d000ed1a4e78e842726056e04395328e72513f858e9b11",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-cancel-control-r1\\origin-guard-41628.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-13516.jsonl",
+      "sha256": "c05d3357709b5f501f77248d339851f46811c74a3cda0ea9264549aa8242afc0",
+      "size_bytes": 28606,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-13516.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-13728.jsonl",
+      "sha256": "dd7e33b2d7938ea525b36f208f6dd2764aee74b1d4ecdde4ef63b2b0a331e1f1",
+      "size_bytes": 28606,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-13728.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-14040.jsonl",
+      "sha256": "ea40cf05e2736849bd43d78402a4f51f31b2b897ce49d15cf72d1973731edd97",
+      "size_bytes": 1418,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-14040.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-14292.jsonl",
+      "sha256": "4b04e086391f6f3cc797142109cb3567c2c8bb003cb694f1a1217cda1813eb0e",
+      "size_bytes": 28606,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-14292.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-26228.jsonl",
+      "sha256": "2e3d5b56810b9a2400f4d3311a1ba060741dd7add8593bd2d310752a0783efa6",
+      "size_bytes": 28606,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-26228.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-40276.jsonl",
+      "sha256": "42d17d412f273823094f0581f64643b828a045bef5858634bd6433b4561c44ee",
+      "size_bytes": 23530,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-40276.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-five-r1/origin-guard-42164.jsonl",
+      "sha256": "fe9a420489646a115907f7ef8eb94e84d5a9f3943892652381faeea196397c34",
+      "size_bytes": 28606,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-five-r1\\origin-guard-42164.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-17080.jsonl",
+      "sha256": "4b0008900ebe06b0128c53b2dc001980729e5d5678a996e339793a5423b6cc6f",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-17080.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-36868.jsonl",
+      "sha256": "beedd21549c78f0931bfcad054ecbc914663e95c7d8f2245ba1f9f7e41066529",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-36868.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-40228.jsonl",
+      "sha256": "acda8a9bd85444eeac7f7584f6f1f19cb1221d4e7b0585727cb271273c8639ef",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-40228.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-41956.jsonl",
+      "sha256": "f76b64a89724503d2779c48e72ef24c4497a4854baf7dcaceef69dbc53841af2",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-41956.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-6344.jsonl",
+      "sha256": "0112fca8371574ad53f339f806703ecfb5e25a34213434bc3dd64b93a2dd7131",
+      "size_bytes": 1423,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-6344.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r1/origin-guard-884.jsonl",
+      "sha256": "c4f8ae44ca3c8290905fcc815d5d147c6478ac28527e4f90c0f8916ab06c7770",
+      "size_bytes": 1422,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r1\\origin-guard-884.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-33660.jsonl",
+      "sha256": "e0840d63c4a356ec63dbf7d3c568924c6f5af2bfba5bc6c2f0bd679eda5070f6",
+      "size_bytes": 28612,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-33660.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-33964.jsonl",
+      "sha256": "dd63cd5a1d78e2ac9ec0f2c5e594b5ad2ade72e275d10851facb30cc71e06853",
+      "size_bytes": 28612,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-33964.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-40284.jsonl",
+      "sha256": "37f7a51e05225d5be85ad68c745d1763c15d1bae6b86a408c9b6d50cc2ff3cec",
+      "size_bytes": 28612,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-40284.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-43808.jsonl",
+      "sha256": "c35864c621c4be2cc660d3ac987366630cd86fc36ba132be5e946cb97e86fb05",
+      "size_bytes": 28612,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-43808.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-44984.jsonl",
+      "sha256": "92cdb2dc46ad38bfb48ad99d3a6de3611bf79fd14d6af9b322bb63f540044380",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-44984.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-main-three-r2/origin-guard-45948.jsonl",
+      "sha256": "d0cb34a54615dbb369db675eabfde9c033ac93e588af9846861a1d6fa365d8e6",
+      "size_bytes": 1424,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-main-three-r2\\origin-guard-45948.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-original-three-r1/origin-guard-25636.jsonl",
+      "sha256": "d69cd8e90c3f456133e35bf86dad252cc65e4440c8f476e7c8f0ca80c49d186a",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-original-three-r1\\origin-guard-25636.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-original-three-r1/origin-guard-26320.jsonl",
+      "sha256": "a11b9f0c6f35fb05daf7f36e40d4c4d52d7c22694a28d7a099fa07fe2789003b",
+      "size_bytes": 28616,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-original-three-r1\\origin-guard-26320.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-original-three-r1/origin-guard-37764.jsonl",
+      "sha256": "33e93c172d9ea17b9e3696f0b08c3e279e81ff41884ee28886599746be10dde0",
+      "size_bytes": 28616,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-original-three-r1\\origin-guard-37764.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-original-three-r1/origin-guard-44972.jsonl",
+      "sha256": "1b2f89db47be5fb5b03900ec7b38f7ecf151de8252a611e86e2e07a6293d13b6",
+      "size_bytes": 28616,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-original-three-r1\\origin-guard-44972.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-original-three-r1/origin-guard-45096.jsonl",
+      "sha256": "65cd5cd0904213b598cc7c8706054ea8411c0edc291be56046754c23b4669ab4",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-original-three-r1\\origin-guard-45096.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r1/origin-guard-13224.jsonl",
+      "sha256": "e21b12b527756d11f9a7ad8f64ef536529bd719082d2d98694beb94b6c340688",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r1\\origin-guard-13224.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r1/origin-guard-35964.jsonl",
+      "sha256": "ab207d0c64a722a3f4b0e765cdeba4405659db7544d69e1c93a819f8d4a58943",
+      "size_bytes": 29388,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r1\\origin-guard-35964.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r1/origin-guard-44960.jsonl",
+      "sha256": "066ba23437ac191d9b84ac86cfcdd8f8a4ed63137b61296b562b2d3085280cb7",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r1\\origin-guard-44960.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r1/origin-guard-45588.jsonl",
+      "sha256": "6ee97bf642e5cf0a160717e92cf2f1313378a074799ad5d67981b4d1a902444a",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r1\\origin-guard-45588.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r2/origin-guard-10876.jsonl",
+      "sha256": "940f22d8d83b64a638586bfb423be4e5fc7a2b9e9af9f3745f64bb5da7621370",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r2\\origin-guard-10876.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r2/origin-guard-32032.jsonl",
+      "sha256": "f1111cfd4c5baa3e2d7cfae0c44b3a70438d5cdf64a5a1775c6fd10f298a4a51",
+      "size_bytes": 29388,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r2\\origin-guard-32032.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r2/origin-guard-32560.jsonl",
+      "sha256": "cf3583c4ee0856a4bf8697b8fbceff1b14b25abbfa14f33354a51f7870f89d01",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r2\\origin-guard-32560.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r2/origin-guard-41916.jsonl",
+      "sha256": "fa2382237790d8a769eebfc7ff1e62cf41ef2ba2858969776f50444aab07b73c",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r2\\origin-guard-41916.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r3/origin-guard-10852.jsonl",
+      "sha256": "7c3da7ed33802481512bbcbf08af0564652314c421557e314c97e312d2368487",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r3\\origin-guard-10852.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r3/origin-guard-25172.jsonl",
+      "sha256": "032f690c85620496fcfc18d04dee3db65f66faa718a0d5f93e4d5a99e0678c3d",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r3\\origin-guard-25172.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r3/origin-guard-28556.jsonl",
+      "sha256": "abf7e6f8eb90d57b3d1f36ec97a876238e207646573f8a0a6f206c02ff174502",
+      "size_bytes": 29388,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r3\\origin-guard-28556.jsonl"
+    },
+    {
+      "archived_path": "qa/origin-guard-parent-focus-r3/origin-guard-34184.jsonl",
+      "sha256": "efc4168832c1a85b392685cd938ab26f0a123eafc84ccad9356fd9f01d4c2788",
+      "size_bytes": 1428,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\origin-guard-parent-focus-r3\\origin-guard-34184.jsonl"
+    },
+    {
+      "archived_path": "qa/original-three-r1.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\original-three-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/original-three-r1.log",
+      "sha256": "151d3f350fc5e076868d203ecf08a3827cb8f41799db75afc318b310432a9e09",
+      "size_bytes": 686,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\original-three-r1.log"
+    },
+    {
+      "archived_path": "qa/original-three-r1.xml",
+      "sha256": "06a5e8c4fce1f2adbbc511b85b20687ef2c20bb33fb14a8d02fe24385ea74073",
+      "size_bytes": 791,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\original-three-r1.xml"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r1.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r1.log",
+      "sha256": "aa890aa2067b45275535fc54dd098369b347ad068c3aa7b48dc255b0711979a0",
+      "size_bytes": 775,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r1.log"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r1.xml",
+      "sha256": "cba8a05031c4f9d9d766022f1a1bd6496096efda6f2ab075e3d7765d34445a92",
+      "size_bytes": 7220,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r1.xml"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r2.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r2.exit.txt"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r2.log",
+      "sha256": "3cee4e5b65918f38e60ddcd126c61693e92ccd98329ee1144a91f2d930c108d4",
+      "size_bytes": 775,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r2.log"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r2.xml",
+      "sha256": "597d7f181ace1879160eadee232a3ab0bab7b23d79bab524f4fb2c8083021b6b",
+      "size_bytes": 7220,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r2.xml"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r3.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r3.exit.txt"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r3.log",
+      "sha256": "bc9400167d23a0a12bc03a3354e2214cce423a7674bd7fb0632af014dcc93424",
+      "size_bytes": 775,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r3.log"
+    },
+    {
+      "archived_path": "qa/parent-focus-guarded-r3.xml",
+      "sha256": "07e005d5b65eabee67b16def27633da0c07fb597689a48981d9ac60554e8afc8",
+      "size_bytes": 7220,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-guarded-r3.xml"
+    },
+    {
+      "archived_path": "qa/parent-focus-r1.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/parent-focus-r1.log",
+      "sha256": "c7ffe438229f30e32363350915dd13121c24a5f5d8b35cf796a2d1bfe2c333f9",
+      "size_bytes": 767,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r1.log"
+    },
+    {
+      "archived_path": "qa/parent-focus-r1.xml",
+      "sha256": "5a6df5027a5978893763f9e3faaed7b7e0be4a64cd950744fa5ad4d75ac15b0a",
+      "size_bytes": 7041,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r1.xml"
+    },
+    {
+      "archived_path": "qa/parent-focus-r2.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r2.exit.txt"
+    },
+    {
+      "archived_path": "qa/parent-focus-r2.log",
+      "sha256": "338265fd5be40b7537ac2c11de948999583448503e18cedee46822b2b8dfbace",
+      "size_bytes": 767,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r2.log"
+    },
+    {
+      "archived_path": "qa/parent-focus-r2.xml",
+      "sha256": "44699d7e279b731e778b3183a953a7832ce389ceff95048bc198b396e59b78a8",
+      "size_bytes": 7220,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\parent-focus-r2.xml"
+    },
+    {
+      "archived_path": "qa/ruff-r1.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\ruff-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/ruff-r1.log",
+      "sha256": "61948dcb469b48decb0b78280b1d1541a561773e372631cf297e9a82b7f22c51",
+      "size_bytes": 598,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\ruff-r1.log"
+    },
+    {
+      "archived_path": "qa/ruff-source-r1.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "size_bytes": 3,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\ruff-source-r1.exit.txt"
+    },
+    {
+      "archived_path": "qa/ruff-source-r1.log",
+      "sha256": "e9b4b9e6279d7d26dde64e731781358583adb9581e96c5f06506c699ab84e437",
+      "size_bytes": 415,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\ruff-source-r1.log"
+    },
+    {
+      "archived_path": "qa/source-only-metadata-manifest.json",
+      "sha256": "9b0b2092a81eef7480676d04c3da953e35eed9fb4c2ed02a19fcfd5fc1982137",
+      "size_bytes": 5508,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\source-only-metadata-manifest.json"
+    },
+    {
+      "archived_path": "qa/source-roots.json",
+      "sha256": "488bbf735bfa698b1cb28d036f411b6b2ccf0b662ffb4d77ff51e4441dcb519c",
+      "size_bytes": 1177,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\source-roots.json"
+    },
+    {
+      "archived_path": "qa/summarize_guard.py",
+      "sha256": "94d78ca98e3feef2c78e6628b9b8d41c48a7b43c98145f6a5f14ad66a78b6103",
+      "size_bytes": 964,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\summarize_guard.py"
+    },
+    {
+      "archived_path": "qa/summarize_guard_all.py",
+      "sha256": "57d1dfa9a6afff51f4f353f440b84e6793a86cbd85b1e4bc8b4d8b5571ba3ba0",
+      "size_bytes": 997,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\summarize_guard_all.py"
+    },
+    {
+      "archived_path": "qa/write_authority_diff.py",
+      "sha256": "8e8c4459e8b7d8bbf5c8e233c9d98c55e026217be8d7e0d527a7775426e3a5ef",
+      "size_bytes": 726,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\write_authority_diff.py"
+    },
+    {
+      "archived_path": "qa/write_test_diffs.py",
+      "sha256": "4b263dbb6eccac252a351630a7a9c0bd1b576f708eaebf51caba5ea24cc1dd98",
+      "size_bytes": 805,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\write_test_diffs.py"
+    },
+    {
+      "archived_path": "source-only-metadata/SOURCE-ONLY.txt",
+      "sha256": "888f0e15fd61b730b0743aa65b4abe42bd23a1cde6dd2bbaee0aae3f9dbfb026",
+      "size_bytes": 75,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\SOURCE-ONLY.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_base-0.15.4.dist-info/METADATA",
+      "sha256": "2a6596b0f23dea2978e2d8e2b2d3a7ec406a0fc51704597596cb954e0f1b1add",
+      "size_bytes": 989,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_base-0.15.4.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_base-0.15.4.dist-info/SOURCE-ONLY.json",
+      "sha256": "842b0011594e99bdbb602f67678e1b7ca1a6667562174f8d1ffb4ef6140e79d2",
+      "size_bytes": 646,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_base-0.15.4.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_base-0.15.4.dist-info/top_level.txt",
+      "sha256": "eb47c6048b7663ed63c5f9bdcb1bc6b1a5a6e7a9ac92e83382780dc3032a51ef",
+      "size_bytes": 13,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_base-0.15.4.dist-info\\top_level.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_ctp-2.0.4+iteration41.i9.dist-info/METADATA",
+      "sha256": "cd140a6a1b21bd49fecb0f7d0b38ca95d27da79d9edc22254c93a4f7608cbc15",
+      "size_bytes": 410,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_ctp-2.0.4+iteration41.i9.dist-info/SOURCE-ONLY.json",
+      "sha256": "c2cf52e0e9981a02751f4498aa7a6b7d48aa9e25b765776dfae54e78f3aac1fb",
+      "size_bytes": 636,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_ctp-2.0.4+iteration41.i9.dist-info/top_level.txt",
+      "sha256": "e4a2fc98a32d379081f0b943a500d5480013a8fe87fa223522bb36178086d769",
+      "size_bytes": 12,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\top_level.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_execution-0.2.0.dist-info/METADATA",
+      "sha256": "a3083a5a283fcc2bed177c63f96b34fe429ae2a95ac16808a22714c69a3cbcd4",
+      "size_bytes": 375,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_execution-0.2.0.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_execution-0.2.0.dist-info/SOURCE-ONLY.json",
+      "sha256": "a66c5dc20f883134928e9a5af2e94a7c10f56e0d45f18daeaaf6ecdea4d803e3",
+      "size_bytes": 664,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_execution-0.2.0.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_execution-0.2.0.dist-info/top_level.txt",
+      "sha256": "e5abd14756856ae6a3836a388b731446ea654200e219ceadddbf5e306c81522f",
+      "size_bytes": 18,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_execution-0.2.0.dist-info\\top_level.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_monitor-0.1.0.dist-info/METADATA",
+      "sha256": "c6a3790cd5151eb05a6d773e989df5c48ebd805557abecc6e78a57c1f19ef231",
+      "size_bytes": 546,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_monitor-0.1.0.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_monitor-0.1.0.dist-info/SOURCE-ONLY.json",
+      "sha256": "23ae9e65c953abfdf8f66f6680d924263fae2c17dbab127a10b20feff44f5ad8",
+      "size_bytes": 656,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_monitor-0.1.0.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_monitor-0.1.0.dist-info/top_level.txt",
+      "sha256": "7d8521d99d1037db179ba60df2314c299c50c8ed175d82ecf9ebe9868725f6e3",
+      "size_bytes": 16,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_monitor-0.1.0.dist-info\\top_level.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_py-0.15.5.dist-info/METADATA",
+      "sha256": "718e7a1373ae46bb4ac0efd459ff59bc834f222b95bee31c0c9cc1e6e6b61f88",
+      "size_bytes": 970,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_py-0.15.5.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_py-0.15.5.dist-info/SOURCE-ONLY.json",
+      "sha256": "11acb89a0645750de62e4652a98ffeddbfd66105e4c9a1bd1d10dcb792fa1e18",
+      "size_bytes": 671,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_py-0.15.5.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_py-0.15.5.dist-info/top_level.txt",
+      "sha256": "9456a3e4871beb2f6b1773c55e35fd8510f1305417ba90d26488fdc826fb49e2",
+      "size_bytes": 11,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_py-0.15.5.dist-info\\top_level.txt"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_risk-0.1.0.dist-info/METADATA",
+      "sha256": "4181cf9efcadca470b3524e8e93e3461c050bc412b2e14120d538ac88a710d13",
+      "size_bytes": 541,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_risk-0.1.0.dist-info\\METADATA"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_risk-0.1.0.dist-info/SOURCE-ONLY.json",
+      "sha256": "bb85e99ead997cd1f6272642c1edfb642975568410712039ba27ce3fa1833b08",
+      "size_bytes": 634,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_risk-0.1.0.dist-info\\SOURCE-ONLY.json"
+    },
+    {
+      "archived_path": "source-only-metadata/bt_api_risk-0.1.0.dist-info/top_level.txt",
+      "sha256": "c00273b327eabbef02d7ba18ddbf2e49829ba77007a4e68d79ad051faca2268a",
+      "size_bytes": 13,
+      "source_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_risk-0.1.0.dist-info\\top_level.txt"
+    }
+  ],
+  "schema": "iteration41-evidence-archive-index-v1",
+  "source_candidate": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1"
+}

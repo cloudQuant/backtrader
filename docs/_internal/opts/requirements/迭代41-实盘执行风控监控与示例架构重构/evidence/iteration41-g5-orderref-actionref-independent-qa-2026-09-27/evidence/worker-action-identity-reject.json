@@ -1,0 +1,17 @@
+{
+  "action_identity_persisted_before_unsupported_worker_call": true,
+  "action_identity_reserved_line": 708,
+  "builder_wraps_exception_as": "\"I9 cancel staging/readback failed closed\"",
+  "candidate_keyword_call_line": 726,
+  "exact_shape_call_rejection": "TypeError: CurrentShapeWorker.stage_prepared_dispatch() got an unexpected keyword argument 'action_identity'",
+  "full_builder_runtime": "NOT RUN: exact parent worker/source-only candidate is not present in frozen input; Backtrader focused source tests skip it",
+  "patched_builder": "D:\\temp\\iteration41-g5-order-authority-independent-qa-20260927\\candidate\\main_repo_patch\\backtrader\\stores\\ctp_i9_parent_request_builder.py",
+  "patched_builder_sha256": "284F4430E844E4DAA17F534D2F4A90474951650A57A457ED70E8F92463584051",
+  "provider_sdk_native_network_credentials": "not used",
+  "signature_bind_rejection": "TypeError: got an unexpected keyword argument 'action_identity'",
+  "status": "PASS_FAIL_CLOSED_CONTRACT",
+  "worker_body_calls": 0,
+  "worker_port_sha256": "454C039E85B7559B7F37291BC7EB77F7E7A845CADF48FAA9262CB7042636C6AD",
+  "worker_port_source": "D:\\temp\\iteration41-g5-order-authority-independent-qa-20260927\\main-focus\\backtrader\\stores\\ctp_i9_managed_dispatch.py",
+  "worker_signature": "(self, prepared: 'Any') -> 'Any'"
+}

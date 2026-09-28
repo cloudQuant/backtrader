@@ -1,0 +1,90 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index 53cd937a7202..57c9f5b45a44 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -3776,6 +3776,73 @@
+             environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+         )
+         route_kind = classify_store_route(initial_route)
++        placeholder_constructor_only = (
++            route_kind is RouteKind.UNSUPPORTED
++            and explicit_provider in _PLACEHOLDER_PROVIDERS
++            and backend is None
++            and api is None
++            and api_cls is None
++            and (config is None or (type(config) is dict and not config))
++            and (api_kwargs is None or (type(api_kwargs) is dict and not api_kwargs))
++            and not kwargs
++            and type(cash) in {int, float}
++            and cash == 0.0
++            and value is None
++            and type(account_cache_ttl) in {int, float}
++            and account_cache_ttl == 0.0
++            and type(positions_cache_ttl) in {int, float}
++            and positions_cache_ttl == 0.0
++            and type(open_orders_cache_ttl) in {int, float}
++            and open_orders_cache_ttl == 0.0
++            and positions is None
++            and historical_bars is None
++            and live_bars is None
++            and contract_metadata is None
++            and managed_execution_adapter is None
++            and account_actor_port is None
++            and account_actor_context is None
++            and account_actor_test_ledger is None
++            and autostart is False
++            and initial_route.environment_provider is None
++            and initial_route.environment_exchange_type is None
++        )
++        if placeholder_constructor_only:
++            # Preserve the legacy placeholder lifecycle only for the exact
++            # empty/default constructor shape. Explicit/nested CTP evidence
++            # was rejected above, and a CTP environment route is not
++            # UNSUPPORTED, so neither can enter this compatibility branch.
++            self.provider = explicit_provider
++            self.backend = _resolve_backend(explicit_provider, backend)
++            self._managed_execution_adapter = None
++            self._candidate_route_kind = RouteKind.UNSUPPORTED
++            self._candidate_input_provider = provider
++            self._candidate_input_backend = backend
++            self._candidate_route_descriptor = _candidate_route_descriptor(
++                self.provider,
++                self.backend,
++                {},
++                {},
++                None,
++                None,
++                initial_route.environment_provider,
++                initial_route.environment_exchange_type,
++            )
++            self._candidate_route_seal = _candidate_route_fingerprint(
++                self._candidate_route_descriptor
++            )
++            self._candidate_actor_only = False
++            self._candidate_adapter_only = False
++            self._candidate_placeholder_only = True
++            self._candidate_actor_port = None
++            self._candidate_actor_context = None
++            self._candidate_actor_ledger = None
++            self._api = None
++            self._api_cls = None
++            self._config = {}
++            self._api_kwargs = {}
++            self._started = False
++            self._connected = False
++            return
+         self._candidate_adapter_only = False
+         adapter_only_route = (
+             route_kind is RouteKind.AMBIGUOUS
+@@ -4786,6 +4853,11 @@
+ 
+     def start(self, data=None, broker=None):
+         """Start the store and attach broker/feed instances."""
++        if getattr(self, "_candidate_placeholder_only", False):
++            self._candidate_require_route(RouteKind.UNSUPPORTED)
++            raise BtApiProviderNotImplementedError(
++                f"provider '{self.provider}' is reserved for future bt_api_py support"
++            )
+         if self._candidate_adapter_only:
+             self._candidate_require_adapter_only()
+             raise BtApiStoreError("ambiguous adapter-only route cannot start a provider client")

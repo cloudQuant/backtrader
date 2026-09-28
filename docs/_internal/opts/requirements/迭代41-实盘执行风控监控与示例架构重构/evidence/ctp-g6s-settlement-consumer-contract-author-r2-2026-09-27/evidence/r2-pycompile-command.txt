@@ -1,0 +1,2 @@
+command: & 'D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe' -m py_compile ctp_simnow_settlement_consumer.py tests\test_ctp_simnow_settlement_consumer.py
+result: exit 0; raw output is evidence/r2-pycompile.stdout.txt.

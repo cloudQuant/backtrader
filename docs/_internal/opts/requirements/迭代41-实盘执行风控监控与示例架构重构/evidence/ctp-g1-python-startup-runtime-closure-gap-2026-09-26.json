@@ -1,0 +1,109 @@
+{
+  "schema": "iteration41.fixed_python_runtime_closure_review.v1",
+  "date": "2026-09-26",
+  "scope": {
+    "read_only": true,
+    "provider_or_native_ctp": false,
+    "programdata_or_private_runtime_config_read": false,
+    "acl_modified": false,
+    "repository_files_modified": false,
+    "note": "Host Python inventory only; not a deployment pin or production acceptance."
+  },
+  "host_python": {
+    "distribution": "Anaconda CPython",
+    "version": "3.11.5",
+    "architecture": "AMD64",
+    "base_home": "C:\\anaconda3",
+    "base_executable": "C:\\anaconda3\\python.exe",
+    "venv_executable": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+    "venv_pyvenv_cfg": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\pyvenv.cfg",
+    "pyvenv_cfg_facts": {
+      "home": "C:\\anaconda3",
+      "include-system-site-packages": false,
+      "version": "3.11.5"
+    },
+    "isolated_no_site_sys_path": [
+      "C:\\anaconda3\\python311.zip",
+      "C:\\anaconda3\\DLLs",
+      "C:\\anaconda3\\Lib",
+      "C:\\anaconda3"
+    ],
+    "python311_zip": {
+      "path": "C:\\anaconda3\\python311.zip",
+      "present": false
+    },
+    "startup_observation": {
+      "command": "C:\\anaconda3\\python.exe -I -S -B -c import sys; print(sys.modules['encodings'].__spec__.origin, sys.modules['encodings'].__cached__)",
+      "encodings_origin": "C:\\anaconda3\\Lib\\encodings\\__init__.py",
+      "encodings_cached_path": "C:\\anaconda3\\Lib\\encodings\\__pycache__\\__init__.cpython-311.pyc",
+      "dont_write_bytecode": true,
+      "interpretation": "-B prevents bytecode writes, not startup-time cached-code reads; encodings is present before the -c body executes."
+    },
+    "runtime_files": [
+      {"path": "C:\\anaconda3\\python.exe", "bytes": 92160, "sha256": "C98CAEE82C66433F0E89D4ABBF152B39A7DC2E99979B28DCB021598B4E3F5642"},
+      {"path": "C:\\anaconda3\\python311.dll", "bytes": 5991424, "sha256": "162E8557FBED5F39AE24983EE62B2D435B4796C937D9C1A34371888C7E43AF00"},
+      {"path": "C:\\anaconda3\\python3.dll", "bytes": 55296, "sha256": "06C239A46F8B43C03E5D59A41E435300AAEB491B3A5C140CE50968CEDEB896A3"},
+      {"path": "C:\\anaconda3\\zlib.dll", "bytes": 87552, "sha256": "54C755E6B90499A5EF49A65CE9472535286FE4DB3565A06C4A53F8A4833532DC"},
+      {"path": "C:\\anaconda3\\VCRUNTIME140.dll", "bytes": 101672, "sha256": "FF43E813785EE948A937B642B03050BB4B1C6A5E23049646B891A66F65D4C833"},
+      {"path": "C:\\anaconda3\\vcruntime140_1.dll", "bytes": 44328, "sha256": "7B8F70DD3BDAE110E61823D1CA6FD8955A5617119F5405CDD6B14CAD3656DFC7"},
+      {"path": "C:\\anaconda3\\DLLs\\_ctypes.pyd", "bytes": 117248, "sha256": "87A96B342CAAC2988BEADC99FBCB0E800111F403E46876F091CD39E03337A7E2"},
+      {"path": "C:\\anaconda3\\Library\\bin\\ffi.dll", "bytes": 28160, "sha256": "812EEFF28941D7A7F93CD64EC880EB8E773F613536CCBA9D3CB1049DD884B027"},
+      {"path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe", "bytes": 235008, "sha256": "1B51B8FB73EB40401C7E7CD468808EAA022922FD87FD60AECB757759DCCF94F0"},
+      {"path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\pyvenv.cfg", "bytes": 226, "sha256": "1465F497CEEE62CA8AD8DC58B74FEFC93A2DCF274DED0A492284AD452E52F199"}
+    ],
+    "loaded_non_system_runtime_modules_after_ctypes_import": [
+      "C:\\anaconda3\\python.exe",
+      "C:\\anaconda3\\python311.dll",
+      "C:\\anaconda3\\VCRUNTIME140.dll",
+      "C:\\anaconda3\\zlib.dll",
+      "C:\\anaconda3\\python3.DLL",
+      "C:\\anaconda3\\DLLs\\_ctypes.pyd",
+      "C:\\anaconda3\\Library\\bin\\ffi.dll"
+    ],
+    "os_modules": "Modules observed in Windows System32 were not hashed; Windows code-signing/servicing remains the OS trust boundary."
+  },
+  "acl_observations": [
+    {"path": "C:\\anaconda3", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl"},
+    {"path": "C:\\anaconda3\\Lib", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\anaconda3\\Lib\\encodings", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\anaconda3\\DLLs", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\anaconda3\\Library\\bin", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\anaconda3\\python.exe", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\anaconda3\\python311.dll", "owner": "BUILTIN\\Administrators", "finding": "BUILTIN\\Users Allow FullControl (inherited)"},
+    {"path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926", "owner": "YUN\\yunji", "finding": "User and CodexSandboxUsers can modify; test venv is not a trust root."}
+  ],
+  "source_review": {
+    "parent_launcher": {
+      "current_facts": "Descriptor binds venv root/exe/hash, python home string, pyvenv.cfg hash, stdlib path strings; preflight hashes only venv python.exe and pyvenv.cfg and compares path strings.",
+      "base_runtime_payload_hash_or_acl": false
+    },
+    "guardian_anchor": {
+      "current_retained_paths": "Source root, venv executable, pyvenv.cfg, parent candidate manifest/pin/launcher, and candidate source-manifest files.",
+      "base_home_stdlib_python_dll_retained_or_acl_checked": false,
+      "dependency_root": "venv Lib\\site-packages only"
+    },
+    "sealed_import": {
+      "stdlib_paths": "Exact path set validation only.",
+      "stdlib_modules": "Loader/origin identity validation; no stdlib source/pyc/pyd content digest.",
+      "startup_risk": "Startup modules such as encodings execute before bootstrap code can install the sealed finder."
+    },
+    "deployment_status": "Code-owned descriptor/runtime pins are zero and bootstrap/dependency seal files are still WIP; no deployment runtime is accepted."
+  },
+  "minimal_design": {
+    "manifest": "One code-owned canonical manifest for the fixed CPython 3.11.5 AMD64 distribution; bind distribution identity, exact home/venv/pyvenv.cfg, exact -I -S roots, required startup pyc/source, python DLLs, stdlib importable files and required PYDs/DLLs; include exact recursive importable-file inventory and explicit present/absent python311.zip state. SystemRoot\\System32 remains Windows OS trust, not whole-OS hashing.",
+    "prelaunch_seal": "Before CreateProcess, validate manifest digest and pin; retain handles for all listed runtime files and every root/ancestor directory; reject reparse points, changed volume/file IDs, untrusted writer/delete/WRITE_DAC/WRITE_OWNER ACEs, unknown/extra importable files, and broad/writable DLL-search roots. Keep the lease through Job-empty/worker-exit; verify immediately before launch.",
+    "pyc": "-B is not a read barrier. Protect and inventory the exact startup cache/source files before process creation; post-start loader/origin checks alone are too late.",
+    "dll_search": "Pin expected base DLL/PYD paths and hashes; use only fixed executable/base runtime roots plus SystemRoot in PATH/DLL search; inspect loaded modules as supplementary evidence, not the sole Resume gate because suspended-process enumeration can be incomplete and lazy DLL loads occur later.",
+    "single_parser_ownership": "sdk_merge owns one pure runtime-manifest parser/model; f14_bridge owns anchor pin/path binding, ACL and retained file/directory lease; native_contract bootstrap consumes only anchor-sealed facts and keeps source-only importer; guardian_qa only verifies anchor seal before CreateProcess and retains it until Job empty.",
+    "service_host_initial_trust": "SCM service ImagePath/config and initial service Python/source must be installed in a SYSTEM/Admin-protected, externally pinned boundary; the already-running service cannot self-authenticate its initially executed Python code."
+  },
+  "tests_and_limits": {
+    "host_acl_read": "Get-Acl on Anaconda base/runtime paths only; no changes made.",
+    "startup_command": "C:\\anaconda3\\python.exe -I -S -B -c ...",
+    "no_native_ctp": true,
+    "no_provider_or_network": true,
+    "no_private_config": true,
+    "production_deployment_or_programdata_test": false,
+    "suspended_module_enumeration": "Supplemental observation only; not a trust proof for modules loaded before/resume or lazy DLLs."
+  }
+}

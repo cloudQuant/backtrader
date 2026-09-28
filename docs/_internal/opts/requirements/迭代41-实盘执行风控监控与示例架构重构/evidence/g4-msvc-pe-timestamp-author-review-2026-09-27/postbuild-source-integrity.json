@@ -1,0 +1,30 @@
+{
+  "manifest_source_tree_sha256": "b332edcf5b86b0447b07ea0d9b5a82d0293ab6e25513c24a0b99ae103bf176b8",
+  "post_build_checks": [
+    {
+      "all_source_payloads_unchanged": true,
+      "mismatches": [],
+      "payload_files_checked": 260,
+      "root": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\source-a"
+    },
+    {
+      "all_source_payloads_unchanged": true,
+      "mismatches": [],
+      "payload_files_checked": 260,
+      "root": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\source-b"
+    },
+    {
+      "all_source_payloads_unchanged": true,
+      "mismatches": [],
+      "payload_files_checked": 260,
+      "root": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\source-c"
+    },
+    {
+      "all_source_payloads_unchanged": true,
+      "mismatches": [],
+      "payload_files_checked": 260,
+      "root": "D:\\temp\\iteration41-g4-ctp-native-repro-isolated-20260927\\source-d"
+    }
+  ],
+  "source_archive_sha256": "9005a1754210d1dacb02eb1545d2c0718c1fdfd08ee62141566fae4181194821"
+}

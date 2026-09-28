@@ -1,0 +1,4 @@
+PASS exact backtrader\stores\btapistore.py SHA256 e41dd9189059911a180e7fb27bde546cb90a1f7bd2a0c59df6ed624f12c3e179
+PASS exact backtrader\stores\ctp_account_actor_port.py SHA256 e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48
+PASS exact tests\unit\stores\test_ctp_account_actor_store_wiring_candidate.py SHA256 19afe01afbe3679018a861ca00c16f5aa0ddd1f4c32823b52812bccce6ccfcdf
+git apply check/apply exit=0; core.autocrlf=false preserves candidate bytes.

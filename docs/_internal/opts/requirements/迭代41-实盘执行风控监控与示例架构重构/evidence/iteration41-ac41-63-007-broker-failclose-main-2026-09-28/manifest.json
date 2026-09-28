@@ -1,0 +1,99 @@
+{
+  "candidate_id": "ac41-63-007-live-broker-boundary-main-2026-09-28",
+  "status": "PARENT_APPLIED_LOCAL_INTEGRATION_GUARDED_FOCUS_PASS_INVENTORY_UNCHANGED",
+  "route_state": "NO_WRITE / LIVE_NO_GO",
+  "workspace": "D:\\source_code\\backtrader",
+  "archive_root": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-ac41-63-007-broker-failclose-main-2026-09-28",
+  "baseline_commit": "ad2c142b9a8b42cede85886528c681abdfcb8096",
+  "scope": [
+    "examples/007_ctp/ctp_example_support.py:create_live_broker",
+    "one new fake-only test",
+    "explicit same-name BtApiBroker re-export alias follow-up"
+  ],
+  "source_preimage_sha256": "C5D7F2DDD51465C4187CBFECF77C02D4FC4C80742D8E0D0B809F0FB830F33DBC",
+  "applied_candidate_postimage_sha256": "E53E90D6939F9EA03749A9BEA887B02F28A55865C0F83A428C3A2E461B0C11AE",
+  "final_main_source_sha256": "9F0DFE02F156B820B1158A7E317C2EFCEEBD59301A141E242A30144BDBFC554E",
+  "final_new_test_sha256": "7A5B29774F42C791A4CBA56E3A68C2A92330E64021718673BCEFF5DCA1C0496A",
+  "patch_sha256": {
+    "ruff_reexport": "98E69582981CDA3530279A93D9341A8250096D302FF2E6B833FF29ED8804353A",
+    "broker_fence": "69E53657C4883E20A2D7B114FB477C55A6B9513157936FABD6FE80A59EAC659D"
+  },
+  "original_mixed_eol_diagnostic_sha256": "784CC5F83FE7B69FB3236CE0EB97EEAEBA790BEF8EE5A1C5BE475936EC13C6FE",
+  "unchanged_existing_test_preimages": {
+    "test_ctp_example_support": "8C20311918406A1635EC53FFF3E41C17F07C5DCA8B35B4657AC88205987F1D57",
+    "test_iteration41_legacy_ctp_support_inert_import": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575"
+  },
+  "independent_qa": {
+    "guard": "zero provider/native import attempts or preloaded CTP modules; zero .env, os.getenv, and socket events",
+    "receipt_sha256": "4FC057AF8CDF5F440E45D795D7265272131C035E58008844261631017EDE089F",
+    "raw_log_sha256": "88689F817B5A881885A441A325D171B7D4A8DAD3B1E3119F88A3664D8C3599D8",
+    "result": "5 passed, exit 0, one existing Quandl deprecation warning"
+  },
+  "main_focus": {
+    "git_diff_check": "pass",
+    "raw_log_sha256": "C39A3DEF407043B78A13785EE05D01C1CD484C571A0FEE503234548A245DE8D0",
+    "native_modules_loaded": [],
+    "junit_sha256": "600A4B05ED6D8BD064F7E4A1F925A6850F95E5F98FF4D16B999C586F441405B1",
+    "result": "5 passed, exit 0, one existing pytest config warning",
+    "guard_events": [],
+    "guard_sha256": "407D0472E0E545089725F1E19305A0EBFA3C8A5F9B8C77C671E26FFEECDF030A",
+    "targeted_ruff": "pass",
+    "guard_source_sha256": "E9C96E4196A8AFF2D21377F7B557777C07066F6D16AC6E09672C07AA108DBFD9"
+  },
+  "official_inventory": {
+    "ordered_candidate_ids_locator_lines": "unchanged",
+    "writer_candidates": 363,
+    "artifact_sha256": "D68D2E7A1E4700A93D1FED9565F72DAAE33C69D09A5BEE5A4EAF3431957FDF63",
+    "dynamic_candidates": 97,
+    "verifier_rows": "460/460",
+    "files_scanned": 355
+  },
+  "residuals": [
+    "007 add_live_feeds remains a separate caller-Store market-data/session path through BtApiFeed.start -> store.start/register -> optional fetch_history -> subscribe",
+    "Other direct Store/Broker composition, arbitrary same-process writers, and account-wide write paths are outside scope",
+    "No provider/native/network/credential/order behavior was exercised; no writer-closure or real SimNow/production acceptance"
+  ],
+  "archived_file_sha256": {
+    "candidate/ctp_example_support-E53-pre-alias.py": "E53E90D6939F9EA03749A9BEA887B02F28A55865C0F83A428C3A2E461B0C11AE",
+    "candidate/ctp_example_support-mixed-EOL-diagnostic.py": "784CC5F83FE7B69FB3236CE0EB97EEAEBA790BEF8EE5A1C5BE475936EC13C6FE",
+    "candidate/existing-test_ctp_example_support.py": "8C20311918406A1635EC53FFF3E41C17F07C5DCA8B35B4657AC88205987F1D57",
+    "candidate/existing-test_iteration41_legacy_ctp_support_inert_import.py": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+    "candidate/test_iteration41_007_live_broker_failclose.py": "7A5B29774F42C791A4CBA56E3A68C2A92330E64021718673BCEFF5DCA1C0496A",
+    "inventory/official-collector-final.json": "D68D2E7A1E4700A93D1FED9565F72DAAE33C69D09A5BEE5A4EAF3431957FDF63",
+    "main-run/46724.json": "407D0472E0E545089725F1E19305A0EBFA3C8A5F9B8C77C671E26FFEECDF030A",
+    "main-run/ctp_example_support-9F0D.py": "9F0DFE02F156B820B1158A7E317C2EFCEEBD59301A141E242A30144BDBFC554E",
+    "main-run/focused-r3-exit.txt": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+    "main-run/focused-r3-junit.xml": "600A4B05ED6D8BD064F7E4A1F925A6850F95E5F98FF4D16B999C586F441405B1",
+    "main-run/focused-r3.log": "C39A3DEF407043B78A13785EE05D01C1CD484C571A0FEE503234548A245DE8D0",
+    "main-run/invalid-qa-offline-guard-attempt-exit.txt": "F1B2F662800122BED0FF255693DF89C4487FBDCF453D3524A42D4EC20C3D9C04",
+    "main-run/invalid-qa-offline-guard-attempt-junit.xml": "236252C569C2457C82F14155A4F156402073E278C3F8E7DAB943A6CB78202284",
+    "main-run/invalid-qa-offline-guard-attempt.log": "F23BB163A9D5FF38AAB9F5F602442D756DF4BA2D8C5143778F3B68FF2E9B492B",
+    "main-run/sitecustomize.py": "E9C96E4196A8AFF2D21377F7B557777C07066F6D16AC6E09672C07AA108DBFD9",
+    "main-run/test_iteration41_007_live_broker_failclose.py": "7A5B29774F42C791A4CBA56E3A68C2A92330E64021718673BCEFF5DCA1C0496A",
+    "patches/001-broker-fence.patch": "69E53657C4883E20A2D7B114FB477C55A6B9513157936FABD6FE80A59EAC659D",
+    "patches/002-ruff-reexport.patch": "98E69582981CDA3530279A93D9341A8250096D302FF2E6B833FF29ED8804353A",
+    "qa-independent/pytest-guarded.raw.log": "88689F817B5A881885A441A325D171B7D4A8DAD3B1E3119F88A3664D8C3599D8",
+    "qa-independent/qa_offline_guard.py": "694C77EC699A2C66840D0F9FF94E65A62F4592F838C818ADFE82F4A09A64B80C",
+    "qa-independent/qa_pytest.ini": "5F1925B4A423D125A0E653F5C876FADA9293684BF6797381B303FC88C5712778",
+    "qa-independent/qa-receipt.txt": "4FC057AF8CDF5F440E45D795D7265272131C035E58008844261631017EDE089F",
+    "README.md": "035AE64D6BB11F83DE03ECAA0042BE31468B90A3EEDC14FA92BD8214090DF033"
+  },
+  "frozen_preimages": {
+    "examples/007_ctp/ctp_example_support.py": "C5D7F2DDD51465C4187CBFECF77C02D4FC4C80742D8E0D0B809F0FB830F33DBC",
+    "tests/unit/test_ctp_example_support.py": "8C20311918406A1635EC53FFF3E41C17F07C5DCA8B35B4657AC88205987F1D57",
+    "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+    "backtrader_runtime/legacy.py": "AC5DFA8CC770F1C30F38CF96BB55048236BC2040647382F42A4D2086AAA9B47C",
+    "backtrader_runtime/errors.py": "07A6A77CFDDD1C9F59602A77A4ECB317BC6B21E7E0435860423A2C4FD05921BE",
+    "backtrader/brokers/btapibroker.py": "538F7DDEB2D1C2AB52F43EC6FFE20981488F901B1B92BDDC05F47D5CB75A159C",
+    "backtrader/feeds/btapifeed.py": "D34EFE275B3EB8E53C09B09EBF7FEE807BF672702EA8405C541AAEDCBC2DE803",
+    "backtrader/stores/btapistore.py": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA"
+  },
+  "excluded_harness_diagnostic": {
+    "result": "collection stopped on unrelated psutil import reading PSUTIL_DEBUG via os.getenv guard; excluded from test result",
+    "raw_log_sha256": "F23BB163A9D5FF38AAB9F5F602442D756DF4BA2D8C5143778F3B68FF2E9B492B",
+    "junit_sha256": "236252C569C2457C82F14155A4F156402073E278C3F8E7DAB943A6CB78202284",
+    "exit_sha256": "F1B2F662800122BED0FF255693DF89C4487FBDCF453D3524A42D4EC20C3D9C04"
+  },
+  "candidate_root": "D:\\temp\\ac41-live-broker-boundary-20260928-normalized",
+  "original_diagnostic_root": "D:\\temp\\ac41-live-broker-boundary-20260928"
+}

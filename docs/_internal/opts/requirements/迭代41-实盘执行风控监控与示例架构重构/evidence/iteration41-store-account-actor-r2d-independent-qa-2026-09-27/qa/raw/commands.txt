@@ -1,0 +1,18 @@
+Frozen candidate: D:\temp\iteration41-store-account-actor-r2d-20260927\freeze-r2d-20260927
+Independent replay roots: D:\temp\iteration41-store-account-actor-r2d-independent-qa-20260927\baseline and \candidate
+Environment for both runs:
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  PYTHONDONTWRITEBYTECODE=1
+  PYTHONPATH=D:\temp\iteration41-store-account-actor-r2d-independent-qa-20260927\guard;<replay-root>
+Working directory: <replay-root>
+Command:
+  python -B -m pytest -p no:cacheprovider -q <six exact nodeids from independent-evidence\nodeids.txt> --junitxml <independent-evidence\baseline.xml or candidate.xml>
+
+Baseline exit=1: 3 failed, 3 passed, 0 skipped; all failures are the unchanged placeholder-provider nodeids, rejected in BtApiStore.__init__ as BtApiStoreError(store provider unsupported).
+Candidate exit=0: 6 passed, 0 failed, 0 skipped. The 3 CTP/ambiguity nodes passed.
+Tripwire checks ran in separate fresh processes against each copied tree. The guard blocked builtin imports of bt_api_py/_ctp plus DNS and socket.connect entry points. No blocked provider/native module loaded and no actual connection was attempted.
+
+Patch replay:
+  git -C <new scratch> -c core.autocrlf=false apply --check <freeze>\patch\r2d.patch
+  git -C <new scratch> -c core.autocrlf=false apply <freeze>\patch\r2d.patch
+The exact output source SHA matched candidate/backtrader/stores/btapistore.py.

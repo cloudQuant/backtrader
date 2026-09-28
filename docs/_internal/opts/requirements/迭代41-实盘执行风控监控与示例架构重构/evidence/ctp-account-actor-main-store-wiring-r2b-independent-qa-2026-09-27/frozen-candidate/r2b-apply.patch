@@ -1,0 +1,926 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index b2ae89fd7de8e800bc1217dc6d01e57a2e6c2126..be1b0fe0ace799e7c6bf9c852b8a0a7f849ed843 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -3266,10 +3266,18 @@ def _create_ctp_gateway_wrapper_class():
+                 **kwargs: Gateway configuration parameters passed to GatewayClient.
+             """
+             self._kwargs = dict(kwargs)
++            self._store_route_guard = None
+             self._kwargs.setdefault("exchange_type", "CTP")
+             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
+             self._client = GatewayClient(**self._kwargs)
+ 
++        def _attach_store_route_guard(self, guard):
++            self._store_route_guard = guard
++
++        def _require_store_route(self):
++            if self._store_route_guard is not None:
++                self._store_route_guard()
++
+         def connect(self):
+             """Connect to the CTP gateway."""
+             self._client.connect()
+@@ -3493,6 +3501,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._require_store_route()
+             response = self._client.submit_order(payload)
+             if "data_name" in payload and "data_name" not in response:
+                 response["data_name"] = payload["data_name"]
+@@ -3519,6 +3528,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.cancel_order(order_ref, dataname=dataname)
+ 
+         def poll_broker_update(self):
+@@ -16913,6 +16923,7 @@ class BtApiStore(LiveStoreBase):
+             if self.backend == "forwarding":
+                 self._api = self._create_forwarding_client()
+             else:
++                attach_store_route_guard = self.backend == "gateway" and self._api_cls is None
+                 if self.backend == "gateway":
+                     api_cls = self._api_cls or _create_ctp_gateway_wrapper_class()
+                 else:
+@@ -16920,7 +16931,13 @@ class BtApiStore(LiveStoreBase):
+                 kwargs = dict(self._config)
+                 kwargs.update(self._api_kwargs)
+                 self._candidate_require_route(RouteKind.NON_CTP)
+-                self._api = api_cls(**kwargs)
++                created_api = api_cls(**kwargs)
++                if attach_store_route_guard:
++                    created_api._attach_store_route_guard(
++                        lambda: self._candidate_require_route(RouteKind.NON_CTP)
++                    )
++                self._candidate_require_route(RouteKind.NON_CTP)
++                self._api = created_api
+ 
+         if (
+             self._sdk_mode
+diff --git a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+index 5cd67e9852cfe8b8f59893e4f75044797235f530..abe37860158494d68a985fa42d622f0f6400970c 100644
+--- a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
++++ b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+@@ -575,3 +575,111 @@ def test_bad_or_missing_actor_setup_fails_before_provider_resolution(monkeypatch
+     with pytest.raises(BtApiStoreError, match="store provider unsupported"):
+         BtApiStore(provider="futu")
+     assert calls == []
++
++
++class _CommandDispatchTrap:
++    exchange_kwargs = {}
++    ctp_query_min_interval_seconds = 1.0
++
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError(f"unexpected API dispatch attribute read: {name}")
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_internal_legacy_and_cancel_ref_helpers_recheck_mutated_ctp_route(route_mutation):
++    api = _CommandDispatchTrap()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    assert store._candidate_route_kind is RouteKind.NON_CTP
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++
++    order = _AttributeTrap()
++    direct_calls = (
++        lambda: store._submit_order_legacy(order),
++        lambda: store._cancel_order_ref_legacy("order-ref"),
++        lambda: store.submit_order(order),
++        lambda: store.cancel_order(order),
++        lambda: store.cancel_order_ref("order-ref"),
++        lambda: store._cancel_managed("order-ref"),
++        lambda: store._create_forwarding_client(),
++    )
++    for direct_call in direct_calls:
++        with pytest.raises(BtApiStoreError, match="route changed"):
++            direct_call()
++
++    assert api.reads == []
++    assert order.reads == []
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_gateway_wrapper_submit_cancel_recheck_store_route_after_mutation(
++    monkeypatch, route_mutation
++):
++    import sys
++    from types import ModuleType
++
++    clients = []
++
++    class _OfflineGatewayClient:
++        def __init__(self, **kwargs):
++            self.kwargs = kwargs
++            self.submit_calls = []
++            self.cancel_calls = []
++            clients.append(self)
++
++        def connect(self):
++            return None
++
++        def disconnect(self):
++            return None
++
++        def get_balance(self):
++            return {"balance": 100}
++
++        def submit_order(self, payload):
++            self.submit_calls.append(payload)
++            return {"status": "sent"}
++
++        def cancel_order(self, order_ref, dataname=None):
++            self.cancel_calls.append((order_ref, dataname))
++            return {"status": "sent"}
++
++    root_module = ModuleType("bt_api_py")
++    root_module.__path__ = []
++    gateway_module = ModuleType("bt_api_py.gateway")
++    gateway_module.__path__ = []
++    client_module = ModuleType("bt_api_py.gateway.client")
++    client_module.GatewayClient = _OfflineGatewayClient
++    monkeypatch.setitem(sys.modules, "bt_api_py", root_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", client_module)
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    assert len(clients) == 1
++    wrapper = store._api
++    wrapper.submit_order({})
++    wrapper.cancel_order("order-ref")
++    assert clients[0].submit_calls == [{}]
++    assert clients[0].cancel_calls == [("order-ref", None)]
++
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        wrapper.submit_order({})
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        wrapper.cancel_order("order-ref")
++    assert clients[0].submit_calls == [{}]
++    assert clients[0].cancel_calls == [("order-ref", None)]
+diff --git a/tests/unit/stores/test_ctp_non_authorizing_contracts.py b/tests/unit/stores/test_ctp_non_authorizing_contracts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f560674180411d565b55e55b7dc161efe382e41
+--- /dev/null
++++ b/tests/unit/stores/test_ctp_non_authorizing_contracts.py
+@@ -0,0 +1,74 @@
++"""Pure CTP DTO/receipt contracts; these never create a Store or grant authority."""
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore
++from backtrader_runtime.managed_execution import (
++    CtpQueueReceiptState,
++    classify_ctp_queue_receipt,
++)
++
++
++def _receipt(operation, *, queued=True):
++    result = {
++        "kind": "command_receipt",
++        "command": operation,
++        "receipt_id": ("a" if operation == "submit" else "b") * 32,
++        "bt_order_ref": 7,
++        "client_order_id": "000000000123",
++        "status": "submitted" if queued else "rejected",
++        "queued": queued,
++        "priority": "cancel" if operation == "cancel" else "open",
++        "queue_depth": 1 if queued else 0,
++    }
++    if not queued:
++        result.update(
++            error_code="command_queue_full",
++            error_msg="SDK command queue cannot safely accept this command",
++        )
++    return result
++
++
++@pytest.mark.parametrize("operation", ("submit", "cancel"))
++def test_local_queue_receipt_is_unknown_not_provider_ack(operation):
++    classification = classify_ctp_queue_receipt(
++        _receipt(operation),
++        operation=operation,
++        expected_bt_order_ref=7,
++        expected_client_order_id="000000000123",
++    )
++
++    assert classification.operation == operation
++    assert classification.state is CtpQueueReceiptState.UNKNOWN
++    assert classification.queued is True
++    assert classification.receipt_id == ("a" if operation == "submit" else "b") * 32
++    assert not hasattr(classification, "provider_order_id")
++    assert not hasattr(classification, "provider_acknowledgement")
++
++
++def test_local_queue_rejection_is_not_a_provider_observation():
++    classification = classify_ctp_queue_receipt(
++        _receipt("submit", queued=False),
++        operation="submit",
++        expected_bt_order_ref=7,
++        expected_client_order_id="000000000123",
++    )
++
++    assert classification.state is CtpQueueReceiptState.REJECTED
++    assert classification.queued is False
++    assert classification.error_code == "command_queue_full"
++    assert not hasattr(classification, "provider_order_id")
++
++
++def test_managed_request_model_identity_shape_is_a_pure_signature_contract():
++    class ManagedOrderRequest:
++        def __init__(self, managed_intent_id, runtime_order_id, hedge_flag):
++            self.managed_intent_id = managed_intent_id
++            self.runtime_order_id = runtime_order_id
++            self.hedge_flag = hedge_flag
++
++    BtApiStore._require_sdk_request_model_fields(
++        ManagedOrderRequest,
++        ("managed_intent_id", "runtime_order_id", "hedge_flag"),
++        "OrderRequest",
++    )
+diff --git a/tests/unit/stores/test_managed_ctp_store_adapter.py b/tests/unit/stores/test_managed_ctp_store_adapter.py
+index 3e09f2a4bfb29488bec6926227ee43b32312dc3a..663089b9823c4d09eeee6bd115e15c09aac45084 100644
+--- a/tests/unit/stores/test_managed_ctp_store_adapter.py
++++ b/tests/unit/stores/test_managed_ctp_store_adapter.py
+@@ -10,7 +10,7 @@ from typing import Optional
+ import pytest
+ 
+ from backtrader.order import OrderBase
+-from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, ManagedCtpHandoffError
++from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+ from backtrader.stores.managed_execution import (
+     CtpManagedCancelDispatch,
+     CtpManagedExecutionProjection,
+@@ -20,7 +20,6 @@ from backtrader.stores.managed_execution import (
+     require_ctp_managed_execution_projection,
+ )
+ from backtrader_runtime.managed_execution import (
+-    CtpManagedExecutionAdapterPlaceholder,
+     ManagedExecutionBindingError,
+     _managed_runtime_order_id,
+     classify_ctp_queue_receipt,
+@@ -521,391 +520,150 @@ def _order(*, info=None):
+     )
+ 
+ 
+-def test_managed_ctp_submission_projects_typed_identity_to_sdk_only():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    dispatched = []
++# Prior Store-local CTP fakes are retained as migration rows, not authority.
++_LEGACY_CTP_STORE_CASES = (
++    ('test_managed_ctp_submission_projects_typed_identity_to_sdk_only', 'local fake adapter projects typed submit identity through the SDK queue', 'future external Actor migration', 'An authenticated actor accepts the exact signed submit intent, atomically claims its durable identity, and returns a typed receipt bound to account, epoch, and request digest; caller/provider IDs remain rejected.'),
++    ('test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write', 'generic local adapter used to reach adapter-type validation before writes', 'current fail-closed assertion; future external Actor adapter contract', 'A configured external Actor endpoint is authenticated and versioned; only its typed submit/cancel API is reachable, while generic adapters and legacy dispatch callbacks reject before side effects.'),
++    ('test_managed_ctp_placeholder_is_a_local_rejection_before_queueing', 'local placeholder used to reject at submit after Store creation', 'current earlier fail-closed assertion', 'Without external Actor readiness, Store construction or admission remains unavailable; an actor-authenticated explicit local rejection may be surfaced only after trusted actor validation.'),
++    ('test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only', 'fake submit/cancel projection and in-memory restart replay', 'future external Actor and durable recovery migration', 'After restart, the actor reads the same durable account ledger and returns the existing submit/cancel disposition for the exact intent without re-enqueue; no in-memory reader or caller seed supplies history.'),
++    ('test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref', 'fake recovered cancel mapping without a framework ref', 'future external Actor and durable recovery migration', 'Actor obtains and validates a durable same-account order binding, then authorizes cancel identity from that binding; no caller/framework reference can substitute for the ledger row.'),
++    ('test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation', 'fake reader demonstrates duplicate queues absent durable reserve', 'future external Actor durable-reservation migration', 'Concurrent/restarted attempts for one scoped intent yield exactly one durable actor claim; UNKNOWN retains the claim and never causes local redispatch.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection]', 'submit missing projection yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'An authenticated actor receipt must resolve to a matching durable submit projection; absent projection remains UNKNOWN, fences the intent, and cannot invoke local SDK fallback.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch]', 'submit receipt mismatch yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'The actor receipt and durable projection must bind the same command ID, account, epoch, intent, and digest; any mismatch is UNKNOWN and fenced.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error]', 'submit projection read failure yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'Actor ledger unavailability after a possible dispatch is UNKNOWN; retain durable claim and query through the authenticated actor, never retry through local SDK.'),
++    ('test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection]', 'cancel missing projection yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'A cancel dispatch without a matching durable actor projection remains UNKNOWN and frozen; retry requires actor-owned reconciliation evidence.'),
++    ('test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch]', 'cancel receipt mismatch yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'Cancel receipt and actor projection must match exact cancel ID, target order, account, epoch, and digest; mismatch is UNKNOWN with no fallback.'),
++    ('test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter', 'caller native identifier must reject before local adapter', 'current earlier fail-closed assertion; retain identity rule in future Actor contract', 'Caller-supplied OrderRef/ActionRef/client IDs are rejected before actor dispatch; the authenticated actor allocates and durably binds provider identifiers.'),
++    ('test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback', 'untyped fake receipt must not trigger direct fallback', 'future external Actor typed-receipt migration', 'Only a versioned authenticated actor receipt with exact operation/context/identity/digest is accepted; malformed or unknown responses fence the command and never trigger direct fallback.'),
++    ('test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue]', 'queued submit receipt must stop a second local OrderRef allocator', 'future external Actor/ledger integration', 'One actor-owned durable allocator supplies OrderRef exactly once across crash/restart; local Store/SDK ledgers cannot allocate a second reference.'),
++    ('test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification]', 'unknown submit classification must stop a second allocator', 'future external Actor/ledger integration', 'An unclassified actor/queue response keeps the single allocation claim UNKNOWN and blocks every allocator/retry until trusted reconciliation.'),
++    ('test_managed_ctp_order_request_refuses_a_second_orderref_allocator', 'Store request path rejects second OrderRef source', 'current earlier fail-closed assertion; retain allocator invariant in future Actor contract', 'The request builder consumes the actor-reserved typed OrderRef without allocating another; a pure model check must still require the identity fields.'),
++    ('test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids', 'fake cancel projects durable cancel ID without native IDs', 'future external Actor durable cancel migration', 'The actor derives/claims a stable cancel ID from the durable target binding and intent; native IDs are supplied only by actor-owned ledger evidence.'),
++    ('test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing', 'missing native order ref must not queue cancel', 'current earlier fail-closed assertion; retain validation in future Actor contract', 'If the actor cannot prove the durable native order binding, cancel rejects before provider dispatch and records no guessed identifier.'),
++    ('test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback', 'typed local adapter receives cancel callback', 'future external Actor dispatch migration', 'Store sends only a typed cancel command to the authenticated actor; no caller callback can directly reach a local SDK write method.'),
++    ('test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority', 'SDK OrderRef ledger cannot substitute for single durable outbox', 'future external Actor and shared-ledger migration', 'The actor-owned shared durable outbox is the sole allocator/recovery authority; SDK-local OrderRef history is evidence only and cannot authorize a second dispatch.'),
++    ('test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown', 'actual Store queue receipt classification for submit and recovered cancel', 'future external Actor receipt integration', 'Local enqueue receipt remains non-authorizing UNKNOWN; actor reconciliation must bind the same durable account command and provider observation before changing state.'),
++)
+ 
+-    def enqueue(order, *, ctp_managed_identity=None):
+-        dispatched.append((order, ctp_managed_identity))
+-        return _queue_receipt("submit")
+ 
+-    store._enqueue_order_command = enqueue
++class _FailClosedAdapterProbe:
++    def __init__(self):
++        self.calls = []
+ 
+-    result = store.submit_order(_order())
++    def submit_order(self, *args, **kwargs):
++        self.calls.append(("submit", args, kwargs))
++        raise AssertionError("local CTP adapter was invoked before external Actor admission")
+ 
+-    assert result["kind"] == "managed_execution_projection"
+-    assert result["state"] == "PENDING"
+-    assert result["local_queue_receipt_id"] == "a" * 32
+-    assert len(dispatched) == 1
+-    assert dispatched[0][1].managed_intent_id == "intent-1"
+-    assert dispatched[0][1].hedge_flag == "2"
+-    assert api.submissions == []
++    def cancel_order(self, *args, **kwargs):
++        self.calls.append(("cancel", args, kwargs))
++        raise AssertionError("local CTP adapter was invoked before external Actor admission")
+ 
+ 
+-def test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write():
+-    class GenericAdapter:
+-        def __init__(self):
+-            self.called = False
++class _FailClosedCredentialProbe:
++    def __init__(self):
++        self.reads = []
+ 
+-        def submit_order(self, order, dispatch):
+-            self.called = True
+-            return dispatch(order)
++    def __bool__(self):
++        self.reads.append("bool")
++        raise AssertionError("credential was touched before CTP route closure")
+ 
+-    adapter = GenericAdapter()
+-    api = _Api()
++    def __str__(self):
++        self.reads.append("str")
++        raise AssertionError("credential was touched before CTP route closure")
++
++
++class _RouteEnvironmentProbe:
++    def __init__(self, delegate):
++        self.delegate = delegate
++        self.reads = []
++
++    def get(self, key, default=None):
++        if key in {"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"}:
++            self.reads.append(key)
++        return self.delegate.get(key, default)
++
++
++@pytest.mark.parametrize(
++    ("legacy_case", "former_local_expectation", "disposition", "future_actor_contract"),
++    _LEGACY_CTP_STORE_CASES,
++    ids=[case[0] for case in _LEGACY_CTP_STORE_CASES],
++)
++def test_legacy_ctp_store_composition_is_now_explicitly_fail_closed(
++    monkeypatch, legacy_case, former_local_expectation, disposition, future_actor_contract
++):
++    """Each legacy local-CTP composition case now proves the admission boundary."""
++    from backtrader.stores import btapistore as store_module
+ 
+-    with pytest.raises(BtApiStoreError, match="typed runtime adapter"):
++    api = _Api()
++    adapter = _FailClosedAdapterProbe()
++    credential = _FailClosedCredentialProbe()
++    environment = _RouteEnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module, "os", SimpleNamespace(environ=environment))
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("local resolver/client reached before CTP actor gate")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="btapi",
+             api=api,
+             config={
+                 "exchange_kwargs": {"CTP": {}},
+-                "execution_config": {"market_data_only": False, "strategy_id": "strategy"},
++                "execution_config": {
++                    "market_data_only": False,
++                    "strategy_id": "strategy",
++                },
++                "execution_authorization_secret": credential,
+             },
+             managed_execution_adapter=adapter,
++            autostart=True,
+         )
+ 
+-    assert adapter.called is False
+-    assert api.submissions == []
+-
+-
+-def test_managed_ctp_placeholder_is_a_local_rejection_before_queueing():
+-    adapter = CtpManagedExecutionAdapterPlaceholder(runtime=object())
+-    store, api = _store(adapter)
+-
+-    with pytest.raises(
+-        ManagedExecutionBindingError,
+-        match="MANAGED_CTP_WRITE_COMPOSITION_UNAVAILABLE",
+-    ) as raised:
+-        store.submit_order(_order())
+-
+-    assert raised.value.managed_local_reject is True
+-    assert raised.value.definite_reject is True
+-    assert not store._command_heap
++    assert legacy_case.startswith("test_")
++    assert former_local_expectation
++    assert disposition
++    assert future_actor_contract
++    assert environment.reads == []
++    assert credential.reads == []
++    assert adapter.calls == []
++    assert resolver_calls == []
+     assert api.submissions == []
+     assert api.cancellations == []
+     assert api.async_submissions == []
+     assert api.async_cancellations == []
++    assert api.reservations == []
++    assert api.binding_reads == 0
+ 
+ 
+-def test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only():
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    submit_calls = []
+-    cancel_calls = []
+-
+-    def queue_submit(order, *, ctp_managed_identity=None):
+-        assert type(ctp_managed_identity) is CtpManagedOrderDispatch
+-        submit_calls.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        receipt = _queue_receipt("submit", bt_order_ref=order.ref)
+-        reader.persist("submit", ctp_managed_identity, receipt)
+-        return receipt
+-
+-    def queue_cancel(identity, dataname):
+-        assert type(identity) is CtpManagedCancelDispatch
+-        assert dataname == "rb"
+-        cancel_calls.append(identity)
+-        receipt = _queue_receipt("cancel")
+-        reader.persist("cancel", identity, receipt)
+-        return receipt
+-
+-    store._enqueue_order_command = queue_submit
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+-    order = _order()
+-
+-    submitted = store.submit_order(order)
+-    cancelled = store.cancel_order(order)
+-
+-    assert submitted["kind"] == cancelled["kind"] == "managed_execution_projection"
+-    assert submitted["state"] == cancelled["state"] == "PENDING"
+-    assert submitted["operation"] == "submit"
+-    assert cancelled["operation"] == "cancel"
+-    assert submitted["local_queue_receipt_id"] == "a" * 32
+-    assert cancelled["local_queue_receipt_id"] == "b" * 32
+-    assert len(submit_calls) == len(cancel_calls) == 1
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-    # A new adapter and Store recover the durable rows before asking either
+-    # queue callback to run again. The framework ref may change after restart.
+-    restarted_adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    restarted_store, restarted_api = _store(restarted_adapter)
+-
+-    def unexpected_submit(*_args, **_kwargs):
+-        raise AssertionError("recovered submit was queued again")
+-
+-    def unexpected_cancel(*_args, **_kwargs):
+-        raise AssertionError("recovered cancel was queued again")
+-
+-    restarted_store._enqueue_order_command = unexpected_submit
+-    restarted_store._enqueue_ctp_managed_cancel = unexpected_cancel
+-    replay_order = _order()
+-    replay_order.ref = 9001
+-
+-    replayed_submit = restarted_store.submit_order(replay_order)
+-    replayed_cancel = restarted_store.cancel_order(replay_order)
+-
+-    assert replayed_submit["state"] == replayed_cancel["state"] == "PENDING"
+-    assert replayed_submit["runtime_order_id"] == submitted["runtime_order_id"]
+-    assert replayed_cancel["managed_cancel_intent_id"] == cancelled[
+-        "managed_cancel_intent_id"
+-    ]
+-    assert len(submit_calls) == len(cancel_calls) == 1
+-    assert restarted_api.submissions == restarted_api.cancellations == []
+-
+-
+-def test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref():
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    order = _order(
+-        info={
+-            "client_order_id": "000000000123",
+-            "runtime_order_id": _managed_runtime_order_id(runtime.scope, "intent-1"),
+-        }
+-    )
+-    order.ref = 9001
+-    queued = []
+-
+-    def queue_cancel(identity, _dataname):
+-        queued.append(identity)
+-        receipt = _queue_receipt("cancel", bt_order_ref=None)
+-        reader.persist("cancel", identity, receipt)
+-        return receipt
+-
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+ 
+-    result = store.cancel_order(order)
+ 
+-    assert result["state"] == "PENDING"
+-    assert len(queued) == 1
+-    assert api.cancellations == api.async_cancellations == []
+ 
+ 
+-def test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation():
+-    reader = _FakeDurableProjectionReader()
+-    adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    queued = []
+-
+-    def queue_without_persisting(order, *, ctp_managed_identity=None):
+-        queued.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        return _queue_receipt("submit", bt_order_ref=order.ref)
+-
+-    store._enqueue_order_command = queue_without_persisting
+-    for _ in range(2):
+-        with pytest.raises(ManagedCtpHandoffError) as raised:
+-            store.submit_order(_order())
+-        assert raised.value.managed_execution_state == "UNKNOWN"
+-
+-    assert len(queued) == 2
+-    assert len(reader.freezes) == 2
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-
+-@pytest.mark.parametrize("failure", ("missing_projection", "receipt_mismatch", "reader_error"))
+-def test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback(failure):
+-    reader = _FakeDurableProjectionReader()
+-    adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    queued = []
+-
+-    def queue_submit(order, *, ctp_managed_identity=None):
+-        queued.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        receipt = _queue_receipt(
+-            "submit",
+-            bt_order_ref=order.ref,
+-            client_order_id=(
+-                "000000000999" if failure == "receipt_mismatch" else "000000000123"
+-            ),
+-        )
+-        if failure == "receipt_mismatch":
+-            reader.persist("submit", ctp_managed_identity, receipt)
+-        return receipt
+-
+-    store._enqueue_order_command = queue_submit
+-    if failure == "reader_error":
+-        reader.fail_reads = True
+-
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.submit_order(_order())
+-
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.execution_unknown is True
+-    assert reader.freezes
+-    assert reader.freezes[0][0] == "submit"
+-    assert len(queued) == (0 if failure == "reader_error" else 1)
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-
+-@pytest.mark.parametrize("failure", ("missing_projection", "receipt_mismatch"))
+-def test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown(failure):
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    order = _order(
+-        info={
+-            "client_order_id": "000000000123",
+-            "runtime_order_id": _managed_runtime_order_id(runtime.scope, "intent-1"),
+-        }
+-    )
+-    queued = []
+-
+-    def queue_cancel(identity, _dataname):
+-        queued.append(identity)
+-        receipt = _queue_receipt(
+-            "cancel",
+-            client_order_id=(
+-                "000000000999" if failure == "receipt_mismatch" else "000000000123"
+-            ),
+-        )
+-        if failure == "receipt_mismatch":
+-            reader.persist("cancel", identity, receipt)
+-        return receipt
+ 
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+ 
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.cancel_order(order)
+ 
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.execution_unknown is True
+-    assert reader.freezes
+-    assert reader.freezes[0][0] == "cancel"
+-    assert len(queued) == 1
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+ 
+ 
+-def test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+ 
+-    with pytest.raises(BtApiStoreError, match="caller-supplied"):
+-        store.submit_order(_order(info={"managed_intent_id": "intent-1", "client_order_id": "77"}))
+-
+-    assert adapter.submit_dispatches == []
+-    assert api.submissions == []
+ 
+ 
+-def test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback():
+-    adapter = _AuthorizedFakeRuntime(malformed_submit=True)
+-    store, api = _store(adapter)
+ 
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.submit_order(_order())
+ 
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.managed_projection_pending is True
+-    assert api.submissions == []
+ 
+ 
+-@pytest.mark.parametrize("response_kind", ("queue", "unknown_classification"))
+-def test_managed_ctp_real_queue_fails_before_second_orderref_allocator(
+-    response_kind,
+-):
+-    class RawQueueRuntime(_AuthorizedFakeRuntime):
+-        def submit_order(self, order, sdk_dispatch):
+-            command = CtpManagedOrderDispatch(
+-                order=order,
+-                managed_intent_id="intent-1",
+-                runtime_order_id=RUNTIME_ORDER_ID,
+-                hedge_flag="2",
+-            )
+-            receipt = sdk_dispatch(command)
+-            self.submit_queue_receipts.append(receipt)
+-            if response_kind == "queue":
+-                return receipt
+-            return classify_ctp_queue_receipt(
+-                receipt,
+-                operation="submit",
+-                expected_bt_order_ref=7,
+-                expected_client_order_id="000000000123",
+-            )
+-
+-    adapter = RawQueueRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_exchange = lambda _symbol: "CTP"
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    store._start_command_worker = lambda: None
+ 
+-    with pytest.raises(BtApiStoreError, match="single execution outbox") as raised:
+-        store.submit_order(_order())
+ 
+-    assert raised.value.managed_local_reject is True
+-    assert raised.value.definite_reject is True
+-    assert adapter.submit_queue_receipts == []
+-    assert store._command_heap == []
+-    assert api.submissions == []
+-    assert api.cancellations == []
+-    assert api.async_submissions == []
+-    assert api.async_cancellations == []
+ 
+ 
+-def test_managed_ctp_order_request_refuses_a_second_orderref_allocator():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    payload = {
+-        "symbol": "rb",
+-        "bt_order_ref": 7,
+-        "side": "buy",
+-        "size": 1,
+-        "price": 3500,
+-        "order_type": "limit",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "hedge_flag": "2",
+-    }
+ 
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._sdk_order_request("CTP", payload)
+ 
+-    assert api.reservations == []
+-    assert api.binding_reads == 0
+ 
+ 
+ def test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields():
+@@ -922,156 +680,11 @@ def test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields():
+         )
+ 
+ 
+-def test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    binding = {
+-        "symbol": "rb",
+-        "exchange_name": "CTP",
+-        "account_id": "account",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "bt_order_ref": 7,
+-        "client_order_id": "000000000123",
+-    }
+-    store._sdk_runtime_refs[("CTP", RUNTIME_ORDER_ID)] = binding
+-    queued = []
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    store._start_command_worker = lambda: None
+-    store._enqueue_sdk_command = lambda command, *, priority_name: queued.append(
+-        (command, priority_name)
+-    ) or _queue_receipt("cancel")
+-
+-    command = CtpManagedCancelDispatch(
+-        managed_intent_id="intent-1",
+-        runtime_order_id=RUNTIME_ORDER_ID,
+-        managed_cancel_intent_id="cancel.intent-1",
+-    )
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._enqueue_ctp_managed_cancel(command, "rb")
+-
+-    assert queued == []
+-    assert api.cancellations == []
+-
+-
+-def test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_runtime_refs[("CTP", RUNTIME_ORDER_ID)] = {
+-        "symbol": "rb",
+-        "exchange_name": "CTP",
+-        "account_id": "account",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "bt_order_ref": 7,
+-    }
+-    queued = []
+-    store._enqueue_sdk_command = lambda command, *, priority_name: queued.append(command)
+-
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._enqueue_ctp_managed_cancel(
+-            CtpManagedCancelDispatch(
+-                managed_intent_id="intent-1",
+-                runtime_order_id=RUNTIME_ORDER_ID,
+-                managed_cancel_intent_id="cancel.intent-1",
+-            ),
+-            "rb",
+-        )
+-
+-    assert queued == []
+-    assert api.cancellations == []
+-
+-
+-def test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    dispatched = []
+-    store._enqueue_ctp_managed_cancel = lambda identity, dataname: dispatched.append(
+-        (identity, dataname)
+-    ) or _queue_receipt("cancel")
+ 
+-    result = store.cancel_order(_order())
+ 
+-    assert result["kind"] == "managed_execution_projection"
+-    assert result["state"] == "PENDING"
+-    assert result["operation"] == "cancel"
+-    assert len(dispatched) == 1
+-    assert dispatched[0][0].managed_cancel_intent_id == "cancel.intent-1"
+-    assert dispatched[0][1] == "rb"
+-    assert api.cancellations == []
+ 
+ 
+-def test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority():
+-    """A separate bt_api_py OrderRef ledger cannot satisfy the shared outbox port."""
+ 
+-    scope = SimpleNamespace(
+-        provider="CTP",
+-        strategy_id="strategy",
+-        environment="sandbox",
+-        key="scope:" + ("b" * 64),
+-    )
+-    intent_id = "intent.e2e"
+-    runtime_order_id = _managed_runtime_order_id(scope, intent_id)
+ 
+-    class FakeComposedRuntime(_AuthorizedFakeRuntime):
+-        def submit_order(self, order, sdk_dispatch):
+-            identity = CtpManagedOrderDispatch(
+-                order=order,
+-                managed_intent_id=intent_id,
+-                runtime_order_id=runtime_order_id,
+-                hedge_flag="2",
+-            )
+-            receipt = sdk_dispatch(identity)
+-            return self._projection("submit", identity, receipt)
+-
+-        def cancel_order(self, order_or_ref, dataname, sdk_dispatch):
+-            identity = CtpManagedCancelDispatch(
+-                managed_intent_id=intent_id,
+-                runtime_order_id=runtime_order_id,
+-                managed_cancel_intent_id="cancel.intent.e2e",
+-            )
+-            receipt = sdk_dispatch(identity)
+-            return self._projection("cancel", identity, receipt)
+-
+-    adapter = FakeComposedRuntime()
+-    store, api = _store(adapter)
+-    order = _order(info={"managed_intent_id": intent_id})
+-    caller_order_info = dict(order.info)
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store.submit_order(order)
+-
+-    assert adapter.submit_dispatches == []
+-    assert store._sdk_runtime_refs == {}
+-    assert store._sdk_client_refs == {}
+-    assert "client_order_id" not in caller_order_info
+-    assert "runtime_order_id" not in caller_order_info
+-    assert "client_order_id" not in order.info
+-    assert "runtime_order_id" not in order.info
+-    assert api.reservations == []
+-    assert api.binding_reads == 0
+-    assert api.submissions == []
+-    assert api.cancellations == []
+ 
+ 
+-def test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown():
+-    """Use the Store's actual queue envelope, with only local fake ports."""
+-
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_exchange = lambda _symbol: "CTP"
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    # The queue itself is exercised, but its background dispatcher must stay
+-    # stopped so this integration test cannot reach an SDK/provider method.
+-    store._start_command_worker = lambda: None
+-
+-    order = _order()
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store.submit_order(order)
+-
+-    assert adapter.submit_queue_receipts == []
+-    assert adapter.cancel_queue_receipts == []
+-    assert store._command_heap == []
+-    assert api.submissions == []
+-    assert api.cancellations == []

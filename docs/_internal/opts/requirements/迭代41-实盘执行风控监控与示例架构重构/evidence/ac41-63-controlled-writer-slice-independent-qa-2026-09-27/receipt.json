@@ -1,0 +1,101 @@
+{
+  "artifacts_sha256": {
+    "REPORT.md": "4AECD2BB57CF1FB6257352928E5A5BE0C5F1FC252F86BA84013DF0F0D4BDFDB2",
+    "build_and_verify_archive.py": "0A5B4E3CDF90DB634199BC7D1B38BD7F9C0410E28C8EF6053042AC23ADDDBB45",
+    "build_receipt.py": "16C6479912A23F01EC4070C12A69BB2209A19B98AFF3E2E78873F73C693D7BBF",
+    "freeze_archive.py": "7FE68EAF2861690879A9C6E6D2A3B1C581D9AA7D4E0B6678B0C8B82FE88AFD4A",
+    "input-check.json": "FBBF63069EBB8BAAC80BA06F1F949C8238D76AE1480E65FE6A8BE3C2BBE56594",
+    "input-check.log": "FBBF63069EBB8BAAC80BA06F1F949C8238D76AE1480E65FE6A8BE3C2BBE56594",
+    "input/frozen-source-manifest.json": "423CB56E86375019307D252AD774706A259161D7D4EF7B605410EDB0FC889FC6",
+    "input/live-execution-inventory-candidates.json": "FACBBC93067D77A317E3A0ABDE5EF89BC77BD53E4A4EB18722B51124E3E20780",
+    "input/live-execution-writer-dispositions.json": "95116E8866A50D645664764856F1CEB6E855B3D05E540F7E38D59F30EA65C7FD",
+    "input/r2a/author-manifest-verification.txt": "EEFD57BB767494F4B68D53E7B675D44067AE9984D75D232EC385A1427804CA18",
+    "input/r2a/candidate-manifest.json": "5AD9CCE0851FBEBD9AC07D520919B7A02F793AB99A133CF96E91F58CEDE405FB",
+    "input/r2a/candidate-manifest.sha256": "828A8F0F88EC8161EA3CA0BC92FCE30FF4D75026FFAAFC785957A471358BAE10",
+    "input/r2a/r2a-apply.patch": "7708DF2F0923B74E5F95315390580EB417E9CA05CFA4C6FE41422BC410908E99",
+    "main-probe.exit-code.txt": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+    "main-probe.log": "F4DC5E417A49545AB8040D9DC285A3BDE46C540C5D760A8D72A6CE2BACC46EB2",
+    "r2a-manifest-verify.exit-code.txt": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+    "r2a-manifest-verify.log": "EEFD57BB767494F4B68D53E7B675D44067AE9984D75D232EC385A1427804CA18",
+    "r2a-probe.exit-code.txt": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+    "r2a-probe.log": "8547DDA753933F94E82CD35A25E310DD60096412F27240837F341B37F4D30D25",
+    "run_slice_probe.py": "F541163077A68F899206080529DECB33BD3CF320AAB8154DFFF6B0CF62B6B23C",
+    "source-identity-check.json": "D2A6458CF37182BACD7EABC4059336B15D8DCA3BFD1A4626609690733226AA40",
+    "source-identity-check.log": "D2A6458CF37182BACD7EABC4059336B15D8DCA3BFD1A4626609690733226AA40",
+    "verify_inputs.py": "484C95F5338BB191F968945FB4B996946ECE96742F667CD5AFF7A511C45D18BF",
+    "verify_source_identity.py": "4D49C4AEB35A4A17BF2891862C4A405D1BA37AC0ECC12772F3C75CAEDC5D499A"
+  },
+  "classification": "LIMITED_STATIC_AND_LOCAL_FAKE_PATH_REVIEW_NOT_CLOSURE",
+  "date": "2026-09-27",
+  "disposition_count": 389,
+  "inventory_counts": {
+    "dynamic_execution_candidates": 62,
+    "files_scanned": 349,
+    "parse_errors": 0,
+    "writer_candidates": 327
+  },
+  "limitations": [
+    "AST-compiled method probes establish only method-body control-flow to fake boundaries, not full Store lifecycle or external reachability.",
+    "The 10-item review leaves 379 inventory dispositions untouched.",
+    "Native CTP fallback, full runner source execution, all adapter compositions, r2b, provider acceptance and production behavior are not verified."
+  ],
+  "main_source_manifest_sha256": "423CB56E86375019307D252AD774706A259161D7D4EF7B605410EDB0FC889FC6",
+  "main_source_sha256": {
+    "backtrader/stores/btapistore.py": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "backtrader/stores/managed_execution.py": "1C31F89412E8E1177EB2E27389C62B50E074361EF808098846C06704F18440C5",
+    "backtrader_runtime/cli.py": "BCA2632E261FE2B663008E8B0758C2C932DF917F9376E9B90230848B41EF5EF4",
+    "backtrader_runtime/inventory.py": "0EBC77EFD22E21B299E794E09C8CB879899B5DC4EFD3302E86D2D9C626B0F6CB",
+    "backtrader_runtime/policy.py": "631B326ED570E076CB9199FF73755D1AD8EC268197D0964008725B0C58983074",
+    "backtrader_runtime/registry.py": "F359E0D0576662BC8D5F966EF2345FE723C8802CD504AD383323E59959FE5A01",
+    "backtrader_runtime/runner.py": "F80C4DE5C8E981F73B2C05930BB5F772F631099CE3A8291AF94E7BAC0DCB6AFD",
+    "scripts/collect_iteration41_writer_inventory.py": "54AF45DE1C4D14AAF1C3849C9B820F505EDB7A4C34C344B8E4157F490C9E0ED5",
+    "scripts/iteration41_writer_inventory_scope.json": "C473B4390D70477978C0EB9673E267244D78A57D0ACB2E8DF6D5F7D3BFA60DD7"
+  },
+  "probe_results": {
+    "main_exit_code": 0,
+    "main_probe_outcomes": {
+      "CTP constructor gate ordering": "STATIC_PRE_GATE_ATTRIBUTE_AND_ENV_READS",
+      "default registered CTP private preflight": "REJECTED_BEFORE_CONFIG_OR_PROVIDER",
+      "lazy CTP SDK resolver": "BLOCKED_AT_IMPORT_BOUNDARY",
+      "main gateway wrapper direct methods": "FAKE_BOUNDARY_TRAPPED",
+      "main public and private CTP legacy methods": "FAKE_BOUNDARIES_REACHED",
+      "registered runner dynamic import gates": "REJECTED_BEFORE_IMPORT",
+      "runtime module provenance": "EXACT_FROZEN_TREE",
+      "synthetic environment provider/exchange rewrite": "RECLASSIFIED_TO_NON_CTP"
+    },
+    "r2a_exit_code": 0,
+    "r2a_manifest_exit_code": 0,
+    "r2a_manifest_log": [
+      "VERIFIED_PAYLOADS=679",
+      "MANIFEST_AND_PAYLOADS_PASS"
+    ],
+    "r2a_probe_outcomes": {
+      "r2a actor-only internal legacy methods": "BLOCKED_AT_METHOD_ENTRY",
+      "r2a explicit CTP constructor order": "REJECTED_BEFORE_ENV_OR_OBJECT_READ",
+      "r2a gateway wrapper direct methods": "FAKE_BOUNDARY_TRAPPED"
+    }
+  },
+  "python": "3.11.5",
+  "r2a_candidate": {
+    "btapistore_sha256": "18A02F00EC3B2031932284C9E855395C1C70C3E448DBAFCD054E4F079048C4D0",
+    "manifest_result": "PASS",
+    "manifest_sha256": "5AD9CCE0851FBEBD9AC07D520919B7A02F793AB99A133CF96E91F58CEDE405FB",
+    "patch_sha256": "7708DF2F0923B74E5F95315390580EB417E9CA05CFA4C6FE41422BC410908E99",
+    "payloads_verified": 679
+  },
+  "safety_scope": {
+    "default_CTP_route_remains_closed": true,
+    "no_credentials_or_account_data_used": true,
+    "no_real_config_or_environment_values_read": true,
+    "no_real_order_or_cancel": true,
+    "no_sdk_native_provider_or_network_import_or_call": true,
+    "writer_delegates_only_inert_fake_traps": true
+  },
+  "schema": "ac41-63-controlled-writer-slice-independent-qa-v1",
+  "scope": {
+    "all_dispositions_remain": "REVIEW_REQUIRED / NOT_AVAILABLE",
+    "reviewed_disposition_candidates": 10,
+    "total_disposition_candidates": 389,
+    "unreviewed_disposition_candidates": 379
+  }
+}

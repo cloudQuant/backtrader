@@ -1,0 +1,206 @@
+{
+  "schema": "iteration41.v20_r2.root_archive.v1",
+  "status": "ACCEPTED_SCOPED_SINGLE_ACCOUNT_BINDING_ONLY",
+  "source_manifest_sha256": "15c37a6cc5503127c63d6987b9de0fd71a48181fc33dff5a4e52f57a8fc5d129",
+  "independent_manifest_sha256": "954f5d8650c6c8b920d56fd2256c979380c34fbb67e4a0973ac08dbfdc2ff82e",
+  "source_payloads_verified": 29,
+  "independent_focus": "28 passed",
+  "limitations": [
+    "No hostile Python/admin or filesystem protection",
+    "No clean-close production handoff",
+    "No main runtime/SDK unified acceptance",
+    "No real SimNow or live execution"
+  ],
+  "archive": {
+    "file": "ctp-execution-v20-r2-account-binding-independent-review-2026-09-27.raw.zip",
+    "sha256": "ed4b2eec1e9d0ab9f9b7c4792a376f46ded16c6c251685e6291ab75a315cc39d",
+    "entries": 37
+  },
+  "files": [
+    {
+      "path": "independent/focused.log",
+      "sha256": "6d7aa1e97ae90b3af97df4309cd828a97ab209a7d911e6fa438b9e944c9e56a4",
+      "bytes": 101
+    },
+    {
+      "path": "independent/probe_scope_binding.py",
+      "sha256": "7b935839f09cde40ab1462690c731750517c5e1551690c9d0812c47186e995bb",
+      "bytes": 3574
+    },
+    {
+      "path": "independent/review.md",
+      "sha256": "753ebcb931ea48329708f0e4e5e28ef18bcdb32dc27dcbb468b8efa96162d206",
+      "bytes": 1835
+    },
+    {
+      "path": "independent/review_manifest.json",
+      "sha256": "954f5d8650c6c8b920d56fd2256c979380c34fbb67e4a0973ac08dbfdc2ff82e",
+      "bytes": 2061
+    },
+    {
+      "path": "independent/scope_probe.log",
+      "sha256": "1f17c11f328aa2763791868dace99c3e7b5fd86f1bedfdb07dfe784aabc59b2a",
+      "bytes": 1452
+    },
+    {
+      "path": "independent/snapshot_verification.json",
+      "sha256": "5cbe2d1b95c07e909aac61920e1bce03904820ad56e98bc23b72acbc1e11eb61",
+      "bytes": 9983
+    },
+    {
+      "path": "independent/verify_snapshot.py",
+      "sha256": "4372dd97b6f7037aab13595a6b878af874b03e3c99a370c5b3310efeef1678b1",
+      "bytes": 1052
+    },
+    {
+      "path": "source/manifest.json",
+      "sha256": "15c37a6cc5503127c63d6987b9de0fd71a48181fc33dff5a4e52f57a8fc5d129",
+      "bytes": 5288
+    },
+    {
+      "path": "source/pyproject.toml",
+      "sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+      "bytes": 1765
+    },
+    {
+      "path": "source/src/bt_api_execution/__init__.py",
+      "sha256": "d6e4bcba6752f823fb36f49121720bee89363ae46a8c0e7e8da9592ada8830aa",
+      "bytes": 6751
+    },
+    {
+      "path": "source/src/bt_api_execution/admission.py",
+      "sha256": "59a76820b1d3eeaa58bfa28de9b38750d9f0400a62e43b7e16f58eeb4bf12171",
+      "bytes": 3415
+    },
+    {
+      "path": "source/src/bt_api_execution/cancellation.py",
+      "sha256": "ef1f8e1e8d4ce85409c78d8496baf7b974e06df874414b76b705d3cf5805ef4b",
+      "bytes": 16977
+    },
+    {
+      "path": "source/src/bt_api_execution/contracts.py",
+      "sha256": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219",
+      "bytes": 59990
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_ledger_adapter.py",
+      "sha256": "a13d86f19122b1c5e55a06cd49019769e0effb7b8fa2fdbdabdcb51732c05e32",
+      "bytes": 11424
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_session.py",
+      "sha256": "1e348a6f1be695f1042645a49094bbc253b143eed72668cd89a4763d89510d69",
+      "bytes": 18592
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_source_bridge.py",
+      "sha256": "b733aaf286a118ff5dad94818c008bab6ea2d81ee1a0d0b81ebafc1d2ff4f10f",
+      "bytes": 34869
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_native_callbacks.py",
+      "sha256": "d44c980649b03f861caec2bcc0d8278bd2ee41f42009a83ae235563137d65861",
+      "bytes": 40831
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_single_worker_candidate.py",
+      "sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3",
+      "bytes": 29089
+    },
+    {
+      "path": "source/src/bt_api_execution/errors.py",
+      "sha256": "45d5e8c414b5a80926ad6e85a0058acebc5c947c0bb7b199c5e9190d3317c784",
+      "bytes": 2120
+    },
+    {
+      "path": "source/src/bt_api_execution/facade.py",
+      "sha256": "5b0f4086d2e900823b93abb4e7887ea2ca2523dc62591846ea53ee4458ba438a",
+      "bytes": 25191
+    },
+    {
+      "path": "source/src/bt_api_execution/ports.py",
+      "sha256": "bf84c0424e962fb6d0ad2a9fc2112fbaa72d281e2bac9d2fa58fc959c1ee40b9",
+      "bytes": 1488
+    },
+    {
+      "path": "source/src/bt_api_execution/py.typed",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "bytes": 2
+    },
+    {
+      "path": "source/src/bt_api_execution/store.py",
+      "sha256": "75b01d7badbf67043c65082bee8dc27efbe4a309a739ff9f5cadd50f21ccde72",
+      "bytes": 679196
+    },
+    {
+      "path": "source/tests/test_admission_adapter.py",
+      "sha256": "325f098494f6b39c89ffb38362a3094049e1cfdfb4073bcdd96917e6268795e0",
+      "bytes": 2359
+    },
+    {
+      "path": "source/tests/test_cancellation.py",
+      "sha256": "054e3dc90cc5576cc777added5081bc5476093a7d58374e414ada47ee6fb893f",
+      "bytes": 18020
+    },
+    {
+      "path": "source/tests/test_contracts.py",
+      "sha256": "ab5fc077ed936877bbaed5c73bc2ab42a0cc893f37772f27be15913ad2f93b2e",
+      "bytes": 4541
+    },
+    {
+      "path": "source/tests/test_ctp_account_family_owner.py",
+      "sha256": "88453cef1ca9b7701acefa4fcf1690aab8c3673f7989cd5b419af7d720e6e846",
+      "bytes": 9718
+    },
+    {
+      "path": "source/tests/test_ctp_account_store_factory.py",
+      "sha256": "9d460ae60b745a70ce9387ed2bcc8e13f82ce024e1e35d907556d905f205b1fb",
+      "bytes": 29223
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_owner.py",
+      "sha256": "ee1852afd45ed9b618df3ff890178b2d92abe0999bc8e19beeeb5871266ea433",
+      "bytes": 19208
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_router.py",
+      "sha256": "870af2df644d5d15b59f57b35bf89069f113e05817e19ae8267900ab29dab5c4",
+      "bytes": 78788
+    },
+    {
+      "path": "source/tests/test_ctp_callback_source_bridge.py",
+      "sha256": "5eb100454e11d9a973ef00b659e3c545ee9d259a892478c15877771aca71fc6a",
+      "bytes": 81860
+    },
+    {
+      "path": "source/tests/test_ctp_dispatch_commands.py",
+      "sha256": "817db60b225021578f7d937d5b2e807dd1d61c537abe64eb12f307053d97c999",
+      "bytes": 174491
+    },
+    {
+      "path": "source/tests/test_ctp_native_callbacks.py",
+      "sha256": "de0d0d998720d898cba57addac6cbdf5ff744fe40797fb1441ee5bc7628fac69",
+      "bytes": 22814
+    },
+    {
+      "path": "source/tests/test_economic_fact_wire.py",
+      "sha256": "7b854b862e0a9db7819c9c134a4c47e40a905cacd31696ce5c20e1333a2e864b",
+      "bytes": 12616
+    },
+    {
+      "path": "source/tests/test_execution_facade.py",
+      "sha256": "ebcbf409d1337075264df0b9cd531c6e84fe5629868b2d00babd9bad5b146aad",
+      "bytes": 30342
+    },
+    {
+      "path": "source/tests/test_execution_store.py",
+      "sha256": "68e329c9c07396db0a2c0892a5689713e9e11c7338a4fd068383aa5a7d020915",
+      "bytes": 21649
+    },
+    {
+      "path": "source/tests/test_outbox_economic_snapshots.py",
+      "sha256": "ba4e2bb2060a51a5d8be41385a5357c0b2a380fcc2269ae83834893ac7fd1253",
+      "bytes": 12579
+    }
+  ]
+}

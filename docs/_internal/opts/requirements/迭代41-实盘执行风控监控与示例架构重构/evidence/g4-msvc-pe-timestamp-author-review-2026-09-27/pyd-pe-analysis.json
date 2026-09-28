@@ -1,0 +1,265 @@
+{
+  "build_a": {
+    "sha256": "53ee9cd5e14a210c01bf96da1f374ea684655a2699587a14e7d7495f9e19b2b4",
+    "size": 11889152,
+    "pe_offset": "0x118",
+    "machine": "0x8664",
+    "coff_timestamp_hex": "0x6ab8f82c",
+    "coff_timestamp_utc": "2026-09-27T11:04:12+00:00",
+    "optional_magic": "0x20b",
+    "debug_rva": "0xa27850",
+    "debug_size": 28,
+    "debug_file_offset": "0xa26c50",
+    "sections": [
+      {
+        "name": ".text",
+        "va": "0x1000",
+        "span": "0x775000",
+        "rawptr": "0x400",
+        "rawsize": "0x775000"
+      },
+      {
+        "name": ".rdata",
+        "va": "0x776000",
+        "span": "0x30e200",
+        "rawptr": "0x775400",
+        "rawsize": "0x30e200"
+      },
+      {
+        "name": ".data",
+        "va": "0xa85000",
+        "span": "0x72ab8",
+        "rawptr": "0xa83600",
+        "rawsize": "0x71400"
+      },
+      {
+        "name": ".pdata",
+        "va": "0xaf8000",
+        "span": "0x54000",
+        "rawptr": "0xaf4a00",
+        "rawsize": "0x54000"
+      },
+      {
+        "name": ".rsrc",
+        "va": "0xb4c000",
+        "span": "0x200",
+        "rawptr": "0xb48a00",
+        "rawsize": "0x200"
+      },
+      {
+        "name": ".reloc",
+        "va": "0xb4d000",
+        "span": "0xde00",
+        "rawptr": "0xb48c00",
+        "rawsize": "0xde00"
+      }
+    ],
+    "debug_entries": [
+      {
+        "entry_file_offset": "0xa26c50",
+        "timestamp_hex": "0x6ab8f82c",
+        "timestamp_utc": "2026-09-27T11:04:12+00:00",
+        "type": 13,
+        "size": 848,
+        "addr": "0xa28bf4",
+        "ptr": "0xa27ff4",
+        "data_prefix": "4743544c00100000300000002e74657874246469000000003010000060857600",
+        "data_ascii": "GCTL\u0000\u0010\u0000\u00000\u0000\u0000\u0000.text$di\u0000\u0000\u0000\u00000\u0010\u0000\u0000`\ufffdv\u0000.text$mn\u0000\u0000\u0000\u0000\ufffd\ufffdv\u0000@\u0000\u0000\u0000.text$mn$00\u0000\ufffd\ufffdv\u0000\u0010\ufffd\u0000\u0000.text$x\u0000\ufffd^w\u0000\u000e\u0000\u0000\u0000.text$yd\u0000\u0000\u0000\u0000"
+      }
+    ]
+  },
+  "build_b": {
+    "sha256": "0651199203a59ea0aa7f75c5f9129d9065ea390a0d1db047f186ac7b389baf86",
+    "size": 11889152,
+    "pe_offset": "0x118",
+    "machine": "0x8664",
+    "coff_timestamp_hex": "0x6ab8f8d9",
+    "coff_timestamp_utc": "2026-09-27T11:07:05+00:00",
+    "optional_magic": "0x20b",
+    "debug_rva": "0xa27850",
+    "debug_size": 28,
+    "debug_file_offset": "0xa26c50",
+    "sections": [
+      {
+        "name": ".text",
+        "va": "0x1000",
+        "span": "0x775000",
+        "rawptr": "0x400",
+        "rawsize": "0x775000"
+      },
+      {
+        "name": ".rdata",
+        "va": "0x776000",
+        "span": "0x30e200",
+        "rawptr": "0x775400",
+        "rawsize": "0x30e200"
+      },
+      {
+        "name": ".data",
+        "va": "0xa85000",
+        "span": "0x72ab8",
+        "rawptr": "0xa83600",
+        "rawsize": "0x71400"
+      },
+      {
+        "name": ".pdata",
+        "va": "0xaf8000",
+        "span": "0x54000",
+        "rawptr": "0xaf4a00",
+        "rawsize": "0x54000"
+      },
+      {
+        "name": ".rsrc",
+        "va": "0xb4c000",
+        "span": "0x200",
+        "rawptr": "0xb48a00",
+        "rawsize": "0x200"
+      },
+      {
+        "name": ".reloc",
+        "va": "0xb4d000",
+        "span": "0xde00",
+        "rawptr": "0xb48c00",
+        "rawsize": "0xde00"
+      }
+    ],
+    "debug_entries": [
+      {
+        "entry_file_offset": "0xa26c50",
+        "timestamp_hex": "0x6ab8f8d9",
+        "timestamp_utc": "2026-09-27T11:07:05+00:00",
+        "type": 13,
+        "size": 848,
+        "addr": "0xa28bf4",
+        "ptr": "0xa27ff4",
+        "data_prefix": "4743544c00100000300000002e74657874246469000000003010000060857600",
+        "data_ascii": "GCTL\u0000\u0010\u0000\u00000\u0000\u0000\u0000.text$di\u0000\u0000\u0000\u00000\u0010\u0000\u0000`\ufffdv\u0000.text$mn\u0000\u0000\u0000\u0000\ufffd\ufffdv\u0000@\u0000\u0000\u0000.text$mn$00\u0000\ufffd\ufffdv\u0000\u0010\ufffd\u0000\u0000.text$x\u0000\ufffd^w\u0000\u000e\u0000\u0000\u0000.text$yd\u0000\u0000\u0000\u0000"
+      }
+    ]
+  },
+  "pinned": {
+    "sha256": "468eaf9b623f684959922e3d1a2970f7f5ea71c73b7495cd533732f39672ef47",
+    "size": 11889152,
+    "pe_offset": "0x118",
+    "machine": "0x8664",
+    "coff_timestamp_hex": "0x6ab5394d",
+    "coff_timestamp_utc": "2026-09-24T14:53:01+00:00",
+    "optional_magic": "0x20b",
+    "debug_rva": "0xa27850",
+    "debug_size": 28,
+    "debug_file_offset": "0xa26c50",
+    "sections": [
+      {
+        "name": ".text",
+        "va": "0x1000",
+        "span": "0x775000",
+        "rawptr": "0x400",
+        "rawsize": "0x775000"
+      },
+      {
+        "name": ".rdata",
+        "va": "0x776000",
+        "span": "0x30e200",
+        "rawptr": "0x775400",
+        "rawsize": "0x30e200"
+      },
+      {
+        "name": ".data",
+        "va": "0xa85000",
+        "span": "0x72ab8",
+        "rawptr": "0xa83600",
+        "rawsize": "0x71400"
+      },
+      {
+        "name": ".pdata",
+        "va": "0xaf8000",
+        "span": "0x54000",
+        "rawptr": "0xaf4a00",
+        "rawsize": "0x54000"
+      },
+      {
+        "name": ".rsrc",
+        "va": "0xb4c000",
+        "span": "0x200",
+        "rawptr": "0xb48a00",
+        "rawsize": "0x200"
+      },
+      {
+        "name": ".reloc",
+        "va": "0xb4d000",
+        "span": "0xde00",
+        "rawptr": "0xb48c00",
+        "rawsize": "0xde00"
+      }
+    ],
+    "debug_entries": [
+      {
+        "entry_file_offset": "0xa26c50",
+        "timestamp_hex": "0x6ab5394d",
+        "timestamp_utc": "2026-09-24T14:53:01+00:00",
+        "type": 13,
+        "size": 848,
+        "addr": "0xa28bf4",
+        "ptr": "0xa27ff4",
+        "data_prefix": "4743544c00100000300000002e74657874246469000000003010000060857600",
+        "data_ascii": "GCTL\u0000\u0010\u0000\u00000\u0000\u0000\u0000.text$di\u0000\u0000\u0000\u00000\u0010\u0000\u0000`\ufffdv\u0000.text$mn\u0000\u0000\u0000\u0000\ufffd\ufffdv\u0000@\u0000\u0000\u0000.text$mn$00\u0000\ufffd\ufffdv\u0000\u0010\ufffd\u0000\u0000.text$x\u0000\ufffd^w\u0000\u000e\u0000\u0000\u0000.text$yd\u0000\u0000\u0000\u0000"
+      }
+    ]
+  },
+  "cross_member_diff_offsets": [
+    {
+      "offset": "0x120",
+      "values": {
+        "build_a": "2cf8b86a00000000",
+        "build_b": "d9f8b86a00000000",
+        "pinned": "4d39b56a00000000"
+      },
+      "context_a": "50450000648606002cf8b86a0000000000000000f0002220"
+    },
+    {
+      "offset": "0x121",
+      "values": {
+        "build_a": "f8b86a0000000000",
+        "build_b": "f8b86a0000000000",
+        "pinned": "39b56a0000000000"
+      },
+      "context_a": "450000648606002cf8b86a0000000000000000f00022200b"
+    },
+    {
+      "offset": "0x122",
+      "values": {
+        "build_a": "b86a000000000000",
+        "build_b": "b86a000000000000",
+        "pinned": "b56a000000000000"
+      },
+      "context_a": "0000648606002cf8b86a0000000000000000f00022200b02"
+    },
+    {
+      "offset": "0xa26c54",
+      "values": {
+        "build_a": "2cf8b86a00000000",
+        "build_b": "d9f8b86a00000000",
+        "pinned": "4d39b56a00000000"
+      },
+      "context_a": "01000000000000002cf8b86a000000000d00000050030000"
+    },
+    {
+      "offset": "0xa26c55",
+      "values": {
+        "build_a": "f8b86a000000000d",
+        "build_b": "f8b86a000000000d",
+        "pinned": "39b56a000000000d"
+      },
+      "context_a": "000000000000002cf8b86a000000000d00000050030000f4"
+    },
+    {
+      "offset": "0xa26c56",
+      "values": {
+        "build_a": "b86a000000000d00",
+        "build_b": "b86a000000000d00",
+        "pinned": "b56a000000000d00"
+      },
+      "context_a": "0000000000002cf8b86a000000000d00000050030000f48b"
+    }
+  ]
+}

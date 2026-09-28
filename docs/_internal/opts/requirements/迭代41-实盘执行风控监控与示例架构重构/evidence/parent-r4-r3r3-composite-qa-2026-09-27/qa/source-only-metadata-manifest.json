@@ -1,0 +1,86 @@
+{
+  "classification": "SOURCE-ONLY metadata; not installed distributions/wheels/release acceptance",
+  "source_map_path": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\qa\\source-roots.json",
+  "source_map_sha256": "488bbf735bfa698b1cb28d036f411b6b2ccf0b662ffb4d77ff51e4441dcb519c",
+  "metadata_root": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata",
+  "packages": {
+    "parent": {
+      "package_key": "parent",
+      "distribution": "bt_api_py",
+      "version": "0.15.5",
+      "source_root": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\parent-source",
+      "project_file": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\parent-source\\pyproject.toml",
+      "project_sha256": "7aa5fad4c7c5408199457836fd659e19ec85445460efe5f867359c5e6e28aa39",
+      "source_file_count": 151,
+      "source_tree_sha256": "ccd69de522b7fd47b9bce143d7e206f20261c9fd683423295315ff121b5674d2",
+      "metadata_sha256": "718e7a1373ae46bb4ac0efd459ff59bc834f222b95bee31c0c9cc1e6e6b61f88",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_py-0.15.5.dist-info"
+    },
+    "base": {
+      "package_key": "base",
+      "distribution": "bt_api_base",
+      "version": "0.15.4",
+      "source_root": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+      "project_file": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\pyproject.toml",
+      "project_sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5",
+      "source_file_count": 104,
+      "source_tree_sha256": "82af8bcb7b43247a1e7b5e051fd18618e57c0294541c1a926bea408ccf6708f2",
+      "metadata_sha256": "2a6596b0f23dea2978e2d8e2b2d3a7ec406a0fc51704597596cb954e0f1b1add",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_base-0.15.4.dist-info"
+    },
+    "ctp": {
+      "package_key": "ctp",
+      "distribution": "bt_api_ctp",
+      "version": "2.0.4+iteration41.i9",
+      "source_root": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\src",
+      "project_file": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\pyproject.toml",
+      "project_sha256": "6295d10501ce71fd3aafcc2be2d2b28274bb82d6ca0e94230757d972976669a5",
+      "source_file_count": 154,
+      "source_tree_sha256": "cd7ff1375adfa8c5505f2a5bda1c704d233d8d825d9c98799ba640299e6e9006",
+      "metadata_sha256": "cd140a6a1b21bd49fecb0f7d0b38ca95d27da79d9edc22254c93a4f7608cbc15",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_ctp-2.0.4+iteration41.i9.dist-info"
+    },
+    "execution": {
+      "package_key": "execution",
+      "distribution": "bt_api_execution",
+      "version": "0.2.0",
+      "source_root": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927\\src",
+      "project_file": "D:\\temp\\iteration41_v20_r3_cancel_terminal_candidate_20260927\\pyproject.toml",
+      "project_sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+      "source_file_count": 14,
+      "source_tree_sha256": "4cf3d09272a74c73a3d92ff9f41be7b3a6770432e3e77f036b3b09bd93c03b97",
+      "metadata_sha256": "a3083a5a283fcc2bed177c63f96b34fe429ae2a95ac16808a22714c69a3cbcd4",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_execution-0.2.0.dist-info"
+    },
+    "risk": {
+      "package_key": "risk",
+      "distribution": "bt_api_risk",
+      "version": "0.1.0",
+      "source_root": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src",
+      "project_file": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\pyproject.toml",
+      "project_sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab",
+      "source_file_count": 16,
+      "source_tree_sha256": "80e441cfa72ba8936bf8db0a557c3fc16497b538ef6e9a6806e09caa3cdf1373",
+      "metadata_sha256": "4181cf9efcadca470b3524e8e93e3461c050bc412b2e14120d538ac88a710d13",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_risk-0.1.0.dist-info"
+    },
+    "monitor": {
+      "package_key": "monitor",
+      "distribution": "bt_api_monitor",
+      "version": "0.1.0",
+      "source_root": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src",
+      "project_file": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\pyproject.toml",
+      "project_sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2",
+      "source_file_count": 12,
+      "source_tree_sha256": "a9df89868c878997ef6c55c3ad149dc8a935ead5f505b34e80a4f6cdf729812e",
+      "metadata_sha256": "c6a3790cd5151eb05a6d773e989df5c48ebd805557abecc6e78a57c1f19ef231",
+      "classification": "SOURCE-ONLY metadata; no wheel built or installed",
+      "dist_info": "D:\\temp\\iteration41-parent-r4-r3r3-composite-20260927-r1\\source-only-metadata\\bt_api_monitor-0.1.0.dist-info"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "qa_status": "INDEPENDENT_SOURCE_QA_CANDIDATE_NOT_MERGE_READY",
+  "candidate_archive_sha256": "1b6c0a9d03295d9c96548ee63342a6931d7ab7a23e214161c2cde8661739f98a",
+  "candidate_archive_index_sha256": "27da48132a1beb2b3e93b2a711114760abbd1f6d5ed000cde5b35ad9d7916051",
+  "candidate_manifest_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+  "exact_base_store_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "patch_sha256": "6e8575874cefeab4c693f6fedd5f3fc89dcec935005f5ad3a0d64f0e1284f90f",
+  "independent_source_root": "D:\\temp\\iteration41-store-actor-r2-independent-qa-20260927b\\candidate",
+  "python": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "python_version": "3.11.5",
+  "pytest_version": "8.2.2",
+  "test_results": {
+    "candidate_boundary_and_live_guard": "14 passed, 1 existing Quandl deprecation warning",
+    "candidate_with_managed_execution_adapter": "21 passed, 1 existing Quandl deprecation warning",
+    "candidate_legacy_delta": "9 passed, 21 failed, exit 1; all 21 match migration table",
+    "exact_base_legacy_delta": "30 passed, 1 existing Quandl deprecation warning"
+  },
+  "migration_disposition": {
+    "fail_closed_assertion": 8,
+    "external_actor_migration": 13,
+    "unmapped": 0
+  },
+  "explicit_ctp_environment_read_order": {
+    "contract": "unconditional actor rejection before provider-env reads",
+    "result": "NOT_MET",
+    "effect": "provider-env changes which fail-closed constructor error is returned; no API/context/credential/actor/SDK/network effect or route bypass observed"
+  },
+  "native_modules_loaded_in_gate_probes": [],
+  "real_provider_or_network_used": false,
+  "default_ctp_or_write_route_enabled": false
+}

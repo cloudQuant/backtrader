@@ -1,0 +1,159 @@
+{
+  "schema": "iteration41.g4.native_lifecycle_receipt.r2_author_candidate_archive.v1",
+  "status": "AUTHOR_CANDIDATE_INDEPENDENT_QA_PENDING_G4_CLOSED",
+  "candidate_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927_r2",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "base_client_sha256": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+  "r1_client_sha256": "AA166BAF87B391EECED45A503EFF3B8772D4F17D1BD7E6BA8430A67ED39F80E3",
+  "r1_test_sha256": "B604849B6146D10E1133C58FC2C0E835B04546CD8DB94CDE9D948593A52B3247",
+  "r1_freeze_manifest_sha256": "6571328EBBF41E7D168577BE392B04F9FBF23F2A476DD73DF2C6854CE0D82385",
+  "e75_client_sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09",
+  "r2_files": [
+    {
+      "path": "src/bt_api_ctp/ctp/client.py",
+      "sha256": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+      "change": "Bind Trader lifecycle receipt after exact API setter creates current generation tags and assign exact SPI under lifecycle lock."
+    },
+    {
+      "path": "tests/test_ctp_native_lifecycle_receipt.py",
+      "sha256": "6CB3837065BBF3A78ADDE5771CF26EF4593A7FEBF7ED8CBC5D0DEBDDB74CA320",
+      "change": "Adds a blocked Init identity consistency regression and deterministic fake Init barrier."
+    }
+  ],
+  "r2_freeze_manifest_sha256": "E55D077572EE7F071D3D0AD0FD74522618E1E338A6E38E9963ED6EF76D2F15EE",
+  "focused": {
+    "static_check_sha256": "293C8BD3A9A0903BCCB1A3849ADDF34DD4738D429A92A7016090668F7491C21B",
+    "log_sha256": "D47EA162DC13CB77413F27FF1FA7954004120E531DC59FD6B9D1D327DD941682",
+    "junit_sha256": "C77D11ADAF6F3ADB86CDE684AC5C7D969DD0B1DDF7378A87B7774EE410BFF94C",
+    "command": "python -m pytest --noconftest tests/test_ctp_native_lifecycle_receipt.py tests/test_ctp_shutdown.py tests/test_md_startup_locking.py -q --tb=short --junitxml=\"D:\\temp\\iteration41_g4_native_lifecycle_receipt_evidence_20260927_r2\\junit.xml\"",
+    "result": "66 passed, 2 warnings, exit 0"
+  },
+  "regression": {
+    "r1_expected_failure": "receipt.native_api_generation=0 while client._native_api_generation=1; 1 failed",
+    "nodeid": "tests/test_ctp_native_lifecycle_receipt.py::test_blocked_trader_init_receipt_matches_installed_api_spi_generation",
+    "r1_log_sha256": "57BE4EF3EA4C9C68A9A5BF73F9127F4B3DFD8E6BAAD84071C4F829FE91C9AC52",
+    "r2_log_sha256": "D7FB2FCA1B4F916C2E19991D0920ACB24E4145394C02BC90B9F361512CE6091B",
+    "r2_expected": "1 passed"
+  },
+  "r1_rejection": {
+    "receipt": "ctp-native-lifecycle-receipt-r1-independent-rejection-2026-09-27.json",
+    "archive": "ctp-native-lifecycle-receipt-r1-independent-rejection-2026-09-27.raw.zip",
+    "archive_sha256": "f1fea616dda19e0829340675fdf4c6c9223f70139a983db87f0388e09ecfedd9",
+    "report_sha256": "5c68876520b4be55e358b46cebe09183226e72ed2d7a98ebfad048291f122dc1",
+    "report": "ctp-native-lifecycle-receipt-r1-independent-rejection-2026-09-27.md",
+    "receipt_sha256": "44bdd7d63cf6360bdd3260b2b2762b9863748a378a3af0e81ec9b89cdd457704",
+    "unchanged": "Referenced only; original report/receipt/archive are not modified or replaced."
+  },
+  "environment": {
+    "pythonpath": [
+      "D:\\temp\\g5-r3-test-guard",
+      "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927_r2\\src",
+      "D:\\source_code\\backtrader"
+    ],
+    "plugin_autoload": "disabled",
+    "python": "C:\\anaconda3\\python.exe",
+    "native_guard_sha256": "57a5f39297f24caffd689b89bc3e06f4c8e8fb580fc684a789b2bbd4fe01ab5d",
+    "pytest": "8.0.0"
+  },
+  "limitations": [
+    "Independent union_qa review pending; G4 remains CLOSED.",
+    "Not e75 source/wheel and not a release artifact.",
+    "No real _ctp load/session/provider/credential/network or wheel build.",
+    "No real native clean-close or bounded supervisor proof; native calls can block and process/Job termination is not cleanup evidence."
+  ],
+  "archive": {
+    "file": "ctp-native-lifecycle-receipt-r2-author-candidate-2026-09-27.raw.zip",
+    "sha256": "1be910c1d91640dab99c6ca7052abdafa6bf7839ef9a019ac3ff2a3dbd3ccc21",
+    "files": 17,
+    "total_entries": 19,
+    "testzip": null,
+    "index_sha256": "b1637b18e69f233e0282d4dd6b8e2ee6c7eb6e9b9111a1dae096516326fc2328",
+    "members": [
+      {
+        "path": "candidate/src/bt_api_ctp/ctp/client.py",
+        "sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+        "bytes": 376978
+      },
+      {
+        "path": "candidate/tests/test_ctp_native_lifecycle_receipt.py",
+        "sha256": "6cb3837065bbf3a78adde5771cf26ef4593a7febf7ed8cbc5d0debddb74ca320",
+        "bytes": 17522
+      },
+      {
+        "path": "guards/sitecustomize.py",
+        "sha256": "57a5f39297f24caffd689b89bc3e06f4c8e8fb580fc684a789b2bbd4fe01ab5d",
+        "bytes": 342
+      },
+      {
+        "path": "provenance/r1-freeze-manifest.json",
+        "sha256": "6571328ebbf41e7d168577be392b04f9fbf23f2a476dd73df2c6854ce0d82385",
+        "bytes": 4566
+      },
+      {
+        "path": "provenance/r2-freeze-manifest.json",
+        "sha256": "e55d077572ee7f071d3d0ad0fd74522618e1e338a6e38e9963ed6ef76d2f15ee",
+        "bytes": 5323
+      },
+      {
+        "path": "provenance/r2-from-baseline.patch",
+        "sha256": "4d7d764d4c3d5d76301ca3d8a5df5f7bcc3ea30c57637ed396df8bbb0f398085",
+        "bytes": 41589
+      },
+      {
+        "path": "provenance/r2-git-status.txt",
+        "sha256": "e5f0f7206808d5840dda8f775689c3f10a8ce2bf27b9f1a50659eb63b6fa7f09",
+        "bytes": 80
+      },
+      {
+        "path": "references/r1-independent-rejection-reference.txt",
+        "sha256": "7dc716f49ad5d100e11b90c225a7c57b101843cd33c18eedf82aed7a88dc89b1",
+        "bytes": 804
+      },
+      {
+        "path": "results/r1-expected-negative.log",
+        "sha256": "57be4ef3ea4c9c68a9a5bf73f9127f4b3dfd8e6baad84071c4f829fe91c9ac52",
+        "bytes": 2221
+      },
+      {
+        "path": "results/r1-import-origin.txt",
+        "sha256": "95a95fc2d8efde771672a678a362a300090999681f49b4ff8efe9a68a98c6616",
+        "bytes": 113
+      },
+      {
+        "path": "results/r2-environment.txt",
+        "sha256": "f45a775925deef51b81fdeb910cf8959149fdfa929ce12d9d5ca7684ecd40377",
+        "bytes": 239
+      },
+      {
+        "path": "results/r2-full-focus-junit.xml",
+        "sha256": "c77d11adaf6f3adb86cde684ac5c7d969dd0b1ddf7378a87b7774ee410bff94c",
+        "bytes": 9494
+      },
+      {
+        "path": "results/r2-full-focus-pytest.log",
+        "sha256": "d47ea162dc13cb77413f27ff1fa7954004120e531dc59fd6b9d1d327dd941682",
+        "bytes": 1249
+      },
+      {
+        "path": "results/r2-import-origin.txt",
+        "sha256": "68081af76f3e2b2c14650b7a19e862b947a178f9779d6b991ee0426cbd3d9b57",
+        "bytes": 666
+      },
+      {
+        "path": "results/r2-static-checks.log",
+        "sha256": "293c8bd3a9a0903bccb1a3849addf34dd4738d429a92a7016090668f7491c21b",
+        "bytes": 133
+      },
+      {
+        "path": "results/r2-targeted-positive.log",
+        "sha256": "d7fb2fca1b4f916c2e19991d0920acb24e4145394c02bc90b9f361512ce6091b",
+        "bytes": 1159
+      },
+      {
+        "path": "archive-index.json",
+        "sha256": "b1637b18e69f233e0282d4dd6b8e2ee6c7eb6e9b9111a1dae096516326fc2328",
+        "bytes": 2867
+      }
+    ]
+  }
+}

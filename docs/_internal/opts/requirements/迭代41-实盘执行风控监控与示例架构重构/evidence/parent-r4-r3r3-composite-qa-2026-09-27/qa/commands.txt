@@ -1,0 +1,37 @@
+Parent-focused (final guarded run):
+  cwd: D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\parent-source
+  exe: C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe
+  argv: -m pytest -p no:asyncio -q --color=no --tb=short --basetemp D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\fixture-root-parent-guarded-r3\pytest-basetemp --junitxml D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\parent-focus-guarded-r3.xml tests\test_cancel_dispatch_resolution_proof.py tests\test_cancel_dispatch_resolution_proof_store.py tests\test_cancellation_dispatch_resolution_control.py
+  env: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; BT_API_TEST_SOURCE_ROOTS=@D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\source-roots.json; BT_API_TEST_GUARD_ROOT=D:\temp\iteration41-main-source-qa-20260926\origin-guard-r4; BT_API_TEST_FIXTURE_ROOT=D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\fixture-root-parent-guarded-r3; BT_API_TEST_GUARD_LOG_ROOT=D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\origin-guard-parent-focus-r3; BT_API_TEST_METADATA_ROOT=D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\source-only-metadata; TEMP/TMP=fixture root
+  PYTHONPATH: guard; composite parent-source; frozen execution src; frozen risk src; pinned base src; pinned monitor src; source-only metadata
+  result: 44 passed, 0 skipped, 1 existing PytestConfigWarning
+
+Main bridge original three nodes:
+  cwd: D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\main-overlay
+  exe: C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe
+  argv: -m pytest -q --color=no --tb=short --basetemp D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\fixture-root-original-three-r1\pytest-basetemp --junitxml D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\original-three-r1.xml tests\integration\test_iteration41_managed_replay_l2.py::test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline tests\integration\test_iteration41_managed_cancellation_composition.py::test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[offline_fake-3-2-reconciled] tests\integration\test_iteration41_managed_cancellation_composition.py::test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart
+  env: same explicit source map, source guard, fixture-only TEMP/TMP, source-only metadata; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  result: 3 passed, 0 skipped, 1 existing Quandl deprecation warning
+
+Main five-file Iteration 41 bridge focus:
+  cwd: D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\main-overlay
+  exe: C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe
+  argv: -m pytest -q --color=no --tb=short --basetemp D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\fixture-root-five-r1\pytest-basetemp --junitxml D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\five-file-focus-r1.xml tests\integration\test_iteration41_managed_cancellation_composition.py tests\integration\test_iteration41_managed_execution_composition.py tests\integration\test_iteration41_managed_replay_l2.py tests\unit\runtime\test_iteration41_l2_fixture_package.py tests\unit\runtime\test_managed_execution_bridge.py
+  env: same explicit source map, source guard, fixture-only TEMP/TMP, source-only metadata; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  result: 73 passed, 0 skipped, 1 existing Quandl deprecation warning
+
+Additional main cancellation-control file:
+  cwd: D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\main-overlay
+  exe: C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe
+  argv: -m pytest -q --color=no --tb=short --basetemp D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\fixture-root-cancel-control-r1\pytest-basetemp --junitxml D:\temp\iteration41-parent-r4-r3r3-composite-20260927-r1\qa\main-cancel-control-r1.xml tests\test_cancellation_dispatch_resolution_control.py
+  env: same explicit source map, source guard, fixture-only TEMP/TMP, source-only metadata; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  result: 20 passed, 0 skipped, no warning
+
+Guard policy and sources:
+  origin/network/native guard: D:\temp\iteration41-main-source-qa-20260926\origin-guard-r4\sitecustomize.py
+  source roots: qa\source-roots.json; all child PYTHONPATH values are rebuilt from the explicit map and do not append inherited PYTHONPATH
+  network: literal/resolved non-loopback blocked; loopback permitted; all successful-run logs contain zero blocked attempts
+  native: leaf names _ctp and ctp_wrap blocked; all successful-run logs contain zero attempts
+  private CTP runtime config: canonical protected config denied; synthetic paths only under each fixture root
+
+No wheel build/install was run. `bt_api_py` source-only metadata is version 0.15.5 from the composite pyproject; its parent source bytes include R4 changes and are different from base source under the same version. This is a version-identity blocker, not a release or pin.

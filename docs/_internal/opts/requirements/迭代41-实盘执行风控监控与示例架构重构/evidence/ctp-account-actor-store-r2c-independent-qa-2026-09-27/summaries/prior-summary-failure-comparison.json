@@ -1,0 +1,250 @@
+{
+  "r2b_main": {
+    "path": "D:\\temp\\iteration41-r2b-main-unit-store-runtime.xml",
+    "counts": {
+      "cases": 2706,
+      "failed": 258,
+      "skipped": 45,
+      "passed": 2403
+    }
+  },
+  "r2c_author": {
+    "path": "D:\\temp\\iteration41-r2c-unit-store-runtime-final.xml",
+    "counts": {
+      "cases": 2728,
+      "failed": 258,
+      "skipped": 45,
+      "passed": 2425
+    }
+  },
+  "r2c_independent_mismatched": {
+    "path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\stores-runtime-source-only.xml",
+    "counts": {
+      "cases": 2748,
+      "failed": 293,
+      "skipped": 30,
+      "passed": 2425
+    }
+  },
+  "r2c_independent_reviewed": {
+    "path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\stores-runtime-reviewed-r2c.xml",
+    "counts": {
+      "cases": 2748,
+      "failed": 258,
+      "skipped": 30,
+      "passed": 2460
+    }
+  },
+  "r2b_vs_independent_failure_ids": {
+    "r2b_failed": 258,
+    "reviewed_failed": 258,
+    "intersection": 258,
+    "r2b_only": [],
+    "reviewed_only": [],
+    "exact_match": true
+  },
+  "all_node_id_deltas": {
+    "r2c_author_minus_r2b": [
+      [
+        "tests.unit.stores.test_btapistore",
+        "test_gateway_wrapper_symbol_info_alias_requires_store_bound_non_ctp_route"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_gateway_wrapper_lifecycle_and_read_methods_recheck_retained_route[config]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_gateway_wrapper_lifecycle_and_read_methods_recheck_retained_route[provider]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_retained_sdk_api_method_rechecks_route_before_provider_call"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_route_mutation_after_queue_blocks_sdk_worker_before_api_dispatch"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[arm_execution_recovery]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[arm_registered_sim_execution]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[arm_sdk_execution]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[cancel_execution_recovery_orders]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[complete_execution_recovery]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[enable_openings_after_account_risk]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[get_account_risk_snapshot]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[get_balance]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[get_callback_account_risk_state]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[get_execution_summary]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[get_reconcile_snapshot]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[initialize_account_risk_baseline]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[prepare_ctp_settlement]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[prepare_execution_recovery]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[start]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[stop]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[supports_position_mode]"
+      ],
+      [
+        "tests.unit.stores.test_ctp_account_actor_store_wiring_candidate",
+        "test_store_entrypoints_reject_route_mutation_before_touching_retained_api[verify_ctp_settlement]"
+      ]
+    ],
+    "r2b_minus_r2c_author": [
+      [
+        "tests.unit.stores.test_btapistore",
+        "test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias"
+      ]
+    ],
+    "independent_minus_r2c_author": [
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_account_ref_is_domain_separated_canonical_and_opaque"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_action_context_binds_request_login_and_cancel_to_real_sealed_config"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_default_inventory_write_denials_are_not_promoted"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_live_rejects_current_account_front_or_config_change[change0]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_live_rejects_current_account_front_or_config_change[change1]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_live_rejects_current_account_front_or_config_change[change2]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_mode_change_and_command_day_mismatch_reject"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_mutated_pinned_scope_day_rejects_even_with_matching_new_command"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_resolver_rejects_a_scope_not_derived_from_sealed_account"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_simulation_and_live_profiles_resolve_from_real_protected_config"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_simulation_rejects_current_account_front_or_config_change[change0]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_simulation_rejects_current_account_front_or_config_change[change1]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_simulation_rejects_current_account_front_or_config_change[change2]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_simulation_rejects_current_account_front_or_config_change[change3]"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver",
+        "test_unavailable_default_style_profiles_reject_before_config_read"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_filtered_orders_cannot_be_used_as_an_account_wide_snapshot"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_order_target_observation_comes_from_real_trader_client_query_source"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_order_target_observation_rejects_caller_projected_row_substitution"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_query_history_eviction_fails_closed_on_final_quiescence_readback"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_quiescence_rechecks_issuer_freshness_for_every_accepted_query"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_terminal_cancel_needs_exact_sdk_callback_and_canceled_target_query"
+      ],
+      [
+        "tests.unit.runtime.test_ctp_simulation_query_evidence",
+        "test_unfiltered_account_open_orders_require_native_terminal_source_and_projection"
+      ]
+    ],
+    "r2c_author_minus_independent": [
+      [
+        "",
+        "tests.unit.runtime.test_ctp_managed_action_scope_resolver"
+      ],
+      [
+        "",
+        "tests.unit.runtime.test_ctp_simulation_query_evidence"
+      ]
+    ],
+    "r2c_author_nodes": 2728,
+    "independent_nodes": 2748
+  }
+}

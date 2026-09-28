@@ -1,0 +1,269 @@
+{
+  "schema": "iteration41.local_evidence.v1",
+  "status": "V18_LOCAL_STORE_CONTRACT_ACCEPTED",
+  "source_snapshot": "D:\\temp\\iteration41_v18_cancel_postcondition_r0",
+  "source_head_before_patch": "bb2cd24cdaf9fb64f6b95010ee8619b0c6a35589",
+  "manifest_sha256": "0372771fbb91d3a6c6cc8d859eb4c68b6bbe65368a8672a8312f4ae9fa6e46b1",
+  "root_reverified_snapshot_files": {
+    ".gitignore": "6fd71ccf0550299202692bd67d90003c517349e553cae201251d6682e46b6fd4",
+    "CHANGELOG.md": "576d671b319d2ed29596f06b9281b9568389bf4767dd86d05e6c52d7fe89130b",
+    "docs/ctp-command-reconciliation-adr.md": "d8019191af56da704d1095a39fd94147e70dd2d4e43aacced59d4aebc5063338",
+    "LICENSE": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+    "MIGRATIONS.md": "ec73b67db98e98b4cdbba23db76f1829bf257ff21f88499e01125245764faa8e",
+    "pyproject.toml": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+    "README.md": "53d7ea2c8c86cc44287e8ef723d203fe05cb59a85884f90298f6fccf4612a29d",
+    "src/bt_api_execution/__init__.py": "6f7b27a25a4b54b9f903424009613c55fe9a97d1349568abc54554061496aa67",
+    "src/bt_api_execution/admission.py": "59a76820b1d3eeaa58bfa28de9b38750d9f0400a62e43b7e16f58eeb4bf12171",
+    "src/bt_api_execution/cancellation.py": "ef1f8e1e8d4ce85409c78d8496baf7b974e06df874414b76b705d3cf5805ef4b",
+    "src/bt_api_execution/contracts.py": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219",
+    "src/bt_api_execution/ctp_callback_ledger_adapter.py": "5cd12b6d50a551926641b0ee3bdf540abe09bcb1319434c5f57a0a54a5003f53",
+    "src/bt_api_execution/ctp_callback_session.py": "b2e8d29723474272c20db407b6306007f5363b418a919376f3f21d03302cea9a",
+    "src/bt_api_execution/ctp_callback_source_bridge.py": "b733aaf286a118ff5dad94818c008bab6ea2d81ee1a0d0b81ebafc1d2ff4f10f",
+    "src/bt_api_execution/ctp_native_callbacks.py": "ea24d113eb4328a4790c1b8540f778545e47b64d9ce93d277d554f67c88ef7be",
+    "src/bt_api_execution/ctp_single_worker_candidate.py": "aadb254f72a5e5c8a28ef67549d298c2ef6dd68d012cac18c7d8e497fc7d2294",
+    "src/bt_api_execution/errors.py": "45d5e8c414b5a80926ad6e85a0058acebc5c947c0bb7b199c5e9190d3317c784",
+    "src/bt_api_execution/facade.py": "3a1a90414e45e937a64fb113e81a32f56ff42f09594bc280119b636494ea94ae",
+    "src/bt_api_execution/ports.py": "bf84c0424e962fb6d0ad2a9fc2112fbaa72d281e2bac9d2fa58fc959c1ee40b9",
+    "src/bt_api_execution/py.typed": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "src/bt_api_execution/store.py": "25980518e1b7aae5ce13e3531ab854771ab5d036df0209cddde08508124e8206",
+    "tests/test_admission_adapter.py": "325f098494f6b39c89ffb38362a3094049e1cfdfb4073bcdd96917e6268795e0",
+    "tests/test_cancellation.py": "94e04c8ff908449dfeae820e6d2125681b700cd201b1cbe1d97c2b6775284908",
+    "tests/test_contracts.py": "ab5fc077ed936877bbaed5c73bc2ab42a0cc893f37772f27be15913ad2f93b2e",
+    "tests/test_ctp_callback_session_owner.py": "149932294f669bf58b099f4dd06466c7c9fb5dcb192c6522448366ff222ed27b",
+    "tests/test_ctp_callback_session_router.py": "5bf94b8c3a71d4de3973073b881d015b177a6b16417ece3c19f4441068bc446f",
+    "tests/test_ctp_callback_source_bridge.py": "f8993ca475d5accb07d68f557d068765575582aea815b3e8cf6cce67ba9ac1de",
+    "tests/test_ctp_dispatch_commands.py": "20d84cce2d5130d295d2a5affb94abcfd0dbab3c8fbedb0efdcf63a29f5d4247",
+    "tests/test_ctp_native_callbacks.py": "ef06e1c41a399b34ffb1028db6db810aa8095c7683c32d5d3e4f9c2f09cd5110",
+    "tests/test_economic_fact_wire.py": "2e8681cbfc7a1ef9d8f85d113369c21779979899628f4f3c77ab7f7a332f72b8",
+    "tests/test_execution_facade.py": "51ece3a6bc80d7815018d71476c4fca8ea59746dc68c5a3260d1f154ea5be9f1",
+    "tests/test_execution_store.py": "f7c0887c62cb9a734eb2dda6dc61e1a273db5cf91892a91857623fec7b54d6b4",
+    "tests/test_outbox_economic_snapshots.py": "db490d7a3a1d9931c498497c5e48a070d14811a81fe309093fd0ecb054b7fbec"
+  },
+  "independent_review_receipt_sha256": "b7da513b771f6972f738af1231c8aac48c1d27ac02831bb622ec6d5e7e0ef2cd",
+  "independent_result": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "2",
+    "tests": "157",
+    "time": "9.230",
+    "timestamp": "2026-09-26T21:53:32.130531",
+    "hostname": "yun"
+  },
+  "root_reran_independent_tests": false,
+  "root_verified_original_v17_fixtures": 7,
+  "raw_zip_sha256": "792612e0bff309a79dd0965a96a29b4aff12fded55eb100389879cd29353c6fd",
+  "raw_payload_sha256": {
+    "independent/receipt.json": "4d41ba364661cb5a75113fd2d7786484cb56cc57cff627d429f85976e7fcd0d7",
+    "independent/test_v18_account_gate_cross_day.py": "675c3b3959e64c3c30ba7888b2101c74c56ed963fad87cc707cf9c5003cd5dff",
+    "independent/v18_focused_junit.xml": "6aec812f8cf298824beec65415de104b622a5391f11444bcfc5d3385529d7719",
+    "independent/v18_focused_run.log": "0167b5de95350aa6b5c247fa5a300d2045b11462e881854663fc0e8fda60fa61",
+    "independent/v18_independent_review_receipt.json": "b7da513b771f6972f738af1231c8aac48c1d27ac02831bb622ec6d5e7e0ef2cd",
+    "migrated-copies/v17_claimed_possible_send_cancel-v18.sqlite3": "d4b6fa7fcfb099c79a9c22cc951015384c72b86aeec396f7f0eaf37a739be123",
+    "migrated-copies/v17_queued_action_ack_cancel-v18.sqlite3": "c63715726f7816b33a0e12879f0a990afaf3cb8418bfdf8dd5df8ea8f189b9ae",
+    "migrated-copies/v17_ready_unclaimed_cancel-v18.sqlite3": "011418ff9ea578481d2d990ffe1e2792d47932fae8d6fba4808bfc6aae0f28f8",
+    "migrated-copies/v17_session_owned_claimed_cancel-v18.sqlite3": "652682f6f9ec1d0bd0486d3c4263fb04d6a6f6350b162ea6724f1138ac4dd761",
+    "migrated-copies/v17_session_owned_completed_ack_cancel-v18.sqlite3": "6aaefa5bbc6c252fa59c29431cbafbdb9cff9e2d92541e0789106cf0913c4d7b",
+    "migrated-copies/v17_session_owned_completed_no_callback_cancel-v18.sqlite3": "382acf7b87c153b8fa28e28280e65208ad15d2407965bb4bc7dd0525aee6720c",
+    "migration/manifest.json": "879e7cafa9b8b1ee0a96f12cffeaa9608c0f5511190cff34cc3ddc4c0225299e",
+    "migration/run_v18_migration_review.py": "fc087f4a22839da3512df3f8b61c92aceb73be237240cec4b3772322a2bebc70",
+    "migration/v18_migration_receipt.json": "11a6d291ff11394be0735d8112615e39f1e34d0770b3e28d1ee2dfac79fdc22e",
+    "snapshot/.gitignore": "6fd71ccf0550299202692bd67d90003c517349e553cae201251d6682e46b6fd4",
+    "snapshot/CHANGELOG.md": "576d671b319d2ed29596f06b9281b9568389bf4767dd86d05e6c52d7fe89130b",
+    "snapshot/LICENSE": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+    "snapshot/MIGRATIONS.md": "ec73b67db98e98b4cdbba23db76f1829bf257ff21f88499e01125245764faa8e",
+    "snapshot/README.md": "53d7ea2c8c86cc44287e8ef723d203fe05cb59a85884f90298f6fccf4612a29d",
+    "snapshot/V18-SNAPSHOT-MANIFEST.sha256": "0372771fbb91d3a6c6cc8d859eb4c68b6bbe65368a8672a8312f4ae9fa6e46b1",
+    "snapshot/docs/ctp-command-reconciliation-adr.md": "d8019191af56da704d1095a39fd94147e70dd2d4e43aacced59d4aebc5063338",
+    "snapshot/pyproject.toml": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1",
+    "snapshot/src/bt_api_execution/__init__.py": "6f7b27a25a4b54b9f903424009613c55fe9a97d1349568abc54554061496aa67",
+    "snapshot/src/bt_api_execution/admission.py": "59a76820b1d3eeaa58bfa28de9b38750d9f0400a62e43b7e16f58eeb4bf12171",
+    "snapshot/src/bt_api_execution/cancellation.py": "ef1f8e1e8d4ce85409c78d8496baf7b974e06df874414b76b705d3cf5805ef4b",
+    "snapshot/src/bt_api_execution/contracts.py": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219",
+    "snapshot/src/bt_api_execution/ctp_callback_ledger_adapter.py": "5cd12b6d50a551926641b0ee3bdf540abe09bcb1319434c5f57a0a54a5003f53",
+    "snapshot/src/bt_api_execution/ctp_callback_session.py": "b2e8d29723474272c20db407b6306007f5363b418a919376f3f21d03302cea9a",
+    "snapshot/src/bt_api_execution/ctp_callback_source_bridge.py": "b733aaf286a118ff5dad94818c008bab6ea2d81ee1a0d0b81ebafc1d2ff4f10f",
+    "snapshot/src/bt_api_execution/ctp_native_callbacks.py": "ea24d113eb4328a4790c1b8540f778545e47b64d9ce93d277d554f67c88ef7be",
+    "snapshot/src/bt_api_execution/ctp_single_worker_candidate.py": "aadb254f72a5e5c8a28ef67549d298c2ef6dd68d012cac18c7d8e497fc7d2294",
+    "snapshot/src/bt_api_execution/errors.py": "45d5e8c414b5a80926ad6e85a0058acebc5c947c0bb7b199c5e9190d3317c784",
+    "snapshot/src/bt_api_execution/facade.py": "3a1a90414e45e937a64fb113e81a32f56ff42f09594bc280119b636494ea94ae",
+    "snapshot/src/bt_api_execution/ports.py": "bf84c0424e962fb6d0ad2a9fc2112fbaa72d281e2bac9d2fa58fc959c1ee40b9",
+    "snapshot/src/bt_api_execution/py.typed": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "snapshot/src/bt_api_execution/store.py": "25980518e1b7aae5ce13e3531ab854771ab5d036df0209cddde08508124e8206",
+    "snapshot/tests/test_admission_adapter.py": "325f098494f6b39c89ffb38362a3094049e1cfdfb4073bcdd96917e6268795e0",
+    "snapshot/tests/test_cancellation.py": "94e04c8ff908449dfeae820e6d2125681b700cd201b1cbe1d97c2b6775284908",
+    "snapshot/tests/test_contracts.py": "ab5fc077ed936877bbaed5c73bc2ab42a0cc893f37772f27be15913ad2f93b2e",
+    "snapshot/tests/test_ctp_callback_session_owner.py": "149932294f669bf58b099f4dd06466c7c9fb5dcb192c6522448366ff222ed27b",
+    "snapshot/tests/test_ctp_callback_session_router.py": "5bf94b8c3a71d4de3973073b881d015b177a6b16417ece3c19f4441068bc446f",
+    "snapshot/tests/test_ctp_callback_source_bridge.py": "f8993ca475d5accb07d68f557d068765575582aea815b3e8cf6cce67ba9ac1de",
+    "snapshot/tests/test_ctp_dispatch_commands.py": "20d84cce2d5130d295d2a5affb94abcfd0dbab3c8fbedb0efdcf63a29f5d4247",
+    "snapshot/tests/test_ctp_native_callbacks.py": "ef06e1c41a399b34ffb1028db6db810aa8095c7683c32d5d3e4f9c2f09cd5110",
+    "snapshot/tests/test_economic_fact_wire.py": "2e8681cbfc7a1ef9d8f85d113369c21779979899628f4f3c77ab7f7a332f72b8",
+    "snapshot/tests/test_execution_facade.py": "51ece3a6bc80d7815018d71476c4fca8ea59746dc68c5a3260d1f154ea5be9f1",
+    "snapshot/tests/test_execution_store.py": "f7c0887c62cb9a734eb2dda6dc61e1a273db5cf91892a91857623fec7b54d6b4",
+    "snapshot/tests/test_outbox_economic_snapshots.py": "db490d7a3a1d9931c498497c5e48a070d14811a81fe309093fd0ecb054b7fbec",
+    "v17-fixtures/create_session_owned_ack_fixture.py": "a8d72404d02369b65f2c4998ddcefd1a46ed540c404b64d5bff0310eb9823456",
+    "v17-fixtures/create_session_owned_fixture.py": "926001f81f9df8c514e4b2a2ecdd31278a5fbbcf1a0c40584017fe8d661e0b07",
+    "v17-fixtures/create_session_owned_no_callback_fixture.py": "b62a30ba8e25238f6b6f91e30a8deb0f0ec9147ec5d5f7d89d0f7a44cf8976c3",
+    "v17-fixtures/create_v17_fixtures.py": "eb27655b27f1576554f986d3e6f056ddf5a8ab662c28fa81f83908d2c004e202",
+    "v17-fixtures/v17_ack_open_target_second_submit_claim.sqlite3": "13746cae7ba26858de3d2bd086a68f87c33e78ac38eb4123577a943501b2576a",
+    "v17-fixtures/v17_claimed_possible_send_cancel.sqlite3": "5a98d47556764acaf757292952dfe1bc76071e38e87856cb791ec75f7be45f15",
+    "v17-fixtures/v17_queued_action_ack_cancel.sqlite3": "766f5cb460e4c193374870ba49e35588453a66ba8a57c3df637975a3ef740119",
+    "v17-fixtures/v17_ready_unclaimed_cancel.sqlite3": "46135beb4c9a979f7acac02e6fb9d19c48801c2c36b212eb691c19a975329b8c",
+    "v17-fixtures/v17_session_owned_claimed_cancel.sqlite3": "d12534bee53f972d6a6841ac48f7a14a4c5f3568224a216fc4038270adb24341",
+    "v17-fixtures/v17_session_owned_completed_ack_cancel.sqlite3": "0b83b74fe76067c448ea09525d15014fccde208c52097406b74902e17652865b",
+    "v17-fixtures/v17_session_owned_completed_no_callback_cancel.sqlite3": "e8cf53e3816e76134bfcc3a46df49b4248691e3e7fa310688ab234b2aac1e86f",
+    "v17-fixtures/validate_fixtures.py": "650a1848e358811a0debca0f24958e815c10ae6ad975aec84e9613f6b8d8d62b"
+  },
+  "review": {
+    "title": "Independent V18 cancel postcondition review",
+    "created_local": "2026-09-26",
+    "scope": "Fake/offline Store QA only; no native/provider/network/private config access; no production source edits.",
+    "v18_snapshot": {
+      "path": "D:\\temp\\iteration41_v18_cancel_postcondition_r0",
+      "source_head": "bb2cd24cdaf9fb64f6b95010ee8619b0c6a35589",
+      "manifest": "V18-SNAPSHOT-MANIFEST.sha256",
+      "manifest_sha256": "0372771FBB91D3A6C6CC8D859EB4C68B6BBE65368A8672A8312F4AE9FA6E46B1",
+      "reviewed_file_sha256": {
+        "src/bt_api_execution/store.py": "25980518E1B7AAE5CE13E3531AB854771AB5D036DF0209CDDDE08508124E8206",
+        "tests/test_ctp_callback_session_router.py": "5BF94B8C3A71D4DE3973073B881D015B177A6B16417ECE3C19F4441068BC446F",
+        "tests/test_ctp_dispatch_commands.py": "20D84CCE2D5130D295D2A5AFFB94ABCFD0DBAB3C8FBEDB0EFDCF63A29F5D4247",
+        "tests/test_ctp_callback_source_bridge.py": "F8993CA475D5ACCB07D68F557D068765575582AEA815B3E8CF6CCE67BA9AC1DE",
+        "tests/test_execution_store.py": "F7C0887C62CB9A734EB2DDA6DC61E1A273DB5CF91892A91857623FEC7B54D6B4"
+      }
+    },
+    "independent_package_focus": {
+      "working_directory": "D:\\temp\\iteration41_v18_cancel_postcondition_r0",
+      "command": "$qaDir='D:\\temp\\iteration41_v18_account_gate_live_repro_20260926'; $junit=Join-Path $qaDir 'v18_focused_junit.xml'; $env:PYTHONPATH='src'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m pytest -p no:cacheprovider tests/test_ctp_callback_session_router.py tests/test_ctp_dispatch_commands.py tests/test_ctp_callback_source_bridge.py tests/test_execution_store.py -q --junitxml $junit --tb=short 2>&1 | Tee-Object -FilePath (Join-Path $qaDir 'v18_focused_run.log'); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+      "result": "155 passed, 2 skipped in 9.54s",
+      "junit_path": "D:\\temp\\iteration41_v18_account_gate_live_repro_20260926\\v18_focused_junit.xml",
+      "junit_sha256": "6AEC812F8CF298824BEEC65415DE104B622A5391F11444BCFC5D3385529D7719",
+      "stdout_log_path": "D:\\temp\\iteration41_v18_account_gate_live_repro_20260926\\v18_focused_run.log",
+      "stdout_log_sha256": "0167B5DE95350AA6B5C247FA5A300D2045B11462E881854663FC0E8FDA60FA61",
+      "skips": [
+        "test_close_wakes_real_trader_client_poll_and_discards_its_result: installed bt_api_ctp has no callback queue consumer lease",
+        "test_close_discards_real_sdk_event_dequeued_before_close_wins: installed bt_api_ctp has no callback queue consumer lease"
+      ],
+      "reviewed_assertions": [
+        "ActionACK leaves the cancel postcondition unresolved and blocks another same-session Submit claim",
+        "terminal OnRtnOrder evidence alone does not resolve while cumulative trade quantity disagrees",
+        "a later verified Trade ingress resolves when order cumulative volume equals verified trade prefix",
+        "trade-before-terminal-order arrival order also resolves only after exact reconciliation",
+        "cancel claim rejects a target already terminal in the verified projection",
+        "a contradiction after resolution durably poisons owner even though the source-application transaction rolls back"
+      ]
+    },
+    "independent_v17_migration_reopen": {
+      "fixture_manifest_path": "D:\\temp\\iteration41_v18_v17_baseline_fixtures_20260926_run2\\manifest.json",
+      "fixture_manifest_sha256": "879E7CAFA9B8B1EE0A96F12CFFEAA9608C0F5511190CFF34CC3DDC4C0225299E",
+      "v17_source_snapshot": "D:\\temp\\iteration41_v17_execution_review_20260926_r4_cancel_fk_regression",
+      "v17_source_manifest_sha256": "be9415becf2a6a3fe32e667aae5437322d3b311c82db75f931c5ff8fe15cc0c1",
+      "v17_store_py_sha256": "6907145308cce6931b4c25403ed7baded2ced6cc6d5bb74bb4fd2e4f7f54824d",
+      "migration_runner_path": "D:\\temp\\iteration41_v18_migration_repro_final_20260926\\run_v18_migration_review.py",
+      "migration_runner_sha256": "FC087F4A22839DA3512DF3F8B61C92ACEB73BE237240CEC4B3772322A2BEBC70",
+      "migration_receipt_path": "D:\\temp\\iteration41_v18_migration_repro_final_20260926\\v18_migration_receipt.json",
+      "migration_receipt_sha256": "11A6D291FF11394BE0735D8112615E39F1E34D0770B3E28D1EE2DFAC79FDC22E",
+      "method": "Each synthetic V17 database was copied before V18 open; V18 open and second reopen retained schema v18; every tested copy had PRAGMA foreign_key_check=[] and zero postcondition resolutions unless a later verified runtime event was applied (none were).",
+      "cases": [
+        {
+          "fixture": "v17_ready_unclaimed_cancel.sqlite3",
+          "sha256": "46135BEB4C9A979F7ACAC02E6FB9D19C48801C2C36B212EB691C19A975329B8C",
+          "result": "no obligation; cancel migrates to UNKNOWN; existing source lifecycle fence remains"
+        },
+        {
+          "fixture": "v17_claimed_possible_send_cancel.sqlite3",
+          "sha256": "5A98D47556764ACAF757292952DFE1BC76071E38E87856CB791EC75F7BE45F15",
+          "result": "UNMAPPABLE pending obligation; UNKNOWN; reopen preserves pending"
+        },
+        {
+          "fixture": "v17_queued_action_ack_cancel.sqlite3",
+          "sha256": "766F5CB460E4C193374870BA49E35588453A66BA8A57C3DF637975A3EF740119",
+          "result": "UNMAPPABLE pending obligation; local COMPLETED/ActionACK does not resolve; reopen preserves pending"
+        },
+        {
+          "fixture": "v17_session_owned_claimed_cancel.sqlite3",
+          "sha256": "D12534BEE53F972D6A6841AC48F7A14A4C5F3568224A216FC4038270ADB24341",
+          "result": "EXACT pending obligation linked to exact original Submit/owner; UNKNOWN; reopen preserves pending"
+        },
+        {
+          "fixture": "v17_session_owned_completed_ack_cancel.sqlite3",
+          "sha256": "0B83B74FE76067C448EA09525D15014FCCDE208C52097406B74902E17652865B",
+          "result": "EXACT pending obligation linked to exact original Submit/owner; local COMPLETED/ActionACK does not resolve; reopen preserves pending"
+        },
+        {
+          "fixture": "v17_session_owned_completed_no_callback_cancel.sqlite3",
+          "sha256": "E8CF53E3816E76134BFCC3A46DF49B4248691E3E7FA310688AB234B2AAC1E86F",
+          "result": "EXACT pending obligation linked to exact original Submit/owner despite no callback ledger; local completion does not resolve; reopen preserves pending"
+        }
+      ],
+      "pre_v18_dynamic_gap_baseline": {
+        "fixture": "v17_ack_open_target_second_submit_claim.sqlite3",
+        "sha256": "13746CAE7BA26858DE3D2BD086A68F87C33E78AC38EB4123577A943501B2576A",
+        "result": "V17 ActionACK with nonterminal ACKNOWLEDGED target permitted second Submit claim (CLAIMED, native_call_inflight=0); this is the before-fix runtime baseline."
+      }
+    },
+    "independent_live_v18_account_gate": {
+      "test_path": "D:\\temp\\iteration41_v18_account_gate_live_repro_20260926\\test_v18_account_gate_cross_day.py",
+      "test_sha256": "675C3B3959E64C3C30BA7888B2101C74C56ED963FAD87CC707CF9C5003CD5DFF",
+      "receipt_path": "D:\\temp\\iteration41_v18_account_gate_live_repro_20260926\\receipt.json",
+      "receipt_sha256": "4D41BA364661CB5A75113FD2D7786484CB56CC57CFF627D429F85976E7FCD0D7",
+      "result": "1 passed",
+      "dynamic_contract": "Fresh V18 DB, public Store APIs and fake verifier/projection: claimed/completed day-1 CANCEL creates account-keyed UNMAPPABLE pending obligation; a separately seeded strategy/day-2 Submit stages successfully but generic claim raises the V18 pending-cancel InvalidStateTransition; it remains READY and native_call_inflight=0.",
+      "limitation": "Store lifecycle permits one durable callback-session owner per account; the cross-day route intentionally used the generic no-owner Store API, so it proves account-wide gating for an unresolved obligation, not a second source-owned callback session. No callback owner/fence was cleared or fabricated.",
+      "command": "$env:PYTHONPATH='src;tests'; $env:PYTHONDONTWRITEBYTECODE='1'; python -m pytest -p no:cacheprovider -o 'markers=unit: test' D:\\temp\\iteration41_v18_account_gate_live_repro_20260926\\test_v18_account_gate_cross_day.py -q --tb=short"
+    },
+    "acceptance": {
+      "result": "No blocking V18 defect found in the tested snapshot; accept the V18 local Store contract within this fake/offline scope.",
+      "not_covered": [
+        "No direct multiple-claimed-cancels/same-target shared-terminal-observation race test was added independently.",
+        "No source-owned second callback session for a different scope/day was constructed; the account's one-owner lifecycle contract rejects that path. The cross-day generic claim gate was dynamically exercised instead.",
+        "This does not establish provider semantics, real native callback authenticity, or live execution readiness."
+      ]
+    }
+  },
+  "limitations": [
+    "Author full package 235 passed/2 skipped is a separate reported result; not independently rerun here",
+    "Independent four-file run used PYTHONPATH=src; no full same-process module-origin capture was saved",
+    "Two SDK consumer tests skipped because the ambient SDK lacked callback consumer lease",
+    "Cross-day dynamic proof uses generic no-owner route; migration EXACT mapping is separate evidence",
+    "No extra multi-cancel shared-terminal race, native/provider/live acceptance",
+    "Environment-independent physical CTP account ownership is a subsequent development slice"
+  ],
+  "root_verified_committed_snapshot_mapping": {
+    "commit": "33d132d6f9d16f64cc229f576435b0fafc6bfab1",
+    "changed_file_count": 5,
+    "changed_files": {
+      "src/bt_api_execution/store.py": {
+        "commit_blob_sha256": "7808924d054318611d65c8e2a76f8dd20c400fed0bf5a09ff4b73abe9dcea906",
+        "frozen_snapshot_sha256": "25980518e1b7aae5ce13e3531ab854771ab5d036df0209cddde08508124e8206",
+        "raw_bytes_equal": false,
+        "CRLF_normalized_bytes_equal": true
+      },
+      "tests/test_ctp_callback_session_router.py": {
+        "commit_blob_sha256": "5bf94b8c3a71d4de3973073b881d015b177a6b16417ece3c19f4441068bc446f",
+        "frozen_snapshot_sha256": "5bf94b8c3a71d4de3973073b881d015b177a6b16417ece3c19f4441068bc446f",
+        "raw_bytes_equal": true,
+        "CRLF_normalized_bytes_equal": true
+      },
+      "tests/test_ctp_callback_source_bridge.py": {
+        "commit_blob_sha256": "75509ea8a0cb25d9d24281faef713c2f4a68c3731d49ce16c1c6c1f7ca4ffcc6",
+        "frozen_snapshot_sha256": "f8993ca475d5accb07d68f557d068765575582aea815b3e8cf6cce67ba9ac1de",
+        "raw_bytes_equal": false,
+        "CRLF_normalized_bytes_equal": true
+      },
+      "tests/test_ctp_dispatch_commands.py": {
+        "commit_blob_sha256": "c1f0ed452af96746eeaa3faefbcec15aaffa0ca3a002ddc9ffe88d24bbd21ba8",
+        "frozen_snapshot_sha256": "20d84cce2d5130d295d2a5affb94abcfd0dbab3c8fbedb0efdcf63a29f5d4247",
+        "raw_bytes_equal": false,
+        "CRLF_normalized_bytes_equal": true
+      },
+      "tests/test_execution_store.py": {
+        "commit_blob_sha256": "9b6688e007029a837a2409a4a19d01d1f759fa3a6de4848ca3b4e18b3982bb23",
+        "frozen_snapshot_sha256": "f7c0887c62cb9a734eb2dda6dc61e1a273db5cf91892a91857623fec7b54d6b4",
+        "raw_bytes_equal": false,
+        "CRLF_normalized_bytes_equal": true
+      }
+    },
+    "comparison": "CRLF normalized equality; four source snapshot files have CRLF, committed blobs have LF"
+  }
+}

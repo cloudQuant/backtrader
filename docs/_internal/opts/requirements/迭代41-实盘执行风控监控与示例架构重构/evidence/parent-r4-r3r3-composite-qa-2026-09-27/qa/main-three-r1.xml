@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="4" time="4.906" timestamp="2026-09-27T06:58:22.788209" hostname="yun"><testcase classname="tests.test_iteration41_managed_cancellation_composition" name="test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[offline_fake-3-2-reconciled]" time="0.228"><failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 27, in &lt;module&gt;&#10;  ModuleNotFoundError: No module named 'backtrader'&#10;  &#10;assert 1 == 0&#10; +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File &quot;&lt;string&gt;&quot;, line 27, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode">tests\test_iteration41_managed_cancellation_composition.py:767: in test_managed_cancellation_is_journaled_idempotent_and_never_falls_back
+    assert completed.returncode == 0, completed.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "&lt;string&gt;", line 27, in &lt;module&gt;
+E     ModuleNotFoundError: No module named 'backtrader'
+E     
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File "&lt;string&gt;", line 27, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode</failure></testcase><testcase classname="tests.test_iteration41_managed_cancellation_composition" name="test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[production_synthetic-1-0-dispatch_resolution_required]" time="0.567"><failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 27, in &lt;module&gt;&#10;  ModuleNotFoundError: No module named 'backtrader'&#10;  &#10;assert 1 == 0&#10; +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File &quot;&lt;string&gt;&quot;, line 27, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode">tests\test_iteration41_managed_cancellation_composition.py:767: in test_managed_cancellation_is_journaled_idempotent_and_never_falls_back
+    assert completed.returncode == 0, completed.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "&lt;string&gt;", line 27, in &lt;module&gt;
+E     ModuleNotFoundError: No module named 'backtrader'
+E     
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File "&lt;string&gt;", line 27, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode</failure></testcase><testcase classname="tests.test_iteration41_managed_cancellation_composition" name="test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart" time="0.174"><failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 25, in &lt;module&gt;&#10;  ModuleNotFoundError: No module named 'backtrader'&#10;  &#10;assert 1 == 0&#10; +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File &quot;&lt;string&gt;&quot;, line 25, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode">tests\test_iteration41_managed_cancellation_composition.py:1214: in test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart
+    assert completed.returncode == 0, completed.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "&lt;string&gt;", line 25, in &lt;module&gt;
+E     ModuleNotFoundError: No module named 'backtrader'
+E     
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...st recent call last):\n  File "&lt;string&gt;", line 25, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader\'\n').returncode</failure></testcase><testcase classname="tests.test_iteration41_managed_replay_l2" name="test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline" time="0.160"><failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 22, in &lt;module&gt;&#10;  ModuleNotFoundError: No module named 'backtrader_runtime'&#10;  &#10;assert 1 == 0&#10; +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...t call last):\n  File &quot;&lt;string&gt;&quot;, line 22, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader_runtime\'\n').returncode">tests\test_iteration41_managed_replay_l2.py:189: in test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline
+    assert completed.returncode == 0, completed.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "&lt;string&gt;", line 22, in &lt;module&gt;
+E     ModuleNotFoundError: No module named 'backtrader_runtime'
+E     
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe...t call last):\n  File "&lt;string&gt;", line 22, in &lt;module&gt;\nModuleNotFoundError: No module named \'backtrader_runtime\'\n').returncode</failure></testcase></testsuite></testsuites>

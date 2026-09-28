@@ -1,7 +1,42 @@
 #!/usr/bin/env python
-"""Direct, offline entry point for the self-contained Iteration 24 fixture."""
+"""Retained 014_2 local replay fixture with a config-first script fence.
+
+Import-level fixture functions remain available to regression tests.  Direct
+script execution can only enter the reviewed Iteration 41 replay runtime.
+"""
 
 from __future__ import annotations
+
+# ruff: noqa: E402
+# This fence must remain before every legacy framework, CTP, or provider import.
+import sys as _iteration41_sys
+from pathlib import Path as _Iteration41Path
+
+_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parent / "runtime"
+_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
+if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+
+from backtrader_runtime.legacy import (  # noqa: E402
+    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
+    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+)
+
+
+def _run_config_first_cli(argv=None) -> int:
+    """Route the retired script through its fixed registered replay runtime."""
+
+    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+
+def main(argv=None) -> int:
+    """Public legacy entrypoint retained only as a config-first convenience alias."""
+
+    return _run_config_first_cli(argv)
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_config_first_cli())
 
 import argparse
 import copy
@@ -347,8 +382,9 @@ def _arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
+def _legacy_main() -> int:
     """Dispatch the offline CLI, print one JSON report, and return exit status."""
+    raise _iteration41_legacy_direct_execution_error("examples/014_2_ctp_options_midfreq/run.py")
 
     args = _arguments()
     try:
@@ -392,7 +428,3 @@ def main() -> int:
         return 2
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

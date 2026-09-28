@@ -1,0 +1,87 @@
+{
+  "schema": "iteration41_g1_r9_design_receipt.v1",
+  "status": "DESIGN_ONLY_G1_CLOSED",
+  "created_utc": "2026-09-26T22:37:40.4405403Z",
+  "repository": "D:\\source_code\\backtrader",
+  "report": {
+    "path": "D:\\temp\\iteration41-g1-r9-prestarted-service-design-20260927\\R9_DESIGN.md",
+    "sha256": "77500a63eabd0df5673b923458893fbd44c0d3ca1ec22c403dff95b98d869bd0",
+    "bytes": 16163
+  },
+  "r8_evidence": [
+    {
+      "path": "D:\\temp\\iteration41-g1-r8-independent-custodian-20260927\\r8_manifest.json",
+      "sha256": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb"
+    },
+    {
+      "path": "D:\\temp\\iteration41-g1-r8-independent-custodian-20260927\\r8_receipt.json",
+      "sha256": "66b556a7dc7a17613cc7d87b34fa0168876058c9b881d68186cba8c6c81df2d1"
+    },
+    {
+      "path": "D:\\temp\\iteration41-g1-r8-independent-custodian-20260927\\r8_trials.json",
+      "sha256": "4c412a14af1cb5fe5ea5f6ff39f23d7952187e5f60bc2015f70d0098af6cf58a"
+    },
+    {
+      "path": "D:\\temp\\iteration41-g1-r8-independent-custodian-20260927\\R8_FINDINGS.md",
+      "sha256": "60232c8d974e14e6881775292db1a5c36bc24591b8fc9025118fec73ac7700f0"
+    }
+  ],
+  "r8_final_p05": {
+    "deadline_ms": 1200,
+    "decision_ms": 1218,
+    "caller_api_returned": false,
+    "source": "r8_trials.json admission-sync trial; archived 1234ms finding was older"
+  },
+  "inspected_source": [
+    {
+      "path": "scripts/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "03628b0613ecc9f49ff07f299c6f39162cd64bfd90c396c324473cd4f6104339",
+      "bytes": 180159,
+      "last_write_utc": "2026-09-26T19:45:36.4089281Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "bytes": 46080,
+      "last_write_utc": "2026-09-26T15:13:25.2967474Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "bytes": 24746,
+      "last_write_utc": "2026-09-26T18:08:15.6662588Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "c32dbe7c850e07fde6a3e57f5b29ca45803cfa5b8f3bea103d5e0582b4656222",
+      "bytes": 49473,
+      "last_write_utc": "2026-09-26T18:06:22.6120055Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_readonly_request_coordinator.py",
+      "sha256": "253c50b7793b9be03d69c2d1a5cafd6fa7b9649a40f3df21a7d1679ffd46235d",
+      "bytes": 19429,
+      "last_write_utc": "2026-09-26T19:22:11.4248883Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_readonly_receipt_writer.py",
+      "sha256": "02ee9f4499cdd22e0d1602a577c041a6c8ba1416864005ace2a327c64d5c2697",
+      "bytes": 20438,
+      "last_write_utc": "2026-09-26T19:00:26.1874867Z"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_readonly_token_bootstrap.py",
+      "sha256": "56af3861ab8eb22cec9a96444a39e13b96f1180e8b6dfefafef1cc8a5b7c6054",
+      "bytes": 39849,
+      "last_write_utc": "2026-09-26T18:49:03.0871994Z"
+    }
+  ],
+  "changes_to_repository": false,
+  "provider_or_config_or_scm_action": false,
+  "limits": [
+    "R9 not implemented",
+    "default preflight remains closed",
+    "caller/reaper scheduler starvation and nonreturning kernel APIs are not bounded by this design",
+    "reaper cleanup uncertainty remains UNKNOWN and poisons readiness"
+  ]
+}

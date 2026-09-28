@@ -1,0 +1,10 @@
+The first tightened direct Windows write/rename assertion expected winerror=32
+for both operations. In the observed test, pathlib.write_bytes raised
+PermissionError with no .winerror attribute, while os.replace raised
+PermissionError with winerror=32. The source remained unchanged and the retained
+handle readback matched the original bytes. The test now requires a
+PermissionError for overwrite and exact Win32 sharing violation 32 for replace;
+it does not discard or relabel the failed first assertion run.
+
+That calibration run failed only on the overly specific pathlib exception
+metadata assertion; it did not allow either write or replacement.

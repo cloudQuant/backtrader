@@ -1,0 +1,27 @@
+{
+  "addendum": "V21 independent QA receipt correction 1",
+  "correction_type": "hash transcription error; no source or test-file drift found",
+  "qa_directory": "D:\\temp\\iteration41_v21_ctp_account_handoff_qa_r3_20260927",
+  "qa_only_test_path": "tests/test_v21_handoff_adversarial_independent.py",
+  "actual_test_sha256": "7cabf2cb3e0c76239fcdfe7a6436debec045e24409a4db38c4ca770bf2be2b4d",
+  "originally_reported_test_sha256": "7cabf2cb3e0c76239fcdf7e6436debec045e24409a4db38c4ca770bf2be2b4d",
+  "evidence": {
+    "test_last_write_utc": "2026-09-26T19:41:19.3004570Z",
+    "focused_log_last_write_utc": "2026-09-26T19:44:59.8973936Z",
+    "full_log_last_write_utc": "2026-09-26T19:45:25.6570232Z",
+    "focused_result_recorded": "10 passed in 1.41s",
+    "focused_log_sha256": "7d84e8bef2693426eacad78edc1ad2c5fc57ac098dd163cd0d05676711238b41",
+    "source_manifest_sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+    "test_is_qa_only_and_not_in_frozen_payload_manifest": true,
+    "no_test_rerun_for_addendum": true
+  },
+  "original_receipt": {
+    "json_path": "qa-v21-independent-review.json",
+    "json_sha256": "4f788226e2f47c91b076c6a507ec4f4604f58bfdb94e4051289a89c9d3d26b51",
+    "markdown_path": "qa-v21-independent-review.md",
+    "markdown_sha256": "318a2e42b355259d3bff90e471b9efa086a8c2c9fbbb525f7e5bdd19724edf6d",
+    "files_unchanged_when_checked": true
+  },
+  "conclusion": "The correction is a receipt transcription fix only. The QA test file had not changed after the recorded focused run; frozen V21 source bytes and original receipt files are unchanged.",
+  "signature_note": "Hash-bound artifact; no cryptographic signing key was used."
+}

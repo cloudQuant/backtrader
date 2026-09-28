@@ -1,0 +1,3 @@
+working directory: D:\temp\iteration41-g6s-settlement-consumer-contract-candidate-20260927
+command: & 'D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe' -m pytest -q -p no:cacheprovider 'D:\temp\iteration41-g6s-settlement-consumer-contract-candidate-20260927\tests\test_ctp_simnow_settlement_consumer.py'
+constraints: fake/offline only; no credentials, private config, native import, provider, network, or writes

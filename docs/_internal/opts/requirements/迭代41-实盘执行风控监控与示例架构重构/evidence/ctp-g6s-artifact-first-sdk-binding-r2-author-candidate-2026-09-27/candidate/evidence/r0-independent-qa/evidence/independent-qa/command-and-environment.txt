@@ -1,0 +1,8 @@
+working_directory=D:\temp\iteration41-g6s-artifact-first-sdk-binding-independent-qa-20260927-r1
+interpreter=C:\anaconda3\python.exe
+python_version=3.11.5
+PYTHONPATH=D:\temp\iteration41-g6s-artifact-first-sdk-binding-independent-qa-20260927-r1
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+PYTHONDONTWRITEBYTECODE=1
+command=python -m pytest --noconftest tests\unit\runtime\test_ctp_sdk_artifact_binding.py tests\unit\runtime\test_ctp_simnow_td_trading_readiness.py tests\unit\runtime\test_g6s_adversarial.py -q --tb=short --junitxml=evidence\independent-qa\combined-junit.xml
+result=45 passed, exit 0

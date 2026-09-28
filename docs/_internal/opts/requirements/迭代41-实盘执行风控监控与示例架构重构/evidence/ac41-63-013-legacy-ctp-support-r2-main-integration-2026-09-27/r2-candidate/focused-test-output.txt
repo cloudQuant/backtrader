@@ -1,0 +1,9 @@
+test_each_legacy_store_and_broker_helper_fails_before_inputs (__main__.DefaultDenyAndInertImportTests.test_each_legacy_store_and_broker_helper_fails_before_inputs) ... ok
+test_import_is_inert_for_dotenv_file_reads_sdk_and_network (__main__.DefaultDenyAndInertImportTests.test_import_is_inert_for_dotenv_file_reads_sdk_and_network) ... D:\temp\ac41-63-writer-partition4-candidate-r2-20260927\test_partition4_r2_failclosed_and_inert_import.py:83: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+  return original_import(name, *args, **kwargs)
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 4.083s
+
+OK

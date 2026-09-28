@@ -1,0 +1,83 @@
+{
+  "status": "SAFE_LOCAL_TEST_MIGRATION / NO_WRITE",
+  "patch_sha256": "38A7615F760803D140DAB3546355CF20733D3B6A2410E210D456114EF1F2096A",
+  "author_manifest_sha256": "BC6575878AB6C0CA1053DD0E7325C67371FB9FC209D937C8A600CAE6503745F9",
+  "author_payload_count": 17,
+  "author_payload_mismatches": 0,
+  "r2b_base_patch": {
+    "path": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2b\\r2b-main-base-apply.patch",
+    "sha256": "1A16AADB94EDB99924553D6472BF72DCB02BD04C7F994276816D91991A729F37"
+  },
+  "captured_original_inputs": [
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "expected_sha256": "E7E7B985130F010DEED84B920FD0F91712BFE54AC24B5EF8BF1C8FC687BCA6B1",
+      "actual_sha256": "E7E7B985130F010DEED84B920FD0F91712BFE54AC24B5EF8BF1C8FC687BCA6B1",
+      "matches": true
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_normalized.py",
+      "expected_sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397",
+      "actual_sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397",
+      "matches": true
+    },
+    {
+      "path": "tests/fixtures/fake_btapi.py",
+      "expected_sha256": "6599B7FF7DDBB50D6D238C5BAC5752A4AF9FE2FF842CE692A8259D3DF21A016A",
+      "actual_sha256": "6599B7FF7DDBB50D6D238C5BAC5752A4AF9FE2FF842CE692A8259D3DF21A016A",
+      "matches": true
+    },
+    {
+      "path": "tests/test_utils/optional_sdk.py",
+      "expected_sha256": "708BFD9AE284DE3ECC986F0E1E4F4E0523BE64018AA3167C93B097093F0B19C1",
+      "actual_sha256": "708BFD9AE284DE3ECC986F0E1E4F4E0523BE64018AA3167C93B097093F0B19C1",
+      "matches": true
+    }
+  ],
+  "patch_reconstruction": [
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "expected_sha256": "6012D6F77AF1C97F2F5156EAF0D0CE82A4757E634BB09EE3F178F7003D110163",
+      "actual_sha256": "6012D6F77AF1C97F2F5156EAF0D0CE82A4757E634BB09EE3F178F7003D110163",
+      "matches": true
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore_normalized.py",
+      "expected_sha256": "8C706BA73995D90608A384182221373F1CA4862A5D064841E3B1DDDE3DBD0B70",
+      "actual_sha256": "8C706BA73995D90608A384182221373F1CA4862A5D064841E3B1DDDE3DBD0B70",
+      "matches": true
+    }
+  ],
+  "author_replay": {
+    "junit": {
+      "tests": 35,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "guard": {
+      "blocked_provider_imports": [],
+      "network_attempts": [],
+      "real_provider_modules": []
+    },
+    "exit_code": 0
+  },
+  "independent_replay": {
+    "junit": {
+      "tests": 35,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "guard": {
+      "blocked_provider_imports": [],
+      "network_attempts": [],
+      "real_provider_modules": []
+    },
+    "exit_code": 0,
+    "cwd": "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927-r2-independent",
+    "python": "C:\\anaconda3\\python.exe",
+    "command": "python run_guarded_pytest_r2.py"
+  },
+  "superseded_r1_patch_sha256": "93BD64374B156CBDE9A2D2F62793A736EBBDF015C5BA01F6D0C55032F1DC31B1"
+}

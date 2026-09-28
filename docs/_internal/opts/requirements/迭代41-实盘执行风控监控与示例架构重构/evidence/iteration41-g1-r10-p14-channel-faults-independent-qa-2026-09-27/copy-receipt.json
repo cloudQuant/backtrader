@@ -1,0 +1,10 @@
+{
+  "schema": "iteration41.g1_r10_p14_independent_qa_copy_receipt.v1",
+  "source_packet": "D:\\temp\\iteration41-g1-r10-p14-independent-qa-packet-20260927",
+  "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-g1-r10-p14-channel-faults-independent-qa-2026-09-27",
+  "source_packet_manifest_sha256": "f5ccb8d929e4e725cf716c3270c3c417807a5b324e4b021091f7af2807d4815c",
+  "copied_entries": 39,
+  "mismatches": 0,
+  "raw_qa_zip_sha256": "bde42010ec9a3026b318ba9f8d151574f0e0b12bd52c703bcf3d09b2428a9011",
+  "frozen_input_evidence_zip_sha256": "880fb7b05152de0e9099b0d236b2f602178470d80bcf409d79e8ecb14f57fddd"
+}

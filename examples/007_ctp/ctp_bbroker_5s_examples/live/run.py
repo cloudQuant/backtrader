@@ -5,6 +5,33 @@ with 5-second bar data for backtesting-style frequency trading.
 """
 from __future__ import annotations
 
+# This fence must remain before every legacy framework, CTP, or provider import.
+import sys as _iteration41_sys
+from pathlib import Path as _Iteration41Path
+
+_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parents[2] / "runtime"
+_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
+if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+
+from backtrader_runtime.legacy import (  # noqa: E402
+    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
+    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+)
+
+
+def _run_config_first_cli(argv=None) -> int:
+    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+
+def main(*args, **kwargs):
+    del args, kwargs
+    raise _iteration41_legacy_direct_execution_error("examples/007_ctp/ctp_bbroker_5s_examples/live/run.py")
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_config_first_cli())
+
 import argparse
 import os
 import subprocess
@@ -53,7 +80,11 @@ def _validate_config(config):
     return symbols
 
 
-def main():
+def _legacy_main():
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/007_ctp/ctp_bbroker_5s_examples/live/run.py"
+    )
+
     """Run the BackBroker 5-second bar live trading session.
 
     Returns:
@@ -104,7 +135,9 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+# Iteration 41 retains this historical body for review only; direct execution is disabled.
+if False:  # pragma: no cover - retired direct entrypoint
+
     exit_code = int(main())
     if '--subprocess-child' in sys.argv:
         sys.stdout.flush()

@@ -1,0 +1,2 @@
+C:\anaconda3\python.exe -I -S -B D:\temp\iteration41-g6s-pyd-loader-boundary-20260927\probe_extension_loader.py
+Result: path-only ExtensionFileLoader surface; no extension imported or loaded.

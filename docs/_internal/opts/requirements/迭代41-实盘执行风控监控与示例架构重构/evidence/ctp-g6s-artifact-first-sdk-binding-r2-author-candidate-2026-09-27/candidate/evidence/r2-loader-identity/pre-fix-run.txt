@@ -1,0 +1,6 @@
+Exploratory pre-fix run (superseded; not final result)
+Command: python -m pytest --noconftest tests\unit\runtime\test_ctp_sdk_artifact_binding.py tests\unit\runtime\test_ctp_windows_artifact_custody.py tests\unit\runtime\test_ctp_simnow_td_trading_readiness.py -q --tb=short
+Interpreter: C:\anaconda3\python.exe, CPython 3.11.5
+Environment: PYTHONPATH=<R2 root>; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; PYTHONDONTWRITEBYTECODE=1
+Result: 48 passed, 1 failed.
+Failure: test_sys_modules_replacement_rejects_cached_artifact_before_use expected sdk_artifact_sys_modules_spoof but observed sdk_artifact_module_identity_changed. The check ran later than the importer-context identity fence. R2 moved the sys.modules identity check into assert_context before cached use. Final rerun: 52 passed, 0 skipped.

@@ -1,0 +1,2 @@
+tests/unit/stores/test_btapistore_iteration22.py::test_native_ctp_wrapper_rejects_market_before_req_order_insert
+tests/unit/stores/test_btapistore_iteration22.py::test_native_ctp_wrapper_defaults_to_read_only_and_rejects_implicit_settlement_write

@@ -1,0 +1,144 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.canonical_copy_receipt.v1",
+  "source_root": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927",
+  "canonical_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-consumer-contract-author-candidate-2026-09-27",
+  "copied_file_count": 19,
+  "all_copies_match": true,
+  "frozen_candidate_manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+  "frozen_raw_zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+  "files": [
+    {
+      "path": "README.md",
+      "source_sha256": "79d894ac6d64c25735ec07a66387dac4e3058ea2b1b3cc517e5ea5c5319b4229",
+      "copy_sha256": "79d894ac6d64c25735ec07a66387dac4e3058ea2b1b3cc517e5ea5c5319b4229",
+      "match": true,
+      "size_bytes": 7010
+    },
+    {
+      "path": "candidate-receipt.json",
+      "source_sha256": "1b784742e16d3b8c0db8f567ffb28f173c8b883992dd69c7f725689f6d75bb3e",
+      "copy_sha256": "1b784742e16d3b8c0db8f567ffb28f173c8b883992dd69c7f725689f6d75bb3e",
+      "match": true,
+      "size_bytes": 2462
+    },
+    {
+      "path": "candidate-manifest.json",
+      "source_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+      "copy_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+      "match": true,
+      "size_bytes": 4575
+    },
+    {
+      "path": "candidate-manifest.sha256",
+      "source_sha256": "a5e94d748b1e9fa5e130b6f3e4010f6247358c02dd97da26ffec141f4f3c3b57",
+      "copy_sha256": "a5e94d748b1e9fa5e130b6f3e4010f6247358c02dd97da26ffec141f4f3c3b57",
+      "match": true,
+      "size_bytes": 91
+    },
+    {
+      "path": "candidate-evidence.zip",
+      "source_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "copy_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+      "match": true,
+      "size_bytes": 129345
+    },
+    {
+      "path": "ctp_simnow_settlement_consumer.py",
+      "source_sha256": "490c73dc76fdc01cedad365f9f5d18d5936528a0fa145c8f813900591a8e5918",
+      "copy_sha256": "490c73dc76fdc01cedad365f9f5d18d5936528a0fa145c8f813900591a8e5918",
+      "match": true,
+      "size_bytes": 12911
+    },
+    {
+      "path": "tests\\test_ctp_simnow_settlement_consumer.py",
+      "source_sha256": "e08f74890be3c2eaaba04c979aecd0e981b93a5209424ed26545b1bea87b09e0",
+      "copy_sha256": "e08f74890be3c2eaaba04c979aecd0e981b93a5209424ed26545b1bea87b09e0",
+      "match": true,
+      "size_bytes": 11145
+    },
+    {
+      "path": "evidence\\pytest-output.txt",
+      "source_sha256": "427f27e36b2a6ffcc57fe08b935f88c0c0dcbab104252e454d12099bf5298842",
+      "copy_sha256": "427f27e36b2a6ffcc57fe08b935f88c0c0dcbab104252e454d12099bf5298842",
+      "match": true,
+      "size_bytes": 792
+    },
+    {
+      "path": "evidence\\pytest-exit.txt",
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "copy_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "size_bytes": 3
+    },
+    {
+      "path": "evidence\\pycompile-output.txt",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copy_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "match": true,
+      "size_bytes": 0
+    },
+    {
+      "path": "evidence\\pycompile-exit.txt",
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "copy_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "match": true,
+      "size_bytes": 3
+    },
+    {
+      "path": "evidence\\test-command.txt",
+      "source_sha256": "c5f787894a92fa9e3e5137fb9e80cd6fb7ca1b35214f6b1ffb23e343487aba32",
+      "copy_sha256": "c5f787894a92fa9e3e5137fb9e80cd6fb7ca1b35214f6b1ffb23e343487aba32",
+      "match": true,
+      "size_bytes": 468
+    },
+    {
+      "path": "evidence\\main-source-git-status.txt",
+      "source_sha256": "2ed6a91b2a0a754fe0a66f85316318f7024a1a17992fc830c1d67a6a2eb3eeb8",
+      "copy_sha256": "2ed6a91b2a0a754fe0a66f85316318f7024a1a17992fc830c1d67a6a2eb3eeb8",
+      "match": true,
+      "size_bytes": 548
+    },
+    {
+      "path": "source-inputs.json",
+      "source_sha256": "2230d89f0db4e443783f79d3377f0e32c753f55749ba705be3c13e2a00e6b9a5",
+      "copy_sha256": "2230d89f0db4e443783f79d3377f0e32c753f55749ba705be3c13e2a00e6b9a5",
+      "match": true,
+      "size_bytes": 4014
+    },
+    {
+      "path": "source-snapshot-verification.json",
+      "source_sha256": "9612be5efcc41a4bc0eda6d8bf8b6979aee8c9f2dffc1f980479b55b89eebab8",
+      "copy_sha256": "9612be5efcc41a4bc0eda6d8bf8b6979aee8c9f2dffc1f980479b55b89eebab8",
+      "match": true,
+      "size_bytes": 3886
+    },
+    {
+      "path": "source-reference-verification.json",
+      "source_sha256": "23ee614be3194bee68025b98cc6d081ad8b2c38185f03313db725002089e1f2b",
+      "copy_sha256": "23ee614be3194bee68025b98cc6d081ad8b2c38185f03313db725002089e1f2b",
+      "match": true,
+      "size_bytes": 4282
+    },
+    {
+      "path": "verify_candidate_archive.py",
+      "source_sha256": "12fac8d0efd3e8b25be6af6b179a183496a34e5e75242e3b2ea6d5cad2e62055",
+      "copy_sha256": "12fac8d0efd3e8b25be6af6b179a183496a34e5e75242e3b2ea6d5cad2e62055",
+      "match": true,
+      "size_bytes": 2771
+    },
+    {
+      "path": "freeze_candidate.py",
+      "source_sha256": "899c9f59652d679812b2b9fa1e53676daf91c446adc2597704bf1c856f6d24ff",
+      "copy_sha256": "899c9f59652d679812b2b9fa1e53676daf91c446adc2597704bf1c856f6d24ff",
+      "match": true,
+      "size_bytes": 2202
+    },
+    {
+      "path": "archive-receipt.json",
+      "source_sha256": "9f654cc8a8b3578c0b321d2bb46c2ff784b10b32c15e17c67439b9a0a221bf3f",
+      "copy_sha256": "9f654cc8a8b3578c0b321d2bb46c2ff784b10b32c15e17c67439b9a0a221bf3f",
+      "match": true,
+      "size_bytes": 1103
+    }
+  ]
+}

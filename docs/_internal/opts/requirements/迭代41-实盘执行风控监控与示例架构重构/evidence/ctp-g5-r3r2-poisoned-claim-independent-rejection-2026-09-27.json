@@ -1,0 +1,144 @@
+{
+  "schema": "iteration41.g5_r3r2_poisoned_claim.root_review.v1",
+  "status": "REJECTED_EXPLICIT_UNKNOWN_FINALIZATION_MISSING",
+  "author_manifest_sha256": "ceac5a036769d1ca0b284524fc445be1bd045f57c5cdce317361983ee3557124",
+  "independent_verification_sha256": "386664c16c30509289af64b7c85a934238612bd8293bfa0566394b1ee8c1fd0a",
+  "wheel_corrigendum_sha256": "dc692ca8d4c6ffc164d699cb0d4b704025b5ce16aef1ff606cadfa370b0952ee",
+  "failed_archive_attempt_sha256": "6f4c0650a5e0b998e67da903c89b22238278308e8a29cf47f6e26ea3287f4444",
+  "targeted_installed_wheel_fake_e2e": "5 passed",
+  "broader_installed_wheel_fake_suite": "27 passed, 18 failed; frozen log retains all node IDs",
+  "independent_negative": "CLAIMED/inflight persists with no unknown_reason after reopen; family and callback owners POISONED; new owner denied; no native Req",
+  "limits": [
+    "No real CTP native import/call/provider/account trade",
+    "The POISONED owner fails closed across reopen, so this is missing UNKNOWN audit rather than observed re-dispatch",
+    "V21 poisoned finalization and full G5 rerun pending; default managed CTP route closed",
+    "Original author evidence has a 65-character Execution wheel hash typo; v2 corrigendum verifies the unchanged 64-character wheel and frozen installed consumer"
+  ],
+  "archive": {
+    "file": "ctp-g5-r3r2-poisoned-claim-independent-rejection-2026-09-27.raw.zip",
+    "sha256": "b5c086833dcbf2bb717b8dff6122dc88de1f3c35bef30bbe2b861061ca182fbb",
+    "entries": 24
+  },
+  "files": [
+    {
+      "path": "author/evidence.json",
+      "sha256": "ceac5a036769d1ca0b284524fc445be1bd045f57c5cdce317361983ee3557124",
+      "bytes": 5412
+    },
+    {
+      "path": "independent/verification.json",
+      "sha256": "386664c16c30509289af64b7c85a934238612bd8293bfa0566394b1ee8c1fd0a",
+      "bytes": 5669
+    },
+    {
+      "path": "corrigendum/corrigendum.json",
+      "sha256": "dc692ca8d4c6ffc164d699cb0d4b704025b5ce16aef1ff606cadfa370b0952ee",
+      "bytes": 2838
+    },
+    {
+      "path": "corrigendum/verify_wheel.py",
+      "sha256": "6ae4a1dd92e8fdd4fa145769210b9476b67f84bcf9e8a2f086c363ed9c017629",
+      "bytes": 5281
+    },
+    {
+      "path": "corrigendum/verify.log",
+      "sha256": "50c553b4cd80a9740ca11625f509cd28dd4ca811e5b07829debcdab88a7a6bae",
+      "bytes": 2575
+    },
+    {
+      "path": "artifacts/00-rerun_script.py",
+      "sha256": "e2d8468fab2b9b3edee2eabf9a2934751c02fd7a441cef8c6c2de145dbadb3fb",
+      "bytes": 3503
+    },
+    {
+      "path": "artifacts/01-rerun_log.log",
+      "sha256": "d1bf6a338be823358019f81b417c857e72e5ca51e2edd176daef82941b2a92ec",
+      "bytes": 1052
+    },
+    {
+      "path": "artifacts/02-rerun_sqlite.sqlite3",
+      "sha256": "241fc00749f70d3cd58092525168a27205e3626ab69abc409f1f5ba6c795962c",
+      "bytes": 479232
+    },
+    {
+      "path": "artifacts/03-wheel_origin_audit.log",
+      "sha256": "5d904e0c6f8775ee37dedaa2263b55e8a1b7ffb453c3f3ddef9f649252ef024b",
+      "bytes": 1374
+    },
+    {
+      "path": "artifacts/04-consumer_python_attempt.log",
+      "sha256": "1d871a1a0e25dca0a59032fdbf3fa6303ec0d682f993d62b51d09d9512be085c",
+      "bytes": 525
+    },
+    {
+      "path": "artifacts/05-original_v3_script.py",
+      "sha256": "930e4a0149fecf353d7f715022eff0b4136bb102b3f950c3c9d7dfa574185a64",
+      "bytes": 3477
+    },
+    {
+      "path": "artifacts/06-original_v3_log.log",
+      "sha256": "9622d2def184b909d2291d00e9fff5f2f62c684cdbfbf18b7b683894c49d6cef",
+      "bytes": 1040
+    },
+    {
+      "path": "artifacts/07-original_v3_sqlite.sqlite3",
+      "sha256": "75c41a9e56c5dfeec5321554c3f4f6c217834060bb96c8059066b74afeebaf2f",
+      "bytes": 479232
+    },
+    {
+      "path": "artifacts/08-integration_log_27_18.log",
+      "sha256": "972da749294c9abd80286d95b544b4a4701ba82d3360d5127a0c2c62ab47a6a1",
+      "bytes": 3721
+    },
+    {
+      "path": "artifacts/09-test_native_guard.py",
+      "sha256": "57a5f39297f24caffd689b89bc3e06f4c8e8fb580fc684a789b2bbd4fe01ab5d",
+      "bytes": 342
+    },
+    {
+      "path": "artifacts/10-evidence_json.json",
+      "sha256": "ceac5a036769d1ca0b284524fc445be1bd045f57c5cdce317361983ee3557124",
+      "bytes": 5412
+    },
+    {
+      "path": "artifacts/11-ctp_wheel.whl",
+      "sha256": "f08e231dd65599438c1467eb3d65f1205dd9a458ea147e1f996a8d12a40ba7ab",
+      "bytes": 5430183
+    },
+    {
+      "path": "artifacts/12-installed_client.py",
+      "sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09",
+      "bytes": 351481
+    },
+    {
+      "path": "artifacts/13-candidate_test_source.py",
+      "sha256": "0c2073e0555ff2d8e717763d4316fac39ecdb8f82d3bd79619c1915cf8b2ffd9",
+      "bytes": 83308
+    },
+    {
+      "path": "candidate/backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "sha256": "f9e8b1b83015e064a27bae4b551c29c4e8d8d21ef86d8e9153ad0e11ea614e89",
+      "bytes": 48209
+    },
+    {
+      "path": "candidate/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "bytes": 48077
+    },
+    {
+      "path": "candidate/backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "bytes": 31570
+    },
+    {
+      "path": "author/targeted.log",
+      "sha256": "b8d4133cb2668e4a67c239870047b7051d467952f52c87be1b665efb7497f316",
+      "bytes": 550
+    },
+    {
+      "path": "wheels/execution-r3r2.whl",
+      "sha256": "e49993683d0e1005a965fb5557006bcf6cc55c27111199dffb82f45d9bb0f048",
+      "bytes": 155674
+    }
+  ]
+}

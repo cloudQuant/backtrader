@@ -1,0 +1,1 @@
+{'preimage_result': ['fake-strategy-result'], 'preimage_run_calls': 1, 'preimage_timer_calls': ['construct', 'start', 'cancel'], 'candidate_error': 'legacy_direct_execution_not_supported', 'candidate_run_calls': 0, 'candidate_timer_calls': 0, 'sdk_imported': False, 'network_attempts': []}

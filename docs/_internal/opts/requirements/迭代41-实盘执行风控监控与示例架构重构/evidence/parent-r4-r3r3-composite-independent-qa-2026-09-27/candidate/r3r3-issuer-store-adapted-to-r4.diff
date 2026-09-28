@@ -1,0 +1,116 @@
+--- provenance/test_cancel_dispatch_resolution_proof_store.py
++++ candidate/tests/test_cancel_dispatch_resolution_proof_store.py
+@@ -22,6 +22,46 @@
+     _EXECUTION_SRC / "bt_api_execution" / "__init__.py"
+ ).resolve()
+ assert Path(risk.__file__).resolve() == (_RISK_SRC / "bt_api_risk" / "__init__.py").resolve()
++
++_ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(_ROOT))
++from importlib.util import module_from_spec, spec_from_file_location
++from bt_api_py.runtime_plugins.contracts import (  # noqa: E402
++    CAPABILITY_EXECUTION,
++    CAPABILITY_MONITOR,
++    CAPABILITY_RISK,
++    RuntimeCapabilityContract,
++)
++
++_AUTHORITY_SPEC = spec_from_file_location(
++    "cancel_proof_authority_under_test",
++    _ROOT / "bt_api_py" / "runtime_plugins" / "fake_dispatch_authority.py",
++)
++assert _AUTHORITY_SPEC is not None and _AUTHORITY_SPEC.loader is not None
++authority_module = module_from_spec(_AUTHORITY_SPEC)
++sys.modules[_AUTHORITY_SPEC.name] = authority_module
++_AUTHORITY_SPEC.loader.exec_module(authority_module)
++_R4ManagedFakeProviderJournalAuthority = authority_module.ManagedFakeProviderJournalAuthority
++
++_REGISTERED_STRATEGY = "example.013_3.sa_midfreq_simnow"
++_REGISTERED_PROVIDER = "iteration41_managed_replay_fake_provider"
++_REGISTERED_ACCOUNT = "iteration41_managed_replay_fake_account"
++_REGISTERED_POLICY = "iteration41.managed_replay.l2"
++_FAKE_CONTRACT = RuntimeCapabilityContract(
++    strategy_id=_REGISTERED_STRATEGY,
++    mode="simulation",
++    preset="replay",
++    environment="offline",
++    order_route="managed_execution",
++    required_capabilities=(CAPABILITY_EXECUTION, CAPABILITY_RISK, CAPABILITY_MONITOR),
++    effective_digest="b" * 64,
++)
++
++
++def ManagedFakeProviderJournalAuthority(**kwargs):
++    kwargs.setdefault("contract", _FAKE_CONTRACT)
++    kwargs.setdefault("policy_id", _REGISTERED_POLICY)
++    return _R4ManagedFakeProviderJournalAuthority(**kwargs)
+ 
+ 
+ def _real_risk_types():
+@@ -103,7 +143,11 @@
+     tmp_path: Path, terminal_state: str
+ ) -> None:
+     scope = execution.ExecutionScope(
+-        "FAKE", "offline", "acct-proof", "strategy.proof", "20260927"
++        _REGISTERED_PROVIDER,
++        "offline",
++        _REGISTERED_ACCOUNT,
++        _REGISTERED_STRATEGY,
++        "20260927",
+     )
+     store = execution.SqliteExecutionStore(tmp_path / "execution.sqlite3")
+     order_facade = execution.ManagedExecutionFacade(
+@@ -146,23 +190,23 @@
+             metadata_version="meta-v1",
+         )
+         risk_scope = risk.AccountScope(
+-            provider="fake", account_id="account-proof", environment="offline"
++            provider="fake", account_id=_REGISTERED_ACCOUNT, environment="offline"
+         )
+         risk_types = _real_risk_types()
+-        authority = __import__(
+-            "cancel_proof_authority_under_test", fromlist=["ManagedFakeProviderJournalAuthority"]
+-        ).ManagedFakeProviderJournalAuthority(
++        authority = ManagedFakeProviderJournalAuthority(
+             database_path=tmp_path / "fake.sqlite3",
+             execution_scope=scope,
+             risk_scope=risk_scope,
+             execution_store=store,
+             facade=order_facade,
+             risk_types=risk_types,
++            contract=_FAKE_CONTRACT,
++            policy_id=_REGISTERED_POLICY,
+         )
+         risk_gate = risk.DurableRiskGate(
+             tmp_path / "risk.sqlite3",
+             risk.RiskPolicy(
+-                policy_id="cancel-proof-integration",
++                policy_id=_REGISTERED_POLICY,
+                 max_increase_notional=Decimal("100"),
+                 max_increase_count=3,
+             ),
+@@ -205,20 +249,20 @@
+         with authority.cancel_dispatch_resolution_guard(proof, claim=binding) as verified:
+             assert type(verified) is risk.VerifiedCancelDispatchResolution
+             assert verified.proof_sha256 == proof.fingerprint
+-        reopened = __import__(
+-            "cancel_proof_authority_under_test", fromlist=["ManagedFakeProviderJournalAuthority"]
+-        ).ManagedFakeProviderJournalAuthority(
++        reopened = ManagedFakeProviderJournalAuthority(
+             database_path=tmp_path / "fake.sqlite3",
+             execution_scope=scope,
+             risk_scope=risk_scope,
+             execution_store=store,
+             facade=order_facade,
+             risk_types=risk_types,
++            contract=_FAKE_CONTRACT,
++            policy_id=_REGISTERED_POLICY,
+         )
+         reopened_risk_gate = risk.DurableRiskGate(
+             tmp_path / "risk.sqlite3",
+             risk.RiskPolicy(
+-                policy_id="cancel-proof-integration",
++                policy_id=_REGISTERED_POLICY,
+                 max_increase_notional=Decimal("100"),
+                 max_increase_count=3,
+             ),

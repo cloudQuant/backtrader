@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.353" timestamp="2026-09-27T20:40:24.880708" hostname="yun"><testcase classname="tests.unit.runtime.test_ctp_simnow_operator_route" name="test_registered_013_3_preflight_fails_closed_before_config_or_provider_io" time="0.017" /></testsuite></testsuites>

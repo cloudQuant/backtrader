@@ -1,0 +1,60 @@
+{
+  "schema": "ac41_g1_i13_i15_overlapped_io_custody_candidate.v1",
+  "date": "2026-09-28",
+  "candidate_root": "D:\\temp\\ac41-g1-overlapped-channel-custody-20260927",
+  "baseline_source_root": "D:\\source_code\\backtrader",
+  "status": "LOCAL_CHANNEL_SUBGATE_ONLY; STRICT_G1_NO_GO",
+  "changed_files": [
+    "scripts/ctp_i13_i15_worker_output_channel.py",
+    "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py"
+  ],
+  "support_files": [
+    "scripts/__init__.py",
+    "scripts/ctp_i13_i15_outer_watchdog.py",
+    "scripts/ctp_i13_i15_windows_job_backend.py"
+  ],
+  "file_hashes": {
+    "scripts/ctp_i13_i15_worker_output_channel.py": {
+      "baseline_sha256": "c32dbe7c850e07fde6a3e57f5b29ca45803cfa5b8f3bea103d5e0582b4656222",
+      "candidate_sha256": "4f9ff31428cdfd9d62acc8118ae4bb00bc09cc0e5883fb07c6b1daea85f41178",
+      "identical": false
+    },
+    "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py": {
+      "baseline_sha256": "10f814f004843dbd404640fb2041763bdb087fa18ec7478c48c4b21ec43a287c",
+      "candidate_sha256": "25332e48979f7827fa97e5dc4c8fa4fb7acd8eb17262c505bde4f4afec182861",
+      "identical": false
+    },
+    "scripts/__init__.py": {
+      "baseline_sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb",
+      "candidate_sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb",
+      "identical": true
+    },
+    "scripts/ctp_i13_i15_outer_watchdog.py": {
+      "baseline_sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "candidate_sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "identical": true
+    },
+    "scripts/ctp_i13_i15_windows_job_backend.py": {
+      "baseline_sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "candidate_sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "identical": true
+    }
+  },
+  "patch": {
+    "path": "PATCH.diff",
+    "sha256": "c27ddf0d605a9705956dff9ba00b05f3b6640492162c8e58f4e07d4791a44bdd"
+  },
+  "freeze_helper": {
+    "path": "make_freeze.py",
+    "sha256": "4337066d30f9f55bb065611f77d5e26d159c8286d92cd9e768228146c5f62ca0"
+  },
+  "verification": {
+    "pytest_command": "python -m pytest -q tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+    "pytest_result": "33 passed in 0.99s",
+    "ruff_command": "python -m ruff check --config D:\\source_code\\backtrader\\pyproject.toml scripts/ctp_i13_i15_worker_output_channel.py tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+    "ruff_result": "All checks passed",
+    "py_compile_command": "python -m py_compile scripts/ctp_i13_i15_worker_output_channel.py tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+    "py_compile_result": "exit 0",
+    "execution_scope": "Windows inert local fake tests only; no SDK, provider, credentials, or network"
+  }
+}

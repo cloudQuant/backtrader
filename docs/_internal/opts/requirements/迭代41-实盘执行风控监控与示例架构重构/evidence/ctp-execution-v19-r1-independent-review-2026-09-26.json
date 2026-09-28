@@ -1,0 +1,558 @@
+{
+  "schema": "iteration41.execution_v19_r1.root_archive.v1",
+  "status": "LOCAL_STORE_CORE_REVIEW_PASS",
+  "date": "2026-09-26",
+  "review_manifest_sha256": "606b93210231f71b86dbf2e7f77165cafe80f93b32ec4ff49939d8e68c042064",
+  "source_manifest_sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10",
+  "root_rehashed_review_artifacts": 29,
+  "root_rehashed_source_files": 28,
+  "root_readonly_database_checks": [
+    {
+      "path": "r0_aba_red/execution.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_aba_acceptance/db/execution.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_ctp_family_unknown_gate/execution.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_family_owner/aliases.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_family_owner/contended.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_family_owner/sibling.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_generic_unknown_gate/execution.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_v18_migration/input-v18.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    },
+    {
+      "path": "r1_v18_migration/migrated-v18.sqlite3",
+      "foreign_key_violations": 0,
+      "integrity_check": "ok",
+      "bytes_unchanged": true
+    }
+  ],
+  "author_package_result": "240 passed, 2 skipped; reported in frozen source manifest, raw full-suite log not supplied in this archive",
+  "independent_review": {
+    "kind": "independent V19 Store r1 review evidence",
+    "generated_utc": "2026-09-26T15:13:36Z",
+    "r1_snapshot": {
+      "path": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+      "manifest_sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10",
+      "store_py_sha256": "0e4b48443a9672df662e0799def92fe2442ebb3d5427f2bfb93a5049b4fe16c8",
+      "author_suite": "PYTHONPATH=src python -m pytest -q; 240 passed, 2 skipped (author-reported in immutable snapshot manifest)"
+    },
+    "cases": [
+      {
+        "id": "r0_aba_red",
+        "result": "EXPECTED_RED",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r0_20260926",
+        "expected": "release/reacquire reused token 1; stale lease mutation accepted; stale release deleted active lease",
+        "files": [
+          "r0_aba_red/stale_lease_repro.py",
+          "r0_aba_red/run.log",
+          "r0_aba_red/execution.sqlite3"
+        ]
+      },
+      {
+        "id": "r1_aba_acceptance",
+        "result": "PASS",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+        "command": "compatible Python 3.11 runs stale_lease_acceptance.py with PYTHONPATH and EXPECTED_BT_API_EXECUTION_SRC pinned to r1 src",
+        "checks": "release token 1; close/reopen; acquire token 2; stale mutation rejected; stale release false; fresh lease valid; fresh mutation accepted; provider calls 0",
+        "files": [
+          "r1_aba_acceptance/stale_lease_acceptance.py",
+          "r1_aba_acceptance/run.log",
+          "r1_aba_acceptance/db/execution.sqlite3",
+          "r1_aba_acceptance/exit_code.txt"
+        ]
+      },
+      {
+        "id": "r1_generic_unknown_gate",
+        "result": "PASS",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+        "checks": "startup scan empty; after lease generation advances, UNKNOWN cancellation in same generic account_key blocks sibling strategy/day submit claim; state remains PENDING_DISPATCH, attempts 0, provider calls 0, without risk-freeze call",
+        "files": [
+          "r1_generic_unknown_gate/account_gate_repro.py",
+          "r1_generic_unknown_gate/run.log",
+          "r1_generic_unknown_gate/execution.sqlite3"
+        ]
+      },
+      {
+        "id": "r1_ctp_family_unknown_gate",
+        "result": "PASS",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+        "command": "independent rerun with EXPECTED_BT_API_EXECUTION_SRC pinned to r1 src",
+        "checks": "same canonical CTP account_ref, sibling strategy and next trading day; UNKNOWN cancel blocks submit before dispatch; PENDING_DISPATCH, attempts 0, provider calls 0, no risk-freeze call",
+        "files": [
+          "r1_ctp_family_unknown_gate/ctp_family_gate_repro.py",
+          "r1_ctp_family_unknown_gate/run.log",
+          "r1_ctp_family_unknown_gate/execution.sqlite3",
+          "r1_ctp_family_unknown_gate/exit_code.txt"
+        ]
+      },
+      {
+        "id": "r1_family_owner",
+        "result": "PASS",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+        "checks": "same-Store sibling strategy/day scopes share exact owner; cross-Store/reopen and cross-environment use reject; concurrent simulation/live owner race has one winner; CTP aliases reject",
+        "files": [
+          "r1_family_owner/family_owner_repro.py",
+          "r1_family_owner/run.log",
+          "r1_family_owner/aliases.sqlite3",
+          "r1_family_owner/contended.sqlite3",
+          "r1_family_owner/sibling.sqlite3"
+        ]
+      },
+      {
+        "id": "r1_v18_migration",
+        "result": "PASS",
+        "source": "D:\\temp\\iteration41_v19_store_freeze_r1_20260926",
+        "checks": "schema 18→19; global unmapped_legacy_execution_history fence; owner creation blocked; history rows/payload hashes preserved; FK checks clean; one explicit safety transition family-live-ready-submit READY→UNKNOWN; no native/provider calls",
+        "files": [
+          "r1_v18_migration/migration_fence_repro.py",
+          "r1_v18_migration/run.log",
+          "r1_v18_migration/input-v18.sqlite3",
+          "r1_v18_migration/migrated-v18.sqlite3"
+        ]
+      },
+      {
+        "id": "r1_focused_tests",
+        "result": "PASS",
+        "command": "tests/test_execution_store.py::test_released_writer_lease_generation_is_never_reused_after_reopen and tests/test_ctp_account_family_owner.py::test_family_owner_reuses_only_exact_store_handle_for_sibling_scopes",
+        "result_detail": "pytest exit 0",
+        "files": [
+          "r1_focus/pytest.log",
+          "r1_focus/exit_code.txt"
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "source_snapshot_manifest.json",
+        "size": 5658,
+        "sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10"
+      },
+      {
+        "path": "r0_aba_red/case_manifest.json",
+        "size": 824,
+        "sha256": "6e5ea4d855d708d31ac364ed9fac58dd0f0326ae0ea9f084a6d40e9b9dc90fbe"
+      },
+      {
+        "path": "r0_aba_red/execution.sqlite3",
+        "size": 466944,
+        "sha256": "cad2692e3afb5429169ed7547a52a88a89b19536bbece829a59c054d8eb29ee8"
+      },
+      {
+        "path": "r0_aba_red/run.log",
+        "size": 882,
+        "sha256": "063cd1f5e9b986a2d93a4e9b619d375bad93d2d2124d3bf353b22e014da14cb3"
+      },
+      {
+        "path": "r0_aba_red/stale_lease_repro.py",
+        "size": 3521,
+        "sha256": "4c9787d442c8af080927c41cd693585ef3859dbdcf8671a41565a2815e5937b1"
+      },
+      {
+        "path": "r1_aba_acceptance/run.log",
+        "size": 408,
+        "sha256": "6edb50923cf8814996a8f13165b05fec44169087264528801b4ae72430224086"
+      },
+      {
+        "path": "r1_aba_acceptance/stale_lease_acceptance.py",
+        "size": 3241,
+        "sha256": "dce0b5c1d8b742bd9ee9286eb79ae9ce630e1c8bbaf8fd68f0b218d8c8cb4795"
+      },
+      {
+        "path": "r1_aba_acceptance/db/execution.sqlite3",
+        "size": 466944,
+        "sha256": "610e4b4c275330570dfb5dc3acd8a473b064d0b9ea01970a4183126550e14906"
+      },
+      {
+        "path": "r1_ctp_family_unknown_gate/case_manifest.py.json",
+        "size": 385,
+        "sha256": "b29d0eef023767f1c7104dd4e168ed56b422c8a14e6e8c40303449e4431feb11"
+      },
+      {
+        "path": "r1_ctp_family_unknown_gate/ctp_family_gate_repro.py",
+        "size": 5501,
+        "sha256": "a3ded5a9652cd9a7fc2b960a7d688174f9dc11cf674b0875cd58162aaa7ebea7"
+      },
+      {
+        "path": "r1_ctp_family_unknown_gate/execution.sqlite3",
+        "size": 466944,
+        "sha256": "5c665f4187a96cbe831a87b1d55179e14cc1800e59025f11192bb0fd3b61228f"
+      },
+      {
+        "path": "r1_ctp_family_unknown_gate/exit_code.txt",
+        "size": 1,
+        "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+      },
+      {
+        "path": "r1_ctp_family_unknown_gate/run.log",
+        "size": 553,
+        "sha256": "cf34a68dba207a891774b910809635927d27a331330bc1a91cb11811432897dc"
+      },
+      {
+        "path": "r1_family_owner/aliases.sqlite3",
+        "size": 466944,
+        "sha256": "1ee2b5a5ad9b767e847ccb8dcf15109e35ed4690ebb3a6d03266b308a1241393"
+      },
+      {
+        "path": "r1_family_owner/case_manifest.json",
+        "size": 301,
+        "sha256": "a0c9f330cb5247e8651b9b506f0e9c0ca6d7f8de211d5d8e5180686c1e1a21c2"
+      },
+      {
+        "path": "r1_family_owner/contended.sqlite3",
+        "size": 466944,
+        "sha256": "505ec9c43c2179293d53fde822ea960948b9634e59ae5390aa89d248f13ed969"
+      },
+      {
+        "path": "r1_family_owner/family_owner_repro.py",
+        "size": 7397,
+        "sha256": "4aefc3b7eac1f0501279a10874d79cef5b100bd515f705b8e789fb253b631c12"
+      },
+      {
+        "path": "r1_family_owner/run.log",
+        "size": 748,
+        "sha256": "ca73a1bce616a2a10534d84e530099dd0794f5af9c12e1fc32ff41f648bbe600"
+      },
+      {
+        "path": "r1_family_owner/sibling.sqlite3",
+        "size": 466944,
+        "sha256": "a6e824433a4aec160d76f6bbb40603def3aa90c47ca917af4e539827afbed6d4"
+      },
+      {
+        "path": "r1_focus/pytest.log",
+        "size": 775,
+        "sha256": "9956be33d5959b071e99b4b8a12f27c37beac0c5ce9bcd8e52bb3aca04f23061"
+      },
+      {
+        "path": "r1_generic_unknown_gate/account_gate_repro.py",
+        "size": 5292,
+        "sha256": "2d6963331b38cf4603eb0123575b96dbd0cbe04d11d1b298f79fd1ba3326b596"
+      },
+      {
+        "path": "r1_generic_unknown_gate/case_manifest.json",
+        "size": 385,
+        "sha256": "8d4fe41a7f80d7cd5b2efac5423b53aae5e43a86479ed67db3290a1465f31cad"
+      },
+      {
+        "path": "r1_generic_unknown_gate/execution.sqlite3",
+        "size": 466944,
+        "sha256": "252e7e1aae4e92f5dc12b7cd75c652cb02749277297a3c4052b392085e7a7262"
+      },
+      {
+        "path": "r1_generic_unknown_gate/run.log",
+        "size": 510,
+        "sha256": "41c48d42556732a0944dd978aa3b3212447bd95eb6dfe0933be530c4dfc73917"
+      },
+      {
+        "path": "r1_v18_migration/case_manifest.json",
+        "size": 483,
+        "sha256": "06f4f431d0d4ba64550171a37fd1280d4d208a7aa36a068cf9bf8981c71c5ca9"
+      },
+      {
+        "path": "r1_v18_migration/input-v18.sqlite3",
+        "size": 442368,
+        "sha256": "e20017358c2bccfd86bc61ba615f49b9007f06e9f8e0c490611e89131a4982f0"
+      },
+      {
+        "path": "r1_v18_migration/migrated-v18.sqlite3",
+        "size": 462848,
+        "sha256": "396eea4bed364e7e6a33bbcd5526aa35b597e141f446c931bb3a33e5edddf7b5"
+      },
+      {
+        "path": "r1_v18_migration/migration_fence_repro.py",
+        "size": 7902,
+        "sha256": "a24ca37f8cff9aa50e77401a2b0b9d30792d5ec2311fc1ceda17988b1f382306"
+      },
+      {
+        "path": "r1_v18_migration/run.log",
+        "size": 1628,
+        "sha256": "67e97fe21bad90bf9fcab5da639c9277ef2f093f1dd87abc11994e029871db3e"
+      }
+    ]
+  },
+  "archive": {
+    "file": "ctp-execution-v19-r1-independent-review-2026-09-26.raw.zip",
+    "sha256": "bd1fbab1e5ce3e542a30463d1ac9f011827e700739cb768bad778451d2690643",
+    "entries": 59
+  },
+  "archive_entries": [
+    {
+      "path": "review/r0_aba_red/case_manifest.json",
+      "sha256": "6e5ea4d855d708d31ac364ed9fac58dd0f0326ae0ea9f084a6d40e9b9dc90fbe"
+    },
+    {
+      "path": "review/r0_aba_red/execution.sqlite3",
+      "sha256": "cad2692e3afb5429169ed7547a52a88a89b19536bbece829a59c054d8eb29ee8"
+    },
+    {
+      "path": "review/r0_aba_red/run.log",
+      "sha256": "063cd1f5e9b986a2d93a4e9b619d375bad93d2d2124d3bf353b22e014da14cb3"
+    },
+    {
+      "path": "review/r0_aba_red/stale_lease_repro.py",
+      "sha256": "4c9787d442c8af080927c41cd693585ef3859dbdcf8671a41565a2815e5937b1"
+    },
+    {
+      "path": "review/r1_aba_acceptance/db/execution.sqlite3",
+      "sha256": "610e4b4c275330570dfb5dc3acd8a473b064d0b9ea01970a4183126550e14906"
+    },
+    {
+      "path": "review/r1_aba_acceptance/run.log",
+      "sha256": "6edb50923cf8814996a8f13165b05fec44169087264528801b4ae72430224086"
+    },
+    {
+      "path": "review/r1_aba_acceptance/stale_lease_acceptance.py",
+      "sha256": "dce0b5c1d8b742bd9ee9286eb79ae9ce630e1c8bbaf8fd68f0b218d8c8cb4795"
+    },
+    {
+      "path": "review/r1_ctp_family_unknown_gate/case_manifest.py.json",
+      "sha256": "b29d0eef023767f1c7104dd4e168ed56b422c8a14e6e8c40303449e4431feb11"
+    },
+    {
+      "path": "review/r1_ctp_family_unknown_gate/ctp_family_gate_repro.py",
+      "sha256": "a3ded5a9652cd9a7fc2b960a7d688174f9dc11cf674b0875cd58162aaa7ebea7"
+    },
+    {
+      "path": "review/r1_ctp_family_unknown_gate/execution.sqlite3",
+      "sha256": "5c665f4187a96cbe831a87b1d55179e14cc1800e59025f11192bb0fd3b61228f"
+    },
+    {
+      "path": "review/r1_ctp_family_unknown_gate/exit_code.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "review/r1_ctp_family_unknown_gate/run.log",
+      "sha256": "cf34a68dba207a891774b910809635927d27a331330bc1a91cb11811432897dc"
+    },
+    {
+      "path": "review/r1_family_owner/aliases.sqlite3",
+      "sha256": "1ee2b5a5ad9b767e847ccb8dcf15109e35ed4690ebb3a6d03266b308a1241393"
+    },
+    {
+      "path": "review/r1_family_owner/case_manifest.json",
+      "sha256": "a0c9f330cb5247e8651b9b506f0e9c0ca6d7f8de211d5d8e5180686c1e1a21c2"
+    },
+    {
+      "path": "review/r1_family_owner/contended.sqlite3",
+      "sha256": "505ec9c43c2179293d53fde822ea960948b9634e59ae5390aa89d248f13ed969"
+    },
+    {
+      "path": "review/r1_family_owner/family_owner_repro.py",
+      "sha256": "4aefc3b7eac1f0501279a10874d79cef5b100bd515f705b8e789fb253b631c12"
+    },
+    {
+      "path": "review/r1_family_owner/run.log",
+      "sha256": "ca73a1bce616a2a10534d84e530099dd0794f5af9c12e1fc32ff41f648bbe600"
+    },
+    {
+      "path": "review/r1_family_owner/sibling.sqlite3",
+      "sha256": "a6e824433a4aec160d76f6bbb40603def3aa90c47ca917af4e539827afbed6d4"
+    },
+    {
+      "path": "review/r1_focus/pytest.log",
+      "sha256": "9956be33d5959b071e99b4b8a12f27c37beac0c5ce9bcd8e52bb3aca04f23061"
+    },
+    {
+      "path": "review/r1_generic_unknown_gate/account_gate_repro.py",
+      "sha256": "2d6963331b38cf4603eb0123575b96dbd0cbe04d11d1b298f79fd1ba3326b596"
+    },
+    {
+      "path": "review/r1_generic_unknown_gate/case_manifest.json",
+      "sha256": "8d4fe41a7f80d7cd5b2efac5423b53aae5e43a86479ed67db3290a1465f31cad"
+    },
+    {
+      "path": "review/r1_generic_unknown_gate/execution.sqlite3",
+      "sha256": "252e7e1aae4e92f5dc12b7cd75c652cb02749277297a3c4052b392085e7a7262"
+    },
+    {
+      "path": "review/r1_generic_unknown_gate/run.log",
+      "sha256": "41c48d42556732a0944dd978aa3b3212447bd95eb6dfe0933be530c4dfc73917"
+    },
+    {
+      "path": "review/r1_v18_migration/case_manifest.json",
+      "sha256": "06f4f431d0d4ba64550171a37fd1280d4d208a7aa36a068cf9bf8981c71c5ca9"
+    },
+    {
+      "path": "review/r1_v18_migration/input-v18.sqlite3",
+      "sha256": "e20017358c2bccfd86bc61ba615f49b9007f06e9f8e0c490611e89131a4982f0"
+    },
+    {
+      "path": "review/r1_v18_migration/migrated-v18.sqlite3",
+      "sha256": "396eea4bed364e7e6a33bbcd5526aa35b597e141f446c931bb3a33e5edddf7b5"
+    },
+    {
+      "path": "review/r1_v18_migration/migration_fence_repro.py",
+      "sha256": "a24ca37f8cff9aa50e77401a2b0b9d30792d5ec2311fc1ceda17988b1f382306"
+    },
+    {
+      "path": "review/r1_v18_migration/run.log",
+      "sha256": "67e97fe21bad90bf9fcab5da639c9277ef2f093f1dd87abc11994e029871db3e"
+    },
+    {
+      "path": "review/review_manifest.json",
+      "sha256": "606b93210231f71b86dbf2e7f77165cafe80f93b32ec4ff49939d8e68c042064"
+    },
+    {
+      "path": "review/source_snapshot_manifest.json",
+      "sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10"
+    },
+    {
+      "path": "source/manifest.json",
+      "sha256": "2558c4248d6e6a202ead02b8fc88d4ed0a3ab3a686a90e55a7fc2b02e4387e10"
+    },
+    {
+      "path": "source/pyproject.toml",
+      "sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1"
+    },
+    {
+      "path": "source/src/bt_api_execution/__init__.py",
+      "sha256": "bef2a37835d55c67a6bddfbb3eb51500dd212cf2a0ad0660e2957d08a0fcf774"
+    },
+    {
+      "path": "source/src/bt_api_execution/admission.py",
+      "sha256": "59a76820b1d3eeaa58bfa28de9b38750d9f0400a62e43b7e16f58eeb4bf12171"
+    },
+    {
+      "path": "source/src/bt_api_execution/cancellation.py",
+      "sha256": "ef1f8e1e8d4ce85409c78d8496baf7b974e06df874414b76b705d3cf5805ef4b"
+    },
+    {
+      "path": "source/src/bt_api_execution/contracts.py",
+      "sha256": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_ledger_adapter.py",
+      "sha256": "a13d86f19122b1c5e55a06cd49019769e0effb7b8fa2fdbdabdcb51732c05e32"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_session.py",
+      "sha256": "1e348a6f1be695f1042645a49094bbc253b143eed72668cd89a4763d89510d69"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_source_bridge.py",
+      "sha256": "b733aaf286a118ff5dad94818c008bab6ea2d81ee1a0d0b81ebafc1d2ff4f10f"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_native_callbacks.py",
+      "sha256": "d44c980649b03f861caec2bcc0d8278bd2ee41f42009a83ae235563137d65861"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_single_worker_candidate.py",
+      "sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3"
+    },
+    {
+      "path": "source/src/bt_api_execution/errors.py",
+      "sha256": "45d5e8c414b5a80926ad6e85a0058acebc5c947c0bb7b199c5e9190d3317c784"
+    },
+    {
+      "path": "source/src/bt_api_execution/facade.py",
+      "sha256": "5b0f4086d2e900823b93abb4e7887ea2ca2523dc62591846ea53ee4458ba438a"
+    },
+    {
+      "path": "source/src/bt_api_execution/ports.py",
+      "sha256": "bf84c0424e962fb6d0ad2a9fc2112fbaa72d281e2bac9d2fa58fc959c1ee40b9"
+    },
+    {
+      "path": "source/src/bt_api_execution/py.typed",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "source/src/bt_api_execution/store.py",
+      "sha256": "0e4b48443a9672df662e0799def92fe2442ebb3d5427f2bfb93a5049b4fe16c8"
+    },
+    {
+      "path": "source/tests/test_admission_adapter.py",
+      "sha256": "325f098494f6b39c89ffb38362a3094049e1cfdfb4073bcdd96917e6268795e0"
+    },
+    {
+      "path": "source/tests/test_cancellation.py",
+      "sha256": "054e3dc90cc5576cc777added5081bc5476093a7d58374e414ada47ee6fb893f"
+    },
+    {
+      "path": "source/tests/test_contracts.py",
+      "sha256": "ab5fc077ed936877bbaed5c73bc2ab42a0cc893f37772f27be15913ad2f93b2e"
+    },
+    {
+      "path": "source/tests/test_ctp_account_family_owner.py",
+      "sha256": "add48aa6cf51e50392ed716975438815461fc1485128062e5da8a2f84361ca59"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_owner.py",
+      "sha256": "ee1852afd45ed9b618df3ff890178b2d92abe0999bc8e19beeeb5871266ea433"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_router.py",
+      "sha256": "d9e1272a3af193074097b14cadb99e3abf64ae7e5d1a659aa34ee7945b6665cc"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_source_bridge.py",
+      "sha256": "a1fc105292b85cc19354f19e391bed3bd130699e2fa00d306ba15e6d27399140"
+    },
+    {
+      "path": "source/tests/test_ctp_dispatch_commands.py",
+      "sha256": "648581381fc123a0540bbe7d70af33a8e9acf1cfa0f9ea2a9c93ea5f1cba12ab"
+    },
+    {
+      "path": "source/tests/test_ctp_native_callbacks.py",
+      "sha256": "de0d0d998720d898cba57addac6cbdf5ff744fe40797fb1441ee5bc7628fac69"
+    },
+    {
+      "path": "source/tests/test_economic_fact_wire.py",
+      "sha256": "7b854b862e0a9db7819c9c134a4c47e40a905cacd31696ce5c20e1333a2e864b"
+    },
+    {
+      "path": "source/tests/test_execution_facade.py",
+      "sha256": "ebcbf409d1337075264df0b9cd531c6e84fe5629868b2d00babd9bad5b146aad"
+    },
+    {
+      "path": "source/tests/test_execution_store.py",
+      "sha256": "c0d699df871b66d93a10afe46805cef9d34bc24237b28d0e5d7cf8bed9f54b67"
+    },
+    {
+      "path": "source/tests/test_outbox_economic_snapshots.py",
+      "sha256": "ba4e2bb2060a51a5d8be41385a5357c0b2a380fcc2269ae83834893ac7fd1253"
+    }
+  ],
+  "limits": [
+    "Independent agent ran focused/manual contracts; root rehashed artifacts and checked copied synthetic SQLite integrity only.",
+    "Restart cannot recover the old CTP family-owner capability; no clean-close handoff accepted.",
+    "Lost pre-fix deleted lease generations cannot be reconstructed; tombstones preserve future generations.",
+    "Fixed-ledger factory and main/SDK unified composition are outside this snapshot.",
+    "No provider, network, private configuration, credentials, or native API was exercised."
+  ]
+}

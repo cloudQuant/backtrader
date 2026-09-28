@@ -1,0 +1,57 @@
+{
+  "format": "iteration41-g5-pytest-rerun-evidence.v1",
+  "candidate_root": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate",
+  "source_inputs": "frozen candidate tree; PYTHONDONTWRITEBYTECODE=1; pytest cache disabled",
+  "tests": [
+    {
+      "name": "candidate-focus",
+      "tests": 26,
+      "exit_code": 0,
+      "command": "python -m pytest <candidate>\\implementation\\tests -q --tb=short -p no:cacheprovider --junitxml focus-junit.xml",
+      "log_sha256": "343003e854961e3dce109a0cd2adad2c34d56b872c76030999ff057b723033ba",
+      "log": "focus-tests.log",
+      "errors": 0,
+      "junit": "focus-junit.xml",
+      "junit_sha256": "4fe95f925e635aa19071248d06ca55267f8f8de86ef00ee6ca5b1127d2d9028c",
+      "outcome": "PASS",
+      "failures": 0,
+      "pythonpath": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\implementation\\sdk\\src;D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\implementation"
+    },
+    {
+      "name": "frozen-sdk-tests-against-candidate-source",
+      "tests": 57,
+      "exit_code": 1,
+      "command": "python -m pytest <candidate>\\inputs\\sdk\\tests -q --tb=short -p no:cacheprovider -c <candidate>\\inputs\\sdk\\pyproject.toml --junitxml sdk-candidate-junit.xml",
+      "failure_nodeids": [
+        "test_v4_execution_store_migrates_to_command_outbox_v5: expected schema version 5, candidate is 6",
+        "test_cancel_command_binds_orderref_exchange_system_order_and_session_ids: legacy fixture supplies no typed target projection/candidate ActionRef",
+        "test_v2_execution_store_adds_nullable_cumulative_commission_column: expected schema version 5, candidate is 6",
+        "test_v3_execution_store_adds_ctp_order_identity_reservations: expected schema version 5, candidate is 6"
+      ],
+      "log_sha256": "af9099a16cfafbad001915e73e62b63cdb61f42b9c4ade9b3a53f623e574200d",
+      "log": "sdk-candidate-tests.log",
+      "errors": 0,
+      "junit": "sdk-candidate-junit.xml",
+      "junit_sha256": "9a3f4df44cc871a12460d988ef494c90bc402051f8f0c218595f3c4b05fe71cf",
+      "outcome": "EXPECTED_CONTRACT_DELTA",
+      "failures": 4,
+      "pythonpath": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\implementation\\sdk\\src;D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\implementation"
+    },
+    {
+      "name": "same-frozen-sdk-tests-against-untouched-frozen-source",
+      "tests": 57,
+      "exit_code": 0,
+      "command": "python -m pytest <candidate>\\inputs\\sdk\\tests -q --tb=short -p no:cacheprovider -c <candidate>\\inputs\\sdk\\pyproject.toml --junitxml sdk-frozen-source-junit.xml with PYTHONPATH=<candidate>\\inputs\\sdk\\src",
+      "log_sha256": "71ef5c40a5c9d53d4382d9f1219bb5e1fbd199edbf25c031e632ef5945c188c6",
+      "log": "sdk-frozen-source-tests.log",
+      "errors": 0,
+      "junit": "sdk-frozen-source-junit.xml",
+      "junit_sha256": "e58e545d7923c15b7aa1b6295a44f1f1f415187c5dd0b07635f6af54ec33daf7",
+      "outcome": "PASS_BASELINE_ONLY",
+      "failures": 0,
+      "pythonpath": "D:\\temp\\iteration41-g5-worker-projection-durable-20260927-candidate\\inputs\\sdk\\src"
+    }
+  ],
+  "python_version": "Python 3.11.5",
+  "working_directory": "D:\\source_code\\backtrader"
+}

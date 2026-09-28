@@ -1,0 +1,750 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index 36f675b..4e2722c 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -6254,6 +6254,8 @@ class BtApiStore(LiveStoreBase):
+     ) -> Dict[str, Any]:
+         """Insert one command without waiting for transport or the SDK worker."""
+         operation = str(command.get("operation") or "").strip().lower()
++        if operation in {"submit", "cancel"}:
++            self._assert_write_route_identity()
+         command_venue = self._public_sdk_venue(command.get("venue")).casefold()
+         managed_ctp_operation = bool(
+             self._managed_execution_adapter is not None
+@@ -6517,6 +6519,7 @@ class BtApiStore(LiveStoreBase):
+                     self._read_account_risk_snapshot, self._ensure_api_ready()
+                 )
+             elif managed_ctp:
++                self._assert_write_route_identity()
+                 binding = command.get("managed_ctp_binding")
+                 dispatcher = command.get("managed_ctp_dispatcher")
+                 if (
+@@ -6646,6 +6649,8 @@ class BtApiStore(LiveStoreBase):
+         return completion
+ 
+     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
++        if operation in {"submit", "cancel"}:
++            self._assert_write_route_identity()
+         if operation in {"submit", "cancel"} and self._is_ctp_write_provider():
+             raise BtApiStoreError("direct CTP SDK command dispatch is disabled")
+         if operation == "submit":
+@@ -7163,13 +7168,19 @@ class BtApiStore(LiveStoreBase):
+             result["account_risk_snapshot"] = account_risk_snapshot
+         return result
+ 
+-    def enqueue_order(self, order) -> Dict[str, Any]:
+-        """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
+-
+-        info = getattr(order, "info", {})
+-        get_info = getattr(info, "get", lambda *_args: None)
+-        recovery_exit = get_info("execution_role") == "recovery_exit"
+-        is_ctp_write = self._is_ctp_write_provider()
++    def enqueue_order(self, order) -> Dict[str, Any]:
++        """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
++
++        info = getattr(order, "info", {})
++        get_info = getattr(info, "get", lambda *_args: None)
++        recovery_exit = get_info("execution_role") == "recovery_exit"
++        try:
++            self._assert_write_route_identity()
++        except Exception:
++            if recovery_exit:
++                self.abort_execution_recovery("execution_recovery_dispatch_failed")
++            raise
++        is_ctp_write = self._is_ctp_write_provider()
+         if self._managed_execution_adapter is not None and is_ctp_write:
+             if recovery_exit:
+                 self.abort_execution_recovery("execution_recovery_dispatch_failed")
+@@ -7241,6 +7252,7 @@ class BtApiStore(LiveStoreBase):
+         self, order, *, ctp_managed_identity: Optional[CtpManagedOrderDispatch] = None
+     ) -> Dict[str, Any]:
+         """Build and queue one typed SDK order."""
++        self._assert_write_route_identity()
+         if ctp_managed_identity is not None:
+             error = BtApiStoreError(
+                 "managed CTP dispatch is closed until the single execution outbox owns the OrderRef reservation"
+@@ -7334,6 +7346,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
+         """Queue a typed cancellation while preserving its reserved capacity."""
++        self._assert_write_route_identity()
+         if (
+             self._managed_execution_adapter is not None
+             and self._is_ctp_write_provider()
+@@ -7375,6 +7388,7 @@ class BtApiStore(LiveStoreBase):
+     ) -> Dict[str, Any]:
+         """Queue one typed managed CTP cancel using only its durable identity."""
+ 
++        self._assert_write_route_identity()
+         if type(identity) is not CtpManagedCancelDispatch:
+             raise BtApiStoreError("managed CTP adapter returned an untyped cancel projection")
+         error = BtApiStoreError(
+@@ -7748,6 +7762,7 @@ class BtApiStore(LiveStoreBase):
+         fact into an accidental provider write.
+         """
+ 
++        self._assert_write_route_identity()
+         adapter = self._managed_execution_adapter
+         if adapter is None:
+             if self._is_ctp_write_provider():
+@@ -7796,6 +7811,7 @@ class BtApiStore(LiveStoreBase):
+     def _submit_ctp_managed_order(self, order, adapter):
+         """Project an admitted managed CTP intent only onto the typed SDK queue."""
+ 
++        self._assert_write_route_identity()
+         if not self._sdk_mode:
+             raise BtApiStoreError(
+                 "managed CTP execution requires the SDK command route; native Store writes are closed"
+@@ -7940,6 +7956,8 @@ class BtApiStore(LiveStoreBase):
+         after it makes its durable admission decision.  No public route calls
+         it following a managed-adapter failure.
+         """
++        api_was_missing = getattr(self, "_api", None) is None
++        self._assert_write_route_identity()
+         if self._is_ctp_write_provider():
+             raise BtApiStoreError("direct CTP Store order writes are disabled")
+         if self._sdk_mode:
+@@ -7959,11 +7977,12 @@ class BtApiStore(LiveStoreBase):
+             order_ref=order_ref,
+             details=dict(payload),
+             status="submitted",
+-        )
+-
+-        try:
+-            if hasattr(api, "submit_order"):
+-                response = api.submit_order(payload)
++        )
++
++        try:
++            self._assert_write_route_identity(require_live_route=api_was_missing)
++            if hasattr(api, "submit_order"):
++                response = api.submit_order(payload)
+             elif hasattr(api, "create_order"):
+                 response = api.create_order(**payload)
+             else:
+@@ -8067,6 +8086,7 @@ class BtApiStore(LiveStoreBase):
+     def _cancel_managed(self, order_or_ref, dataname: Optional[str] = None):
+         """Delegate one managed cancellation without any direct fallback."""
+ 
++        self._assert_write_route_identity()
+         adapter = self._managed_execution_adapter
+         if adapter is None:
+             raise BtApiStoreError("managed execution adapter is not attached")
+@@ -8215,6 +8235,8 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _cancel_order_ref_legacy(self, order_ref, dataname: Optional[str] = None):
+         """Run the historic provider cancellation mapping for a managed adapter port."""
++        api_was_missing = getattr(self, "_api", None) is None
++        self._assert_write_route_identity()
+         if self._is_ctp_write_provider():
+             raise BtApiStoreError("direct CTP Store cancellation is disabled")
+         if self._sdk_mode:
+@@ -8233,11 +8255,12 @@ class BtApiStore(LiveStoreBase):
+             order_ref=order_ref,
+             details=details,
+             status="submitted",
+-        )
+-
+-        try:
+-            if hasattr(api, "cancel_order"):
+-                response = api.cancel_order(order_ref, dataname=dataname)
++        )
++
++        try:
++            self._assert_write_route_identity(require_live_route=api_was_missing)
++            if hasattr(api, "cancel_order"):
++                response = api.cancel_order(order_ref, dataname=dataname)
+             else:
+                 raise BtApiStoreError(
+                     "Underlying bt_api_py client does not support order cancellation"
+@@ -8355,6 +8378,173 @@ class BtApiStore(LiveStoreBase):
+             raise BtApiStoreError("Exactly one configured CTP SDK exchange is required")
+         return venues[0]
+ 
++    @staticmethod
++    def _write_route_names(routes):
++        """Return normalized exchange roots from route keys or route values."""
++        try:
++            if isinstance(routes, Mapping):
++                routes = routes.keys()
++            if isinstance(routes, str):
++                routes = (routes,)
++            return {
++                str(route or "").strip().upper().partition("___")[0]
++                for route in routes
++                if str(route or "").strip()
++            }
++        except Exception as exc:
++            raise BtApiStoreError(
++                "Store/API route identity is unavailable; write dispatch is disabled"
++            ) from exc
++
++    @staticmethod
++    def _write_route_keys(routes):
++        """Return normalized full route keys for snapshot comparison."""
++        try:
++            if isinstance(routes, Mapping):
++                routes = routes.keys()
++            if isinstance(routes, str):
++                routes = (routes,)
++            return {str(route or "").strip().upper() for route in routes if str(route or "").strip()}
++        except Exception as exc:
++            raise BtApiStoreError(
++                "Store/API route identity is unavailable; write dispatch is disabled"
++            ) from exc
++
++    def _expected_write_route_names(self):
++        """Resolve the Store route identity without consulting an API object."""
++        provider = str(getattr(self, "provider", "") or "").strip().lower()
++        config = getattr(self, "_config", {})
++        api_kwargs = getattr(self, "_api_kwargs", {})
++        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
++            raise BtApiStoreError("Store/API route identity is unavailable; write dispatch is disabled")
++        if getattr(self, "backend", "") == "gateway":
++            route = (
++                api_kwargs.get("exchange_type") or api_kwargs.get("exchange")
++                or config.get("exchange_type") or config.get("exchange")
++                or (provider[:-8] if provider.endswith("_gateway") else provider) or "CTP"
++            )
++            return self._write_route_names((route,))
++        if getattr(self, "backend", "") == "forwarding":
++            route = (
++                api_kwargs.get("exchange") or api_kwargs.get("exchange_type")
++                or config.get("exchange") or config.get("exchange_type") or "SIM"
++            )
++            return self._write_route_names((route,))
++        if provider == "btapi":
++            sdk_exchanges = getattr(self, "_sdk_exchanges", {})
++            sdk_routes = getattr(self, "_sdk_routes", {})
++            if not isinstance(sdk_exchanges, Mapping) or not isinstance(
++                sdk_routes, Mapping
++            ):
++                raise BtApiStoreError(
++                    "Store/API route identity is unavailable; write dispatch is disabled"
++                )
++            try:
++                symbol_routes = sdk_routes.values()
++            except Exception as exc:
++                raise BtApiStoreError(
++                    "Store/API route identity is unavailable; write dispatch is disabled"
++                ) from exc
++            return (
++                self._write_route_names(sdk_exchanges)
++                | self._write_route_names(symbol_routes)
++            )
++        if provider.endswith("_gateway"):
++            provider = provider[:-8]
++        return self._write_route_names((provider,))
++
++    def _assert_write_route_identity(self, *, require_live_route: bool = False) -> None:
++        """Reject a Store/API route mismatch before any provider write handoff.
++
++        The live check reads only a plain mapping found by static attribute
++        lookup. It does not invoke API properties or treat route metadata as
++        authority.
++        """
++        expected = self._expected_write_route_names()
++        sdk_exchanges = getattr(self, "_sdk_exchanges", {})
++        if not isinstance(sdk_exchanges, Mapping):
++            raise BtApiStoreError(
++                "Store/API route identity is unavailable; write dispatch is disabled"
++            )
++        snapshot = self._write_route_names(sdk_exchanges)
++        snapshot_keys = self._write_route_keys(sdk_exchanges)
++        api = getattr(self, "_api", None)
++        live_routes = None
++        live_keys = None
++        if api is not None:
++            try:
++                api_dict = object.__getattribute__(api, "__dict__")
++            except Exception:
++                api_dict = None
++            missing_route = object()
++            try:
++                static_routes = inspect.getattr_static(
++                    api, "exchange_kwargs", missing_route
++                )
++            except Exception as exc:
++                raise BtApiStoreError(
++                    "Store/API route identity is unavailable; write dispatch is disabled"
++                ) from exc
++            has_plain_routes = type(api_dict) is dict and "exchange_kwargs" in api_dict
++            if static_routes is missing_route and not snapshot:
++                try:
++                    dynamic_getattr = inspect.getattr_static(
++                        type(api), "__getattr__", missing_route
++                    )
++                except Exception as exc:
++                    raise BtApiStoreError(
++                        "Store/API route identity is unavailable; write dispatch is disabled"
++                    ) from exc
++                if dynamic_getattr is not missing_route:
++                    raise BtApiStoreError(
++                        "Store/API route identity is unavailable; write dispatch is disabled"
++                    )
++            if has_plain_routes and static_routes is not api_dict["exchange_kwargs"]:
++                raise BtApiStoreError(
++                    "Store/API route identity is unavailable; write dispatch is disabled"
++                )
++            if has_plain_routes:
++                value = api_dict.get("exchange_kwargs")
++                if not isinstance(value, Mapping):
++                    raise BtApiStoreError(
++                        "Store/API route identity is unavailable; write dispatch is disabled"
++                    )
++                live_routes = self._write_route_names(value)
++                live_keys = self._write_route_keys(value)
++            elif static_routes is not missing_route:
++                if not isinstance(static_routes, Mapping):
++                    raise BtApiStoreError(
++                        "Store/API route identity is unavailable; write dispatch is disabled"
++                    )
++                live_routes = self._write_route_names(static_routes)
++                live_keys = self._write_route_keys(static_routes)
++        if (
++            require_live_route
++            and api is not None
++            and not snapshot
++            and not live_routes
++        ):
++            raise BtApiStoreError(
++                "Store/API route identity is unavailable; write dispatch is disabled"
++            )
++        if live_routes is not None:
++            if (snapshot_keys or live_keys) and snapshot_keys != live_keys:
++                raise BtApiStoreError(
++                    "Store/API route identity changed; write dispatch is disabled"
++                )
++            if expected and expected != live_routes:
++                raise BtApiStoreError(
++                    "Store/API route identity mismatch; write dispatch is disabled"
++                )
++        elif require_live_route and api is not None and not snapshot:
++            raise BtApiStoreError(
++                "Store/API route identity is unavailable; write dispatch is disabled"
++            )
++        elif snapshot and expected and snapshot != expected:
++            raise BtApiStoreError(
++                "Store/API route identity mismatch; write dispatch is disabled"
++            )
++
+     def _is_ctp_write_provider(self) -> bool:
+         """Fail-close CTP writes from Store route/config snapshots.
+ 
+diff --git a/tests/unit/stores/test_btapistore_api_route_identity.py b/tests/unit/stores/test_btapistore_api_route_identity.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/stores/test_btapistore_api_route_identity.py
+@@ -0,0 +1,412 @@
++from __future__ import annotations
++
++import asyncio
++from collections import Counter
++from types import SimpleNamespace
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
++
++
++class FakeApi:
++    def __init__(self, routes=None):
++        self.exchange_kwargs = dict(routes) if routes is not None else {}
++        self.calls = []
++        self.lookups = []
++
++    def __getattribute__(self, name):
++        if name in {"async_make_order", "async_cancel_order", "submit_order", "cancel_order"}:
++            object.__getattribute__(self, "lookups").append(name)
++        return object.__getattribute__(self, name)
++
++    async def async_make_order(self, venue, request, **kwargs):
++        self.calls.append(("submit", venue))
++        return {"ok": True, "operation": "submit"}
++
++    async def async_cancel_order(self, venue, request, **kwargs):
++        self.calls.append(("cancel", venue))
++        return {"ok": True, "operation": "cancel"}
++
++    async def async_query_order(self, venue, request, **kwargs):
++        self.calls.append(("query", venue))
++        return {"ok": True, "operation": "query"}
++
++    def submit_order(self, payload):
++        self.calls.append(("direct_submit", payload))
++        return {"ok": True}
++
++    def cancel_order(self, order_ref, dataname=None):
++        self.calls.append(("direct_cancel", order_ref))
++        return {"ok": True}
++
++
++class SlottedPropertyApi:
++    __slots__ = ()
++    route_reads = []
++    calls = []
++    lookups = []
++
++    def __getattribute__(self, name):
++        if name in {"submit_order", "cancel_order"}:
++            type(self).lookups.append(name)
++        return object.__getattribute__(self, name)
++
++    @property
++    def exchange_kwargs(self):
++        type(self).route_reads.append("read")
++        return {"CTP___TEST": {}}
++
++    async def async_make_order(self, venue, request, **kwargs):
++        type(self).calls.append(("submit", venue))
++        return {"ok": True, "operation": "submit"}
++
++    def submit_order(self, payload):
++        type(self).calls.append(("submit", payload))
++        return {"ok": True}
++
++    def cancel_order(self, order_ref, dataname=None):
++        type(self).calls.append(("cancel", order_ref))
++        return {"ok": True}
++
++
++class InvalidRoute:
++    def __str__(self):
++        raise ValueError("route conversion must not fail open")
++
++
++class NoRouteApi:
++    lookups = []
++    calls = []
++
++    def __getattribute__(self, name):
++        if name in {"submit_order", "cancel_order"}:
++            type(self).lookups.append(name)
++        return object.__getattribute__(self, name)
++
++    def submit_order(self, payload):
++        type(self).calls.append(("submit", payload))
++        return {"ok": True}
++
++    def cancel_order(self, order_ref, dataname=None):
++        type(self).calls.append(("cancel", order_ref))
++        return {"ok": True}
++
++
++class DynamicRouteApi:
++    route_reads = []
++    calls = []
++
++    def __getattr__(self, name):
++        if name == "exchange_kwargs":
++            type(self).route_reads.append(name)
++            return {"CTP___TEST": {}}
++        raise AttributeError(name)
++
++    async def async_make_order(self, venue, request, **kwargs):
++        type(self).calls.append(("submit", venue))
++        return {"ok": True, "operation": "submit"}
++
++
++class Adapter:
++    def __init__(self):
++        self.calls = []
++
++    def submit_order(self, order, dispatch):
++        self.calls.append("submit")
++        return dispatch(order)
++
++    def cancel_order(self, order, dataname, dispatch):
++        self.calls.append("cancel")
++        return dispatch(order)
++
++
++def make_store(*, provider="btapi", api=None, snapshot=None, backend="direct", adapter=None):
++    store = object.__new__(BtApiStore)
++    store.provider = provider
++    store.backend = backend
++    store._config = {}
++    store._api_kwargs = {}
++    store._sdk_exchanges = dict(snapshot or {})
++    store._sdk_routes = {}
++    store._api = api
++    store._managed_execution_adapter = adapter
++    store._sdk_mode = True
++    store._sdk_execution_config = {"market_data_only": False}
++    store._connected = True
++    return store
++
++
++def test_injected_ctp_api_route_mismatch_blocks_direct_submit_and_cancel():
++    api = FakeApi({"CTP___TEST": {}})
++    store = make_store(provider="binance", api=api, snapshot=api.exchange_kwargs)
++
++    with pytest.raises(BtApiStoreError, match="route identity mismatch"):
++        store.submit_order(SimpleNamespace(ref=1, info={}))
++    with pytest.raises(BtApiStoreError, match="route identity mismatch"):
++        store.cancel_order_ref("fake-order")
++
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_post_init_binance_to_ctp_route_mutation_blocks_all_generic_write_sinks():
++    api = FakeApi({"BINANCE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    queue_calls = []
++    store._enqueue_order_command = lambda order: queue_calls.append(("submit", order))
++    store._ensure_api_ready = lambda: queue_calls.append(("ensure",))
++    store._require_async_sdk_commands = lambda: queue_calls.append(("contract",))
++    store._start_command_worker = lambda: queue_calls.append(("worker",))
++    store._sdk_cancel_request = lambda *args: pytest.fail("cancel request builder reached")
++
++    api.exchange_kwargs.clear()
++    api.exchange_kwargs["CTP___TEST"] = {}
++
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        store.enqueue_order(SimpleNamespace(ref=2, info={}))
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        store.enqueue_cancel("fake-order")
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        asyncio.run(store._invoke_sdk_command("submit", {"venue": "CTP___TEST", "request": object()}))
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        asyncio.run(store._invoke_sdk_command("cancel", {"venue": "CTP___TEST", "request": object()}))
++
++    assert queue_calls == []
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_managed_adapter_is_not_called_for_store_api_identity_mismatch():
++    api = FakeApi({"CTP___TEST": {}})
++    adapter = Adapter()
++    store = make_store(
++        provider="binance",
++        api=api,
++        snapshot=api.exchange_kwargs,
++        adapter=adapter,
++    )
++
++    with pytest.raises(BtApiStoreError, match="route identity mismatch"):
++        store.submit_order(SimpleNamespace(ref=3, info={}))
++    with pytest.raises(BtApiStoreError, match="route identity mismatch"):
++        store.cancel_order_ref(SimpleNamespace(ref=3, info={}))
++
++    assert adapter.calls == []
++    assert api.calls == []
++
++
++def test_managed_worker_rechecks_identity_before_dispatch_port():
++    api = FakeApi({"BINANCE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    store._command_health = Counter()
++    store._command_last_error = ""
++    store._latch_risk_state_unknown = lambda _code: None
++    store.sanitize_exception = lambda _error: None
++    store._safe_exception_code = lambda error, _fallback: str(error)
++    dispatches = []
++    command = {
++        "operation": "submit",
++        "managed_ctp": True,
++        "managed_ctp_dispatcher": lambda binding: dispatches.append(binding),
++        "receipt_id": "receipt-1",
++        "priority": "open",
++        "request": object(),
++    }
++    api.exchange_kwargs.clear()
++    api.exchange_kwargs["CTP___TEST"] = {}
++
++    completion = asyncio.run(store._execute_sdk_command(command))
++
++    assert completion["status"] == "unknown"
++    assert "route identity changed" in completion["error_code"]
++    assert dispatches == []
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_matching_non_ctp_identity_keeps_generic_sdk_submit_cancel_and_query():
++    api = FakeApi({"BINANCE___SPOT": {}})
++    store = make_store(provider="binance", api=api, snapshot=api.exchange_kwargs)
++
++    for operation in ("submit", "cancel", "query"):
++        result = asyncio.run(
++            store._invoke_sdk_command(
++                operation,
++                {"venue": "BINANCE___SPOT", "request": object()},
++            )
++        )
++        assert result == {"ok": True, "operation": operation}
++
++    assert [operation for operation, _venue in api.calls] == ["submit", "cancel", "query"]
++
++
++
++def test_ctp_route_suffix_mutation_is_detected_even_when_provider_root_matches():
++    api = FakeApi({"CTP___FUTURE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    api.exchange_kwargs.clear()
++    api.exchange_kwargs["CTP___SIM"] = {}
++
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        store.enqueue_order(SimpleNamespace(ref=4, info={}))
++
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_recovery_exit_route_mismatch_aborts_before_raising():
++    api = FakeApi({"BINANCE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    abort_calls = []
++    queue_calls = []
++    store.abort_execution_recovery = lambda reason: abort_calls.append(reason)
++    store._enqueue_order_command = lambda order: queue_calls.append(order)
++    api.exchange_kwargs.clear()
++    api.exchange_kwargs["CTP___TEST"] = {}
++    order = SimpleNamespace(ref=5, info={"execution_role": "recovery_exit"})
++
++    with pytest.raises(BtApiStoreError, match="route identity changed"):
++        store.enqueue_order(order)
++
++    assert abort_calls == ["execution_recovery_dispatch_failed"]
++    assert queue_calls == []
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_malformed_sdk_routes_fail_closed_with_store_error():
++    api = FakeApi({"BINANCE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    store._sdk_routes = []
++    queue_calls = []
++    store._enqueue_order_command = lambda order: queue_calls.append(order)
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        store.enqueue_order(SimpleNamespace(ref=6, info={}))
++
++    assert queue_calls == []
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_slotted_exchange_kwargs_property_is_rejected_without_evaluation():
++    SlottedPropertyApi.route_reads.clear()
++    SlottedPropertyApi.calls.clear()
++    SlottedPropertyApi.lookups.clear()
++    api = SlottedPropertyApi()
++    store = make_store(provider="binance", api=api, snapshot={})
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        asyncio.run(
++            store._invoke_sdk_command(
++                "submit", {"venue": "CTP___TEST", "request": object()}
++            )
++        )
++
++    assert SlottedPropertyApi.route_reads == []
++    assert SlottedPropertyApi.calls == []
++
++
++def test_dynamic_exchange_kwargs_without_store_snapshot_fails_closed():
++    DynamicRouteApi.route_reads.clear()
++    DynamicRouteApi.calls.clear()
++    api = DynamicRouteApi()
++    store = make_store(provider="binance", api=api, snapshot={})
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        asyncio.run(
++            store._invoke_sdk_command(
++                "submit", {"venue": "CTP___TEST", "request": object()}
++            )
++        )
++
++    assert DynamicRouteApi.route_reads == []
++    assert DynamicRouteApi.calls == []
++
++
++@pytest.mark.parametrize("operation", ["submit", "cancel"])
++def test_lazy_api_route_mismatch_is_rechecked_before_direct_sink_lookup(operation):
++    SlottedPropertyApi.route_reads.clear()
++    SlottedPropertyApi.calls.clear()
++    SlottedPropertyApi.lookups.clear()
++    api = SlottedPropertyApi()
++    store = make_store(provider="binance", api=None, snapshot={})
++    store._sdk_mode = False
++
++    def ensure_api_ready():
++        store._api = api
++        return api
++
++    store._ensure_api_ready = ensure_api_ready
++    store._order_to_payload = lambda _order: {"symbol": "FAKE"}
++    store.emit_runtime_event = lambda *_args, **_kwargs: None
++    store.sanitize_exception = lambda _error: None
++    store._safe_exception_code = lambda _error, fallback: fallback
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        if operation == "submit":
++            store.submit_order(SimpleNamespace(ref=9, info={}))
++        else:
++            store.cancel_order_ref("fake-order")
++
++    assert SlottedPropertyApi.route_reads == []
++    assert SlottedPropertyApi.lookups == []
++    assert SlottedPropertyApi.calls == []
++
++
++@pytest.mark.parametrize("operation", ["submit", "cancel"])
++def test_lazy_api_without_route_identity_fails_before_direct_sink_lookup(operation):
++    NoRouteApi.lookups.clear()
++    NoRouteApi.calls.clear()
++    api = NoRouteApi()
++    store = make_store(provider="binance", api=None, snapshot={})
++    store._sdk_mode = False
++    readiness_calls = []
++
++    def ensure_api_ready():
++        readiness_calls.append("ready")
++        store._api = api
++        return api
++
++    store._ensure_api_ready = ensure_api_ready
++    store._order_to_payload = lambda _order: {"symbol": "FAKE"}
++    store.emit_runtime_event = lambda *_args, **_kwargs: None
++    store.sanitize_exception = lambda _error: None
++    store._safe_exception_code = lambda _error, fallback: fallback
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        if operation == "submit":
++            store.submit_order(SimpleNamespace(ref=10, info={}))
++        else:
++            store.cancel_order_ref("fake-order")
++
++    assert readiness_calls == ["ready"]
++    assert NoRouteApi.lookups == []
++    assert NoRouteApi.calls == []
++
++
++def test_unconvertible_sdk_route_fails_closed_with_store_error():
++    api = FakeApi({"BINANCE": {}})
++    store = make_store(provider="btapi", api=api, snapshot=api.exchange_kwargs)
++    store._sdk_routes = {"symbol": InvalidRoute()}
++
++    with pytest.raises(BtApiStoreError, match="route identity is unavailable"):
++        store.enqueue_order(SimpleNamespace(ref=8, info={}))
++
++    assert api.calls == []
++    assert api.lookups == []
++
++
++def test_matching_ctp_route_still_rejects_normal_direct_store_enqueue():
++    api = FakeApi({"CTP___SIM": {}})
++    store = make_store(provider="ctp", api=api, snapshot=api.exchange_kwargs)
++    queue_calls = []
++    store._enqueue_order_command = lambda order: queue_calls.append(order)
++
++    with pytest.raises(BtApiStoreError, match="direct CTP SDK order enqueue is disabled"):
++        store.enqueue_order(SimpleNamespace(ref=7, info={}))
++
++    assert queue_calls == []
++    assert api.calls == []
++    assert api.lookups == []

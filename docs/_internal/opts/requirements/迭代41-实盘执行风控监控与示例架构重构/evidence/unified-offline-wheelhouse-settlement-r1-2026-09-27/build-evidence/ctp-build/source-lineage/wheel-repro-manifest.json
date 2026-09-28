@@ -1,0 +1,943 @@
+{
+  "schema": "iteration41.g4.r2.disposable_wheel_repro_probe.v1",
+  "classification": "probe-only; no release/native/provider acceptance",
+  "source_manifest": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\source-manifest.json",
+  "build_statuses": [
+    "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\build-a-status.txt",
+    "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\build-b-status.txt"
+  ],
+  "build_logs": [
+    "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\build-a.log",
+    "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\build-b.log"
+  ],
+  "wheels": [
+    {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\wheel-a\\bt_api_ctp-2.0.4+g4r2.probe.20260927-cp311-cp311-win_amd64.whl",
+      "wheel_size": 5433813,
+      "wheel_sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384",
+      "zip_testzip": null,
+      "version": "2.0.4+g4r2.probe.20260927",
+      "member_count": 90,
+      "client_sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+      "native_extension_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "native_extension_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "members": [
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/METADATA",
+          "size": 18907,
+          "sha256": "f9a50db5ac69679a296b28c76da5078b97378fe0a4b257eb01e4997a953f5099"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/RECORD",
+          "size": 8171,
+          "sha256": "6e017119e8421db6d99f89daa9b6c8a44f60736c02797843ed5f7d844ff29e33"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/WHEEL",
+          "size": 101,
+          "sha256": "c8d9c7a102f61996085179bd62fa1a0691631a55282bdaaaf68a987ae76b5a51"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/entry_points.txt",
+          "size": 57,
+          "sha256": "6de8ad78776edd19857f9de5e398c7a55344f6939346f75ce4fadfc2df5d74a5"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/top_level.txt",
+          "size": 11,
+          "sha256": "775cf04b9047aa5fa50e84cb2cb968d1202b6e12c4400f0a6c0ee5b0debd7b98"
+        },
+        {
+          "path": "bt_api_ctp/__init__.py",
+          "size": 1161,
+          "sha256": "d77316160d5e8c5dc8bfa9e8fb949b62b4e667dff904309b9a00539ca6b0cd35"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__init__.py",
+          "size": 1005,
+          "sha256": "06d7dc7c1325214f7761525797b52a4060ce15247c3b3df2ea18ff6c63dd0ce4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__main__.py",
+          "size": 202,
+          "sha256": "1254e8ad612fe88f39e9397a0c76ccf8a624f63066c24c4c41c5683ac8cfb3fa"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/cli.py",
+          "size": 7913,
+          "sha256": "08f95e224b7aae85896e9d17af29c9e7898d394184f7919bc5d7b369d5d5109a"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/config.py",
+          "size": 10079,
+          "sha256": "0c8e2f943cdc71f7521d6ff6c0728c9b76373d6cb4857c9baf326ed2d66ae551"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/contracts.py",
+          "size": 1431,
+          "sha256": "112d6c73138dd916f49d04155e232379fb63645feb79b9f6aeda5bef21a86ddd"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/__init__.py",
+          "size": 813,
+          "sha256": "3d850048d509daf018a32142e28470d13ed0f9a8669bb5346df20ce183625d47"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/aggregator.py",
+          "size": 9046,
+          "sha256": "199e043f00e6a17685d387ff1d09b0adceaa017f860dfab5ad6b92b5075ff2c2"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/build.py",
+          "size": 3780,
+          "sha256": "ccdc53618117f1dc5872e42de5352e81f5df08c85a64533abfc299cbb2570be1"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/schema.py",
+          "size": 2317,
+          "sha256": "fb8cd68d8dd2fb3a8a28395745c0dfdaf5daf762bb03ff97edbff5c479217cc5"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/writer.py",
+          "size": 2261,
+          "sha256": "f4edc4b68a84baf8ff1ef06dd0111089897b01566dc3a3719a224d3a1e4f50f4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/manifest.py",
+          "size": 5734,
+          "sha256": "96ac3989372b725de6e9b59d3fa7a466c690303d585b70d52d895cb101ad322c"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/merge.py",
+          "size": 6898,
+          "sha256": "ea5b3a2b2791f274597725377de8481f3dabc85201306ddf5626c06a2e0b8b1d"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pipeline.py",
+          "size": 13519,
+          "sha256": "12f35adeabf0f91b1d2e8cc886cf7edad5f9f91ba21ad33077177e73db194ebc"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/__init__.py",
+          "size": 1191,
+          "sha256": "a98574edfab29c948626c8a4851ba15efda9d5ed16522e8286ee01a47cf58eef"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/backend.py",
+          "size": 3799,
+          "sha256": "abfec33927e213118e54fafd7167c8bb8c89c0f470e4e1c0c4bfdeb424422e98"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/local_backend.py",
+          "size": 3542,
+          "sha256": "c0dcc575d1f62ea61288a96f7f3f4a18907c89ca38c922c3a2d02424e01e0d20"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/rsync_backend.py",
+          "size": 6358,
+          "sha256": "f399b21fae868f384eda3f82faf94cad6f2a64f3f33971e324010c3d47c6713f"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/sftp_backend.py",
+          "size": 7176,
+          "sha256": "1c2db213b95cdb30327bc6bbd635030eea900b55d8e0136991635eca7945de46"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/reclaim.py",
+          "size": 3941,
+          "sha256": "1347fdc93e6f0b07550203a1fd6c424848dbfacfc0481e2f87e17dd42b7e8499"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/report.py",
+          "size": 4779,
+          "sha256": "a83f72cdec245bc0b1e84631ff6a62488faac3a98ce3a223973f0fb1e0025421"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/verify.py",
+          "size": 2791,
+          "sha256": "3a35fc3fdcad2e55d441fe64bd327e50824697fcc474510e9c0e4929edf01440"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/__init__.py",
+          "size": 423,
+          "sha256": "23c6e0a420a9ba1145419c453275859fd7947794321b7eb6ac1f10ca2c2c0ba0"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/symbols.py",
+          "size": 3095,
+          "sha256": "a3e8ffc0066de027041b6d56938cea57f563ce8e0d150c007efe54f214fc1ca4"
+        },
+        {
+          "path": "bt_api_ctp/collector/__init__.py",
+          "size": 1888,
+          "sha256": "edb44772fbc1be32a700808c732687b5ddf4d05d4d0422ec092958cb26d70519"
+        },
+        {
+          "path": "bt_api_ctp/collector/__main__.py",
+          "size": 206,
+          "sha256": "c747dddd23bd2b8df1cfee5737d96a86741e64d2a482651660156a9008bcef80"
+        },
+        {
+          "path": "bt_api_ctp/collector/buffer.py",
+          "size": 3398,
+          "sha256": "ce942f0fee2486fb2116bd5214cfc4c812d05729b4f77374eff5d6bd4c06d11c"
+        },
+        {
+          "path": "bt_api_ctp/collector/cli.py",
+          "size": 22031,
+          "sha256": "3ced74cbbd7fbae787b367e8c35f39497227ec16c8f5da53dfe5c4aa465c9268"
+        },
+        {
+          "path": "bt_api_ctp/collector/engine.py",
+          "size": 17405,
+          "sha256": "d81199511492586e7333b30395b93244808b40924ef03c15c89d5bff16eb6da4"
+        },
+        {
+          "path": "bt_api_ctp/collector/health.py",
+          "size": 6801,
+          "sha256": "81e863c1bcd70fed53595137fce48cfd4aeb92f1d19436e155f2e0884ff0c2b7"
+        },
+        {
+          "path": "bt_api_ctp/collector/protocols.py",
+          "size": 4401,
+          "sha256": "08577bae04c1b81c1279f43b9ec4d5f5195f835e5283727787bf69cb4372e6c2"
+        },
+        {
+          "path": "bt_api_ctp/collector/schedule.py",
+          "size": 10995,
+          "sha256": "deaec0155b0b4361574c4764b69a48a4eeb5a57a11ad774957ee9c28b79f1f53"
+        },
+        {
+          "path": "bt_api_ctp/collector/shard.py",
+          "size": 3179,
+          "sha256": "f2517da68f2f6226d78517076b5d41d2398a96bacb3a2d0a53311201b88bd41c"
+        },
+        {
+          "path": "bt_api_ctp/collector/sink.py",
+          "size": 36046,
+          "sha256": "e229afe6cc1799d0bd97efb1aa7bb5f198eb4788fc7e62bbaa64aac4b5038c6f"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/__init__.py",
+          "size": 560,
+          "sha256": "9c5a6f7040265ac82e408ad7ac806b495e5c52a3a54abc30836d627c20a9d267"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/instrument_provider.py",
+          "size": 6605,
+          "sha256": "d9cb9b968795bb5b29c9ab6647ab24f14b9551efcc798d41c71c32bb80fc69ec"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/normalizer.py",
+          "size": 3934,
+          "sha256": "ca621b6502299b7285e8adb7e24cd1db69009c8cebcb4c8ece7de7fd46eb594e"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/subscriber.py",
+          "size": 15377,
+          "sha256": "0eb86fe6585a16b7eb039a1c155b4616755e38f276894f1126cfaa2bb0c9dc3e"
+        },
+        {
+          "path": "bt_api_ctp/configs/ctp.yaml",
+          "size": 1692,
+          "sha256": "5a3d683d8d72a567a9cc062632cf3d4f17b91a026471d137c3f8f0b378fe2ec3"
+        },
+        {
+          "path": "bt_api_ctp/containers/__init__.py",
+          "size": 36,
+          "sha256": "6c515513d8d129cccdcb81e199e816a02e8a38bfcdade8fe6a0dfb0c0203cda0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/__init__.py",
+          "size": 565,
+          "sha256": "1239a2dee52bc513414c0277654ee36170d289fe41e51d4d47134d1d7307e79e"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/_normalization.py",
+          "size": 1170,
+          "sha256": "88acf09f0249a2199aa59dbc68ba6fc313ff7b59a362290c1049f5a5b92de62a"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_account.py",
+          "size": 4124,
+          "sha256": "2864801345a402dbb612f18892d41a37e4e2e62976ef7f995a363db33caeebc0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_bar.py",
+          "size": 4183,
+          "sha256": "5db640a0371a9b75d89554e4b13fb88a8e4374004c92333ddf036e4eca6eb525"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+          "size": 36271,
+          "sha256": "f93b271972c3cdd967e964c82bf02af8fc22aa7f8b53c6b64f24e08d091f9da5"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_order.py",
+          "size": 5619,
+          "sha256": "afa09d5bdf8e5e5c14ad94193c58ce3af460ad44cf835b5e98efa109c622a2de"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position.py",
+          "size": 6474,
+          "sha256": "04d88d3c1a256ba88a6ca0cdb5ed06f1d7f7e0f9fe4d606c2ae9d61a85755575"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+          "size": 33398,
+          "sha256": "40ddc8381016070c300da4b2e8c722df20636b666ec3b7ce60adb66b43ce23c9"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_ticker.py",
+          "size": 14205,
+          "sha256": "40550e641eee14252c7874111a207afc8de3deb8b11a6b10ac0848e53ac39250"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_trade.py",
+          "size": 5435,
+          "sha256": "6f2b149640c39b5d8c3d303bb86357af78671f3198f196fcf149d83e2ecf867d"
+        },
+        {
+          "path": "bt_api_ctp/ctp/__init__.py",
+          "size": 754,
+          "sha256": "472e644f88e8c8fa5ded4a95fa036db494abe82484e7a7f8c228c99d05ab2d42"
+        },
+        {
+          "path": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "size": 11889664,
+          "sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78"
+        },
+        {
+          "path": "bt_api_ctp/ctp/_ctp_base.py",
+          "size": 13100,
+          "sha256": "a8535ecc876d6444ceeb1087d3459ca001cc26140c92cfe74094bae86c2ead73"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_events.py",
+          "size": 7474,
+          "sha256": "01c6db47c9b56252788c8e54aeaeef57e74203e8fd38829e93bab350f92db2c1"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_ingress.py",
+          "size": 72286,
+          "sha256": "a49465dc36ad4a60ab6a81cde58fd8963ab230be740d3832a792dc0184f48002"
+        },
+        {
+          "path": "bt_api_ctp/ctp/client.py",
+          "size": 376978,
+          "sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp.py",
+          "size": 979,
+          "sha256": "e2fe66ca79dd742dc9f85f3456f4fe453ac537672e62f42372e485e1831ccd6f"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_constants.py",
+          "size": 121992,
+          "sha256": "d51edfe35c21e42dbe18b5566ae09fad589b0a589cf646d342eb54b038e28524"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_md_api.py",
+          "size": 6064,
+          "sha256": "9eaffb0729bef2a34a97a3a16d20d185b03d380e4c6386a8905e240a7d5f05c2"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_account.py",
+          "size": 21952,
+          "sha256": "c319c19e99d84a0632254c7b3102b0a12a88d43077c9aaa75f75da1bfe0b34b8"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_common.py",
+          "size": 194479,
+          "sha256": "5b8bd5888b23e833d54b939d287505877873d6eb657d70ba2023f27a6f154e8e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_market.py",
+          "size": 55599,
+          "sha256": "195fe470821626702d46cb2a95886e95c4b0ecab00105eab42dc5fb6b9e742da"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_order.py",
+          "size": 214863,
+          "sha256": "f106acd770799ac635b9f2bd068737a551dc9ad4356fabb639fa174f269af6c7"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_position.py",
+          "size": 21696,
+          "sha256": "14150fa837aba5d56addf6d1a0eb8f831ee6bd74442bfc5b82174bbd724c81d6"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_query.py",
+          "size": 171254,
+          "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_risk.py",
+          "size": 267477,
+          "sha256": "9f5c54796253d7dd07ddd86f77fb3b28deea38f3ff5a8ec4638d816d18546adc"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_trade.py",
+          "size": 6064,
+          "sha256": "ef9fdcdf773d7cd4cf09d48ec0632b3dfe6d58ca7465d526903ee0ac51205e9e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_transfer.py",
+          "size": 165232,
+          "sha256": "de355eedffe43f8afe0a28d4eb7cbbc8c1bc36674ba327e20d8c252e5ad1ea7b"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_trader_api.py",
+          "size": 58931,
+          "sha256": "26a1cab3d387c5afb79fc7c041a7f0e333cafca708283b05ce65c2b2efb08610"
+        },
+        {
+          "path": "bt_api_ctp/ctp/thostmduserapi_se.dll",
+          "size": 3044352,
+          "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+        },
+        {
+          "path": "bt_api_ctp/ctp/thosttraderapi_se.dll",
+          "size": 3428864,
+          "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+        },
+        {
+          "path": "bt_api_ctp/ctp_env_selector.py",
+          "size": 20558,
+          "sha256": "90206295d274cf262fdc834b2b53da8d02bf1fa5c0c0c15f2905fe4c78a6f07c"
+        },
+        {
+          "path": "bt_api_ctp/errors/__init__.py",
+          "size": 139,
+          "sha256": "ba6534a03933bfd3e457b2de2b352153ffa29a10bba577bbf6efb64d2bc541ed"
+        },
+        {
+          "path": "bt_api_ctp/errors/ctp_translator.py",
+          "size": 190,
+          "sha256": "727f996de87f1cd9b1f719a0fc432f4a7fe4a352994361dbd41b5378a60523f9"
+        },
+        {
+          "path": "bt_api_ctp/exchange_data.py",
+          "size": 832,
+          "sha256": "fdad9316984f1ed007a3a270866ffc894e9ec9b40dfb7f69e809550b10f0fa3a"
+        },
+        {
+          "path": "bt_api_ctp/feeds/__init__.py",
+          "size": 377,
+          "sha256": "2f0c8fc417d8cb0436c6a562b60acdc881f40fd96c0896d59249aeccc5d8680d"
+        },
+        {
+          "path": "bt_api_ctp/feeds/base_stream.py",
+          "size": 2445,
+          "sha256": "93b2f327f59803103423f252aa9b03ede0f93e5360eda2439f9c10412d6ea459"
+        },
+        {
+          "path": "bt_api_ctp/feeds/live_ctp_feed.py",
+          "size": 90589,
+          "sha256": "279b60a77b4c71556c6acf7d4a02402dd3e66e0d090090bb2e08d5f15c6d8847"
+        },
+        {
+          "path": "bt_api_ctp/gateway/__init__.py",
+          "size": 131,
+          "sha256": "8e0e610de253925d53ebc12c22b509af73719bb04ac9787ed91d70a876ea10af"
+        },
+        {
+          "path": "bt_api_ctp/gateway/adapter.py",
+          "size": 43347,
+          "sha256": "02b358c7ee339ba5d2bb1cfa6e8e45cb0a874f5240ba30cee97d8da915b069bf"
+        },
+        {
+          "path": "bt_api_ctp/instrument.py",
+          "size": 16189,
+          "sha256": "5137651d992d6150fa8a12f4748e2beb7895781bb521c74be0c8cd5565343d9b"
+        },
+        {
+          "path": "bt_api_ctp/md_identity.py",
+          "size": 3992,
+          "sha256": "87f6f76d6eca7338981b1b9a32356eada52e92f7ea43405e0d552c409c392481"
+        },
+        {
+          "path": "bt_api_ctp/order_action.py",
+          "size": 1884,
+          "sha256": "be9b260df84e76c2915522d8aa6e3288facb6971d4229b67aca7f6cc0bbf8b17"
+        },
+        {
+          "path": "bt_api_ctp/plugin.py",
+          "size": 2766,
+          "sha256": "8d51cf8a63a29b687fdd07a294ae107ff471a1ceda76371d52bff1b9ca015d07"
+        },
+        {
+          "path": "bt_api_ctp/query.py",
+          "size": 12037,
+          "sha256": "b045f03c71b7c9d0c4c50e47a9f04049904f11c4a4eaaa20325af0265b228df9"
+        }
+      ]
+    },
+    {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\wheel-b\\bt_api_ctp-2.0.4+g4r2.probe.20260927-cp311-cp311-win_amd64.whl",
+      "wheel_size": 5433813,
+      "wheel_sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384",
+      "zip_testzip": null,
+      "version": "2.0.4+g4r2.probe.20260927",
+      "member_count": 90,
+      "client_sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+      "native_extension_member": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+      "native_extension_sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78",
+      "members": [
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/METADATA",
+          "size": 18907,
+          "sha256": "f9a50db5ac69679a296b28c76da5078b97378fe0a4b257eb01e4997a953f5099"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/RECORD",
+          "size": 8171,
+          "sha256": "6e017119e8421db6d99f89daa9b6c8a44f60736c02797843ed5f7d844ff29e33"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/WHEEL",
+          "size": 101,
+          "sha256": "c8d9c7a102f61996085179bd62fa1a0691631a55282bdaaaf68a987ae76b5a51"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/entry_points.txt",
+          "size": 57,
+          "sha256": "6de8ad78776edd19857f9de5e398c7a55344f6939346f75ce4fadfc2df5d74a5"
+        },
+        {
+          "path": "bt_api_ctp-2.0.4+g4r2.probe.20260927.dist-info/top_level.txt",
+          "size": 11,
+          "sha256": "775cf04b9047aa5fa50e84cb2cb968d1202b6e12c4400f0a6c0ee5b0debd7b98"
+        },
+        {
+          "path": "bt_api_ctp/__init__.py",
+          "size": 1161,
+          "sha256": "d77316160d5e8c5dc8bfa9e8fb949b62b4e667dff904309b9a00539ca6b0cd35"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__init__.py",
+          "size": 1005,
+          "sha256": "06d7dc7c1325214f7761525797b52a4060ce15247c3b3df2ea18ff6c63dd0ce4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__main__.py",
+          "size": 202,
+          "sha256": "1254e8ad612fe88f39e9397a0c76ccf8a624f63066c24c4c41c5683ac8cfb3fa"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/cli.py",
+          "size": 7913,
+          "sha256": "08f95e224b7aae85896e9d17af29c9e7898d394184f7919bc5d7b369d5d5109a"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/config.py",
+          "size": 10079,
+          "sha256": "0c8e2f943cdc71f7521d6ff6c0728c9b76373d6cb4857c9baf326ed2d66ae551"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/contracts.py",
+          "size": 1431,
+          "sha256": "112d6c73138dd916f49d04155e232379fb63645feb79b9f6aeda5bef21a86ddd"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/__init__.py",
+          "size": 813,
+          "sha256": "3d850048d509daf018a32142e28470d13ed0f9a8669bb5346df20ce183625d47"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/aggregator.py",
+          "size": 9046,
+          "sha256": "199e043f00e6a17685d387ff1d09b0adceaa017f860dfab5ad6b92b5075ff2c2"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/build.py",
+          "size": 3780,
+          "sha256": "ccdc53618117f1dc5872e42de5352e81f5df08c85a64533abfc299cbb2570be1"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/schema.py",
+          "size": 2317,
+          "sha256": "fb8cd68d8dd2fb3a8a28395745c0dfdaf5daf762bb03ff97edbff5c479217cc5"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/writer.py",
+          "size": 2261,
+          "sha256": "f4edc4b68a84baf8ff1ef06dd0111089897b01566dc3a3719a224d3a1e4f50f4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/manifest.py",
+          "size": 5734,
+          "sha256": "96ac3989372b725de6e9b59d3fa7a466c690303d585b70d52d895cb101ad322c"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/merge.py",
+          "size": 6898,
+          "sha256": "ea5b3a2b2791f274597725377de8481f3dabc85201306ddf5626c06a2e0b8b1d"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pipeline.py",
+          "size": 13519,
+          "sha256": "12f35adeabf0f91b1d2e8cc886cf7edad5f9f91ba21ad33077177e73db194ebc"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/__init__.py",
+          "size": 1191,
+          "sha256": "a98574edfab29c948626c8a4851ba15efda9d5ed16522e8286ee01a47cf58eef"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/backend.py",
+          "size": 3799,
+          "sha256": "abfec33927e213118e54fafd7167c8bb8c89c0f470e4e1c0c4bfdeb424422e98"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/local_backend.py",
+          "size": 3542,
+          "sha256": "c0dcc575d1f62ea61288a96f7f3f4a18907c89ca38c922c3a2d02424e01e0d20"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/rsync_backend.py",
+          "size": 6358,
+          "sha256": "f399b21fae868f384eda3f82faf94cad6f2a64f3f33971e324010c3d47c6713f"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/sftp_backend.py",
+          "size": 7176,
+          "sha256": "1c2db213b95cdb30327bc6bbd635030eea900b55d8e0136991635eca7945de46"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/reclaim.py",
+          "size": 3941,
+          "sha256": "1347fdc93e6f0b07550203a1fd6c424848dbfacfc0481e2f87e17dd42b7e8499"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/report.py",
+          "size": 4779,
+          "sha256": "a83f72cdec245bc0b1e84631ff6a62488faac3a98ce3a223973f0fb1e0025421"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/verify.py",
+          "size": 2791,
+          "sha256": "3a35fc3fdcad2e55d441fe64bd327e50824697fcc474510e9c0e4929edf01440"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/__init__.py",
+          "size": 423,
+          "sha256": "23c6e0a420a9ba1145419c453275859fd7947794321b7eb6ac1f10ca2c2c0ba0"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/symbols.py",
+          "size": 3095,
+          "sha256": "a3e8ffc0066de027041b6d56938cea57f563ce8e0d150c007efe54f214fc1ca4"
+        },
+        {
+          "path": "bt_api_ctp/collector/__init__.py",
+          "size": 1888,
+          "sha256": "edb44772fbc1be32a700808c732687b5ddf4d05d4d0422ec092958cb26d70519"
+        },
+        {
+          "path": "bt_api_ctp/collector/__main__.py",
+          "size": 206,
+          "sha256": "c747dddd23bd2b8df1cfee5737d96a86741e64d2a482651660156a9008bcef80"
+        },
+        {
+          "path": "bt_api_ctp/collector/buffer.py",
+          "size": 3398,
+          "sha256": "ce942f0fee2486fb2116bd5214cfc4c812d05729b4f77374eff5d6bd4c06d11c"
+        },
+        {
+          "path": "bt_api_ctp/collector/cli.py",
+          "size": 22031,
+          "sha256": "3ced74cbbd7fbae787b367e8c35f39497227ec16c8f5da53dfe5c4aa465c9268"
+        },
+        {
+          "path": "bt_api_ctp/collector/engine.py",
+          "size": 17405,
+          "sha256": "d81199511492586e7333b30395b93244808b40924ef03c15c89d5bff16eb6da4"
+        },
+        {
+          "path": "bt_api_ctp/collector/health.py",
+          "size": 6801,
+          "sha256": "81e863c1bcd70fed53595137fce48cfd4aeb92f1d19436e155f2e0884ff0c2b7"
+        },
+        {
+          "path": "bt_api_ctp/collector/protocols.py",
+          "size": 4401,
+          "sha256": "08577bae04c1b81c1279f43b9ec4d5f5195f835e5283727787bf69cb4372e6c2"
+        },
+        {
+          "path": "bt_api_ctp/collector/schedule.py",
+          "size": 10995,
+          "sha256": "deaec0155b0b4361574c4764b69a48a4eeb5a57a11ad774957ee9c28b79f1f53"
+        },
+        {
+          "path": "bt_api_ctp/collector/shard.py",
+          "size": 3179,
+          "sha256": "f2517da68f2f6226d78517076b5d41d2398a96bacb3a2d0a53311201b88bd41c"
+        },
+        {
+          "path": "bt_api_ctp/collector/sink.py",
+          "size": 36046,
+          "sha256": "e229afe6cc1799d0bd97efb1aa7bb5f198eb4788fc7e62bbaa64aac4b5038c6f"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/__init__.py",
+          "size": 560,
+          "sha256": "9c5a6f7040265ac82e408ad7ac806b495e5c52a3a54abc30836d627c20a9d267"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/instrument_provider.py",
+          "size": 6605,
+          "sha256": "d9cb9b968795bb5b29c9ab6647ab24f14b9551efcc798d41c71c32bb80fc69ec"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/normalizer.py",
+          "size": 3934,
+          "sha256": "ca621b6502299b7285e8adb7e24cd1db69009c8cebcb4c8ece7de7fd46eb594e"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/subscriber.py",
+          "size": 15377,
+          "sha256": "0eb86fe6585a16b7eb039a1c155b4616755e38f276894f1126cfaa2bb0c9dc3e"
+        },
+        {
+          "path": "bt_api_ctp/configs/ctp.yaml",
+          "size": 1692,
+          "sha256": "5a3d683d8d72a567a9cc062632cf3d4f17b91a026471d137c3f8f0b378fe2ec3"
+        },
+        {
+          "path": "bt_api_ctp/containers/__init__.py",
+          "size": 36,
+          "sha256": "6c515513d8d129cccdcb81e199e816a02e8a38bfcdade8fe6a0dfb0c0203cda0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/__init__.py",
+          "size": 565,
+          "sha256": "1239a2dee52bc513414c0277654ee36170d289fe41e51d4d47134d1d7307e79e"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/_normalization.py",
+          "size": 1170,
+          "sha256": "88acf09f0249a2199aa59dbc68ba6fc313ff7b59a362290c1049f5a5b92de62a"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_account.py",
+          "size": 4124,
+          "sha256": "2864801345a402dbb612f18892d41a37e4e2e62976ef7f995a363db33caeebc0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_bar.py",
+          "size": 4183,
+          "sha256": "5db640a0371a9b75d89554e4b13fb88a8e4374004c92333ddf036e4eca6eb525"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+          "size": 36271,
+          "sha256": "f93b271972c3cdd967e964c82bf02af8fc22aa7f8b53c6b64f24e08d091f9da5"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_order.py",
+          "size": 5619,
+          "sha256": "afa09d5bdf8e5e5c14ad94193c58ce3af460ad44cf835b5e98efa109c622a2de"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position.py",
+          "size": 6474,
+          "sha256": "04d88d3c1a256ba88a6ca0cdb5ed06f1d7f7e0f9fe4d606c2ae9d61a85755575"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+          "size": 33398,
+          "sha256": "40ddc8381016070c300da4b2e8c722df20636b666ec3b7ce60adb66b43ce23c9"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_ticker.py",
+          "size": 14205,
+          "sha256": "40550e641eee14252c7874111a207afc8de3deb8b11a6b10ac0848e53ac39250"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_trade.py",
+          "size": 5435,
+          "sha256": "6f2b149640c39b5d8c3d303bb86357af78671f3198f196fcf149d83e2ecf867d"
+        },
+        {
+          "path": "bt_api_ctp/ctp/__init__.py",
+          "size": 754,
+          "sha256": "472e644f88e8c8fa5ded4a95fa036db494abe82484e7a7f8c228c99d05ab2d42"
+        },
+        {
+          "path": "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd",
+          "size": 11889664,
+          "sha256": "e6d4e32740646962c35d96223682f4db0f1b8082398055a88f58ed45ec1ecd78"
+        },
+        {
+          "path": "bt_api_ctp/ctp/_ctp_base.py",
+          "size": 13100,
+          "sha256": "a8535ecc876d6444ceeb1087d3459ca001cc26140c92cfe74094bae86c2ead73"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_events.py",
+          "size": 7474,
+          "sha256": "01c6db47c9b56252788c8e54aeaeef57e74203e8fd38829e93bab350f92db2c1"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_ingress.py",
+          "size": 72286,
+          "sha256": "a49465dc36ad4a60ab6a81cde58fd8963ab230be740d3832a792dc0184f48002"
+        },
+        {
+          "path": "bt_api_ctp/ctp/client.py",
+          "size": 376978,
+          "sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp.py",
+          "size": 979,
+          "sha256": "e2fe66ca79dd742dc9f85f3456f4fe453ac537672e62f42372e485e1831ccd6f"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_constants.py",
+          "size": 121992,
+          "sha256": "d51edfe35c21e42dbe18b5566ae09fad589b0a589cf646d342eb54b038e28524"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_md_api.py",
+          "size": 6064,
+          "sha256": "9eaffb0729bef2a34a97a3a16d20d185b03d380e4c6386a8905e240a7d5f05c2"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_account.py",
+          "size": 21952,
+          "sha256": "c319c19e99d84a0632254c7b3102b0a12a88d43077c9aaa75f75da1bfe0b34b8"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_common.py",
+          "size": 194479,
+          "sha256": "5b8bd5888b23e833d54b939d287505877873d6eb657d70ba2023f27a6f154e8e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_market.py",
+          "size": 55599,
+          "sha256": "195fe470821626702d46cb2a95886e95c4b0ecab00105eab42dc5fb6b9e742da"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_order.py",
+          "size": 214863,
+          "sha256": "f106acd770799ac635b9f2bd068737a551dc9ad4356fabb639fa174f269af6c7"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_position.py",
+          "size": 21696,
+          "sha256": "14150fa837aba5d56addf6d1a0eb8f831ee6bd74442bfc5b82174bbd724c81d6"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_query.py",
+          "size": 171254,
+          "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_risk.py",
+          "size": 267477,
+          "sha256": "9f5c54796253d7dd07ddd86f77fb3b28deea38f3ff5a8ec4638d816d18546adc"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_trade.py",
+          "size": 6064,
+          "sha256": "ef9fdcdf773d7cd4cf09d48ec0632b3dfe6d58ca7465d526903ee0ac51205e9e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_transfer.py",
+          "size": 165232,
+          "sha256": "de355eedffe43f8afe0a28d4eb7cbbc8c1bc36674ba327e20d8c252e5ad1ea7b"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_trader_api.py",
+          "size": 58931,
+          "sha256": "26a1cab3d387c5afb79fc7c041a7f0e333cafca708283b05ce65c2b2efb08610"
+        },
+        {
+          "path": "bt_api_ctp/ctp/thostmduserapi_se.dll",
+          "size": 3044352,
+          "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+        },
+        {
+          "path": "bt_api_ctp/ctp/thosttraderapi_se.dll",
+          "size": 3428864,
+          "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+        },
+        {
+          "path": "bt_api_ctp/ctp_env_selector.py",
+          "size": 20558,
+          "sha256": "90206295d274cf262fdc834b2b53da8d02bf1fa5c0c0c15f2905fe4c78a6f07c"
+        },
+        {
+          "path": "bt_api_ctp/errors/__init__.py",
+          "size": 139,
+          "sha256": "ba6534a03933bfd3e457b2de2b352153ffa29a10bba577bbf6efb64d2bc541ed"
+        },
+        {
+          "path": "bt_api_ctp/errors/ctp_translator.py",
+          "size": 190,
+          "sha256": "727f996de87f1cd9b1f719a0fc432f4a7fe4a352994361dbd41b5378a60523f9"
+        },
+        {
+          "path": "bt_api_ctp/exchange_data.py",
+          "size": 832,
+          "sha256": "fdad9316984f1ed007a3a270866ffc894e9ec9b40dfb7f69e809550b10f0fa3a"
+        },
+        {
+          "path": "bt_api_ctp/feeds/__init__.py",
+          "size": 377,
+          "sha256": "2f0c8fc417d8cb0436c6a562b60acdc881f40fd96c0896d59249aeccc5d8680d"
+        },
+        {
+          "path": "bt_api_ctp/feeds/base_stream.py",
+          "size": 2445,
+          "sha256": "93b2f327f59803103423f252aa9b03ede0f93e5360eda2439f9c10412d6ea459"
+        },
+        {
+          "path": "bt_api_ctp/feeds/live_ctp_feed.py",
+          "size": 90589,
+          "sha256": "279b60a77b4c71556c6acf7d4a02402dd3e66e0d090090bb2e08d5f15c6d8847"
+        },
+        {
+          "path": "bt_api_ctp/gateway/__init__.py",
+          "size": 131,
+          "sha256": "8e0e610de253925d53ebc12c22b509af73719bb04ac9787ed91d70a876ea10af"
+        },
+        {
+          "path": "bt_api_ctp/gateway/adapter.py",
+          "size": 43347,
+          "sha256": "02b358c7ee339ba5d2bb1cfa6e8e45cb0a874f5240ba30cee97d8da915b069bf"
+        },
+        {
+          "path": "bt_api_ctp/instrument.py",
+          "size": 16189,
+          "sha256": "5137651d992d6150fa8a12f4748e2beb7895781bb521c74be0c8cd5565343d9b"
+        },
+        {
+          "path": "bt_api_ctp/md_identity.py",
+          "size": 3992,
+          "sha256": "87f6f76d6eca7338981b1b9a32356eada52e92f7ea43405e0d552c409c392481"
+        },
+        {
+          "path": "bt_api_ctp/order_action.py",
+          "size": 1884,
+          "sha256": "be9b260df84e76c2915522d8aa6e3288facb6971d4229b67aca7f6cc0bbf8b17"
+        },
+        {
+          "path": "bt_api_ctp/plugin.py",
+          "size": 2766,
+          "sha256": "8d51cf8a63a29b687fdd07a294ae107ff471a1ceda76371d52bff1b9ca015d07"
+        },
+        {
+          "path": "bt_api_ctp/query.py",
+          "size": 12037,
+          "sha256": "b045f03c71b7c9d0c4c50e47a9f04049904f11c4a4eaaa20325af0265b228df9"
+        }
+      ]
+    }
+  ],
+  "wheel_zip_member_differences": [],
+  "byte_identical": true
+}

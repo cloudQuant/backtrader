@@ -1,0 +1,58 @@
+{
+  "status": "SCOPED_STRATEGY_REGRESSION_PASSED",
+  "result": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "1286",
+    "time": "296.585",
+    "timestamp": "2026-09-26T21:53:38.300081",
+    "hostname": "yun"
+  },
+  "console_duration_seconds": 296.75,
+  "warning_count": 4165,
+  "root_reverified_file_count": 1944,
+  "scope_manifest_sha256": "d7cfff2675a1377da7d809ee19f6c4caa2c9739d22998422a0f94d540d97cfb3",
+  "input_manifest_before_after_equal": true,
+  "environment_records_equal_except_created_utc": true,
+  "environment_record_timing": "Both environment records were generated after the pytest run; filenames do not prove pre-run capture",
+  "guard_process_count": 9,
+  "guard_other_event_count": 0,
+  "root_reran_tests": false,
+  "limits": [
+    "Source suite, not installed wheel or native/provider proof",
+    "Snapshot covers backtrader and strategy inputs; changing runtime files are outside this test scope",
+    "Zero guard events are limited to instrumented operations, not a complete OS audit"
+  ],
+  "raw_zip_sha256": "7031e7eacab5778145f1a717a6a0f3ec25fb6ef08a9950d27a4beb59de5a8276",
+  "raw_payload_sha256": {
+    "environment-after.json": "b3dfe7c8a09196f3b7bf5fe6c8bd233344fdf96cef4ab8582a7b9d99d1bed2a7",
+    "environment-before.json": "587da5b0d91d20741e09e51ef822d51beac68e4275d698622959b30b1ad04104",
+    "guard-log/origin-guard-26808.jsonl": "fbc9897c1d1773482429f67eaa645cfcbfb0ff98d184db809d49aefa4173af13",
+    "guard-log/origin-guard-28860.jsonl": "6608c77c9a49313095c0a128759734ee00012fb7cf9745eff3b98b9eac977d1d",
+    "guard-log/origin-guard-39204.jsonl": "49ee466e298c3e964a5722898b7c2c2d02e7da6958f199a7229e5828790bcb17",
+    "guard-log/origin-guard-43064.jsonl": "6252a0472c99c8ecc831362894ac051dc03d7d23671b769c04c875fc73b9dab4",
+    "guard-log/origin-guard-43364.jsonl": "a26772179cf548c59a956e32119e5efe09955fed929d3aff5382b8eaad77dc9a",
+    "guard-log/origin-guard-43432.jsonl": "6261e686292e13dc03742250629f2e4282a3b58033330fd67ef8d457d4b3385b",
+    "guard-log/origin-guard-44672.jsonl": "a89083e28ace5cf25800c654776047077f68821a22661b9f1dfe7a81dccc4695",
+    "guard-log/origin-guard-46076.jsonl": "2dd1b23b5d7337ac64d2ff5e655ef1df9e38d06d5275f5f40e43bdcf29e25e2a",
+    "guard-log/origin-guard-904.jsonl": "4246b3c9d40f7c5a4d0fc22795db69d722f8b6530fd6619216b5d282d837a93a",
+    "harness/sitecustomize.py": "c8ee9716718b69f61cb79241fbf2115fc87dacd47563d97ea48b2f82769703df",
+    "make-environment-manifest.py": "7a58e61b4e7264d88ebd5b07a1b038507a78ac385a32703e214bd895322656d4",
+    "make-strategy-manifest.py": "c4be62322ceb6c753c0a79b530acce86666728af109f65c1a2b73cc3f3a76c1c",
+    "pytest-exit.txt": "82603b8688c709542cbc00f036b5c7a7bf7bcf8f99f708df2150e234a619c5d2",
+    "source-roots-final.json": "6c7b0bdd3a5e71e641c3129ad979c05fa52827a73c678a4e45caef8a73d6cd3e",
+    "strategies-full-r1-xdist.log": "b6c6bb188d36b101b3ede776c617fc8247b3a181c6e2513ce0abf7311b6a8a5e",
+    "strategies-full-r1-xdist.xml": "80ca74a3dc53fc0050eff641b2624a86524da24122d7b27655bd1a35c59815c2",
+    "strategy-inputs-after.json": "8db28a043287edc7a4b78c8acb7e9200c2ea6850df75f91b5cc97f42d1307fa5",
+    "strategy-inputs-before.json": "8db28a043287edc7a4b78c8acb7e9200c2ea6850df75f91b5cc97f42d1307fa5"
+  },
+  "schema": "iteration41.local_evidence.v1",
+  "input_manifest_filesystem_mtime_ns": {
+    "strategy-inputs-before.json": 1790430724656202000,
+    "strategies-full-r1-xdist.xml": 1790431114889962100,
+    "strategy-inputs-after.json": 1790431138295250800
+  },
+  "author_clarification": "Input manifests were captured before and after pytest; environment manifests were both captured after pytest. Root confirms hashes and recorded filesystem times, not a cryptographically trusted execution timeline."
+}

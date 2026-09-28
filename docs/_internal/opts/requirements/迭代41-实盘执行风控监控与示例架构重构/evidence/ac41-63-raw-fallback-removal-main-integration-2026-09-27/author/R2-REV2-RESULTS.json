@@ -1,0 +1,126 @@
+{
+  "schema": "ac41-63-writer-slice2-r2-rev2-results",
+  "scope": [
+    "tests/unit/stores/test_btapistore.py",
+    "tests/unit/stores/test_btapistore_iteration22.py"
+  ],
+  "real_sdk_loaded": false,
+  "network_used": false,
+  "native_boundary_called": false,
+  "scenarios": {
+    "focused_before_baseline_with_migration": {
+      "tests": 4,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "time_seconds": 7.238,
+      "junit_path": "baseline-focused.xml",
+      "junit_sha256": "a087e7304c72ced4937d3cc62d59be5357f5a26da15514dd4ccc6d5afcd56f11",
+      "failure_nodeids": [
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access",
+          "kind": "failure",
+          "message": "AssertionError: typed method descriptor must not be read without capability"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_cancel_rejects_without_raw_action_access[missing-typed-method]",
+          "kind": "failure",
+          "message": "AssertionError: raw ReqOrderAction must not be reached"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_cancel_rejects_without_raw_action_access[missing-capability]",
+          "kind": "failure",
+          "message": "AssertionError: typed action descriptor must not be read without capability"
+        }
+      ]
+    },
+    "focused_after_patch_with_migration": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time_seconds": 3.86,
+      "junit_path": "patched-focused.xml",
+      "junit_sha256": "bc19d96265487ed4ef440907198962d111e90daa2f29a24a6a72acd5522ad60e",
+      "failure_nodeids": []
+    },
+    "two_files_before_baseline_with_migration": {
+      "tests": 341,
+      "failures": 6,
+      "errors": 0,
+      "skipped": 0,
+      "time_seconds": 10.479,
+      "junit_path": "baseline-full.xml",
+      "junit_sha256": "b78d5bb508cbb3557d1a849ca3da927c3a35a7638be415149283a8b343853310",
+      "failure_nodeids": [
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_create_ctp_wrapper_patches_missing_spi_callbacks",
+          "kind": "failure",
+          "message": "AssertionError: assert False\n +  where False = hasattr(<class 'conftest._Spi'>, 'OnRspQryInvestorPositionDetail')\n +    where <class 'conftest._Spi'> = <module 'bt_api_ctp.ctp.client'>._MdSpi"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_fetch_open_orders_converts_ctp_rows",
+          "kind": "failure",
+          "message": "ImportError: unexpected CTP module import blocked by isolated test harness"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access",
+          "kind": "failure",
+          "message": "AssertionError: typed method descriptor must not be read without capability"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_cancel_rejects_without_raw_action_access[missing-capability]",
+          "kind": "failure",
+          "message": "AssertionError: typed action descriptor must not be read without capability"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_cancel_rejects_without_raw_action_access[missing-typed-method]",
+          "kind": "failure",
+          "message": "AssertionError: raw ReqOrderAction must not be reached"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore_iteration22.py::test_managed_order_request_carries_strategy_cycle_and_recovery_role",
+          "kind": "failure",
+          "message": "backtrader.stores.btapistore.BtApiStoreError: CTP client_order_id has no persisted runtime_order_id binding"
+        }
+      ]
+    },
+    "two_files_after_patch_with_migration": {
+      "tests": 341,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "time_seconds": 9.09,
+      "junit_path": "patched-full.xml",
+      "junit_sha256": "93314c59321d29053e1813aefbfc782009debd114cb574e4f3f28a82a3c162ac",
+      "failure_nodeids": [
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_create_ctp_wrapper_patches_missing_spi_callbacks",
+          "kind": "failure",
+          "message": "AssertionError: assert False\n +  where False = hasattr(<class 'conftest._Spi'>, 'OnRspQryInvestorPositionDetail')\n +    where <class 'conftest._Spi'> = <module 'bt_api_ctp.ctp.client'>._MdSpi"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore.py::test_ctp_wrapper_fetch_open_orders_converts_ctp_rows",
+          "kind": "failure",
+          "message": "ImportError: unexpected CTP module import blocked by isolated test harness"
+        },
+        {
+          "nodeid": "tests/unit/stores/test_btapistore_iteration22.py::test_managed_order_request_carries_strategy_cycle_and_recovery_role",
+          "kind": "failure",
+          "message": "backtrader.stores.btapistore.BtApiStoreError: CTP client_order_id has no persisted runtime_order_id binding"
+        }
+      ]
+    }
+  },
+  "fake_boundary_probe": {
+    "cases": 8,
+    "all_pass": true,
+    "path": "fake-boundary-probe-r2.json",
+    "sha256": "eb07d5faf7e6d88a72450010729e46c9fde922ad22fe66b7ebfe27ef0de5692f"
+  },
+  "test_patch_paths": [
+    "tests/unit/stores/test_btapistore.py"
+  ],
+  "test_patch_current_main_apply_check": "PASS_READ_ONLY",
+  "source_patch_same_as_r2": true
+}

@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import backtrader as bt
 import pytest
@@ -2616,7 +2616,14 @@ def test_next_without_bar_enforces_execution_and_cancel_deadlines():
         while not [row for row in api.calls if row[0] == "cancel"] and time.monotonic() < deadline:
             time.sleep(0.001)
         assert len([row for row in api.calls if row[0] == "cancel"]) == 1
-        time.sleep(0.005)
+        # Windows can expose a coarse monotonic-clock resolution.  Sleeping
+        # five milliseconds is therefore not evidence that the 1ms deadline
+        # has elapsed; wait for the same clock the broker uses instead.
+        cancel_deadline = order.info["cancel_deadline_monotonic_ns"]
+        deadline = time.monotonic() + 1
+        while time.monotonic_ns() < cancel_deadline and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert time.monotonic_ns() >= cancel_deadline
 
         broker.next()
         broker.next()
@@ -3394,6 +3401,12 @@ def test_live_broker_account_risk_read_uses_cache_and_refreshes_off_callback_thr
         def __init__(self):
             super().__init__()
             self.risk_threads = []
+            self.summary_reads = 0
+
+        def get_execution_summary(self):
+            self.summary_reads += 1
+            time.sleep(0.08)
+            return super().get_execution_summary()
 
         def get_account_risk_snapshot(self, *, initialize_baseline=False):
             self.risk_threads.append(threading.get_ident())
@@ -3416,20 +3429,150 @@ def test_live_broker_account_risk_read_uses_cache_and_refreshes_off_callback_thr
     try:
         broker.start()
         api.risk_threads.clear()
+        api.summary_reads = 0
         time.sleep(0.06)
+        with store._account_risk_lock:
+            # Force this callback to reserve the next refresh independently of
+            # any startup read that may have just completed on the worker.
+            store._last_account_risk_refresh_requested = 0.0
         callback_thread = threading.get_ident()
         started = time.perf_counter()
         snapshot = broker.get_account_risk_snapshot()
         elapsed = time.perf_counter() - started
 
         assert elapsed < 0.05
-        assert snapshot["evidence_complete"] is True
+        assert snapshot["evidence_complete"] is False
+        assert snapshot["evidence_errors"] == ["account_risk_refresh_in_progress"]
+        assert snapshot["error_code"] == "account_risk_refresh_in_progress"
+        assert api.summary_reads == 0
         assert store.wait_for_commands(1)
         broker.next()
         assert api.risk_threads
         assert all(thread_id != callback_thread for thread_id in api.risk_threads)
     finally:
         broker.stop()
+
+
+def test_callback_account_risk_state_keeps_atomic_pending_view_when_queue_completes_immediately(
+    monkeypatch,
+):
+    class RiskSdk(AsyncSdk):
+        def get_account_risk_snapshot(self):
+            return account_risk_payload(self)
+
+    store = make_store(RiskSdk(), require_account_risk=True, account_risk_refresh_interval=0.05)
+    try:
+        store.start()
+        store._cache_account_risk_snapshot(store._read_account_risk_snapshot(store._api))
+        with store._account_risk_lock:
+            expected_snapshot = deepcopy(store._last_account_risk_snapshot)
+            assert expected_snapshot is not None
+            store._account_risk_refresh_pending = False
+            store._last_account_risk_refresh_requested = 0.0
+
+        def enqueue_and_complete(command, **_kwargs):
+            store._clear_account_risk_refresh_pending(command["account_risk_refresh_token"])
+            return {"queued": True, "status": "submitted"}
+
+        monkeypatch.setattr(store, "_enqueue_sdk_command", enqueue_and_complete)
+        state = store.get_callback_account_risk_state()
+
+        assert state["snapshot"] == expected_snapshot
+        assert state["refresh_state"] == "refresh_pending"
+        assert state["entry_allowed"] is False
+        with store._account_risk_lock:
+            assert store._account_risk_refresh_pending is False
+    finally:
+        store.stop()
+
+
+def test_callback_account_risk_state_marks_rejected_refresh_as_not_entry_eligible(monkeypatch):
+    class RiskSdk(AsyncSdk):
+        def get_account_risk_snapshot(self):
+            return account_risk_payload(self)
+
+    store = make_store(RiskSdk(), require_account_risk=True, account_risk_refresh_interval=0.05)
+    try:
+        store.start()
+        store._cache_account_risk_snapshot(store._read_account_risk_snapshot(store._api))
+        with store._account_risk_lock:
+            store._account_risk_refresh_pending = False
+            store._last_account_risk_refresh_requested = 0.0
+        monkeypatch.setattr(
+            store,
+            "_enqueue_sdk_command",
+            lambda *_args, **_kwargs: {"queued": False, "status": "rejected"},
+        )
+
+        state = store.get_callback_account_risk_state()
+
+        assert state["snapshot"]["evidence_complete"] is True
+        assert state["refresh_state"] == "refresh_rejected"
+        assert state["entry_allowed"] is False
+    finally:
+        store.stop()
+
+
+def test_account_risk_refresh_reset_fences_late_completion_from_new_reservation(monkeypatch):
+    store = make_store(AsyncSdk(), require_account_risk=True, account_risk_refresh_interval=0.05)
+    store.start()
+    try:
+        with store._account_risk_lock:
+            store._last_account_risk_refresh_requested = 0.0
+        should_dispatch, _reservation, old_token = store._prepare_account_risk_refresh()
+        assert should_dispatch is True
+        assert old_token is not None
+
+        # An in-flight command can finish after a stream-generation reset.
+        # A later reservation must remain pending until its own completion.
+        store._reset_sdk_stream_generation()
+        should_dispatch, _reservation, new_token = store._prepare_account_risk_refresh()
+        assert should_dispatch is True
+        assert new_token is not None
+        assert new_token != old_token
+
+        monkeypatch.setattr(store, "_read_account_risk_snapshot", lambda _api: {"late": True})
+        completion = asyncio.run(
+            store._execute_sdk_command(
+                {
+                    "operation": "account_risk",
+                    "account_risk_refresh_token": old_token,
+                    "receipt_id": "late-account-risk-refresh",
+                    "priority": "reconcile",
+                    "session_generation": store._command_generation,
+                }
+            )
+        )
+
+        assert completion["success"] is True
+        with store._account_risk_lock:
+            assert store._account_risk_refresh_pending is True
+            assert store._account_risk_refresh_token == new_token
+        store._clear_account_risk_refresh_pending(new_token)
+        with store._account_risk_lock:
+            assert store._account_risk_refresh_pending is False
+    finally:
+        store.stop()
+
+
+def test_execution_summary_pending_marker_does_not_mutate_immutable_sdk_mapping():
+    store = make_store(AsyncSdk())
+    nested = MappingProxyType({"venue": "unresolved"})
+    original = MappingProxyType({"unknown_ids": [], "reconciliation_errors": nested})
+    store._last_execution_summary = original
+    with store._account_risk_lock:
+        store._account_risk_refresh_pending = True
+
+    summary = store.get_execution_summary()
+
+    assert summary == {
+        "unknown_ids": [],
+        "reconciliation_errors": {"venue": "unresolved"},
+        "account_risk_refresh_in_progress": True,
+    }
+    summary["reconciliation_errors"]["venue"] = "changed"
+    assert nested["venue"] == "unresolved"
+    assert "account_risk_refresh_in_progress" not in original
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,170 @@
+{
+  "schema": "iteration41.g4r2.settlement_query_evidence.independent_review.v1",
+  "captured_at_utc": "2026-09-26T23:18:55Z",
+  "disposition": "INDEPENDENT_SOURCE_FAKE_REVIEW / NOT_ACCEPTED",
+  "candidate": {
+    "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927",
+    "source_manifest": "settlement-source-manifest.json",
+    "source_manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+    "freeze_receipt_sha256": "3F83D971C8B4B0834BF2A7AB5607A559CFF440593AD7DC04D44E011897C2B243",
+    "source_changes": [
+      {
+        "path": "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+        "kind": "modified",
+        "sha256": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+        "baseline_sha256": "F93B271972C3CDD967E964C82BF02AF8FC22AA7F8B53C6B64F24E08D091F9DA5"
+      },
+      {
+        "path": "src/bt_api_ctp/__init__.py",
+        "kind": "modified",
+        "sha256": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+        "baseline_sha256": "D77316160D5E8C5DC8BFA9E8FB949B62B4E667DFF904309B9A00539CA6B0CD35"
+      },
+      {
+        "path": "tests/test_ctp_settlement_query_evidence.py",
+        "kind": "added",
+        "sha256": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65",
+        "baseline_sha256": null
+      }
+    ],
+    "inherited_test": {
+      "path": "tests/test_ctp_native_query_certificate.py",
+      "sha256": "E542AB631748F8200975C1055263D784043895CCEC3BD270781A490087B00402"
+    },
+    "evidence_inputs": [
+      {
+        "path": "settlement-query-evidence-note.md",
+        "sha256": "FA787003EFDC06BEDDFED272A631DECDD1CC16E14FA60A7CA24553E0192A7AA7"
+      },
+      {
+        "path": "settlement-focused-tests.log",
+        "sha256": "0E0BF148E29CEDDB80BB9B60DB5683C5C6D4ED6A989745FEF7E91F4A4A044015"
+      },
+      {
+        "path": "static-checks.log",
+        "sha256": "BF8819EC215BF481380BF7DFF63C546B22E91538D4D4752ED6C5C88AC13910B6"
+      },
+      {
+        "path": "source-origin-smoke.log",
+        "sha256": "BA1879E522D2A2AA5A8A2CF9A719CFFFFC6E285A5B8E9B4A4584C2473DB016D4"
+      },
+      {
+        "path": "blocked-native-imports-final.jsonl",
+        "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508"
+      }
+    ]
+  },
+  "clean_g4_r2_lineage": {
+    "base_repo": "D:\\q\\e",
+    "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+    "source_a_path": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\source-a",
+    "source_a_manifest_sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A",
+    "source_a_evidence_manifest_sha256": "D579EF460D9FD1B9E03364F7E96F9C58CF1AFC78B72EAA326BCB7225829C9DC7",
+    "client_py_sha256": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+    "baseline_files_sha256": {
+      "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+      "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "F93B271972C3CDD967E964C82BF02AF8FC22AA7F8B53C6B64F24E08D091F9DA5",
+      "src/bt_api_ctp/__init__.py": "D77316160D5E8C5DC8BFA9E8FB949B62B4E667DFF904309B9A00539CA6B0CD35",
+      "tests/test_ctp_native_query_certificate.py": "E542AB631748F8200975C1055263D784043895CCEC3BD270781A490087B00402",
+      "src/bt_api_ctp/ctp/ctp_trader_api.py": "26A1CAB3D387C5AFB79FC7C041A7F0E333CAFCA708283B05CE65C2B2EFB08610",
+      "pyproject.toml": "3D05CAC55229F870ACAE5D686BE71410A6A264445FD4CE8F1ADE413FE1C83951"
+    },
+    "verified_client_lines": "query_settlement_confirmation_result 8021-8051; request_filter_field/request_intent_filters 8049-8050; _execute_query getter readback 7491-7547; callback OnRspQrySettlementInfoConfirm 4019",
+    "source_finding": "Clean source-a client.py is unchanged in candidate. Settlement query passes the native request field and exact request intent. _execute_query reads BrokerID/InvestorID getters before native submit and records actual readback in QuerySource."
+  },
+  "source_comparison": {
+    "compared_roots": [
+      "src",
+      "tests"
+    ],
+    "excluded_noise": [
+      ".DS_Store",
+      "__pycache__",
+      ".pytest_cache",
+      ".ruff_cache"
+    ],
+    "source_a_file_count": 238,
+    "candidate_file_count": 239,
+    "modified": [
+      "src/bt_api_ctp/__init__.py",
+      "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py"
+    ],
+    "added": [
+      "tests/test_ctp_settlement_query_evidence.py"
+    ],
+    "missing": [],
+    "candidate_to_isolated_qa_copy_identical": true
+  },
+  "dirty_d3674e19_comparison": {
+    "parent_head": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+    "ctp_submodule_head": "ce1edd60785eb4c66fefa16a994a66946a1e068f",
+    "client_sha256": "B61B32F9A2A2E61035BF88BCB7ACF669C8C7EE8E5BF5D7E1F6E375E69F053EAB",
+    "certificate_sha256": "A76E4E1245E84C782FFB9A92B4A804C377FC58C7F3672FD33265E3260E059FBE",
+    "client_query_lines": "6171-6184 omit request_filter_field/request_intent_filters",
+    "client_execute_query_line": "5753 accepts caller request_filters; dirty settlement query omits them",
+    "certificate_required_query_types_lines": "34-42 list account, positions, orders, trades, instruments, margin_rate, commission_rate; settlement is excluded",
+    "scope": "The missing-filter finding applies to this exact dirty d3674e19 checkout only; it must not be generalized to clean G4-r2 source-a."
+  },
+  "independent_execution": {
+    "qa_copy": "D:\\temp\\iteration41-g4r2-settlement-query-independent-qa-20260927",
+    "interpreter": "CPython 3.11.5 from the G4-r2 disposable consumer venv",
+    "command": "python -m pytest --noconftest tests/test_ctp_settlement_query_evidence.py tests/test_ctp_native_query_certificate.py -q --tb=short",
+    "result": "48 passed, 2 warnings, independently rerun in isolated copy",
+    "warning_summary": [
+      "PytestConfigWarning: asyncio_default_fixture_loop_scope is unknown with plugin autoload disabled.",
+      "RuntimeWarning: no matching Windows _ctp extension; native import guard blocked module import attempts."
+    ],
+    "test_native_guard_events": [
+      {
+        "module": "bt_api_ctp.ctp._ctp",
+        "blocked": true
+      },
+      {
+        "module": "bt_api_ctp.ctp._ctp",
+        "blocked": true
+      }
+    ],
+    "source_origin_smoke": "{\"evidence_module\": \"D:\\\\temp\\\\iteration41-g4r2-settlement-query-independent-qa-20260927\\\\src\\\\bt_api_ctp\\\\containers\\\\ctp\\\\ctp_native_query_certificate.py\", \"native_python_modules_in_sys_modules\": [], \"package\": \"D:\\\\temp\\\\iteration41-g4r2-settlement-query-independent-qa-20260927\\\\src\\\\bt_api_ctp\\\\__init__.py\", \"python\": \"3.11.5\"}",
+    "source_origin_guard_events": [],
+    "supplemental_negative_checks": [
+      {
+        "case": "result from another fake client/issuer",
+        "outcome": "rejected",
+        "error": "query_client_mismatch",
+        "log": "independent-review/independent-issuer-negative.log"
+      },
+      {
+        "case": "current query-history readback has wrong request id",
+        "outcome": "rejected",
+        "error": "settlement_query_current_result_mismatch",
+        "log": "independent-review/independent-current-history-negative.log"
+      }
+    ]
+  },
+  "negative_coverage": [
+    "Native getter readback: setter normalization and getter failure reject before API call and source creation.",
+    "Filters: exact BrokerID/InvestorID; no explicit filters; current source and intent must match.",
+    "Rows/day: empty or duplicate rows, wrong BrokerID/InvestorID, wrong ConfirmDate, mismatching optional TradingDay, and missing ConfirmDate fail closed.",
+    "Terminal/query: incomplete/not-last, callback request-id mismatch, submit failure, payload mutation and connection-generation change fail closed.",
+    "Issuer/history: code binds source to client issuer and re-reads the current QueryResult; the 48 frozen tests cover source integrity/readback, while the two extra fake negatives above directly exercise wrong issuer and current-result mismatch."
+  ],
+  "settlement_row_scope": "The available CTP settlement confirmation response type exposes BrokerID, InvestorID and ConfirmDate; it has no TradingDay field. Current TradingDay is sealed in QuerySource/session. No actual native extension was loaded.",
+  "digest_only_limit": "terminal_callback_history_sha256 is an in-process deterministic digest assembled from sealed query source and terminal QueryResult metadata; it is not a durable ordered callback inbox, cross-process signature, provider attestation, or independent callback audit log.",
+  "route_and_acceptance": {
+    "candidate_scope": "Python source/fake-only evidence helper; no wheel, pin, registration, main readiness consumer, or write path change.",
+    "sdk_readiness": "Existing verify_settlement_confirmation promotion remains unchanged; this additive evidence builder does not become its gate.",
+    "main_readiness": "backtrader_runtime/ctp_simnow_td_trading_readiness.py is unchanged and does not consume this evidence.",
+    "existing_certificate": "The existing seven-query CtpNativeQueryCertificateBuilder still excludes settlement confirmation.",
+    "g2_accepted": false,
+    "g4_accepted": false,
+    "g6s_accepted": false,
+    "default_route_open": false
+  },
+  "related_g6s_r1_matrix_correction": {
+    "r1_manifest_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+    "matrix_path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+    "r1_matrix_sha256": "08c80203f62ded15b2b3f711dd5babb83731ecb0bb57348a8ce4dad6855f9084",
+    "correction": "Root and guardian_qa byte-level review confirmed the r1 path is canonical Unicode, has no U+FFFD, and resolves. The earlier mojibake/unresolvable diagnosis was incorrect. Matrix content changed after r1, so the referenced digest is historical/stale. This independent G4 QA does not edit frozen G6-S r1."
+  },
+  "access_limits": "No provider/network/credentials/account/protected config. Fake API only. The Python import guard intercepted two attempted bt_api_ctp.ctp._ctp imports during pytest; no native extension or API was loaded/called."
+}

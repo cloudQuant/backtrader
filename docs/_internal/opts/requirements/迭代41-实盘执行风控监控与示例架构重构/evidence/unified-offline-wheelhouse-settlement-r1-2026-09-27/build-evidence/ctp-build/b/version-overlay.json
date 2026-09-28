@@ -1,0 +1,7 @@
+{
+  "old_version": "2.0.4+g4r2.probe.20260927",
+  "new_version": "2.0.4+g4r2.settlement.probe.20260927",
+  "original_pyproject_sha256": "3d05cac55229f870acae5d686be71410a6a264445fd4ce8f1ade413fe1c83951",
+  "modified_pyproject_sha256": "cbd398f0f660c146f7c211e3906ac61f71fe092e02e9c84e4ba055823a329df3",
+  "metadata_only_overlay": true
+}

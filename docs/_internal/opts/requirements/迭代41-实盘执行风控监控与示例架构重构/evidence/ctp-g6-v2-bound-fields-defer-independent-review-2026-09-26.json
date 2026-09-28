@@ -1,0 +1,360 @@
+{
+  "schema": "iteration41.g6.v2.root_archive.v1",
+  "status": "LOCAL_SOURCE_CONTRACT_PASS_WITH_TEST_LINT_LIMITATION",
+  "date": "2026-09-26",
+  "candidate_manifest_sha256": "1ea2e2ec890fc1f65cf9083b84621895944ef6c6fc834773118de9930b90320f",
+  "independent_manifest_sha256": "dee0fb729e1f49398a85892cb5e881effb63b8a2426ce37ccb5217d140aa96f1",
+  "independent_review_sha256": "57bd76ef4e8681bf1da68427ddb5265dc2c74e5527bae23dc7fced04a7d297e6",
+  "root_verified_artifact_hashes": 25,
+  "root_verified_junit_counts": {
+    "tests": 75,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "root_verified_negative_matrix_cases": 8,
+  "archive": {
+    "file": "ctp-g6-v2-bound-fields-defer-independent-review-2026-09-26.raw.zip",
+    "sha256": "5dc9d488261c795f3db2f119efe313e7db39b5fa56d3b1fe9912b13bd6796486",
+    "entries": 26
+  },
+  "archive_entries": [
+    {
+      "path": "candidate/backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+    },
+    {
+      "path": "candidate/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "b4be1c53e2715739bb5e22903b21d52975cd8711814835a3cb04bea81bb16994"
+    },
+    {
+      "path": "candidate/backtrader_runtime/ctp_managed_action_scope_resolver.py",
+      "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461"
+    },
+    {
+      "path": "candidate/focus.junit.xml",
+      "sha256": "6b5d455a47b1370117d7ce5c89682e2666b45c288b414d61c63dd185f1a05ab2"
+    },
+    {
+      "path": "candidate/focus.log",
+      "sha256": "7d3f112e38a4c23c9224abc7b3828b297c64c483d7d004e2c94bf923aa127b5a"
+    },
+    {
+      "path": "candidate/manifest.json",
+      "sha256": "1ea2e2ec890fc1f65cf9083b84621895944ef6c6fc834773118de9930b90320f"
+    },
+    {
+      "path": "candidate/module-origins.txt",
+      "sha256": "f19c8f32c639d60587c903238ba48da950fd4ca978a284b33ddeb0f24ce4fb96"
+    },
+    {
+      "path": "candidate/ruff.log",
+      "sha256": "08577a93aac4a162c77607cad43c5640ac70b2d59b21d637e23c2e83934ea24c"
+    },
+    {
+      "path": "candidate/tests/integration/test_iteration41_ctp_i9_account_session_candidate.py",
+      "sha256": "409c3b425c391620fc418c1901c5584dd75cc121f7887a463d21aa735eeb9b23"
+    },
+    {
+      "path": "candidate/tests/unit/runtime/test_ctp_managed_action_authority.py",
+      "sha256": "94e12f308403aeb8356e047e7d7b1d50ce6052b53c67e67f54ff738e49e91716"
+    },
+    {
+      "path": "candidate/tests/unit/runtime/test_ctp_managed_action_scope_resolver.py",
+      "sha256": "d32c168099e20465397045e385e9697ba25d48f7e310f1a31d56b2dec301d1a7"
+    },
+    {
+      "path": "independent-qa/build_independent_manifest.py",
+      "sha256": "5cd59ee5ee3c0731fd73ed4d1b1999120570b16fe2f0389380fa05b7d1d62872"
+    },
+    {
+      "path": "independent-qa/harness/backtrader_runtime/__init__.py",
+      "sha256": "e51f5ef71ea98d6e4e2d6229ae9ed79ad24c773bf8d1c22863d0d7208d3bad50"
+    },
+    {
+      "path": "independent-qa/independent-focus.junit.xml",
+      "sha256": "64b479c863c90aa000a2369346cba3da325e3f3816d40a579a3e34a0814ca2f9"
+    },
+    {
+      "path": "independent-qa/independent-focus.log",
+      "sha256": "f0c0b7c936437c5d0d99478d61b29c25e8c81a49457288b0a4f4395fcd217ba7"
+    },
+    {
+      "path": "independent-qa/independent-review.json",
+      "sha256": "57bd76ef4e8681bf1da68427ddb5265dc2c74e5527bae23dc7fced04a7d297e6"
+    },
+    {
+      "path": "independent-qa/metadata-source-derived/bt_api_execution-0.2.0.dist-info/METADATA",
+      "sha256": "80b3c69f64662856cc99eb9fc0f02734ea1c3dbef4e9415057803eb5abb3b21c"
+    },
+    {
+      "path": "independent-qa/module-origins-independent.txt",
+      "sha256": "0953957da50c72d90ce4f0653ef2b36a62e694887db0d185277247888e1b0bc7"
+    },
+    {
+      "path": "independent-qa/ruff-all-check.log",
+      "sha256": "d25df54ca5ca49b4eb9de141efb7e524305bc743d45eb040b9b67d2a5dc95668"
+    },
+    {
+      "path": "independent-qa/ruff-format-check.log",
+      "sha256": "f57152af69ed696672a20f7a07dc500ce85005053092505a680768f611957e48"
+    },
+    {
+      "path": "independent-qa/ruff-production-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "independent-qa/runner-manifest.json",
+      "sha256": "dee0fb729e1f49398a85892cb5e881effb63b8a2426ce37ccb5217d140aa96f1"
+    },
+    {
+      "path": "independent-qa/source-provenance-independent.txt",
+      "sha256": "82ca4e8430958ed29454ff8192dc525a317bd054cc7dae3f6a0d0c1b3099c106"
+    },
+    {
+      "path": "independent-qa/v18-real-store-binding-negative-runner-order-error.log",
+      "sha256": "e1f29bc1473b9f838dc15a79cd17ef04eeeed68db19a7480eb47729ee7e9f752"
+    },
+    {
+      "path": "independent-qa/v18-real-store-binding-negative.log",
+      "sha256": "bab814d3425244bc9068b5e6a66a7438381183c67f1e7cc7eb7318b605e08d29"
+    },
+    {
+      "path": "independent-qa/v18-real-store-binding-negative.py",
+      "sha256": "a7c7c723e5ab4af460340f23fa27508a691ab57f146e1432526b5ee50b0fdbc1"
+    }
+  ],
+  "review": {
+    "artifacts": [
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\manifest.json",
+        "sha256": "1ea2e2ec890fc1f65cf9083b84621895944ef6c6fc834773118de9930b90320f"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\focus.junit.xml",
+        "sha256": "6b5d455a47b1370117d7ce5c89682e2666b45c288b414d61c63dd185f1a05ab2"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\focus.log",
+        "sha256": "7d3f112e38a4c23c9224abc7b3828b297c64c483d7d004e2c94bf923aa127b5a"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\module-origins.txt",
+        "sha256": "f19c8f32c639d60587c903238ba48da950fd4ca978a284b33ddeb0f24ce4fb96"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\ruff.log",
+        "sha256": "08577a93aac4a162c77607cad43c5640ac70b2d59b21d637e23c2e83934ea24c"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_managed_action_authority.py",
+        "sha256": "b4be1c53e2715739bb5e22903b21d52975cd8711814835a3cb04bea81bb16994"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_managed_action_scope_resolver.py",
+        "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_i9_account_session_candidate.py",
+        "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\unit\\runtime\\test_ctp_managed_action_authority.py",
+        "sha256": "94e12f308403aeb8356e047e7d7b1d50ce6052b53c67e67f54ff738e49e91716"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\unit\\runtime\\test_ctp_managed_action_scope_resolver.py",
+        "sha256": "d32c168099e20465397045e385e9697ba25d48f7e310f1a31d56b2dec301d1a7"
+      },
+      {
+        "label": "frozen-candidate",
+        "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\integration\\test_iteration41_ctp_i9_account_session_candidate.py",
+        "sha256": "409c3b425c391620fc418c1901c5584dd75cc121f7887a463d21aa735eeb9b23"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\independent-focus.junit.xml",
+        "sha256": "64b479c863c90aa000a2369346cba3da325e3f3816d40a579a3e34a0814ca2f9"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\independent-focus.log",
+        "sha256": "f0c0b7c936437c5d0d99478d61b29c25e8c81a49457288b0a4f4395fcd217ba7"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\v18-real-store-binding-negative.py",
+        "sha256": "a7c7c723e5ab4af460340f23fa27508a691ab57f146e1432526b5ee50b0fdbc1"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\v18-real-store-binding-negative.log",
+        "sha256": "bab814d3425244bc9068b5e6a66a7438381183c67f1e7cc7eb7318b605e08d29"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\v18-real-store-binding-negative-runner-order-error.log",
+        "sha256": "e1f29bc1473b9f838dc15a79cd17ef04eeeed68db19a7480eb47729ee7e9f752"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\module-origins-independent.txt",
+        "sha256": "0953957da50c72d90ce4f0653ef2b36a62e694887db0d185277247888e1b0bc7"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\source-provenance-independent.txt",
+        "sha256": "82ca4e8430958ed29454ff8192dc525a317bd054cc7dae3f6a0d0c1b3099c106"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\ruff-production-check.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\ruff-all-check.log",
+        "sha256": "d25df54ca5ca49b4eb9de141efb7e524305bc743d45eb040b9b67d2a5dc95668"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\ruff-format-check.log",
+        "sha256": "f57152af69ed696672a20f7a07dc500ce85005053092505a680768f611957e48"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\harness\\backtrader_runtime\\__init__.py",
+        "sha256": "e51f5ef71ea98d6e4e2d6229ae9ed79ad24c773bf8d1c22863d0d7208d3bad50"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\build_independent_manifest.py",
+        "sha256": "5cd59ee5ee3c0731fd73ed4d1b1999120570b16fe2f0389380fa05b7d1d62872"
+      },
+      {
+        "label": "independent-qa",
+        "path": "D:\\temp\\iteration41-action-authority-independent-v2-qa-20260926\\metadata-source-derived\\bt_api_execution-0.2.0.dist-info\\METADATA",
+        "sha256": "80b3c69f64662856cc99eb9fc0f02734ea1c3dbef4e9415057803eb5abb3b21c"
+      }
+    ],
+    "classification": "Independent source-only review of frozen v2 action authority/defer slice; not deployment approval",
+    "dependencies": {
+      "base_source": "D:\\bt_api_py_codex_i9_integrated_20260926\\bt_api\\bt_api_base\\src",
+      "base_version": "0.15.4",
+      "execution_manifest_sha256": "0372771FBB91D3A6C6CC8D859EB4C68B6BBE65368A8672A8312F4AE9FA6E46B1",
+      "execution_metadata": "QA-only METADATA shim generated from that source pyproject; not installed",
+      "execution_pyproject_version": "0.2.0",
+      "execution_root": "D:\\temp\\iteration41_v18_cancel_postcondition_r0",
+      "execution_source_head": "bb2cd24cdaf9fb64f6b95010ee8619b0c6a35589",
+      "execution_store_sha256": "25980518E1B7AAE5CE13E3531AB854771AB5D036DF0209CDDDE08508124E8206",
+      "parent_gitlink_changes": [
+        "bt_api_ctp",
+        "bt_api_execution",
+        "bt_api_monitor",
+        "bt_api_risk"
+      ],
+      "parent_head": "76d5e0e60883263e0e79b67df321e7053ed46179",
+      "parent_python_source_clean": true,
+      "parent_root": "D:\\bt_api_py_codex_i9_integrated_20260926",
+      "parent_version": "0.15.5",
+      "sdk_callback_ingress_sha256": "A49465DC36AD4A60AB6A81CDE58FD8963AB230BE740D3832A792DC0184F48002",
+      "sdk_client_sha256": "BF915128C41DA83EFDFF517E3EA711C43D7555406BD831A0DFCD775B64840D1C",
+      "sdk_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+      "sdk_root": "D:\\q\\e",
+      "sdk_source_version": "2.0.4+iteration41.i9",
+      "sdk_worktree": "clean"
+    },
+    "frozen_candidate": {
+      "files": [
+        {
+          "label": "backtrader_runtime\\ctp_managed_action_authority.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_managed_action_authority.py",
+          "sha256": "b4be1c53e2715739bb5e22903b21d52975cd8711814835a3cb04bea81bb16994"
+        },
+        {
+          "label": "backtrader_runtime\\ctp_managed_action_scope_resolver.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_managed_action_scope_resolver.py",
+          "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461"
+        },
+        {
+          "label": "backtrader_runtime\\ctp_i9_account_session_candidate.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\backtrader_runtime\\ctp_i9_account_session_candidate.py",
+          "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+        },
+        {
+          "label": "tests\\unit\\runtime\\test_ctp_managed_action_authority.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\unit\\runtime\\test_ctp_managed_action_authority.py",
+          "sha256": "94e12f308403aeb8356e047e7d7b1d50ce6052b53c67e67f54ff738e49e91716"
+        },
+        {
+          "label": "tests\\unit\\runtime\\test_ctp_managed_action_scope_resolver.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\unit\\runtime\\test_ctp_managed_action_scope_resolver.py",
+          "sha256": "d32c168099e20465397045e385e9697ba25d48f7e310f1a31d56b2dec301d1a7"
+        },
+        {
+          "label": "tests\\integration\\test_iteration41_ctp_i9_account_session_candidate.py",
+          "path": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926\\tests\\integration\\test_iteration41_ctp_i9_account_session_candidate.py",
+          "sha256": "409c3b425c391620fc418c1901c5584dd75cc121f7887a463d21aa735eeb9b23"
+        }
+      ],
+      "manifest_sha256": "1ea2e2ec890fc1f65cf9083b84621895944ef6c6fc834773118de9930b90320f",
+      "root": "D:\\temp\\iteration41-action-admission-defer-v2-freeze-20260926"
+    },
+    "pytest": {
+      "command": "python -m pytest -q --noconftest -p no:cacheprovider tests/unit/runtime/test_ctp_managed_action_authority.py tests/unit/runtime/test_ctp_managed_action_scope_resolver.py tests/integration/test_iteration41_ctp_i9_account_session_candidate.py --tb=short --junitxml=<QA_DIR>\\independent-focus.junit.xml",
+      "native_module_loaded": false,
+      "provider_or_network": false,
+      "python": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe",
+      "result": "75 passed, 0 failed, 0 errors, 0 skipped; 1 runtime warning",
+      "warning": "pytest-asyncio unset fixture loop-scope deprecation; SDK emits warning that no compatible Windows _ctp binary is present"
+    },
+    "real_v18_store_counterexample": {
+      "action_digest_bound_to_staged_row": true,
+      "limitations": [
+        "This tests source-only Store claim admission, not the post-claim final native call or its freshness mutation window.",
+        "It is not a production config, key, revocation service, external writer fence, or provider session.",
+        "No SDK Req was sent; source-only execution metadata shim is not wheel acceptance."
+      ],
+      "negative_cases": [
+        "session broker differs from sealed config",
+        "session user differs from sealed config",
+        "request BrokerID differs",
+        "request InvestorID differs",
+        "request UserID differs",
+        "request InstrumentID differs",
+        "request ExchangeID differs",
+        "request CombHedgeFlag differs"
+      ],
+      "negative_outcome": "Each exact signed-permit attempt rejected with ContractValidationError before claim; durable row READY, owner ACTIVE, native dispatches 0",
+      "positive_control": "matching sealed config/session claim succeeds; row CLAIMED, owner ACTIVE, native dispatches 0",
+      "source": "Actual V18 SQLite Store r0 and frozen v2 authority/resolver; source-only synthetic config/session and ephemeral signed permits"
+    },
+    "reviewed_at_local_date": "2026-09-26",
+    "ruff": {
+      "all_six_files": "one E731 at frozen integration test line 975: local lambda assignment in test; not changed",
+      "config": "D:\\source_code\\backtrader\\pyproject.toml",
+      "format": "ruff format --check passed; 6 files already formatted",
+      "production_modules": "ruff check passed on the three frozen production modules",
+      "tool": "C:\\anaconda3\\Scripts\\ruff.exe 0.16.2"
+    },
+    "runner_order_error": "A supplemental assertion initially read the command before stage and got None; preserved in a separate diagnostic log, assertion moved after queue receipt; successful rerun then covered the signed matrix."
+  },
+  "limitations": [
+    "Root rehashed artifacts and checked result data; the independent agent executed the tests.",
+    "Sources include base 0.15.4 and a QA-only execution metadata shim; no unified installed-wheel acceptance.",
+    "The 75-test focus attempted SDK native import, which failed for lack of a matching binary; no native module loaded.",
+    "Eight signed counterexamples and the control exercise Store claim only, not final native-call freshness.",
+    "The test file has one Ruff E731; three production modules and all-file formatting passed.",
+    "No protected account config, real key service, external writer fence, provider session, or trade was tested."
+  ]
+}

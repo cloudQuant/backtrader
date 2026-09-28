@@ -1,0 +1,4 @@
+binding_origin=D:\temp\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2\backtrader_runtime\ctp_sdk_artifact_binding.py
+readiness_origin=D:\temp\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2\backtrader_runtime\ctp_simnow_td_trading_readiness.py
+code_owned_policy=None
+bt_api_ctp_modules=0

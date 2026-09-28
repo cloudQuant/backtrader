@@ -1,0 +1,11 @@
+{
+  "command": "python D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\run_partition4_r2_replay_regressions.py",
+  "test_path": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\replay-overlay\\tests\\unit\\test_ctp_pair_examples.py",
+  "pytest_exit_code": 0,
+  "stdout": "................................                                         [100%]\n============================== warnings summary ===============================\ntest_ctp_pair_examples.py::test_strategies_subclass_backtrader_strategy_and_use_framework_indicator\n  D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\run_partition4_r2_replay_regressions.py:44: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.\n    return original_import(name, *args, **kwargs)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n32 passed, 1 warning in 13.42s\n",
+  "stderr": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\run_partition4_r2_replay_regressions.py:44: DeprecationWarning: Jupyter is migrating its paths to use standard platformdirs\ngiven by the platformdirs library.  To remove this warning and\nsee the appropriate new directories, set the environment variable\n`JUPYTER_PLATFORM_DIRS=1` and then run `jupyter --paths`.\nThe use of platformdirs will be the default in `jupyter_core` v6\n  return original_import(name, *args, **kwargs)\n",
+  "blocked_optional_import_attempts": [],
+  "network_attempts": 0,
+  "env_file_read_attempts": [],
+  "main_tree_modified": false
+}

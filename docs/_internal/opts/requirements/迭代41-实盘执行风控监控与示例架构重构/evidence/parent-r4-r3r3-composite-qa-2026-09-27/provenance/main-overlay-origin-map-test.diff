@@ -1,0 +1,24 @@
+--- r4-main-overlay/test_cancellation_dispatch_resolution_control.py
++++ composite-main-overlay/test_cancellation_dispatch_resolution_control.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import json
++import os
+ import sqlite3
+ import subprocess
+ import sys
+@@ -55,7 +56,12 @@
+ )
+ assert (
+     Path(sys.modules["bt_api_py.runtime_plugins.fake_dispatch_authority"].__file__).resolve()
+-    == (_ROOT / "bt_api_py" / "runtime_plugins" / "fake_dispatch_authority.py").resolve()
++    == (
++        Path(json.loads(os.environ["BT_API_TEST_SOURCE_ROOTS"])["parent"])
++        / "bt_api_py"
++        / "runtime_plugins"
++        / "fake_dispatch_authority.py"
++    ).resolve()
+ )
+ 
+ _STRATEGY = "example.013_3.sa_midfreq_simnow"

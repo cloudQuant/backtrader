@@ -1,0 +1,604 @@
+{
+  "schema_version": "iteration41.example-runtime-inventory.v3",
+  "evidence_scope": "STATIC_ENTRYPOINT_AND_TARGETED_TEST_REVIEW_NOT_PRODUCTION_OR_SIMNOW_ACCEPTANCE",
+  "scope_limitations": [
+    "This inventory covers eleven ordinary replay entrypoints, one bounded public-market shadow observer, and two separately registered offline managed fake-provider L2 fixtures.",
+    "LOCAL_REPLAY_ONLY records the tested v4 replay shell; it does not admit a provider, SimNow, sandbox, live trading, managed execution, fills, PnL, profitability, or HFT capability.",
+    "Retired direct CTP/SimNow entrypoints for 007_ctp and 010_live_examples, plus 013_1 and 013_2, retain only config-first fail-closed compatibility CLIs; their direct providers and SimNow paths are not supported.",
+    "A real runtime/config.yaml is intentionally local and ignored. config.example.yaml is a reviewed template, never a startup fallback."
+  ],
+  "canonical_runtime_contract": {
+    "config_schema_version": 4,
+    "required_config": "<registered runtime_dir>/config.yaml",
+    "config_template": "<registered runtime_dir>/config.example.yaml",
+    "supported_mode_preset": {
+      "mode": "simulation",
+      "preset": "replay"
+    },
+    "external_network": false,
+    "external_writes": false,
+    "production_writes": false,
+    "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_INVENTORY",
+    "copied_runtime_behavior": "REJECTED_BEFORE_FRAMEWORK_OR_PROVIDER_IMPORT"
+  },
+  "public_market_shadow_contract": {
+    "config_schema_version": 4,
+    "required_config": "<registered runtime_dir>/config.yaml",
+    "supported_mode_preset": {
+      "mode": "simulation",
+      "preset": "shadow"
+    },
+    "allowed_parameter_keys": [
+      "symbols",
+      "duration_seconds",
+      "orderbook_limit"
+    ],
+    "code_owned_bootstrap_parameters": {
+      "symbols": [
+        "BTC/USDT:USDT",
+        "ETH/USDT:USDT"
+      ],
+      "duration_seconds": 10,
+      "orderbook_limit": 5
+    },
+    "maximum_duration_seconds": 30,
+    "requested_orderbook_limit": 5,
+    "provider_dependencies": {
+      "optional_extra": "okx-public-shadow",
+      "ccxt": "4.5.83",
+      "aiohttp": "3.14.3"
+    },
+    "external_network": true,
+    "external_writes": false,
+    "production_writes": false,
+    "account_access": "PUBLIC_MARKET_ONLY",
+    "credentials_accepted": false,
+    "hypothetical_fills": false,
+    "strategy_execution": "NOT_RUN",
+    "evidence_boundary": "PUBLIC_ORDERBOOK_OBSERVATION_ONLY_NOT_CEREBRO_STRATEGY_OR_EXECUTION_EVIDENCE"
+  },
+  "legacy_entrypoints": [
+    {
+      "path": "007_ctp/ctp_sa_dual_ma_strategy.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_bbroker_5s_examples/backtest/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_bbroker_5s_examples/live/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_mixbroker_5s_examples/backtest/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_mixbroker_5s_examples/live/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_mixbroker_examples/backtest/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_mixbroker_examples/live/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_tickbroker_5s_examples/backtest/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_tickbroker_5s_examples/live/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_tickbroker_examples/backtest/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/ctp_tickbroker_examples/live/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/live_certification/simnow_penetration/run_case.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/live_certification/simnow_penetration/run_all.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/live_certification/hongyuan_penetration/run_case.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "007_ctp/live_certification/hongyuan_penetration/run_all.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "007_ctp/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "010_live_examples/test_simnow_ctp.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "010_live_examples/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "010_live_examples/test_simnow_trade_logger_certification.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "010_live_examples/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "012_1_midfreq_cross_exchange/run.py",
+      "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
+      "iteration41_replacement": "012_1_midfreq_cross_exchange/run_runtime.py",
+      "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
+    },
+    {
+      "path": "012_2_event_driven_cross_exchange/run.py",
+      "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
+      "iteration41_replacement": "012_2_event_driven_cross_exchange/run_runtime.py",
+      "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
+    },
+    {
+      "path": "013_1_midfreq_cross_arbitrage/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "013_1_midfreq_cross_arbitrage/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "013_2_highfreq_calendar_arbitrage/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "013_2_highfreq_calendar_arbitrage/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "013_3_sa_midfreq_simnow/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "013_3_sa_midfreq_simnow/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "014_1_ctp_options_lowfreq/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "014_1_ctp_options_lowfreq/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "014_2_ctp_options_midfreq/run.py",
+      "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
+      "iteration41_replacement": "014_2_ctp_options_midfreq/run_runtime.py",
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+    },
+    {
+      "path": "015_ctp_options_highfreq/run.py",
+      "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
+      "iteration41_replacement": "015_ctp_options_highfreq/run_runtime.py",
+      "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
+    }
+  ],
+  "iteration41_entrypoints": [
+    {
+      "example_dir": "012_1_midfreq_cross_exchange",
+      "strategy_id": "example.012_1.midfreq_cross_exchange",
+      "runner_module": "examples.012_1_midfreq_cross_exchange.run_runtime",
+      "research_status": "RESEARCH_REJECTED",
+      "verification_tests": [
+        "tests/unit/test_iteration41_cross_exchange_runtime.py"
+      ],
+      "path": "012_1_midfreq_cross_exchange/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "012_1_midfreq_cross_exchange/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "012_2_event_driven_cross_exchange",
+      "strategy_id": "example.012_2.event_driven_cross_exchange",
+      "runner_module": "examples.012_2_event_driven_cross_exchange.run_runtime",
+      "research_status": "RESEARCH_REJECTED",
+      "verification_tests": [
+        "tests/unit/test_iteration41_cross_exchange_runtime.py"
+      ],
+      "path": "012_2_event_driven_cross_exchange/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "012_2_event_driven_cross_exchange/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "013_1_midfreq_cross_arbitrage",
+      "strategy_id": "example.013_1.midfreq_cross_arbitrage",
+      "runner_module": "examples.013_1_midfreq_cross_arbitrage.run_runtime",
+      "verification_tests": [
+        "tests/unit/test_iteration41_ctp_pair_runtime.py"
+      ],
+      "path": "013_1_midfreq_cross_arbitrage/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "013_1_midfreq_cross_arbitrage/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "013_2_highfreq_calendar_arbitrage",
+      "strategy_id": "example.013_2.highfreq_calendar_arbitrage",
+      "runner_module": "examples.013_2_highfreq_calendar_arbitrage.run_runtime",
+      "hft_admission": "HFT_NOT_ADMITTED",
+      "report_hft_status": "FAIL/NOT_ADMITTED",
+      "verification_tests": [
+        "tests/unit/test_iteration41_ctp_pair_runtime.py"
+      ],
+      "path": "013_2_highfreq_calendar_arbitrage/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "013_2_highfreq_calendar_arbitrage/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "013_3_sa_midfreq_simnow",
+      "strategy_id": "example.013_3.sa_midfreq_simnow",
+      "runner_module": "examples.013_3_sa_midfreq_simnow.run_runtime",
+      "research_status": "RESEARCH_NOT_ESTABLISHED",
+      "verification_tests": [
+        "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py"
+      ],
+      "path": "013_3_sa_midfreq_simnow/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "013_3_sa_midfreq_simnow/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "014_1_ctp_options_lowfreq",
+      "strategy_id": "example.014_1.ctp_options_lowfreq",
+      "runner_module": "examples.014_1_ctp_options_lowfreq.run_runtime",
+      "verification_tests": [
+        "tests/unit/test_iteration41_example_runtime.py"
+      ],
+      "path": "014_1_ctp_options_lowfreq/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "014_1_ctp_options_lowfreq/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "014_2_ctp_options_midfreq",
+      "strategy_id": "example.014_2.ctp_options_midfreq",
+      "runner_module": "examples.014_2_ctp_options_midfreq.run_runtime",
+      "verification_tests": [
+        "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py"
+      ],
+      "path": "014_2_ctp_options_midfreq/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "014_2_ctp_options_midfreq/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "015_ctp_options_highfreq",
+      "strategy_id": "example.015.ctp_options_highfreq",
+      "runner_module": "examples.015_ctp_options_highfreq.run_runtime",
+      "hft_admission": "HFT_NOT_ADMITTED",
+      "report_hft_status": "NOT_ADMITTED",
+      "verification_tests": [
+        "tests/unit/test_iteration41_ctp_options_highfreq_runtime.py"
+      ],
+      "path": "015_ctp_options_highfreq/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "015_ctp_options_highfreq/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
+    },
+    {
+      "example_dir": "sample",
+      "strategy_id": "example.sample.ctp_legacy",
+      "runner_module": "examples.sample",
+      "verification_tests": [
+        "tests/unit/runtime/test_iteration41_legacy_sample_runtime.py"
+      ],
+      "path": "sample.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "sample/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT",
+      "legacy_direct_execution": "NOT_SUPPORTED",
+      "evidence_boundary": "CONFIG_GATE_AND_NO_ACTION_PROBE_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
+    },
+    {
+      "example_dir": "007_ctp",
+      "strategy_id": "example.007_ctp.legacy_direct",
+      "runner_module": "examples.007_ctp.run_runtime",
+      "verification_tests": [
+        "tests/unit/runtime/test_iteration41_legacy_ctp_007_010_gate.py"
+      ],
+      "path": "007_ctp/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "007_ctp/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT",
+      "legacy_direct_execution": "NOT_SUPPORTED",
+      "evidence_boundary": "CONFIG_GATE_AND_NO_ACTION_PROBE_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
+    },
+    {
+      "example_dir": "010_live_examples",
+      "strategy_id": "example.010_live_examples.simnow_legacy",
+      "runner_module": "examples.010_live_examples.run_runtime",
+      "verification_tests": [
+        "tests/unit/runtime/test_iteration41_legacy_ctp_007_010_gate.py"
+      ],
+      "path": "010_live_examples/run_runtime.py",
+      "status": "LOCAL_REPLAY_ONLY",
+      "runtime_dir": "010_live_examples/runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [
+        "scenario"
+      ],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT",
+      "legacy_direct_execution": "NOT_SUPPORTED",
+      "evidence_boundary": "CONFIG_GATE_AND_NO_ACTION_PROBE_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
+    }
+  ],
+  "public_market_shadow_entrypoints": [
+    {
+      "example_dir": "010_live_examples",
+      "strategy_id": "example.010_live_examples.okx_public_shadow",
+      "runtime_id": "example.010_live_examples.okx_public_shadow",
+      "runner_module": "examples.010_live_examples.run_okx_shadow_runtime",
+      "verification_tests": [
+        "tests/unit/test_iteration41_okx_public_shadow_runtime.py"
+      ],
+      "path": "010_live_examples/run_okx_shadow_runtime.py",
+      "status": "PUBLIC_MARKET_SHADOW_ONLY",
+      "runtime_dir": "010_live_examples/runtime-okx-shadow",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "shadow"
+      },
+      "allowed_parameter_keys": [
+        "symbols",
+        "duration_seconds",
+        "orderbook_limit"
+      ],
+      "code_owned_bootstrap_parameters": {
+        "symbols": [
+          "BTC/USDT:USDT",
+          "ETH/USDT:USDT"
+        ],
+        "duration_seconds": 10,
+        "orderbook_limit": 5
+      },
+      "maximum_duration_seconds": 30,
+      "requested_orderbook_limit": 5,
+      "provider_dependencies": {
+        "optional_extra": "okx-public-shadow",
+        "ccxt": "4.5.83",
+        "aiohttp": "3.14.3"
+      },
+      "external_network": true,
+      "external_writes": false,
+      "production_writes": false,
+      "account_access": "PUBLIC_MARKET_ONLY",
+      "credentials_accepted": false,
+      "hypothetical_fills": false,
+      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT",
+      "strategy_execution": "NOT_RUN",
+      "evidence_boundary": "PUBLIC_ORDERBOOK_OBSERVATION_ONLY_NOT_CEREBRO_STRATEGY_OR_EXECUTION_EVIDENCE"
+    }
+  ],
+  "managed_replay_l2_entrypoints": [
+    {
+      "example_dir": "013_3_sa_midfreq_simnow",
+      "strategy_id": "example.013_3.sa_midfreq_simnow",
+      "runtime_id": "example.013_3.sa_midfreq_simnow.managed_replay_l2",
+      "runner_module": "examples.013_3_sa_midfreq_simnow.run_managed_replay_runtime",
+      "verification_tests": [
+        "tests/integration/test_iteration41_managed_replay_l2.py"
+      ],
+      "path": "013_3_sa_midfreq_simnow/run_managed_replay_runtime.py",
+      "status": "LOCAL_MANAGED_FAKE_PROVIDER_L2",
+      "runtime_dir": "013_3_sa_midfreq_simnow/runtime-managed-replay",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "REVIEWED_OFFLINE_FAKE_PROVIDER_EXECUTION_RISK_MONITOR",
+      "research_status": "RESEARCH_NOT_ESTABLISHED"
+    },
+    {
+      "example_dir": "ctp_options_simnow_managed_replay_runtime",
+      "strategy_id": "example.ctp_options_simnow.mechanical_managed_replay_l2",
+      "runtime_id": "example.ctp_options_simnow.mechanical_managed_replay_l2",
+      "runner_module": "examples.ctp_options_simnow_managed_replay_runtime",
+      "verification_tests": [
+        "tests/integration/test_iteration41_ctp_mechanical_managed_replay_l2.py"
+      ],
+      "path": "ctp_options_simnow_managed_replay_runtime.py",
+      "status": "LOCAL_CTP_MECHANICAL_MANAGED_FAKE_PROVIDER_L2",
+      "runtime_dir": "ctp_options_simnow_managed_replay_runtime",
+      "required_config": "config.yaml",
+      "config_template": "config.example.yaml",
+      "config_schema_version": 4,
+      "supported_mode_preset": {
+        "mode": "simulation",
+        "preset": "replay"
+      },
+      "allowed_parameter_keys": [],
+      "external_network": false,
+      "external_writes": false,
+      "production_writes": false,
+      "managed_execution": "REVIEWED_OFFLINE_FAKE_PROVIDER_EXECUTION_RISK_MONITOR",
+      "evidence_boundary": "FAKE_PROVIDER_L2_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
+    }
+  ]
+}

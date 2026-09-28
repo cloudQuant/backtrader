@@ -1,0 +1,5 @@
+R2 frozen candidate: Store CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA; patch AEF2BD46AA261576F936580502DF53C7FDC669856E3A7A59812CE43655493E59; route test 4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A.
+Focused inert contracts: route identity 16 passed; R4 recovery exit matrix 4 passed; P3 additionally exercised 4 fake-only cases (2 historical bypasses blocked, hidden __getattribute__ residual reproduced, no-route non-CTP positive).
+Author broad result 461 passed / 1 skipped is MIXED/CONTAMINATED: run_candidate.py had no import tripwire/stub; installed bt_api_ctp.ctp.client and bundled _ctp were imported. Native-load state in that unguarded run is not evidence for fake-only QA. Preserve focused-junit.xml as raw local result only.
+P3 guarded compatibility result: 443 passed / 1 skipped / 18 import-tripwire-blocked; P3 reports root bt_api_ctp loader was blocked and no native module loaded. The 18 blocked cases are not passes. Final P3 receipt pending corrected manifest/checksum binding.
+Ruff, py_compile, and exact A039 replay passed. No G4, live, CTP write, or provider acceptance.

@@ -1,0 +1,60 @@
+--- parent-source/tests/test_cancel_dispatch_resolution_proof.py.before
++++ parent-source/tests/test_cancel_dispatch_resolution_proof.py.qa-copy-paths
+@@ -14,7 +14,7 @@
+ import pytest
+ 
+ _EXECUTION_SRC = Path(
+-    r"D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src"
++    r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src"
+ )
+ sys.path.insert(0, str(_EXECUTION_SRC))
+ from bt_api_execution import contracts as _execution_contracts  # noqa: E402
+--- parent-source/tests/test_cancel_dispatch_resolution_proof_store.py.before
++++ parent-source/tests/test_cancel_dispatch_resolution_proof_store.py.qa-copy-paths
+@@ -9,9 +9,9 @@
+ import pytest
+ 
+ _EXECUTION_SRC = Path(
+-    r"D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src"
+-)
+-_RISK_SRC = Path(r"D:\temp\iteration41_risk_cancel_resolution_20260927\src")
++    r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src"
++)
++_RISK_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\risk\src")
+ sys.path.insert(0, str(_EXECUTION_SRC))
+ sys.path.insert(0, str(_RISK_SRC))
+ 
+--- parent-source/tests/test_cancellation_dispatch_resolution_control.py.before
++++ parent-source/tests/test_cancellation_dispatch_resolution_control.py.qa-copy-paths
+@@ -15,10 +15,10 @@
+ import pytest
+ 
+ _ROOT = Path(__file__).resolve().parents[1]
+-_EXECUTION_SRC = Path(r"D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src")
+-_RISK_SRC = Path(r"D:\temp\iteration41_risk_cancel_resolution_20260927\src")
+-_BASE_SRC = Path(r"D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src")
+-_MONITOR_SRC = Path(r"D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_monitor\src")
++_EXECUTION_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src")
++_RISK_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\risk\src")
++_BASE_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\base\src")
++_MONITOR_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\monitor\src")
+ for _source in (_ROOT, _EXECUTION_SRC, _RISK_SRC, _BASE_SRC, _MONITOR_SRC):
+     sys.path.insert(0, str(_source))
+ 
+--- main-overlay/tests/test_cancellation_dispatch_resolution_control.py.before
++++ main-overlay/tests/test_cancellation_dispatch_resolution_control.py.qa-copy-paths
+@@ -16,10 +16,10 @@
+ import pytest
+ 
+ _ROOT = Path(__file__).resolve().parents[1]
+-_EXECUTION_SRC = Path(r"D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src")
+-_RISK_SRC = Path(r"D:\temp\iteration41_risk_cancel_resolution_20260927\src")
+-_BASE_SRC = Path(r"D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src")
+-_MONITOR_SRC = Path(r"D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_monitor\src")
++_EXECUTION_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src")
++_RISK_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\risk\src")
++_BASE_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\base\src")
++_MONITOR_SRC = Path(r"D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\monitor\src")
+ for _source in (_ROOT, _EXECUTION_SRC, _RISK_SRC, _BASE_SRC, _MONITOR_SRC):
+     sys.path.insert(0, str(_source))
+ 

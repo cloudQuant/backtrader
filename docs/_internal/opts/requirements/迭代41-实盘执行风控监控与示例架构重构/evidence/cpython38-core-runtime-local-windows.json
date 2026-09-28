@@ -1,0 +1,37 @@
+{
+  "execution_performed": true,
+  "included_test_targets": [
+    "tests/unit/runtime/test_runtime_config.py",
+    "tests/unit/runtime/test_runtime_operator_flow.py",
+    "tests/unit/runtime/test_runtime_operator_guidance.py",
+    "tests/unit/runtime/test_runtime_batch_bootstrap.py"
+  ],
+  "interpreter": {
+    "executable": "C:\\anaconda3\\envs\\btcpp-py38\\python.exe",
+    "implementation": "CPython",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "version": "3.8.20"
+  },
+  "managed_sdk_exclusions": [
+    "bt_api_py and bt_api_execution declare Python >=3.11",
+    "bt_api_base, bt_api_risk, and bt_api_monitor declare Python >=3.9",
+    "no provider, account, gateway, or managed-execution SDK path is covered"
+  ],
+  "pytest_command": [
+    "C:\\anaconda3\\envs\\btcpp-py38\\python.exe",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:asyncio",
+    "tests/unit/runtime/test_runtime_config.py",
+    "tests/unit/runtime/test_runtime_operator_flow.py",
+    "tests/unit/runtime/test_runtime_operator_guidance.py",
+    "tests/unit/runtime/test_runtime_batch_bootstrap.py"
+  ],
+  "pytest_exit_code": 0,
+  "required_interpreter": "CPython 3.8",
+  "schema_version": 1,
+  "scope": "iteration41_core_config_operator_no_sdk",
+  "status": "PASSED"
+}

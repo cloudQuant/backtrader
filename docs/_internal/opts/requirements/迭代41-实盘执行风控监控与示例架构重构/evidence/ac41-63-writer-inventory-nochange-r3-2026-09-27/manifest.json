@@ -1,0 +1,55 @@
+{
+  "active_dispositions": {
+    "NOT_AVAILABLE": 460,
+    "REVIEW_REQUIRED": 460
+  },
+  "candidate_counts": {
+    "dynamic_execution_candidates": 97,
+    "files_scanned": 355,
+    "parse_errors": 0,
+    "writer_candidates": 363
+  },
+  "candidate_id_digest": "9f1a15399fe380693bd5bd3ef1def13a77aeb688b6d9f00e156021ce2717099b",
+  "decision": "NO_R3_PATCH_INVENTORY_AND_DISPOSITIONS_ALREADY_MATCH",
+  "evidence_scope": "STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION",
+  "full_temp_package_manifest_sha256": "BE97A7CCD3A2D4BF98FCCD12F9C77D8E598627D374CB047E42D45F86B9F0BD8F",
+  "full_temp_packet": "D:\\temp\\iteration41-writer-inventory-nochange-r3-20260927",
+  "full_temp_receipt_sha256": "3613A1DA3060C0BD889CA47009ADDFBDC12E7BE855CF99C9C80E3BAC554527D0",
+  "historical_tombstone_count": 6,
+  "no_source_or_disposition_patch": true,
+  "payload_files": {
+    "no-change-receipt.md": {
+      "sha256": "3613A1DA3060C0BD889CA47009ADDFBDC12E7BE855CF99C9C80E3BAC554527D0",
+      "size_bytes": 6756
+    },
+    "official-verifier.txt": {
+      "sha256": "24AAA65CFE587DCA1A87A271BC00B56614D4B3FE370C6071CE16F73C76855587",
+      "size_bytes": 335
+    },
+    "r2-r3-delta-summary.json": {
+      "sha256": "B2216DAF475C907B26D860B5AB98761F4012CB9B9EA2B88BCA313440A25B765A",
+      "size_bytes": 1001
+    },
+    "r2-r3-id-delta.json": {
+      "sha256": "8F3D0FBDE10DCD1A3F9914EAC1DDB9BEF4DF4623CC00A473B5B30184D5D24631",
+      "size_bytes": 36775
+    },
+    "r3-collector-inventory.json": {
+      "sha256": "4C457DC29888D501E0A3A9E15458E5C6D976AB7CE3D3B0AB4D701735A358B83D",
+      "size_bytes": 225377
+    },
+    "r3-collector-stdout.txt": {
+      "sha256": "2B74D27A55CA4C78B2D3398055C20E374C8ABEB149B19A64CE24FD85E6BC4106",
+      "size_bytes": 473
+    },
+    "source-hashes.json": {
+      "sha256": "8204CD6C6B1ED4C9219988936C58FC5B7D98ACD6BC39F72BA7CFB54AA9B5FB5D",
+      "size_bytes": 73239
+    }
+  },
+  "private_runtime_state_subtree_read": false,
+  "r2_patch_sha256": "D5DE326F61EDE3D4776392C158587B89A7098B38274C8B6C0E7AB7B0BB0D319D",
+  "schema": "iteration41-writer-inventory-nochange-r3-evidence.v1",
+  "shared_index_modified": false,
+  "source_root": "."
+}

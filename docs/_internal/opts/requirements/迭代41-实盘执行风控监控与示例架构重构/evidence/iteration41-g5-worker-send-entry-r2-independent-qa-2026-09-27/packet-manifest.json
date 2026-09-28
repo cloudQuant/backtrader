@@ -1,0 +1,200 @@
+{
+  "files": [
+    {
+      "bytes": 27081,
+      "path": "frozen-input/candidate-output-manifest.json",
+      "sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3"
+    },
+    {
+      "bytes": 97,
+      "path": "frozen-input/candidate-output-manifest.sha256",
+      "sha256": "cdbfae966c87a87fa34d51320d1a8b74fafd9b1842914c552394e18707a524c8"
+    },
+    {
+      "bytes": 570569,
+      "path": "frozen-input/r1-candidate.zip",
+      "sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268"
+    },
+    {
+      "bytes": 25155,
+      "path": "frozen-input/r1-final-output-manifest.json",
+      "sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf"
+    },
+    {
+      "bytes": 608197,
+      "path": "frozen-input/r2-candidate.zip",
+      "sha256": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/extra-boundary-probes.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 100,
+      "path": "independent-run/logs/extra-boundary-probes.log",
+      "sha256": "1ac8e286cf90b665bc6dd3e53d3910da97de9307d0c53d8e456a9c28a5d3bd05"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/extra-same-store-readback.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 100,
+      "path": "independent-run/logs/extra-same-store-readback.log",
+      "sha256": "4266e033210036ba8b31ee3a443436561f15f8d6019f9b409a683c576bc1774b"
+    },
+    {
+      "bytes": 675,
+      "path": "independent-run/logs/integrity-receipt.json",
+      "sha256": "90a6c63a29f441dcc9ce3f9c8189e89b70f61c33a248485849a52a9250ad956a"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/integrity.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 639,
+      "path": "independent-run/logs/integrity.stdout.txt",
+      "sha256": "fea741af5b376a4585d9a7533bc677935989d223c6e2a2b3f6f15475ac197d50"
+    },
+    {
+      "bytes": 186,
+      "path": "independent-run/logs/prepare-r1-red-baseline.stdout.txt",
+      "sha256": "a9e61d62aad2c71bb383f6c0d1b88cbb1586bd164b52d6b22e897e791813b99d"
+    },
+    {
+      "bytes": 457,
+      "path": "independent-run/logs/prepare-r1-red.stdout.txt",
+      "sha256": "718115c116b2056d1a7c8d476257595860b4f50384fe1e28de44d85cd1d75274"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/r1-red-regressions-replay.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 2774,
+      "path": "independent-run/logs/r1-red-regressions-replay.log",
+      "sha256": "02c146b68b5d6db2d40535695d8a51aa413eba6a77606147134ccf3ce6e5987d"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/r1-red-regressions.exit.txt",
+      "sha256": "df4e26a04a444901b95afef44e4a96cfae34690fff2ad2c66389c70079cdff2b"
+    },
+    {
+      "bytes": 1052,
+      "path": "independent-run/logs/r1-red-regressions.log",
+      "sha256": "cbb30aefd9516709eca7ffad04e0b6ec6d066491e69b7c7d0aef47ef432ae3e0"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/r1-to-r2-patch-replay.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 1255,
+      "path": "independent-run/logs/r1-to-r2-patch-replay.json",
+      "sha256": "fac191f13ff11b05bca2fc0c31bca0f316123c400741bf49ce7c06f6a9f70ddb"
+    },
+    {
+      "bytes": 1085,
+      "path": "independent-run/logs/r1-to-r2-patch-replay.stdout.txt",
+      "sha256": "17ecd24b8583b21ce2d3faf56b6db8417e8cfb93863b45ea4d9b3ac94ab2004c"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/r2-implementation.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 101,
+      "path": "independent-run/logs/r2-implementation.log",
+      "sha256": "e1c69a605233e8e37dadeaab217d71779df59c744ef38ee17a3a3eb595ced47a"
+    },
+    {
+      "bytes": 0,
+      "path": "independent-run/logs/r2-patch-apply-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "independent-run/logs/r2-patch-apply.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/sdk-candidate-source.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 2923,
+      "path": "independent-run/logs/sdk-candidate-source.log",
+      "sha256": "42be75ee5736c2d98ddd01c21dea854fa2a2cb57ee8e066017b761149e34c9ac"
+    },
+    {
+      "bytes": 3,
+      "path": "independent-run/logs/sdk-frozen-source.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 101,
+      "path": "independent-run/logs/sdk-frozen-source.log",
+      "sha256": "d9a8baf0fd07bafa3432a30c2f354a35a6ff87869d479d768354c404c7361b31"
+    },
+    {
+      "bytes": 1556,
+      "path": "independent-run/scripts/make_packet.py",
+      "sha256": "970ce45a17df720690b0ff5c9a3cd313f407cf957b11ffd9a8e30647cb2660f3"
+    },
+    {
+      "bytes": 671,
+      "path": "independent-run/scripts/prepare_r1_red.py",
+      "sha256": "54142d4c7083ef3355c6c95cacb1508c618c6b411d012373d93fc7e841b2cef9"
+    },
+    {
+      "bytes": 661,
+      "path": "independent-run/scripts/prepare_r1_red_baseline.py",
+      "sha256": "b4de54d86b0f47a44d301ea3bcfe8d7727f6bb69b14e1ca87e49303bff8a59de"
+    },
+    {
+      "bytes": 6129,
+      "path": "independent-run/scripts/test_r1_send_entry_regressions.py",
+      "sha256": "ccc46d47796e451cf29204954220d2d8dce5b41ff9047ec42ef10cc8dcb82367"
+    },
+    {
+      "bytes": 5785,
+      "path": "independent-run/scripts/test_r2_cancel_same_store_readback.py",
+      "sha256": "a44c4463c361603311df92797dabeb400ec868a5ca1fb09108a5ef993c0f3d45"
+    },
+    {
+      "bytes": 3553,
+      "path": "independent-run/scripts/verify_and_extract.py",
+      "sha256": "28914aa3c6222454cd0dcbf930aa9cf9f5c5a7071e964bf3fde19250c547fae4"
+    },
+    {
+      "bytes": 3239,
+      "path": "independent-run/scripts/verify_r1_patch_replay.py",
+      "sha256": "1f2cd3f90b43d6b61ee88c2032264c207e48ee79b7c6cf06cb7df9be96e636cb"
+    },
+    {
+      "bytes": 5909,
+      "path": "REPORT.md",
+      "sha256": "bb6cb3b3d3602dfbef23b5c31cdc703684bdf92627cb78ea65af2cdd31055e8a"
+    }
+  ],
+  "format": "iteration41-g5-send-entry-r2-independent-qa-packet.v1",
+  "payload_file_count": 37,
+  "r1_zip_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+  "r2_manifest_sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+  "r2_zip_sha256": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283",
+  "raw_zip": {
+    "bytes": 1187941,
+    "path": "independent-qa.raw.zip",
+    "sha256": "fc111a4703dedbc097f7695a22ec6ad3dd7712bce0d91605404b839a1b31542a"
+  },
+  "verdict": "G5_NOT_ACCEPTED"
+}

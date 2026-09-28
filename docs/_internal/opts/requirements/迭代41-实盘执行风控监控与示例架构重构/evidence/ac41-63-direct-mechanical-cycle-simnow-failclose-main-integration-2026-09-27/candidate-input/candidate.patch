@@ -1,0 +1,854 @@
+diff --git a/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py b/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py
+index 4654aa4..0472b7e 100644
+--- a/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py
++++ b/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py
+@@ -126,14 +126,8 @@ class MechanicalCycle:
+         cycle_id: str,
+         budget_capability: Any = None,
+     ):
+-        """Validate the public broker interfaces and initialize a disarmed cycle."""
+-        if not callable(getattr(broker, "buy", None)) or not callable(
+-            getattr(broker, "sell", None)
+-        ):
+-            raise MechanicalCycleBlocked("BROKER_PUBLIC_ORDER_INTERFACE_REQUIRED")
+-        if not callable(getattr(broker, "cancel", None)):
+-            raise MechanicalCycleBlocked("BROKER_PUBLIC_CANCEL_INTERFACE_REQUIRED")
+-        self.broker = broker
++        """Store inert inputs; this generic state machine has no writer admission."""
++        self.broker = broker
+         self.owner = owner
+         self.feeds = dict(feeds)
+         self.cycle_id = _text(cycle_id, "cycle_id")
+@@ -158,17 +152,28 @@ class MechanicalCycle:
+         """Return a defensive copy of the evidence journal rows."""
+         return tuple(dict(item) for item in self._journal)
+ 
+-    def _record(self, status: str, *, intent_id: str | None = None, order: Any = None) -> None:
++    def _record(self, status: str, *, intent_id: str | None = None, order: Any = None) -> None:
+         row = {"cycle_id": self.cycle_id, "status": status}
+         if intent_id:
+             row["intent_id_hash"] = _hash(intent_id)
+         if order is not None and getattr(order, "ref", None) is not None:
+             row["bt_ref_hash"] = _hash(str(order.ref))
+-        self._journal.append(row)
+-
+-    def arm(self, proof: Mapping[str, Any]) -> None:
+-        """Verify the injected settlement, reconciliation and arming proofs, then arm."""
+-        if self.state != "DISARMED":
++        self._journal.append(row)
++
++    def _require_dispatch_authority(self) -> None:
++        """Deny generic injected-broker dispatch until a trusted route exists.
++
++        ``arm`` and the proof mappings only update local plan state. They are
++        caller-controlled and do not grant permission to inspect or call the
++        injected broker. The registered offline replay uses a separate
++        invocation-local fake-only subclass.
++        """
++        raise MechanicalCycleBlocked("TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE")
++
++    def arm(self, proof: Mapping[str, Any]) -> None:
++        """Validate plan evidence; generic instances still cannot dispatch."""
++        self._require_dispatch_authority()
++        if self.state != "DISARMED":
+             raise MechanicalCycleBlocked("CYCLE_ALREADY_ARMED_OR_STARTED")
+         if not isinstance(proof, Mapping) or proof.get("settlement_verified") is not True:
+             raise MechanicalCycleBlocked("SETTLEMENT_PROOF_REQUIRED")
+@@ -224,8 +229,10 @@ class MechanicalCycle:
+         self.pending_intent_id = intent_id
+         self._record("ENTRY_PLANNED", intent_id=intent_id)
+ 
+-    def _submit(self, leg: MechanicalLeg, *, intent_id: str, offset: str) -> Any:
+-        allowed_states = {"ARMED", "OPENING"} if offset == "open" else {"OPEN", "CLOSING"}
++    def _submit(self, leg: MechanicalLeg, *, intent_id: str, offset: str) -> Any:
++        # Guard before method lookup: broker descriptors may have side effects.
++        self._require_dispatch_authority()
++        allowed_states = {"ARMED", "OPENING"} if offset == "open" else {"OPEN", "CLOSING"}
+         if self.state not in allowed_states or self.pending_order is not None:
+             raise MechanicalCycleBlocked("EXACTLY_ONE_PENDING_ORDER_REQUIRED")
+         if offset not in {"open", "close"}:
+@@ -426,9 +433,11 @@ class MechanicalCycle:
+             offset="close",
+         )
+ 
+-    def cancel_pending(self) -> Any:
+-        """Request cancellation of the single pending order and record the request."""
+-        if self.pending_order is None:
++    def cancel_pending(self) -> Any:
++        """Request cancellation of the single pending order and record the request."""
++        # Guard before method lookup, even if a caller forged pending state.
++        self._require_dispatch_authority()
++        if self.pending_order is None:
+             raise MechanicalCycleBlocked("NO_PENDING_ORDER")
+         order = self.broker.cancel(self.pending_order)
+         self._record("CANCEL_REQUESTED", intent_id=self.pending_intent_id, order=self.pending_order)
+diff --git a/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py b/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py
+index 8459ea0..2bd266c 100644
+--- a/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py
++++ b/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py
+@@ -505,202 +505,6 @@ def _cycle_report(cycle: Any) -> dict[str, Any]:
+     }
+ 
+ 
+-def _run_mechanical_cerebro_stage(
+-    bt: Any,
+-    pandas: Any,
+-    *,
+-    store: Any,
+-    broker: Any,
+-    metadata_digests: Mapping[str, str],
+-    stage: str,
+-) -> dict[str, Any]:
+-    """Run one real Cerebro stage through the unchanged mechanical state machine."""
+-
+-    from . import mechanical_cycle as mechanical
+-
+-    MechanicalCycle = mechanical.MechanicalCycle
+-    MechanicalCycleBlocked = mechanical.MechanicalCycleBlocked
+-
+-    class MechanicalFixtureStrategy(bt.Strategy):
+-        __module__ = _STRATEGY_CLASS_MODULE
+-
+-        def __init__(self) -> None:
+-            self.stage_report: dict[str, Any] = {}
+-            self._fixture_done = False
+-
+-        def _cycle(self, label: str) -> Any:
+-            facade = _ManagedMechanicalBroker(self.broker, metadata_digests)
+-            cycle = MechanicalCycle(
+-                broker=facade,
+-                owner=self,
+-                feeds={
+-                    instrument: self.getdatabyname(instrument) for instrument in _FAKE_INSTRUMENTS
+-                },
+-                cycle_id="iteration41-p1b-" + label,
+-            )
+-            cycle.arm(_proof(mechanical))
+-            return cycle
+-
+-        @staticmethod
+-        def _legs(mechanical: Any) -> list[Any]:
+-            return [
+-                mechanical.MechanicalLeg(instrument, "buy", 10.0, None)
+-                for instrument in _FAKE_INSTRUMENTS
+-            ]
+-
+-        @staticmethod
+-        def _child_projection(order: Any) -> dict[str, Any]:
+-            info = getattr(order, "info", {})
+-            getter = getattr(info, "get", lambda _name, default=None: default)
+-            return {
+-                "intent_id": getter("managed_intent_id"),
+-                "instrument": getter("managed_instrument"),
+-                "offset": getter("offset"),
+-                "metadata_bound": isinstance(getter("managed_instrument_metadata_digest"), str),
+-            }
+-
+-        def _complete_three_leg_cycle(self, cycle: Any, *, label: str) -> list[dict[str, Any]]:
+-            entry_legs = self._legs(mechanical)
+-            children: list[dict[str, Any]] = []
+-            cycle.plan_entry(entry_legs, intent_id="p1b." + label + ".entry")
+-            for index in range(3):
+-                order = cycle.submit_next_entry()
+-                children.append(self._child_projection(order))
+-                _mark_synthetic_native_fill(order, trade_id="p1b-open-" + str(index))
+-                cycle.on_order_update(order)
+-            cycle.plan_exit(
+-                [
+-                    mechanical.MechanicalLeg(leg.symbol, "sell", 10.0, leg.data)
+-                    for leg in entry_legs
+-                ],
+-                intent_id="p1b." + label + ".compensation",
+-            )
+-            for index in range(3):
+-                order = cycle.submit_next_exit()
+-                children.append(self._child_projection(order))
+-                _mark_synthetic_native_fill(order, trade_id="p1b-close-" + str(index))
+-                cycle.on_order_update(order)
+-            stable = _proof(mechanical)["bundle_preflight"]
+-            cycle.finalize_flat(dict(stable), dict(stable))
+-            return children
+-
+-        def _cancel_then_run_separate_clean_cycle(self) -> None:
+-            """Show cancel fail-closed, then exercise a separate clean cycle.
+-
+-            The cancelled child has no confirmed native fill, so there is no
+-            exposure from which this offline fixture could truthfully derive a
+-            compensation plan.  The second cycle is intentionally independent:
+-            it covers the existing three-leg open/close mechanics, not recovery
+-            of the cancelled order.
+-            """
+-
+-            cancelled = self._cycle("cancelled")
+-            cancelled.plan_entry(self._legs(mechanical), intent_id="p1b.cancelled.entry")
+-            pending = cancelled.submit_next_entry()
+-            cancelled.cancel_pending()
+-            _mark_terminal_cancel(pending)
+-            try:
+-                cancelled.on_order_update(pending)
+-            except MechanicalCycleBlocked as error:
+-                if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
+-                    raise
+-            else:
+-                raise RuntimeError("cancelled mechanical child was not fail-closed")
+-            if cancelled.state != "RECOVERY_REQUIRED":
+-                raise RuntimeError("cancelled mechanical cycle did not require recovery")
+-
+-            recovered = self._cycle("recovered")
+-            children = self._complete_three_leg_cycle(recovered, label="recovered")
+-            self.stage_report = {
+-                "cancel_requires_recovery": _cycle_report(cancelled),
+-                "separate_clean_cycle_compensation": _cycle_report(recovered),
+-                "separate_clean_cycle_children": children,
+-            }
+-
+-        def _provider_rejected(self) -> None:
+-            rejected = self._cycle("rejected")
+-            rejected.plan_entry(self._legs(mechanical), intent_id="p1b.rejected.entry")
+-            order = rejected.submit_next_entry()
+-            try:
+-                rejected.on_order_update(order)
+-            except MechanicalCycleBlocked as error:
+-                if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
+-                    raise
+-            else:
+-                raise RuntimeError("rejected mechanical child was not fail-closed")
+-            self.stage_report = {"rejected": _cycle_report(rejected)}
+-
+-        def _unknown(self) -> None:
+-            unknown = self._cycle("unknown")
+-            unknown.plan_entry(self._legs(mechanical), intent_id="p1b.unknown.entry")
+-            order = unknown.submit_next_entry()
+-            info = getattr(order, "info", {})
+-            getter = getattr(info, "get", lambda _name, default=None: default)
+-            if getter("execution_unknown") is not True:
+-                raise RuntimeError("ambiguous fake-provider response was not marked UNKNOWN")
+-            try:
+-                unknown.timeout()
+-            except MechanicalCycleBlocked as error:
+-                if str(error) != "TIMEOUT_RECOVERY_REQUIRED":
+-                    raise
+-            self.stage_report = {"unknown": _cycle_report(unknown)}
+-
+-        def _blocked_after_restart(self) -> None:
+-            blocked = self._cycle("blocked")
+-            blocked.plan_entry(self._legs(mechanical), intent_id="p1b.blocked.entry")
+-            order = blocked.submit_next_entry()
+-            getstatusname = getattr(order, "getstatusname", None)
+-            status = str(getstatusname() if callable(getstatusname) else "").casefold()
+-            info = getattr(order, "info", {})
+-            getter = getattr(info, "get", lambda _name, default=None: default)
+-            # The persisted UNKNOWN dispatch freeze must be observed by the
+-            # restarted risk gate before the fake-provider port can be called.
+-            # A generic mechanical callback failure alone would not prove that
+-            # this was a managed pre-dispatch block.
+-            if status != "rejected" or getter("remote_error_code") != "managed_execution_blocked":
+-                raise RuntimeError("restart unknown freeze did not reject before provider dispatch")
+-            try:
+-                blocked.on_order_update(order)
+-            except MechanicalCycleBlocked as error:
+-                if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
+-                    raise
+-            else:
+-                raise RuntimeError("restart safety block did not stop the mechanical child")
+-            self.stage_report = {
+-                "blocked_after_restart": _cycle_report(blocked),
+-                "framework_status": status,
+-                "managed_rejection": getter("remote_error_code"),
+-            }
+-
+-        def next(self) -> None:
+-            if self._fixture_done or len(self) != 1:
+-                return
+-            self._fixture_done = True
+-            if stage == "cancel_then_separate_clean_cycle":
+-                self._cancel_then_run_separate_clean_cycle()
+-            elif stage == "provider_rejected":
+-                self._provider_rejected()
+-            elif stage == "unknown":
+-                self._unknown()
+-            elif stage == "blocked_after_restart":
+-                self._blocked_after_restart()
+-            else:
+-                raise RuntimeError("unknown mechanical replay stage")
+-
+-    cerebro = bt.Cerebro(stdstats=False, runonce=False)
+-    for instrument in _FAKE_INSTRUMENTS:
+-        cerebro.adddata(bt.feeds.PandasData(dataname=_fixture_data(pandas)), name=instrument)
+-    cerebro.setbroker(broker)
+-    cerebro.addstrategy(MechanicalFixtureStrategy)
+-    result = cerebro.run()
+-    report = result[0].stage_report
+-    if not store.managed_execution_active:
+-        raise RuntimeError("Cerebro stage lost its managed Store binding")
+-    if not report:
+-        raise RuntimeError("Cerebro did not enter the mechanical fixture stage")
+-    return report
+-
+-
+ def run_runtime(
+     runtime_dir: Optional[Path] = DEFAULT_RUNTIME_DIR,
+     *,
+@@ -722,6 +526,237 @@ def run_runtime(
+ 
+         state_directory = Path(temporary_root) / "managed-state"
+         provider = _FakeProvider()
++
++        # The generic MechanicalCycle has no writer authority. This
++        # invocation-local subclass exists only after the sealed replay gate
++        # and closes over the exact fake provider created above. Its broker
++        # check is repeated before every submit/cancel, before method lookup.
++        from backtrader.brokers.btapibroker import BtApiBroker
++        from backtrader.stores.btapistore import BtApiStore
++        from .mechanical_cycle import (
++            MechanicalCycle as GenericMechanicalCycle,
++            MechanicalCycleBlocked,
++        )
++
++        class _RegisteredFakeReplayCycle(GenericMechanicalCycle):
++            def _require_dispatch_authority(self) -> None:
++                if (
++                    effective.registration.offline_managed_execution is not True
++                    or effective.order_route != "managed_execution"
++                    or effective.account_access != "fake_provider"
++                    or effective.allows_network
++                    or effective.allows_external_writes
++                    or effective.allows_production_writes
++                ):
++                    raise MechanicalCycleBlocked("OFFLINE_REPLAY_ADMISSION_REQUIRED")
++                facade = object.__getattribute__(self, "broker")
++                if type(facade) is not _ManagedMechanicalBroker:
++                    raise MechanicalCycleBlocked("CODE_OWNED_FAKE_BROKER_REQUIRED")
++                facade_state = object.__getattribute__(facade, "__dict__")
++                native_broker = facade_state.get("_broker")
++                if type(native_broker) is not BtApiBroker:
++                    raise MechanicalCycleBlocked("CODE_OWNED_FAKE_BROKER_REQUIRED")
++                broker_state = object.__getattribute__(native_broker, "__dict__")
++                store = broker_state.get("store")
++                if type(store) is not BtApiStore:
++                    raise MechanicalCycleBlocked("CODE_OWNED_FAKE_STORE_REQUIRED")
++                store_state = object.__getattribute__(store, "__dict__")
++                if store_state.get("_api") is not provider:
++                    raise MechanicalCycleBlocked("INVOCATION_FAKE_PROVIDER_REQUIRED")
++
++        def _run_mechanical_cerebro_stage(
++            *,
++            store: Any,
++            broker: Any,
++            metadata_digests: Mapping[str, str],
++            stage: str,
++        ) -> dict[str, Any]:
++            """Run one real Cerebro stage through the unchanged mechanical state machine."""
++
++            from . import mechanical_cycle as mechanical
++
++            MechanicalCycle = _RegisteredFakeReplayCycle
++            MechanicalCycleBlocked = mechanical.MechanicalCycleBlocked
++
++            class MechanicalFixtureStrategy(bt.Strategy):
++                __module__ = _STRATEGY_CLASS_MODULE
++
++                def __init__(self) -> None:
++                    self.stage_report: dict[str, Any] = {}
++                    self._fixture_done = False
++
++                def _cycle(self, label: str) -> Any:
++                    facade = _ManagedMechanicalBroker(self.broker, metadata_digests)
++                    cycle = MechanicalCycle(
++                        broker=facade,
++                        owner=self,
++                        feeds={
++                            instrument: self.getdatabyname(instrument) for instrument in _FAKE_INSTRUMENTS
++                        },
++                        cycle_id="iteration41-p1b-" + label,
++                    )
++                    cycle.arm(_proof(mechanical))
++                    return cycle
++
++                @staticmethod
++                def _legs(mechanical: Any) -> list[Any]:
++                    return [
++                        mechanical.MechanicalLeg(instrument, "buy", 10.0, None)
++                        for instrument in _FAKE_INSTRUMENTS
++                    ]
++
++                @staticmethod
++                def _child_projection(order: Any) -> dict[str, Any]:
++                    info = getattr(order, "info", {})
++                    getter = getattr(info, "get", lambda _name, default=None: default)
++                    return {
++                        "intent_id": getter("managed_intent_id"),
++                        "instrument": getter("managed_instrument"),
++                        "offset": getter("offset"),
++                        "metadata_bound": isinstance(getter("managed_instrument_metadata_digest"), str),
++                    }
++
++                def _complete_three_leg_cycle(self, cycle: Any, *, label: str) -> list[dict[str, Any]]:
++                    entry_legs = self._legs(mechanical)
++                    children: list[dict[str, Any]] = []
++                    cycle.plan_entry(entry_legs, intent_id="p1b." + label + ".entry")
++                    for index in range(3):
++                        order = cycle.submit_next_entry()
++                        children.append(self._child_projection(order))
++                        _mark_synthetic_native_fill(order, trade_id="p1b-open-" + str(index))
++                        cycle.on_order_update(order)
++                    cycle.plan_exit(
++                        [
++                            mechanical.MechanicalLeg(leg.symbol, "sell", 10.0, leg.data)
++                            for leg in entry_legs
++                        ],
++                        intent_id="p1b." + label + ".compensation",
++                    )
++                    for index in range(3):
++                        order = cycle.submit_next_exit()
++                        children.append(self._child_projection(order))
++                        _mark_synthetic_native_fill(order, trade_id="p1b-close-" + str(index))
++                        cycle.on_order_update(order)
++                    stable = _proof(mechanical)["bundle_preflight"]
++                    cycle.finalize_flat(dict(stable), dict(stable))
++                    return children
++
++                def _cancel_then_run_separate_clean_cycle(self) -> None:
++                    """Show cancel fail-closed, then exercise a separate clean cycle.
++
++                    The cancelled child has no confirmed native fill, so there is no
++                    exposure from which this offline fixture could truthfully derive a
++                    compensation plan.  The second cycle is intentionally independent:
++                    it covers the existing three-leg open/close mechanics, not recovery
++                    of the cancelled order.
++                    """
++
++                    cancelled = self._cycle("cancelled")
++                    cancelled.plan_entry(self._legs(mechanical), intent_id="p1b.cancelled.entry")
++                    pending = cancelled.submit_next_entry()
++                    cancelled.cancel_pending()
++                    _mark_terminal_cancel(pending)
++                    try:
++                        cancelled.on_order_update(pending)
++                    except MechanicalCycleBlocked as error:
++                        if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
++                            raise
++                    else:
++                        raise RuntimeError("cancelled mechanical child was not fail-closed")
++                    if cancelled.state != "RECOVERY_REQUIRED":
++                        raise RuntimeError("cancelled mechanical cycle did not require recovery")
++
++                    recovered = self._cycle("recovered")
++                    children = self._complete_three_leg_cycle(recovered, label="recovered")
++                    self.stage_report = {
++                        "cancel_requires_recovery": _cycle_report(cancelled),
++                        "separate_clean_cycle_compensation": _cycle_report(recovered),
++                        "separate_clean_cycle_children": children,
++                    }
++
++                def _provider_rejected(self) -> None:
++                    rejected = self._cycle("rejected")
++                    rejected.plan_entry(self._legs(mechanical), intent_id="p1b.rejected.entry")
++                    order = rejected.submit_next_entry()
++                    try:
++                        rejected.on_order_update(order)
++                    except MechanicalCycleBlocked as error:
++                        if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
++                            raise
++                    else:
++                        raise RuntimeError("rejected mechanical child was not fail-closed")
++                    self.stage_report = {"rejected": _cycle_report(rejected)}
++
++                def _unknown(self) -> None:
++                    unknown = self._cycle("unknown")
++                    unknown.plan_entry(self._legs(mechanical), intent_id="p1b.unknown.entry")
++                    order = unknown.submit_next_entry()
++                    info = getattr(order, "info", {})
++                    getter = getattr(info, "get", lambda _name, default=None: default)
++                    if getter("execution_unknown") is not True:
++                        raise RuntimeError("ambiguous fake-provider response was not marked UNKNOWN")
++                    try:
++                        unknown.timeout()
++                    except MechanicalCycleBlocked as error:
++                        if str(error) != "TIMEOUT_RECOVERY_REQUIRED":
++                            raise
++                    self.stage_report = {"unknown": _cycle_report(unknown)}
++
++                def _blocked_after_restart(self) -> None:
++                    blocked = self._cycle("blocked")
++                    blocked.plan_entry(self._legs(mechanical), intent_id="p1b.blocked.entry")
++                    order = blocked.submit_next_entry()
++                    getstatusname = getattr(order, "getstatusname", None)
++                    status = str(getstatusname() if callable(getstatusname) else "").casefold()
++                    info = getattr(order, "info", {})
++                    getter = getattr(info, "get", lambda _name, default=None: default)
++                    # The persisted UNKNOWN dispatch freeze must be observed by the
++                    # restarted risk gate before the fake-provider port can be called.
++                    # A generic mechanical callback failure alone would not prove that
++                    # this was a managed pre-dispatch block.
++                    if status != "rejected" or getter("remote_error_code") != "managed_execution_blocked":
++                        raise RuntimeError("restart unknown freeze did not reject before provider dispatch")
++                    try:
++                        blocked.on_order_update(order)
++                    except MechanicalCycleBlocked as error:
++                        if str(error) != "ORDER_TERMINAL_WITHOUT_NATIVE_FILL":
++                            raise
++                    else:
++                        raise RuntimeError("restart safety block did not stop the mechanical child")
++                    self.stage_report = {
++                        "blocked_after_restart": _cycle_report(blocked),
++                        "framework_status": status,
++                        "managed_rejection": getter("remote_error_code"),
++                    }
++
++                def next(self) -> None:
++                    if self._fixture_done or len(self) != 1:
++                        return
++                    self._fixture_done = True
++                    if stage == "cancel_then_separate_clean_cycle":
++                        self._cancel_then_run_separate_clean_cycle()
++                    elif stage == "provider_rejected":
++                        self._provider_rejected()
++                    elif stage == "unknown":
++                        self._unknown()
++                    elif stage == "blocked_after_restart":
++                        self._blocked_after_restart()
++                    else:
++                        raise RuntimeError("unknown mechanical replay stage")
++
++            cerebro = bt.Cerebro(stdstats=False, runonce=False)
++            for instrument in _FAKE_INSTRUMENTS:
++                cerebro.adddata(bt.feeds.PandasData(dataname=_fixture_data(pandas)), name=instrument)
++            cerebro.setbroker(broker)
++            cerebro.addstrategy(MechanicalFixtureStrategy)
++            result = cerebro.run()
++            report = result[0].stage_report
++            if not store.managed_execution_active:
++                raise RuntimeError("Cerebro stage lost its managed Store binding")
++            if not report:
++                raise RuntimeError("Cerebro did not enter the mechanical fixture stage")
++            return report
++
+         monitor_events: list[str] = []
+         synthetic_callback_fills = 0
+         sdk_confirmed_fills = 0
+@@ -732,8 +767,6 @@ def run_runtime(
+             store, broker = _make_store_and_broker(provider)
+             bind_managed_execution(store, effective, first)
+             cancel_and_separate_clean_cycle = _run_mechanical_cerebro_stage(
+-                bt,
+-                pandas,
+                 store=store,
+                 broker=broker,
+                 metadata_digests=metadata_digests,
+@@ -782,8 +815,6 @@ def run_runtime(
+             store, broker = _make_store_and_broker(provider)
+             bind_managed_execution(store, effective, first)
+             rejected = _run_mechanical_cerebro_stage(
+-                bt,
+-                pandas,
+                 store=store,
+                 broker=broker,
+                 metadata_digests=metadata_digests,
+@@ -794,8 +825,6 @@ def run_runtime(
+             store, broker = _make_store_and_broker(provider)
+             bind_managed_execution(store, effective, first)
+             unknown = _run_mechanical_cerebro_stage(
+-                bt,
+-                pandas,
+                 store=store,
+                 broker=broker,
+                 metadata_digests=metadata_digests,
+@@ -836,8 +865,6 @@ def run_runtime(
+             store, broker = _make_store_and_broker(provider)
+             bind_managed_execution(store, effective, restarted)
+             blocked = _run_mechanical_cerebro_stage(
+-                bt,
+-                pandas,
+                 store=store,
+                 broker=broker,
+                 metadata_digests=restarted_digests,
+diff --git a/examples/ctp_options_simnow_live_runner.py b/examples/ctp_options_simnow_live_runner.py
+index 41b5489..5c7f616 100644
+--- a/examples/ctp_options_simnow_live_runner.py
++++ b/examples/ctp_options_simnow_live_runner.py
+@@ -3,7 +3,8 @@
+ Importing this module is deliberately inert: it does not read the environment,
+ construct a client, connect, or submit an order.  A caller supplies the one
+ Store, broker, feeds, public evidence, and (only when explicitly requested) an
+-already armed authorization proof.
++caller-supplied evidence inputs. The direct writer path remains unavailable
++until a trusted authorization verifier and managed route are connected.
+ """
+ 
+ from __future__ import annotations
+@@ -96,29 +97,10 @@ def _scope_value(snapshot: Mapping[str, Any], *names: str) -> Any:
+     return None
+ 
+ 
+-def _authorization_ready(authorization: Any) -> dict[str, Any]:
+-    if not isinstance(authorization, Mapping):
+-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_REQUIRED")
+-    if authorization.get("armed") is not True:
+-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_ARMED")
+-    if (
+-        authorization.get("hmac_grant_configured") is not True
+-        and authorization.get("grant_configured") is not True
+-    ):
+-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_CONFIGURED")
+-    signature = authorization.get("signature_hmac_sha256")
+-    nested_grant = authorization.get("grant")
+-    if signature in (None, "") and isinstance(nested_grant, Mapping):
+-        signature = nested_grant.get("signature_hmac_sha256")
+-    if not isinstance(signature, str) or not signature.strip():
+-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_SIGNATURE_MISSING")
+-    # Return only booleans/identity fields needed by MechanicalCycle; never copy
+-    # a secret or a full grant into the journal.
+-    return {
+-        "armed": True,
+-        "account_fingerprint": authorization.get("account_fingerprint"),
+-        "connection_generation": authorization.get("connection_generation"),
+-    }
++def _authorization_ready(authorization: Any) -> dict[str, Any]:
++    """Fail closed: this local runner has no trusted grant verifier."""
++    del authorization
++    raise SimNowLiveRunnerBlocked("TRUSTED_EXECUTION_AUTHORIZATION_VERIFIER_UNAVAILABLE")
+ 
+ 
+ def _bundle_leg_identities(snapshot: Mapping[str, Any]) -> tuple[tuple[str, str, bool], ...]:
+@@ -569,14 +551,12 @@ class SimNowLiveRunner:
+         exit_reference_timeout: float = 15.0,
+         exact_instrument_ids: Mapping[str, str] | None = None,
+     ):
+-        """Validate and store the injected parts; no connection or read happens here."""
++        """Store inert inputs; no connection, read, or broker lookup happens here."""
+         if not isinstance(feeds, Mapping) or not feeds:
+             raise SimNowLiveRunnerBlocked("CALLER_FEEDS_REQUIRED")
+-        if not callable(getattr(broker, "buy", None)) or not callable(
+-            getattr(broker, "sell", None)
+-        ):
+-            raise SimNowLiveRunnerBlocked("CALLER_BTAPI_BROKER_REQUIRED")
+-        self.store = store
++        # Keep the supplied object opaque. Attribute lookup can execute caller
++        # descriptors, and this local runner has no trusted writer admission.
++        self.store = store
+         self.broker = broker
+         self.feeds = dict(feeds)
+         self.owner = owner
+diff --git a/tests/unit/test_ctp_options_simnow_live_runner.py b/tests/unit/test_ctp_options_simnow_live_runner.py
+index 93195b0..9442596 100644
+--- a/tests/unit/test_ctp_options_simnow_live_runner.py
++++ b/tests/unit/test_ctp_options_simnow_live_runner.py
+@@ -13,13 +13,47 @@ from types import SimpleNamespace
+ 
+ import pytest
+ 
+-import examples.ctp_options_simnow_live_runner as live_runner
++import examples.ctp_options_simnow_live_runner as live_runner
+ from examples.ctp_options_simnow_live_runner import (
+     SimNowLiveRunner,
+     SimNowLiveRunnerBlocked,
+ )
+ 
+-SYMBOLS = ("DCE.m2701", "DCE.m2701-C-3400", "DCE.m2701-P-3400")
++SYMBOLS = ("DCE.m2701", "DCE.m2701-C-3400", "DCE.m2701-P-3400")
++
++
++class _UnitFakeDispatchCycle(live_runner.MechanicalCycle):
++    """Test-only seam for local state-machine tests; never grants runtime authority."""
++
++    def _require_dispatch_authority(self):
++        return None
++
++
++def _unit_fake_authorization_ready(authorization):
++    """LOCAL_FAIL_CLOSE_ONLY: preserve legacy fake-flow contracts, not HMAC proof."""
++    if not isinstance(authorization, dict) or authorization.get("armed") is not True:
++        raise SimNowLiveRunnerBlocked("HMAC_GRANT_REQUIRED")
++    if not authorization.get("hmac_grant_configured") and not authorization.get(
++        "grant_configured"
++    ):
++        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_CONFIGURED")
++    signature = authorization.get("signature_hmac_sha256")
++    nested = authorization.get("grant")
++    if signature in (None, "") and isinstance(nested, dict):
++        signature = nested.get("signature_hmac_sha256")
++    if not isinstance(signature, str) or not signature.strip():
++        raise SimNowLiveRunnerBlocked("HMAC_GRANT_SIGNATURE_MISSING")
++    return {
++        "armed": True,
++        "account_fingerprint": authorization.get("account_fingerprint"),
++        "connection_generation": authorization.get("connection_generation"),
++    }
++
++
++@pytest.fixture(autouse=True)
++def _local_fake_routes_are_explicitly_test_only(monkeypatch):
++    monkeypatch.setattr(live_runner, "MechanicalCycle", _UnitFakeDispatchCycle)
++    monkeypatch.setattr(live_runner, "_authorization_ready", _unit_fake_authorization_ready)
+ 
+ 
+ def _identity(**changes):
+@@ -634,12 +668,67 @@ def test_compat_start_execute_still_requires_frozen_preflight():
+     assert broker.writes == []
+ 
+ 
+-def test_execute_cannot_bypass_hmac_gate():
++def test_execute_cannot_bypass_hmac_gate():
+     runner, broker = _runner(authorization={"armed": True})
+ 
+     with pytest.raises(SimNowLiveRunnerBlocked, match="HMAC_GRANT"):
+         _execute(runner)
+-    assert broker.writes == []
++    assert broker.writes == []
++
++
++def test_default_runner_rejects_forged_signature_before_broker_attribute_access(monkeypatch):
++    monkeypatch.undo()
++
++    class AttributeProbe:
++        def __init__(self):
++            self.lookups = []
++            self.calls = []
++
++        def __getattribute__(self, name):
++            if name in {"buy", "sell", "cancel"}:
++                object.__getattribute__(self, "lookups").append(name)
++            return object.__getattribute__(self, name)
++
++        def __getattr__(self, name):
++            self.lookups.append(name)
++            raise AssertionError("default runner must not inspect an injected broker")
++
++        def buy(self, **_kwargs):
++            self.calls.append("buy")
++
++        def sell(self, **_kwargs):
++            self.calls.append("sell")
++
++        def cancel(self, _order):
++            self.calls.append("cancel")
++
++    constructor_probe = AttributeProbe()
++    _runner(broker=constructor_probe)
++    assert constructor_probe.lookups == []
++
++    runner, _ = _runner()
++    runner.preflight()
++    # Public reconciliation uses read-only broker hooks. Replace it after
++    # preflight to isolate the direct writer boundary under test.
++    dispatch_probe = AttributeProbe()
++    runner.broker = dispatch_probe
++    with pytest.raises(
++        SimNowLiveRunnerBlocked,
++        match="TRUSTED_EXECUTION_AUTHORIZATION_VERIFIER_UNAVAILABLE",
++    ):
++        runner.execute_preflighted(
++            prices=dict.fromkeys(SYMBOLS, 10.0),
++            execution_state=_execution_state(),
++            execution_authorization={
++                "armed": True,
++                "hmac_grant_configured": True,
++                "signature_hmac_sha256": "forged",
++                "account_fingerprint": "acct-test-sha256",
++                "connection_generation": 7,
++            },
++        )
++    assert dispatch_probe.lookups == []
++    assert dispatch_probe.calls == []
+ 
+ 
+ def test_preflight_requires_execution_reference_capability_and_does_not_requery_store():
+diff --git a/tests/unit/test_ctp_options_simnow_mechanical_cycle.py b/tests/unit/test_ctp_options_simnow_mechanical_cycle.py
+index 48e4eba..adc8467 100644
+--- a/tests/unit/test_ctp_options_simnow_mechanical_cycle.py
++++ b/tests/unit/test_ctp_options_simnow_mechanical_cycle.py
+@@ -16,6 +16,13 @@ fixture_cycle_module = importlib.import_module(
+     "backtrader_runtime._iteration41_l2_fixture.mechanical_cycle"
+ )
+ operator_module = importlib.import_module("examples.ctp_options_simnow_mechanical_operator")
++
++
++class _UnitFakeCycle(cycle_module.MechanicalCycle):
++    """Test-only fake dispatch seam; it is not an execution authority."""
++
++    def _require_dispatch_authority(self):
++        return None
+ 
+ 
+ GATE_RECEIPT_NOW = datetime(2026, 9, 13, 1, 0, tzinfo=timezone.utc)
+@@ -227,7 +234,7 @@ def make_cycle():
+         A ``(cycle, broker)`` tuple.
+     """
+     broker = FakeBroker()
+-    cycle = cycle_module.MechanicalCycle(
++    cycle = _UnitFakeCycle(
+         broker=broker,
+         owner=object(),
+         feeds={"F": object()},
+@@ -282,14 +289,59 @@ def native_fill(order, *, cycle_id="cycle-23-test", intent_id="intent-open:open:
+     return order
+ 
+ 
+-def test_unarmed_cycle_has_no_write_boundary_call():
++def test_unarmed_cycle_has_no_write_boundary_call():
+     broker = FakeBroker()
+     cycle = cycle_module.MechanicalCycle(
+         broker=broker, owner=object(), feeds={"F": object()}, cycle_id="cycle-unarmed"
+     )
+     with pytest.raises(cycle_module.MechanicalCycleBlocked, match="CYCLE_NOT_ARMED"):
+         cycle.plan_entry([cycle_module.MechanicalLeg("F", "buy", 1, object())], intent_id="i")
+-    assert broker.calls == []
++    assert broker.calls == []
++
++
++def test_generic_cycle_rejects_forged_arm_submit_and_cancel_before_broker_lookup():
++    class AttributeProbe:
++        def __init__(self):
++            self.lookups = []
++            self.calls = []
++
++        def __getattribute__(self, name):
++            if name in {"buy", "sell", "cancel"}:
++                object.__getattribute__(self, "lookups").append(name)
++            return object.__getattribute__(self, name)
++
++        def buy(self, **_kwargs):
++            self.calls.append("buy")
++
++        def sell(self, **_kwargs):
++            self.calls.append("sell")
++
++        def cancel(self, _order):
++            self.calls.append("cancel")
++
++    broker = AttributeProbe()
++    cycle = cycle_module.MechanicalCycle(
++        broker=broker, owner=object(), feeds={"F": object()}, cycle_id="direct-forged"
++    )
++    with pytest.raises(
++        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
++    ):
++        cycle.arm(proof())
++    with pytest.raises(
++        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
++    ):
++        cycle._submit(
++            cycle_module.MechanicalLeg("F", "buy", 1.0, object()),
++            intent_id="forged-entry",
++            offset="open",
++        )
++    cycle.pending_order = object()
++    with pytest.raises(
++        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
++    ):
++        cycle.cancel_pending()
++    assert broker.lookups == []
++    assert broker.calls == []
+ 
+ 
+ def test_one_leg_open_close_and_two_round_flat_closes_without_profit_claim():
+@@ -419,7 +471,7 @@ def test_arm_rejects_nonflat_or_unstable_proof():
+         value = proof()
+         value.update(bad)
+         with pytest.raises(cycle_module.MechanicalCycleBlocked):
+-            cycle_module.MechanicalCycle(
++            _UnitFakeCycle(
+                 broker=FakeBroker(), owner=object(), feeds={"F": object()}, cycle_id="bad"
+             ).arm(value)
+ 

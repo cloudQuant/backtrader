@@ -1,0 +1,58 @@
+{
+  "title": "Iteration41 CTP Account Actor Store Wiring r1 independent QA",
+  "date": "2026-09-27",
+  "classification": "CANDIDATE_ONLY_NO_WRITE_LOCAL_FAKE",
+  "production_ctp_authority": false,
+  "source_root": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1",
+  "qa_root": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r1-independent-qa-20260927",
+  "manifest_sha256": "ADA5018781A7417206B88E3D934D59A67A77BEAB0C5E09E002A0E8F89A16ADE4",
+  "manifest_verified_files": 629,
+  "manifest_verified_bytes": 9932064,
+  "canonical_patch_sha256": "B164D083AA4D4BD3A6DC325582C4EE82E0042945360C98A63CA3EC9212ABCC58",
+  "source_hashes": {
+    "candidate_store": "A25EDC57D4A4AC225B1B152A2672FF2B108B3C497CEF05CD46A8FB22C1E586B8",
+    "base_store": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "actor_port": "19F5935BC6AABCDE178F60F62619757B01FA51B99FF5389120A8404E00E70372",
+    "focus_test": "B04100BAC2CD4FBA6C132D3CFB44E18FA6E40A0896E602AA276A69B2DAEBB12C",
+    "legacy_test": "2B5F929CAC960ED6A7105EB2CC0B7401961FDB7C7B97761288D279B415B15E3F",
+    "patch": "B164D083AA4D4BD3A6DC325582C4EE82E0042945360C98A63CA3EC9212ABCC58",
+    "candidate_manifest": "ADA5018781A7417206B88E3D934D59A67A77BEAB0C5E09E002A0E8F89A16ADE4"
+  },
+  "results": {
+    "focus_boundary_live_guard": "14 passed; 1 existing Quandl deprecation warning",
+    "focus_managed_adapter_guard": "21 passed; 1 existing Quandl deprecation warning",
+    "exact_base_legacy_30": "30 passed",
+    "candidate_legacy_30": "9 passed, 21 failed; each failure blocks at external_account_actor_unavailable in the direct CTP-local-SDK constructor path",
+    "okx_api_cls_positive": "pass; fake constructor=1, connect=1; no SDK/native import",
+    "adapter_only_cancel_mutation": "pass; local fallback rejected, route mutation rejected before adapter invocation, API reads=0"
+  },
+  "limitations": [
+    "Caller-supplied adapter callback is arbitrary code and not sandboxed.",
+    "Fake/local actor receipt cannot elevate account/provider admission.",
+    "Does not establish G4/G1/F14/production acceptance or default-route availability."
+  ],
+  "payload_hashes": {
+    "freeze_r1_qa.py": "5D3B5E7997D8D943A52C28E631488C86D4CB910397BA3FF37E69BC54453D6FB0",
+    "freeze-verification.json": "7D058AD9A6B63CCEBA1FF4EC3A1FDC3861CBF16C363018CAA11791669EF83617",
+    "patch-replay.log": "6B5231103E4B94AF0699BE2A5E3996DCA7DDB84117803A22BFF3869D57BE66F8",
+    "focus-14.log": "F2EEBBB5689ADD9B8FD6690E5A5786F1A67A04906C8AD325FAE0CC8E39D31478",
+    "focus-21.log": "15F4D1B1DF4096B3F702D3CCD09AA41408C1D1327E5C21FA3E9F801845835C1D",
+    "legacy-30-candidate.log": "8295025CD229F5B0E162DCBCD59480AEE881F083595D4678901D642049569713",
+    "legacy-30-exact-base.log": "D03922A6319E2CA93B1BBA1C5D978EB432017717EF4505DE1E48650438C8FA17",
+    "api-cls-positive-probe.log": "131092E648A762321EC19815C272EFA8E6916A655590FDC231698076EE0F876E",
+    "adapter-only-cancel-probe.log": "C96CE51DC2EDF09173376BE36F27C14D501A2A2027E3F0F5A79B528C80064EFF",
+    "verify_copy_r1.py": "DA9A4BB5095E42567809E094E5B7A1EE8BC11CE46678F36DC928DFE02C2F9C82",
+    "make_base_copy.py": "B0FC4FA47944B183965EEAC6E50DBDBCA5FF9C0B801126BE8A2A14C5BDF7B582",
+    "api-cls-positive-probe.py": "856CC4D51521796A195DAE09D32EABB6FE9EABDE29898F02FEEA1DFDDFB65818",
+    "adapter-only-cancel-probe.py": "2512B5883B00F6CDB3812EAE9CF1E62D61BCAECB54F441CBC0E7223954A0223A",
+    "input/candidate-manifest.json": "ADA5018781A7417206B88E3D934D59A67A77BEAB0C5E09E002A0E8F89A16ADE4",
+    "input/r1-apply.patch": "B164D083AA4D4BD3A6DC325582C4EE82E0042945360C98A63CA3EC9212ABCC58",
+    "input/author-qa-report.md": "B59CBC2D487D4B7B29A3F8CB0B6CBAB9E3F59B75D860BC91D10D69AF99B16C4D",
+    "input/legacy-ctp-compatibility-exclusions.txt": "A56A716B3FDA59CB71D00B8E9BA8C0239C2CDD80E9288682A118A1A7C85D9B8B",
+    "candidate/backtrader/stores/btapistore.py": "A25EDC57D4A4AC225B1B152A2672FF2B108B3C497CEF05CD46A8FB22C1E586B8",
+    "base/backtrader/stores/btapistore.py": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "candidate/backtrader/stores/ctp_account_actor_port.py": "19F5935BC6AABCDE178F60F62619757B01FA51B99FF5389120A8404E00E70372",
+    "candidate/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py": "B04100BAC2CD4FBA6C132D3CFB44E18FA6E40A0896E602AA276A69B2DAEBB12C",
+    "candidate/tests/unit/stores/test_managed_ctp_store_adapter.py": "2B5F929CAC960ED6A7105EB2CC0B7401961FDB7C7B97761288D279B415B15E3F"
+  }
+}

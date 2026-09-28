@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope": "offline_source_fake_only",
+  "source_commit": "f90568c15196f1507f13d3fe0ad661f92d270bee",
+  "source_baseline": "07012dda628c8c0d7fefa6e1b925f7f8b3f8f518",
+  "source_paths_verified": 81,
+  "author_junit_tests": 457,
+  "author_logged_duration_seconds": 52.29,
+  "independent_qa_tests": 457,
+  "independent_qa_duration_seconds": 55.57,
+  "warnings": 2,
+  "environment": [
+    "workdir=D:\\bt_api_ctp_i13_g5_manual_candidate_20260926",
+    "PYTHONPATH=D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\src;D:\\source_code\\backtrader;D:\\bt_api_py_codex_i9_integrated_20260926;D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1",
+    "Python 3.11.5",
+    "pytest 8.0.0",
+    "ruff 0.16.2"
+  ],
+  "artifacts": {
+    "ctp-sdk-f90568-managed-ingress-2026-09-26.junit.xml": "d9eb38a2cd276b70b81d41b53ffcd2633147b8561f342adbd7a9d15745bbb8b5",
+    "ctp-sdk-f90568-managed-ingress-2026-09-26.log": "b995a9b322620022c59c10cae6a4760db0bc5ecf2430b8f2f183e0208f593690",
+    "ctp-sdk-f90568-managed-ingress-2026-09-26.sources.sha256": "39ce5dca26481d5d758e8bc083266c7c8faed613071ab7f8c2d8635c21418242",
+    "ctp-sdk-f90568-managed-ingress-2026-09-26.changed.sha256": "35ce2b8b4f28fa0e21d7223fcf8dad62cce2680dca5245bb41f53c864b5886af",
+    "ctp-sdk-f90568-managed-ingress-2026-09-26.command.txt": "fffcefd9e610dd4675493fedb84423ba8c3c82bdad710596c03e849fac08b20a"
+  },
+  "limitations": [
+    "Source candidate only; installed wheel validation is separate",
+    "No native extension/provider/account use",
+    "No default route or artifact pin update",
+    "Execution v16 and main composition acceptance remain separate"
+  ]
+}

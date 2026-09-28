@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="7" time="6.424" timestamp="2026-09-27T12:57:12.470649" hostname="yun"><testcase classname="tests.unit.stores.test_credential_safety" name="test_repr_does_not_leak_password" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_credential_safety.py:39: in test_repr_does_not_leak_password
+    store = _make_ctp_store()
+tests\unit\stores\test_credential_safety.py:25: in _make_ctp_store
+    return BtApiStore(
+backtrader\stores\btapistore.py:3690: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_credential_safety" name="test_str_does_not_leak_password" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_credential_safety.py:47: in test_str_does_not_leak_password
+    store = _make_ctp_store()
+tests\unit\stores\test_credential_safety.py:25: in _make_ctp_store
+    return BtApiStore(
+backtrader\stores\btapistore.py:3690: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_credential_safety" name="test_repr_is_informative" time="0.001"><failure message="backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable">tests\unit\stores\test_credential_safety.py:55: in test_repr_is_informative
+    store = _make_ctp_store()
+tests\unit\stores\test_credential_safety.py:25: in _make_ctp_store
+    return BtApiStore(
+backtrader\stores\btapistore.py:3690: in __init__
+    raise BtApiStoreError("external account actor unavailable")
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable</failure></testcase><testcase classname="tests.unit.stores.test_credential_safety" name="test_mask_sensitive_masks_known_secret_keys" time="0.001" /><testcase classname="tests.unit.stores.test_credential_safety" name="test_mask_sensitive_handles_none" time="0.001" /><testcase classname="tests.unit.stores.test_credential_safety" name="test_mask_sensitive_is_case_insensitive" time="0.001" /><testcase classname="tests.unit.stores.test_credential_safety" name="test_mask_sensitive_recursively_masks_exchange_kwargs_without_mutating_input" time="0.001" /></testsuite></testsuites>

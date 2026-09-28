@@ -1,0 +1,5 @@
+COMMAND: D:\source_code\backtrader\.venv\Scripts\python.exe -m ruff check tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+CWD: D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r0
+EXIT: 0
+
+All checks passed!

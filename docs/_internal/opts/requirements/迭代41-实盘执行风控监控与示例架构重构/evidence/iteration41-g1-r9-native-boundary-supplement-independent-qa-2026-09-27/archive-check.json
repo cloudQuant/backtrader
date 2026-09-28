@@ -1,0 +1,13 @@
+{
+  "archive": "D:\\temp\\iteration41-g1-r9-native-boundary-supplement-20260927\\iteration41-g1-r9-native-boundary-supplement-2026-09-27.raw.zip",
+  "archive_sha256": "1749958a94b19a641745480b8f1b3ea5674b5150260b47707337ae2ea4d141c3",
+  "archive_bytes": 759001,
+  "zip_testzip": "passed",
+  "member_count": 59,
+  "payload_count": 56,
+  "manifest_sha256": "4f81790db13aa06ed762184a0bbb9ea29dae4c3027f8c49c14d2c64a4a2f929d",
+  "receipt_sha256": "78497e006900348c7db46a5435833224ab8122eba0e6f1a5de5b2ac981043940",
+  "sha256sums_sha256": "4db118151ea151343d3a303d91e2432484792b075e6758a5327fb61e5544ef83",
+  "all_payload_hashes_checked_from_archive": true,
+  "archive_member_set_exact": true
+}

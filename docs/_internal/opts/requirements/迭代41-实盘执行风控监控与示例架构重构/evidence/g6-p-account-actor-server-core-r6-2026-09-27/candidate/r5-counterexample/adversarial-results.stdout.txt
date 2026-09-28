@@ -1,0 +1,55 @@
+{
+  "authorization_replayed_after_new_snapshot": {
+    "command_state": "AUTHORIZED",
+    "current_version": 78,
+    "dispatch_rows": 1,
+    "reserved_version": 77,
+    "returned_version": 77,
+    "same_prior_authorization": true
+  },
+  "domain_tamper_rolls_back_final_gate": {
+    "code": "snapshot_domain_set_incomplete",
+    "command_state": "RESERVED",
+    "dispatch_rows": 0
+  },
+  "fake_signer_arbitrary_snapshot": {
+    "accepted": true,
+    "dispatch_rows": 1,
+    "funds_fact": "{\"available\":\"999999999999999999.99\",\"currency\":\"CNY\"}",
+    "proof_is_test_hmac": true,
+    "return_type": "DispatchAuthorizationV1",
+    "state": "AUTHORIZED_LOCAL_OUTBOX",
+    "version": 77
+  },
+  "malformed_schema_not_repaired": {
+    "code": "database_schema_shape_invalid",
+    "pk_preserved": false,
+    "user_version": 1
+  },
+  "provider_dispatch_surface": {
+    "authorization_is_provider_receipt": false,
+    "core_has_dispatch_method": false
+  },
+  "same_host_db_writer_forges_capability": {
+    "accepted": true,
+    "dispatch_rows": 1,
+    "owner_id": "db-writer",
+    "state": "AUTHORIZED_LOCAL_OUTBOX",
+    "writer_epoch": 1
+  },
+  "two_process_same_intent_replay": {
+    "command_rows": 1,
+    "responses": [
+      [
+        "reserved",
+        "073983169d79a7568225e8dd2a7aafb21628fe4580042703bdf25bcfd8d1e043",
+        "RESERVED"
+      ],
+      [
+        "reserved",
+        "073983169d79a7568225e8dd2a7aafb21628fe4580042703bdf25bcfd8d1e043",
+        "RESERVED"
+      ]
+    ]
+  }
+}

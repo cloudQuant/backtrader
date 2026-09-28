@@ -1,0 +1,17 @@
+{
+  "archive_members": 42,
+  "control_members_match_copied_sources": {
+    "ARCHIVE-INDEX.json": true,
+    "SHA256SUMS.txt": true
+  },
+  "duplicate_names": false,
+  "index_payloads": 40,
+  "indexed_payload_hashes_match": true,
+  "mismatches": [],
+  "missing_indexed": [],
+  "testzip": null,
+  "unindexed_control_members": [
+    "ARCHIVE-INDEX.json",
+    "SHA256SUMS.txt"
+  ]
+}

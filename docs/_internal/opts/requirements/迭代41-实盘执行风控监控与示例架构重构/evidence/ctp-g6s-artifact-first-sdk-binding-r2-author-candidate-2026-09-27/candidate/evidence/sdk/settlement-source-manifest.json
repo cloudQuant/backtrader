@@ -1,0 +1,113 @@
+{
+  "schema": "iteration41.g4r2.settlement_query_evidence.source_manifest.v1",
+  "classification": "isolated SDK source candidate; fake-only; G4 remains closed",
+  "candidate_root": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927",
+  "lineage": {
+    "base_repo": "D:\\q\\e",
+    "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+    "g4_probe_source": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\source-a",
+    "g4_probe_source_manifest_sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A",
+    "g4_probe_evidence_manifest_sha256": "D579EF460D9FD1B9E03364F7E96F9C58CF1AFC78B72EAA326BCB7225829C9DC7",
+    "g4_base_source_hashes": {
+      "src/bt_api_ctp/ctp/client.py": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+      "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": "F93B271972C3CDD967E964C82BF02AF8FC22AA7F8B53C6B64F24E08D091F9DA5",
+      "src/bt_api_ctp/__init__.py": "D77316160D5E8C5DC8BFA9E8FB949B62B4E667DFF904309B9A00539CA6B0CD35",
+      "tests/test_ctp_native_query_certificate.py": "E542AB631748F8200975C1055263D784043895CCEC3BD270781A490087B00402",
+      "src/bt_api_ctp/ctp/ctp_trader_api.py": "26A1CAB3D387C5AFB79FC7C041A7F0E333CAFCA708283B05CE65C2B2EFB08610",
+      "pyproject.toml": "3D05CAC55229F870ACAE5D686BE71410A6A264445FD4CE8F1ADE413FE1C83951"
+    },
+    "package_version": "2.0.4+g4r2.probe.20260927",
+    "dirty_checkout_comparison": {
+      "parent_head": "d3674e19a11b9f35f19ae756899bcf18854c8c46",
+      "ctp_submodule_head": "ce1edd60785eb4c66fefa16a994a66946a1e068f",
+      "client_sha256": "B61B32F9A2A2E61035BF88BCB7ACF669C8C7EE8E5BF5D7E1F6E375E69F053EAB",
+      "certificate_sha256": "A76E4E1245E84C782FFB9A92B4A804C377FC58C7F3672FD33265E3260E059FBE",
+      "finding_scope": "The missing request-field readback finding applies to that dirty checkout only. G4 source-a already passes request_filter_field and request_intent_filters to _execute_query for settlement confirmation."
+    }
+  },
+  "changes": [
+    {
+      "path": "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+      "kind": "modified",
+      "size": 51631,
+      "sha256": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+      "baseline_sha256": "F93B271972C3CDD967E964C82BF02AF8FC22AA7F8B53C6B64F24E08D091F9DA5",
+      "line_refs": "settlement evidence class 511+, builder 589+; existing request-type acceptance helpers 256, 290+"
+    },
+    {
+      "path": "src/bt_api_ctp/__init__.py",
+      "kind": "modified",
+      "size": 1339,
+      "sha256": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+      "baseline_sha256": "D77316160D5E8C5DC8BFA9E8FB949B62B4E667DFF904309B9A00539CA6B0CD35",
+      "line_refs": "exports CtpSettlementConfirmationEvidence and CtpSettlementConfirmationEvidenceBuilder"
+    },
+    {
+      "path": "tests/test_ctp_settlement_query_evidence.py",
+      "kind": "added",
+      "size": 11750,
+      "sha256": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65",
+      "line_refs": "fake generated-field/API callback coverage; 6 test functions with parameterized negatives"
+    }
+  ],
+  "inherited_test": {
+    "path": "tests/test_ctp_native_query_certificate.py",
+    "size": 28296,
+    "sha256": "E542AB631748F8200975C1055263D784043895CCEC3BD270781A490087B00402"
+  },
+  "evidence_files": [
+    {
+      "path": "settlement-query-evidence-note.md",
+      "size": 4974,
+      "sha256": "FA787003EFDC06BEDDFED272A631DECDD1CC16E14FA60A7CA24553E0192A7AA7"
+    },
+    {
+      "path": "settlement-focused-tests.log",
+      "size": 1414,
+      "sha256": "0E0BF148E29CEDDB80BB9B60DB5683C5C6D4ED6A989745FEF7E91F4A4A044015"
+    },
+    {
+      "path": "static-checks.log",
+      "size": 159,
+      "sha256": "BF8819EC215BF481380BF7DFF63C546B22E91538D4D4752ED6C5C88AC13910B6"
+    },
+    {
+      "path": "source-origin-smoke.log",
+      "size": 293,
+      "sha256": "BA1879E522D2A2AA5A8A2CF9A719CFFFFC6E285A5B8E9B4A4584C2473DB016D4"
+    },
+    {
+      "path": "blocked-native-imports-final.jsonl",
+      "size": 104,
+      "sha256": "6463CE66B8FA48627AFDD01A3013A6109690E7436CD173F44E6C7EA021989508"
+    }
+  ],
+  "verification": {
+    "test_interpreter": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\consumer-venv\\Scripts\\python.exe",
+    "python_version": "3.11.5",
+    "working_directory": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927",
+    "pythonpath": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927\\native-guard;D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src",
+    "pytest_disable_plugin_autoload": true,
+    "pytest_command": "python -m pytest --noconftest tests/test_ctp_settlement_query_evidence.py tests/test_ctp_native_query_certificate.py -q --tb=short",
+    "pytest_result": "48 passed, 2 warnings",
+    "warnings": [
+      "PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option in this test venv",
+      "RuntimeWarning: no matching Windows _ctp extension; the native import guard logged and blocked two bt_api_ctp.ctp._ctp import attempts"
+    ],
+    "static_checks": {
+      "py_compile": "passed for certificate module, bt_api_ctp/__init__.py, new settlement test",
+      "ruff": "0.16.2; check --no-fix passed on the three changed files",
+      "black": "Host Black executable reports version 0.0; --check passed on the new test and __init__.py. Not run on the large certificate module to avoid unrelated baseline reformatting."
+    },
+    "source_origin_smoke": "Both imported package and evidence module resolved under candidate src; _ctp and bt_api_ctp.ctp._ctp were absent from sys.modules. This is source-tree import verification, not installed-wheel verification."
+  },
+  "scope_limits": [
+    "No wheel was built; no package metadata or default pins were changed.",
+    "No CTP native API call, provider, credential, account, network, or order was used; blocked native import attempts are retained as evidence.",
+    "Evidence is in-process and non-authorizing; terminal_callback_history_sha256 hashes sealed source/terminal facts, not a durable ordered callback inbox.",
+    "Main readiness at backtrader_runtime/ctp_simnow_td_trading_readiness.py remains unchanged and does not consume this new evidence type or independently verify its source history/freshness.",
+    "Existing CtpNativeQueryCertificateBuilder remains seven-query only and excludes settlement confirmation.",
+    "No G2/G6-S acceptance, production readiness, native settlement confirmation, or default route is claimed.",
+    "Candidate caches and inherited scratch edit scripts are excluded from this source manifest; no wheel output is present."
+  ]
+}

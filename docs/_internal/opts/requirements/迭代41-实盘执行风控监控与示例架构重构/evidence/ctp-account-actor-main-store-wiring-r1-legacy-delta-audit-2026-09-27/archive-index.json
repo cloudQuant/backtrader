@@ -1,0 +1,10 @@
+{
+  "audit": "btapistore-actor-r1-legacy-ctp-test-delta",
+  "audit_inventory_sha256": "f5d221c489333ad0b4122d24e8d5b1cbdc67a4761639e16b84f9cc16a29e841d",
+  "production_source_edited": false,
+  "review_report_sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+  "zip_member_count": 15,
+  "zip_sha256": "4fa06de543221c3457088ee32a62ec81dbc25ab9359dbd85cd488e9a59891152",
+  "zip_size_bytes": 342566,
+  "zip_testzip": "passed"
+}

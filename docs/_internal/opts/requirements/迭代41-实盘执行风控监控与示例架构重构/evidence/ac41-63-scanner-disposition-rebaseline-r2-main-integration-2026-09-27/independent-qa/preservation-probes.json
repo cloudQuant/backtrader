@@ -1,0 +1,61 @@
+{
+  "current_inventory_counts": {
+    "files_scanned": 355,
+    "writer_candidates": 363,
+    "dynamic_execution_candidates": 97,
+    "parse_errors": 0
+  },
+  "candidate_control": {
+    "case": "valid-control",
+    "status": "PASS",
+    "reason_codes": []
+  },
+  "malformed_preservation_probes": [
+    {
+      "case": "preservation-key-removed",
+      "status": "PASS",
+      "reason_codes": []
+    },
+    {
+      "case": "preservation-null",
+      "status": "PASS",
+      "reason_codes": []
+    },
+    {
+      "case": "preservation-wrong-container",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_preservation_invalid"
+      ]
+    },
+    {
+      "case": "previous-445-ids-null",
+      "exception": "TypeError: 'NoneType' object is not iterable"
+    },
+    {
+      "case": "removed-tombstone-ids-null",
+      "exception": "TypeError: 'NoneType' object is not iterable"
+    },
+    {
+      "case": "new-g6-ids-null",
+      "exception": "TypeError: 'NoneType' object is not iterable"
+    },
+    {
+      "case": "baseline-389-ids-null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_389_id_digest_mismatch",
+        "checklist_baseline_389_ids_invalid",
+        "checklist_baseline_389_payload_mismatch"
+      ]
+    },
+    {
+      "case": "removed-tombstone-ids-wrong-list",
+      "exception": "TypeError: unhashable type: 'dict'"
+    },
+    {
+      "case": "new-g6-ids-wrong-list",
+      "exception": "TypeError: unhashable type: 'dict'"
+    }
+  ]
+}

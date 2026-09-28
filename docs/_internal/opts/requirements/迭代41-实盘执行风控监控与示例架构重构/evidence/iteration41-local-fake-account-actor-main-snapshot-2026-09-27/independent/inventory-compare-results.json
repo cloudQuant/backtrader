@@ -1,0 +1,31 @@
+{
+  "all_availability_not_available": true,
+  "all_dispositions_review_required": true,
+  "candidate_delta_file_sha256": "2F710DEBEAF5524EDE96B14A9786867F6842456FF478669CCF27861F8C40F7C2",
+  "candidate_delta_hash_matches_manifest": true,
+  "computed_candidate_ids_sha256_sorted_newline": "E26BE8D85EDACDFAAC78A77CC6F3B7AC109E6F9BF21C5906BC672B419FE24866",
+  "expected_candidate_ids_sha256_sorted_newline": "E26BE8D85EDACDFAAC78A77CC6F3B7AC109E6F9BF21C5906BC672B419FE24866",
+  "fresh_scanner_counts": {
+    "dynamic_execution_candidates": 1,
+    "files_scanned": 6,
+    "parse_errors": 0,
+    "writer_candidates": 20
+  },
+  "fresh_vs_frozen_candidate_delta_equal": true,
+  "frozen_445_overlap_count": 0,
+  "id_hash_matches": true,
+  "manifest_expected_candidate_delta_sha256": "2F710DEBEAF5524EDE96B14A9786867F6842456FF478669CCF27861F8C40F7C2",
+  "manifest_ids_equal_proposed_ids": true,
+  "manifest_record_count": 21,
+  "proposed_candidate_count": 21,
+  "proposed_inventory_expected_sha256": "142E8BACF6DABD6320C18A458CFD23858C671D42FB57020EE0C3E97EF3D06C43",
+  "proposed_inventory_sha256": "142E8BACF6DABD6320C18A458CFD23858C671D42FB57020EE0C3E97EF3D06C43",
+  "source_hash_mismatch_count": 1,
+  "source_hash_mismatches_after_exact_patch_replay": {
+    "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": {
+      "actual": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1",
+      "expected": "FDD4219850B87816A44A8BF3A70911F2445AFE40F9E32CC24FE65421B8067FF9"
+    }
+  },
+  "tombstone_overlap_count": 0
+}

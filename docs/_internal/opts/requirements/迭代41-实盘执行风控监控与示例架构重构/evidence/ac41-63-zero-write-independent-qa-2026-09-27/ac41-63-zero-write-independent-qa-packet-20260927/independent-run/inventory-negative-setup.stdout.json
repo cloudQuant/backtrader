@@ -1,0 +1,23 @@
+{
+  "baseline_inventory_writer_rows": 327,
+  "target_path": "examples/007_ctp/live_certification/simnow_penetration/cases/T01_open_order.py",
+  "target_rows": [
+    {
+      "call": "self.buy",
+      "class_name": "OpenOrderStrategy",
+      "column": 37,
+      "function_name": "next",
+      "kind": "writer_call_candidate",
+      "line": 101,
+      "method": "buy",
+      "path": "examples/007_ctp/live_certification/simnow_penetration/cases/T01_open_order.py",
+      "review_status": "REVIEW_REQUIRED"
+    }
+  ],
+  "augmented_writer_rows": 328,
+  "weakened_writer_rows": 326,
+  "outputs": [
+    "D:\\temp\\ac41-63-zero-write-independent-qa-20260927\\repo\\evidence\\qa-negative\\augmented-uncovered-writer.json",
+    "D:\\temp\\ac41-63-zero-write-independent-qa-20260927\\repo\\evidence\\qa-negative\\deliberately-weakened-inventory.json"
+  ]
+}

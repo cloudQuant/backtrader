@@ -1,0 +1,54 @@
+{
+  "schema": "iteration41.unified_offline_wheelhouse_settlement.independent_qa.r1.v1",
+  "status": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED",
+  "errors": [],
+  "candidate_manifest_sha256": "cc356f2238cf1d57d076e8a87152cb4e42d48d9f179ca12212238dcd0009f491",
+  "manifest_payload_files_verified": 150,
+  "candidate_archive_sha256": "c140d4c3ac902d4cd5fe51320285467c15d9be2b58b98d11d8ddcb355aaf568b",
+  "candidate_archive_entries": 151,
+  "wheel_count": 52,
+  "requirements_lock_lines": 52,
+  "ctp_final": {
+    "version": "2.0.4+g4r2.settlement.probe.20260927",
+    "filename": "bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+    "sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "build_a_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "build_b_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+    "same_hash": true,
+    "old_collision_excluded": true
+  },
+  "base_source_comparison": {
+    "git_head": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+    "git_clean": true,
+    "python_files_source": 104,
+    "python_files_wheel": 104,
+    "exact_byte_match_count": true
+  },
+  "missing_optional_extra": {
+    "bt_api_binance_in_wheelhouse": false,
+    "parent_requires_dist_lines": [
+      "bt_api_binance>=2.0.0; extra == \"core-reference\""
+    ],
+    "parent_provides_extra": [
+      "dev",
+      "security",
+      "visualization",
+      "monitoring",
+      "email",
+      "time",
+      "ib",
+      "ib-web",
+      "mt5",
+      "cookies",
+      "all",
+      "core-reference"
+    ]
+  },
+  "settlement_scope": {
+    "response_row_has_no_TradingDay": true,
+    "ConfirmDate_compared_to_query_source_trading_day": true,
+    "main_readiness_references_settlement_builder": false
+  },
+  "native_imported_or_loaded": false,
+  "provider_network_or_private_config": false
+}

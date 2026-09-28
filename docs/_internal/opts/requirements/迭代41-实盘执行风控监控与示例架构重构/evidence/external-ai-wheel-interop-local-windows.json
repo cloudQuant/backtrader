@@ -1,0 +1,106 @@
+{
+  "build_environment": {
+    "mode": "offline-wheelhouse",
+    "package_index": false,
+    "source_date_epoch": "1700000000",
+    "wheelhouse": [
+      {
+        "filename": "hatchling-1.32.4-py3-none-any.whl",
+        "sha256": "08ecf7548fb48205e7f213d70c71e67b8271b7242093dc3f1da578b42c734a2c"
+      },
+      {
+        "filename": "packaging-26.3-py3-none-any.whl",
+        "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+      },
+      {
+        "filename": "pathspec-1.1.1-py3-none-any.whl",
+        "sha256": "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"
+      },
+      {
+        "filename": "pluggy-1.6.0-py3-none-any.whl",
+        "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+      },
+      {
+        "filename": "setuptools-84.0.0-py3-none-any.whl",
+        "sha256": "51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670"
+      },
+      {
+        "filename": "tomlkit-0.15.1-py3-none-any.whl",
+        "sha256": "177a05aece5a8ca5266fd3c448abb47b8d352f09d477d3ca8332db4d89b24304"
+      },
+      {
+        "filename": "trove_classifiers-2026.9.21.13-py3-none-any.whl",
+        "sha256": "8b1ff4f9c191b1040b71c37f1e445ab99732911e3cd91de52838453a854d7a17"
+      },
+      {
+        "filename": "wheel-0.48.0-py3-none-any.whl",
+        "sha256": "3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab"
+      }
+    ]
+  },
+  "config": {
+    "artifact_sha256": "8733198cca6f0648b76b5257ac32610c84e6e1d74d4103ad4d237e14bd2617d7",
+    "config_effective_digest": "488661a0963e86053b77bcf64bd5474c28e0699bb59215a68fa039e80ef059f7",
+    "strategy_id": "example.013_3.sa_midfreq_simnow"
+  },
+  "isolated_probe": {
+    "agent_to_skills": {
+      "authorization_granted": false,
+      "promotion_rejection_code": "DEPLOYMENT_PROMOTION_REJECTED",
+      "promotion_review_eligible": false,
+      "read_only": true,
+      "status": "valid"
+    },
+    "mcp_observation": {
+      "control_authorized": false,
+      "deployment_authorized": false,
+      "execution_authorized": false,
+      "read_only": true,
+      "status": "REQUIRES_INDEPENDENT_REVIEW"
+    },
+    "module_origins": {
+      "backtrader_agent.deployment_evidence": "Lib/site-packages/backtrader_agent/deployment_evidence.py",
+      "backtrader_mcp.deployment_evidence": "Lib/site-packages/backtrader_mcp/deployment_evidence.py",
+      "backtrader_skills.deployment_evidence": "Lib/site-packages/backtrader_skills/deployment_evidence.py"
+    },
+    "provider_modules_absent": true,
+    "source_checkout_absent": true,
+    "status": "passed"
+  },
+  "run_root_empty": true,
+  "schema_version": "iteration41-external-ai-wheel-interop/v1",
+  "scope": {
+    "artifact_fixture": "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+    "config_fixture": "backtrader_runtime/_iteration41_l2_fixture/runtimes/managed_013_3/config.yaml",
+    "execution": false,
+    "external_bt_api_capability_wheels_verified": false,
+    "live_admission": false,
+    "provider_network": false,
+    "runtime_mode": "simulation",
+    "runtime_preset": "replay"
+  },
+  "status": "passed",
+  "wheels": {
+    "agent": {
+      "evidence_module": "backtrader_agent/deployment_evidence.py",
+      "filename": "backtrader_agent-0.2.0-py3-none-any.whl",
+      "record_verified": true,
+      "version": "0.2.0",
+      "wheel_sha256": "afd346bca8116d71a3a75682cc2d7fc48c11f0aa903a0d1076c9cf9279b32295"
+    },
+    "mcp": {
+      "evidence_module": "backtrader_mcp/deployment_evidence.py",
+      "filename": "backtrader_mcp-0.2.0-py3-none-any.whl",
+      "record_verified": true,
+      "version": "0.2.0",
+      "wheel_sha256": "44c1b832d0baeea4b2a220696b315a1fb8a856728d62d8d15947bf3c4febdcc8"
+    },
+    "skills": {
+      "evidence_module": "backtrader_skills/deployment_evidence.py",
+      "filename": "backtrader_skills-0.2.0-py3-none-any.whl",
+      "record_verified": true,
+      "version": "0.2.0",
+      "wheel_sha256": "ea6e92bf44f331737ffcffee27a169aea011cea3d4e29e333abb4450f7737095"
+    }
+  }
+}

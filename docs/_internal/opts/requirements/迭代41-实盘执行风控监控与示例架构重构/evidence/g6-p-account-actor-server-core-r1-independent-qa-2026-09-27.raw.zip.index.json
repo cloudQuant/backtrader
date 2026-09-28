@@ -1,0 +1,147 @@
+{
+  "archive_path": "D:\\temp\\iteration41-g6-account-actor-server-core-r1-independent-qa-20260927.raw.zip",
+  "archive_sha256": "86bc3a91faa325c69cc9faa6d940a95150cf099e028dadc7dca6d88d1a496d63",
+  "entries": [
+    {
+      "path": "INTEGRATION_CONTRACT.md",
+      "sha256": "26f61a820ead33d6a8358bd2c2ef4b976370ea1b2158b7fae716da0141c3ee5b",
+      "size_bytes": 8414
+    },
+    {
+      "path": "MAIN_SOURCE_INVENTORY.md",
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2",
+      "size_bytes": 2730
+    },
+    {
+      "path": "README.md",
+      "sha256": "31e80c1e1d797e7c41b9675115ac35c41bcba3448b14144f132305a240e0385c",
+      "size_bytes": 1723
+    },
+    {
+      "path": "account_actor_port.py",
+      "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48",
+      "size_bytes": 25739
+    },
+    {
+      "path": "account_actor_server_core.py",
+      "sha256": "40cee121d25bd3b7a0acbc4ecdd5d637ea99dc97a32b09e1b155cff2c7af5bd0",
+      "size_bytes": 44569
+    },
+    {
+      "path": "adversarial-results.exit.txt",
+      "sha256": "c1e97067c5f479a44a6f57297a0a8f87a59d181c3c529910f8bf059094bc3abb",
+      "size_bytes": 13
+    },
+    {
+      "path": "adversarial-results.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "adversarial-results.stdout.txt",
+      "sha256": "8a611b05fb0d98f8103ae8262679a5cf46de823746af741d9a4dc1de7a16d1dc",
+      "size_bytes": 1551
+    },
+    {
+      "path": "adversarial_server_core.py",
+      "sha256": "c9c6123d79b28dc80c5152f8186dbe586973600acd427c8b7d21873ece6b7bf7",
+      "size_bytes": 10933
+    },
+    {
+      "path": "build_manifest.py",
+      "sha256": "e5d57b4d60bd742e6bf4dd8378f1ca4becd6c02b189e335679f474be54056516",
+      "size_bytes": 1284
+    },
+    {
+      "path": "compile-results.txt",
+      "sha256": "3afc1f1db429e87ee573090cdc6290f91cab51c0b5f468053911a412430381f0",
+      "size_bytes": 59
+    },
+    {
+      "path": "frozen-focus.exit.txt",
+      "sha256": "c1e97067c5f479a44a6f57297a0a8f87a59d181c3c529910f8bf059094bc3abb",
+      "size_bytes": 13
+    },
+    {
+      "path": "frozen-focus.stderr.txt",
+      "sha256": "41a186ef19b74e42b7f2a8a1a396b18a21ab954cd2e48de32850d71bc30a85d4",
+      "size_bytes": 9292
+    },
+    {
+      "path": "frozen-focus.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "925a72915cca210431a25d7db1993d6290025f241b6d76fe170b0cbe8f9b0420",
+      "size_bytes": 2034
+    },
+    {
+      "path": "manifest.sha256",
+      "sha256": "5daa6b2b5be681ba2f21baaa795f1c9a8ac3a247085f763374859cde7d6e1073",
+      "size_bytes": 80
+    },
+    {
+      "path": "module-origins.txt",
+      "sha256": "76e91e07b546fa9662e3c377ef0e31994c59683f18a6d7669c3e9e97108f4260",
+      "size_bytes": 503
+    },
+    {
+      "path": "payload-verification.json",
+      "sha256": "706e62d08071de309962caee3c82d17e6fde891a8c91df3c3483bd13abe57330",
+      "size_bytes": 3396
+    },
+    {
+      "path": "python-version.txt",
+      "sha256": "e3fd4bfb3c954d29f1264d70c82ede1933aab3231c59ea163cda544fb2131085",
+      "size_bytes": 15
+    },
+    {
+      "path": "qa-manifest.json",
+      "sha256": "9dd201cff9325765a08169a251e3026519b024a9afa550e78259abbef07ca6e7",
+      "size_bytes": 4934
+    },
+    {
+      "path": "qa-manifest.sha256",
+      "sha256": "aa26a45f18b6c309a1bc101af8d51fd187d41c78cf8624790cbe20632cf24766",
+      "size_bytes": 84
+    },
+    {
+      "path": "receipt.md",
+      "sha256": "60781b8435b693703b1bc91e870ea9a074d0f97ecde77f53550fb18adebddffa",
+      "size_bytes": 3977
+    },
+    {
+      "path": "receipt.sha256",
+      "sha256": "6e191faf14c9273acad6117fc8bc59b0ada6068c5e1f34956d19a7de9e26fa9a",
+      "size_bytes": 77
+    },
+    {
+      "path": "ruff-results.txt",
+      "sha256": "b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4",
+      "size_bytes": 33
+    },
+    {
+      "path": "store_boundary_harness.py",
+      "sha256": "087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0",
+      "size_bytes": 5114
+    },
+    {
+      "path": "test-results.txt",
+      "sha256": "20bae2c16aa7212d1664826b055139619db5953b77262c3ff64aff3d1fec2d46",
+      "size_bytes": 9305
+    },
+    {
+      "path": "tests/test_account_actor_server_core.py",
+      "sha256": "175d91e7fdcd53c09e40c3c04ac22f3711bebae4748f0ea16d79bd80567a1bfd",
+      "size_bytes": 18919
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "sha256": "f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa",
+      "size_bytes": 31213
+    }
+  ],
+  "entry_count": 28
+}

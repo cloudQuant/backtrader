@@ -1,0 +1,18 @@
+{
+  "status": "verified",
+  "archive": "r2b-route-test-migration-r2-evidence.zip",
+  "archive_sha256": "5D9A4BACD76FAA352B589D2FC580903F74B568D91823E01B263AD045437513E7",
+  "archive_size": 268025,
+  "zip_crc": "clean",
+  "zip_member_count": 39,
+  "payload_count": 36,
+  "evidence_manifest_sha256": "04F8DE9844901C4DAF91C070D03C3C73E88B306D376A3D917F2BCA68FEA035F0",
+  "author_manifest_sha256": "BC6575878AB6C0CA1053DD0E7325C67371FB9FC209D937C8A600CAE6503745F9",
+  "r2_patch_sha256": "38A7615F760803D140DAB3546355CF20733D3B6A2410E210D456114EF1F2096A",
+  "independent_test_counts": {
+    "tests": 35,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

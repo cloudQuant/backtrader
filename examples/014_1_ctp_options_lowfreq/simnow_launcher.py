@@ -1,24 +1,53 @@
-"""SimNow Set-2 (7x24) live launcher for the 014_1 example.
+"""Retired 014_1 SimNow launcher retained as historical research code.
 
-Local modification entry (user-approved) with two modes:
-
-- Default (engineering_smoke): reads the SimNow Set-2 credentials and fronts
-  from this directory's ``.env``, builds an authenticated ``bt_api_py.BtApi``
-  and injects it into the example's existing fail-closed read-only
-  ``run_simnow_engineering_smoke(config, api=...)`` path.
-- The ``live`` subcommand runs one execution-channel round trip on the
-  same ``provider="ctp"`` direct chain as the 013 series
-  (Store→BtApiBroker→BtApiFeed×3→Cerebro) with an embedded probe strategy:
-  receive primary-leg quotes → refresh the typed startup preflight (to
-  satisfy BtApiBroker's ``ctp_query_evidence_incomplete`` placement gate) →
-  submit a far-from-market limit order (defensively non-fillable) → confirm
-  Submitted/Accepted → cancel → confirm the terminal state → freeze the
-  report. ``TradeLogger`` streams quote/order/cancel events throughout.
-
-Neither mode modifies run.py / simnow_adapter.py / the strategy itself.
+Iteration 41 routes a no-argument script invocation to the fixed registered
+simulation/replay runtime and rejects every historical argument before a
+framework, CTP extension, credential reader, or provider can load.  The
+public and retained private direct-writer names also fail deterministically.
+The historical implementation below remains for source review only.
 """
 
 from __future__ import annotations
+
+# ruff: noqa: E402
+# This fence must remain before every legacy framework, CTP, or provider import.
+import sys as _iteration41_sys
+from pathlib import Path as _Iteration41Path
+
+_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parent / "runtime"
+_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
+if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+
+from backtrader_runtime.legacy import (  # noqa: E402
+    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
+    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+)
+
+
+def _run_config_first_cli(argv=None) -> int:
+    """Route the retired launcher through the fixed replay-only runtime."""
+
+    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+
+def main(argv=None) -> int:
+    """Public launcher entrypoint retained only as a config-first convenience alias."""
+
+    return _run_config_first_cli(argv)
+
+
+def run_live(*args, **kwargs):
+    """Reject the retired direct CTP order channel deterministically."""
+
+    del args, kwargs
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/014_1_ctp_options_lowfreq/simnow_launcher.py"
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_config_first_cli())
 
 import json
 import os
@@ -195,9 +224,7 @@ class ExecutionChannelProbe(bt.Strategy):
             if len(data) < 1:
                 return
             self._record(event="data_ready", bars=len(data))
-            price = round(
-                self._latest_bid - self.p.price_offset_ticks * self._price_tick, 10
-            )
+            price = round(self._latest_bid - self.p.price_offset_ticks * self._price_tick, 10)
             if price <= 0:
                 self._finish("INVALID_LIMIT_PRICE", bid=self._latest_bid, computed=price)
                 return
@@ -269,16 +296,16 @@ def _live_symbols() -> list[str]:
         candidate = load_config(HERE / "config.yaml").get("candidate") or {}
     except Exception:  # noqa: BLE001 - fall back to the SA dominant legs
         candidate = {}
-    symbols = [
-        str(candidate.get(name) or "").split(".")[-1]
-        for name in ("future", "call", "put")
-    ]
+    symbols = [str(candidate.get(name) or "").split(".")[-1] for name in ("future", "call", "put")]
     symbols = [symbol for symbol in symbols if symbol]
     return symbols or ["SA701"]
 
 
-def run_live(env: dict[str, str]) -> int:
+def _legacy_run_live(env: dict[str, str]) -> int:
     """Quote -> order -> cancel closed loop on the SimNow Set-2 7x24 account."""
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/014_1_ctp_options_lowfreq/simnow_launcher.py"
+    )
 
     symbols = _live_symbols()
     exchange_id = os.environ.get("SIMNOW_LAUNCHER_EXCHANGE", "CZCE").strip() or "CZCE"
@@ -393,7 +420,7 @@ def wait_ctp_session_ready(api: Any, timeout: float = 30.0) -> dict[str, Any]:
     return last
 
 
-def main() -> int:
+def _legacy_main() -> int:
     """Dispatch on the optional ``live`` subcommand; default runs the read-only smoke.
 
     ``live``: the quote→order→cancel execution-channel round trip
@@ -401,6 +428,10 @@ def main() -> int:
     example's read-only engineering_smoke path. Process environment variables
     take precedence over this directory's .env.
     """
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/014_1_ctp_options_lowfreq/simnow_launcher.py"
+    )
+
     env = {**load_env_file(HERE / ".env"), **dict(os.environ)}
     if len(sys.argv) > 1 and sys.argv[1] == "live":
         missing = [k for k in ("CTP_USER_ID", "CTP_PASSWORD") if not env.get(k)]
@@ -439,7 +470,3 @@ def main() -> int:
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True, default=str))
     status = str(report.get("status") or "")
     return 0 if "PASS" in status else 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -1,0 +1,47 @@
+{
+  "backtrader_file": "D:\\temp\\i41-store-merge\\src\\backtrader\\__init__.py",
+  "bt_api_py_or__ctp_loaded_modules": [],
+  "cwd": "D:\\temp\\i41-store-merge\\src",
+  "executable": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+  "exit_code": 0,
+  "guard_log": "D:\\temp\\i41-store-merge\\evidence\\focus-0133-formal-r2-sdk-guard.jsonl",
+  "pytest_args": [
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:asyncio",
+    "--junitxml=D:\\temp\\i41-store-merge\\evidence\\focus-0133-formal-r2.junit.xml",
+    "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py::test_0133_local_replay_composition_has_no_provider_or_order_entry",
+    "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py::test_real_replay_has_no_network_or_provider_writes[013_3]",
+    "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py::test_runtime_identity_probe_does_not_import_sdk_parent_package"
+  ],
+  "pytest_file": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Lib\\site-packages\\pytest\\__init__.py",
+  "sdk_paths_removed": [],
+  "sys_path_after_tests": [
+    "D:\\temp\\i41-store-merge\\src",
+    "D:\\temp\\i41-store-merge\\src\\tests\\unit\\runtime",
+    "D:\\temp\\i41-store-merge\\src\\tests",
+    "D:\\temp\\i41-store-merge\\src\\tests\\unit",
+    "D:\\temp\\i41-store-merge\\src",
+    "D:\\temp\\i41-store-merge\\src",
+    "D:\\temp\\i41-store-merge",
+    "D:\\temp\\i41-store-merge\\guard",
+    "C:\\anaconda3\\python311.zip",
+    "C:\\anaconda3\\DLLs",
+    "C:\\anaconda3\\Lib",
+    "C:\\anaconda3",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Lib\\site-packages"
+  ],
+  "sys_path_before_cleanup": [
+    "D:\\temp\\i41-store-merge",
+    "D:\\temp\\i41-store-merge\\guard",
+    "C:\\anaconda3\\python311.zip",
+    "C:\\anaconda3\\DLLs",
+    "C:\\anaconda3\\Lib",
+    "C:\\anaconda3",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Lib\\site-packages"
+  ]
+}

@@ -1,0 +1,4112 @@
+{
+  "build_command": "python -m pip wheel --no-index --no-deps --no-build-isolation --wheel-dir <per-build-output> .",
+  "build_python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "build_tool_versions": {
+    "packaging": "26.3",
+    "pip": "23.2.1",
+    "setuptools": "84.0.0",
+    "wheel": "0.48.0"
+  },
+  "build_venv_include_system_site_packages": false,
+  "byte_identical_rebuilds": {
+    "base": true,
+    "monitor": true,
+    "risk": true
+  },
+  "consumer_acceptance": {
+    "consumer_python": "3.11.5",
+    "consumer_venv": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv",
+    "explicit_local_project_wheels": {
+      "bt_api_base": {
+        "direct_url_hash_verified": true,
+        "installed_RECORD_verified": true,
+        "installed_wheel_payload_verified": true,
+        "path": "D:\\temp\\iteration41-capability-artifacts-20260926\\wheels\\base-a\\bt_api_base-0.15.4-py3-none-any.whl",
+        "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369"
+      },
+      "bt_api_risk": {
+        "direct_url_hash_verified": true,
+        "installed_RECORD_verified": true,
+        "installed_wheel_payload_verified": true,
+        "path": "D:\\temp\\iteration41-capability-artifacts-20260926\\wheels\\risk-a\\bt_api_risk-0.1.0-py3-none-any.whl",
+        "sha256": "d279381a6e809482ae9f76faa290af8a0e19fedc4e041ef4e3e62f1684e354de"
+      }
+    },
+    "include_system_site_packages": false,
+    "installed_origins": {
+      "bt_api_base": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv\\Lib\\site-packages\\bt_api_base\\__init__.py",
+      "bt_api_risk": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv\\Lib\\site-packages\\bt_api_risk\\__init__.py"
+    },
+    "package_versions": {
+      "bt_api_base": {
+        "metadata_version": "0.15.4",
+        "module___version__": "0.15.4"
+      },
+      "bt_api_risk": {
+        "metadata_version": "0.1.0",
+        "mismatch": "inherited from source; recorded as-is, not normalized",
+        "module___version__": "1.0.0"
+      }
+    },
+    "pip_check": "No broken requirements found.",
+    "pip_check_after_monitor": "No broken requirements found.",
+    "pip_install_report": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-install-report.json",
+    "pip_install_report_sha256": "28bdc80148171b65672b21820c4813e51a08f0a02cec8a0d889554ce65c2ebb2",
+    "pythonpath_environment_variable": "unset for install verification and external test runner",
+    "user_site_enabled": false
+  },
+  "hybrid_diagnostic_runs_not_accepted": {
+    "monitor": {
+      "classification": "hybrid diagnostic only; not an isolated-consumer acceptance gate",
+      "copied_python_test_hashes_match_clean_monitor_clone": true,
+      "elapsed_seconds": 7.32,
+      "external_runner": "D:\\temp\\iteration41-capability-artifacts-20260926\\monitor_test_runner.py",
+      "pythonpath_unset": true,
+      "reason": "The runner used the global interpreter, inserted the consumer site-packages path manually, and changed sys.executable; retained for history only.",
+      "result": "90 passed",
+      "runner_project_imports_from_consumer_site": true,
+      "test_copy": "D:\\temp\\iteration41-capability-artifacts-20260926\\installed-monitor-tests",
+      "test_file_count": 4,
+      "test_subprocesses_use_consumer_venv_python": true,
+      "user_site_disabled": true,
+      "warnings": "25 non-fatal: unregistered unit markers in copied test context and psutil deprecation warnings"
+    },
+    "risk": {
+      "classification": "hybrid diagnostic only; not an isolated-consumer acceptance gate",
+      "copied_python_test_hashes_match_clean_risk_clone": true,
+      "elapsed_seconds": 39.23,
+      "external_runner": "D:\\temp\\iteration41-capability-artifacts-20260926\\external_test_runner.py",
+      "includes_fresh_isolated_default_import_and_SQLite_reservation_tests": true,
+      "pythonpath_unset": true,
+      "reason": "The runner used the global interpreter, inserted the consumer site-packages path manually, and changed sys.executable; retained for history only.",
+      "result": "206 passed",
+      "runner_project_imports_from_consumer_site": true,
+      "test_copy": "D:\\temp\\iteration41-capability-artifacts-20260926\\installed-tests",
+      "test_subprocesses_use_consumer_venv_python": true,
+      "user_site_disabled": true
+    }
+  },
+  "monitor_consumer_acceptance": {
+    "consumer_venv": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv",
+    "explicit_local_project_wheel": {
+      "direct_url_hash_verified": true,
+      "installed_RECORD_verified": true,
+      "installed_wheel_payload_verified": true,
+      "path": "D:\\temp\\iteration41-capability-artifacts-20260926\\wheels\\monitor-a\\bt_api_monitor-0.1.0-py3-none-any.whl",
+      "sha256": "0277663855356b22a7946da07ed4c6d33cebac11d93cbdc152531c287040ae8e"
+    },
+    "include_system_site_packages": false,
+    "installed_origins": {
+      "bt_api_base": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv\\Lib\\site-packages\\bt_api_base\\__init__.py",
+      "bt_api_monitor": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv\\Lib\\site-packages\\bt_api_monitor\\__init__.py",
+      "bt_api_risk": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv\\Lib\\site-packages\\bt_api_risk\\__init__.py"
+    },
+    "metadata_version": "0.1.0",
+    "module___version__": null,
+    "pip_check": "No broken requirements found.",
+    "pip_install_report": "D:\\temp\\iteration41-capability-artifacts-20260926\\monitor-install-report.json",
+    "pip_install_report_sha256": "c2ae3171e7d43471b65862abd55336fa52f7a0b21b1fa7d086265ad611e2401d",
+    "pythonpath_environment_variable": "unset for install verification and external test runner",
+    "user_site_enabled": false
+  },
+  "scope": "offline reproducible local candidate artifacts only; test tools fetched from official PyPI and installed offline; no provider, default-pin, performance, or live-route claim",
+  "source_checkout": {
+    "all_clean_after_build": true,
+    "all_detached_at_expected_commits": true,
+    "base_checkout_hash_manifest_sha256": "d440169246ef3b813a6f50c7d87a087eebfbb39c459b4ba567777fe3d04cb3ea",
+    "clones": [
+      "risk-a",
+      "risk-b",
+      "base-a",
+      "base-b",
+      "monitor-a",
+      "monitor-b"
+    ],
+    "git_core_autocrlf": true,
+    "monitor_checkout_hash_manifest_sha256": "846e079ee277d11b6294430a1098f85ffe91f19ccaf454ac9e6974837e51bb97",
+    "risk_checkout_hash_manifest_sha256": "e8fdf0bd7688c804ef75fa5a047f172f661b183d67c248056960e3a1fdfff3f7",
+    "tracked_source_hash_semantics": "SHA-256 over raw bytes in clean clone working trees after Git checkout; these are the actual bytes presented to the wheel build, not Git blob object hashes."
+  },
+  "source_date_epoch": 1790000000,
+  "sources": {
+    "base-a": {
+      "clean": true,
+      "commit": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+      "tracked_file_count": 189,
+      "tracked_source_files": {
+        ".DS_Store": {
+          "sha256": "6e4583234f019abcd67cfa7220326d622d15bdb715f27464a8d7048bda9606f6",
+          "size": 8196
+        },
+        ".github/workflows/ci.yml": {
+          "sha256": "f7111bde0d4a05faa2795f63c82766e30ad2e5d474ed3b9ed3d0bbd24ef7a4e6",
+          "size": 2934
+        },
+        ".github/workflows/pages.yml": {
+          "sha256": "c385f975d30c5d06ac85674f26f1fd50d660e45ba8b14a2049bba6d8586ef85b",
+          "size": 1150
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "da8150bf04b92a5875bad69492e52c90d405df4fb9087cf571ca3ff5adc1bd39",
+          "size": 905
+        },
+        ".gitignore": {
+          "sha256": "68f0e9e89b51b8f6178fa382f99a9f0c1f7d5b347055d5455ece30bf5273aac0",
+          "size": 4895
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "LICENSE": {
+          "sha256": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+          "size": 1088
+        },
+        "README.md": {
+          "sha256": "800eddddf028b9d623d3024fb15f3c02b4233b46f4d47c984cd8cf546fe4a480",
+          "size": 17076
+        },
+        "docs/api/cache.md": {
+          "sha256": "78951ac32beab3ac45b1656e063f26c8a6d201caf4ef5214281bfa8a143c90c9",
+          "size": 3149
+        },
+        "docs/api/config_loader.md": {
+          "sha256": "e6167875c19f898fba157a3b0d56fc2e098937a647f52ad40c525cce2f65170f",
+          "size": 3486
+        },
+        "docs/api/containers.md": {
+          "sha256": "def78e740c5f14579fb5b5b409c211682fb071982fd6b514f732615b63173903",
+          "size": 3536
+        },
+        "docs/api/event_bus.md": {
+          "sha256": "74d3db12a1389d18416ae0ab322bbd7d048a2159ef9686002bb4c81061bae24f",
+          "size": 3609
+        },
+        "docs/api/exceptions.md": {
+          "sha256": "50def0875aacb66e3ba83782669287665abcfb4211fdd15f862a339c71a39297",
+          "size": 4808
+        },
+        "docs/api/feeds.md": {
+          "sha256": "daf991be72b1e4d3ecc75dfc31f4f702d659bd5a9b8e0f9acc059e4fccb8ec93",
+          "size": 3900
+        },
+        "docs/api/gateway.md": {
+          "sha256": "d73eaf07eb701362c526dad0b22eba173d2fbf86231b4d1bd23df366adbbdca2",
+          "size": 3264
+        },
+        "docs/api/plugins.md": {
+          "sha256": "0a3daa8c81428f2392a24de0a7bd271f080f21481eeb8f0e6a8ece534ac31b79",
+          "size": 4089
+        },
+        "docs/api/rate_limiter.md": {
+          "sha256": "487bf399c70d97d1bca27e0ee771b3897b3e226f513f6dcb94dc0aa3d8d12a66",
+          "size": 4701
+        },
+        "docs/api/registry.md": {
+          "sha256": "0c5978fd675d15739a3063fd523394da55413ec3864d6d2f7f022e3890c1a2da",
+          "size": 4385
+        },
+        "docs/api/websocket_manager.md": {
+          "sha256": "62fcd2c89dc324e0abd0eb83de3d5f85f0a22083db1abc95dea1cdab27491c61",
+          "size": 5064
+        },
+        "docs/index.md": {
+          "sha256": "71ec28d8dcd0c7be36ce9ca7fe31b345b86b66886dd3eaeb71ddf4a540be079d",
+          "size": 9059
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "mkdocs.yml": {
+          "sha256": "d7992a4b7bffb4e5c6535e1caa6e89c6ff2cc46fc51b36f91b910ab607225421",
+          "size": 1673
+        },
+        "pyproject.toml": {
+          "sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5",
+          "size": 3104
+        },
+        "src/bt_api_base/__init__.py": {
+          "sha256": "c0c14cfa1e39a79fef8126a85e82cd7b41d5662e683ff11932fcc58add8116b4",
+          "size": 155
+        },
+        "src/bt_api_base/_compat.py": {
+          "sha256": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869",
+          "size": 744
+        },
+        "src/bt_api_base/_plugin_shims.py": {
+          "sha256": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4",
+          "size": 917
+        },
+        "src/bt_api_base/_version.py": {
+          "sha256": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d",
+          "size": 97
+        },
+        "src/bt_api_base/auth_config.py": {
+          "sha256": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43",
+          "size": 6083
+        },
+        "src/bt_api_base/balance_utils.py": {
+          "sha256": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3",
+          "size": 3048
+        },
+        "src/bt_api_base/cache.py": {
+          "sha256": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9",
+          "size": 7642
+        },
+        "src/bt_api_base/config_loader.py": {
+          "sha256": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672",
+          "size": 9413
+        },
+        "src/bt_api_base/connection_pool.py": {
+          "sha256": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5",
+          "size": 7927
+        },
+        "src/bt_api_base/containers/__init__.py": {
+          "sha256": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810",
+          "size": 1497
+        },
+        "src/bt_api_base/containers/accounts/__init__.py": {
+          "sha256": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627",
+          "size": 134
+        },
+        "src/bt_api_base/containers/accounts/account.py": {
+          "sha256": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675",
+          "size": 8222
+        },
+        "src/bt_api_base/containers/auto_init_mixin.py": {
+          "sha256": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed",
+          "size": 1957
+        },
+        "src/bt_api_base/containers/balances/__init__.py": {
+          "sha256": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3",
+          "size": 134
+        },
+        "src/bt_api_base/containers/balances/balance.py": {
+          "sha256": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7",
+          "size": 5900
+        },
+        "src/bt_api_base/containers/bars/__init__.py": {
+          "sha256": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000",
+          "size": 122
+        },
+        "src/bt_api_base/containers/bars/bar.py": {
+          "sha256": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495",
+          "size": 3320
+        },
+        "src/bt_api_base/containers/exchanges/__init__.py": {
+          "sha256": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b",
+          "size": 142
+        },
+        "src/bt_api_base/containers/exchanges/exchange_data.py": {
+          "sha256": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059",
+          "size": 2741
+        },
+        "src/bt_api_base/containers/fundingrates/__init__.py": {
+          "sha256": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7",
+          "size": 147
+        },
+        "src/bt_api_base/containers/fundingrates/funding_rate.py": {
+          "sha256": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968",
+          "size": 5275
+        },
+        "src/bt_api_base/containers/greeks/__init__.py": {
+          "sha256": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a",
+          "size": 131
+        },
+        "src/bt_api_base/containers/greeks/greeks.py": {
+          "sha256": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a",
+          "size": 1908
+        },
+        "src/bt_api_base/containers/incomes/__init__.py": {
+          "sha256": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf",
+          "size": 131
+        },
+        "src/bt_api_base/containers/incomes/income.py": {
+          "sha256": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490",
+          "size": 2921
+        },
+        "src/bt_api_base/containers/instrument.py": {
+          "sha256": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027",
+          "size": 4804
+        },
+        "src/bt_api_base/containers/liquidations/__init__.py": {
+          "sha256": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df",
+          "size": 146
+        },
+        "src/bt_api_base/containers/liquidations/liquidation.py": {
+          "sha256": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff",
+          "size": 2313
+        },
+        "src/bt_api_base/containers/markprices/__init__.py": {
+          "sha256": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb",
+          "size": 141
+        },
+        "src/bt_api_base/containers/markprices/mark_price.py": {
+          "sha256": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a",
+          "size": 2736
+        },
+        "src/bt_api_base/containers/orderbooks/__init__.py": {
+          "sha256": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3",
+          "size": 140
+        },
+        "src/bt_api_base/containers/orderbooks/orderbook.py": {
+          "sha256": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324",
+          "size": 3914
+        },
+        "src/bt_api_base/containers/orders/__init__.py": {
+          "sha256": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe",
+          "size": 128
+        },
+        "src/bt_api_base/containers/orders/order.py": {
+          "sha256": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b",
+          "size": 10606
+        },
+        "src/bt_api_base/containers/positions/__init__.py": {
+          "sha256": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0",
+          "size": 137
+        },
+        "src/bt_api_base/containers/positions/position.py": {
+          "sha256": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9",
+          "size": 6827
+        },
+        "src/bt_api_base/containers/requestdatas/__init__.py": {
+          "sha256": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6",
+          "size": 139
+        },
+        "src/bt_api_base/containers/requestdatas/request_data.py": {
+          "sha256": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43",
+          "size": 4968
+        },
+        "src/bt_api_base/containers/symbols/__init__.py": {
+          "sha256": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58",
+          "size": 131
+        },
+        "src/bt_api_base/containers/symbols/symbol.py": {
+          "sha256": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56",
+          "size": 3383
+        },
+        "src/bt_api_base/containers/tickers/__init__.py": {
+          "sha256": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7",
+          "size": 131
+        },
+        "src/bt_api_base/containers/tickers/ticker.py": {
+          "sha256": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63",
+          "size": 3449
+        },
+        "src/bt_api_base/containers/timers/__init__.py": {
+          "sha256": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116",
+          "size": 128
+        },
+        "src/bt_api_base/containers/timers/timer.py": {
+          "sha256": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274",
+          "size": 444
+        },
+        "src/bt_api_base/containers/trades/__init__.py": {
+          "sha256": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545",
+          "size": 128
+        },
+        "src/bt_api_base/containers/trades/trade.py": {
+          "sha256": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb",
+          "size": 4824
+        },
+        "src/bt_api_base/core/__init__.py": {
+          "sha256": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd",
+          "size": 1023
+        },
+        "src/bt_api_base/core/async_context.py": {
+          "sha256": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20",
+          "size": 16428
+        },
+        "src/bt_api_base/core/dependency_injection.py": {
+          "sha256": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993",
+          "size": 9415
+        },
+        "src/bt_api_base/core/interfaces.py": {
+          "sha256": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523",
+          "size": 9133
+        },
+        "src/bt_api_base/core/services.py": {
+          "sha256": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05",
+          "size": 24021
+        },
+        "src/bt_api_base/error.py": {
+          "sha256": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653",
+          "size": 17787
+        },
+        "src/bt_api_base/event_bus.py": {
+          "sha256": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1",
+          "size": 4631
+        },
+        "src/bt_api_base/event_clock.py": {
+          "sha256": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c",
+          "size": 583
+        },
+        "src/bt_api_base/exceptions.py": {
+          "sha256": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631",
+          "size": 10808
+        },
+        "src/bt_api_base/feeds/__init__.py": {
+          "sha256": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4",
+          "size": 530
+        },
+        "src/bt_api_base/feeds/abstract_feed.py": {
+          "sha256": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c",
+          "size": 9543
+        },
+        "src/bt_api_base/feeds/base_stream.py": {
+          "sha256": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235",
+          "size": 3360
+        },
+        "src/bt_api_base/feeds/capability.py": {
+          "sha256": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4",
+          "size": 2924
+        },
+        "src/bt_api_base/feeds/connection_mixin.py": {
+          "sha256": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0",
+          "size": 1955
+        },
+        "src/bt_api_base/feeds/feed.py": {
+          "sha256": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4",
+          "size": 25060
+        },
+        "src/bt_api_base/feeds/http_client.py": {
+          "sha256": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47",
+          "size": 11976
+        },
+        "src/bt_api_base/feeds/my_websocket_app.py": {
+          "sha256": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6",
+          "size": 30266
+        },
+        "src/bt_api_base/feeds/transport_safety.py": {
+          "sha256": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae",
+          "size": 6185
+        },
+        "src/bt_api_base/functions/__init__.py": {
+          "sha256": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960",
+          "size": 131
+        },
+        "src/bt_api_base/functions/async_base.py": {
+          "sha256": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400",
+          "size": 7842
+        },
+        "src/bt_api_base/functions/calculate_time.py": {
+          "sha256": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c",
+          "size": 3572
+        },
+        "src/bt_api_base/functions/log_message.py": {
+          "sha256": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9",
+          "size": 4319
+        },
+        "src/bt_api_base/functions/rate_limiters.py": {
+          "sha256": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8",
+          "size": 807
+        },
+        "src/bt_api_base/functions/signers.py": {
+          "sha256": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1",
+          "size": 672
+        },
+        "src/bt_api_base/functions/timestamps.py": {
+          "sha256": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740",
+          "size": 657
+        },
+        "src/bt_api_base/functions/utils.py": {
+          "sha256": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829",
+          "size": 10664
+        },
+        "src/bt_api_base/gateway/__init__.py": {
+          "sha256": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe",
+          "size": 1443
+        },
+        "src/bt_api_base/gateway/adapters/__init__.py": {
+          "sha256": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300",
+          "size": 1643
+        },
+        "src/bt_api_base/gateway/adapters/base.py": {
+          "sha256": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616",
+          "size": 2474
+        },
+        "src/bt_api_base/gateway/adapters/plugin_adapter.py": {
+          "sha256": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0",
+          "size": 3806
+        },
+        "src/bt_api_base/gateway/config.py": {
+          "sha256": "cd38681697016d5909301bd66af8a0bcf4c13bcfa46a5143af10b223155f61ef",
+          "size": 14244
+        },
+        "src/bt_api_base/gateway/health.py": {
+          "sha256": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7",
+          "size": 4757
+        },
+        "src/bt_api_base/gateway/models.py": {
+          "sha256": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d",
+          "size": 3672
+        },
+        "src/bt_api_base/gateway/order_identity_map.py": {
+          "sha256": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28",
+          "size": 5049
+        },
+        "src/bt_api_base/gateway/order_ref_allocator.py": {
+          "sha256": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758",
+          "size": 4990
+        },
+        "src/bt_api_base/gateway/protocol.py": {
+          "sha256": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121",
+          "size": 1205
+        },
+        "src/bt_api_base/gateway/registrar.py": {
+          "sha256": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202",
+          "size": 1318
+        },
+        "src/bt_api_base/gateway/runtime.py": {
+          "sha256": "40981ca7a151d6d50a0bdd3ce75c1c16f2149a295970c68e51e33e6f110affe1",
+          "size": 20039
+        },
+        "src/bt_api_base/gateway/runtime_remote.py": {
+          "sha256": "e10e32c45033ba90818f2dfd27e84250cb80beeaeaabe84faf5cc77ead9e3029",
+          "size": 29708
+        },
+        "src/bt_api_base/gateway/storage/__init__.py": {
+          "sha256": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522",
+          "size": 130
+        },
+        "src/bt_api_base/gateway/storage/tick_writer.py": {
+          "sha256": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95",
+          "size": 6497
+        },
+        "src/bt_api_base/gateway/subscription_manager.py": {
+          "sha256": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971",
+          "size": 3475
+        },
+        "src/bt_api_base/instrument_manager.py": {
+          "sha256": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0",
+          "size": 4657
+        },
+        "src/bt_api_base/logging_factory.py": {
+          "sha256": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d",
+          "size": 6173
+        },
+        "src/bt_api_base/plugins/__init__.py": {
+          "sha256": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f",
+          "size": 576
+        },
+        "src/bt_api_base/plugins/errors.py": {
+          "sha256": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151",
+          "size": 486
+        },
+        "src/bt_api_base/plugins/loader.py": {
+          "sha256": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413",
+          "size": 11884
+        },
+        "src/bt_api_base/plugins/protocol.py": {
+          "sha256": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7",
+          "size": 434
+        },
+        "src/bt_api_base/rate_limiter.py": {
+          "sha256": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0",
+          "size": 10100
+        },
+        "src/bt_api_base/registry.py": {
+          "sha256": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de",
+          "size": 11360
+        },
+        "src/bt_api_base/security.py": {
+          "sha256": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17",
+          "size": 7764
+        },
+        "src/bt_api_base/testing/__init__.py": {
+          "sha256": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c",
+          "size": 337
+        },
+        "src/bt_api_base/testing/fixtures.py": {
+          "sha256": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7",
+          "size": 946
+        },
+        "src/bt_api_base/utils/__init__.py": {
+          "sha256": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0",
+          "size": 130
+        },
+        "src/bt_api_base/utils/time.py": {
+          "sha256": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4",
+          "size": 774
+        },
+        "src/bt_api_base/websocket/__init__.py": {
+          "sha256": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532",
+          "size": 1140
+        },
+        "src/bt_api_base/websocket/exchange_adapters.py": {
+          "sha256": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a",
+          "size": 17794
+        },
+        "src/bt_api_base/websocket_manager.py": {
+          "sha256": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a",
+          "size": 23030
+        },
+        "tests/conftest.py": {
+          "sha256": "2527ced3f85eadfbfa73b1729ae1c45d8c39931c665d5a0e0d592b04fc507578",
+          "size": 256
+        },
+        "tests/containers/accounts/test_account.py": {
+          "sha256": "360177fbb767f43f30e3e2f574890a0c007d9f9bf3c1dad1532331dcf9c4e04b",
+          "size": 4477
+        },
+        "tests/containers/balances/test_balance.py": {
+          "sha256": "8ce5cf4fe904bac69977bfc324ad8155207b363f0c6b13162a1088a0d0b9c4f7",
+          "size": 1431
+        },
+        "tests/containers/bars/test_bar.py": {
+          "sha256": "3fd9daadaa9fd639c6823b492c05ac50078592b0751850937e335dc1a2c0514b",
+          "size": 959
+        },
+        "tests/containers/fundingrates/test_funding_rate.py": {
+          "sha256": "a38b43115b965ac54dd3704969e61d77f5e81814497545eb45e839194cbfca4a",
+          "size": 1157
+        },
+        "tests/containers/greeks/test_greeks.py": {
+          "sha256": "29d7a481f77f78af0c8022180f2e2cccd990cd7c630548f0025224b7fad36332",
+          "size": 1027
+        },
+        "tests/containers/incomes/test_income.py": {
+          "sha256": "652121b185896fc9574d4f2e7c7e3900071732b39cc527f487f0f788bf771714",
+          "size": 4388
+        },
+        "tests/containers/liquidations/test_liquidation.py": {
+          "sha256": "a26d8667c132a432614a1ec56c2f0806e00395d6fee0843a3eecff220bab58b6",
+          "size": 3759
+        },
+        "tests/containers/markprices/test_mark_price.py": {
+          "sha256": "4803e50db8096b105fdf2c91e0722e8f8544684c9fb2c4585ba993de24a3df54",
+          "size": 1037
+        },
+        "tests/containers/openinterests/__init__.py": {
+          "sha256": "ffa14377bc389053197d50a907ae573c8c2cf115c62f25c148ca54028f4a897e",
+          "size": 81
+        },
+        "tests/containers/orderbooks/test_orderbook.py": {
+          "sha256": "2f8adfe5178068b275bfa2a1381d44012f82ca15aa687be72cb7d30da1ed6fb8",
+          "size": 1208
+        },
+        "tests/containers/orders/test_order.py": {
+          "sha256": "6ada56960a57781a8208dbc3a4a1984a2c2001c5cedfc82b8123b7a8d7b23d67",
+          "size": 7111
+        },
+        "tests/containers/orders/test_order_status.py": {
+          "sha256": "c44a116032d16d4b29ea642b8779cc57f8dcfafeee11788d9ae5a4a12f46f388",
+          "size": 4807
+        },
+        "tests/containers/pools/__init__.py": {
+          "sha256": "18ec9c654ceecd3e8e098a78a51c4f8b5e2523920b847c77106d2ec3435ffed3",
+          "size": 73
+        },
+        "tests/containers/positions/test_position.py": {
+          "sha256": "253c1fc6867cdae6a5f3e0f8951acfa19719b37dac7dd042ea17e9a546f74cb4",
+          "size": 5000
+        },
+        "tests/containers/pricelimits/__init__.py": {
+          "sha256": "ae80e8bb44370df060ccc6d907e449bd3411c9cf60f36efddddb0bca25644923",
+          "size": 79
+        },
+        "tests/containers/symbols/test_symbol.py": {
+          "sha256": "874831f849671725033c25c53c8c987fec2b41c8fa9fa0251bc7df95a81c0ffa",
+          "size": 1120
+        },
+        "tests/containers/test_container_base_classes.py": {
+          "sha256": "5906da242ca409c103a9819a2342a680f2ac0719b488ecf4c12fbf62f023d8e0",
+          "size": 23785
+        },
+        "tests/containers/test_market_data_base_classes.py": {
+          "sha256": "f4842cb0c36a75c53cede96342b1baf33a55650bc26675447afd42d4f4d5e43a",
+          "size": 9164
+        },
+        "tests/containers/tickers/test_ticker.py": {
+          "sha256": "029c36ea3a02e2b989c57ba0da44abc3613b4976958edb21bbccc17eabbc9732",
+          "size": 1256
+        },
+        "tests/containers/timers/__init__.py": {
+          "sha256": "f3feaab795f24b67ee4c328bb869fd6da3bdfe7dcc83d2da6611b628ead22a6d",
+          "size": 74
+        },
+        "tests/containers/timers/test_timer.py": {
+          "sha256": "ff6ae696b1b17f51ab59791c0f5142dfc7944b74ef5666f3be80949ef1246502",
+          "size": 1959
+        },
+        "tests/containers/trades/test_trade.py": {
+          "sha256": "7965c646c9b3b8e5ca2fccb58ab22563d0d08fad24494c80f6b9d55c8893b12e",
+          "size": 5134
+        },
+        "tests/feeds/test_capability.py": {
+          "sha256": "8c952cbb1f7bb661675402df42d48b69bbe5f55a778a589c0d5e2dcd0d4aac32",
+          "size": 1244
+        },
+        "tests/feeds/test_connection_mixin.py": {
+          "sha256": "f6a8ab9dff7139699537d4716f69d522080198f2f20ef0bbf0ef5eb9c3fab150",
+          "size": 346
+        },
+        "tests/gateway/test_protocol.py": {
+          "sha256": "82692e0d59727dda2abb18504a54f5364e0996e66a77ec7cfcdec07096d1b0fe",
+          "size": 2425
+        },
+        "tests/gateway/test_registrar.py": {
+          "sha256": "971ba8c4b65977b8a38ec01ba6e8e421ce0a065b888ad8dc043334cc4cb41fd6",
+          "size": 1531
+        },
+        "tests/gateway/test_runtime.py": {
+          "sha256": "fdca07470e3861698cd71667814797daf4a3d932ae969f5d40cdf2757326aa7f",
+          "size": 979
+        },
+        "tests/gateway/test_runtime_order_map.py": {
+          "sha256": "20ac7a0fb2edf6c1abc3018bcc3213f3100b79635e9dd4a81eac17b287a68bfb",
+          "size": 10615
+        },
+        "tests/gateway/test_runtime_write_gate.py": {
+          "sha256": "214a845ade9a9036d8ef2e7cbaad4b3fd40d8871a2d725741c5cbfc5bf530d1d",
+          "size": 2834
+        },
+        "tests/plugins/test_loader.py": {
+          "sha256": "63ed0b7410ae5a30365c8c3a2526e9cabc3f16ddef7a2af2d80266a6e574b182",
+          "size": 8506
+        },
+        "tests/test_async_context.py": {
+          "sha256": "faec7ff8cc74d2b24eb6da395fdb0b36ac7a7d4145d0b19695a4df3e3c97b567",
+          "size": 2867
+        },
+        "tests/test_async_context_quality.py": {
+          "sha256": "ca04ffe3660b7447cba105bbbd2c917a6f86044274a777fa5650985e7000fcc3",
+          "size": 4107
+        },
+        "tests/test_async_error_redaction.py": {
+          "sha256": "eb1f8366acccf1a14b41e0c6623ba525c3c4c0556dd8a48b1ea36c6d3305c2bb",
+          "size": 5698
+        },
+        "tests/test_auto_init_mixin.py": {
+          "sha256": "93db35d78417781be88fef0d0c1e2786cd1a87020012ae5c976a0460ef1ea98d",
+          "size": 2736
+        },
+        "tests/test_cache.py": {
+          "sha256": "5b769d42c175ebbdc6defb23153401b64360df830ad83ff5c53d5b9972d47af0",
+          "size": 9009
+        },
+        "tests/test_calculate_time.py": {
+          "sha256": "4567778312b2090672689397e9350da99280d7cb68afcedbf1b393e441725ec3",
+          "size": 4916
+        },
+        "tests/test_config_loader_quality.py": {
+          "sha256": "11aae4f702177e5ffc9021976481f0b39ce4e9e2ef04413a551a668fb127d692",
+          "size": 2037
+        },
+        "tests/test_dependency_injection.py": {
+          "sha256": "b289abadbdf7841b4bc42a3d7cc9a2f3dff50e07263bd373e8dd0cac009d6cb8",
+          "size": 1911
+        },
+        "tests/test_error.py": {
+          "sha256": "2969a3ca994d779ed0bc53d926a2aba63df5545eaecfd1da2fe540dc2e262b90",
+          "size": 17785
+        },
+        "tests/test_event_bus.py": {
+          "sha256": "2084b00b14c2ad08223377d0f726a190ee5bfa3a5b14c5235cab95821773d1d7",
+          "size": 7741
+        },
+        "tests/test_exceptions.py": {
+          "sha256": "4440f786d6f674290b1033ce23f0f17208709d6b463785e6ad8abfec024bab25",
+          "size": 25763
+        },
+        "tests/test_exchange_data.py": {
+          "sha256": "cc3de343e0d5bf84631a1180ff873896817bc2a2a3e075d7448b8702770ca839",
+          "size": 3173
+        },
+        "tests/test_functions_signers_timestamps.py": {
+          "sha256": "cb11db381b719409aeb5ce1af5319b7cfc2e6a85d762f1053d872689ef532c76",
+          "size": 1866
+        },
+        "tests/test_http_retry.py": {
+          "sha256": "6651dfc3a9ca94c2bda5345648c0e5119d3f03015b15524b066490406756861c",
+          "size": 1642
+        },
+        "tests/test_instrument.py": {
+          "sha256": "44efe6c62f13f91a24f777cba7e6ac91fab6b89cea028922fb984b3b51510380",
+          "size": 4796
+        },
+        "tests/test_logging_factory.py": {
+          "sha256": "1080b6249741e192d66b1ffa80291d616a80d5d166134ee4af60f991626ef314",
+          "size": 5737
+        },
+        "tests/test_package_metadata.py": {
+          "sha256": "0dcc041cae9cea49aa074eacb68c2fe4a28d15c521b160ecffbc547facd3d957",
+          "size": 766
+        },
+        "tests/test_protocol_conformance.py": {
+          "sha256": "39c2a9ea18bfc58358b3e46257e8fef056fecb15f2b79f32c8ea44b931865916",
+          "size": 9913
+        },
+        "tests/test_quality_batch_v4.py": {
+          "sha256": "c1110541f6b29aa1574d3c61fcc460841268ae47820d5a0a52a859cac63bf09e",
+          "size": 11315
+        },
+        "tests/test_registry.py": {
+          "sha256": "042b3885c65abd5db80f25149fdf719da08bbeb0f95c637ce48ab60ed1b44e16",
+          "size": 6551
+        },
+        "tests/test_request_data.py": {
+          "sha256": "c66b5503deca3dc1741d350c9cb3d1ae29dd68090b79cdace8ba0ff7081e9ef5",
+          "size": 2865
+        },
+        "tests/test_security.py": {
+          "sha256": "0366ec1ec28b33552da8f75416f832795c4b16dd67a2ecaded2dc1675a2d47eb",
+          "size": 7890
+        },
+        "tests/test_services.py": {
+          "sha256": "62e772da6e758e681732093dbf0ffd234c679044bf4c1539c77a392e5c31c93d",
+          "size": 10723
+        },
+        "tests/test_services_quality.py": {
+          "sha256": "8989b580bb8c3ac7272db97ba49e81fe40b77ba2d5b8793f54c295a31c94aa8b",
+          "size": 3046
+        },
+        "tests/test_stage0_infrastructure.py": {
+          "sha256": "2d8a6fa2187c841dec627134f4817a56bc0d708ec370ff494ab955c295875a88",
+          "size": 30397
+        },
+        "tests/test_thread_safety.py": {
+          "sha256": "010464b400d3e40f9731e4c5d6c996717371d341ea9a20e467c660f1c4f11d87",
+          "size": 12886
+        },
+        "tests/test_time.py": {
+          "sha256": "ee15022429070a266e4dcde02104b4037e71986b09bf30dfe3cb0f97584aa76c",
+          "size": 1315
+        },
+        "tests/test_timer_integration.py": {
+          "sha256": "d85b978b79416ccaaa112af7d27f57b0cb31b64a8d113265d445469922d99d5f",
+          "size": 1087
+        },
+        "tests/test_transport_redaction.py": {
+          "sha256": "5677be9ffc382f1b660f54c7fa3b5bc71ee47cc84d0be6a31740ed79edb4396d",
+          "size": 13500
+        },
+        "tests/test_utils.py": {
+          "sha256": "c191169b12280cdc2780a15cc1b693e44484995211be78a2d8ca20a3aa4e6a64",
+          "size": 6616
+        },
+        "tests/test_websocket_stop_lifecycle.py": {
+          "sha256": "cda9bf9601179762887a262a678e423aa6774e671b6cce8a17e8610a1ad84ff8",
+          "size": 12929
+        }
+      },
+      "tracked_source_manifest_sha256": "d440169246ef3b813a6f50c7d87a087eebfbb39c459b4ba567777fe3d04cb3ea"
+    },
+    "base-b": {
+      "clean": true,
+      "commit": "3de0fa4f6cfe8d1973e9f4b9b47b01254259524f",
+      "tracked_file_count": 189,
+      "tracked_source_files": {
+        ".DS_Store": {
+          "sha256": "6e4583234f019abcd67cfa7220326d622d15bdb715f27464a8d7048bda9606f6",
+          "size": 8196
+        },
+        ".github/workflows/ci.yml": {
+          "sha256": "f7111bde0d4a05faa2795f63c82766e30ad2e5d474ed3b9ed3d0bbd24ef7a4e6",
+          "size": 2934
+        },
+        ".github/workflows/pages.yml": {
+          "sha256": "c385f975d30c5d06ac85674f26f1fd50d660e45ba8b14a2049bba6d8586ef85b",
+          "size": 1150
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "da8150bf04b92a5875bad69492e52c90d405df4fb9087cf571ca3ff5adc1bd39",
+          "size": 905
+        },
+        ".gitignore": {
+          "sha256": "68f0e9e89b51b8f6178fa382f99a9f0c1f7d5b347055d5455ece30bf5273aac0",
+          "size": 4895
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "LICENSE": {
+          "sha256": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+          "size": 1088
+        },
+        "README.md": {
+          "sha256": "800eddddf028b9d623d3024fb15f3c02b4233b46f4d47c984cd8cf546fe4a480",
+          "size": 17076
+        },
+        "docs/api/cache.md": {
+          "sha256": "78951ac32beab3ac45b1656e063f26c8a6d201caf4ef5214281bfa8a143c90c9",
+          "size": 3149
+        },
+        "docs/api/config_loader.md": {
+          "sha256": "e6167875c19f898fba157a3b0d56fc2e098937a647f52ad40c525cce2f65170f",
+          "size": 3486
+        },
+        "docs/api/containers.md": {
+          "sha256": "def78e740c5f14579fb5b5b409c211682fb071982fd6b514f732615b63173903",
+          "size": 3536
+        },
+        "docs/api/event_bus.md": {
+          "sha256": "74d3db12a1389d18416ae0ab322bbd7d048a2159ef9686002bb4c81061bae24f",
+          "size": 3609
+        },
+        "docs/api/exceptions.md": {
+          "sha256": "50def0875aacb66e3ba83782669287665abcfb4211fdd15f862a339c71a39297",
+          "size": 4808
+        },
+        "docs/api/feeds.md": {
+          "sha256": "daf991be72b1e4d3ecc75dfc31f4f702d659bd5a9b8e0f9acc059e4fccb8ec93",
+          "size": 3900
+        },
+        "docs/api/gateway.md": {
+          "sha256": "d73eaf07eb701362c526dad0b22eba173d2fbf86231b4d1bd23df366adbbdca2",
+          "size": 3264
+        },
+        "docs/api/plugins.md": {
+          "sha256": "0a3daa8c81428f2392a24de0a7bd271f080f21481eeb8f0e6a8ece534ac31b79",
+          "size": 4089
+        },
+        "docs/api/rate_limiter.md": {
+          "sha256": "487bf399c70d97d1bca27e0ee771b3897b3e226f513f6dcb94dc0aa3d8d12a66",
+          "size": 4701
+        },
+        "docs/api/registry.md": {
+          "sha256": "0c5978fd675d15739a3063fd523394da55413ec3864d6d2f7f022e3890c1a2da",
+          "size": 4385
+        },
+        "docs/api/websocket_manager.md": {
+          "sha256": "62fcd2c89dc324e0abd0eb83de3d5f85f0a22083db1abc95dea1cdab27491c61",
+          "size": 5064
+        },
+        "docs/index.md": {
+          "sha256": "71ec28d8dcd0c7be36ce9ca7fe31b345b86b66886dd3eaeb71ddf4a540be079d",
+          "size": 9059
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "mkdocs.yml": {
+          "sha256": "d7992a4b7bffb4e5c6535e1caa6e89c6ff2cc46fc51b36f91b910ab607225421",
+          "size": 1673
+        },
+        "pyproject.toml": {
+          "sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5",
+          "size": 3104
+        },
+        "src/bt_api_base/__init__.py": {
+          "sha256": "c0c14cfa1e39a79fef8126a85e82cd7b41d5662e683ff11932fcc58add8116b4",
+          "size": 155
+        },
+        "src/bt_api_base/_compat.py": {
+          "sha256": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869",
+          "size": 744
+        },
+        "src/bt_api_base/_plugin_shims.py": {
+          "sha256": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4",
+          "size": 917
+        },
+        "src/bt_api_base/_version.py": {
+          "sha256": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d",
+          "size": 97
+        },
+        "src/bt_api_base/auth_config.py": {
+          "sha256": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43",
+          "size": 6083
+        },
+        "src/bt_api_base/balance_utils.py": {
+          "sha256": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3",
+          "size": 3048
+        },
+        "src/bt_api_base/cache.py": {
+          "sha256": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9",
+          "size": 7642
+        },
+        "src/bt_api_base/config_loader.py": {
+          "sha256": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672",
+          "size": 9413
+        },
+        "src/bt_api_base/connection_pool.py": {
+          "sha256": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5",
+          "size": 7927
+        },
+        "src/bt_api_base/containers/__init__.py": {
+          "sha256": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810",
+          "size": 1497
+        },
+        "src/bt_api_base/containers/accounts/__init__.py": {
+          "sha256": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627",
+          "size": 134
+        },
+        "src/bt_api_base/containers/accounts/account.py": {
+          "sha256": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675",
+          "size": 8222
+        },
+        "src/bt_api_base/containers/auto_init_mixin.py": {
+          "sha256": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed",
+          "size": 1957
+        },
+        "src/bt_api_base/containers/balances/__init__.py": {
+          "sha256": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3",
+          "size": 134
+        },
+        "src/bt_api_base/containers/balances/balance.py": {
+          "sha256": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7",
+          "size": 5900
+        },
+        "src/bt_api_base/containers/bars/__init__.py": {
+          "sha256": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000",
+          "size": 122
+        },
+        "src/bt_api_base/containers/bars/bar.py": {
+          "sha256": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495",
+          "size": 3320
+        },
+        "src/bt_api_base/containers/exchanges/__init__.py": {
+          "sha256": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b",
+          "size": 142
+        },
+        "src/bt_api_base/containers/exchanges/exchange_data.py": {
+          "sha256": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059",
+          "size": 2741
+        },
+        "src/bt_api_base/containers/fundingrates/__init__.py": {
+          "sha256": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7",
+          "size": 147
+        },
+        "src/bt_api_base/containers/fundingrates/funding_rate.py": {
+          "sha256": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968",
+          "size": 5275
+        },
+        "src/bt_api_base/containers/greeks/__init__.py": {
+          "sha256": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a",
+          "size": 131
+        },
+        "src/bt_api_base/containers/greeks/greeks.py": {
+          "sha256": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a",
+          "size": 1908
+        },
+        "src/bt_api_base/containers/incomes/__init__.py": {
+          "sha256": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf",
+          "size": 131
+        },
+        "src/bt_api_base/containers/incomes/income.py": {
+          "sha256": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490",
+          "size": 2921
+        },
+        "src/bt_api_base/containers/instrument.py": {
+          "sha256": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027",
+          "size": 4804
+        },
+        "src/bt_api_base/containers/liquidations/__init__.py": {
+          "sha256": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df",
+          "size": 146
+        },
+        "src/bt_api_base/containers/liquidations/liquidation.py": {
+          "sha256": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff",
+          "size": 2313
+        },
+        "src/bt_api_base/containers/markprices/__init__.py": {
+          "sha256": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb",
+          "size": 141
+        },
+        "src/bt_api_base/containers/markprices/mark_price.py": {
+          "sha256": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a",
+          "size": 2736
+        },
+        "src/bt_api_base/containers/orderbooks/__init__.py": {
+          "sha256": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3",
+          "size": 140
+        },
+        "src/bt_api_base/containers/orderbooks/orderbook.py": {
+          "sha256": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324",
+          "size": 3914
+        },
+        "src/bt_api_base/containers/orders/__init__.py": {
+          "sha256": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe",
+          "size": 128
+        },
+        "src/bt_api_base/containers/orders/order.py": {
+          "sha256": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b",
+          "size": 10606
+        },
+        "src/bt_api_base/containers/positions/__init__.py": {
+          "sha256": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0",
+          "size": 137
+        },
+        "src/bt_api_base/containers/positions/position.py": {
+          "sha256": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9",
+          "size": 6827
+        },
+        "src/bt_api_base/containers/requestdatas/__init__.py": {
+          "sha256": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6",
+          "size": 139
+        },
+        "src/bt_api_base/containers/requestdatas/request_data.py": {
+          "sha256": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43",
+          "size": 4968
+        },
+        "src/bt_api_base/containers/symbols/__init__.py": {
+          "sha256": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58",
+          "size": 131
+        },
+        "src/bt_api_base/containers/symbols/symbol.py": {
+          "sha256": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56",
+          "size": 3383
+        },
+        "src/bt_api_base/containers/tickers/__init__.py": {
+          "sha256": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7",
+          "size": 131
+        },
+        "src/bt_api_base/containers/tickers/ticker.py": {
+          "sha256": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63",
+          "size": 3449
+        },
+        "src/bt_api_base/containers/timers/__init__.py": {
+          "sha256": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116",
+          "size": 128
+        },
+        "src/bt_api_base/containers/timers/timer.py": {
+          "sha256": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274",
+          "size": 444
+        },
+        "src/bt_api_base/containers/trades/__init__.py": {
+          "sha256": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545",
+          "size": 128
+        },
+        "src/bt_api_base/containers/trades/trade.py": {
+          "sha256": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb",
+          "size": 4824
+        },
+        "src/bt_api_base/core/__init__.py": {
+          "sha256": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd",
+          "size": 1023
+        },
+        "src/bt_api_base/core/async_context.py": {
+          "sha256": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20",
+          "size": 16428
+        },
+        "src/bt_api_base/core/dependency_injection.py": {
+          "sha256": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993",
+          "size": 9415
+        },
+        "src/bt_api_base/core/interfaces.py": {
+          "sha256": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523",
+          "size": 9133
+        },
+        "src/bt_api_base/core/services.py": {
+          "sha256": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05",
+          "size": 24021
+        },
+        "src/bt_api_base/error.py": {
+          "sha256": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653",
+          "size": 17787
+        },
+        "src/bt_api_base/event_bus.py": {
+          "sha256": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1",
+          "size": 4631
+        },
+        "src/bt_api_base/event_clock.py": {
+          "sha256": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c",
+          "size": 583
+        },
+        "src/bt_api_base/exceptions.py": {
+          "sha256": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631",
+          "size": 10808
+        },
+        "src/bt_api_base/feeds/__init__.py": {
+          "sha256": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4",
+          "size": 530
+        },
+        "src/bt_api_base/feeds/abstract_feed.py": {
+          "sha256": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c",
+          "size": 9543
+        },
+        "src/bt_api_base/feeds/base_stream.py": {
+          "sha256": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235",
+          "size": 3360
+        },
+        "src/bt_api_base/feeds/capability.py": {
+          "sha256": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4",
+          "size": 2924
+        },
+        "src/bt_api_base/feeds/connection_mixin.py": {
+          "sha256": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0",
+          "size": 1955
+        },
+        "src/bt_api_base/feeds/feed.py": {
+          "sha256": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4",
+          "size": 25060
+        },
+        "src/bt_api_base/feeds/http_client.py": {
+          "sha256": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47",
+          "size": 11976
+        },
+        "src/bt_api_base/feeds/my_websocket_app.py": {
+          "sha256": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6",
+          "size": 30266
+        },
+        "src/bt_api_base/feeds/transport_safety.py": {
+          "sha256": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae",
+          "size": 6185
+        },
+        "src/bt_api_base/functions/__init__.py": {
+          "sha256": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960",
+          "size": 131
+        },
+        "src/bt_api_base/functions/async_base.py": {
+          "sha256": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400",
+          "size": 7842
+        },
+        "src/bt_api_base/functions/calculate_time.py": {
+          "sha256": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c",
+          "size": 3572
+        },
+        "src/bt_api_base/functions/log_message.py": {
+          "sha256": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9",
+          "size": 4319
+        },
+        "src/bt_api_base/functions/rate_limiters.py": {
+          "sha256": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8",
+          "size": 807
+        },
+        "src/bt_api_base/functions/signers.py": {
+          "sha256": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1",
+          "size": 672
+        },
+        "src/bt_api_base/functions/timestamps.py": {
+          "sha256": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740",
+          "size": 657
+        },
+        "src/bt_api_base/functions/utils.py": {
+          "sha256": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829",
+          "size": 10664
+        },
+        "src/bt_api_base/gateway/__init__.py": {
+          "sha256": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe",
+          "size": 1443
+        },
+        "src/bt_api_base/gateway/adapters/__init__.py": {
+          "sha256": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300",
+          "size": 1643
+        },
+        "src/bt_api_base/gateway/adapters/base.py": {
+          "sha256": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616",
+          "size": 2474
+        },
+        "src/bt_api_base/gateway/adapters/plugin_adapter.py": {
+          "sha256": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0",
+          "size": 3806
+        },
+        "src/bt_api_base/gateway/config.py": {
+          "sha256": "cd38681697016d5909301bd66af8a0bcf4c13bcfa46a5143af10b223155f61ef",
+          "size": 14244
+        },
+        "src/bt_api_base/gateway/health.py": {
+          "sha256": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7",
+          "size": 4757
+        },
+        "src/bt_api_base/gateway/models.py": {
+          "sha256": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d",
+          "size": 3672
+        },
+        "src/bt_api_base/gateway/order_identity_map.py": {
+          "sha256": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28",
+          "size": 5049
+        },
+        "src/bt_api_base/gateway/order_ref_allocator.py": {
+          "sha256": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758",
+          "size": 4990
+        },
+        "src/bt_api_base/gateway/protocol.py": {
+          "sha256": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121",
+          "size": 1205
+        },
+        "src/bt_api_base/gateway/registrar.py": {
+          "sha256": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202",
+          "size": 1318
+        },
+        "src/bt_api_base/gateway/runtime.py": {
+          "sha256": "40981ca7a151d6d50a0bdd3ce75c1c16f2149a295970c68e51e33e6f110affe1",
+          "size": 20039
+        },
+        "src/bt_api_base/gateway/runtime_remote.py": {
+          "sha256": "e10e32c45033ba90818f2dfd27e84250cb80beeaeaabe84faf5cc77ead9e3029",
+          "size": 29708
+        },
+        "src/bt_api_base/gateway/storage/__init__.py": {
+          "sha256": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522",
+          "size": 130
+        },
+        "src/bt_api_base/gateway/storage/tick_writer.py": {
+          "sha256": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95",
+          "size": 6497
+        },
+        "src/bt_api_base/gateway/subscription_manager.py": {
+          "sha256": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971",
+          "size": 3475
+        },
+        "src/bt_api_base/instrument_manager.py": {
+          "sha256": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0",
+          "size": 4657
+        },
+        "src/bt_api_base/logging_factory.py": {
+          "sha256": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d",
+          "size": 6173
+        },
+        "src/bt_api_base/plugins/__init__.py": {
+          "sha256": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f",
+          "size": 576
+        },
+        "src/bt_api_base/plugins/errors.py": {
+          "sha256": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151",
+          "size": 486
+        },
+        "src/bt_api_base/plugins/loader.py": {
+          "sha256": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413",
+          "size": 11884
+        },
+        "src/bt_api_base/plugins/protocol.py": {
+          "sha256": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7",
+          "size": 434
+        },
+        "src/bt_api_base/rate_limiter.py": {
+          "sha256": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0",
+          "size": 10100
+        },
+        "src/bt_api_base/registry.py": {
+          "sha256": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de",
+          "size": 11360
+        },
+        "src/bt_api_base/security.py": {
+          "sha256": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17",
+          "size": 7764
+        },
+        "src/bt_api_base/testing/__init__.py": {
+          "sha256": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c",
+          "size": 337
+        },
+        "src/bt_api_base/testing/fixtures.py": {
+          "sha256": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7",
+          "size": 946
+        },
+        "src/bt_api_base/utils/__init__.py": {
+          "sha256": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0",
+          "size": 130
+        },
+        "src/bt_api_base/utils/time.py": {
+          "sha256": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4",
+          "size": 774
+        },
+        "src/bt_api_base/websocket/__init__.py": {
+          "sha256": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532",
+          "size": 1140
+        },
+        "src/bt_api_base/websocket/exchange_adapters.py": {
+          "sha256": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a",
+          "size": 17794
+        },
+        "src/bt_api_base/websocket_manager.py": {
+          "sha256": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a",
+          "size": 23030
+        },
+        "tests/conftest.py": {
+          "sha256": "2527ced3f85eadfbfa73b1729ae1c45d8c39931c665d5a0e0d592b04fc507578",
+          "size": 256
+        },
+        "tests/containers/accounts/test_account.py": {
+          "sha256": "360177fbb767f43f30e3e2f574890a0c007d9f9bf3c1dad1532331dcf9c4e04b",
+          "size": 4477
+        },
+        "tests/containers/balances/test_balance.py": {
+          "sha256": "8ce5cf4fe904bac69977bfc324ad8155207b363f0c6b13162a1088a0d0b9c4f7",
+          "size": 1431
+        },
+        "tests/containers/bars/test_bar.py": {
+          "sha256": "3fd9daadaa9fd639c6823b492c05ac50078592b0751850937e335dc1a2c0514b",
+          "size": 959
+        },
+        "tests/containers/fundingrates/test_funding_rate.py": {
+          "sha256": "a38b43115b965ac54dd3704969e61d77f5e81814497545eb45e839194cbfca4a",
+          "size": 1157
+        },
+        "tests/containers/greeks/test_greeks.py": {
+          "sha256": "29d7a481f77f78af0c8022180f2e2cccd990cd7c630548f0025224b7fad36332",
+          "size": 1027
+        },
+        "tests/containers/incomes/test_income.py": {
+          "sha256": "652121b185896fc9574d4f2e7c7e3900071732b39cc527f487f0f788bf771714",
+          "size": 4388
+        },
+        "tests/containers/liquidations/test_liquidation.py": {
+          "sha256": "a26d8667c132a432614a1ec56c2f0806e00395d6fee0843a3eecff220bab58b6",
+          "size": 3759
+        },
+        "tests/containers/markprices/test_mark_price.py": {
+          "sha256": "4803e50db8096b105fdf2c91e0722e8f8544684c9fb2c4585ba993de24a3df54",
+          "size": 1037
+        },
+        "tests/containers/openinterests/__init__.py": {
+          "sha256": "ffa14377bc389053197d50a907ae573c8c2cf115c62f25c148ca54028f4a897e",
+          "size": 81
+        },
+        "tests/containers/orderbooks/test_orderbook.py": {
+          "sha256": "2f8adfe5178068b275bfa2a1381d44012f82ca15aa687be72cb7d30da1ed6fb8",
+          "size": 1208
+        },
+        "tests/containers/orders/test_order.py": {
+          "sha256": "6ada56960a57781a8208dbc3a4a1984a2c2001c5cedfc82b8123b7a8d7b23d67",
+          "size": 7111
+        },
+        "tests/containers/orders/test_order_status.py": {
+          "sha256": "c44a116032d16d4b29ea642b8779cc57f8dcfafeee11788d9ae5a4a12f46f388",
+          "size": 4807
+        },
+        "tests/containers/pools/__init__.py": {
+          "sha256": "18ec9c654ceecd3e8e098a78a51c4f8b5e2523920b847c77106d2ec3435ffed3",
+          "size": 73
+        },
+        "tests/containers/positions/test_position.py": {
+          "sha256": "253c1fc6867cdae6a5f3e0f8951acfa19719b37dac7dd042ea17e9a546f74cb4",
+          "size": 5000
+        },
+        "tests/containers/pricelimits/__init__.py": {
+          "sha256": "ae80e8bb44370df060ccc6d907e449bd3411c9cf60f36efddddb0bca25644923",
+          "size": 79
+        },
+        "tests/containers/symbols/test_symbol.py": {
+          "sha256": "874831f849671725033c25c53c8c987fec2b41c8fa9fa0251bc7df95a81c0ffa",
+          "size": 1120
+        },
+        "tests/containers/test_container_base_classes.py": {
+          "sha256": "5906da242ca409c103a9819a2342a680f2ac0719b488ecf4c12fbf62f023d8e0",
+          "size": 23785
+        },
+        "tests/containers/test_market_data_base_classes.py": {
+          "sha256": "f4842cb0c36a75c53cede96342b1baf33a55650bc26675447afd42d4f4d5e43a",
+          "size": 9164
+        },
+        "tests/containers/tickers/test_ticker.py": {
+          "sha256": "029c36ea3a02e2b989c57ba0da44abc3613b4976958edb21bbccc17eabbc9732",
+          "size": 1256
+        },
+        "tests/containers/timers/__init__.py": {
+          "sha256": "f3feaab795f24b67ee4c328bb869fd6da3bdfe7dcc83d2da6611b628ead22a6d",
+          "size": 74
+        },
+        "tests/containers/timers/test_timer.py": {
+          "sha256": "ff6ae696b1b17f51ab59791c0f5142dfc7944b74ef5666f3be80949ef1246502",
+          "size": 1959
+        },
+        "tests/containers/trades/test_trade.py": {
+          "sha256": "7965c646c9b3b8e5ca2fccb58ab22563d0d08fad24494c80f6b9d55c8893b12e",
+          "size": 5134
+        },
+        "tests/feeds/test_capability.py": {
+          "sha256": "8c952cbb1f7bb661675402df42d48b69bbe5f55a778a589c0d5e2dcd0d4aac32",
+          "size": 1244
+        },
+        "tests/feeds/test_connection_mixin.py": {
+          "sha256": "f6a8ab9dff7139699537d4716f69d522080198f2f20ef0bbf0ef5eb9c3fab150",
+          "size": 346
+        },
+        "tests/gateway/test_protocol.py": {
+          "sha256": "82692e0d59727dda2abb18504a54f5364e0996e66a77ec7cfcdec07096d1b0fe",
+          "size": 2425
+        },
+        "tests/gateway/test_registrar.py": {
+          "sha256": "971ba8c4b65977b8a38ec01ba6e8e421ce0a065b888ad8dc043334cc4cb41fd6",
+          "size": 1531
+        },
+        "tests/gateway/test_runtime.py": {
+          "sha256": "fdca07470e3861698cd71667814797daf4a3d932ae969f5d40cdf2757326aa7f",
+          "size": 979
+        },
+        "tests/gateway/test_runtime_order_map.py": {
+          "sha256": "20ac7a0fb2edf6c1abc3018bcc3213f3100b79635e9dd4a81eac17b287a68bfb",
+          "size": 10615
+        },
+        "tests/gateway/test_runtime_write_gate.py": {
+          "sha256": "214a845ade9a9036d8ef2e7cbaad4b3fd40d8871a2d725741c5cbfc5bf530d1d",
+          "size": 2834
+        },
+        "tests/plugins/test_loader.py": {
+          "sha256": "63ed0b7410ae5a30365c8c3a2526e9cabc3f16ddef7a2af2d80266a6e574b182",
+          "size": 8506
+        },
+        "tests/test_async_context.py": {
+          "sha256": "faec7ff8cc74d2b24eb6da395fdb0b36ac7a7d4145d0b19695a4df3e3c97b567",
+          "size": 2867
+        },
+        "tests/test_async_context_quality.py": {
+          "sha256": "ca04ffe3660b7447cba105bbbd2c917a6f86044274a777fa5650985e7000fcc3",
+          "size": 4107
+        },
+        "tests/test_async_error_redaction.py": {
+          "sha256": "eb1f8366acccf1a14b41e0c6623ba525c3c4c0556dd8a48b1ea36c6d3305c2bb",
+          "size": 5698
+        },
+        "tests/test_auto_init_mixin.py": {
+          "sha256": "93db35d78417781be88fef0d0c1e2786cd1a87020012ae5c976a0460ef1ea98d",
+          "size": 2736
+        },
+        "tests/test_cache.py": {
+          "sha256": "5b769d42c175ebbdc6defb23153401b64360df830ad83ff5c53d5b9972d47af0",
+          "size": 9009
+        },
+        "tests/test_calculate_time.py": {
+          "sha256": "4567778312b2090672689397e9350da99280d7cb68afcedbf1b393e441725ec3",
+          "size": 4916
+        },
+        "tests/test_config_loader_quality.py": {
+          "sha256": "11aae4f702177e5ffc9021976481f0b39ce4e9e2ef04413a551a668fb127d692",
+          "size": 2037
+        },
+        "tests/test_dependency_injection.py": {
+          "sha256": "b289abadbdf7841b4bc42a3d7cc9a2f3dff50e07263bd373e8dd0cac009d6cb8",
+          "size": 1911
+        },
+        "tests/test_error.py": {
+          "sha256": "2969a3ca994d779ed0bc53d926a2aba63df5545eaecfd1da2fe540dc2e262b90",
+          "size": 17785
+        },
+        "tests/test_event_bus.py": {
+          "sha256": "2084b00b14c2ad08223377d0f726a190ee5bfa3a5b14c5235cab95821773d1d7",
+          "size": 7741
+        },
+        "tests/test_exceptions.py": {
+          "sha256": "4440f786d6f674290b1033ce23f0f17208709d6b463785e6ad8abfec024bab25",
+          "size": 25763
+        },
+        "tests/test_exchange_data.py": {
+          "sha256": "cc3de343e0d5bf84631a1180ff873896817bc2a2a3e075d7448b8702770ca839",
+          "size": 3173
+        },
+        "tests/test_functions_signers_timestamps.py": {
+          "sha256": "cb11db381b719409aeb5ce1af5319b7cfc2e6a85d762f1053d872689ef532c76",
+          "size": 1866
+        },
+        "tests/test_http_retry.py": {
+          "sha256": "6651dfc3a9ca94c2bda5345648c0e5119d3f03015b15524b066490406756861c",
+          "size": 1642
+        },
+        "tests/test_instrument.py": {
+          "sha256": "44efe6c62f13f91a24f777cba7e6ac91fab6b89cea028922fb984b3b51510380",
+          "size": 4796
+        },
+        "tests/test_logging_factory.py": {
+          "sha256": "1080b6249741e192d66b1ffa80291d616a80d5d166134ee4af60f991626ef314",
+          "size": 5737
+        },
+        "tests/test_package_metadata.py": {
+          "sha256": "0dcc041cae9cea49aa074eacb68c2fe4a28d15c521b160ecffbc547facd3d957",
+          "size": 766
+        },
+        "tests/test_protocol_conformance.py": {
+          "sha256": "39c2a9ea18bfc58358b3e46257e8fef056fecb15f2b79f32c8ea44b931865916",
+          "size": 9913
+        },
+        "tests/test_quality_batch_v4.py": {
+          "sha256": "c1110541f6b29aa1574d3c61fcc460841268ae47820d5a0a52a859cac63bf09e",
+          "size": 11315
+        },
+        "tests/test_registry.py": {
+          "sha256": "042b3885c65abd5db80f25149fdf719da08bbeb0f95c637ce48ab60ed1b44e16",
+          "size": 6551
+        },
+        "tests/test_request_data.py": {
+          "sha256": "c66b5503deca3dc1741d350c9cb3d1ae29dd68090b79cdace8ba0ff7081e9ef5",
+          "size": 2865
+        },
+        "tests/test_security.py": {
+          "sha256": "0366ec1ec28b33552da8f75416f832795c4b16dd67a2ecaded2dc1675a2d47eb",
+          "size": 7890
+        },
+        "tests/test_services.py": {
+          "sha256": "62e772da6e758e681732093dbf0ffd234c679044bf4c1539c77a392e5c31c93d",
+          "size": 10723
+        },
+        "tests/test_services_quality.py": {
+          "sha256": "8989b580bb8c3ac7272db97ba49e81fe40b77ba2d5b8793f54c295a31c94aa8b",
+          "size": 3046
+        },
+        "tests/test_stage0_infrastructure.py": {
+          "sha256": "2d8a6fa2187c841dec627134f4817a56bc0d708ec370ff494ab955c295875a88",
+          "size": 30397
+        },
+        "tests/test_thread_safety.py": {
+          "sha256": "010464b400d3e40f9731e4c5d6c996717371d341ea9a20e467c660f1c4f11d87",
+          "size": 12886
+        },
+        "tests/test_time.py": {
+          "sha256": "ee15022429070a266e4dcde02104b4037e71986b09bf30dfe3cb0f97584aa76c",
+          "size": 1315
+        },
+        "tests/test_timer_integration.py": {
+          "sha256": "d85b978b79416ccaaa112af7d27f57b0cb31b64a8d113265d445469922d99d5f",
+          "size": 1087
+        },
+        "tests/test_transport_redaction.py": {
+          "sha256": "5677be9ffc382f1b660f54c7fa3b5bc71ee47cc84d0be6a31740ed79edb4396d",
+          "size": 13500
+        },
+        "tests/test_utils.py": {
+          "sha256": "c191169b12280cdc2780a15cc1b693e44484995211be78a2d8ca20a3aa4e6a64",
+          "size": 6616
+        },
+        "tests/test_websocket_stop_lifecycle.py": {
+          "sha256": "cda9bf9601179762887a262a678e423aa6774e671b6cce8a17e8610a1ad84ff8",
+          "size": 12929
+        }
+      },
+      "tracked_source_manifest_sha256": "d440169246ef3b813a6f50c7d87a087eebfbb39c459b4ba567777fe3d04cb3ea"
+    },
+    "monitor-a": {
+      "clean": true,
+      "commit": "f3583e744922d556a6015576f386c2d26e3aae51",
+      "git_core_autocrlf": "true",
+      "tracked_file_count": 29,
+      "tracked_source_files": {
+        ".github/workflows/ci.yml": {
+          "sha256": "ef50fd5c686f2d879e15ed091c1dff5ed01ba7934bf77ee93a4aec12c4045280",
+          "size": 4102
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "dff849db5860fa5ada25bbd90eb7b487d59a8ebef3af74c33e492f5522499d9f",
+          "size": 791
+        },
+        ".gitignore": {
+          "sha256": "31f4c3dc4beb428ccf71550574db949c29ae9a7397c131bd884b6a69e59113f6",
+          "size": 564
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "README.md": {
+          "sha256": "63031b859ffd2b5b3a95874805ddbd74bb70719f81d8b2d83de7eff5b5a6fad7",
+          "size": 4065
+        },
+        "docs/index.md": {
+          "sha256": "5dbddd358e455e7dd8abf2d2d3d2cdf29bac8eb110824740ba6b77a02c78a871",
+          "size": 2997
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "examples/monitoring_examples.py": {
+          "sha256": "3ee70eab7db7583742b1945ff22e94039d8f3558c3585bf21ed3c5cb6769b627",
+          "size": 10522
+        },
+        "examples/production_monitoring_demo.py": {
+          "sha256": "fadace7913764daae3d7f539cb366edfbad7e5dc08357ddfa2ef131271ab0c82",
+          "size": 7155
+        },
+        "mkdocs.yml": {
+          "sha256": "9f59667ba097f74fe1d53f4ab43171309fdd16df4f72053524829db3aa863434",
+          "size": 881
+        },
+        "pyproject.toml": {
+          "sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2",
+          "size": 2227
+        },
+        "src/bt_api_monitor/__init__.py": {
+          "sha256": "76acc78917ce3820ab0daaf5308dc64678ad01fe7398c31c428db6a56ce00a82",
+          "size": 4480
+        },
+        "src/bt_api_monitor/collector.py": {
+          "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06",
+          "size": 9825
+        },
+        "src/bt_api_monitor/config.py": {
+          "sha256": "829a8dc4985443de27c92c9ffcf06c6156fc32cce4433c8325ce1d4a1844b2aa",
+          "size": 6588
+        },
+        "src/bt_api_monitor/control.py": {
+          "sha256": "a0e7c119381ab8de2e71f130d62e32a5f697819b154d7856e0d81de8d090a1c4",
+          "size": 14481
+        },
+        "src/bt_api_monitor/decorators.py": {
+          "sha256": "3bd7402667721f1e6f4d9de232d68effd539986e0b7f045e2c16a16d10c60867",
+          "size": 9063
+        },
+        "src/bt_api_monitor/durable.py": {
+          "sha256": "8a72fbdf2c0bb8bcce3fbe4d3a4c9d30a3fa6759424ebb692f6ed03f0eb10f23",
+          "size": 21357
+        },
+        "src/bt_api_monitor/elk.py": {
+          "sha256": "b10288de3fc84c8e764c33d5d7145e38a2d5cb9804c1609aaa87c7cc02895747",
+          "size": 17315
+        },
+        "src/bt_api_monitor/exchange_health.py": {
+          "sha256": "21fd184ce99d67a149ade4e421e1be09a2d1a162d5904fc227c3ea425abb7926",
+          "size": 13915
+        },
+        "src/bt_api_monitor/facts.py": {
+          "sha256": "749ccf017b2b083a34cff46414151d421ef3726f1234b91472996bf22e9c0968",
+          "size": 36060
+        },
+        "src/bt_api_monitor/grafana.py": {
+          "sha256": "81bd9d876bc78da520a01e87c0e453bf12fe241fcdafc919fb4f2bdef6ef36cd",
+          "size": 20919
+        },
+        "src/bt_api_monitor/metrics.py": {
+          "sha256": "7a7fed4142afbac2728e42fc8289a4fa773d369c755ed81172d830692f301c11",
+          "size": 8068
+        },
+        "src/bt_api_monitor/prometheus.py": {
+          "sha256": "b16bb01895567ac5daa639f1c01e7d3137d16f977ea200f9879239e96d2e301e",
+          "size": 10216
+        },
+        "src/bt_api_monitor/system_metrics.py": {
+          "sha256": "37b567de340e35e2a134cd60a4bc96f87b200e174cd8de7647ea9805b550a1f9",
+          "size": 13947
+        },
+        "src/bt_api_monitoring/__init__.py": {
+          "sha256": "1d4ef6a69964c34353cb58514005a664a528b4e61e88063dab1f183c3ab694ad",
+          "size": 840
+        },
+        "tests/conftest.py": {
+          "sha256": "c8b0e99276b0d3949d45cec68077f93e7485ff281a0c400da97929878965b71d",
+          "size": 822
+        },
+        "tests/test_durable_monitoring.py": {
+          "sha256": "59bb4eedaf18b2c7d87221436f0e458989f5a464019e267eb2389728106f1471",
+          "size": 24197
+        },
+        "tests/test_economic_fact_read_model.py": {
+          "sha256": "fb83812263f19326d5b90c77686f3e6bd10ccd408d3f1fd8726269907367b6a9",
+          "size": 22240
+        },
+        "tests/test_monitoring.py": {
+          "sha256": "b70ffdbb7648832d6bd0133a43a2b2bf25bf41fe7b7ff5d87b7cea146dbd9720",
+          "size": 17292
+        }
+      },
+      "tracked_source_manifest_sha256": "846e079ee277d11b6294430a1098f85ffe91f19ccaf454ac9e6974837e51bb97"
+    },
+    "monitor-b": {
+      "clean": true,
+      "commit": "f3583e744922d556a6015576f386c2d26e3aae51",
+      "git_core_autocrlf": "true",
+      "tracked_file_count": 29,
+      "tracked_source_files": {
+        ".github/workflows/ci.yml": {
+          "sha256": "ef50fd5c686f2d879e15ed091c1dff5ed01ba7934bf77ee93a4aec12c4045280",
+          "size": 4102
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "dff849db5860fa5ada25bbd90eb7b487d59a8ebef3af74c33e492f5522499d9f",
+          "size": 791
+        },
+        ".gitignore": {
+          "sha256": "31f4c3dc4beb428ccf71550574db949c29ae9a7397c131bd884b6a69e59113f6",
+          "size": 564
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "README.md": {
+          "sha256": "63031b859ffd2b5b3a95874805ddbd74bb70719f81d8b2d83de7eff5b5a6fad7",
+          "size": 4065
+        },
+        "docs/index.md": {
+          "sha256": "5dbddd358e455e7dd8abf2d2d3d2cdf29bac8eb110824740ba6b77a02c78a871",
+          "size": 2997
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "examples/monitoring_examples.py": {
+          "sha256": "3ee70eab7db7583742b1945ff22e94039d8f3558c3585bf21ed3c5cb6769b627",
+          "size": 10522
+        },
+        "examples/production_monitoring_demo.py": {
+          "sha256": "fadace7913764daae3d7f539cb366edfbad7e5dc08357ddfa2ef131271ab0c82",
+          "size": 7155
+        },
+        "mkdocs.yml": {
+          "sha256": "9f59667ba097f74fe1d53f4ab43171309fdd16df4f72053524829db3aa863434",
+          "size": 881
+        },
+        "pyproject.toml": {
+          "sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2",
+          "size": 2227
+        },
+        "src/bt_api_monitor/__init__.py": {
+          "sha256": "76acc78917ce3820ab0daaf5308dc64678ad01fe7398c31c428db6a56ce00a82",
+          "size": 4480
+        },
+        "src/bt_api_monitor/collector.py": {
+          "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06",
+          "size": 9825
+        },
+        "src/bt_api_monitor/config.py": {
+          "sha256": "829a8dc4985443de27c92c9ffcf06c6156fc32cce4433c8325ce1d4a1844b2aa",
+          "size": 6588
+        },
+        "src/bt_api_monitor/control.py": {
+          "sha256": "a0e7c119381ab8de2e71f130d62e32a5f697819b154d7856e0d81de8d090a1c4",
+          "size": 14481
+        },
+        "src/bt_api_monitor/decorators.py": {
+          "sha256": "3bd7402667721f1e6f4d9de232d68effd539986e0b7f045e2c16a16d10c60867",
+          "size": 9063
+        },
+        "src/bt_api_monitor/durable.py": {
+          "sha256": "8a72fbdf2c0bb8bcce3fbe4d3a4c9d30a3fa6759424ebb692f6ed03f0eb10f23",
+          "size": 21357
+        },
+        "src/bt_api_monitor/elk.py": {
+          "sha256": "b10288de3fc84c8e764c33d5d7145e38a2d5cb9804c1609aaa87c7cc02895747",
+          "size": 17315
+        },
+        "src/bt_api_monitor/exchange_health.py": {
+          "sha256": "21fd184ce99d67a149ade4e421e1be09a2d1a162d5904fc227c3ea425abb7926",
+          "size": 13915
+        },
+        "src/bt_api_monitor/facts.py": {
+          "sha256": "749ccf017b2b083a34cff46414151d421ef3726f1234b91472996bf22e9c0968",
+          "size": 36060
+        },
+        "src/bt_api_monitor/grafana.py": {
+          "sha256": "81bd9d876bc78da520a01e87c0e453bf12fe241fcdafc919fb4f2bdef6ef36cd",
+          "size": 20919
+        },
+        "src/bt_api_monitor/metrics.py": {
+          "sha256": "7a7fed4142afbac2728e42fc8289a4fa773d369c755ed81172d830692f301c11",
+          "size": 8068
+        },
+        "src/bt_api_monitor/prometheus.py": {
+          "sha256": "b16bb01895567ac5daa639f1c01e7d3137d16f977ea200f9879239e96d2e301e",
+          "size": 10216
+        },
+        "src/bt_api_monitor/system_metrics.py": {
+          "sha256": "37b567de340e35e2a134cd60a4bc96f87b200e174cd8de7647ea9805b550a1f9",
+          "size": 13947
+        },
+        "src/bt_api_monitoring/__init__.py": {
+          "sha256": "1d4ef6a69964c34353cb58514005a664a528b4e61e88063dab1f183c3ab694ad",
+          "size": 840
+        },
+        "tests/conftest.py": {
+          "sha256": "c8b0e99276b0d3949d45cec68077f93e7485ff281a0c400da97929878965b71d",
+          "size": 822
+        },
+        "tests/test_durable_monitoring.py": {
+          "sha256": "59bb4eedaf18b2c7d87221436f0e458989f5a464019e267eb2389728106f1471",
+          "size": 24197
+        },
+        "tests/test_economic_fact_read_model.py": {
+          "sha256": "fb83812263f19326d5b90c77686f3e6bd10ccd408d3f1fd8726269907367b6a9",
+          "size": 22240
+        },
+        "tests/test_monitoring.py": {
+          "sha256": "b70ffdbb7648832d6bd0133a43a2b2bf25bf41fe7b7ff5d87b7cea146dbd9720",
+          "size": 17292
+        }
+      },
+      "tracked_source_manifest_sha256": "846e079ee277d11b6294430a1098f85ffe91f19ccaf454ac9e6974837e51bb97"
+    },
+    "risk-a": {
+      "clean": true,
+      "commit": "2201316f5ea196d164b3045d02648fe857989b92",
+      "tracked_file_count": 32,
+      "tracked_source_files": {
+        ".github/workflows/ci.yml": {
+          "sha256": "70bbb9eed62578bbe427de405defbe253bdaa08293ff652c8bebbdca43dcd6d1",
+          "size": 4087
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "dff849db5860fa5ada25bbd90eb7b487d59a8ebef3af74c33e492f5522499d9f",
+          "size": 791
+        },
+        ".gitignore": {
+          "sha256": "31f4c3dc4beb428ccf71550574db949c29ae9a7397c131bd884b6a69e59113f6",
+          "size": 564
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "README.md": {
+          "sha256": "8285891767130af33b08923381f261fa51564d1a27acf92cb2bf2beea981a6c7",
+          "size": 5798
+        },
+        "docs/index.md": {
+          "sha256": "35a943d0f49f44838518fa11ebf99259d443cddcdcc6910abaf383cd15e08580",
+          "size": 2979
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "mkdocs.yml": {
+          "sha256": "14a8a0725f2c8fff58546f7b38761c164d465939c496fd094b741e77d2b3f0f4",
+          "size": 880
+        },
+        "pyproject.toml": {
+          "sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab",
+          "size": 2211
+        },
+        "src/bt_api_risk/__init__.py": {
+          "sha256": "55c3944c2aa85a80d95600505617c12de46d351a90611f4e5918f1b6ea0f1497",
+          "size": 4849
+        },
+        "src/bt_api_risk/allocation_sizing.py": {
+          "sha256": "b7221e14b33dc38078534b1c3d3b818e3171307e3e22b26b817e96c7495a7179",
+          "size": 6000
+        },
+        "src/bt_api_risk/containers/risk_events.py": {
+          "sha256": "3cb7b37bc8e186a630e047858eb120666fc4837ba25045984ee11fb8ffb35b4a",
+          "size": 13385
+        },
+        "src/bt_api_risk/containers/risk_metrics.py": {
+          "sha256": "20156a825d28b9a837cae73674b601e81220576ab4f8a03b0dbc405a39c4a0a9",
+          "size": 11377
+        },
+        "src/bt_api_risk/core/__init__.py": {
+          "sha256": "d5386d2197e6656c4e6f3ebc3c4d2fc163e4d1803fb071feb3d5e870b931a3e1",
+          "size": 2442
+        },
+        "src/bt_api_risk/core/admission.py": {
+          "sha256": "2a65acf119c118774335620696a63e0e926bd5b42da2d58fdb217c41f3252742",
+          "size": 111558
+        },
+        "src/bt_api_risk/core/instrument.py": {
+          "sha256": "5995ed4122ecac003e203b2368ba8732d2e212c95107e33c375d76f6b4b89fc7",
+          "size": 37345
+        },
+        "src/bt_api_risk/core/limits_manager.py": {
+          "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a",
+          "size": 34616
+        },
+        "src/bt_api_risk/core/policy_engine.py": {
+          "sha256": "f85befc83ee4f82506977491a420c07b3b92e702af3a3a09f496f2937af77296",
+          "size": 29113
+        },
+        "src/bt_api_risk/core/risk_assessor.py": {
+          "sha256": "4c22a94caebdf4658e1bfce8d9712b6bbe2fac56058395698c15bae56b4ee585",
+          "size": 20852
+        },
+        "src/bt_api_risk/core/risk_calculator.py": {
+          "sha256": "9f077bd4688fdc92b7791b1390cb310192724246933a95fd647e70b02d8d86e5",
+          "size": 38074
+        },
+        "src/bt_api_risk/core/risk_manager.py": {
+          "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843",
+          "size": 15442
+        },
+        "src/bt_api_risk/ml_models/__init__.py": {
+          "sha256": "0001006fd9f64f72f32c487b31107dca23a7c636b9d3352a92821667adac28f3",
+          "size": 297
+        },
+        "src/bt_api_risk/ml_models/anomaly_detector.py": {
+          "sha256": "1fe79d5ac5748426580a0c58c0759a94c38d3b05c92fd70fc2b0acd46b69a9f0",
+          "size": 35316
+        },
+        "src/bt_api_risk/ml_models/ensemble_model.py": {
+          "sha256": "da6a149ee7ac66e3ba29f548eeafa2ee5a104a22c5ecdb9750a6bfd1b4ff555d",
+          "size": 27974
+        },
+        "src/bt_api_risk/ml_models/ml_base.py": {
+          "sha256": "6aa19bb0100e937feb0df22ed5a928cd0da8e992e4e9b11d629f444416a6a4c1",
+          "size": 15351
+        },
+        "tests/test_admission_import_boundary.py": {
+          "sha256": "48a2cec84126e1f0eae943819c96259fd412e1ee5c5a026471c81fae78d8c3b0",
+          "size": 3330
+        },
+        "tests/test_allocation_sizing.py": {
+          "sha256": "048fa6597dcf124bbca12b08aa264682a9539bcf6b9f4c8824bb205f99e4502f",
+          "size": 5171
+        },
+        "tests/test_durable_risk_gate.py": {
+          "sha256": "00919a2c937ed9bf8480055dcd1834a8bfcacc15a637a41fd1371463ed87ff65",
+          "size": 57487
+        },
+        "tests/test_ensemble_model.py": {
+          "sha256": "1dedaf5cf7e89635166d9a305dccb11fb0555bad25fff577ecfb71f527bef386",
+          "size": 14240
+        },
+        "tests/test_instrument_admission.py": {
+          "sha256": "410bf91b9ce7fed489499c45916ec55ad1ba9600721d153f340f1a0051275b47",
+          "size": 16651
+        },
+        "tests/test_ml_base.py": {
+          "sha256": "6e5e0a49f0241dbedf44b1ac4df8eb1010bd05b380a71206268f13df1925c5c2",
+          "size": 16519
+        },
+        "tests/test_risk_management.py": {
+          "sha256": "66d9233a89c5f39ab317e24a49f0b80a1d1f07e84bee59037dcec68f7ac8df7a",
+          "size": 18630
+        }
+      },
+      "tracked_source_manifest_sha256": "e8fdf0bd7688c804ef75fa5a047f172f661b183d67c248056960e3a1fdfff3f7"
+    },
+    "risk-b": {
+      "clean": true,
+      "commit": "2201316f5ea196d164b3045d02648fe857989b92",
+      "tracked_file_count": 32,
+      "tracked_source_files": {
+        ".github/workflows/ci.yml": {
+          "sha256": "70bbb9eed62578bbe427de405defbe253bdaa08293ff652c8bebbdca43dcd6d1",
+          "size": 4087
+        },
+        ".github/workflows/publish.yml": {
+          "sha256": "dff849db5860fa5ada25bbd90eb7b487d59a8ebef3af74c33e492f5522499d9f",
+          "size": 791
+        },
+        ".gitignore": {
+          "sha256": "31f4c3dc4beb428ccf71550574db949c29ae9a7397c131bd884b6a69e59113f6",
+          "size": 564
+        },
+        ".readthedocs.yaml": {
+          "sha256": "e3a24d74a465b3c16bd4189304061ac9801a74914a97125b2e76289de52be965",
+          "size": 238
+        },
+        "README.md": {
+          "sha256": "8285891767130af33b08923381f261fa51564d1a27acf92cb2bf2beea981a6c7",
+          "size": 5798
+        },
+        "docs/index.md": {
+          "sha256": "35a943d0f49f44838518fa11ebf99259d443cddcdcc6910abaf383cd15e08580",
+          "size": 2979
+        },
+        "docs/requirements.txt": {
+          "sha256": "41e834f129ade7dda82ce15f4931ccab8b1cbf08fc029ee6bcdaeb959274bc18",
+          "size": 80
+        },
+        "mkdocs.yml": {
+          "sha256": "14a8a0725f2c8fff58546f7b38761c164d465939c496fd094b741e77d2b3f0f4",
+          "size": 880
+        },
+        "pyproject.toml": {
+          "sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab",
+          "size": 2211
+        },
+        "src/bt_api_risk/__init__.py": {
+          "sha256": "55c3944c2aa85a80d95600505617c12de46d351a90611f4e5918f1b6ea0f1497",
+          "size": 4849
+        },
+        "src/bt_api_risk/allocation_sizing.py": {
+          "sha256": "b7221e14b33dc38078534b1c3d3b818e3171307e3e22b26b817e96c7495a7179",
+          "size": 6000
+        },
+        "src/bt_api_risk/containers/risk_events.py": {
+          "sha256": "3cb7b37bc8e186a630e047858eb120666fc4837ba25045984ee11fb8ffb35b4a",
+          "size": 13385
+        },
+        "src/bt_api_risk/containers/risk_metrics.py": {
+          "sha256": "20156a825d28b9a837cae73674b601e81220576ab4f8a03b0dbc405a39c4a0a9",
+          "size": 11377
+        },
+        "src/bt_api_risk/core/__init__.py": {
+          "sha256": "d5386d2197e6656c4e6f3ebc3c4d2fc163e4d1803fb071feb3d5e870b931a3e1",
+          "size": 2442
+        },
+        "src/bt_api_risk/core/admission.py": {
+          "sha256": "2a65acf119c118774335620696a63e0e926bd5b42da2d58fdb217c41f3252742",
+          "size": 111558
+        },
+        "src/bt_api_risk/core/instrument.py": {
+          "sha256": "5995ed4122ecac003e203b2368ba8732d2e212c95107e33c375d76f6b4b89fc7",
+          "size": 37345
+        },
+        "src/bt_api_risk/core/limits_manager.py": {
+          "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a",
+          "size": 34616
+        },
+        "src/bt_api_risk/core/policy_engine.py": {
+          "sha256": "f85befc83ee4f82506977491a420c07b3b92e702af3a3a09f496f2937af77296",
+          "size": 29113
+        },
+        "src/bt_api_risk/core/risk_assessor.py": {
+          "sha256": "4c22a94caebdf4658e1bfce8d9712b6bbe2fac56058395698c15bae56b4ee585",
+          "size": 20852
+        },
+        "src/bt_api_risk/core/risk_calculator.py": {
+          "sha256": "9f077bd4688fdc92b7791b1390cb310192724246933a95fd647e70b02d8d86e5",
+          "size": 38074
+        },
+        "src/bt_api_risk/core/risk_manager.py": {
+          "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843",
+          "size": 15442
+        },
+        "src/bt_api_risk/ml_models/__init__.py": {
+          "sha256": "0001006fd9f64f72f32c487b31107dca23a7c636b9d3352a92821667adac28f3",
+          "size": 297
+        },
+        "src/bt_api_risk/ml_models/anomaly_detector.py": {
+          "sha256": "1fe79d5ac5748426580a0c58c0759a94c38d3b05c92fd70fc2b0acd46b69a9f0",
+          "size": 35316
+        },
+        "src/bt_api_risk/ml_models/ensemble_model.py": {
+          "sha256": "da6a149ee7ac66e3ba29f548eeafa2ee5a104a22c5ecdb9750a6bfd1b4ff555d",
+          "size": 27974
+        },
+        "src/bt_api_risk/ml_models/ml_base.py": {
+          "sha256": "6aa19bb0100e937feb0df22ed5a928cd0da8e992e4e9b11d629f444416a6a4c1",
+          "size": 15351
+        },
+        "tests/test_admission_import_boundary.py": {
+          "sha256": "48a2cec84126e1f0eae943819c96259fd412e1ee5c5a026471c81fae78d8c3b0",
+          "size": 3330
+        },
+        "tests/test_allocation_sizing.py": {
+          "sha256": "048fa6597dcf124bbca12b08aa264682a9539bcf6b9f4c8824bb205f99e4502f",
+          "size": 5171
+        },
+        "tests/test_durable_risk_gate.py": {
+          "sha256": "00919a2c937ed9bf8480055dcd1834a8bfcacc15a637a41fd1371463ed87ff65",
+          "size": 57487
+        },
+        "tests/test_ensemble_model.py": {
+          "sha256": "1dedaf5cf7e89635166d9a305dccb11fb0555bad25fff577ecfb71f527bef386",
+          "size": 14240
+        },
+        "tests/test_instrument_admission.py": {
+          "sha256": "410bf91b9ce7fed489499c45916ec55ad1ba9600721d153f340f1a0051275b47",
+          "size": 16651
+        },
+        "tests/test_ml_base.py": {
+          "sha256": "6e5e0a49f0241dbedf44b1ac4df8eb1010bd05b380a71206268f13df1925c5c2",
+          "size": 16519
+        },
+        "tests/test_risk_management.py": {
+          "sha256": "66d9233a89c5f39ab317e24a49f0b80a1d1f07e84bee59037dcec68f7ac8df7a",
+          "size": 18630
+        }
+      },
+      "tracked_source_manifest_sha256": "e8fdf0bd7688c804ef75fa5a047f172f661b183d67c248056960e3a1fdfff3f7"
+    }
+  },
+  "strict_isolated_consumer_acceptance": {
+    "PYTHONPATH": "unset and asserted absent in copied test conftest.py",
+    "consumer_include_system_site_packages": false,
+    "consumer_user_site_enabled": false,
+    "consumer_venv": "D:\\temp\\iteration41-capability-artifacts-20260926\\consumer-venv",
+    "execution_mode": "The actual consumer-venv python.exe ran pytest with -I; sys.prefix and sys.executable were asserted inside copied test conftest.py.",
+    "monitor": {
+      "command": "consumer-venv\\Scripts\\python.exe -I -m pytest -q --tb=short installed-monitor-tests",
+      "elapsed_seconds": 4.65,
+      "result": "90 passed",
+      "source_test_files_hash_match_clean_monitor_checkout": true,
+      "test_directory": "D:\\temp\\iteration41-capability-artifacts-20260926\\installed-monitor-tests",
+      "warnings": "5 psutil Windows disk usage deprecation warnings plus one non-fatal pytest-asyncio configuration warning."
+    },
+    "origin_audit": {
+      "asserts_all_loaded_bt_api_modules_under_consumer_site_packages": true,
+      "asserts_no_user_site_or_PYTHONPATH": true,
+      "asserts_sys_executable_under_consumer_prefix": true,
+      "hook": "QA-only conftest.py in each copied test directory; not part of any wheel or source checkout.",
+      "monitor_conftest_sha256": "b7e2f4b3406fa9696d145296cc3828507e8b7acf0f848083c35638149e337883",
+      "risk_conftest_sha256": "b7e2f4b3406fa9696d145296cc3828507e8b7acf0f848083c35638149e337883"
+    },
+    "pip_check_after_all_installs": "No broken requirements found.",
+    "pytest": "8.2.2",
+    "pytest_asyncio": "0.24.0",
+    "python": "3.11.5",
+    "risk": {
+      "command": "consumer-venv\\Scripts\\python.exe -I -m pytest -q --tb=short installed-tests",
+      "elapsed_seconds": 36.14,
+      "fresh_import_and_SQLite_reservation_boundary_tests_included": true,
+      "pytest_asyncio_deprecation_warning": "asyncio_default_fixture_loop_scope unset because only copied tests were supplied; non-fatal.",
+      "result": "206 passed",
+      "source_test_files_hash_match_clean_risk_checkout": true,
+      "test_directory": "D:\\temp\\iteration41-capability-artifacts-20260926\\installed-tests"
+    },
+    "scope": "strict installed-wheel tests; copied tests, no provider/native access, no source PYTHONPATH",
+    "test_dependency_download": {
+      "download_command": "python -m pip download --index-url https://pypi.org/simple --only-binary=:all: --dest test-wheelhouse pytest==8.2.2 pytest-asyncio==0.24.0",
+      "index": "https://pypi.org/simple",
+      "install_command": "consumer-venv/python.exe -m pip install --no-index --find-links test-wheelhouse pytest==8.2.2 pytest-asyncio==0.24.0",
+      "installed_versions": {
+        "colorama": "0.4.6",
+        "iniconfig": "2.3.0",
+        "pluggy": "1.6.0",
+        "pytest": "8.2.2",
+        "pytest-asyncio": "0.24.0"
+      },
+      "network_used_only_to_download_test_tools": true,
+      "packaging": "26.3 was already installed from the local project dependency wheelhouse; no system-site package was used.",
+      "test_tools_offline_install_report": "D:\\temp\\iteration41-capability-artifacts-20260926\\test-tools-install-report.json",
+      "test_tools_offline_install_report_sha256": "20c72c5a548168f407891b8cf2c1f090dfe4c1f2711d2b9e6a3c30e4a76210c7",
+      "test_wheels": [
+        {
+          "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+          "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+          "size": 25335
+        },
+        {
+          "filename": "iniconfig-2.3.0-py3-none-any.whl",
+          "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12",
+          "size": 7484
+        },
+        {
+          "filename": "packaging-26.3-py3-none-any.whl",
+          "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+          "size": 129956
+        },
+        {
+          "filename": "pluggy-1.6.0-py3-none-any.whl",
+          "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746",
+          "size": 20538
+        },
+        {
+          "filename": "pytest-8.2.2-py3-none-any.whl",
+          "sha256": "c434598117762e2bd304e526244f67bf66bbd7b5d6cf22138be51ff661980343",
+          "size": 339873
+        },
+        {
+          "filename": "pytest_asyncio-0.24.0-py3-none-any.whl",
+          "sha256": "a811296ed596b69bf0b6f3dc40f83bcaf341b155a269052d82efa2b25ac7037b",
+          "size": 18024
+        }
+      ]
+    }
+  },
+  "wheels": {
+    "base-a": {
+      "filename": "bt_api_base-0.15.4-py3-none-any.whl",
+      "record": {
+        "entry_count": 109,
+        "path": "bt_api_base-0.15.4.dist-info/RECORD",
+        "sha256": "e5a6c669630ce12e72e8faf3432ec3a4d992e2f14c20ddd11d6ad23a4aad9bef"
+      },
+      "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+      "size": 149476,
+      "wheel_payload_files": {
+        "bt_api_base-0.15.4.dist-info/METADATA": {
+          "record_hash": "sha256=3DGGLepoLCnUhdw1gS0zICL2XCDhekt1VBh-1NUaEN0",
+          "record_size": "18897",
+          "sha256": "dc31862dea682c29d485dc35812d332022f65c20e17a4b7554187ed4d51a10dd",
+          "size": 18897
+        },
+        "bt_api_base-0.15.4.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "e5a6c669630ce12e72e8faf3432ec3a4d992e2f14c20ddd11d6ad23a4aad9bef",
+          "size": 10013
+        },
+        "bt_api_base-0.15.4.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_base-0.15.4.dist-info/licenses/LICENSE": {
+          "record_hash": "sha256=eyJndDFHR1oGyfG-UYKe1v5d2fntZIKsTI2gF8demTQ",
+          "record_size": "1088",
+          "sha256": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+          "size": 1088
+        },
+        "bt_api_base-0.15.4.dist-info/top_level.txt": {
+          "record_hash": "sha256=e2stilTm5CEoTpRmC1PVVpo6VOwVvGqraWQ42JVQH3g",
+          "record_size": "12",
+          "sha256": "7b6b2d8a54e6e421284e94660b53d5569a3a54ec15bc6aab696438d895501f78",
+          "size": 12
+        },
+        "bt_api_base/__init__.py": {
+          "record_hash": "sha256=wMFM-h45p5_vgSaoXoLNe0HVZi5oP_EZMvzFit2BFrQ",
+          "record_size": "155",
+          "sha256": "c0c14cfa1e39a79fef8126a85e82cd7b41d5662e683ff11932fcc58add8116b4",
+          "size": 155
+        },
+        "bt_api_base/_compat.py": {
+          "record_hash": "sha256=F6EuKMeWP8JJxYrWUxQh8MnN9_9jfb0XCgM_RyA0qGk",
+          "record_size": "744",
+          "sha256": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869",
+          "size": 744
+        },
+        "bt_api_base/_plugin_shims.py": {
+          "record_hash": "sha256=KOckM0aWmS24wo5x6oDUGqKQD3ww0Ht_ofH4Jyc-VOQ",
+          "record_size": "917",
+          "sha256": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4",
+          "size": 917
+        },
+        "bt_api_base/_version.py": {
+          "record_hash": "sha256=cDGLmEYxOpfNoDvUFQ3vXASXlVQRg07TtUKRDPnOGn0",
+          "record_size": "97",
+          "sha256": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d",
+          "size": 97
+        },
+        "bt_api_base/auth_config.py": {
+          "record_hash": "sha256=UvKiSJrLEPN2qCeKhMULtQ3Gn9irzf8qqXE4_mlYfEM",
+          "record_size": "6083",
+          "sha256": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43",
+          "size": 6083
+        },
+        "bt_api_base/balance_utils.py": {
+          "record_hash": "sha256=r7wwgmPVb_QSIiOfZS4adF6k5BqwhCE5hB5QIBykvKM",
+          "record_size": "3048",
+          "sha256": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3",
+          "size": 3048
+        },
+        "bt_api_base/cache.py": {
+          "record_hash": "sha256=Y2bA7RQpHOV4W9VhIIb5FJVlg5Bbgkvk_Hf8CbAAf7k",
+          "record_size": "7642",
+          "sha256": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9",
+          "size": 7642
+        },
+        "bt_api_base/config_loader.py": {
+          "record_hash": "sha256=w1ZpN7Y_wzCx64ydgkNtfk73ZH6wpCExCnvhQJNyJnI",
+          "record_size": "9413",
+          "sha256": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672",
+          "size": 9413
+        },
+        "bt_api_base/connection_pool.py": {
+          "record_hash": "sha256=tL2PUZKWSBWR_JfmmasERqGu6dVPE2qaxeVQvjio5uU",
+          "record_size": "7927",
+          "sha256": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5",
+          "size": 7927
+        },
+        "bt_api_base/containers/__init__.py": {
+          "record_hash": "sha256=PrIzy75CV7pOkhccplWIgdvhhYtOvncrR2CA3mfuSBA",
+          "record_size": "1497",
+          "sha256": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810",
+          "size": 1497
+        },
+        "bt_api_base/containers/accounts/__init__.py": {
+          "record_hash": "sha256=Pd7DTdLC5GLPvkprqanEiNXq5X2WpHEl0uJzijUktic",
+          "record_size": "134",
+          "sha256": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627",
+          "size": 134
+        },
+        "bt_api_base/containers/accounts/account.py": {
+          "record_hash": "sha256=7AraUDCY2KDBjhGH8rnsVFLJJlaf6Ohi8IccsW_-FnU",
+          "record_size": "8222",
+          "sha256": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675",
+          "size": 8222
+        },
+        "bt_api_base/containers/auto_init_mixin.py": {
+          "record_hash": "sha256=ITx_8NA86FdJd55Aarh9rlxT6Cywdg_L__-fNdJa8-0",
+          "record_size": "1957",
+          "sha256": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed",
+          "size": 1957
+        },
+        "bt_api_base/containers/balances/__init__.py": {
+          "record_hash": "sha256=X7cSyqj0Owgn0Q9YE4s6qM9524T1EX8SmmKMsNGG3sM",
+          "record_size": "134",
+          "sha256": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3",
+          "size": 134
+        },
+        "bt_api_base/containers/balances/balance.py": {
+          "record_hash": "sha256=_csc107fJ1j65Htt9nt5a_KVBx2tvzuEYIDXyUoCecc",
+          "record_size": "5900",
+          "sha256": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7",
+          "size": 5900
+        },
+        "bt_api_base/containers/bars/__init__.py": {
+          "record_hash": "sha256=qE8STfhS2ifDoIeTBiONsC402Ox_0uyha9p6i6Ik4AA",
+          "record_size": "122",
+          "sha256": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000",
+          "size": 122
+        },
+        "bt_api_base/containers/bars/bar.py": {
+          "record_hash": "sha256=gx5jSmEjJ2NniFlmRP5uSRtp9C6ETtJ9Lu1518MClJU",
+          "record_size": "3320",
+          "sha256": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495",
+          "size": 3320
+        },
+        "bt_api_base/containers/exchanges/__init__.py": {
+          "record_hash": "sha256=qwEhGNCRaf2LAkuysOi-HVloy_1YWgp-vynK41PLvjs",
+          "record_size": "142",
+          "sha256": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b",
+          "size": 142
+        },
+        "bt_api_base/containers/exchanges/exchange_data.py": {
+          "record_hash": "sha256=SF7YqiVWW0oWr2Dqy6wEsJdYL6JYOv9h4bYwh-xi8Fk",
+          "record_size": "2741",
+          "sha256": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059",
+          "size": 2741
+        },
+        "bt_api_base/containers/fundingrates/__init__.py": {
+          "record_hash": "sha256=_-V1hwVs00fBXYMNFWXCLPreHEUsfodIvpL9WHu6HMc",
+          "record_size": "147",
+          "sha256": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7",
+          "size": 147
+        },
+        "bt_api_base/containers/fundingrates/funding_rate.py": {
+          "record_hash": "sha256=b3DYRASZr2nqvWZmnsYwP3kNnPpRL68MYOqHQyEXeWg",
+          "record_size": "5275",
+          "sha256": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968",
+          "size": 5275
+        },
+        "bt_api_base/containers/greeks/__init__.py": {
+          "record_hash": "sha256=kkor1Oer7_oD21Io-bJiehP6LnI_84sbOE1fhbTfYZo",
+          "record_size": "131",
+          "sha256": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a",
+          "size": 131
+        },
+        "bt_api_base/containers/greeks/greeks.py": {
+          "record_hash": "sha256=K4ADYSsTQ5CRoHpzOpezspDxKyT-k74CEM9cTQs4AGo",
+          "record_size": "1908",
+          "sha256": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a",
+          "size": 1908
+        },
+        "bt_api_base/containers/incomes/__init__.py": {
+          "record_hash": "sha256=8W5lDiwgFyTn3Z-KSnQXBlGGo9VwbTsL6wzTVBTJbM8",
+          "record_size": "131",
+          "sha256": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf",
+          "size": 131
+        },
+        "bt_api_base/containers/incomes/income.py": {
+          "record_hash": "sha256=BesAwvAkTiUVb3BDCk1W2gJZVSH0SdZ5BiWHcm59JJA",
+          "record_size": "2921",
+          "sha256": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490",
+          "size": 2921
+        },
+        "bt_api_base/containers/instrument.py": {
+          "record_hash": "sha256=I6gchx7v9T5mg65VDG85MR7U02a-wazJ-GOjbvfS0Cc",
+          "record_size": "4804",
+          "sha256": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027",
+          "size": 4804
+        },
+        "bt_api_base/containers/liquidations/__init__.py": {
+          "record_hash": "sha256=Oz86BI-1WNHiCzGX8Jwzguf1HZ1wxPAebJt2lgZXKd8",
+          "record_size": "146",
+          "sha256": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df",
+          "size": 146
+        },
+        "bt_api_base/containers/liquidations/liquidation.py": {
+          "record_hash": "sha256=ihlU77nR6Yx0NhV-zdrtgFkEnK9WLXnThs6OPM66_f8",
+          "record_size": "2313",
+          "sha256": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff",
+          "size": 2313
+        },
+        "bt_api_base/containers/markprices/__init__.py": {
+          "record_hash": "sha256=4KuGFNhPt8wNjgNqSsQFW7e-EGR0wUxDzh8GvD_-PNs",
+          "record_size": "141",
+          "sha256": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb",
+          "size": 141
+        },
+        "bt_api_base/containers/markprices/mark_price.py": {
+          "record_hash": "sha256=YsW4YM119MRTY5f8wmYsQ9MjiQy8oIae_QUBRSx25Jo",
+          "record_size": "2736",
+          "sha256": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a",
+          "size": 2736
+        },
+        "bt_api_base/containers/orderbooks/__init__.py": {
+          "record_hash": "sha256=CGUt4ucmnx13SOAbmF8Fzed9CNS47iv98xAqcnkotcM",
+          "record_size": "140",
+          "sha256": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3",
+          "size": 140
+        },
+        "bt_api_base/containers/orderbooks/orderbook.py": {
+          "record_hash": "sha256=sCLnOW9uZwtacvRdXIrm_uNWHtIsgGuUTPsgmHW8gyQ",
+          "record_size": "3914",
+          "sha256": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324",
+          "size": 3914
+        },
+        "bt_api_base/containers/orders/__init__.py": {
+          "record_hash": "sha256=s6T8zO3LvX0kYIFpG2UDDaZwsg6RCuZ3wmI2zKfesv4",
+          "record_size": "128",
+          "sha256": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe",
+          "size": 128
+        },
+        "bt_api_base/containers/orders/order.py": {
+          "record_hash": "sha256=lEDWX3RyXg-jI3qNCPFtdXl4j6j-F5VP3NugfmojRps",
+          "record_size": "10606",
+          "sha256": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b",
+          "size": 10606
+        },
+        "bt_api_base/containers/positions/__init__.py": {
+          "record_hash": "sha256=LGy4nuXQcPzc8-c78dbKsUV5VXRQuixsNo3iLMz3LPA",
+          "record_size": "137",
+          "sha256": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0",
+          "size": 137
+        },
+        "bt_api_base/containers/positions/position.py": {
+          "record_hash": "sha256=Ah-vjFC7mUn_ExZ_UhfJsW-li0Z0JmkZ4d6OfhcK2sk",
+          "record_size": "6827",
+          "sha256": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9",
+          "size": 6827
+        },
+        "bt_api_base/containers/requestdatas/__init__.py": {
+          "record_hash": "sha256=-O9vebrMyctOdiOl34x03SqO0kvfgOPlfNSKEpG7vKY",
+          "record_size": "139",
+          "sha256": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6",
+          "size": 139
+        },
+        "bt_api_base/containers/requestdatas/request_data.py": {
+          "record_hash": "sha256=LIVe8dwn5bmRPTV-8tgczp1dX8YtquP63Pr5vFI1T0M",
+          "record_size": "4968",
+          "sha256": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43",
+          "size": 4968
+        },
+        "bt_api_base/containers/symbols/__init__.py": {
+          "record_hash": "sha256=UlSkpFmvwxoOVFlNdaHzsGoQdYdpFIQ0veej-mTY7Vg",
+          "record_size": "131",
+          "sha256": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58",
+          "size": 131
+        },
+        "bt_api_base/containers/symbols/symbol.py": {
+          "record_hash": "sha256=lES4zaqkIJS9jbH43_4g1d1pdj5gYyQgSkS9YP7zDFY",
+          "record_size": "3383",
+          "sha256": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56",
+          "size": 3383
+        },
+        "bt_api_base/containers/tickers/__init__.py": {
+          "record_hash": "sha256=MtL7XB_tH63NZ_w47_FC90RAdvrrLkAd_uteMB3H3tc",
+          "record_size": "131",
+          "sha256": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7",
+          "size": 131
+        },
+        "bt_api_base/containers/tickers/ticker.py": {
+          "record_hash": "sha256=kJLlni6Eb-697wZA0OpLub0UPeEHDJQQz3hnBq1WymM",
+          "record_size": "3449",
+          "sha256": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63",
+          "size": 3449
+        },
+        "bt_api_base/containers/timers/__init__.py": {
+          "record_hash": "sha256=0nQSorF6Jr0gXmz-qOEZC4ah99DLD-3gNnSDsTWZURY",
+          "record_size": "128",
+          "sha256": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116",
+          "size": 128
+        },
+        "bt_api_base/containers/timers/timer.py": {
+          "record_hash": "sha256=anmVRmYOFQjOAfDycXTWPEWUUbnEZpu1okV8Vg4LAnQ",
+          "record_size": "444",
+          "sha256": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274",
+          "size": 444
+        },
+        "bt_api_base/containers/trades/__init__.py": {
+          "record_hash": "sha256=tDtPl8VXEXopm0AdqEWbkWyecXrKbCLpkWgTZEzGhUU",
+          "record_size": "128",
+          "sha256": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545",
+          "size": 128
+        },
+        "bt_api_base/containers/trades/trade.py": {
+          "record_hash": "sha256=wtUQTTPpCne0IZ1cYgFTKdTtRK1FuW3hRd57W_m2Qfs",
+          "record_size": "4824",
+          "sha256": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb",
+          "size": 4824
+        },
+        "bt_api_base/core/__init__.py": {
+          "record_hash": "sha256=T9hlNjVvVCHBMy0Ont7YNw44RzhpoBUXHjTdY2luRd0",
+          "record_size": "1023",
+          "sha256": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd",
+          "size": 1023
+        },
+        "bt_api_base/core/async_context.py": {
+          "record_hash": "sha256=Z_HhJSZsgM0otjxC3ofnWIsx01ekHL2DAbkFY87dHSA",
+          "record_size": "16428",
+          "sha256": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20",
+          "size": 16428
+        },
+        "bt_api_base/core/dependency_injection.py": {
+          "record_hash": "sha256=lsF45MbThyEssXJSqEd1ZSuy-4bU8NtTOFl-kJKbiZM",
+          "record_size": "9415",
+          "sha256": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993",
+          "size": 9415
+        },
+        "bt_api_base/core/interfaces.py": {
+          "record_hash": "sha256=PMd26VbCdm05RtIYt1Q3LO3DEhlsrFEN8YGX8F3S1SM",
+          "record_size": "9133",
+          "sha256": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523",
+          "size": 9133
+        },
+        "bt_api_base/core/services.py": {
+          "record_hash": "sha256=84SgnbVFoqKTdWom776sj3e8ti2Dkr4VgTh48ogKTwU",
+          "record_size": "24021",
+          "sha256": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05",
+          "size": 24021
+        },
+        "bt_api_base/error.py": {
+          "record_hash": "sha256=5y6WkkVrto8SUfiY6CNFBfFsOxjq6LxwzDls4zpmRlM",
+          "record_size": "17787",
+          "sha256": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653",
+          "size": 17787
+        },
+        "bt_api_base/event_bus.py": {
+          "record_hash": "sha256=qBKwk7ddQCzPAd88UY3mgljRX1XdCQAxXUIQmZbt-ME",
+          "record_size": "4631",
+          "sha256": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1",
+          "size": 4631
+        },
+        "bt_api_base/event_clock.py": {
+          "record_hash": "sha256=jBsZKIns3jqbdokHQ2lcdmk8cYyy70UNEIBV-RWsRTw",
+          "record_size": "583",
+          "sha256": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c",
+          "size": 583
+        },
+        "bt_api_base/exceptions.py": {
+          "record_hash": "sha256=Jy6XFObqI3u-NClNjm7njHxaPCRk_QFhLgCcOqVrpjE",
+          "record_size": "10808",
+          "sha256": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631",
+          "size": 10808
+        },
+        "bt_api_base/feeds/__init__.py": {
+          "record_hash": "sha256=r3vCdmTABc2lstaNk5_EGFa_6ucCdjLBmIOaZRVlb-Q",
+          "record_size": "530",
+          "sha256": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4",
+          "size": 530
+        },
+        "bt_api_base/feeds/abstract_feed.py": {
+          "record_hash": "sha256=epskCsoA9QNurE0aThQSLImYA2-iM0aBy2usNFmnO1w",
+          "record_size": "9543",
+          "sha256": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c",
+          "size": 9543
+        },
+        "bt_api_base/feeds/base_stream.py": {
+          "record_hash": "sha256=53vtwWj6-2RITpGHO1G81ucerLpoWYZ0euvqxfFGEjU",
+          "record_size": "3360",
+          "sha256": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235",
+          "size": 3360
+        },
+        "bt_api_base/feeds/capability.py": {
+          "record_hash": "sha256=bCCkGCjSg8YdwtV3jcIMxM4BXJ2DDGJwIy6HEFP5eeQ",
+          "record_size": "2924",
+          "sha256": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4",
+          "size": 2924
+        },
+        "bt_api_base/feeds/connection_mixin.py": {
+          "record_hash": "sha256=MbE5DAGOY5v8-IQhqtBQPBNzH2H8tGVAEFMee_LvrfA",
+          "record_size": "1955",
+          "sha256": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0",
+          "size": 1955
+        },
+        "bt_api_base/feeds/feed.py": {
+          "record_hash": "sha256=8dW3KXDX5PmFUkhhfQbXdIkO7bu2J3yqHvlnAfiQQKQ",
+          "record_size": "25060",
+          "sha256": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4",
+          "size": 25060
+        },
+        "bt_api_base/feeds/http_client.py": {
+          "record_hash": "sha256=xzFFYyhOEwhEb0iZXsK-AY59T4u3snrJdfcQf_IRC0c",
+          "record_size": "11976",
+          "sha256": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47",
+          "size": 11976
+        },
+        "bt_api_base/feeds/my_websocket_app.py": {
+          "record_hash": "sha256=y25ThnZyPf06_MELpJqoaE47KHZ2IBUhpKRSRexUK_Y",
+          "record_size": "30266",
+          "sha256": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6",
+          "size": 30266
+        },
+        "bt_api_base/feeds/transport_safety.py": {
+          "record_hash": "sha256=uhEf7ABS49R939tKMTN94VzW8tziC0KnTls2GL0_g64",
+          "record_size": "6185",
+          "sha256": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae",
+          "size": 6185
+        },
+        "bt_api_base/functions/__init__.py": {
+          "record_hash": "sha256=e9demwS0wiuSNqcVWm07yq93fkrAaWERjEg3_6be2WA",
+          "record_size": "131",
+          "sha256": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960",
+          "size": 131
+        },
+        "bt_api_base/functions/async_base.py": {
+          "record_hash": "sha256=Y3rpy3rtjGS4TIuAozNOLLbztrbTZm2EvVFpfY75dAA",
+          "record_size": "7842",
+          "sha256": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400",
+          "size": 7842
+        },
+        "bt_api_base/functions/calculate_time.py": {
+          "record_hash": "sha256=GxxlxjfIgOH00Xla1kN97apqnGEpjj6_X1ervkJHQ1w",
+          "record_size": "3572",
+          "sha256": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c",
+          "size": 3572
+        },
+        "bt_api_base/functions/log_message.py": {
+          "record_hash": "sha256=Ru9078OVydwlx8r10BblLa-_13He7pzAEfYyHgI3qsk",
+          "record_size": "4319",
+          "sha256": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9",
+          "size": 4319
+        },
+        "bt_api_base/functions/rate_limiters.py": {
+          "record_hash": "sha256=gVkIK7k8WH-kYhPk69o-e_rgZYvdNSESTOwRXz3a9cg",
+          "record_size": "807",
+          "sha256": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8",
+          "size": 807
+        },
+        "bt_api_base/functions/signers.py": {
+          "record_hash": "sha256=9qLgV91yDH8lSbD93M3Zg2GdCwdxd8I5lvjxyNU03vE",
+          "record_size": "672",
+          "sha256": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1",
+          "size": 672
+        },
+        "bt_api_base/functions/timestamps.py": {
+          "record_hash": "sha256=-qTnYT8ay9FwOWdAG0hkOj8CLkC26GJFTNWkhXnTl0A",
+          "record_size": "657",
+          "sha256": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740",
+          "size": 657
+        },
+        "bt_api_base/functions/utils.py": {
+          "record_hash": "sha256=SB7VxVsjx-vAjWsoXF5GYJBDLQVWd09d9rjX-wf7mCk",
+          "record_size": "10664",
+          "sha256": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829",
+          "size": 10664
+        },
+        "bt_api_base/gateway/__init__.py": {
+          "record_hash": "sha256=QLX3bo_7cucvLvXmeF13YUxld7t-xFE3qJ0c1vkBAv4",
+          "record_size": "1443",
+          "sha256": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe",
+          "size": 1443
+        },
+        "bt_api_base/gateway/adapters/__init__.py": {
+          "record_hash": "sha256=Lv5kR4WwPzk5eW_BK3dY9wON742G3NKM1GttrXTtEwA",
+          "record_size": "1643",
+          "sha256": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300",
+          "size": 1643
+        },
+        "bt_api_base/gateway/adapters/base.py": {
+          "record_hash": "sha256=RM89jlxlzOyZmyB4cxpIncopzrx2PDbdJIuR4yGBBhY",
+          "record_size": "2474",
+          "sha256": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616",
+          "size": 2474
+        },
+        "bt_api_base/gateway/adapters/plugin_adapter.py": {
+          "record_hash": "sha256=xfdJGZdZ25fJGIEiCE00HK9lmyFxFBUlGxbVfFxUf-A",
+          "record_size": "3806",
+          "sha256": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0",
+          "size": 3806
+        },
+        "bt_api_base/gateway/config.py": {
+          "record_hash": "sha256=zThoFpcBbVkJMBvWavigvPTBO8-kalFDrxCyIxVfYe8",
+          "record_size": "14244",
+          "sha256": "cd38681697016d5909301bd66af8a0bcf4c13bcfa46a5143af10b223155f61ef",
+          "size": 14244
+        },
+        "bt_api_base/gateway/health.py": {
+          "record_hash": "sha256=hfC1eB5nnwqPuaYWUBBGyFpGKsoZDRQeZ49g4_NlfNc",
+          "record_size": "4757",
+          "sha256": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7",
+          "size": 4757
+        },
+        "bt_api_base/gateway/models.py": {
+          "record_hash": "sha256=alAgGGP1v5nWTXkTH6Y_eGBPrhXYQEH3Jibbb5ji_x0",
+          "record_size": "3672",
+          "sha256": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d",
+          "size": 3672
+        },
+        "bt_api_base/gateway/order_identity_map.py": {
+          "record_hash": "sha256=wtUPnmtM-lV2FSy1JCgqUSRazkBH_C6vJ4wF0CWRHCg",
+          "record_size": "5049",
+          "sha256": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28",
+          "size": 5049
+        },
+        "bt_api_base/gateway/order_ref_allocator.py": {
+          "record_hash": "sha256=3M3WhofkYXNRZzZjHSRSAP189xiypG5oWjFyYaODB1g",
+          "record_size": "4990",
+          "sha256": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758",
+          "size": 4990
+        },
+        "bt_api_base/gateway/protocol.py": {
+          "record_hash": "sha256=NYwXIYn_Y-7E8yJ_4dAV0-GRpBqLwobGpr32P0xaISE",
+          "record_size": "1205",
+          "sha256": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121",
+          "size": 1205
+        },
+        "bt_api_base/gateway/registrar.py": {
+          "record_hash": "sha256=ygGke7bQfvBGvQpBrZtHTr5sjMn_Np7fnRJJ221iAgI",
+          "record_size": "1318",
+          "sha256": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202",
+          "size": 1318
+        },
+        "bt_api_base/gateway/runtime.py": {
+          "record_hash": "sha256=QJgcp6FR1tUKC90851wcFvIUmilZcMaOUeM-bxEK_-E",
+          "record_size": "20039",
+          "sha256": "40981ca7a151d6d50a0bdd3ce75c1c16f2149a295970c68e51e33e6f110affe1",
+          "size": 20039
+        },
+        "bt_api_base/gateway/runtime_remote.py": {
+          "record_hash": "sha256=4Q4yxFAzupCBjy39J-hCUMuAvurqq-hPr1zHfq2eMCk",
+          "record_size": "29708",
+          "sha256": "e10e32c45033ba90818f2dfd27e84250cb80beeaeaabe84faf5cc77ead9e3029",
+          "size": 29708
+        },
+        "bt_api_base/gateway/storage/__init__.py": {
+          "record_hash": "sha256=YBuuBwRRR4xyyRclOqtHOVLwTxgJNCZita1o8tcLJSI",
+          "record_size": "130",
+          "sha256": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522",
+          "size": 130
+        },
+        "bt_api_base/gateway/storage/tick_writer.py": {
+          "record_hash": "sha256=WyvErMBGz_aiwUy32Zu2k_m-16DHT8diGbsvMxaDTpU",
+          "record_size": "6497",
+          "sha256": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95",
+          "size": 6497
+        },
+        "bt_api_base/gateway/subscription_manager.py": {
+          "record_hash": "sha256=jLUTAS7SRQKnbiCL5_7Ux6hJJKmAnJ7AQ9JYi9ssyXE",
+          "record_size": "3475",
+          "sha256": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971",
+          "size": 3475
+        },
+        "bt_api_base/instrument_manager.py": {
+          "record_hash": "sha256=K0p4_8vqiEhFGWZWvYb-KCeGc8C-A-8mszb0KEIHJfA",
+          "record_size": "4657",
+          "sha256": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0",
+          "size": 4657
+        },
+        "bt_api_base/logging_factory.py": {
+          "record_hash": "sha256=5iaEJR16YQK1lJHbPBckq821_QUYsd7p26aqmeCcFJ0",
+          "record_size": "6173",
+          "sha256": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d",
+          "size": 6173
+        },
+        "bt_api_base/plugins/__init__.py": {
+          "record_hash": "sha256=FtFquM5fFMZuGhpuzcq5fkLChWsYmhSBm4GgJ-dJJE8",
+          "record_size": "576",
+          "sha256": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f",
+          "size": 576
+        },
+        "bt_api_base/plugins/errors.py": {
+          "record_hash": "sha256=HBD97DqlEmGGHX70g3GUr5uzAUd4qyXdCs2ol5O9sVE",
+          "record_size": "486",
+          "sha256": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151",
+          "size": 486
+        },
+        "bt_api_base/plugins/loader.py": {
+          "record_hash": "sha256=vyV1S9CEhh3I0i4m-kDEmPceI6yDoi_y-3KZl5IoZBM",
+          "record_size": "11884",
+          "sha256": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413",
+          "size": 11884
+        },
+        "bt_api_base/plugins/protocol.py": {
+          "record_hash": "sha256=ud7HKCxl53iQI7YOPYtyrbR7Oh6kkT2xAbO8rmZsrPc",
+          "record_size": "434",
+          "sha256": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7",
+          "size": 434
+        },
+        "bt_api_base/rate_limiter.py": {
+          "record_hash": "sha256=D_FHuDF4ThaMxaFaBz08Uij7evV8hop65tykdAVwZaA",
+          "record_size": "10100",
+          "sha256": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0",
+          "size": 10100
+        },
+        "bt_api_base/registry.py": {
+          "record_hash": "sha256=T2ZIen0s3t2BMDsULDKfhcuimBUwFtbUqjJJGKFVJN4",
+          "record_size": "11360",
+          "sha256": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de",
+          "size": 11360
+        },
+        "bt_api_base/security.py": {
+          "record_hash": "sha256=rmko2wjX-ArdQESpHkjrFNYIDpl-Nh856MbqNCSaPBc",
+          "record_size": "7764",
+          "sha256": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17",
+          "size": 7764
+        },
+        "bt_api_base/testing/__init__.py": {
+          "record_hash": "sha256=acMn86UdgTUpZahhjvNF025k41_42D_sFAwOyuc7wWw",
+          "record_size": "337",
+          "sha256": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c",
+          "size": 337
+        },
+        "bt_api_base/testing/fixtures.py": {
+          "record_hash": "sha256=De_vV39xnwwxE-JaKAUFD44uteXOfdP4nAU0Pb1I1bc",
+          "record_size": "946",
+          "sha256": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7",
+          "size": 946
+        },
+        "bt_api_base/utils/__init__.py": {
+          "record_hash": "sha256=1Bod1_5uSJ-mWmHJLPJ3mOfCthGzj4BWDjC9OFK3CKA",
+          "record_size": "130",
+          "sha256": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0",
+          "size": 130
+        },
+        "bt_api_base/utils/time.py": {
+          "record_hash": "sha256=VWiTOyhDjBepBWgxJHpT4-kCAQTVi3_e705_L5oHhMQ",
+          "record_size": "774",
+          "sha256": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4",
+          "size": 774
+        },
+        "bt_api_base/websocket/__init__.py": {
+          "record_hash": "sha256=DkuLcvLbbspaLystwd4T35_aHYPRebHLNuijBb-4NTI",
+          "record_size": "1140",
+          "sha256": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532",
+          "size": 1140
+        },
+        "bt_api_base/websocket/exchange_adapters.py": {
+          "record_hash": "sha256=3z3Tcj6pANjwajtLLauzug9StxADK7gmE0UY4s1r7wo",
+          "record_size": "17794",
+          "sha256": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a",
+          "size": 17794
+        },
+        "bt_api_base/websocket_manager.py": {
+          "record_hash": "sha256=5-O5j4xKxo80WJNTLsflJa6A_gNEQse0Lialt_O3Cgo",
+          "record_size": "23030",
+          "sha256": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a",
+          "size": 23030
+        }
+      },
+      "wheel_payload_manifest_sha256": "c0eb519fc7ee81967fbeaf95c479b3e24e7696af0e72e44561ae6b1de87eb551"
+    },
+    "base-b": {
+      "filename": "bt_api_base-0.15.4-py3-none-any.whl",
+      "record": {
+        "entry_count": 109,
+        "path": "bt_api_base-0.15.4.dist-info/RECORD",
+        "sha256": "e5a6c669630ce12e72e8faf3432ec3a4d992e2f14c20ddd11d6ad23a4aad9bef"
+      },
+      "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+      "size": 149476,
+      "wheel_payload_files": {
+        "bt_api_base-0.15.4.dist-info/METADATA": {
+          "record_hash": "sha256=3DGGLepoLCnUhdw1gS0zICL2XCDhekt1VBh-1NUaEN0",
+          "record_size": "18897",
+          "sha256": "dc31862dea682c29d485dc35812d332022f65c20e17a4b7554187ed4d51a10dd",
+          "size": 18897
+        },
+        "bt_api_base-0.15.4.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "e5a6c669630ce12e72e8faf3432ec3a4d992e2f14c20ddd11d6ad23a4aad9bef",
+          "size": 10013
+        },
+        "bt_api_base-0.15.4.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_base-0.15.4.dist-info/licenses/LICENSE": {
+          "record_hash": "sha256=eyJndDFHR1oGyfG-UYKe1v5d2fntZIKsTI2gF8demTQ",
+          "record_size": "1088",
+          "sha256": "7b2267743147475a06c9f1be51829ed6fe5dd9f9ed6482ac4c8da017c75e9934",
+          "size": 1088
+        },
+        "bt_api_base-0.15.4.dist-info/top_level.txt": {
+          "record_hash": "sha256=e2stilTm5CEoTpRmC1PVVpo6VOwVvGqraWQ42JVQH3g",
+          "record_size": "12",
+          "sha256": "7b6b2d8a54e6e421284e94660b53d5569a3a54ec15bc6aab696438d895501f78",
+          "size": 12
+        },
+        "bt_api_base/__init__.py": {
+          "record_hash": "sha256=wMFM-h45p5_vgSaoXoLNe0HVZi5oP_EZMvzFit2BFrQ",
+          "record_size": "155",
+          "sha256": "c0c14cfa1e39a79fef8126a85e82cd7b41d5662e683ff11932fcc58add8116b4",
+          "size": 155
+        },
+        "bt_api_base/_compat.py": {
+          "record_hash": "sha256=F6EuKMeWP8JJxYrWUxQh8MnN9_9jfb0XCgM_RyA0qGk",
+          "record_size": "744",
+          "sha256": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869",
+          "size": 744
+        },
+        "bt_api_base/_plugin_shims.py": {
+          "record_hash": "sha256=KOckM0aWmS24wo5x6oDUGqKQD3ww0Ht_ofH4Jyc-VOQ",
+          "record_size": "917",
+          "sha256": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4",
+          "size": 917
+        },
+        "bt_api_base/_version.py": {
+          "record_hash": "sha256=cDGLmEYxOpfNoDvUFQ3vXASXlVQRg07TtUKRDPnOGn0",
+          "record_size": "97",
+          "sha256": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d",
+          "size": 97
+        },
+        "bt_api_base/auth_config.py": {
+          "record_hash": "sha256=UvKiSJrLEPN2qCeKhMULtQ3Gn9irzf8qqXE4_mlYfEM",
+          "record_size": "6083",
+          "sha256": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43",
+          "size": 6083
+        },
+        "bt_api_base/balance_utils.py": {
+          "record_hash": "sha256=r7wwgmPVb_QSIiOfZS4adF6k5BqwhCE5hB5QIBykvKM",
+          "record_size": "3048",
+          "sha256": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3",
+          "size": 3048
+        },
+        "bt_api_base/cache.py": {
+          "record_hash": "sha256=Y2bA7RQpHOV4W9VhIIb5FJVlg5Bbgkvk_Hf8CbAAf7k",
+          "record_size": "7642",
+          "sha256": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9",
+          "size": 7642
+        },
+        "bt_api_base/config_loader.py": {
+          "record_hash": "sha256=w1ZpN7Y_wzCx64ydgkNtfk73ZH6wpCExCnvhQJNyJnI",
+          "record_size": "9413",
+          "sha256": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672",
+          "size": 9413
+        },
+        "bt_api_base/connection_pool.py": {
+          "record_hash": "sha256=tL2PUZKWSBWR_JfmmasERqGu6dVPE2qaxeVQvjio5uU",
+          "record_size": "7927",
+          "sha256": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5",
+          "size": 7927
+        },
+        "bt_api_base/containers/__init__.py": {
+          "record_hash": "sha256=PrIzy75CV7pOkhccplWIgdvhhYtOvncrR2CA3mfuSBA",
+          "record_size": "1497",
+          "sha256": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810",
+          "size": 1497
+        },
+        "bt_api_base/containers/accounts/__init__.py": {
+          "record_hash": "sha256=Pd7DTdLC5GLPvkprqanEiNXq5X2WpHEl0uJzijUktic",
+          "record_size": "134",
+          "sha256": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627",
+          "size": 134
+        },
+        "bt_api_base/containers/accounts/account.py": {
+          "record_hash": "sha256=7AraUDCY2KDBjhGH8rnsVFLJJlaf6Ohi8IccsW_-FnU",
+          "record_size": "8222",
+          "sha256": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675",
+          "size": 8222
+        },
+        "bt_api_base/containers/auto_init_mixin.py": {
+          "record_hash": "sha256=ITx_8NA86FdJd55Aarh9rlxT6Cywdg_L__-fNdJa8-0",
+          "record_size": "1957",
+          "sha256": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed",
+          "size": 1957
+        },
+        "bt_api_base/containers/balances/__init__.py": {
+          "record_hash": "sha256=X7cSyqj0Owgn0Q9YE4s6qM9524T1EX8SmmKMsNGG3sM",
+          "record_size": "134",
+          "sha256": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3",
+          "size": 134
+        },
+        "bt_api_base/containers/balances/balance.py": {
+          "record_hash": "sha256=_csc107fJ1j65Htt9nt5a_KVBx2tvzuEYIDXyUoCecc",
+          "record_size": "5900",
+          "sha256": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7",
+          "size": 5900
+        },
+        "bt_api_base/containers/bars/__init__.py": {
+          "record_hash": "sha256=qE8STfhS2ifDoIeTBiONsC402Ox_0uyha9p6i6Ik4AA",
+          "record_size": "122",
+          "sha256": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000",
+          "size": 122
+        },
+        "bt_api_base/containers/bars/bar.py": {
+          "record_hash": "sha256=gx5jSmEjJ2NniFlmRP5uSRtp9C6ETtJ9Lu1518MClJU",
+          "record_size": "3320",
+          "sha256": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495",
+          "size": 3320
+        },
+        "bt_api_base/containers/exchanges/__init__.py": {
+          "record_hash": "sha256=qwEhGNCRaf2LAkuysOi-HVloy_1YWgp-vynK41PLvjs",
+          "record_size": "142",
+          "sha256": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b",
+          "size": 142
+        },
+        "bt_api_base/containers/exchanges/exchange_data.py": {
+          "record_hash": "sha256=SF7YqiVWW0oWr2Dqy6wEsJdYL6JYOv9h4bYwh-xi8Fk",
+          "record_size": "2741",
+          "sha256": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059",
+          "size": 2741
+        },
+        "bt_api_base/containers/fundingrates/__init__.py": {
+          "record_hash": "sha256=_-V1hwVs00fBXYMNFWXCLPreHEUsfodIvpL9WHu6HMc",
+          "record_size": "147",
+          "sha256": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7",
+          "size": 147
+        },
+        "bt_api_base/containers/fundingrates/funding_rate.py": {
+          "record_hash": "sha256=b3DYRASZr2nqvWZmnsYwP3kNnPpRL68MYOqHQyEXeWg",
+          "record_size": "5275",
+          "sha256": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968",
+          "size": 5275
+        },
+        "bt_api_base/containers/greeks/__init__.py": {
+          "record_hash": "sha256=kkor1Oer7_oD21Io-bJiehP6LnI_84sbOE1fhbTfYZo",
+          "record_size": "131",
+          "sha256": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a",
+          "size": 131
+        },
+        "bt_api_base/containers/greeks/greeks.py": {
+          "record_hash": "sha256=K4ADYSsTQ5CRoHpzOpezspDxKyT-k74CEM9cTQs4AGo",
+          "record_size": "1908",
+          "sha256": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a",
+          "size": 1908
+        },
+        "bt_api_base/containers/incomes/__init__.py": {
+          "record_hash": "sha256=8W5lDiwgFyTn3Z-KSnQXBlGGo9VwbTsL6wzTVBTJbM8",
+          "record_size": "131",
+          "sha256": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf",
+          "size": 131
+        },
+        "bt_api_base/containers/incomes/income.py": {
+          "record_hash": "sha256=BesAwvAkTiUVb3BDCk1W2gJZVSH0SdZ5BiWHcm59JJA",
+          "record_size": "2921",
+          "sha256": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490",
+          "size": 2921
+        },
+        "bt_api_base/containers/instrument.py": {
+          "record_hash": "sha256=I6gchx7v9T5mg65VDG85MR7U02a-wazJ-GOjbvfS0Cc",
+          "record_size": "4804",
+          "sha256": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027",
+          "size": 4804
+        },
+        "bt_api_base/containers/liquidations/__init__.py": {
+          "record_hash": "sha256=Oz86BI-1WNHiCzGX8Jwzguf1HZ1wxPAebJt2lgZXKd8",
+          "record_size": "146",
+          "sha256": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df",
+          "size": 146
+        },
+        "bt_api_base/containers/liquidations/liquidation.py": {
+          "record_hash": "sha256=ihlU77nR6Yx0NhV-zdrtgFkEnK9WLXnThs6OPM66_f8",
+          "record_size": "2313",
+          "sha256": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff",
+          "size": 2313
+        },
+        "bt_api_base/containers/markprices/__init__.py": {
+          "record_hash": "sha256=4KuGFNhPt8wNjgNqSsQFW7e-EGR0wUxDzh8GvD_-PNs",
+          "record_size": "141",
+          "sha256": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb",
+          "size": 141
+        },
+        "bt_api_base/containers/markprices/mark_price.py": {
+          "record_hash": "sha256=YsW4YM119MRTY5f8wmYsQ9MjiQy8oIae_QUBRSx25Jo",
+          "record_size": "2736",
+          "sha256": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a",
+          "size": 2736
+        },
+        "bt_api_base/containers/orderbooks/__init__.py": {
+          "record_hash": "sha256=CGUt4ucmnx13SOAbmF8Fzed9CNS47iv98xAqcnkotcM",
+          "record_size": "140",
+          "sha256": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3",
+          "size": 140
+        },
+        "bt_api_base/containers/orderbooks/orderbook.py": {
+          "record_hash": "sha256=sCLnOW9uZwtacvRdXIrm_uNWHtIsgGuUTPsgmHW8gyQ",
+          "record_size": "3914",
+          "sha256": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324",
+          "size": 3914
+        },
+        "bt_api_base/containers/orders/__init__.py": {
+          "record_hash": "sha256=s6T8zO3LvX0kYIFpG2UDDaZwsg6RCuZ3wmI2zKfesv4",
+          "record_size": "128",
+          "sha256": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe",
+          "size": 128
+        },
+        "bt_api_base/containers/orders/order.py": {
+          "record_hash": "sha256=lEDWX3RyXg-jI3qNCPFtdXl4j6j-F5VP3NugfmojRps",
+          "record_size": "10606",
+          "sha256": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b",
+          "size": 10606
+        },
+        "bt_api_base/containers/positions/__init__.py": {
+          "record_hash": "sha256=LGy4nuXQcPzc8-c78dbKsUV5VXRQuixsNo3iLMz3LPA",
+          "record_size": "137",
+          "sha256": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0",
+          "size": 137
+        },
+        "bt_api_base/containers/positions/position.py": {
+          "record_hash": "sha256=Ah-vjFC7mUn_ExZ_UhfJsW-li0Z0JmkZ4d6OfhcK2sk",
+          "record_size": "6827",
+          "sha256": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9",
+          "size": 6827
+        },
+        "bt_api_base/containers/requestdatas/__init__.py": {
+          "record_hash": "sha256=-O9vebrMyctOdiOl34x03SqO0kvfgOPlfNSKEpG7vKY",
+          "record_size": "139",
+          "sha256": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6",
+          "size": 139
+        },
+        "bt_api_base/containers/requestdatas/request_data.py": {
+          "record_hash": "sha256=LIVe8dwn5bmRPTV-8tgczp1dX8YtquP63Pr5vFI1T0M",
+          "record_size": "4968",
+          "sha256": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43",
+          "size": 4968
+        },
+        "bt_api_base/containers/symbols/__init__.py": {
+          "record_hash": "sha256=UlSkpFmvwxoOVFlNdaHzsGoQdYdpFIQ0veej-mTY7Vg",
+          "record_size": "131",
+          "sha256": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58",
+          "size": 131
+        },
+        "bt_api_base/containers/symbols/symbol.py": {
+          "record_hash": "sha256=lES4zaqkIJS9jbH43_4g1d1pdj5gYyQgSkS9YP7zDFY",
+          "record_size": "3383",
+          "sha256": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56",
+          "size": 3383
+        },
+        "bt_api_base/containers/tickers/__init__.py": {
+          "record_hash": "sha256=MtL7XB_tH63NZ_w47_FC90RAdvrrLkAd_uteMB3H3tc",
+          "record_size": "131",
+          "sha256": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7",
+          "size": 131
+        },
+        "bt_api_base/containers/tickers/ticker.py": {
+          "record_hash": "sha256=kJLlni6Eb-697wZA0OpLub0UPeEHDJQQz3hnBq1WymM",
+          "record_size": "3449",
+          "sha256": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63",
+          "size": 3449
+        },
+        "bt_api_base/containers/timers/__init__.py": {
+          "record_hash": "sha256=0nQSorF6Jr0gXmz-qOEZC4ah99DLD-3gNnSDsTWZURY",
+          "record_size": "128",
+          "sha256": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116",
+          "size": 128
+        },
+        "bt_api_base/containers/timers/timer.py": {
+          "record_hash": "sha256=anmVRmYOFQjOAfDycXTWPEWUUbnEZpu1okV8Vg4LAnQ",
+          "record_size": "444",
+          "sha256": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274",
+          "size": 444
+        },
+        "bt_api_base/containers/trades/__init__.py": {
+          "record_hash": "sha256=tDtPl8VXEXopm0AdqEWbkWyecXrKbCLpkWgTZEzGhUU",
+          "record_size": "128",
+          "sha256": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545",
+          "size": 128
+        },
+        "bt_api_base/containers/trades/trade.py": {
+          "record_hash": "sha256=wtUQTTPpCne0IZ1cYgFTKdTtRK1FuW3hRd57W_m2Qfs",
+          "record_size": "4824",
+          "sha256": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb",
+          "size": 4824
+        },
+        "bt_api_base/core/__init__.py": {
+          "record_hash": "sha256=T9hlNjVvVCHBMy0Ont7YNw44RzhpoBUXHjTdY2luRd0",
+          "record_size": "1023",
+          "sha256": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd",
+          "size": 1023
+        },
+        "bt_api_base/core/async_context.py": {
+          "record_hash": "sha256=Z_HhJSZsgM0otjxC3ofnWIsx01ekHL2DAbkFY87dHSA",
+          "record_size": "16428",
+          "sha256": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20",
+          "size": 16428
+        },
+        "bt_api_base/core/dependency_injection.py": {
+          "record_hash": "sha256=lsF45MbThyEssXJSqEd1ZSuy-4bU8NtTOFl-kJKbiZM",
+          "record_size": "9415",
+          "sha256": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993",
+          "size": 9415
+        },
+        "bt_api_base/core/interfaces.py": {
+          "record_hash": "sha256=PMd26VbCdm05RtIYt1Q3LO3DEhlsrFEN8YGX8F3S1SM",
+          "record_size": "9133",
+          "sha256": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523",
+          "size": 9133
+        },
+        "bt_api_base/core/services.py": {
+          "record_hash": "sha256=84SgnbVFoqKTdWom776sj3e8ti2Dkr4VgTh48ogKTwU",
+          "record_size": "24021",
+          "sha256": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05",
+          "size": 24021
+        },
+        "bt_api_base/error.py": {
+          "record_hash": "sha256=5y6WkkVrto8SUfiY6CNFBfFsOxjq6LxwzDls4zpmRlM",
+          "record_size": "17787",
+          "sha256": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653",
+          "size": 17787
+        },
+        "bt_api_base/event_bus.py": {
+          "record_hash": "sha256=qBKwk7ddQCzPAd88UY3mgljRX1XdCQAxXUIQmZbt-ME",
+          "record_size": "4631",
+          "sha256": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1",
+          "size": 4631
+        },
+        "bt_api_base/event_clock.py": {
+          "record_hash": "sha256=jBsZKIns3jqbdokHQ2lcdmk8cYyy70UNEIBV-RWsRTw",
+          "record_size": "583",
+          "sha256": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c",
+          "size": 583
+        },
+        "bt_api_base/exceptions.py": {
+          "record_hash": "sha256=Jy6XFObqI3u-NClNjm7njHxaPCRk_QFhLgCcOqVrpjE",
+          "record_size": "10808",
+          "sha256": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631",
+          "size": 10808
+        },
+        "bt_api_base/feeds/__init__.py": {
+          "record_hash": "sha256=r3vCdmTABc2lstaNk5_EGFa_6ucCdjLBmIOaZRVlb-Q",
+          "record_size": "530",
+          "sha256": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4",
+          "size": 530
+        },
+        "bt_api_base/feeds/abstract_feed.py": {
+          "record_hash": "sha256=epskCsoA9QNurE0aThQSLImYA2-iM0aBy2usNFmnO1w",
+          "record_size": "9543",
+          "sha256": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c",
+          "size": 9543
+        },
+        "bt_api_base/feeds/base_stream.py": {
+          "record_hash": "sha256=53vtwWj6-2RITpGHO1G81ucerLpoWYZ0euvqxfFGEjU",
+          "record_size": "3360",
+          "sha256": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235",
+          "size": 3360
+        },
+        "bt_api_base/feeds/capability.py": {
+          "record_hash": "sha256=bCCkGCjSg8YdwtV3jcIMxM4BXJ2DDGJwIy6HEFP5eeQ",
+          "record_size": "2924",
+          "sha256": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4",
+          "size": 2924
+        },
+        "bt_api_base/feeds/connection_mixin.py": {
+          "record_hash": "sha256=MbE5DAGOY5v8-IQhqtBQPBNzH2H8tGVAEFMee_LvrfA",
+          "record_size": "1955",
+          "sha256": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0",
+          "size": 1955
+        },
+        "bt_api_base/feeds/feed.py": {
+          "record_hash": "sha256=8dW3KXDX5PmFUkhhfQbXdIkO7bu2J3yqHvlnAfiQQKQ",
+          "record_size": "25060",
+          "sha256": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4",
+          "size": 25060
+        },
+        "bt_api_base/feeds/http_client.py": {
+          "record_hash": "sha256=xzFFYyhOEwhEb0iZXsK-AY59T4u3snrJdfcQf_IRC0c",
+          "record_size": "11976",
+          "sha256": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47",
+          "size": 11976
+        },
+        "bt_api_base/feeds/my_websocket_app.py": {
+          "record_hash": "sha256=y25ThnZyPf06_MELpJqoaE47KHZ2IBUhpKRSRexUK_Y",
+          "record_size": "30266",
+          "sha256": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6",
+          "size": 30266
+        },
+        "bt_api_base/feeds/transport_safety.py": {
+          "record_hash": "sha256=uhEf7ABS49R939tKMTN94VzW8tziC0KnTls2GL0_g64",
+          "record_size": "6185",
+          "sha256": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae",
+          "size": 6185
+        },
+        "bt_api_base/functions/__init__.py": {
+          "record_hash": "sha256=e9demwS0wiuSNqcVWm07yq93fkrAaWERjEg3_6be2WA",
+          "record_size": "131",
+          "sha256": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960",
+          "size": 131
+        },
+        "bt_api_base/functions/async_base.py": {
+          "record_hash": "sha256=Y3rpy3rtjGS4TIuAozNOLLbztrbTZm2EvVFpfY75dAA",
+          "record_size": "7842",
+          "sha256": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400",
+          "size": 7842
+        },
+        "bt_api_base/functions/calculate_time.py": {
+          "record_hash": "sha256=GxxlxjfIgOH00Xla1kN97apqnGEpjj6_X1ervkJHQ1w",
+          "record_size": "3572",
+          "sha256": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c",
+          "size": 3572
+        },
+        "bt_api_base/functions/log_message.py": {
+          "record_hash": "sha256=Ru9078OVydwlx8r10BblLa-_13He7pzAEfYyHgI3qsk",
+          "record_size": "4319",
+          "sha256": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9",
+          "size": 4319
+        },
+        "bt_api_base/functions/rate_limiters.py": {
+          "record_hash": "sha256=gVkIK7k8WH-kYhPk69o-e_rgZYvdNSESTOwRXz3a9cg",
+          "record_size": "807",
+          "sha256": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8",
+          "size": 807
+        },
+        "bt_api_base/functions/signers.py": {
+          "record_hash": "sha256=9qLgV91yDH8lSbD93M3Zg2GdCwdxd8I5lvjxyNU03vE",
+          "record_size": "672",
+          "sha256": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1",
+          "size": 672
+        },
+        "bt_api_base/functions/timestamps.py": {
+          "record_hash": "sha256=-qTnYT8ay9FwOWdAG0hkOj8CLkC26GJFTNWkhXnTl0A",
+          "record_size": "657",
+          "sha256": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740",
+          "size": 657
+        },
+        "bt_api_base/functions/utils.py": {
+          "record_hash": "sha256=SB7VxVsjx-vAjWsoXF5GYJBDLQVWd09d9rjX-wf7mCk",
+          "record_size": "10664",
+          "sha256": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829",
+          "size": 10664
+        },
+        "bt_api_base/gateway/__init__.py": {
+          "record_hash": "sha256=QLX3bo_7cucvLvXmeF13YUxld7t-xFE3qJ0c1vkBAv4",
+          "record_size": "1443",
+          "sha256": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe",
+          "size": 1443
+        },
+        "bt_api_base/gateway/adapters/__init__.py": {
+          "record_hash": "sha256=Lv5kR4WwPzk5eW_BK3dY9wON742G3NKM1GttrXTtEwA",
+          "record_size": "1643",
+          "sha256": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300",
+          "size": 1643
+        },
+        "bt_api_base/gateway/adapters/base.py": {
+          "record_hash": "sha256=RM89jlxlzOyZmyB4cxpIncopzrx2PDbdJIuR4yGBBhY",
+          "record_size": "2474",
+          "sha256": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616",
+          "size": 2474
+        },
+        "bt_api_base/gateway/adapters/plugin_adapter.py": {
+          "record_hash": "sha256=xfdJGZdZ25fJGIEiCE00HK9lmyFxFBUlGxbVfFxUf-A",
+          "record_size": "3806",
+          "sha256": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0",
+          "size": 3806
+        },
+        "bt_api_base/gateway/config.py": {
+          "record_hash": "sha256=zThoFpcBbVkJMBvWavigvPTBO8-kalFDrxCyIxVfYe8",
+          "record_size": "14244",
+          "sha256": "cd38681697016d5909301bd66af8a0bcf4c13bcfa46a5143af10b223155f61ef",
+          "size": 14244
+        },
+        "bt_api_base/gateway/health.py": {
+          "record_hash": "sha256=hfC1eB5nnwqPuaYWUBBGyFpGKsoZDRQeZ49g4_NlfNc",
+          "record_size": "4757",
+          "sha256": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7",
+          "size": 4757
+        },
+        "bt_api_base/gateway/models.py": {
+          "record_hash": "sha256=alAgGGP1v5nWTXkTH6Y_eGBPrhXYQEH3Jibbb5ji_x0",
+          "record_size": "3672",
+          "sha256": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d",
+          "size": 3672
+        },
+        "bt_api_base/gateway/order_identity_map.py": {
+          "record_hash": "sha256=wtUPnmtM-lV2FSy1JCgqUSRazkBH_C6vJ4wF0CWRHCg",
+          "record_size": "5049",
+          "sha256": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28",
+          "size": 5049
+        },
+        "bt_api_base/gateway/order_ref_allocator.py": {
+          "record_hash": "sha256=3M3WhofkYXNRZzZjHSRSAP189xiypG5oWjFyYaODB1g",
+          "record_size": "4990",
+          "sha256": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758",
+          "size": 4990
+        },
+        "bt_api_base/gateway/protocol.py": {
+          "record_hash": "sha256=NYwXIYn_Y-7E8yJ_4dAV0-GRpBqLwobGpr32P0xaISE",
+          "record_size": "1205",
+          "sha256": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121",
+          "size": 1205
+        },
+        "bt_api_base/gateway/registrar.py": {
+          "record_hash": "sha256=ygGke7bQfvBGvQpBrZtHTr5sjMn_Np7fnRJJ221iAgI",
+          "record_size": "1318",
+          "sha256": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202",
+          "size": 1318
+        },
+        "bt_api_base/gateway/runtime.py": {
+          "record_hash": "sha256=QJgcp6FR1tUKC90851wcFvIUmilZcMaOUeM-bxEK_-E",
+          "record_size": "20039",
+          "sha256": "40981ca7a151d6d50a0bdd3ce75c1c16f2149a295970c68e51e33e6f110affe1",
+          "size": 20039
+        },
+        "bt_api_base/gateway/runtime_remote.py": {
+          "record_hash": "sha256=4Q4yxFAzupCBjy39J-hCUMuAvurqq-hPr1zHfq2eMCk",
+          "record_size": "29708",
+          "sha256": "e10e32c45033ba90818f2dfd27e84250cb80beeaeaabe84faf5cc77ead9e3029",
+          "size": 29708
+        },
+        "bt_api_base/gateway/storage/__init__.py": {
+          "record_hash": "sha256=YBuuBwRRR4xyyRclOqtHOVLwTxgJNCZita1o8tcLJSI",
+          "record_size": "130",
+          "sha256": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522",
+          "size": 130
+        },
+        "bt_api_base/gateway/storage/tick_writer.py": {
+          "record_hash": "sha256=WyvErMBGz_aiwUy32Zu2k_m-16DHT8diGbsvMxaDTpU",
+          "record_size": "6497",
+          "sha256": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95",
+          "size": 6497
+        },
+        "bt_api_base/gateway/subscription_manager.py": {
+          "record_hash": "sha256=jLUTAS7SRQKnbiCL5_7Ux6hJJKmAnJ7AQ9JYi9ssyXE",
+          "record_size": "3475",
+          "sha256": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971",
+          "size": 3475
+        },
+        "bt_api_base/instrument_manager.py": {
+          "record_hash": "sha256=K0p4_8vqiEhFGWZWvYb-KCeGc8C-A-8mszb0KEIHJfA",
+          "record_size": "4657",
+          "sha256": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0",
+          "size": 4657
+        },
+        "bt_api_base/logging_factory.py": {
+          "record_hash": "sha256=5iaEJR16YQK1lJHbPBckq821_QUYsd7p26aqmeCcFJ0",
+          "record_size": "6173",
+          "sha256": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d",
+          "size": 6173
+        },
+        "bt_api_base/plugins/__init__.py": {
+          "record_hash": "sha256=FtFquM5fFMZuGhpuzcq5fkLChWsYmhSBm4GgJ-dJJE8",
+          "record_size": "576",
+          "sha256": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f",
+          "size": 576
+        },
+        "bt_api_base/plugins/errors.py": {
+          "record_hash": "sha256=HBD97DqlEmGGHX70g3GUr5uzAUd4qyXdCs2ol5O9sVE",
+          "record_size": "486",
+          "sha256": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151",
+          "size": 486
+        },
+        "bt_api_base/plugins/loader.py": {
+          "record_hash": "sha256=vyV1S9CEhh3I0i4m-kDEmPceI6yDoi_y-3KZl5IoZBM",
+          "record_size": "11884",
+          "sha256": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413",
+          "size": 11884
+        },
+        "bt_api_base/plugins/protocol.py": {
+          "record_hash": "sha256=ud7HKCxl53iQI7YOPYtyrbR7Oh6kkT2xAbO8rmZsrPc",
+          "record_size": "434",
+          "sha256": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7",
+          "size": 434
+        },
+        "bt_api_base/rate_limiter.py": {
+          "record_hash": "sha256=D_FHuDF4ThaMxaFaBz08Uij7evV8hop65tykdAVwZaA",
+          "record_size": "10100",
+          "sha256": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0",
+          "size": 10100
+        },
+        "bt_api_base/registry.py": {
+          "record_hash": "sha256=T2ZIen0s3t2BMDsULDKfhcuimBUwFtbUqjJJGKFVJN4",
+          "record_size": "11360",
+          "sha256": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de",
+          "size": 11360
+        },
+        "bt_api_base/security.py": {
+          "record_hash": "sha256=rmko2wjX-ArdQESpHkjrFNYIDpl-Nh856MbqNCSaPBc",
+          "record_size": "7764",
+          "sha256": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17",
+          "size": 7764
+        },
+        "bt_api_base/testing/__init__.py": {
+          "record_hash": "sha256=acMn86UdgTUpZahhjvNF025k41_42D_sFAwOyuc7wWw",
+          "record_size": "337",
+          "sha256": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c",
+          "size": 337
+        },
+        "bt_api_base/testing/fixtures.py": {
+          "record_hash": "sha256=De_vV39xnwwxE-JaKAUFD44uteXOfdP4nAU0Pb1I1bc",
+          "record_size": "946",
+          "sha256": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7",
+          "size": 946
+        },
+        "bt_api_base/utils/__init__.py": {
+          "record_hash": "sha256=1Bod1_5uSJ-mWmHJLPJ3mOfCthGzj4BWDjC9OFK3CKA",
+          "record_size": "130",
+          "sha256": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0",
+          "size": 130
+        },
+        "bt_api_base/utils/time.py": {
+          "record_hash": "sha256=VWiTOyhDjBepBWgxJHpT4-kCAQTVi3_e705_L5oHhMQ",
+          "record_size": "774",
+          "sha256": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4",
+          "size": 774
+        },
+        "bt_api_base/websocket/__init__.py": {
+          "record_hash": "sha256=DkuLcvLbbspaLystwd4T35_aHYPRebHLNuijBb-4NTI",
+          "record_size": "1140",
+          "sha256": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532",
+          "size": 1140
+        },
+        "bt_api_base/websocket/exchange_adapters.py": {
+          "record_hash": "sha256=3z3Tcj6pANjwajtLLauzug9StxADK7gmE0UY4s1r7wo",
+          "record_size": "17794",
+          "sha256": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a",
+          "size": 17794
+        },
+        "bt_api_base/websocket_manager.py": {
+          "record_hash": "sha256=5-O5j4xKxo80WJNTLsflJa6A_gNEQse0Lialt_O3Cgo",
+          "record_size": "23030",
+          "sha256": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a",
+          "size": 23030
+        }
+      },
+      "wheel_payload_manifest_sha256": "c0eb519fc7ee81967fbeaf95c479b3e24e7696af0e72e44561ae6b1de87eb551"
+    },
+    "monitor-a": {
+      "filename": "bt_api_monitor-0.1.0-py3-none-any.whl",
+      "record": {
+        "entry_count": 18,
+        "path": "bt_api_monitor-0.1.0.dist-info/RECORD",
+        "sha256": "2627b18aa04b59dfc3bbcae1102018546d7c46ad9ab5148161e4b3e3bc98ccba"
+      },
+      "sha256": "0277663855356b22a7946da07ed4c6d33cebac11d93cbdc152531c287040ae8e",
+      "size": 47018,
+      "wheel_payload_files": {
+        "bt_api_monitor-0.1.0.dist-info/METADATA": {
+          "record_hash": "sha256=DbBYqyyLZIAfXHtlTqb4UbfqElzuPE_5TYJAEHSPM2s",
+          "record_size": "5208",
+          "sha256": "0db058ab2c8b64801f5c7b654ea6f851b7ea125cee3c4ff94d824010748f336b",
+          "size": 5208
+        },
+        "bt_api_monitor-0.1.0.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "2627b18aa04b59dfc3bbcae1102018546d7c46ad9ab5148161e4b3e3bc98ccba",
+          "size": 1502
+        },
+        "bt_api_monitor-0.1.0.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_monitor-0.1.0.dist-info/top_level.txt": {
+          "record_hash": "sha256=FxOKNIiSkzKFZc6xtIiwQgLHs4kb6Zx1nRmHMvbX5jI",
+          "record_size": "33",
+          "sha256": "17138a34889293328565ceb1b488b04202c7b3891be99c759d198732f6d7e632",
+          "size": 33
+        },
+        "bt_api_monitor/__init__.py": {
+          "record_hash": "sha256=dqzHiRfOOCCrDar1MI3GRnitAf5zmMMcQo22pWzgCoI",
+          "record_size": "4480",
+          "sha256": "76acc78917ce3820ab0daaf5308dc64678ad01fe7398c31c428db6a56ce00a82",
+          "size": 4480
+        },
+        "bt_api_monitor/collector.py": {
+          "record_hash": "sha256=IS3B5QKCqJMNGf7OAq6ES1in_415n2eOAp-BNoKjGgY",
+          "record_size": "9825",
+          "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06",
+          "size": 9825
+        },
+        "bt_api_monitor/config.py": {
+          "record_hash": "sha256=gpqNxJhUQ94nySyf_PBsYVb8MszkQzyDJc4dShhEsqo",
+          "record_size": "6588",
+          "sha256": "829a8dc4985443de27c92c9ffcf06c6156fc32cce4433c8325ce1d4a1844b2aa",
+          "size": 6588
+        },
+        "bt_api_monitor/control.py": {
+          "record_hash": "sha256=oOfBGTgauN4ucfEw1i4ypfaXgZsVTXhW4Ngd6NCQocQ",
+          "record_size": "14481",
+          "sha256": "a0e7c119381ab8de2e71f130d62e32a5f697819b154d7856e0d81de8d090a1c4",
+          "size": 14481
+        },
+        "bt_api_monitor/decorators.py": {
+          "record_hash": "sha256=O9dAJmdyHx5vTZ3iMtaO_9U5mG4LfwReLBahbRDGCGc",
+          "record_size": "9063",
+          "sha256": "3bd7402667721f1e6f4d9de232d68effd539986e0b7f045e2c16a16d10c60867",
+          "size": 9063
+        },
+        "bt_api_monitor/durable.py": {
+          "record_hash": "sha256=inL73ywLuLzOP75NOkydMKP6Z1lCTrtpL27QPw6xDyM",
+          "record_size": "21357",
+          "sha256": "8a72fbdf2c0bb8bcce3fbe4d3a4c9d30a3fa6759424ebb692f6ed03f0eb10f23",
+          "size": 21357
+        },
+        "bt_api_monitor/elk.py": {
+          "record_hash": "sha256=sQKI3j_ITI52TDPV1xReOKLVy5gEwWCaqofHzAKJV0c",
+          "record_size": "17315",
+          "sha256": "b10288de3fc84c8e764c33d5d7145e38a2d5cb9804c1609aaa87c7cc02895747",
+          "size": 17315
+        },
+        "bt_api_monitor/exchange_health.py": {
+          "record_hash": "sha256=If0YTOmdZ6FJreTkIeG-CaLRoWLVkE_CJ8PqQlq7eSY",
+          "record_size": "13915",
+          "sha256": "21fd184ce99d67a149ade4e421e1be09a2d1a162d5904fc227c3ea425abb7926",
+          "size": 13915
+        },
+        "bt_api_monitor/facts.py": {
+          "record_hash": "sha256=dJzPAXsrCDo0z_RkFBUdQh7zcm8SNLkUcplr8i6cCWg",
+          "record_size": "36060",
+          "sha256": "749ccf017b2b083a34cff46414151d421ef3726f1234b91472996bf22e9c0968",
+          "size": 36060
+        },
+        "bt_api_monitor/grafana.py": {
+          "record_hash": "sha256=gb2dh2vHjaUgoB6HwORTvxL-JB_Nr8kZ-08r3vbvNs0",
+          "record_size": "20919",
+          "sha256": "81bd9d876bc78da520a01e87c0e453bf12fe241fcdafc919fb4f2bdef6ef36cd",
+          "size": 20919
+        },
+        "bt_api_monitor/metrics.py": {
+          "record_hash": "sha256=en_tQUKvusJyjkL8gomk-nc9Npx1XtgRctgwaS8wHBE",
+          "record_size": "8068",
+          "sha256": "7a7fed4142afbac2728e42fc8289a4fa773d369c755ed81172d830692f301c11",
+          "size": 8068
+        },
+        "bt_api_monitor/prometheus.py": {
+          "record_hash": "sha256=sWuwGJVWesXapjnxwB59MTfRb5d-ogD5h5I56W0uMB4",
+          "record_size": "10216",
+          "sha256": "b16bb01895567ac5daa639f1c01e7d3137d16f977ea200f9879239e96d2e301e",
+          "size": 10216
+        },
+        "bt_api_monitor/system_metrics.py": {
+          "record_hash": "sha256=N7Vn3jQONeKhNM1gpLyW-HsgDhdM2N52R-qYBbVQofk",
+          "record_size": "13947",
+          "sha256": "37b567de340e35e2a134cd60a4bc96f87b200e174cd8de7647ea9805b550a1f9",
+          "size": 13947
+        },
+        "bt_api_monitoring/__init__.py": {
+          "record_hash": "sha256=HU72pplkw0NTy1hRQAWmZKUotOYeiAY9qx8YPDq2lK0",
+          "record_size": "840",
+          "sha256": "1d4ef6a69964c34353cb58514005a664a528b4e61e88063dab1f183c3ab694ad",
+          "size": 840
+        }
+      },
+      "wheel_payload_manifest_sha256": "7e79ca2e089f9826a4e4af76bb73cdf44b5dfc368ba801023f6d81ab02e89db4"
+    },
+    "monitor-b": {
+      "filename": "bt_api_monitor-0.1.0-py3-none-any.whl",
+      "record": {
+        "entry_count": 18,
+        "path": "bt_api_monitor-0.1.0.dist-info/RECORD",
+        "sha256": "2627b18aa04b59dfc3bbcae1102018546d7c46ad9ab5148161e4b3e3bc98ccba"
+      },
+      "sha256": "0277663855356b22a7946da07ed4c6d33cebac11d93cbdc152531c287040ae8e",
+      "size": 47018,
+      "wheel_payload_files": {
+        "bt_api_monitor-0.1.0.dist-info/METADATA": {
+          "record_hash": "sha256=DbBYqyyLZIAfXHtlTqb4UbfqElzuPE_5TYJAEHSPM2s",
+          "record_size": "5208",
+          "sha256": "0db058ab2c8b64801f5c7b654ea6f851b7ea125cee3c4ff94d824010748f336b",
+          "size": 5208
+        },
+        "bt_api_monitor-0.1.0.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "2627b18aa04b59dfc3bbcae1102018546d7c46ad9ab5148161e4b3e3bc98ccba",
+          "size": 1502
+        },
+        "bt_api_monitor-0.1.0.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_monitor-0.1.0.dist-info/top_level.txt": {
+          "record_hash": "sha256=FxOKNIiSkzKFZc6xtIiwQgLHs4kb6Zx1nRmHMvbX5jI",
+          "record_size": "33",
+          "sha256": "17138a34889293328565ceb1b488b04202c7b3891be99c759d198732f6d7e632",
+          "size": 33
+        },
+        "bt_api_monitor/__init__.py": {
+          "record_hash": "sha256=dqzHiRfOOCCrDar1MI3GRnitAf5zmMMcQo22pWzgCoI",
+          "record_size": "4480",
+          "sha256": "76acc78917ce3820ab0daaf5308dc64678ad01fe7398c31c428db6a56ce00a82",
+          "size": 4480
+        },
+        "bt_api_monitor/collector.py": {
+          "record_hash": "sha256=IS3B5QKCqJMNGf7OAq6ES1in_415n2eOAp-BNoKjGgY",
+          "record_size": "9825",
+          "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06",
+          "size": 9825
+        },
+        "bt_api_monitor/config.py": {
+          "record_hash": "sha256=gpqNxJhUQ94nySyf_PBsYVb8MszkQzyDJc4dShhEsqo",
+          "record_size": "6588",
+          "sha256": "829a8dc4985443de27c92c9ffcf06c6156fc32cce4433c8325ce1d4a1844b2aa",
+          "size": 6588
+        },
+        "bt_api_monitor/control.py": {
+          "record_hash": "sha256=oOfBGTgauN4ucfEw1i4ypfaXgZsVTXhW4Ngd6NCQocQ",
+          "record_size": "14481",
+          "sha256": "a0e7c119381ab8de2e71f130d62e32a5f697819b154d7856e0d81de8d090a1c4",
+          "size": 14481
+        },
+        "bt_api_monitor/decorators.py": {
+          "record_hash": "sha256=O9dAJmdyHx5vTZ3iMtaO_9U5mG4LfwReLBahbRDGCGc",
+          "record_size": "9063",
+          "sha256": "3bd7402667721f1e6f4d9de232d68effd539986e0b7f045e2c16a16d10c60867",
+          "size": 9063
+        },
+        "bt_api_monitor/durable.py": {
+          "record_hash": "sha256=inL73ywLuLzOP75NOkydMKP6Z1lCTrtpL27QPw6xDyM",
+          "record_size": "21357",
+          "sha256": "8a72fbdf2c0bb8bcce3fbe4d3a4c9d30a3fa6759424ebb692f6ed03f0eb10f23",
+          "size": 21357
+        },
+        "bt_api_monitor/elk.py": {
+          "record_hash": "sha256=sQKI3j_ITI52TDPV1xReOKLVy5gEwWCaqofHzAKJV0c",
+          "record_size": "17315",
+          "sha256": "b10288de3fc84c8e764c33d5d7145e38a2d5cb9804c1609aaa87c7cc02895747",
+          "size": 17315
+        },
+        "bt_api_monitor/exchange_health.py": {
+          "record_hash": "sha256=If0YTOmdZ6FJreTkIeG-CaLRoWLVkE_CJ8PqQlq7eSY",
+          "record_size": "13915",
+          "sha256": "21fd184ce99d67a149ade4e421e1be09a2d1a162d5904fc227c3ea425abb7926",
+          "size": 13915
+        },
+        "bt_api_monitor/facts.py": {
+          "record_hash": "sha256=dJzPAXsrCDo0z_RkFBUdQh7zcm8SNLkUcplr8i6cCWg",
+          "record_size": "36060",
+          "sha256": "749ccf017b2b083a34cff46414151d421ef3726f1234b91472996bf22e9c0968",
+          "size": 36060
+        },
+        "bt_api_monitor/grafana.py": {
+          "record_hash": "sha256=gb2dh2vHjaUgoB6HwORTvxL-JB_Nr8kZ-08r3vbvNs0",
+          "record_size": "20919",
+          "sha256": "81bd9d876bc78da520a01e87c0e453bf12fe241fcdafc919fb4f2bdef6ef36cd",
+          "size": 20919
+        },
+        "bt_api_monitor/metrics.py": {
+          "record_hash": "sha256=en_tQUKvusJyjkL8gomk-nc9Npx1XtgRctgwaS8wHBE",
+          "record_size": "8068",
+          "sha256": "7a7fed4142afbac2728e42fc8289a4fa773d369c755ed81172d830692f301c11",
+          "size": 8068
+        },
+        "bt_api_monitor/prometheus.py": {
+          "record_hash": "sha256=sWuwGJVWesXapjnxwB59MTfRb5d-ogD5h5I56W0uMB4",
+          "record_size": "10216",
+          "sha256": "b16bb01895567ac5daa639f1c01e7d3137d16f977ea200f9879239e96d2e301e",
+          "size": 10216
+        },
+        "bt_api_monitor/system_metrics.py": {
+          "record_hash": "sha256=N7Vn3jQONeKhNM1gpLyW-HsgDhdM2N52R-qYBbVQofk",
+          "record_size": "13947",
+          "sha256": "37b567de340e35e2a134cd60a4bc96f87b200e174cd8de7647ea9805b550a1f9",
+          "size": 13947
+        },
+        "bt_api_monitoring/__init__.py": {
+          "record_hash": "sha256=HU72pplkw0NTy1hRQAWmZKUotOYeiAY9qx8YPDq2lK0",
+          "record_size": "840",
+          "sha256": "1d4ef6a69964c34353cb58514005a664a528b4e61e88063dab1f183c3ab694ad",
+          "size": 840
+        }
+      },
+      "wheel_payload_manifest_sha256": "7e79ca2e089f9826a4e4af76bb73cdf44b5dfc368ba801023f6d81ab02e89db4"
+    },
+    "risk-a": {
+      "filename": "bt_api_risk-0.1.0-py3-none-any.whl",
+      "record": {
+        "entry_count": 20,
+        "path": "bt_api_risk-0.1.0.dist-info/RECORD",
+        "sha256": "12fe3b9aaadefe763d7149112b9678c0a63a092ae5b145f3ffc0bd9a948e8971"
+      },
+      "sha256": "d279381a6e809482ae9f76faa290af8a0e19fedc4e041ef4e3e62f1684e354de",
+      "size": 92588,
+      "wheel_payload_files": {
+        "bt_api_risk-0.1.0.dist-info/METADATA": {
+          "record_hash": "sha256=2KhjsvHLfcW9EZY7rR7EBCbNMKj2l1FRTldUSuwoKz8",
+          "record_size": "6948",
+          "sha256": "d8a863b2f1cb7dc5bd11963bad1ec40426cd30a8f69751514e57544aec282b3f",
+          "size": 6948
+        },
+        "bt_api_risk-0.1.0.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "12fe3b9aaadefe763d7149112b9678c0a63a092ae5b145f3ffc0bd9a948e8971",
+          "size": 1767
+        },
+        "bt_api_risk-0.1.0.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_risk-0.1.0.dist-info/top_level.txt": {
+          "record_hash": "sha256=mc2J4JOp5QLp6nPDaeROYqb9zyYHvQruYoeD8nu9SV4",
+          "record_size": "12",
+          "sha256": "99cd89e093a9e502e9ea73c369e44e62a6fdcf2607bd0aee628783f27bbd495e",
+          "size": 12
+        },
+        "bt_api_risk/__init__.py": {
+          "record_hash": "sha256=VcOUTCqoWoDZVgBQVhfBLeRtNRqQYR9OWRjxtuoPFJc",
+          "record_size": "4849",
+          "sha256": "55c3944c2aa85a80d95600505617c12de46d351a90611f4e5918f1b6ea0f1497",
+          "size": 4849
+        },
+        "bt_api_risk/allocation_sizing.py": {
+          "record_hash": "sha256=tyIeFLM9w4B4U0scPTuBjjFxMH4-IrJrgX6Wx0lacXk",
+          "record_size": "6000",
+          "sha256": "b7221e14b33dc38078534b1c3d3b818e3171307e3e22b26b817e96c7495a7179",
+          "size": 6000
+        },
+        "bt_api_risk/containers/risk_events.py": {
+          "record_hash": "sha256=PLeze8jhhqYw4EeFjrEgZm_Eg3uiUEWYTuEfuP-zW0o",
+          "record_size": "13385",
+          "sha256": "3cb7b37bc8e186a630e047858eb120666fc4837ba25045984ee11fb8ffb35b4a",
+          "size": 13385
+        },
+        "bt_api_risk/containers/risk_metrics.py": {
+          "record_hash": "sha256=IBVqgl0ouag3yuc2dLYB6BIgV2q0-KA7DbxAWjnEoKk",
+          "record_size": "11377",
+          "sha256": "20156a825d28b9a837cae73674b601e81220576ab4f8a03b0dbc405a39c4a0a9",
+          "size": 11377
+        },
+        "bt_api_risk/core/__init__.py": {
+          "record_hash": "sha256=1ThtIZfmZWxObz68PE0vwWPk0YA_sHH-s9XocLkxo-E",
+          "record_size": "2442",
+          "sha256": "d5386d2197e6656c4e6f3ebc3c4d2fc163e4d1803fb071feb3d5e870b931a3e1",
+          "size": 2442
+        },
+        "bt_api_risk/core/admission.py": {
+          "record_hash": "sha256=KmWs8RnBGHdDNWIGlqY-DpJr1bQtotWP2yF8QfMlJ0I",
+          "record_size": "111558",
+          "sha256": "2a65acf119c118774335620696a63e0e926bd5b42da2d58fdb217c41f3252742",
+          "size": 111558
+        },
+        "bt_api_risk/core/instrument.py": {
+          "record_hash": "sha256=WZXtQSLsrAA-IDsjaLqHMtLiEslRB-M8N1129rS4n8c",
+          "record_size": "37345",
+          "sha256": "5995ed4122ecac003e203b2368ba8732d2e212c95107e33c375d76f6b4b89fc7",
+          "size": 37345
+        },
+        "bt_api_risk/core/limits_manager.py": {
+          "record_hash": "sha256=6x4CY1FHiyQAN7dMbT_HIeOixgB06Cnbq7BBTaXmkho",
+          "record_size": "34616",
+          "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a",
+          "size": 34616
+        },
+        "bt_api_risk/core/policy_engine.py": {
+          "record_hash": "sha256=-FvvyD7k-CUGl3SRpCDAezuS5wKvOjoJ9Jbyk3r3cpY",
+          "record_size": "29113",
+          "sha256": "f85befc83ee4f82506977491a420c07b3b92e702af3a3a09f496f2937af77296",
+          "size": 29113
+        },
+        "bt_api_risk/core/risk_assessor.py": {
+          "record_hash": "sha256=TCKpTK699GWOG_zo2XEra74vrFYFg5VpjBW65WtO5YU",
+          "record_size": "20852",
+          "sha256": "4c22a94caebdf4658e1bfce8d9712b6bbe2fac56058395698c15bae56b4ee585",
+          "size": 20852
+        },
+        "bt_api_risk/core/risk_calculator.py": {
+          "record_hash": "sha256=nwd71GiP3JK3eRsTkMsxAZJyQkaTOpX9ZH5wsC2NhuU",
+          "record_size": "38074",
+          "sha256": "9f077bd4688fdc92b7791b1390cb310192724246933a95fd647e70b02d8d86e5",
+          "size": 38074
+        },
+        "bt_api_risk/core/risk_manager.py": {
+          "record_hash": "sha256=DZ_xHV7jbAJf-HSjpmlm5iW4BhVLKvVqNEbuRqJpmEM",
+          "record_size": "15442",
+          "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843",
+          "size": 15442
+        },
+        "bt_api_risk/ml_models/__init__.py": {
+          "record_hash": "sha256=AAEAb9n2T3LzLEh7MRB9yiOnxja50zUqkoIWZ62sKPM",
+          "record_size": "297",
+          "sha256": "0001006fd9f64f72f32c487b31107dca23a7c636b9d3352a92821667adac28f3",
+          "size": 297
+        },
+        "bt_api_risk/ml_models/anomaly_detector.py": {
+          "record_hash": "sha256=H-edWsV0hCZYCgxYwHWalMONOwXJL9cPwrCs1GtpqfA",
+          "record_size": "35316",
+          "sha256": "1fe79d5ac5748426580a0c58c0759a94c38d3b05c92fd70fc2b0acd46b69a9f0",
+          "size": 35316
+        },
+        "bt_api_risk/ml_models/ensemble_model.py": {
+          "record_hash": "sha256=2moUnuesZuO6KfVI7q-i7loQSiLF7NuXUKa_0bT_VV0",
+          "record_size": "27974",
+          "sha256": "da6a149ee7ac66e3ba29f548eeafa2ee5a104a22c5ecdb9750a6bfd1b4ff555d",
+          "size": 27974
+        },
+        "bt_api_risk/ml_models/ml_base.py": {
+          "record_hash": "sha256=aqGbsBAOk3_rDfIu1akozQ2o6ZLk6bEdYp9ERBampME",
+          "record_size": "15351",
+          "sha256": "6aa19bb0100e937feb0df22ed5a928cd0da8e992e4e9b11d629f444416a6a4c1",
+          "size": 15351
+        }
+      },
+      "wheel_payload_manifest_sha256": "7f34886c563758ce4e6654c3391de42bed608ade5adeadf00502810c47f56c56"
+    },
+    "risk-b": {
+      "filename": "bt_api_risk-0.1.0-py3-none-any.whl",
+      "record": {
+        "entry_count": 20,
+        "path": "bt_api_risk-0.1.0.dist-info/RECORD",
+        "sha256": "12fe3b9aaadefe763d7149112b9678c0a63a092ae5b145f3ffc0bd9a948e8971"
+      },
+      "sha256": "d279381a6e809482ae9f76faa290af8a0e19fedc4e041ef4e3e62f1684e354de",
+      "size": 92588,
+      "wheel_payload_files": {
+        "bt_api_risk-0.1.0.dist-info/METADATA": {
+          "record_hash": "sha256=2KhjsvHLfcW9EZY7rR7EBCbNMKj2l1FRTldUSuwoKz8",
+          "record_size": "6948",
+          "sha256": "d8a863b2f1cb7dc5bd11963bad1ec40426cd30a8f69751514e57544aec282b3f",
+          "size": 6948
+        },
+        "bt_api_risk-0.1.0.dist-info/RECORD": {
+          "record_hash": "",
+          "record_size": "",
+          "sha256": "12fe3b9aaadefe763d7149112b9678c0a63a092ae5b145f3ffc0bd9a948e8971",
+          "size": 1767
+        },
+        "bt_api_risk-0.1.0.dist-info/WHEEL": {
+          "record_hash": "sha256=YVMoNqKzERt-wjUZwJ33xBGAwnFl-4cqbYkTtWa4itE",
+          "record_size": "91",
+          "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1",
+          "size": 91
+        },
+        "bt_api_risk-0.1.0.dist-info/top_level.txt": {
+          "record_hash": "sha256=mc2J4JOp5QLp6nPDaeROYqb9zyYHvQruYoeD8nu9SV4",
+          "record_size": "12",
+          "sha256": "99cd89e093a9e502e9ea73c369e44e62a6fdcf2607bd0aee628783f27bbd495e",
+          "size": 12
+        },
+        "bt_api_risk/__init__.py": {
+          "record_hash": "sha256=VcOUTCqoWoDZVgBQVhfBLeRtNRqQYR9OWRjxtuoPFJc",
+          "record_size": "4849",
+          "sha256": "55c3944c2aa85a80d95600505617c12de46d351a90611f4e5918f1b6ea0f1497",
+          "size": 4849
+        },
+        "bt_api_risk/allocation_sizing.py": {
+          "record_hash": "sha256=tyIeFLM9w4B4U0scPTuBjjFxMH4-IrJrgX6Wx0lacXk",
+          "record_size": "6000",
+          "sha256": "b7221e14b33dc38078534b1c3d3b818e3171307e3e22b26b817e96c7495a7179",
+          "size": 6000
+        },
+        "bt_api_risk/containers/risk_events.py": {
+          "record_hash": "sha256=PLeze8jhhqYw4EeFjrEgZm_Eg3uiUEWYTuEfuP-zW0o",
+          "record_size": "13385",
+          "sha256": "3cb7b37bc8e186a630e047858eb120666fc4837ba25045984ee11fb8ffb35b4a",
+          "size": 13385
+        },
+        "bt_api_risk/containers/risk_metrics.py": {
+          "record_hash": "sha256=IBVqgl0ouag3yuc2dLYB6BIgV2q0-KA7DbxAWjnEoKk",
+          "record_size": "11377",
+          "sha256": "20156a825d28b9a837cae73674b601e81220576ab4f8a03b0dbc405a39c4a0a9",
+          "size": 11377
+        },
+        "bt_api_risk/core/__init__.py": {
+          "record_hash": "sha256=1ThtIZfmZWxObz68PE0vwWPk0YA_sHH-s9XocLkxo-E",
+          "record_size": "2442",
+          "sha256": "d5386d2197e6656c4e6f3ebc3c4d2fc163e4d1803fb071feb3d5e870b931a3e1",
+          "size": 2442
+        },
+        "bt_api_risk/core/admission.py": {
+          "record_hash": "sha256=KmWs8RnBGHdDNWIGlqY-DpJr1bQtotWP2yF8QfMlJ0I",
+          "record_size": "111558",
+          "sha256": "2a65acf119c118774335620696a63e0e926bd5b42da2d58fdb217c41f3252742",
+          "size": 111558
+        },
+        "bt_api_risk/core/instrument.py": {
+          "record_hash": "sha256=WZXtQSLsrAA-IDsjaLqHMtLiEslRB-M8N1129rS4n8c",
+          "record_size": "37345",
+          "sha256": "5995ed4122ecac003e203b2368ba8732d2e212c95107e33c375d76f6b4b89fc7",
+          "size": 37345
+        },
+        "bt_api_risk/core/limits_manager.py": {
+          "record_hash": "sha256=6x4CY1FHiyQAN7dMbT_HIeOixgB06Cnbq7BBTaXmkho",
+          "record_size": "34616",
+          "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a",
+          "size": 34616
+        },
+        "bt_api_risk/core/policy_engine.py": {
+          "record_hash": "sha256=-FvvyD7k-CUGl3SRpCDAezuS5wKvOjoJ9Jbyk3r3cpY",
+          "record_size": "29113",
+          "sha256": "f85befc83ee4f82506977491a420c07b3b92e702af3a3a09f496f2937af77296",
+          "size": 29113
+        },
+        "bt_api_risk/core/risk_assessor.py": {
+          "record_hash": "sha256=TCKpTK699GWOG_zo2XEra74vrFYFg5VpjBW65WtO5YU",
+          "record_size": "20852",
+          "sha256": "4c22a94caebdf4658e1bfce8d9712b6bbe2fac56058395698c15bae56b4ee585",
+          "size": 20852
+        },
+        "bt_api_risk/core/risk_calculator.py": {
+          "record_hash": "sha256=nwd71GiP3JK3eRsTkMsxAZJyQkaTOpX9ZH5wsC2NhuU",
+          "record_size": "38074",
+          "sha256": "9f077bd4688fdc92b7791b1390cb310192724246933a95fd647e70b02d8d86e5",
+          "size": 38074
+        },
+        "bt_api_risk/core/risk_manager.py": {
+          "record_hash": "sha256=DZ_xHV7jbAJf-HSjpmlm5iW4BhVLKvVqNEbuRqJpmEM",
+          "record_size": "15442",
+          "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843",
+          "size": 15442
+        },
+        "bt_api_risk/ml_models/__init__.py": {
+          "record_hash": "sha256=AAEAb9n2T3LzLEh7MRB9yiOnxja50zUqkoIWZ62sKPM",
+          "record_size": "297",
+          "sha256": "0001006fd9f64f72f32c487b31107dca23a7c636b9d3352a92821667adac28f3",
+          "size": 297
+        },
+        "bt_api_risk/ml_models/anomaly_detector.py": {
+          "record_hash": "sha256=H-edWsV0hCZYCgxYwHWalMONOwXJL9cPwrCs1GtpqfA",
+          "record_size": "35316",
+          "sha256": "1fe79d5ac5748426580a0c58c0759a94c38d3b05c92fd70fc2b0acd46b69a9f0",
+          "size": 35316
+        },
+        "bt_api_risk/ml_models/ensemble_model.py": {
+          "record_hash": "sha256=2moUnuesZuO6KfVI7q-i7loQSiLF7NuXUKa_0bT_VV0",
+          "record_size": "27974",
+          "sha256": "da6a149ee7ac66e3ba29f548eeafa2ee5a104a22c5ecdb9750a6bfd1b4ff555d",
+          "size": 27974
+        },
+        "bt_api_risk/ml_models/ml_base.py": {
+          "record_hash": "sha256=aqGbsBAOk3_rDfIu1akozQ2o6ZLk6bEdYp9ERBampME",
+          "record_size": "15351",
+          "sha256": "6aa19bb0100e937feb0df22ed5a928cd0da8e992e4e9b11d629f444416a6a4c1",
+          "size": 15351
+        }
+      },
+      "wheel_payload_manifest_sha256": "7f34886c563758ce4e6654c3391de42bed608ade5adeadf00502810c47f56c56"
+    }
+  }
+}

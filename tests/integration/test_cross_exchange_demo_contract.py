@@ -762,10 +762,10 @@ def test_demo_noncanonical_manifest_stops_before_store(runner, monkeypatch, tmp_
     manifest_path = tmp_path / "strategy-candidate-manifest.json"
     manifest_path.write_text("{}", encoding="utf-8")
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
 
     with pytest.raises(runner.DemoApprovalError, match="canonical manifest"):
-        runner.run_network("demo", 1000, manifest_path=manifest_path)
+        runner._run_network_impl("demo", 1000, manifest_path=manifest_path)
 
     assert calls == []
 
@@ -796,10 +796,10 @@ def test_invalid_signature_stops_before_store_or_write(runner, monkeypatch, tmp_
         lambda _path: (artifact["manifest"], artifact["candidate"], artifact["manifest_path"]),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
 
     with pytest.raises(runner.DemoApprovalError, match="signature is invalid"):
-        runner.run_network("demo", 100, manifest_path=artifact["manifest_path"])
+        runner._run_network_impl("demo", 100, manifest_path=artifact["manifest_path"])
 
     assert calls == []
 
@@ -828,10 +828,10 @@ def test_runtime_source_change_stops_before_store_or_write(runner, monkeypatch, 
         lambda _path: (artifact["manifest"], artifact["candidate"], artifact["manifest_path"]),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
 
     with pytest.raises(runner.DemoApprovalError, match="runtime.*source|actual runtime"):
-        runner.run_network("demo", 100, manifest_path=artifact["manifest_path"])
+        runner._run_network_impl("demo", 100, manifest_path=artifact["manifest_path"])
 
     assert calls == []
 
@@ -870,10 +870,10 @@ def test_candidate_source_or_config_tamper_stops_before_store(
     manifest_path = tmp_path / "strategy-candidate-manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
 
     with pytest.raises(runner.RunnerConfigurationError, match=message):
-        runner.run_network("shadow", 1000, manifest_path=manifest_path)
+        runner._run_network_impl("shadow", 1000, manifest_path=manifest_path)
 
     assert calls == []
 
@@ -930,12 +930,12 @@ def _mock_demo_run_inputs(runner, monkeypatch, store, events):
         "_operator_demo_calibration_contract_mismatch_enabled",
         lambda *_args: False,
     )
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store)
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: store)
     monkeypatch.setattr(runner, "_demo_broker_kwargs", lambda *_args: {})
     monkeypatch.setattr(
         runner,
         "_rules_from_store",
-        lambda *_args: (runner.replay_rules(), {venue: "mock" for venue in runner.VENUE_SYMBOLS}),
+        lambda *_args: (runner.replay_rules(), dict.fromkeys(runner.VENUE_SYMBOLS, "mock")),
     )
     funding_time = datetime.now(timezone.utc) + timedelta(hours=1)
     monkeypatch.setattr(
@@ -1116,7 +1116,7 @@ def test_012_1_active_demo_retries_transient_evidence_and_initializes_before_bro
     )
 
     with pytest.raises(StopBeforeBroker):
-        runner.run_network("demo", 100, manifest_path=manifest_path)
+        runner._run_network_impl("demo", 100, manifest_path=manifest_path)
 
     assert events.count("initialize_account_risk_baseline") == 1
     assert events.index("qualification") < events.index("initialize_account_risk_baseline")
@@ -1228,7 +1228,7 @@ def test_012_1_demo_preflight_does_not_initialize_account_risk_baseline(monkeypa
 
     monkeypatch.setattr(runner, "_readiness", readiness)
 
-    report = runner.run_network("demo", 100, preflight=True, manifest_path=manifest_path)
+    report = runner._run_network_impl("demo", 100, preflight=True, manifest_path=manifest_path)
 
     assert report["status"] == "PREFLIGHT_PASS"
     assert ("readiness", False) in events

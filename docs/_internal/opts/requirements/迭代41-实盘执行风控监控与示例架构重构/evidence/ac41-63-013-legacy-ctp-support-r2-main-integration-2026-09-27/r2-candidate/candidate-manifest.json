@@ -1,0 +1,102 @@
+{
+  "schema": "ac41-63-partition4-legacy-ctp-support-candidate-r2.v1",
+  "decision": "CANDIDATE_ONLY / NO_WRITE / LIVE_NO_GO / REVIEW_REQUIRED / NOT_AVAILABLE",
+  "source_root": "D:\\source_code\\backtrader",
+  "base_source_sha256": {
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE"
+  },
+  "base_source_files_match_partition_hashes": true,
+  "patched_source_sha256": {
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "E9BFE8EDD8854CEF1184082407BFE5EA2A81268923CBC7A27EB6EAC8F779BE50",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "37706DCA228382509581CD76C4D6B938C40E58A5BF6A5F3D44E843C7BBEAECB7"
+  },
+  "patch": {
+    "path": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\partition4-legacy-ctp-support-default-deny-r2.patch",
+    "sha256": "C859FC66B021D1A734D3A8DB7CE65117B1E0E204DC7415788E368C2B89F57C86"
+  },
+  "change_summary": [
+    "Retains the four r1 fail-closed guards in both legacy create_live_store/create_live_broker pairs.",
+    "Removes the top-level load_dotenv_if_available() call in both support modules. The helper remains available only when explicitly called."
+  ],
+  "compatibility_impact": [
+    "Importing either compatibility module no longer reads project .env or automatically populates environment variables from it.",
+    "Callers relying on import-time .env loading must explicitly call load_dotenv_if_available(); legacy store/broker helper calls still fail closed before config/store access.",
+    "Synthetic replay call paths are expected to remain unaffected; the isolated existing replay regression suite is run against this candidate."
+  ],
+  "non_actions": {
+    "main_tree_modified": false,
+    "private_config_or_credentials_read": false,
+    "dotenv_loaded": false,
+    "sdk_or_native_imported": false,
+    "network_or_provider_used": false,
+    "orders_or_cancels_sent": false
+  },
+  "exact_patch_replay": {
+    "command": "git apply --check <patch> && git apply <patch> in D:\\temp\\ac41-63-writer-partition4-candidate-r2-apply-20260927",
+    "exit_code": 0,
+    "patched_source_sha256_match": true,
+    "replayed_source_sha256": {
+      "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "E9BFE8EDD8854CEF1184082407BFE5EA2A81268923CBC7A27EB6EAC8F779BE50",
+      "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "37706DCA228382509581CD76C4D6B938C40E58A5BF6A5F3D44E843C7BBEAECB7"
+    }
+  },
+  "focused_import_and_helper_test": {
+    "command": "python D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\test_partition4_r2_failclosed_and_inert_import.py",
+    "source_sha256": "90D36DDD52E6A3CC791923851872DE1342FFFBEA24049A384AB81DBECF667344",
+    "output_sha256": "4975C080A1FDCAAD125F224FE037AEFC4EEF59B23EBE56F46689E91052ACEAF0",
+    "exit_code": 0,
+    "result": "2 passed",
+    "asserted_zero": [
+      "dotenv import attempts",
+      "dotenv.load_dotenv calls",
+      ".env file reads",
+      "SDK import attempts",
+      "network attempts"
+    ],
+    "four_helper_calls_fail_before_config_or_constructor_access": true
+  },
+  "existing_replay_regression_suite": {
+    "command": "python D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\run_partition4_r2_replay_regressions.py",
+    "runner_sha256": "D4A0AF8A887E03325C50D4E03A31A77977F9C7220AA2604C76E3DB70F263D2A0",
+    "existing_test_source_sha256": "1F4982D985F07733E36432E704CE1EB4FAEEA4A5579860096F8278C94152B98E",
+    "result_json_sha256": "7C81075476BC4F156C685578B609281E9A952ACE735179D8BBBD011BD11C35BB",
+    "pytest_exit_code": 0,
+    "summary": "32 passed, 1 warning in 13.42s",
+    "candidate_overlay": "D:\\temp\\ac41-63-writer-partition4-candidate-r2-20260927\\replay-overlay",
+    "blocked_optional_import_attempts": [],
+    "network_attempts": 0,
+    "env_file_read_attempts": [],
+    "replay_scope": "Synthetic local strategy replay and associated unit regressions only; no provider or SDK path."
+  },
+  "candidate_ids": [
+    {
+      "candidate_id": "i41-writer-e9aa9f07eb9a0f274802",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "path": "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py",
+      "line": 492,
+      "call": "self.sell",
+      "source_hash": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE",
+      "r2_note": "Candidate now removes top-level dotenv load and retains default-deny helper guards; official disposition remains unchanged."
+    },
+    {
+      "candidate_id": "i41-writer-f9e2647652496ba9a609",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "path": "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py",
+      "line": 492,
+      "call": "self.sell",
+      "source_hash": "87B59877142447AACB0EEA956AF2F1E5C26024E7BFB71EC38D001FEDC8DBA9CE",
+      "r2_note": "Candidate now removes top-level dotenv load and retains default-deny helper guards; official disposition remains unchanged."
+    }
+  ],
+  "remaining_unresolved_evidence": [
+    "The strategy _submit_market methods remain defined and can submit through any broker supplied by a custom caller; this narrow patch blocks the paired legacy CTP factory helpers but does not prove every possible composition or alternate writer path is closed.",
+    "The explicit load_dotenv_if_available() helper remains callable and still reads its .env path when deliberately invoked; only automatic import-time invocation is removed.",
+    "No account-level approval, independent CTP write authorization, native writer review, provider session, order/cancel or production route was established.",
+    "Partition entries stay REVIEW_REQUIRED / NOT_AVAILABLE; only independent QA may evaluate the candidate for any downstream status change."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "status": "LOCAL_SAFETY_INCREMENT_ONLY / MAIN_MERGE_REJECTED",
+  "isolated_copy": "D:\\temp\\iteration41-r2c-independent-qa-20260927",
+  "main_store_base_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "r2b_main_base_patch_sha256": "1a16aadb94edb99924553d6472bf72dcb02bd04c7f994276816d91991a729f37",
+  "r2c_patch_sha256": "4eeab367c80d1d4b5545892db56376dcb170557dd3098bc4787a5ac5bd8b14fc",
+  "source_map_sha256": "a3deb75160ef16fb286e52ae1f2e69f5c8a77b04fb9681945a7a06016aacf712",
+  "source_only_metadata_manifest_sha256": "fd0150a108f4a69cd8280268ea88a68f8b9d616704ab336b0a441cb71095b0d3",
+  "reviewed_parent_ctp_snapshot_manifest_sha256": "d722ba568e09bbe51f05cfa6a0064dea394686dcebe87ad5bd93ba825601f310",
+  "results": {
+    "route_focus": "44 passed, 1 existing pytest config warning",
+    "query_focus": "7 passed, 1 existing pytest config warning",
+    "stores_runtime": "2460 passed, 258 failed, 28 skipped, 2 xfailed, 1 existing pytest config warning",
+    "failure_identity": "exactly same 258 failed (classname,name) IDs as r2b patched-main baseline; zero set difference",
+    "optional_source_only_tests": "22 actual nodes ran and passed (15 action-scope resolver + 7 query-evidence), replacing two module-skip placeholders",
+    "private_api_probe": "public wrapper rejected with zero fake calls; private _client call reached only in-memory fake; no _ctp/ctp_wrap loaded"
+  },
+  "limitations": [
+    "SOURCE-ONLY metadata and source imports; no SDK wheel/release acceptance",
+    "Parent source version 0.15.5 remains a source identity/version collision risk",
+    "No real provider, account, credentials, order, native session, or non-loopback network access",
+    "Public Store wrapper guards are not an in-process isolation boundary; private SDK attributes remain reachable",
+    "Main-tree merge rejected because full patched Store/Runtime suite has 258 failures"
+  ]
+}

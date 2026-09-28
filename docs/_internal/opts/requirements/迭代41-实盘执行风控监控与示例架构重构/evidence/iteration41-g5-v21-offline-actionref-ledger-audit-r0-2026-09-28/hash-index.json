@@ -1,0 +1,108 @@
+{
+  "archive": "iteration41-g5-v21-offline-actionref-ledger-audit-r0-2026-09-28",
+  "files": [
+    {
+      "bytes": 3994,
+      "path": "CANDIDATE.md",
+      "sha256": "3e88c39dffb5731301a2383517216cf6dce49be80bca8de1195df40f6787be15"
+    },
+    {
+      "bytes": 7495,
+      "path": "FROZEN-MANIFEST.json",
+      "sha256": "3bb53a8476eb2c67a6c57bae1f64a274786111f419d25bc867127605e1e5c3f3"
+    },
+    {
+      "bytes": 45314,
+      "path": "PATCH.diff",
+      "sha256": "e3064508b5db6ec8af617418935d38272bfa13a7a86c0e60f70fcfef261846d7"
+    },
+    {
+      "bytes": 2222,
+      "path": "QA-HISTORY.md",
+      "sha256": "bdf55b176eef86535580a9a28f327e7c8f8e2920a8a0353a97fa2ae5e0d9ebb2"
+    },
+    {
+      "bytes": 4803,
+      "path": "README.md",
+      "sha256": "0642d20243fc6cfe6bf3ac227c0806395c85f5f2df5c300a8236944518e8856e"
+    },
+    {
+      "bytes": 5299,
+      "path": "SOURCE-MANIFEST.json",
+      "sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24"
+    },
+    {
+      "bytes": 2511,
+      "path": "build_hash_index.py",
+      "sha256": "0c3a2c49e01bf8f4369bcf6de31d4b57c5cefaf45f4f7f8a6447ab8efe8724a6"
+    },
+    {
+      "bytes": 3230,
+      "path": "focused-junit.xml",
+      "sha256": "ffcce74a28f0f1ec0b319c695c4ac36b3b4c0f89403b39b9c5f4ff79fe591a2f"
+    },
+    {
+      "bytes": 1,
+      "path": "focused-test.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 798,
+      "path": "focused-test.log",
+      "sha256": "b48b2af63d645cbb2423261d049e300d45068a40cbf764b6471deca3edac481b"
+    },
+    {
+      "bytes": 4209,
+      "path": "freeze_candidate_artifacts.py",
+      "sha256": "45a3acf8ba0b95011d46a1e676941744ee3813b8db01a28be03702aa1e4eaf80"
+    },
+    {
+      "bytes": 1497,
+      "path": "independent-qa-receipt.md",
+      "sha256": "cfe0efd9f7f9dd609574f4ea1fd3cdf4d1cc5006de355b7ccdf3fc208e13c82a"
+    },
+    {
+      "bytes": 1,
+      "path": "pycompile.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 43,
+      "path": "pycompile.log",
+      "sha256": "0459be78c5276cf4588e731e8f59408f5e6b8651072b0f146e5ab6396168dfa2"
+    },
+    {
+      "bytes": 1,
+      "path": "ruff-check.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 20,
+      "path": "ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "bytes": 1,
+      "path": "ruff-format.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 27,
+      "path": "ruff-format.log",
+      "sha256": "81e0708af79a682467b0ecbd3453a0a33cfcbbe2812201b4d4f405f78ded2976"
+    },
+    {
+      "bytes": 26209,
+      "path": "src/bt_api_execution/offline_actionref_ledger_audit.py",
+      "sha256": "b5bb04239a82a8b8fe48130cbe0ecc88c742126d17881681426d0055b437c544"
+    },
+    {
+      "bytes": 17765,
+      "path": "tests/test_offline_actionref_ledger_audit.py",
+      "sha256": "41001697911ed6e871898948e9ed82626fa553d1763469fa259e513846ad6b74"
+    }
+  ],
+  "links_checked": 9,
+  "schema": "iteration41-evidence-hash-index.v1",
+  "self_hash_excluded": true
+}

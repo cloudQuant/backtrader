@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+"""Ultimate Oscillator Module - Ultimate Oscillator indicator.
+
+This module provides the Ultimate Oscillator indicator which combines
+multiple timeframes to reduce false signals.
+
+Classes:
+    UltimateOscillator: Ultimate Oscillator indicator.
+
+Example:
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.uo = bt.indicators.UltimateOscillator(self.data)
+
+        def next(self):
+            if self.uo[0] > 70:
+                self.sell()
+"""
+
+from . import Indicator, TrueLow, TrueRange
+
+
+class UltimateOscillator(Indicator):
+    """
+    Formula:
+      # Buying Pressure = Close - TrueLow
+      BP = Close - Minimum (Low or Prior Close)
+
+      # TrueRange = TrueHigh - TrueLow
+      TR = Maximum (High or Prior Close) - Minimum (Low or Prior Close)
+
+      Average7 = (7-period BP Sum) / (7-period TR Sum)
+      Average14 = (14-period BP Sum) / (14-period TR Sum)
+      Average28 = (28-period BP Sum) / (28-period TR Sum)
+
+      UO = 100 x [(4 x Average7)+(2 x Average14)+Average28]/(4+2+1)
+
+    See:
+
+      - https://en.wikipedia.org/wiki/Ultimate_oscillator
+      - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:ultimate_oscillator
+    """
+
+    lines = ("uo",)
+
+    params = (
+        ("p1", 7),
+        ("p2", 14),
+        ("p3", 28),
+        ("upperband", 70.0),
+        ("lowerband", 30.0),
+    )
+
+    def _plotinit(self):
+        baseticks = [10.0, 50.0, 90.0]
+        hlines = [self.p.upperband, self.p.lowerband]
+
+        # Plot lines at 0 & 100 to make the scale complete + upper/lower/bands
+        self.plotinfo.plotyhlines = hlines
+        # Plot ticks at "baseticks" + the user specified upper/lower bands
+        self.plotinfo.plotyticks = baseticks + hlines
+
+    def __init__(self):
+        """Initialize the Ultimate Oscillator indicator.
+
+        Creates TrueLow and TrueRange indicators for BP/TR calculations.
+        """
+        super().__init__()
+        self.truelow = TrueLow(self.data)
+        self.truerange = TrueRange(self.data)
+        # TrueRange/TrueLow already contribute minperiod=2 (they need close[-1]).
+        # We need a total minperiod of p3 + 1 because we read close[-i]/truelow[-i]/
+        # truerange[-i] for i in [0, p3-1], so we need p3 historical bars plus the
+        # current one. addminperiod(p3 + 1) accumulates correctly under the new
+        # max-path semantics in LineMultiple.addminperiod.
+        self.addminperiod(self.p.p3 + 1)
+
+    def next(self):
+        """Calculate Ultimate Oscillator for the current bar.
+
+        Combines 3 timeframes (p1, p2, p3) to reduce false signals.
+        """
+        p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
+
+        # Calculate BP and TR sums for each period
+        bp_sum1 = tr_sum1 = 0.0
+        bp_sum2 = tr_sum2 = 0.0
+        bp_sum3 = tr_sum3 = 0.0
+
+        for i in range(p3):
+            bp = self.data.close[-i] - self.truelow[-i]
+            tr = self.truerange[-i]
+
+            if i < p1:
+                bp_sum1 += bp
+                tr_sum1 += tr
+            if i < p2:
+                bp_sum2 += bp
+                tr_sum2 += tr
+            bp_sum3 += bp
+            tr_sum3 += tr
+
+        av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
+        av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
+        av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
+
+        factor = 100.0 / 7.0
+        self.lines.uo[0] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
+
+    def once(self, start, end):
+        """Calculate Ultimate Oscillator in runonce mode.
+
+        Combines BP/TR sums across 3 timeframes for all bars.
+        """
+        close_array = self.data.close.array
+        tl_array = self.truelow.lines[0].array
+        tr_array = self.truerange.lines[0].array
+        larray = self.lines.uo.array
+        p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
+
+        while len(larray) < end:
+            larray.append(float("nan"))
+
+        for i in range(min(p3 - 1, len(close_array))):
+            if i < len(larray):
+                larray[i] = float("nan")
+
+        for i in range(p3 - 1, min(end, len(close_array), len(tl_array), len(tr_array))):
+            bp_sum1 = tr_sum1 = 0.0
+            bp_sum2 = tr_sum2 = 0.0
+            bp_sum3 = tr_sum3 = 0.0
+
+            for j in range(p3):
+                idx = i - j
+                if (
+                    idx >= 0
+                    and idx < len(close_array)
+                    and idx < len(tl_array)
+                    and idx < len(tr_array)
+                ):
+                    bp = close_array[idx] - tl_array[idx]
+                    tr = tr_array[idx]
+
+                    if j < p1:
+                        bp_sum1 += bp
+                        tr_sum1 += tr
+                    if j < p2:
+                        bp_sum2 += bp
+                        tr_sum2 += tr
+                    bp_sum3 += bp
+                    tr_sum3 += tr
+
+            av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
+            av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
+            av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
+
+            factor = 100.0 / 7.0
+            larray[i] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28

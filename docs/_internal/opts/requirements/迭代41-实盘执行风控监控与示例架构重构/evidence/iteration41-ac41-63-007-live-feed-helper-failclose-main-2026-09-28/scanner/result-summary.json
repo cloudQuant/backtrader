@@ -1,0 +1,34 @@
+{
+  "collector": {
+    "counts": {
+      "dynamic_execution_candidates": 97,
+      "files_scanned": 355,
+      "parse_errors": 0,
+      "writer_candidates": 363
+    },
+    "sha256": "0736D295C0F4DFD3FC9FC94EFE79B70A5FAF991417616F386E11D0B5C23461A4"
+  },
+  "current_inventory_sha256": "0874A81AC23BA4F659ACAAC833A976ECEC44FA892A3A97778EA3D9779DB67A67",
+  "current_writer_dispositions_sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426",
+  "inventory_comparison": {
+    "additions": 0,
+    "locator_changes": 0,
+    "moves": 0,
+    "removals": 0,
+    "rows_and_locators_identical": true
+  },
+  "scanner_sources": {
+    "collector_sha256": "B37ED7A309C057B4F97AB8E96FE20D3E840D54084B6BCA8EDBEF3491230AB6E3",
+    "scope_sha256": "C473B4390D70477978C0EB9673E267244D78A57D0ACB2E8DF6D5F7D3BFA60DD7",
+    "verifier_sha256": "8508BF4E394BFB77EA369710B3A37AA1F6FA987DF4484BFEA413CA4ACC97CA53"
+  },
+  "verifier": {
+    "checklist_entry_count": 460,
+    "discovered_candidate_count": 460,
+    "evidence_boundary": "STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION",
+    "exit_code": 0,
+    "historical_tombstone_count": 6,
+    "review_required_count": 460,
+    "status": "PASS"
+  }
+}

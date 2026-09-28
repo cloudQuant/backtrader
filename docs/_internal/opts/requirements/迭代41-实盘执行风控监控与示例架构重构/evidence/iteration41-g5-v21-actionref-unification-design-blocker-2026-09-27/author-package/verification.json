@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "g5_allocator_uses_only_g5_reservation_rows": true,
+    "g5_and_v21_worker_action_identity_signatures_differ": true,
+    "g5_stages_action_ref_in_payload_but_v21_allocates_inside_store": true,
+    "schema_versions_are_g5_5_and_v21_21": true,
+    "v21_allocator_uses_only_v21_counter_and_allocation_tables": true,
+    "v21_legacy_actionref_migration_does_not_import_g5_action_rows": true
+  },
+  "preimage_sha256": {
+    "g5_authority": "8E7ABDD2819F66B6EC3D5FF1D5A049FCBB91AE8E71327665EE925098D35F647D",
+    "g5_bridge": "5F70CFE5CF70FCDE1008AB60D6CFEE09158F70E5D3D0CD70622F0D24C675E15A",
+    "g5_main_builder": "ED00FC6AC6257700DE37D865B954EDD7AC4DCBABE532F48B1B143014CCEF78E2",
+    "g5_store": "1DE4E83B9163B941E941E4ADB71B1C8D2DB5A92740D79B55B77AE5B7DD1B4BC4",
+    "g5_worker": "5BFB2A6A12C5D7ECFBB589EC3FF9AF61CC7EC14AC9B5740675168DA4A926ABD1",
+    "proof_readme": "D83F57F483FF401AFD8DB17B8F2EE6C86A4BCBC24C8D4E20D4512ED610E5AEA5",
+    "proof_script": "23033D685FF63B4D28F9FA9E3C306F9018B7424A0299F9F7EE7E7F9714315659",
+    "v21_store": "1F01EDA8466873B90359C25AAD2B61CB378D7A9FEB477FA8EC77A97FB2478E6A",
+    "v21_worker": "5E378EE77AD5C6E640AD2ECA0DACF154849E6FCFE0D04D73E9DA6EB2554087B3"
+  },
+  "scope": "read-only frozen source text and AST only; no SDK imports or execution",
+  "status": "STATIC_API_AND_MIGRATION_SPLIT_CONFIRMED"
+}

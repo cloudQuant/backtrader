@@ -1,0 +1,159 @@
+{
+  "source_sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+  "candidate_matches_manifest": true,
+  "direct_public_fake_calls": [
+    [
+      "api.submit_order",
+      "CTP___TEST"
+    ],
+    [
+      "fake.ReqOrderInsert",
+      "CTP___TEST"
+    ],
+    [
+      "api.cancel_order",
+      "CTP___TEST"
+    ],
+    [
+      "fake.ReqOrderAction",
+      "CTP___TEST"
+    ]
+  ],
+  "toctou_fake_calls": [
+    [
+      "fake.async_make_order",
+      "CTP___TEST",
+      [
+        "CTP___TEST"
+      ]
+    ],
+    [
+      "fake.async_cancel_order",
+      "CTP___TEST",
+      [
+        "CTP___TEST"
+      ]
+    ]
+  ],
+  "classification": {
+    "_is_ctp_write_provider": false,
+    "_is_ctp_session_provider": true,
+    "sdk_api_returns_raw_api": true
+  },
+  "ast_sink_call_count": 22,
+  "ast_sinks": [
+    {
+      "line": 2576,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def submit_order",
+      "call": "self._send_native_order_insert"
+    },
+    {
+      "line": 2602,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def create_order",
+      "call": "self.submit_order"
+    },
+    {
+      "line": 2644,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def cancel_order",
+      "call": "self._send_native_order_action"
+    },
+    {
+      "line": 3338,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def submit_order",
+      "call": "self._client.submit_order"
+    },
+    {
+      "line": 3353,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def create_order",
+      "call": "self.submit_order"
+    },
+    {
+      "line": 3366,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def cancel_order",
+      "call": "self._client.cancel_order"
+    },
+    {
+      "line": 6557,
+      "scope": "class BtApiStore > async _execute_sdk_command",
+      "call": "self._invoke_sdk_command"
+    },
+    {
+      "line": 7187,
+      "scope": "class BtApiStore > def enqueue_order",
+      "call": "self._enqueue_order_command"
+    },
+    {
+      "line": 7317,
+      "scope": "class BtApiStore > def _enqueue_order_command",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7353,
+      "scope": "class BtApiStore > def enqueue_cancel",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7474,
+      "scope": "class BtApiStore > def enqueue_query",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7491,
+      "scope": "class BtApiStore > def enqueue_reconcile",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7507,
+      "scope": "class BtApiStore > def enqueue_ctp_reconciliation",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7563,
+      "scope": "class BtApiStore > def enqueue_execution_recovery_completion",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7633,
+      "scope": "class BtApiStore > def _dispatch_prepared_account_risk_refresh",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7757,
+      "scope": "class BtApiStore > def submit_order",
+      "call": "adapter.submit_order"
+    },
+    {
+      "line": 7836,
+      "scope": "class BtApiStore > def _submit_ctp_managed_order > def sdk_dispatch",
+      "call": "self._enqueue_order_command"
+    },
+    {
+      "line": 7845,
+      "scope": "class BtApiStore > def _submit_ctp_managed_order",
+      "call": "ctp_adapter.submit_order"
+    },
+    {
+      "line": 7958,
+      "scope": "class BtApiStore > def _submit_order_legacy",
+      "call": "api.submit_order"
+    },
+    {
+      "line": 7960,
+      "scope": "class BtApiStore > def _submit_order_legacy",
+      "call": "api.create_order"
+    },
+    {
+      "line": 8102,
+      "scope": "class BtApiStore > def _cancel_managed > def dispatch_cancel",
+      "call": "self._enqueue_ctp_managed_cancel"
+    },
+    {
+      "line": 8242,
+      "scope": "class BtApiStore > def _cancel_order_ref_legacy",
+      "call": "api.cancel_order"
+    }
+  ],
+  "blocked_imports": [],
+  "result_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-write-narrow-fake-bypass-audit-2026-09-27\\narrow-audit-results.json",
+  "result_sha256": "6D67C91E421C6BEFF87826B6392312EE30B0F1221BB2B1008851BDC04FE66D29"
+}

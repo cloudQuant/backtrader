@@ -1,0 +1,4422 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index 022610d..3d1e2fa 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -36,22 +36,191 @@ from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple,
+ 
+ from ..events import OrderBookSnapshot, TickEvent
+ from ..utils.log_message import get_logger
++from .ctp_account_actor_port import (
++    AccountActorGateError,
++    ActorCommandContextV1,
++    ActorCommandExpectationV2,
++    ActorCommandReceiptV2,
++    CtpAccountActorPort,
++    CtpCancelIntentV2,
++    CtpSubmitIntentV2,
++    FakeLocalActorReplayLedger,
++    RouteKind,
++    StoreRouteDescriptor,
++    classify_store_route,
++    require_account_actor_before_local_client,
++    validate_actor_receipt,
++)
+ from .livestore import LiveStoreBase
+ from .managed_execution import (
+-    CtpManagedDispatchBinding,
+     CtpManagedCancelDispatch,
++    CtpManagedDispatchBinding,
+     CtpManagedExecutionProjection,
+     CtpManagedOrderDispatch,
+     CtpManagedProjectionState,
+     ManagedExecutionAdapter,
+     ManagedExecutionAdapterError,
++    require_ctp_managed_execution_projection,
++    require_ctp_runtime_execution_adapter,
+     require_managed_cancel,
+     require_managed_execution_adapter,
+-    require_ctp_runtime_execution_adapter,
+-    require_ctp_managed_execution_projection,
+ )
+ 
+ logger = get_logger(__name__)
++
++
++_CANDIDATE_ROUTE_KEYS = frozenset({"exchange_type", "exchange", "exchange_kwargs", "symbol_routes"})
++_CANDIDATE_NESTED_ROUTE_KEYS = frozenset({"exchange_type", "exchange", "provider", "route"})
++
++
++def _candidate_nested_route_snapshot(value: Any, seen: Optional[set] = None) -> Any:
++    """Copy only route selectors from exact built-in dicts; never copy secrets."""
++    seen = set() if seen is None else seen
++    if type(value) is not dict or id(value) in seen:
++        return None
++    identity = id(value)
++    seen.add(identity)
++    result: Dict[str, Any] = {}
++    for key, nested in value.items():
++        if type(key) is not str:
++            continue
++        if key in _CANDIDATE_NESTED_ROUTE_KEYS:
++            result[key] = nested if type(nested) is str else None
++        elif key == "exchange_kwargs":
++            result[key] = _candidate_exchange_kwargs_snapshot(nested, seen)
++        elif key == "symbol_routes":
++            result[key] = _candidate_symbol_routes_snapshot(nested, seen)
++        elif type(nested) is dict:
++            child = _candidate_nested_route_snapshot(nested, seen)
++            if child:
++                result[key] = child
++    seen.remove(identity)
++    return result
++
++
++def _candidate_exchange_kwargs_snapshot(value: Any, seen: Optional[set] = None) -> Any:
++    if type(value) is not dict:
++        return None
++    seen = set() if seen is None else seen
++    if id(value) in seen:
++        return None
++    identity = id(value)
++    seen.add(identity)
++    result: Dict[str, Any] = {}
++    for key, options in value.items():
++        if type(key) is not str:
++            continue
++        result[key] = _candidate_nested_route_snapshot(options, seen) if type(options) is dict else None
++    seen.remove(identity)
++    return result
++
++
++def _candidate_symbol_routes_snapshot(value: Any, seen: Optional[set] = None) -> Any:
++    if type(value) is not dict:
++        return None
++    seen = set() if seen is None else seen
++    if id(value) in seen:
++        return None
++    identity = id(value)
++    seen.add(identity)
++    result: Dict[str, Any] = {}
++    for key, route in value.items():
++        if type(key) is not str:
++            continue
++        if type(route) is str:
++            result[key] = route
++        elif type(route) is dict:
++            result[key] = _candidate_nested_route_snapshot(route, seen)
++        else:
++            result[key] = None
++    seen.remove(identity)
++    return result
++
++
++def _candidate_detach_route_tree(value: Any, seen: Optional[set] = None) -> Any:
++    """Detach exact dictionaries without inspecting or copying leaf objects."""
++    if type(value) is not dict:
++        return value
++    seen = set() if seen is None else seen
++    if id(value) in seen:
++        return value
++    identity = id(value)
++    seen.add(identity)
++    result = {key: _candidate_detach_route_tree(nested, seen) for key, nested in value.items()}
++    seen.remove(identity)
++    return result
++
++
++def _candidate_detach_route_value(key: str, value: Any) -> Any:
++    if key in {"exchange_kwargs", "symbol_routes"} and type(value) is dict:
++        return _candidate_detach_route_tree(value)
++    return value
++
++
++def _candidate_route_mapping_snapshot(value: Any) -> Any:
++    if value is None:
++        return {}
++    if type(value) is not dict:
++        return value
++    result: Dict[str, Any] = {}
++    for key in _CANDIDATE_ROUTE_KEYS:
++        if key not in value:
++            continue
++        nested = value[key]
++        if key == "exchange_kwargs":
++            result[key] = _candidate_exchange_kwargs_snapshot(nested)
++        elif key == "symbol_routes":
++            result[key] = _candidate_symbol_routes_snapshot(nested)
++        else:
++            result[key] = nested if type(nested) is str else None
++    return result
++
++
++def _candidate_merge_api_route_snapshot(api_kwargs: Any, extra_kwargs: Dict[str, Any]) -> Any:
++    if api_kwargs is None:
++        base: Any = {}
++    elif type(api_kwargs) is dict:
++        base = _candidate_route_mapping_snapshot(api_kwargs)
++    else:
++        return api_kwargs
++    if type(base) is not dict:
++        return base
++    for key in _CANDIDATE_ROUTE_KEYS:
++        if key not in extra_kwargs:
++            continue
++        value = extra_kwargs[key]
++        if key == "exchange_kwargs":
++            base[key] = _candidate_exchange_kwargs_snapshot(value)
++        elif key == "symbol_routes":
++            base[key] = _candidate_symbol_routes_snapshot(value)
++        else:
++            base[key] = value if type(value) is str else None
++    return base
++
++
++def _candidate_route_descriptor(provider: Any, backend: Any, config: Any, api_kwargs: Any,
++                                api: Any, api_cls: Any, environment_provider: Any = None,
++                                environment_exchange_type: Any = None) -> StoreRouteDescriptor:
++    return StoreRouteDescriptor(
++        provider=provider, backend=backend,
++        config=_candidate_route_mapping_snapshot(config),
++        api_kwargs=_candidate_route_mapping_snapshot(api_kwargs),
++        api=api, api_cls=api_cls,
++        environment_provider=environment_provider,
++        environment_exchange_type=environment_exchange_type,
++    )
++
++
++def _candidate_route_fingerprint(route: StoreRouteDescriptor) -> str:
++    payload = {
++        "provider": route.provider if type(route.provider) is str else None,
++        "backend": route.backend if type(route.backend) is str else None,
++        "config": route.config, "api_kwargs": route.api_kwargs,
++        "environment_provider": route.environment_provider if type(route.environment_provider) is str else None,
++        "environment_exchange_type": route.environment_exchange_type if type(route.environment_exchange_type) is str else None,
++    }
++    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
++    return hashlib.sha256(encoded.encode("ascii")).hexdigest()
+ 
+ _LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
+ 
+@@ -3090,35 +3259,54 @@ def _create_ctp_gateway_wrapper_class():
+                 asset_type, and other gateway-specific settings.
+         """
+ 
+-        def __init__(self, **kwargs):
+-            """Initialize the CTP gateway client wrapper.
++        def __init__(self, *, _store_route_owner=None, **kwargs):
++            """Initialize a gateway client only for a Store-sealed non-CTP route.
+ 
+             Args:
+                 **kwargs: Gateway configuration parameters passed to GatewayClient.
+             """
++            if not isinstance(_store_route_owner, BtApiStore):
++                raise BtApiStoreError("gateway wrapper requires an owning BtApiStore")
++            self._store = _store_route_owner
+             self._kwargs = dict(kwargs)
+-            self._kwargs.setdefault("exchange_type", "CTP")
+             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
++            exchange = self._kwargs.get("exchange_type")
++            normalized_exchange = (
++                exchange.strip().upper().partition("___")[0]
++                if type(exchange) is str
++                else ""
++            )
++            if normalized_exchange not in {"IB_WEB", "MT5"}:
++                raise BtApiStoreError("gateway wrapper refuses an unadmitted exchange route")
++            self._require_store_route()
+             self._client = GatewayClient(**self._kwargs)
+ 
++        def _require_store_route(self):
++            self._store._candidate_require_route(RouteKind.NON_CTP)
++
+         def connect(self):
+             """Connect to the CTP gateway."""
++            self._require_store_route()
+             self._client.connect()
+ 
+         def start(self):
+             """Start the gateway client (alias for connect)."""
++            self._require_store_route()
+             self.connect()
+ 
+         def disconnect(self):
+             """Disconnect from the CTP gateway."""
++            self._require_store_route()
+             self._client.disconnect()
+ 
+         def stop(self):
+             """Stop the gateway client (alias for disconnect)."""
++            self._require_store_route()
+             self.disconnect()
+ 
+         def get_session_state(self):
+             """Return gateway session state when the gateway exposes it."""
++            self._require_store_route()
+             getter = getattr(self._client, "get_session_state", None)
+             if callable(getter):
+                 state = getter()
+@@ -3135,6 +3323,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Subscription result from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.subscribe(symbols)
+ 
+         def poll_tick(self, symbol):
+@@ -3146,6 +3335,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Tick data or None if no tick is available.
+             """
++            self._require_store_route()
+             return self._client.poll_tick(symbol)
+ 
+         def get_next_tick(self, symbol):
+@@ -3157,6 +3347,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Next tick data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_next_tick(symbol)
+ 
+         def has_pending_tick(self, symbol):
+@@ -3168,6 +3359,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 True if a tick is available, False otherwise.
+             """
++            self._require_store_route()
+             return self._client.has_pending_tick(symbol)
+ 
+         def supports_live_ticks(self, symbol):
+@@ -3179,6 +3371,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 True if live ticks are supported, False otherwise.
+             """
++            self._require_store_route()
+             return self._client.supports_live_ticks(symbol)
+ 
+         def supports_live_streaming(self, _symbol=None):
+@@ -3190,6 +3383,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 True (live streaming is always supported).
+             """
++            self._require_store_route()
+             return True
+ 
+         def get_balance(self):
+@@ -3198,6 +3392,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Account balance data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_balance()
+ 
+         def get_account(self):
+@@ -3206,6 +3401,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Account data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_account()
+ 
+         def get_positions(self):
+@@ -3214,6 +3410,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 List of position data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.get_positions()
+ 
+         def fetch_bars(
+@@ -3232,6 +3429,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 List of bar data from the gateway client.
+             """
++            self._require_store_route()
+             tf = self._resolve_timeframe(timeframe, compression)
+             count = int(limit or 200)
+             if hasattr(self._client, "fetch_bars"):
+@@ -3279,6 +3477,7 @@ def _create_ctp_gateway_wrapper_class():
+ 
+         def get_symbol_info(self, symbol):
+             """Get trading symbol metadata from either gateway API alias."""
++            self._require_store_route()
+             for method_name in ("get_symbol_info", "fetch_symbol_info"):
+                 getter = getattr(self._client, method_name, None)
+                 if callable(getter):
+@@ -3291,6 +3490,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 List of open order data, or empty list if unavailable.
+             """
++            self._require_store_route()
+             if hasattr(self._client, "fetch_open_orders"):
+                 return self._client.fetch_open_orders()
+             return []
+@@ -3304,6 +3504,8 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 None (bars not supported in this wrapper).
+             """
++            self._require_store_route()
++            return
+ 
+         def get_next_bar(self, symbol):
+             """Get the next bar for the symbol.
+@@ -3314,6 +3516,8 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 None (bars not supported in this wrapper).
+             """
++            self._require_store_route()
++            return
+ 
+         def submit_order(self, payload):
+             """Submit an order to the gateway.
+@@ -3324,6 +3528,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._require_store_route()
+             response = self._client.submit_order(payload)
+             if "data_name" in payload and "data_name" not in response:
+                 response["data_name"] = payload["data_name"]
+@@ -3350,6 +3555,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.cancel_order(order_ref, dataname=dataname)
+ 
+         def poll_broker_update(self):
+@@ -3358,6 +3564,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Broker update data from the gateway client.
+             """
++            self._require_store_route()
+             return self._client.poll_broker_update()
+ 
+         @staticmethod
+@@ -3444,6 +3651,42 @@ def _resolve_backend(provider: Any, backend: Any = None) -> str:
+     if _is_gateway_provider(provider_text):
+         return "gateway"
+     return "direct"
++
++
++class _StoreBoundSdkApiView:
++    """Route-checked public view over an SDK object retained by a Store.
++
++    Methods are wrapped so a reference obtained before a Store route change
++    cannot keep dispatching through the old client. Private attributes and
++    opaque non-callable client objects are never exposed through this view.
++    This is a compatibility guard, not an in-process isolation boundary:
++    same-process Python code can still inspect the Store's private ``_api``.
++    """
++
++    __slots__ = ("_store", "_api")
++
++    def __init__(self, store: "BtApiStore", api: Any):
++        self._store = store
++        self._api = api
++
++    def __getattr__(self, name: str) -> Any:
++        if not isinstance(name, str) or name.startswith("_"):
++            raise AttributeError(name)
++        self._store._candidate_require_route(RouteKind.NON_CTP)
++        value = getattr(self._api, name)
++        if callable(value):
++            def guarded_call(*args, **kwargs):
++                self._store._candidate_require_route(RouteKind.NON_CTP)
++                result = value(*args, **kwargs)
++                self._store._candidate_require_route(RouteKind.NON_CTP)
++                return result
++
++            return guarded_call
++        if value is None or type(value) in (str, bytes, int, float, bool):
++            return value
++        if type(value) in (dict, list, tuple, set, frozenset):
++            return deepcopy(value)
++        raise BtApiStoreError("sdk_api view does not expose opaque client attributes")
+ 
+ 
+ class BtApiStore(LiveStoreBase):
+@@ -3471,6 +3714,9 @@ class BtApiStore(LiveStoreBase):
+         backend: Optional[str] = None,
+         managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
+         autostart: bool = False,
++        account_actor_port: Optional[CtpAccountActorPort] = None,
++        account_actor_context: Optional[ActorCommandContextV1] = None,
++        account_actor_test_ledger: Optional[FakeLocalActorReplayLedger] = None,
+         **kwargs: Any,
+     ):
+         """Initialize the BtApiStore.
+@@ -3494,11 +3740,158 @@ class BtApiStore(LiveStoreBase):
+             managed_execution_adapter: A trusted Iteration 41 adapter attached
+                 only after configuration-first capability resolution.  The
+                 Store never discovers or constructs this from user config.
++            account_actor_port: Explicit candidate AccountActorPort seam. It has
++                no default implementation and does not grant runtime authority.
++            account_actor_context: Caller-supplied local binding for offline
++                intent/receipt comparison; it does not authenticate an actor.
++            account_actor_test_ledger: Required fake in-memory replay ledger for
++                this isolated wiring candidate, never a production fence.
+             autostart: Whether to start the store on initialization.
+             **kwargs: Additional provider-specific arguments.
+         """
++        explicit_provider = provider.strip().lower() if type(provider) is str else ""
++        if explicit_provider in {"ctp", "ctp_gateway"}:
++            raise BtApiStoreError("external account actor unavailable")
++
++        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
++        explicit_route = _candidate_route_descriptor(
++            provider, backend, config, explicit_api_kwargs, api, api_cls,
++        )
++        # Reclassify only the frozen route maps with a neutral provider so
++        # explicit nested CTP selectors fail before consulting environment.
++        # The route snapshot helpers accept exact built-in dictionaries and
++        # scalar strings only; opaque caller objects remain ambiguous.
++        explicit_route_facts = StoreRouteDescriptor(
++            provider="btapi", backend="direct",
++            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
++        )
++        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
++            raise BtApiStoreError("external account actor unavailable")
++
++        initial_route = StoreRouteDescriptor(
++            provider=explicit_route.provider, backend=explicit_route.backend,
++            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
++            api=explicit_route.api, api_cls=explicit_route.api_cls,
++            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
++            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        )
++        route_kind = classify_store_route(initial_route)
++        self._candidate_adapter_only = False
++        adapter_only_route = (
++            route_kind is RouteKind.AMBIGUOUS
++            and type(provider) is str
++            and provider.strip().lower() == "btapi"
++            and (
++                backend is None
++                or (type(backend) is str and backend.strip().lower() == "direct")
++            )
++            and api is not None
++            and api_cls is None
++            and (config is None or (type(config) is dict and len(config) == 0))
++            and (api_kwargs is None or (type(api_kwargs) is dict and len(api_kwargs) == 0))
++            and len(kwargs) == 0
++            and os.environ.get("BT_STORE_PROVIDER") is None
++            and os.environ.get("BT_GATEWAY_EXCHANGE_TYPE") is None
++            and managed_execution_adapter is not None
++            and account_actor_port is None
++            and account_actor_context is None
++            and account_actor_test_ledger is None
++            and autostart is False
++        )
++        if adapter_only_route:
++            adapter = require_managed_execution_adapter(managed_execution_adapter)
++            if adapter is None:
++                raise BtApiStoreError("ambiguous adapter-only route requires an explicit adapter")
++            self.provider = "btapi"
++            self.backend = "direct"
++            self._managed_execution_adapter = adapter
++            self._api = None
++            self._api_cls = None
++            self._config = {}
++            self._api_kwargs = {}
++            self._candidate_route_kind = RouteKind.AMBIGUOUS
++            self._candidate_input_provider = provider
++            self._candidate_input_backend = backend
++            adapter_route = _candidate_route_descriptor(
++                provider, "direct", {}, {}, None, None, None, None
++            )
++            self._candidate_route_descriptor = adapter_route
++            self._candidate_route_seal = _candidate_route_fingerprint(adapter_route)
++            self._candidate_actor_only = False
++            self._candidate_adapter_only = True
++            self._candidate_actor_port = None
++            self._candidate_actor_context = None
++            self._candidate_actor_ledger = None
++            self._sdk_mode = False
++            self._sdk_exchanges = {}
++            self._sdk_routes = {}
++            self._started = False
++            self._connected = False
++            return
++        if route_kind is RouteKind.CTP:
++            if backend is not None and (type(backend) is not str or backend.strip().lower() not in _BACKENDS):
++                raise BtApiStoreError("store route ambiguous for account actor handoff")
++            route_provider = provider.strip().lower() if type(provider) is str else ""
++            actor_route_providers = {
++                "ctp", "ctp_gateway", "btapi", "gateway", "ib_web_gateway", "mt5_gateway"
++            }
++            environment_provider = os.environ.get("BT_STORE_PROVIDER")
++            if route_provider not in actor_route_providers or (
++                environment_provider
++                and environment_provider.strip().lower() != route_provider
++            ):
++                raise BtApiStoreError("store route ambiguous for account actor handoff")
++            environment_exchange = os.environ.get("BT_GATEWAY_EXCHANGE_TYPE")
++            if environment_exchange and environment_exchange.strip().upper().partition("___")[0] != "CTP":
++                raise BtApiStoreError("store route ambiguous for account actor handoff")
++        try:
++            actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
++        except AccountActorGateError as error:
++            raise BtApiStoreError(str(error)) from error
++        self._candidate_route_kind = route_kind
++        self._candidate_input_provider = provider
++        self._candidate_input_backend = backend
++        self._candidate_route_descriptor = initial_route
++        self._candidate_route_seal = _candidate_route_fingerprint(initial_route)
++        self._candidate_actor_only = route_kind is RouteKind.CTP
++        self._candidate_actor_port = None
++        self._candidate_actor_context = None
++        self._candidate_actor_ledger = None
++        if route_kind is RouteKind.NON_CTP and account_actor_port is not None:
++            raise BtApiStoreError("account actor port is only valid for an explicit CTP route")
++        if route_kind is RouteKind.CTP:
++            if managed_execution_adapter is not None:
++                raise BtApiStoreError("account actor route cannot combine with local managed execution")
++            if type(account_actor_context) is not ActorCommandContextV1:
++                raise BtApiStoreError("account actor context is required for this offline candidate")
++            if type(account_actor_test_ledger) is not FakeLocalActorReplayLedger:
++                raise BtApiStoreError("explicit fake local replay ledger is required for this offline candidate")
++            if autostart:
++                raise BtApiStoreError("account actor route has no accepted shared-session read feed")
++            self.provider = provider
++            self.backend = backend or "direct"
++            self._managed_execution_adapter = None
++            self._api = None
++            self._api_cls = None
++            self._config = {}
++            self._api_kwargs = {}
++            self._candidate_actor_port = actor_port
++            self._candidate_actor_context = account_actor_context
++            self._candidate_actor_ledger = account_actor_test_ledger
++            self._started = False
++            self._connected = False
++            return
+         self.provider = self._resolve_provider(provider)
+         self.backend = _resolve_backend(self.provider, backend)
++        effective_route = _candidate_route_descriptor(
++            self.provider, self.backend, config,
++            _candidate_merge_api_route_snapshot(api_kwargs, kwargs), api, api_cls,
++            os.environ.get("BT_STORE_PROVIDER"), os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        )
++        if classify_store_route(effective_route) is not RouteKind.NON_CTP:
++            raise BtApiStoreError("normalized store route is not admitted by this candidate")
++        self._candidate_route_descriptor = effective_route
++        self._candidate_route_seal = _candidate_route_fingerprint(effective_route)
+         self._managed_execution_adapter = require_managed_execution_adapter(
+             managed_execution_adapter
+         )
+@@ -3510,7 +3903,31 @@ class BtApiStore(LiveStoreBase):
+         if kwargs:
+             self._api_kwargs.update(kwargs)
+         self._apply_env_gateway_overrides()
++        self._candidate_route_descriptor = _candidate_route_descriptor(
++            self.provider, self.backend,
++            self._config, self._api_kwargs, self._api, self._api_cls,
++            os.environ.get("BT_STORE_PROVIDER"), os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        )
++        if classify_store_route(self._candidate_route_descriptor) is not RouteKind.NON_CTP:
++            raise BtApiStoreError("store route changed during initialization")
++        # Keep private nested route maps so caller mutation cannot retarget clients.
++        # Copy dict containers only; leaves such as credentials are not interpreted.
++        for target in (self._config, self._api_kwargs):
++            for route_key in _CANDIDATE_ROUTE_KEYS:
++                if route_key in target:
++                    target[route_key] = _candidate_detach_route_value(
++                        route_key, target[route_key]
++                    )
++        self._candidate_route_descriptor = _candidate_route_descriptor(
++            self.provider, self.backend,
++            self._config, self._api_kwargs, self._api, self._api_cls,
++            os.environ.get("BT_STORE_PROVIDER"), os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        )
++        if classify_store_route(self._candidate_route_descriptor) is not RouteKind.NON_CTP:
++            raise BtApiStoreError("store route changed during initialization")
++        self._candidate_route_seal = _candidate_route_fingerprint(self._candidate_route_descriptor)
+         sdk_options = {**self._config, **self._api_kwargs}
++        self._candidate_require_route(RouteKind.NON_CTP)
+         self._ctp_execution_authorization_key_id = str(
+             sdk_options.get("execution_authorization_key_id")
+             or os.environ.get("BT_CTP_EXECUTION_AUTHORIZATION_KEY_ID")
+@@ -3812,11 +4229,21 @@ class BtApiStore(LiveStoreBase):
+         contexts, redemptions, budget reservations) and must never construct a
+         second native client.
+         """
+-        return self._api
++        if self._api is None:
++            return None
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route has no SDK client")
++        self._candidate_require_route(RouteKind.NON_CTP)
++        return _StoreBoundSdkApiView(self, self._api)
+ 
+     @property
+     def uses_async_commands(self) -> bool:
+         """Return whether this SDK exposes the typed asynchronous command contract."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            return False
++        self._candidate_require_route(RouteKind.NON_CTP)
+         api = self._api
+         return bool(
+             self._sdk_mode
+@@ -3978,6 +4405,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _require_async_sdk_commands(self) -> None:
+         """Fail closed when an SDK trading session lacks any async operation."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_mode:
+             return
+         missing = [
+@@ -4214,6 +4642,7 @@ class BtApiStore(LiveStoreBase):
+         clear_authorization: bool = False,
+     ) -> None:
+         """Revoke any SDK write lease and retain only market-data capability."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         ctp_unarmed = not (
+             self._ctp_sdk_arm_attempted
+             or self._sdk_execution_config.get("market_data_only") is not True
+@@ -4254,6 +4683,7 @@ class BtApiStore(LiveStoreBase):
+         generation.  Authorization preparation therefore uses the distinct
+         public SDK transition and refuses to emulate it for older clients.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         self._sdk_execution_config["market_data_only"] = True
+         with self._command_condition:
+             self._command_accept_openings = False
+@@ -4294,8 +4724,75 @@ class BtApiStore(LiveStoreBase):
+                 self._ctp_execution_authorization_sha256 = None
+                 self._ctp_execution_authorization_consumed = False
+ 
++    def _candidate_current_route(self) -> StoreRouteDescriptor:
++        if self._candidate_actor_only:
++            base = self._candidate_route_descriptor
++            return StoreRouteDescriptor(
++                provider=base.provider, backend=base.backend,
++                config=base.config, api_kwargs=base.api_kwargs,
++                api=base.api, api_cls=base.api_cls,
++                environment_provider=os.environ.get("BT_STORE_PROVIDER"),
++                environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++            )
++        return _candidate_route_descriptor(
++            self.provider, self.backend,
++            self._config, self._api_kwargs, self._api, self._api_cls,
++            os.environ.get("BT_STORE_PROVIDER"), os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        )
++
++    def _candidate_require_route(self, expected: RouteKind) -> None:
++        route = self._candidate_current_route()
++        if (
++            classify_store_route(route) is not expected
++            or _candidate_route_fingerprint(route) != self._candidate_route_seal
++        ):
++            error = BtApiStoreError("store route changed or is not admitted by this candidate")
++            error.definite_reject = True
++            error.code = "store_route_changed"
++            raise error
++
++    def _candidate_require_adapter_only(self) -> None:
++        if not self._candidate_adapter_only:
++            raise BtApiStoreError("ambiguous adapter-only route is not active")
++        route = self._candidate_current_route()
++        if (
++            classify_store_route(route) is not RouteKind.AMBIGUOUS
++            or _candidate_route_fingerprint(route) != self._candidate_route_seal
++        ):
++            raise BtApiStoreError("ambiguous adapter-only route changed or became routable")
++
++    def _candidate_adapter_only_legacy_dispatch(self, *args, **kwargs):
++        self._candidate_require_adapter_only()
++        raise BtApiStoreError("ambiguous adapter-only route forbids local legacy dispatch")
++
++    def _candidate_actor_dispatch(self, intent: Any, operation: str) -> ActorCommandReceiptV2:
++        self._candidate_require_route(RouteKind.CTP)
++        expected_type = CtpSubmitIntentV2 if operation == "SUBMIT" else CtpCancelIntentV2
++        if type(intent) is not expected_type:
++            raise BtApiStoreError("typed account actor intent required")
++        if intent.context != self._candidate_actor_context:
++            raise BtApiStoreError("account actor context mismatch")
++        try:
++            expectation = ActorCommandExpectationV2.from_intent(intent)
++            self._candidate_actor_ledger.claim_once(intent)
++            receipt = (
++                self._candidate_actor_port.submit_order(intent)
++                if operation == "SUBMIT"
++                else self._candidate_actor_port.cancel_order(intent)
++            )
++            return validate_actor_receipt(receipt, expected=expectation)
++        except AccountActorGateError as error:
++            raise BtApiStoreError(str(error)) from error
++
+     def start(self, data=None, broker=None):
+         """Start the store and attach broker/feed instances."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot start a provider client")
++        if self._candidate_actor_only:
++            self._candidate_require_route(RouteKind.CTP)
++            raise BtApiStoreError("account actor route has no accepted shared-session read feed")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._read_only_metadata_probe_condition:
+             probe_worker = self._read_only_metadata_probe_thread
+             if (
+@@ -4701,6 +5198,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _prepare_sdk_start(self) -> None:
+         """Reject restart while an earlier session worker can still mutate state."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         close_thread = self._sdk_close_thread
+         if close_thread is not None and close_thread.is_alive():
+             self._restart_blocked_by_close = True
+@@ -4857,6 +5355,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def enable_openings_after_account_risk(self) -> Dict[str, Any]:
+         """Unlock SDK openings only after a fresh identity-bound durable baseline."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self.requires_account_risk:
+             self._enable_openings_after_safety_gate()
+             return {"enabled": True, "account_risk_required": False}
+@@ -5284,6 +5783,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _bounded_sdk_close(self, api: Any, timeout: float) -> Tuple[bool, Optional[BaseException]]:
+         """Close one SDK client within the caller's deadline and record the outcome."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         close = getattr(api, "close", None)
+         if not callable(close):
+             close_error = BtApiStoreError("The SDK client does not expose close()")
+@@ -5292,7 +5792,13 @@ class BtApiStore(LiveStoreBase):
+             self._shutdown_state = "FAIL"
+             return True, close_error
+ 
+-        closed, close_error, close_thread = self._bounded_call(close, timeout)
++        def close_if_route_is_still_admitted():
++            self._candidate_require_route(RouteKind.NON_CTP)
++            close()
++
++        closed, close_error, close_thread = self._bounded_call(
++            close_if_route_is_still_admitted, timeout
++        )
+         self._sdk_close_generation = self._command_generation
+         self._sdk_close_thread = close_thread
+         if not closed:
+@@ -5314,6 +5820,14 @@ class BtApiStore(LiveStoreBase):
+ 
+     def stop(self, timeout: Optional[float] = None):
+         """Bound command draining and disconnect the underlying client."""
++        if getattr(self, "_candidate_actor_only", False):
++            self._candidate_require_route(RouteKind.CTP)
++            self._started = False
++            return None
++        if getattr(self, "_candidate_adapter_only", False):
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot stop a provider client")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._read_only_metadata_probe_condition:
+             probe_worker = self._read_only_metadata_probe_thread
+             probe_owned_shutdown_pending = bool(
+@@ -5392,21 +5906,26 @@ class BtApiStore(LiveStoreBase):
+ 
+             if self._api is not None and funding_worker_stopped:
+                 if self._sdk_mode:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._cache_account_risk_snapshot_before_shutdown()
+                     try:
++                        self._candidate_require_route(RouteKind.NON_CTP)
+                         if hasattr(self._api, "get_execution_summary"):
+                             self._last_execution_summary = deepcopy(
+                                 self._api.get_execution_summary()
+                             )
+                     finally:
+                         if worker_stopped:
++                            self._candidate_require_route(RouteKind.NON_CTP)
+                             self._bounded_sdk_close(
+                                 self._api,
+                                 max(deadline - time.monotonic(), 0.0),
+                             )
+                 elif worker_stopped and hasattr(self._api, "disconnect"):
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._api.disconnect()
+                 elif worker_stopped and hasattr(self._api, "stop"):
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._api.stop()
+         finally:
+             if self._sdk_mode:
+@@ -5458,6 +5977,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
+         """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._is_ctp_session_provider():
+             self._force_sdk_market_data_only("store_stop", clear_authorization=True)
+         self._venue_balance_cache = {}
+@@ -5481,11 +6001,14 @@ class BtApiStore(LiveStoreBase):
+             if self._connected:
+                 self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+             if self._api is not None and funding_worker_stopped:
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._cache_account_risk_snapshot_before_shutdown()
+                 try:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     if hasattr(self._api, "get_execution_summary"):
+                         self._last_execution_summary = deepcopy(self._api.get_execution_summary())
+                 finally:
++                    self._candidate_require_route(RouteKind.NON_CTP)
+                     self._bounded_sdk_close(self._api, timeout or 0.0)
+         finally:
+             if not funding_worker_stopped:
+@@ -5508,6 +6031,10 @@ class BtApiStore(LiveStoreBase):
+ 
+     def getbroker(self, *args, **kwargs):
+         """Return a BtApiBroker bound to this store."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot bind a broker")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         broker_cls = kwargs.pop("broker_cls", self.BrokerCls)
+         if broker_cls is None:
+             from ..brokers.btapibroker import BtApiBroker
+@@ -5520,6 +6047,10 @@ class BtApiStore(LiveStoreBase):
+ 
+     def getdata(self, *args, **kwargs):
+         """Return a BtApiFeed bound to this store."""
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("ambiguous adapter-only route cannot bind a feed")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         data_cls = kwargs.pop("data_cls", self.DataCls)
+         if data_cls is None:
+             from ..feeds.btapifeed import BtApiFeed
+@@ -5539,6 +6070,7 @@ class BtApiStore(LiveStoreBase):
+         events. Deterministic replay clients may expose this small hook so a
+         runner never reaches through the Store's private client attribute.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         setter = getattr(self._api, "set_stop_callback", None)
+         if not callable(setter):
+             return False
+@@ -5562,6 +6094,10 @@ class BtApiStore(LiveStoreBase):
+         actual mode is queried separately through :meth:`get_account_config`;
+         callers must validate that result before submitting live or demo orders.
+         """
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            return False
++        self._candidate_require_route(RouteKind.NON_CTP)
+         mode = str(mode or "net").strip().lower()
+         if mode != "dual_side":
+             return True
+@@ -5588,6 +6124,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def get_balance(self, force: bool = False, raise_errors: bool = False):
+         """Refresh cached cash and value from the API, if available."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_balance_refresh,
+             self._account_cache_ttl,
+@@ -5641,6 +6178,7 @@ class BtApiStore(LiveStoreBase):
+         raise_errors: bool = False,
+     ) -> List[Dict[str, Any]]:
+         """Return cached or queried positions."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_positions_refresh,
+             self._positions_cache_ttl,
+@@ -5805,6 +6343,7 @@ class BtApiStore(LiveStoreBase):
+         raise_errors: bool = False,
+     ) -> List[Dict[str, Any]]:
+         """Fetch the provider's currently open orders, if supported."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not force and self._is_cache_fresh(
+             self._last_open_orders_refresh,
+             self._open_orders_cache_ttl,
+@@ -6023,6 +6562,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def poll_broker_update(self):
+         """Poll a normalized broker-side order/trade/error update from the API."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._connected:
+             return None
+ 
+@@ -6240,6 +6780,7 @@ class BtApiStore(LiveStoreBase):
+         managed_ctp_dispatcher: Optional[Callable[[CtpManagedDispatchBinding], Any]] = None,
+     ) -> Dict[str, Any]:
+         """Insert one command without waiting for transport or the SDK worker."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         operation = str(command.get("operation") or "").strip().lower()
+         command_venue = self._public_sdk_venue(command.get("venue")).casefold()
+         managed_ctp_operation = bool(
+@@ -6486,6 +7027,11 @@ class BtApiStore(LiveStoreBase):
+             "completed_monotonic_ns": 0,
+         }
+         try:
++            # A command can sit in the queue while public routing fields are
++            # mutated. Recheck inside the caught dispatch block so this becomes
++            # an auditable definite local rejection instead of killing the
++            # worker or reaching a retained SDK method.
++            self._candidate_require_route(RouteKind.NON_CTP)
+             if operation == "reconcile":
+                 result = await _run_in_thread(self._sdk_reconcile_snapshot)
+             elif operation == "ctp_reconcile":
+@@ -6633,6 +7179,7 @@ class BtApiStore(LiveStoreBase):
+         return completion
+ 
+     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if operation == "submit":
+             self._validate_approval_lease_command(command)
+         method_names = {
+@@ -6652,6 +7199,7 @@ class BtApiStore(LiveStoreBase):
+         call_kwargs = {"normalized": True}
+         if budget_capability is not None:
+             call_kwargs["budget_capability"] = budget_capability
++        self._candidate_require_route(RouteKind.NON_CTP)
+         result = async_method(*args, **call_kwargs)
+         if not inspect.isawaitable(result):
+             raise BtApiStoreError(f"SDK {async_name} did not return an awaitable")
+@@ -6730,6 +7278,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _validated_sdk_identity(self, venue: str, raw_identity: Any = None) -> Dict[str, Any]:
+         """Validate, bind, and continuously fence one SDK-owned identity."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         getter = getattr(self._api, "get_execution_identity", None)
+         if raw_identity is None:
+             if not callable(getter):
+@@ -7032,10 +7581,12 @@ class BtApiStore(LiveStoreBase):
+         )
+ 
+     def _sdk_reconcile_snapshot(self) -> Dict[str, Any]:
++        self._candidate_require_route(RouteKind.NON_CTP)
+         positions = []
+         open_orders: List[Any] = []
+         reconciled_venues: List[str] = []
+         for venue in self._sdk_exchanges:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             venue_positions = self._require_sdk_list_result(
+                 self._api.get_position(venue, None, normalized=True),
+                 "get_position",
+@@ -7059,6 +7610,7 @@ class BtApiStore(LiveStoreBase):
+             open_orders.extend(self._sdk_broker_event(venue, row) for row in venue_open_orders)
+             # A venue is covered only after both risk-bearing reads returned.
+             reconciled_venues.append(self._public_sdk_venue(venue))
++        self._candidate_require_route(RouteKind.NON_CTP)
+         venue_balances = self._api.get_all_balances(normalized=True)
+         balance = self._api.get_portfolio_balance(venue_balances=venue_balances)
+         account_risk_snapshot = None
+@@ -7150,6 +7702,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def enqueue_order(self, order) -> Dict[str, Any]:
+         """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP local SDK command queue is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+             raise BtApiStoreError(
+@@ -7308,6 +7863,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
+         """Queue a typed cancellation while preserving its reserved capacity."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP local SDK command queue is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if (
+             self._managed_execution_adapter is not None
+             and self._is_ctp_session_provider()
+@@ -7720,6 +8278,20 @@ class BtApiStore(LiveStoreBase):
+         fact into an accidental provider write.
+         """
+ 
++        if self._candidate_actor_only:
++            return self._candidate_actor_dispatch(order, "SUBMIT")
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            response = self._managed_execution_adapter.submit_order(
++                order, self._candidate_adapter_only_legacy_dispatch
++            )
++            self._candidate_require_adapter_only()
++            if response is None:
++                raise BtApiStoreError(
++                    "managed execution adapter returned no submission projection"
++                )
++            return response
++        self._candidate_require_route(RouteKind.NON_CTP)
+         adapter = self._managed_execution_adapter
+         if adapter is None:
+             return self._submit_order_legacy(order)
+@@ -7765,6 +8337,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _submit_ctp_managed_order(self, order, adapter):
+         """Project an admitted managed CTP intent only onto the typed SDK queue."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("local SDK managed submit is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         if not self._sdk_mode:
+             raise BtApiStoreError(
+@@ -7910,6 +8485,9 @@ class BtApiStore(LiveStoreBase):
+         after it makes its durable admission decision.  No public route calls
+         it following a managed-adapter failure.
+         """
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP legacy submit is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+             raise BtApiStoreError(
+                 "managed CTP writes cannot use the legacy native Store dispatcher"
+@@ -7990,6 +8568,22 @@ class BtApiStore(LiveStoreBase):
+ 
+     def cancel_order(self, order):
+         """Cancel through the managed route when one is attached."""
++        if self._candidate_actor_only:
++            return self._candidate_actor_dispatch(order, "CANCEL")
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            try:
++                cancel = require_managed_cancel(self._managed_execution_adapter)
++            except ManagedExecutionAdapterError as error:
++                raise BtApiStoreError("managed_execution_cancel_not_supported") from error
++            response = cancel(order, None, self._candidate_adapter_only_legacy_dispatch)
++            self._candidate_require_adapter_only()
++            if response is None:
++                raise BtApiStoreError(
++                    "managed execution adapter returned no cancellation projection"
++                )
++            return response
++        self._candidate_require_route(RouteKind.NON_CTP)
+         info = getattr(order, "info", None)
+         info_get = getattr(info, "get", None)
+         if callable(info_get):
+@@ -8031,6 +8625,7 @@ class BtApiStore(LiveStoreBase):
+         identities, so a bare symbol such as ``rb2701`` is resolved to its
+         exchange here (the adapter then reuses it for order fields).
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         api = self._ensure_api_ready()
+         arm = getattr(api, "arm_registered_sim_execution", None)
+         if not callable(arm):
+@@ -8062,6 +8657,12 @@ class BtApiStore(LiveStoreBase):
+     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
+         """Cancel through managed execution or, when absent, the legacy Store path."""
+ 
++        if self._candidate_actor_only:
++            raise BtApiStoreError("typed account actor cancel intent required")
++        if self._candidate_adapter_only:
++            self._candidate_require_adapter_only()
++            raise BtApiStoreError("managed_execution_cancel_not_supported")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         adapter = self._managed_execution_adapter
+         if adapter is None:
+             return self._cancel_order_ref_legacy(order_ref, dataname=dataname)
+@@ -8069,6 +8670,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _cancel_managed(self, order_or_ref, dataname: Optional[str] = None):
+         """Delegate one managed cancellation without any direct fallback."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("local SDK managed cancel is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         adapter = self._managed_execution_adapter
+         if adapter is None:
+@@ -8218,6 +8822,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _cancel_order_ref_legacy(self, order_ref, dataname: Optional[str] = None):
+         """Run the historic provider cancellation mapping for a managed adapter port."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP legacy cancel is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._managed_execution_adapter is not None and self._is_ctp_session_provider():
+             raise BtApiStoreError(
+                 "managed CTP cancellations cannot use the legacy native Store dispatcher"
+@@ -8361,6 +8968,8 @@ class BtApiStore(LiveStoreBase):
+         return venues[0]
+ 
+     def _is_ctp_session_provider(self) -> bool:
++        if getattr(self, "_candidate_route_kind", None) is RouteKind.CTP:
++            return True
+         if self.backend == "forwarding":
+             return False
+         provider = str(self.provider or "").strip().lower()
+@@ -11554,6 +12163,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def prepare_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+         """Explicitly confirm CTP settlement and return before/after request evidence."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._is_ctp_session_provider():
+             raise BtApiStoreError("CTP settlement preparation requires a CTP provider")
+         self._ensure_api_ready()
+@@ -11615,6 +12225,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def verify_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+         """Verify existing settlement state using a read-only server query."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._is_ctp_session_provider():
+             raise BtApiStoreError("CTP settlement verification requires a CTP provider")
+         self._ensure_api_ready()
+@@ -13043,6 +13654,7 @@ class BtApiStore(LiveStoreBase):
+         read-only and are surfaced as errors to the runner.
+         """
+ 
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._ctp_execution_recovery_completion_lock:
+             return self._prepare_execution_recovery_locked(proof)
+ 
+@@ -13130,6 +13742,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def abort_execution_recovery(self, reason: str) -> Dict[str, Any]:
+         """Strictly revoke a recovery lease and invalidate its local proof."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         normalized_reason = str(reason or "execution_recovery_aborted").strip()
+         if (
+@@ -13228,6 +13841,7 @@ class BtApiStore(LiveStoreBase):
+         recovery_token_sha256: str,
+     ) -> Dict[str, Any]:
+         """Arm only the actions present in one SDK-issued recovery plan."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._command_condition:
+             self._command_accept_openings = False
+@@ -13286,6 +13900,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def cancel_execution_recovery_orders(self, *, recovery_token_sha256: str) -> list:
+         """Queue exactly the SDK-approved cancellation set without local Order objects."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         recovery = self._ctp_execution_recovery
+         if not isinstance(recovery, Mapping) or not self._ctp_execution_recovery_armed:
+@@ -13351,6 +13966,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def complete_execution_recovery(self, *, recovery_token_sha256: str) -> Dict[str, Any]:
+         """Let the SDK prove two-round flatness and revoke the recovery lease once."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._ctp_execution_recovery_completion_lock:
+             return self._complete_execution_recovery_locked(
+@@ -13474,6 +14090,7 @@ class BtApiStore(LiveStoreBase):
+         legacy V1 proof-only call remains for compatibility with existing Store
+         facades and fixtures.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if str(self.provider or "").strip().lower() != "btapi":
+             raise BtApiStoreError("SDK execution arming requires provider='btapi'")
+         with self._command_condition:
+@@ -14672,6 +15289,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def get_execution_summary(self):
+         """Read the active session, or its stop snapshot without reconnecting."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if self._last_execution_summary is not None:
+             source_summary = self._last_execution_summary
+         else:
+@@ -14807,6 +15425,7 @@ class BtApiStore(LiveStoreBase):
+         complete snapshot.  Queue dispatch happens after the lock is released
+         and never calls an SDK method on the strategy callback thread.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+ 
+         with self._account_risk_lock:
+             snapshot = (
+@@ -14870,6 +15489,7 @@ class BtApiStore(LiveStoreBase):
+         provider without the public SDK contract therefore returns a complete
+         fail-closed shape with ``evidence_complete=False``.
+         """
++        self._candidate_require_route(RouteKind.NON_CTP)
+         with self._account_risk_lock:
+             cached = (
+                 deepcopy(self._last_account_risk_snapshot)
+@@ -14883,6 +15503,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def initialize_account_risk_baseline(self) -> Dict[str, Any]:
+         """Ask the SDK to initialize its baseline under its authoritative flatness gate."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self.requires_account_risk:
+             raise BtApiStoreError("account_risk_not_required")
+         snapshot = self._read_account_risk_snapshot(
+@@ -14898,6 +15519,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def get_reconcile_snapshot(self) -> Dict[str, Any]:
+         """Return one redacted, identity-bound synchronous SDK reconciliation snapshot."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_mode:
+             raise BtApiStoreError("SDK reconciliation is unavailable")
+         incident_epoch = self._current_risk_incident_epoch()
+@@ -14909,6 +15531,7 @@ class BtApiStore(LiveStoreBase):
+         self, api: Any, *, initialize_baseline: bool = False
+     ) -> Dict[str, Any]:
+         """Read, validate and redact the public SDK account-risk contract."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         configured_routes = sorted(
+             str(venue).strip() for venue in self._sdk_exchanges if str(venue).strip()
+         )
+@@ -15297,6 +15920,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _warm_sdk_command_types(self) -> Dict[str, Any]:
+         """Load public bt_api_py request models outside the order hot path."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         if not self._sdk_command_types:
+             from bt_api_py import (
+                 CancelOrderRequest,
+@@ -16132,7 +16756,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _drain_sdk_events(self):
+         """Convert standard SDK events to native objects on the Cerebro thread."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         for venue in self._sdk_exchanges:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             poll_events = getattr(self._api, "poll_events", None)
+             if callable(poll_events):
+                 events = poll_events(
+@@ -16355,6 +16981,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _recover_reservation_only_cancel_unknowns(self) -> None:
+         """Run the SDK's local journal recovery hook before Store transport startup."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         recover = getattr(self._api, "recover_reservation_only_cancel_unknowns", None)
+         if not callable(recover):
+             return
+@@ -16373,6 +17000,7 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _recover_historical_documented_definite_rejections(self) -> None:
+         """Run the SDK's proven local rejection recovery before transport startup."""
++        self._candidate_require_route(RouteKind.NON_CTP)
+         recover = getattr(self._api, "recover_historical_documented_definite_rejections", None)
+         if not callable(recover):
+             # This hook is optional for older SDKs. Without it, unresolved
+@@ -16394,6 +17022,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _ensure_api_ready(self):
+         """Instantiate and connect the underlying bt_api_py client on demand."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP local client construction is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         metadata_probe_requires_market_data_only = bool(
+             getattr(self, "_bounded_metadata_probe_requires_sdk_market_data_only", False)
+         )
+@@ -16413,6 +17044,7 @@ class BtApiStore(LiveStoreBase):
+             options = {**self._config, **self._api_kwargs}
+             execution = dict(self._sdk_execution_config)
+             if self._api is None:
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 # Creating a fresh owned client starts a new SDK session even
+                 # when the caller connects lazily rather than through start().
+                 self._last_account_risk_snapshot = None
+@@ -16433,6 +17065,7 @@ class BtApiStore(LiveStoreBase):
+                 "execution_config" in options
+                 or any(key in options for key in _SDK_EXECUTION_CONFIG_KEYS)
+             ):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.configure_execution(execution)
+             if metadata_probe_requires_market_data_only:
+                 self._configure_bounded_metadata_probe_sdk_market_data_only()
+@@ -16440,16 +17073,24 @@ class BtApiStore(LiveStoreBase):
+             self._last_execution_summary = None
+ 
+         if self._api is None:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             if self.backend == "forwarding":
+                 self._api = self._create_forwarding_client()
+             else:
++                attach_store_route_guard = self.backend == "gateway" and self._api_cls is None
+                 if self.backend == "gateway":
+                     api_cls = self._api_cls or _create_ctp_gateway_wrapper_class()
+                 else:
+                     api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
+                 kwargs = dict(self._config)
+                 kwargs.update(self._api_kwargs)
+-                self._api = api_cls(**kwargs)
++                self._candidate_require_route(RouteKind.NON_CTP)
++                if attach_store_route_guard:
++                    created_api = api_cls(_store_route_owner=self, **kwargs)
++                else:
++                    created_api = api_cls(**kwargs)
++                self._candidate_require_route(RouteKind.NON_CTP)
++                self._api = created_api
+ 
+         if (
+             self._sdk_mode
+@@ -16472,9 +17113,12 @@ class BtApiStore(LiveStoreBase):
+             )
+ 
+         try:
++            self._candidate_require_route(RouteKind.NON_CTP)
+             if hasattr(self._api, "connect"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.connect()
+             elif hasattr(self._api, "start"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.start()
+         except Exception as exc:
+             _safe_log("error", "btapistore:14824 exception before re-raise (Exception)")
+@@ -16533,6 +17177,7 @@ class BtApiStore(LiveStoreBase):
+                     self._api = None
+                 self._sdk_configured = False
+             elif hasattr(self._api, "disconnect"):
++                self._candidate_require_route(RouteKind.NON_CTP)
+                 self._api.disconnect()
+             raise
+         self.emit_runtime_event("store_ready", status="ready")
+@@ -16540,6 +17185,9 @@ class BtApiStore(LiveStoreBase):
+ 
+     def _create_forwarding_client(self):
+         """Create an embedded or ZMQ forwarding client from store kwargs."""
++        if self._candidate_actor_only:
++            raise BtApiStoreError("CTP forwarding construction is forbidden on the actor route")
++        self._candidate_require_route(RouteKind.NON_CTP)
+         try:
+             from bt_api_py.forwarding import ForwardingClient, ZmqForwardingClient
+         except ImportError as exc:
+diff --git a/backtrader/stores/ctp_account_actor_port.py b/backtrader/stores/ctp_account_actor_port.py
+new file mode 100644
+index 0000000..ce21f58
+--- /dev/null
++++ b/backtrader/stores/ctp_account_actor_port.py
+@@ -0,0 +1,674 @@
++"""Offline-only typed account actor port and preconstruction CTP route gate.
++
++This module defines a capability boundary for a future external actor client.
++It contains no transport, credential resolver, SDK import, native API, or actor
++implementation. A typed fake port proves wiring only; it is not authority.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++import threading
++from abc import ABC, abstractmethod
++from collections.abc import Mapping
++from dataclasses import dataclass, field
++from decimal import Decimal
++from enum import Enum
++from typing import Any, Optional
++
++
++class AccountActorGateError(RuntimeError):
++    """Fail-closed error before any local CTP client is connected or created."""
++
++    def __init__(self, code: str) -> None:
++        self.code = code
++        super().__init__(code.replace("_", " "))
++
++
++class RouteKind(str, Enum):
++    CTP = "ctp"
++    NON_CTP = "non_ctp"
++    AMBIGUOUS = "ambiguous"
++    UNSUPPORTED = "unsupported"
++
++
++class ActorCommandState(str, Enum):
++    QUEUED = "queued"
++    UNKNOWN = "unknown"
++    REJECTED = "rejected"
++
++
++@dataclass(frozen=True)
++class ActorCommandContextV1:
++    """Caller-supplied local binding context; not authenticated actor authority."""
++
++    account_ref: str
++    runtime_id: str
++    mode: str
++    config_digest: str
++    session_id: str
++    front_id: int
++    native_session_id: int
++    session_generation: int
++    actor_epoch: int
++
++    def __post_init__(self) -> None:
++        for name in ("account_ref", "runtime_id", "session_id"):
++            _required_text(getattr(self, name), name)
++        if type(self.mode) is not str or self.mode not in {"simulation", "live"}:
++            raise ValueError("mode must be simulation or live")
++        if type(self.config_digest) is not str or len(self.config_digest) != 64:
++            raise ValueError("config_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.config_digest):
++            raise ValueError("config_digest must be a lowercase SHA-256 digest")
++        if type(self.session_generation) is not int or self.session_generation <= 0:
++            raise ValueError("session_generation must be a positive exact integer")
++        if type(self.front_id) is not int or self.front_id <= 0:
++            raise ValueError("front_id must be a positive exact integer")
++        if type(self.native_session_id) is not int or self.native_session_id <= 0:
++            raise ValueError("native_session_id must be a positive exact integer")
++        if type(self.actor_epoch) is not int or self.actor_epoch <= 0:
++            raise ValueError("actor_epoch must be a positive exact integer")
++
++    def to_payload(self) -> dict[str, Any]:
++        return {
++            "account_ref": self.account_ref,
++            "runtime_id": self.runtime_id,
++            "mode": self.mode,
++            "config_digest": self.config_digest,
++            "session_id": self.session_id,
++            "front_id": self.front_id,
++            "native_session_id": self.native_session_id,
++            "session_generation": self.session_generation,
++            "actor_epoch": self.actor_epoch,
++        }
++
++
++@dataclass(frozen=True)
++class CtpSubmitIntentV2:
++    """Context-bound logical order intent; no native identity is caller input."""
++
++    intent_id: str
++    instrument_id: str
++    exchange_id: str
++    side: str
++    offset: str
++    hedge_flag: str
++    quantity: int
++    limit_price: Decimal
++    context: ActorCommandContextV1
++
++    def __post_init__(self) -> None:
++        _required_text(self.intent_id, "intent_id")
++        _required_text(self.instrument_id, "instrument_id")
++        _required_text(self.exchange_id, "exchange_id")
++        _required_text(self.side, "side")
++        _required_text(self.offset, "offset")
++        _required_text(self.hedge_flag, "hedge_flag")
++        if self.side not in {"BUY", "SELL"}:
++            raise ValueError("side must be BUY or SELL")
++        if self.offset not in {"OPEN", "CLOSE", "CLOSE_TODAY", "CLOSE_YESTERDAY"}:
++            raise ValueError("unsupported offset")
++        if self.hedge_flag not in {"SPECULATION", "ARBITRAGE", "HEDGE", "MARKET_MAKER"}:
++            raise ValueError("unsupported hedge_flag")
++        if type(self.quantity) is not int or self.quantity <= 0:
++            raise ValueError("quantity must be a positive exact integer")
++        if type(self.limit_price) is not Decimal or not self.limit_price.is_finite():
++            raise ValueError("limit_price must be a finite Decimal")
++        if self.limit_price <= 0:
++            raise ValueError("limit_price must be positive")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++
++    @property
++    def command_id(self) -> str:
++        return self.intent_id
++
++    @property
++    def operation(self) -> str:
++        return "SUBMIT"
++
++    @property
++    def command_digest(self) -> str:
++        return _command_digest(
++            self.operation,
++            self.command_id,
++            self.context,
++            {
++                "instrument_id": self.instrument_id,
++                "exchange_id": self.exchange_id,
++                "side": self.side,
++                "offset": self.offset,
++                "hedge_flag": self.hedge_flag,
++                "quantity": self.quantity,
++                "limit_price": format(self.limit_price, "f"),
++            },
++        )
++
++
++@dataclass(frozen=True)
++class CtpCancelIntentV2:
++    """Context-bound logical cancel intent; native refs are never caller fields."""
++
++    cancel_intent_id: str
++    runtime_order_id: str
++    order_ref: str
++    front_id: int
++    session_id: int
++    exchange_id: str
++    order_sys_id: str
++    context: ActorCommandContextV1
++
++    def __post_init__(self) -> None:
++        for name in (
++            "cancel_intent_id",
++            "runtime_order_id",
++            "order_ref",
++            "exchange_id",
++            "order_sys_id",
++        ):
++            _required_text(getattr(self, name), name)
++        if type(self.front_id) is not int or self.front_id <= 0:
++            raise ValueError("front_id must be a positive exact integer")
++        if type(self.session_id) is not int or self.session_id <= 0:
++            raise ValueError("session_id must be a positive exact integer")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if self.front_id != self.context.front_id or self.session_id != self.context.native_session_id:
++            raise ValueError("cancel target must match the expected native front/session")
++
++    @property
++    def command_id(self) -> str:
++        return self.cancel_intent_id
++
++    @property
++    def operation(self) -> str:
++        return "CANCEL"
++
++    @property
++    def command_digest(self) -> str:
++        return _command_digest(
++            self.operation,
++            self.command_id,
++            self.context,
++            {
++                "runtime_order_id": self.runtime_order_id,
++                "order_ref": self.order_ref,
++                "front_id": self.front_id,
++                "session_id": self.session_id,
++                "exchange_id": self.exchange_id,
++                "order_sys_id": self.order_sys_id,
++            },
++        )
++
++
++@dataclass(frozen=True)
++class ActorCommandReceiptV2:
++    """Locally comparable actor receipt; never a provider acknowledgement."""
++
++    operation: str
++    command_id: str
++    state: ActorCommandState
++    context: ActorCommandContextV1
++    command_digest: str
++
++    def __post_init__(self) -> None:
++        if type(self.operation) is not str or self.operation not in {"SUBMIT", "CANCEL"}:
++            raise ValueError("operation must be SUBMIT or CANCEL")
++        _required_text(self.command_id, "command_id")
++        if type(self.state) is not ActorCommandState:
++            raise ValueError("state must be ActorCommandState")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if type(self.command_digest) is not str or len(self.command_digest) != 64:
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.command_digest):
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++
++
++@dataclass(frozen=True)
++class ActorCommandExpectationV2:
++    """Exact locally expected receipt binding derived from one typed intent."""
++
++    operation: str
++    command_id: str
++    context: ActorCommandContextV1
++    command_digest: str
++
++    @classmethod
++    def from_intent(cls, intent: Any) -> ActorCommandExpectationV2:
++        if type(intent) not in {CtpSubmitIntentV2, CtpCancelIntentV2}:
++            raise AccountActorGateError("typed_actor_intent_required")
++        try:
++            intent.context.__post_init__()
++            intent.__post_init__()
++        except (AttributeError, TypeError, ValueError):
++            raise AccountActorGateError("actor_intent_invalid") from None
++        return cls(
++            operation=intent.operation,
++            command_id=intent.command_id,
++            context=intent.context,
++            command_digest=intent.command_digest,
++        )
++
++    def __post_init__(self) -> None:
++        if type(self.operation) is not str or self.operation not in {"SUBMIT", "CANCEL"}:
++            raise ValueError("operation must be SUBMIT or CANCEL")
++        _required_text(self.command_id, "command_id")
++        if type(self.context) is not ActorCommandContextV1:
++            raise ValueError("context must be ActorCommandContextV1")
++        if type(self.command_digest) is not str or len(self.command_digest) != 64:
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++        if any(char not in "0123456789abcdef" for char in self.command_digest):
++            raise ValueError("command_digest must be a lowercase SHA-256 digest")
++
++
++class FakeLocalActorReplayLedger:
++    """In-memory replay guard for offline tests only; not durable or authoritative."""
++
++    def __init__(self) -> None:
++        self._seen: dict[str, tuple[str, ActorCommandContextV1]] = {}
++        self._lock = threading.Lock()
++
++    def claim_once(self, intent: Any) -> None:
++        if type(intent) not in {CtpSubmitIntentV2, CtpCancelIntentV2}:
++            raise AccountActorGateError("typed_actor_intent_required")
++        try:
++            intent.context.__post_init__()
++            intent.__post_init__()
++        except (AttributeError, TypeError, ValueError):
++            raise AccountActorGateError("actor_intent_invalid") from None
++        with self._lock:
++            if intent.command_id in self._seen:
++                raise AccountActorGateError("actor_intent_replay")
++            self._seen[intent.command_id] = (intent.command_digest, intent.context)
++
++
++class CtpAccountActorPort(ABC):
++    """Typed remote-owner client seam; methods never accept local native callbacks."""
++
++    @abstractmethod
++    def submit_order(self, intent: CtpSubmitIntentV2) -> ActorCommandReceiptV2:
++        """Submit one logical intent to the external account actor."""
++
++    @abstractmethod
++    def cancel_order(self, intent: CtpCancelIntentV2) -> ActorCommandReceiptV2:
++        """Submit one logical cancel intent to the external account actor."""
++
++
++class UnavailableCtpAccountActorPort(CtpAccountActorPort):
++    """Default port. No external account actor is installed in this candidate."""
++
++    def submit_order(self, intent: CtpSubmitIntentV2) -> ActorCommandReceiptV2:
++        del intent
++        raise AccountActorGateError("external_account_actor_unavailable")
++
++    def cancel_order(self, intent: CtpCancelIntentV2) -> ActorCommandReceiptV2:
++        del intent
++        raise AccountActorGateError("external_account_actor_unavailable")
++
++
++@dataclass(frozen=True)
++class StoreRouteDescriptor:
++    """Only non-secret routing facts used before Store SDK/client construction."""
++
++    provider: str
++    backend: Optional[str] = None  # noqa: UP045 - retain Python 3.8 compatibility
++    config: Mapping[str, Any] = field(default_factory=dict)
++    api_kwargs: Mapping[str, Any] = field(default_factory=dict)
++    api: Any = None
++    api_cls: Any = None
++    environment_provider: Optional[str] = None  # noqa: UP045 - Python 3.8 compatibility
++    environment_exchange_type: Optional[str] = None  # noqa: UP045 - Python 3.8 compatibility
++
++
++# This is deliberately a small, code-owned registry. It is not inferred from
++# arbitrary BtApiStore provider strings or a caller-supplied client object.
++_DIRECT_NON_CTP_PROVIDERS = frozenset({"okx", "binance"})
++_GATEWAY_PROVIDER_EXCHANGE = {
++    "ib_web_gateway": "IB_WEB",
++    "mt5_gateway": "MT5",
++}
++_GENERIC_GATEWAY_PROVIDERS = frozenset({"gateway"})
++_CTP_PROVIDERS = frozenset({"ctp", "ctp_gateway"})
++_UNSUPPORTED_PROVIDERS = frozenset({"futu", "oanda", "vc"})
++_SUPPORTED_NON_CTP_VENUES = frozenset({"OKX", "BINANCE", "MT5", "IB_WEB"})
++_ALL_KNOWN_VENUES = _SUPPORTED_NON_CTP_VENUES | frozenset({"CTP"})
++
++
++def classify_store_route(route: StoreRouteDescriptor) -> RouteKind:
++    """Classify only exact, code-owned selectors; never inspect injected clients.
++
++    This is an offline candidate contract, not a complete BtApiStore provider
++    registry. Unknown/custom providers, opaque clients/classes and malformed
++    routes are ambiguous. Explicit CTP evidence wins over every non-CTP label,
++    including environment overrides and nested symbol routing.
++    """
++
++    if type(route) is not StoreRouteDescriptor:
++        return RouteKind.AMBIGUOUS
++
++    provider = _selector(route.provider)
++    backend = _selector(route.backend)
++    env_provider = _selector(route.environment_provider)
++
++    if (
++        (route.backend is not None and type(route.backend) is not str)
++        or (route.environment_provider is not None and type(route.environment_provider) is not str)
++    ):
++        return RouteKind.AMBIGUOUS
++
++    # Check direct CTP selectors before considering any environment or route
++    # aliases. A gateway environment override cannot downgrade a CTP request.
++    if provider in _CTP_PROVIDERS or env_provider in _CTP_PROVIDERS:
++        return RouteKind.CTP
++
++    config = _exact_dict(route.config)
++    api_kwargs = _exact_dict(route.api_kwargs)
++    if config is None or api_kwargs is None:
++        return RouteKind.AMBIGUOUS
++
++    venues: set[str] = set()
++    unknown = False
++    has_selector = False
++    for values in (config, api_kwargs):
++        found, invalid, present = _collect_config_routes(values)
++        venues.update(found)
++        unknown = unknown or invalid
++        has_selector = has_selector or present
++
++    env_exchange = _venue(route.environment_exchange_type)
++    if route.environment_exchange_type is not None:
++        if not env_exchange:
++            unknown = True
++        else:
++            venues.add(env_exchange)
++            has_selector = True
++
++    # Route maps can reveal CTP even if the top-level selector appears safe.
++    if "CTP" in venues:
++        return RouteKind.CTP
++
++    if unknown or not venues.issubset(_ALL_KNOWN_VENUES):
++        return RouteKind.AMBIGUOUS
++    if any(venue not in _SUPPORTED_NON_CTP_VENUES for venue in venues):
++        return RouteKind.AMBIGUOUS
++
++    # An environment-selected provider that changes a non-CTP selector is an
++    # ambiguous route, not authority to silently choose another local client.
++    if env_provider and env_provider != provider:
++        return RouteKind.AMBIGUOUS
++
++    if provider in _UNSUPPORTED_PROVIDERS:
++        return RouteKind.UNSUPPORTED
++
++    if provider in _DIRECT_NON_CTP_PROVIDERS:
++        expected = provider.upper()
++        if backend not in {"", "direct"}:
++            return RouteKind.AMBIGUOUS
++        if venues and venues != {expected}:
++            return RouteKind.AMBIGUOUS
++        return RouteKind.NON_CTP
++
++    if provider == "btapi":
++        if backend not in {"", "direct"}:
++            return RouteKind.AMBIGUOUS
++        # Generic multi-venue routing is safe only with a complete explicit
++        # route map. No raw API/class injection is accepted above.
++        return RouteKind.NON_CTP if has_selector and venues else RouteKind.AMBIGUOUS
++
++    if provider in _GENERIC_GATEWAY_PROVIDERS:
++        if backend not in {"", "gateway"}:
++            return RouteKind.AMBIGUOUS
++        if not has_selector:
++            # BtApiStore's generic gateway wrapper defaults to CTP.
++            return RouteKind.CTP
++        return RouteKind.NON_CTP if venues and venues <= {"IB_WEB", "MT5"} else RouteKind.AMBIGUOUS
++
++    expected_gateway = _GATEWAY_PROVIDER_EXCHANGE.get(provider)
++    if expected_gateway:
++        if backend not in {"", "gateway"}:
++            return RouteKind.AMBIGUOUS
++        # The alias itself is not sufficient: the configured route must match
++        # it. With no explicit selector, the native gateway defaults to CTP.
++        if not has_selector:
++            return RouteKind.CTP
++        return RouteKind.NON_CTP if venues == {expected_gateway} else RouteKind.AMBIGUOUS
++
++    # Do not infer safety from arbitrary names, aliases, or a `_gateway` suffix.
++    return RouteKind.AMBIGUOUS
++
++
++def require_account_actor_before_local_client(
++    route: StoreRouteDescriptor,
++    actor_port: Optional[CtpAccountActorPort],  # noqa: UP045 - Python 3.8 compatibility
++) -> CtpAccountActorPort:
++    """Reject CTP/ambiguous routes before any local API, SDK or gateway creation."""
++
++    kind = classify_store_route(route)
++    if kind is RouteKind.NON_CTP:
++        return actor_port if actor_port is not None else UnavailableCtpAccountActorPort()
++
++    if kind is RouteKind.UNSUPPORTED:
++        raise AccountActorGateError("store_provider_unsupported")
++    if kind is RouteKind.AMBIGUOUS:
++        raise AccountActorGateError("store_route_ambiguous")
++
++    # No caller-provided object, context, fake ledger, or local receipt is an
++    # accepted CTP authority. Keep every CTP route unavailable until a reviewed,
++    # code-owned external actor binding exists.
++    raise AccountActorGateError("external_account_actor_unavailable")
++
++
++def validate_actor_receipt(
++    receipt: object, *, expected: ActorCommandExpectationV2
++) -> ActorCommandReceiptV2:
++    """Compare every local binding field; this still proves no external authority."""
++
++    if type(expected) is not ActorCommandExpectationV2:
++        raise AccountActorGateError("actor_expectation_type_invalid")
++    if type(receipt) is not ActorCommandReceiptV2:
++        raise AccountActorGateError("actor_receipt_type_invalid")
++    try:
++        receipt.context.__post_init__()
++        receipt.__post_init__()
++        expected.context.__post_init__()
++        expected.__post_init__()
++    except (AttributeError, TypeError, ValueError):
++        raise AccountActorGateError("actor_receipt_binding_invalid") from None
++    if receipt.operation != expected.operation:
++        raise AccountActorGateError("actor_receipt_operation_mismatch")
++    if receipt.command_id != expected.command_id:
++        raise AccountActorGateError("actor_receipt_command_mismatch")
++    if type(receipt.context) is not ActorCommandContextV1:
++        raise AccountActorGateError("actor_receipt_context_invalid")
++    if receipt.context != expected.context:
++        raise AccountActorGateError("actor_receipt_context_mismatch")
++    if receipt.command_digest != expected.command_digest:
++        raise AccountActorGateError("actor_receipt_digest_mismatch")
++    return receipt
++
++
++def reject_ctp_legacy_dispatch(route_kind: RouteKind) -> None:
++    """Defense in depth for old private Store dispatchers."""
++
++    if route_kind is not RouteKind.NON_CTP:
++        raise AccountActorGateError("ctp_legacy_dispatch_forbidden")
++
++
++def _collect_config_routes(values: dict[str, Any]) -> tuple[set[str], bool, bool]:
++    venues: set[str] = set()
++    unknown = False
++    present = False
++    for key in ("exchange_type", "exchange"):
++        if key in values:
++            present = True
++            venue = _venue(values[key])
++            if venue:
++                venues.add(venue)
++            else:
++                unknown = True
++
++    if "exchange_kwargs" in values:
++        present = True
++        raw = _exact_dict(values["exchange_kwargs"])
++        if raw is None or not raw:
++            unknown = True
++        else:
++            for key, options in raw.items():
++                venue = _venue(key)
++                if not venue or type(options) is not dict or venue not in _ALL_KNOWN_VENUES:
++                    unknown = True
++                else:
++                    venues.add(venue)
++                    nested, invalid = _collect_nested_selector_fields(options)
++                    venues.update(nested)
++                    unknown = unknown or invalid
++
++    if "symbol_routes" in values:
++        present = True
++        found, invalid = _collect_symbol_routes(values["symbol_routes"])
++        venues.update(found)
++        unknown = unknown or invalid
++    return venues, unknown, present
++
++
++def _collect_symbol_routes(value: Any) -> tuple[set[str], bool]:
++    if type(value) is not dict or not value:
++        return set(), True
++    venues: set[str] = set()
++    unknown = False
++    for route_value in value.values():
++        if type(route_value) is str:
++            venue = _venue(route_value)
++            if venue:
++                venues.add(venue)
++            else:
++                unknown = True
++        elif type(route_value) is dict:
++            found, invalid, present = _collect_nested_route(route_value)
++            venues.update(found)
++            unknown = unknown or invalid or not present
++        else:
++            unknown = True
++    return venues, unknown
++
++
++def _collect_nested_route(value: dict[str, Any]) -> tuple[set[str], bool, bool]:
++    venues: set[str] = set()
++    unknown = False
++    present = False
++    selector_keys = {"exchange_type", "exchange", "provider", "route"}
++    for key, nested in value.items():
++        if key in selector_keys:
++            present = True
++            venue = _venue(nested)
++            if venue:
++                venues.add(venue)
++            else:
++                unknown = True
++        elif type(nested) is dict:
++            found, invalid, child_present = _collect_nested_route(nested)
++            venues.update(found)
++            unknown = unknown or invalid
++            present = present or child_present
++        elif type(nested) is str:
++            # Nested maps commonly use a symbol/route key and a venue value.
++            present = True
++            venue = _venue(nested)
++            if venue:
++                venues.add(venue)
++            else:
++                unknown = True
++        else:
++            unknown = True
++    return venues, unknown, present
++
++
++def _collect_nested_selector_fields(value: dict[str, Any]) -> tuple[set[str], bool]:
++    """Find only route selector fields below venue options, ignoring secrets."""
++
++    venues: set[str] = set()
++    unknown = False
++    selector_keys = {"exchange_type", "exchange", "provider", "route"}
++    for key, nested in value.items():
++        if key in selector_keys:
++            venue = _venue(nested)
++            if venue:
++                venues.add(venue)
++            else:
++                unknown = True
++        elif key == "symbol_routes":
++            found, invalid = _collect_symbol_routes(nested)
++            venues.update(found)
++            unknown = unknown or invalid
++        elif key == "exchange_kwargs":
++            found, invalid, _present = _collect_config_routes({"exchange_kwargs": nested})
++            venues.update(found)
++            unknown = unknown or invalid
++        elif type(nested) is dict:
++            found, invalid = _collect_nested_selector_fields(nested)
++            venues.update(found)
++            unknown = unknown or invalid
++    return venues, unknown
++
++
++def _venue(value: Any) -> str:
++    if type(value) is not str:
++        return ""
++    candidate = value.strip().partition("___")[0].upper()
++    return candidate if candidate in _ALL_KNOWN_VENUES else ""
++
++
++def _selector(value: Any) -> str:
++    return value.strip().lower() if type(value) is str else ""
++
++
++def _exact_dict(value: Any) -> Optional[dict[str, Any]]:  # noqa: UP045 - Python 3.8 compatibility
++    return value if type(value) is dict else None
++
++
++def _required_text(value: Any, name: str) -> None:
++    if type(value) is not str or not value.strip():
++        raise ValueError(f"{name} is required")
++
++
++def _command_digest(
++    operation: str,
++    command_id: str,
++    context: ActorCommandContextV1,
++    intent_payload: dict[str, Any],
++) -> str:
++    canonical = json.dumps(
++        {
++            "schema": "ctp-account-actor-command.v2",
++            "operation": operation,
++            "command_id": command_id,
++            "context": context.to_payload(),
++            "intent": intent_payload,
++        },
++        sort_keys=True,
++        separators=(",", ":"),
++        ensure_ascii=True,
++    ).encode("ascii")
++    return hashlib.sha256(canonical).hexdigest()
++
++
++__all__ = [
++    "AccountActorGateError",
++    "ActorCommandContextV1",
++    "ActorCommandExpectationV2",
++    "ActorCommandReceiptV2",
++    "ActorCommandState",
++    "CtpAccountActorPort",
++    "CtpCancelIntentV2",
++    "CtpSubmitIntentV2",
++    "FakeLocalActorReplayLedger",
++    "RouteKind",
++    "StoreRouteDescriptor",
++    "UnavailableCtpAccountActorPort",
++    "classify_store_route",
++    "reject_ctp_legacy_dispatch",
++    "require_account_actor_before_local_client",
++    "validate_actor_receipt",
++]
+diff --git a/examples/013_3_sa_midfreq_simnow/run.py b/examples/013_3_sa_midfreq_simnow/run.py
+index e030cb8..2dc7ff3 100644
+--- a/examples/013_3_sa_midfreq_simnow/run.py
++++ b/examples/013_3_sa_midfreq_simnow/run.py
+@@ -24,7 +24,7 @@ import argparse
+ import hashlib
+ import hmac
+ import importlib.metadata
+-import importlib.util
++import importlib.machinery
+ import inspect
+ import json
+ import math
+@@ -683,15 +683,31 @@ def code_hash() -> str:
+     return source_tree_hash(HERE / name for name in SOURCE_FILES)
+ 
+ 
++def _find_spec_without_importing_parents(module_name: str) -> Any:
++    """Resolve a module spec without executing any package initializer."""
++
++    parts = module_name.split(".")
++    if not parts or any(not part for part in parts):
++        return None
++    qualified_name = parts[0]
++    spec = importlib.machinery.PathFinder.find_spec(qualified_name)
++    if spec is None:
++        return None
++    for part in parts[1:]:
++        search_path = spec.submodule_search_locations
++        if search_path is None:
++            return None
++        qualified_name = f"{qualified_name}.{part}"
++        spec = importlib.machinery.PathFinder.find_spec(qualified_name, search_path)
++        if spec is None:
++            return None
++    return spec
++
++
+ def module_identity(module_name: str, distribution_name: str | None = None) -> dict[str, Any]:
+-    """Identify one installed/importable component without importing native code."""
+-
+-    try:
+-        spec = importlib.util.find_spec(module_name)
+-    except ModuleNotFoundError:
+-        # A dotted optional module can raise when its parent distribution is
+-        # absent; replay provenance should record that absence, not abort.
+-        spec = None
++    """Identify a component without importing its module or package parents."""
++
++    spec = _find_spec_without_importing_parents(module_name)
+     # Manifests are exchanged between Windows and POSIX acceptance hosts, so
+     # serialize provenance paths deterministically while retaining normal Path
+     # behavior for the hash and existence checks below.
+@@ -2626,8 +2642,8 @@ class ReplayClock:
+         self.monotonic_value += float(seconds)
+ 
+ 
+-class ReplayClient:
+-    """Read-only local event source consumed through ``BtApiStore``."""
++class ReplayClient:
++    """Explicit read-only local event source for the replay-only composition."""
+ 
+     def __init__(self, ticks, clock: ReplayClock, *, eof_event_time_watermark: float) -> None:
+         """Buffer fixture ``ticks``, bind ``clock``, and record the end-of-source watermark."""
+@@ -2665,7 +2681,7 @@ class ReplayClient:
+         """Return the fixed event-time watermark for the end of source."""
+         return self.eof_event_time_watermark
+ 
+-    def poll_tick(self, symbol):
++    def poll_tick(self, symbol):
+         """Pop the next buffered tick for ``symbol`` and advance the replay clock.
+ 
+         Returns ``None`` when the buffer is empty or the head tick belongs
+@@ -2677,8 +2693,114 @@ class ReplayClient:
+         if tick.symbol != symbol:
+             return None
+         tick = self.ticks.popleft()
+-        self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
+-        return tick
++        self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
++        return tick
++
++
++class LocalReplayStore:
++    """Minimal in-process source adapter for :class:`ReplayClient`.
++
++    This deliberately does not inherit from ``BtApiStore`` and has no provider
++    tag, SDK factory, or order methods.  The only source accepted is an
++    explicitly constructed local ``ReplayClient``; there is no default or
++    fallback client construction.
++    """
++
++    def __init__(self, client: ReplayClient, *, contract_metadata: Mapping[str, Any]) -> None:
++        if type(client) is not ReplayClient:
++            raise RunnerConfigurationError("local replay requires an explicit ReplayClient")
++        self._client = client
++        self.contract_metadata = deepcopy(dict(contract_metadata))
++        self._feeds = []
++        self._started = False
++        self.delivered_events = 0
++
++    def start(self, data=None, broker=None) -> None:
++        del broker
++        if data is not None:
++            self.register(data)
++        if not self._started:
++            self._client.connect()
++            self._started = True
++
++    def register(self, feed) -> None:
++        if feed not in self._feeds:
++            self._feeds.append(feed)
++
++    def subscribe(self, symbol) -> None:
++        self._client.subscribe(symbol)
++
++    def poll_tick(self, symbol):
++        return self._client.poll_tick(symbol)
++
++    def poll_live(self, _symbol):
++        return None
++
++    def is_source_exhausted(self, symbol) -> bool:
++        return self._client.is_source_exhausted(symbol)
++
++    def get_source_event_time_watermark(self, symbol) -> float:
++        return self._client.get_source_event_time_watermark(symbol)
++
++    def mark_strategy_delivered(self, _event) -> None:
++        self.delivered_events += 1
++
++    def get_notifications(self):
++        return []
++
++    def getdata(self, *args, **kwargs):
++        """Create the known feed with a non-CTP local replay label."""
++        from backtrader.feeds.btapifeed import BtApiFeed
++
++        if "data_cls" in kwargs:
++            raise RunnerConfigurationError("local replay feed class is fixed")
++        kwargs["store"] = self
++        kwargs["provider"] = "local_replay"
++        feed = BtApiFeed(*args, **kwargs)
++        feed._store = self
++        return feed
++
++    def stop(self) -> None:
++        if self._started:
++            self._client.disconnect()
++            self._started = False
++
++
++class LocalReplayBroker(bt.brokers.BackBroker):
++    """In-memory valuation broker with no order-entry or matching engine."""
++
++    def submit(self, order, check=True):
++        del order, check
++        raise RunnerConfigurationError("read-only local replay does not accept orders")
++
++    def cancel(self, order, bracket=False):
++        del order, bracket
++        raise RunnerConfigurationError("read-only local replay does not accept cancels")
++
++    def buy(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept buys")
++
++    def sell(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept sells")
++
++    def transmit(self, order, check=True):
++        del order, check
++        raise RunnerConfigurationError("read-only local replay does not accept order transmission")
++
++    def submit_accept(self, order):
++        del order
++        raise RunnerConfigurationError("read-only local replay does not accept order acceptance")
++
++    def add_order_history(self, *args, **kwargs):
++        del args, kwargs
++        raise RunnerConfigurationError("read-only local replay does not accept order history")
++
++    def next(self):
++        if self.pending or self.submitted or self._userhist:
++            raise RunnerConfigurationError("read-only local replay has no order fill path")
++        return None
+ 
+ 
+ def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
+@@ -3088,13 +3210,14 @@ def run_replay(
+     scenario: str,
+     run_id: str | None = None,
+     retention_root: Path | None = None,
+-) -> dict[str, Any]:
+-    """Execute the frozen synthetic fixture through the native replay path.
+-
+-    Drives the real Store/Feed/Broker/strategy chain with ``ReplayClient``
+-    and ``ReplayClock``: no network, no local fill model, zero SDK write
+-    requests.  Fails closed unless the strategy stays read-only and ends
+-    flat; the manifest and evidence are finalized either way.
++) -> dict[str, Any]:
++    """Execute the frozen synthetic fixture through the local replay path.
++
++    Drives the Backtrader Feed/strategy chain with an explicit ``ReplayClient``
++    and ``ReplayClock``, a minimal local-only Store, and a no-order valuation
++    broker. There is no CTP Store/Broker construction, SDK fallback, network,
++    or provider write route. Fails closed unless the strategy stays read-only
++    and ends flat; the manifest and evidence are finalized either way.
+     """
+     output_directory = _claim_output_directory(output_directory)
+     replay = _mapping(config.get("replay"))
+@@ -3217,26 +3340,12 @@ def run_replay(
+             "quantity_step": 1,
+             "currency": "CNY",
+         }
+-        store = BtApiStore(
+-            provider="ctp",
+-            api=client,
+-            cash=float(replay["starting_cash"]),
+-            value=float(replay["starting_cash"]),
+-            contract_metadata={instrument: broker_metadata},
+-        )
+-        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+-        broker = BtApiBroker(
+-            store=store,
+-            provider="ctp",
+-            cash=float(replay["starting_cash"]),
+-            value=float(replay["starting_cash"]),
+-            position_mode="net",
+-            contract_metadata={instrument: broker_metadata},
+-            validation_enabled=True,
+-            sdk_preflight=False,
+-            flatten_on_stop=False,
+-            force_refresh_queries=False,
+-        )
++        store = LocalReplayStore(client, contract_metadata={instrument: broker_metadata})
++        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
++        broker = LocalReplayBroker(
++            cash=float(replay["starting_cash"]),
++            position_mode="net",
++        )
+         cerebro.setbroker(broker)
+         feed = store.getdata(
+             dataname=instrument,
+@@ -3295,8 +3404,9 @@ def run_replay(
+             runtime_chain={
+                 "cerebro": f"{type(cerebro).__module__}.{type(cerebro).__name__}",
+                 "store": f"{type(store).__module__}.{type(store).__name__}",
+-                "feed": f"{type(feed).__module__}.{type(feed).__name__}",
+-                "broker": f"{type(broker).__module__}.{type(broker).__name__}",
++                "feed": f"{type(feed).__module__}.{type(feed).__name__}",
++                "feed_provider": getattr(feed, "provider", None),
++                "broker": f"{type(broker).__module__}.{type(broker).__name__}",
+                 "strategy": (f"{type(strategies[0]).__module__}.{type(strategies[0]).__name__}"),
+             },
+         )
+diff --git a/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py b/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py
+index b05bd08..e8c49e2 100644
+--- a/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py
++++ b/tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py
+@@ -188,15 +188,30 @@ def test_real_replay_has_no_network_or_provider_writes(case, runner, runtime, mo
+ 
+     if case["name"] == "013_3":
+         from backtrader.brokers.btapibroker import BtApiBroker
++        from backtrader.brokers.bbroker import BackBroker
+         from backtrader.stores.btapistore import BtApiStore
+ 
++        provider_calls = {"constructors": 0, "order_writes": 0, "inherited_matcher": 0}
++
++        def reject_provider_construction(*args, **kwargs):
++            provider_calls["constructors"] += 1
++            pytest.fail("local replay must not construct a CTP Store or Broker")
++
+         def reject_write(*args, **kwargs):
+-            pytest.fail("the native replay must not submit or cancel a provider order")
++            provider_calls["order_writes"] += 1
++            pytest.fail("local replay must not submit or cancel a provider order")
+ 
++        def reject_inherited_matcher(*args, **kwargs):
++            provider_calls["inherited_matcher"] += 1
++            pytest.fail("local replay must not invoke BackBroker's matching engine")
++
++        monkeypatch.setattr(BtApiBroker, "__init__", reject_provider_construction)
+         monkeypatch.setattr(BtApiBroker, "submit", reject_write)
+         monkeypatch.setattr(BtApiBroker, "cancel", reject_write)
++        monkeypatch.setattr(BtApiStore, "__init__", reject_provider_construction)
+         monkeypatch.setattr(BtApiStore, "submit_order", reject_write)
+         monkeypatch.setattr(BtApiStore, "cancel_order", reject_write)
++        monkeypatch.setattr(BackBroker, "next", reject_inherited_matcher)
+ 
+     report = _run_sealed(runner, directory, registry)
+ 
+@@ -216,6 +231,17 @@ def test_real_replay_has_no_network_or_provider_writes(case, runner, runtime, mo
+     if case["name"] == "013_3":
+         assert report["orders"] == []
+         assert report["sdk_write_requests"] == 0
++        assert provider_calls == {
++            "constructors": 0,
++            "order_writes": 0,
++            "inherited_matcher": 0,
++        }
++        chain = report["runtime_chain"]
++        assert chain["store"].endswith(".LocalReplayStore")
++        assert chain["broker"].endswith(".LocalReplayBroker")
++        assert chain["feed_provider"] == "local_replay"
++        assert "ctp" not in chain["store"].lower()
++        assert "ctp" not in chain["broker"].lower()
+         assert accepted["research_status"] == "RESEARCH_NOT_ESTABLISHED"
+         assert accepted["simnow_admission_boundary"] == "INDEPENDENT_SIMNOW_ADMISSION_REQUIRED"
+     else:
+@@ -227,6 +253,76 @@ def test_real_replay_has_no_network_or_provider_writes(case, runner, runtime, mo
+         )
+ 
+ 
++def test_runtime_identity_probe_does_not_import_sdk_parent_package(tmp_path, monkeypatch):
++    replay = importlib.import_module("examples.013_3_sa_midfreq_simnow.run")
++    package = tmp_path / "bt_api_py"
++    package.mkdir()
++    marker = tmp_path / "provider-parent-initialized.txt"
++    (package / "__init__.py").write_text(
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('initialized', encoding='utf-8')\n"
++        "raise RuntimeError('poisoned provider parent initializer executed')\n",
++        encoding="utf-8",
++    )
++    (package / "bt_api.py").write_text("# inert fake facade\n", encoding="utf-8")
++    (package / "_execution_session.py").write_text(
++        "# inert fake session module\n", encoding="utf-8"
++    )
++    monkeypatch.syspath_prepend(str(tmp_path))
++    importlib.invalidate_caches()
++    for name in tuple(sys.modules):
++        if name == "bt_api_py" or name.startswith("bt_api_py."):
++            monkeypatch.delitem(sys.modules, name, raising=False)
++
++    identities = replay.runtime_component_identities()
++
++    assert identities["bt_api_py"]["found"]
++    assert identities["bt_api_py_facade"]["found"]
++    assert identities["bt_api_py_execution_session"]["found"]
++    assert not marker.exists()
++    assert "bt_api_py" not in sys.modules
++
++
++def test_0133_local_replay_composition_has_no_provider_or_order_entry(monkeypatch):
++    replay = importlib.import_module("examples.013_3_sa_midfreq_simnow.run")
++    from backtrader.brokers.bbroker import BackBroker
++
++    def reject_inherited_matcher(*args, **kwargs):
++        pytest.fail("local replay must not invoke BackBroker's matching engine")
++
++    monkeypatch.setattr(BackBroker, "next", reject_inherited_matcher)
++
++    client = replay.ReplayClient((), replay.ReplayClock(0.0), eof_event_time_watermark=1.0)
++    store = replay.LocalReplayStore(client, contract_metadata={})
++    assert not hasattr(store, "provider")
++    assert not hasattr(store, "submit_order")
++    assert not hasattr(store, "cancel_order")
++    with pytest.raises(replay.RunnerConfigurationError, match="explicit ReplayClient"):
++        replay.LocalReplayStore(object(), contract_metadata={})
++
++    broker = replay.LocalReplayBroker(cash=1000.0)
++    assert broker.next() is None
++    forbidden = (
++        lambda: broker.submit(object()),
++        lambda: broker.cancel(object()),
++        lambda: broker.transmit(object()),
++        lambda: broker.submit_accept(object()),
++        lambda: broker.add_order_history([]),
++        lambda: broker.buy(owner=object(), data=object(), size=1),
++        lambda: broker.sell(owner=object(), data=object(), size=1),
++    )
++    for operation in forbidden:
++        with pytest.raises(replay.RunnerConfigurationError):
++            operation()
++    assert broker.orders == []
++    assert list(broker.pending) == []
++    assert list(broker.submitted) == []
++    broker.pending.append(object())
++    with pytest.raises(replay.RunnerConfigurationError, match="no order fill path"):
++        broker.next()
++    broker.pending.clear()
++
++
+ def _copied_wrapper(tmp_path, case):
+     """Copy only the public runtime shell, never the legacy provider fixture."""
+     source = REPO / "examples" / case["directory"]
+diff --git a/tests/unit/stores/test_btapistore.py b/tests/unit/stores/test_btapistore.py
+index e993c7e..7e11509 100644
+--- a/tests/unit/stores/test_btapistore.py
++++ b/tests/unit/stores/test_btapistore.py
+@@ -13,7 +13,6 @@ from backtrader.brokers.btapibroker import BtApiBroker
+ from backtrader.feeds.btapifeed import BtApiFeed
+ from backtrader.stores.btapistore import (
+     BtApiMissingDependencyError,
+-    BtApiProviderNotImplementedError,
+     BtApiStore,
+     BtApiStoreError,
+     _build_ctp_tick_datetime,
+@@ -1693,7 +1692,14 @@ def test_store_getdata_binds_store_provider_and_store_alias_for_custom_data_cls(
+     class DummyFeed(BtApiFeed):
+         """Dummy feed for testing."""
+ 
+-    store = make_store(api=fake_client, provider="btapi")
++    store = make_store(
++        api=fake_client,
++        provider="btapi",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     data = store.getdata(dataname=DEFAULT_SYMBOL, data_cls=DummyFeed)
+ 
+     assert isinstance(data, DummyFeed)
+@@ -1704,7 +1710,14 @@ def test_store_getdata_binds_store_provider_and_store_alias_for_custom_data_cls(
+ 
+ def test_store_getdata_preserves_explicit_store_and_provider_arguments(fake_client):
+     """Test that getdata preserves explicit store and provider arguments."""
+-    outer_store = make_store(api=fake_client, provider="outer")
++    outer_store = make_store(
++        api=fake_client,
++        provider="okx",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     explicit_store = object()
+ 
+     data = outer_store.getdata(
+@@ -1725,7 +1738,14 @@ def test_store_getbroker_binds_store_and_provider_for_custom_broker_cls(fake_cli
+     class DummyBroker(BtApiBroker):
+         """Dummy broker for testing."""
+ 
+-    store = make_store(api=fake_client, provider="btapi")
++    store = make_store(
++        api=fake_client,
++        provider="btapi",
++        config={
++            "exchange_kwargs": {"OKX___SWAP": {}},
++            "symbol_routes": {DEFAULT_SYMBOL: "OKX___SWAP"},
++        },
++    )
+     broker = store.getbroker(broker_cls=DummyBroker)
+ 
+     assert isinstance(broker, DummyBroker)
+@@ -3586,12 +3606,23 @@ def test_gateway_wrapper_fetch_bars_proxies(fake_client):
+     store.stop()
+ 
+ 
+-def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypatch):
+-    """Gateway wrapper should expose exchange asset specs from either symbol-info alias."""
++def test_gateway_wrapper_symbol_info_alias_requires_store_bound_non_ctp_route(monkeypatch):
++    """Gateway wrapper aliases remain usable only through a Store-admitted route."""
++    constructed = []
+ 
+     class SymbolInfoGatewayClient:
+         def __init__(self, **kwargs):
+             self.kwargs = dict(kwargs)
++            constructed.append(self)
++
++        def connect(self):
++            return None
++
++        def disconnect(self):
++            return None
++
++        def get_balance(self):
++            return {"balance": 100}
+ 
+         def get_symbol_info(self, symbol):
+             assert symbol == DEFAULT_SYMBOL
+@@ -3613,11 +3644,21 @@ def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypat
+     monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
+ 
+     wrapper_cls = _create_ctp_gateway_wrapper_class()
+-    client = wrapper_cls(account_id="acc-1")
+-
+-    assert client.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
+-    assert client.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
+-    assert client._client.kwargs["exchange_type"] == "CTP"
++    with pytest.raises(BtApiStoreError, match="owning BtApiStore"):
++        wrapper_cls(exchange_type="CTP")
++    assert constructed == []
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    wrapper = store._api
++    assert wrapper.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
++    assert wrapper.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
++    assert wrapper._client.kwargs["exchange_type"] == "IB_WEB"
++    assert store.stop() is not None
+ 
+ 
+ def test_split_ctp_symbol_normalizes_czce_with_exchange():
+@@ -3654,10 +3695,8 @@ def test_split_ctp_symbol_does_not_change_cffex_style_symbol_without_exchange():
+ @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
+ def test_placeholder_provider_raises(provider):
+     """Providers not yet implemented in bt_api_py should fail explicitly."""
+-    store = BtApiStore(provider=provider)
+-
+-    with pytest.raises(BtApiProviderNotImplementedError):
+-        store.start()
++    with pytest.raises(BtApiStoreError, match="store provider unsupported"):
++        BtApiStore(provider=provider)
+ 
+ 
+ def test_missing_dependency_raises_without_api(monkeypatch):
+diff --git a/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py b/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py
+new file mode 100644
+index 0000000..5d0980b
+--- /dev/null
++++ b/tests/unit/stores/test_btapistore_ctp_query_evidence_pure.py
+@@ -0,0 +1,55 @@
++"""Pure CTP query-completion contracts; no Store construction or Actor authority."""
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore
++
++
++def _complete_result():
++    return {
++        "request_type": "positions",
++        "request_id": 7,
++        "connection_generation": 3,
++        "account_fingerprint": "acct-sha256",
++        "started_at_utc": "2026-09-27T01:00:00+00:00",
++        "completed_at_utc": "2026-09-27T01:00:00.001+00:00",
++        "is_last_seen": True,
++        "error_code": None,
++        "timed_out": False,
++        "complete": True,
++        "unsupported": False,
++        "request_type_matches": True,
++        "records_schema_valid": True,
++        "records": [],
++    }
++
++
++def test_complete_typed_query_result_is_accepted_without_store_instance():
++    assert BtApiStore._ctp_query_result_complete(_complete_result()) is True
++
++
++@pytest.mark.parametrize(
++    ("contract", "field", "value"),
++    [
++        pytest.param("completion flag is explicit", "complete", False, id="completion-flag-false"),
++        pytest.param("terminal callback was observed", "is_last_seen", False, id="no-terminal-callback"),
++        pytest.param("query did not time out", "timed_out", True, id="producer-timeout"),
++        pytest.param("query capability is supported", "unsupported", True, id="unsupported-query"),
++        pytest.param("provider returned no error", "error_code", 7, id="provider-error-code"),
++        pytest.param("terminal completion has a timestamp", "completed_at_utc", None, id="missing-completion-time"),
++        pytest.param("request identity is a positive native integer", "request_id", 0, id="request-id-not-positive"),
++        pytest.param("boolean is not a request identity", "request_id", True, id="request-id-bool"),
++        pytest.param("float is not a request identity", "request_id", 7.0, id="request-id-float"),
++        pytest.param("string is not a request identity", "request_id", "7", id="request-id-string"),
++        pytest.param("session generation is positive", "connection_generation", 0, id="generation-not-positive"),
++        pytest.param("session generation is parseable", "connection_generation", "invalid", id="generation-invalid"),
++        pytest.param("account binding is nonblank", "account_fingerprint", " ", id="blank-account-binding"),
++        pytest.param("result matches requested query type", "request_type_matches", False, id="wrong-query-type"),
++        pytest.param("records satisfy the typed schema", "records_schema_valid", False, id="invalid-record-schema"),
++        pytest.param("records are present as a list", "records", None, id="missing-records"),
++        pytest.param("records use canonical list form", "records", (), id="noncanonical-record-container"),
++    ],
++)
++def test_incomplete_or_noncanonical_query_evidence_is_rejected(contract, field, value):
++    result = BtApiStore._ctp_query_result_complete({**_complete_result(), field: value})
++    assert result is False, f"{contract} must reject the mutated evidence"
+diff --git a/tests/unit/stores/test_btapistore_iteration22.py b/tests/unit/stores/test_btapistore_iteration22.py
+index be13364..c926013 100644
+--- a/tests/unit/stores/test_btapistore_iteration22.py
++++ b/tests/unit/stores/test_btapistore_iteration22.py
+@@ -3427,9 +3427,13 @@ def test_malformed_query_records_cannot_be_coerced_to_an_empty_success():
+ 
+ 
+ def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
++    # Query normalization and completion validation are pure; do not construct a
++    # Store or treat this read-result fixture as AccountActor authority.
+     client = CompleteQueryClient()
+-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+     complete = client._result("positions")
++    normalized_complete = BtApiStore._normalise_ctp_query_result(complete, "positions")
++    assert BtApiStore._ctp_query_result_complete(normalized_complete) is True
++
+     nested_failure = {
+         **complete,
+         "complete": False,
+@@ -3439,12 +3443,12 @@ def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
+         "error_code": "timeout",
+     }
+ 
+-    result = store._normalise_ctp_query_result(
++    result = BtApiStore._normalise_ctp_query_result(
+         {**complete, "query_result": nested_failure}, "positions"
+     )
+ 
+     assert result["complete"] is False
+-    assert store._ctp_query_result_complete(result) is False
++    assert BtApiStore._ctp_query_result_complete(result) is False
+ 
+ 
+ def test_duplicate_query_request_ids_fail_closed_across_reference_queries():
+diff --git a/tests/unit/stores/test_btapistore_normalized.py b/tests/unit/stores/test_btapistore_normalized.py
+index 42098d6..6acb325 100644
+--- a/tests/unit/stores/test_btapistore_normalized.py
++++ b/tests/unit/stores/test_btapistore_normalized.py
+@@ -22,6 +22,14 @@ BINANCE = "BINANCE___SWAP"
+ CTP = "CTP___FUTURE"
+ MT5 = "MT5___FOREX"
+ ROUTES = {"BTC-USDT-SWAP": OKX, "BTCUSDT": BINANCE}
++
++
++def _explicit_okx_route_config(symbol="BTC-USDT-SWAP"):
++    """Declare the offline non-CTP route instead of inferring it from a client."""
++    return {
++        "exchange_kwargs": {OKX: {"environment": "demo"}},
++        "symbol_routes": {symbol: OKX},
++    }
+ 
+ 
+ class FakeSdk:
+@@ -378,7 +386,11 @@ def test_venue_account_cache_uses_completion_time_and_force_reads(monkeypatch):
+         clock[0] += 3.0
+         return {"venue": {"currency": "USD", "cash": len(calls), "value": len(calls)}}
+ 
+-    store = BtApiStore(provider="btapi", account_cache_ttl=5)
++    store = BtApiStore(
++        provider="okx",
++        config=_explicit_okx_route_config(),
++        account_cache_ttl=5,
++    )
+     monkeypatch.setattr(
+         store, "_ensure_api_ready", lambda: SimpleNamespace(get_venue_balances=get_balances)
+     )
+@@ -395,12 +407,18 @@ def test_venue_account_cache_uses_completion_time_and_force_reads(monkeypatch):
+ def test_public_source_stop_callback_hook_does_not_expose_the_private_client():
+     callbacks = []
+     api = SimpleNamespace(set_stop_callback=callbacks.append)
+-    store = BtApiStore(provider="btapi", api=api)
++    store = BtApiStore(
++        provider="okx",
++        api=api,
++        config=_explicit_okx_route_config(),
++    )
+     callback = lambda: None
+ 
+     assert store.set_source_stop_callback(callback) is True
+     assert callbacks == [callback]
+-    assert BtApiStore(provider="btapi").set_source_stop_callback(callback) is False
++    assert BtApiStore(
++        provider="okx", config=_explicit_okx_route_config()
++    ).set_source_stop_callback(callback) is False
+ 
+ 
+ def test_store_holds_the_supplied_sdk_directly_and_configures_execution(tmp_path):
+@@ -1396,15 +1414,41 @@ def test_open_order_identity_supports_native_cancellation_without_local_order():
+ 
+ 
+ def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it():
+-    optional_sdk()
++    execution = {"order_journal": "existing-session.orders", "account_currency": "CNY"}
++    sdk = FakeSdk(exchange_kwargs={OKX: {}}, execution_config=execution)
++    # Keep this lifecycle synchronous and wholly local; no SDK async contract or
++    # command worker is involved in this configuration-preservation test.
++    sdk.async_make_order = None
++    sdk.async_cancel_order = None
++    sdk.async_query_order = None
++    store = BtApiStore(
++        provider="btapi",
++        api=sdk,
++        config=_explicit_okx_route_config(),
++    )
++    data = store.getdata(dataname="BTC-USDT-SWAP", backfill_start=False)
++
++    try:
++        store.start()
++        assert store._started is True
++        assert data.islive() and store.supports_position_mode("dual_side")
++        assert store._ensure_api_ready() is sdk
++        assert store._api is sdk and sdk.execution_config is execution
++        assert not any(call[0] == "configure_execution" for call in sdk.calls)
++    finally:
++        store.stop()
++
++
++def test_explicit_ctp_route_hidden_in_sdk_configuration_is_rejected_before_store_use():
+     execution = {"order_journal": "existing-session.orders", "account_currency": "CNY"}
+     sdk = FakeSdk(exchange_kwargs={CTP: {}}, execution_config=execution)
+-    store = BtApiStore(provider="btapi", api=sdk)
+-    data = store.getdata(dataname="IF2609", backfill_start=False)
+-    assert data.islive() and store.supports_position_mode("dual_side")
+-    store.start()
+-    assert store._api is sdk and sdk.execution_config is execution
+-    assert not any(call[0] == "configure_execution" for call in sdk.calls)
++    config = {"exchange_kwargs": {CTP: {}}, "symbol_routes": {"IF2609": CTP}}
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(provider="btapi", api=sdk, config=config)
++
++    assert sdk.execution_config is execution
++    assert sdk.calls == []
+ 
+ 
+ def test_constructor_defaults_debug_off_without_overriding_an_explicit_choice():
+diff --git a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+new file mode 100644
+index 0000000..8080b72
+--- /dev/null
++++ b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+@@ -0,0 +1,901 @@
++from decimal import Decimal
++from types import SimpleNamespace
++
++import pytest
++
++from backtrader.stores import btapistore as store_module
++from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
++from backtrader.stores.ctp_account_actor_port import (
++    ActorCommandContextV1,
++    ActorCommandExpectationV2,
++    ActorCommandReceiptV2,
++    ActorCommandState,
++    CtpAccountActorPort,
++    CtpCancelIntentV2,
++    CtpSubmitIntentV2,
++    FakeLocalActorReplayLedger,
++    RouteKind,
++    classify_store_route,
++)
++
++
++class _AttributeTrap:
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError(f"unexpected API attribute read: {name}")
++
++
++class _SafeInjectedApi:
++    exchange_kwargs = {}
++
++
++class _ProjectionAdapter:
++    def __init__(self):
++        self.calls = []
++        self.legacy_dispatch = None
++
++    def submit_order(self, order, legacy_dispatch):
++        self.calls.append(order)
++        self.legacy_dispatch = legacy_dispatch
++        return {"status": "accepted", "id": "managed.order"}
++
++
++class _DispatchingAdapter:
++    def __init__(self):
++        self.calls = 0
++
++    def submit_order(self, order, legacy_dispatch):
++        self.calls += 1
++        return legacy_dispatch(order)
++
++
++class _CredentialTrap:
++    def __str__(self):
++        raise AssertionError("credential was converted before the route gate")
++
++    def __bool__(self):
++        raise AssertionError("credential was tested before the route gate")
++
++
++class _CustomRouteTrap:
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError(f"unknown route object attribute was traversed: {name}")
++
++    def __iter__(self):
++        self.reads.append("__iter__")
++        raise AssertionError("unknown route object was iterated")
++
++    def __getitem__(self, key):
++        self.reads.append("__getitem__")
++        raise AssertionError("unknown route object was indexed")
++
++    def items(self):
++        self.reads.append("items")
++        raise AssertionError("unknown route object items were traversed")
++
++
++class _EnvironmentProbe:
++    def __init__(self, delegate, *, blocked_keys=()):
++        self.delegate = delegate
++        self.blocked_keys = set(blocked_keys)
++        self.reads = []
++
++    def get(self, key, default=None):
++        if key in {"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"}:
++            self.reads.append(key)
++            if key in self.blocked_keys:
++                raise AssertionError(f"route environment read before explicit CTP rejection: {key}")
++        return self.delegate.get(key, default)
++
++    def __getitem__(self, key):
++        value = self.get(key, None)
++        if value is None and key not in self.delegate:
++            raise KeyError(key)
++        return value
++
++    def __setitem__(self, key, value):
++        self.delegate[key] = value
++
++    def __delitem__(self, key):
++        del self.delegate[key]
++
++    def __contains__(self, key):
++        return key in self.delegate
++
++    def __iter__(self):
++        return iter(self.delegate)
++
++    def __len__(self):
++        return len(self.delegate)
++
++
++class _QueuePort(CtpAccountActorPort):
++    def __init__(self, *, corrupt=False):
++        self.calls = []
++        self.corrupt = corrupt
++
++    def submit_order(self, intent):
++        self.calls.append(("SUBMIT", intent.command_id))
++        expected = ActorCommandExpectationV2.from_intent(intent)
++        digest = "0" * 64 if self.corrupt else expected.command_digest
++        return ActorCommandReceiptV2(
++            "SUBMIT",
++            intent.command_id,
++            ActorCommandState.QUEUED,
++            intent.context,
++            digest,
++        )
++
++    def cancel_order(self, intent):
++        self.calls.append(("CANCEL", intent.command_id))
++        expected = ActorCommandExpectationV2.from_intent(intent)
++        digest = "0" * 64 if self.corrupt else expected.command_digest
++        return ActorCommandReceiptV2(
++            "CANCEL",
++            intent.command_id,
++            ActorCommandState.QUEUED,
++            intent.context,
++            digest,
++        )
++
++
++def _context():
++    # All fields are caller supplied in this offline test; none proves actor authority.
++    return ActorCommandContextV1(
++        account_ref="offline-account",
++        runtime_id="offline-runtime",
++        mode="simulation",
++        config_digest="a" * 64,
++        session_id="caller-chosen-session",
++        front_id=17,
++        native_session_id=23,
++        session_generation=1,
++        actor_epoch=999,
++    )
++
++
++def _submit(context, command_id="submit-1"):
++    return CtpSubmitIntentV2(
++        intent_id=command_id,
++        instrument_id="rb2710",
++        exchange_id="SHFE",
++        side="BUY",
++        offset="OPEN",
++        hedge_flag="SPECULATION",
++        quantity=1,
++        limit_price=Decimal("3500.0"),
++        context=context,
++    )
++
++
++def _cancel(context, command_id="cancel-1"):
++    return CtpCancelIntentV2(
++        cancel_intent_id=command_id,
++        runtime_order_id="runtime-order-1",
++        order_ref="local-ref-1",
++        front_id=context.front_id,
++        session_id=context.native_session_id,
++        exchange_id="SHFE",
++        order_sys_id="provider-order-1",
++        context=context,
++    )
++
++
++def test_ctp_forwarding_env_rewrite_and_secret_traps_reject_before_any_local_boundary(
++    monkeypatch,
++):
++    api = _AttributeTrap()
++    calls = []
++
++    def forbidden(*args, **kwargs):
++        calls.append((args, kwargs))
++        raise AssertionError("preconstruction gate ran too late")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++    monkeypatch.setenv("BT_STORE_PROVIDER", "ib_web_gateway")
++    monkeypatch.setenv("BT_CTP_EXECUTION_AUTHORIZATION_SECRET", "should-not-be-read")
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            backend="forwarding",
++            api=api,
++            config={"execution_authorization_secret": _CredentialTrap()},
++            autostart=True,
++        )
++    assert api.reads == []
++    assert calls == []
++
++
++@pytest.mark.parametrize("route_kind", ["direct_ctp", "nested_ctp"])
++def test_explicit_ctp_rejects_before_route_environment_or_caller_object_reads(
++    monkeypatch, route_kind
++):
++    environment = _EnvironmentProbe(
++        store_module.os.environ,
++        blocked_keys={"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"},
++    )
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    api = _AttributeTrap()
++    api_cls = _AttributeTrap()
++    actor = _AttributeTrap()
++    context = _AttributeTrap()
++    credential = _CredentialTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("a local resolver/client boundary ran before CTP rejection")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    if route_kind == "direct_ctp":
++        provider = "ctp"
++        config = {"execution_authorization_secret": credential}
++    else:
++        provider = "okx"
++        config = {
++            "exchange_kwargs": {
++                "CTP": {"execution_authorization_secret": credential}
++            }
++        }
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider=provider,
++            backend="forwarding",
++            api=api,
++            api_cls=api_cls,
++            config=config,
++            account_actor_port=actor,
++            account_actor_context=context,
++            account_actor_test_ledger=context,
++            autostart=True,
++        )
++
++    assert environment.reads == []
++    assert api.reads == []
++    assert api_cls.reads == []
++    assert actor.reads == []
++    assert context.reads == []
++    assert resolver_calls == []
++
++
++def test_unknown_custom_route_object_remains_untraversed_and_fails_closed(monkeypatch):
++    environment = _EnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    config = _CustomRouteTrap()
++    api = _AttributeTrap()
++    actor = _AttributeTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("ambiguous custom route reached local resolver/client")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="store route ambiguous"):
++        BtApiStore(
++            provider="okx",
++            backend="forwarding",
++            config=config,
++            api=api,
++            account_actor_port=actor,
++            autostart=True,
++        )
++
++    assert config.reads == []
++    assert api.reads == []
++    assert actor.reads == []
++    assert environment.reads == ["BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"]
++    assert resolver_calls == []
++
++
++def test_environment_selected_ambiguous_btapi_still_rejects_without_local_effects(monkeypatch):
++    monkeypatch.setenv("BT_STORE_PROVIDER", "okx")
++    monkeypatch.delenv("BT_GATEWAY_EXCHANGE_TYPE", raising=False)
++    environment = _EnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    api = _AttributeTrap()
++    adapter = _ProjectionAdapter()
++    credential = _CredentialTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("ambiguous btapi route reached a local resolver/client")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="store route ambiguous"):
++        BtApiStore(
++            provider="btapi",
++            api=api,
++            config={"execution_authorization_secret": credential},
++            managed_execution_adapter=adapter,
++            autostart=True,
++        )
++
++    assert environment.reads == ["BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"]
++    assert api.reads == []
++    assert adapter.calls == []
++    assert resolver_calls == []
++
++
++def test_explicit_non_ctp_route_preserves_raw_api_injection_without_route_ambiguity():
++    api = _SafeInjectedApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    assert store._candidate_route_kind is RouteKind.NON_CTP
++    assert store._api is api
++
++
++def test_unknown_provider_and_ctp_routes_reject_without_inspecting_injected_objects():
++    api = _AttributeTrap()
++    with pytest.raises(BtApiStoreError, match="store route ambiguous"):
++        BtApiStore(provider="custom-provider", api_cls=api, config={})
++    assert api.reads == []
++
++    actor_port = _QueuePort()
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            api=api,
++            account_actor_port=actor_port,
++            account_actor_context=_context(),
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++        )
++    assert actor_port.calls == []
++    assert api.reads == []
++
++
++def test_ambiguous_btapi_adapter_only_is_lazy_and_has_no_local_dispatch(monkeypatch):
++    api = _AttributeTrap()
++    adapter = _ProjectionAdapter()
++    calls = []
++    monkeypatch.setattr(
++        store_module, "_resolve_bt_api_client", lambda *a, **k: calls.append("sdk")
++    )
++    store = BtApiStore(
++        provider="btapi", api=api, managed_execution_adapter=adapter
++    )
++
++    assert store._candidate_route_kind is RouteKind.AMBIGUOUS
++    assert store._candidate_adapter_only is True
++    assert store._api is None
++    assert api.reads == []
++    assert store.submit_order(SimpleNamespace(ref=31)) == {
++        "status": "accepted", "id": "managed.order"
++    }
++    assert callable(adapter.legacy_dispatch)
++    with pytest.raises(BtApiStoreError, match="forbids local legacy dispatch"):
++        adapter.legacy_dispatch(SimpleNamespace(ref=31))
++    assert api.reads == []
++    assert calls == []
++    with pytest.raises(BtApiStoreError, match="cannot start"):
++        store.start()
++
++
++def test_ambiguous_adapter_only_dispatch_revalidates_before_any_fallback(monkeypatch):
++    api = _AttributeTrap()
++    adapter = _DispatchingAdapter()
++    store = BtApiStore(
++        provider="btapi", api=api, managed_execution_adapter=adapter
++    )
++    with pytest.raises(BtApiStoreError, match="forbids local legacy dispatch"):
++        store.submit_order(SimpleNamespace(ref=32))
++    assert adapter.calls == 1
++    assert api.reads == []
++
++    adapter.calls = 0
++    store._config["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="changed or became routable"):
++        store.submit_order(SimpleNamespace(ref=33))
++    assert adapter.calls == 0
++    assert api.reads == []
++
++
++def test_nested_ctp_routes_reject_before_sdk_or_forwarding_construction(monkeypatch):
++    calls = []
++    monkeypatch.setattr(
++        store_module, "_resolve_bt_api_client", lambda *a, **k: calls.append("sdk")
++    )
++    monkeypatch.setenv("BT_GATEWAY_EXCHANGE_TYPE", "CTP")
++    with pytest.raises(BtApiStoreError):
++        BtApiStore(
++            provider="btapi",
++            backend="forwarding",
++            api_kwargs={"exchange_kwargs": {"OKX": {"symbol_routes": {"rb": "CTP"}}}},
++        )
++    with pytest.raises(BtApiStoreError):
++        BtApiStore(
++            provider="gateway",
++            backend="gateway",
++            config={"exchange_type": "IB_WEB"},
++        )
++    assert calls == []
++
++
++def test_explicit_non_ctp_route_is_detached_and_internal_route_mutation_fails_closed():
++    route = {
++        "exchange_kwargs": {
++            "OKX": {"exchange_type": "OKX", "api_key": "preserved-test-value"}
++        }
++    }
++    store = BtApiStore(provider="okx", config=route)
++    assert store._candidate_route_kind is RouteKind.NON_CTP
++    assert store._config["exchange_kwargs"]["OKX"]["api_key"] == "preserved-test-value"
++    route["exchange_kwargs"]["OKX"]["exchange_type"] = "CTP"
++    store._candidate_require_route(RouteKind.NON_CTP)
++
++    store._config["exchange_kwargs"]["OKX"]["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        store.start()
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        store._ensure_api_ready()
++
++    route = {"exchange_type": "OKX"}
++    backend_store = BtApiStore(provider="okx", config=route)
++    backend_store.backend = "forwarding"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        backend_store._candidate_require_route(RouteKind.NON_CTP)
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        backend_store._create_forwarding_client()
++
++
++def test_descriptor_copies_route_facts_before_caller_mutation():
++    config = {"exchange_type": "OKX"}
++    from backtrader.stores.btapistore import _candidate_route_descriptor
++
++    route = _candidate_route_descriptor("okx", None, config, {}, None, None)
++    assert classify_store_route(route) is RouteKind.NON_CTP
++    config["exchange_type"] = "CTP"
++    assert classify_store_route(route) is RouteKind.NON_CTP
++
++
++def test_nested_ctp_evidence_cannot_turn_an_unrelated_or_unknown_provider_into_actor_route():
++    port = _QueuePort()
++    context = _context()
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="custom-provider",
++            config={"exchange_type": "CTP"},
++            account_actor_port=port,
++            account_actor_context=context,
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++        )
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="okx",
++            api_kwargs={"symbol_routes": {"rb2710": "CTP"}},
++            account_actor_port=port,
++            account_actor_context=context,
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++        )
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            backend="unknown-backend",
++            account_actor_port=port,
++            account_actor_context=context,
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++        )
++    assert port.calls == []
++
++
++def test_caller_supplied_actor_port_cannot_authorize_ctp_store_construction(monkeypatch):
++    context = _context()
++    port = _QueuePort()
++    api = _AttributeTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("local resolver ran before the closed CTP actor gate")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            backend="forwarding",
++            api=api,
++            config={"execution_authorization_secret": _CredentialTrap()},
++            account_actor_port=port,
++            account_actor_context=context,
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++            autostart=True,
++        )
++    assert port.calls == []
++    assert api.reads == []
++    assert resolver_calls == []
++
++
++def test_unkeyed_actor_receipt_and_replay_ledger_cannot_authorize_ctp_store():
++    context = _context()
++    port = _QueuePort(corrupt=True)
++    ledger = FakeLocalActorReplayLedger()
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            account_actor_port=port,
++            account_actor_context=context,
++            account_actor_test_ledger=ledger,
++        )
++    assert port.calls == []
++
++
++def test_actor_autostart_is_rejected_before_store_initialization_or_local_client(
++    monkeypatch,
++):
++    calls = []
++    monkeypatch.setattr(
++        BtApiStore, "_resolve_provider", lambda *a, **k: calls.append("resolve")
++    )
++    port = _QueuePort()
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider="ctp",
++            account_actor_port=port,
++            account_actor_context=_context(),
++            account_actor_test_ledger=FakeLocalActorReplayLedger(),
++            autostart=True,
++        )
++    assert calls == []
++    assert port.calls == []
++
++
++def test_bad_or_missing_actor_setup_fails_before_provider_resolution(monkeypatch):
++    calls = []
++    monkeypatch.setattr(
++        BtApiStore, "_resolve_provider", lambda *a, **k: calls.append("resolve")
++    )
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(provider="ctp", autostart=True)
++    assert calls == []
++
++    with pytest.raises(BtApiStoreError, match="store provider unsupported"):
++        BtApiStore(provider="futu")
++    assert calls == []
++
++
++class _CommandDispatchTrap:
++    exchange_kwargs = {}
++    ctp_query_min_interval_seconds = 1.0
++
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError(f"unexpected API dispatch attribute read: {name}")
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_internal_legacy_and_cancel_ref_helpers_recheck_mutated_ctp_route(route_mutation):
++    api = _CommandDispatchTrap()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    assert store._candidate_route_kind is RouteKind.NON_CTP
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++
++    order = _AttributeTrap()
++    direct_calls = (
++        lambda: store._submit_order_legacy(order),
++        lambda: store._cancel_order_ref_legacy("order-ref"),
++        lambda: store.submit_order(order),
++        lambda: store.cancel_order(order),
++        lambda: store.cancel_order_ref("order-ref"),
++        lambda: store._cancel_managed("order-ref"),
++        lambda: store._create_forwarding_client(),
++    )
++    for direct_call in direct_calls:
++        with pytest.raises(BtApiStoreError, match="route changed"):
++            direct_call()
++
++    assert api.reads == []
++    assert order.reads == []
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_gateway_wrapper_submit_cancel_recheck_store_route_after_mutation(
++    monkeypatch, route_mutation
++):
++    import sys
++    from types import ModuleType
++
++    clients = []
++
++    class _OfflineGatewayClient:
++        def __init__(self, **kwargs):
++            self.kwargs = kwargs
++            self.submit_calls = []
++            self.cancel_calls = []
++            clients.append(self)
++
++        def connect(self):
++            return None
++
++        def disconnect(self):
++            return None
++
++        def get_balance(self):
++            return {"balance": 100}
++
++        def submit_order(self, payload):
++            self.submit_calls.append(payload)
++            return {"status": "sent"}
++
++        def cancel_order(self, order_ref, dataname=None):
++            self.cancel_calls.append((order_ref, dataname))
++            return {"status": "sent"}
++
++    root_module = ModuleType("bt_api_py")
++    root_module.__path__ = []
++    gateway_module = ModuleType("bt_api_py.gateway")
++    gateway_module.__path__ = []
++    client_module = ModuleType("bt_api_py.gateway.client")
++    client_module.GatewayClient = _OfflineGatewayClient
++    monkeypatch.setitem(sys.modules, "bt_api_py", root_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", client_module)
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    assert len(clients) == 1
++    wrapper = store._api
++    wrapper.submit_order({})
++    wrapper.cancel_order("order-ref")
++    assert clients[0].submit_calls == [{}]
++    assert clients[0].cancel_calls == [("order-ref", None)]
++
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        wrapper.submit_order({})
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        wrapper.cancel_order("order-ref")
++    assert clients[0].submit_calls == [{}]
++    assert clients[0].cancel_calls == [("order-ref", None)]
++
++
++@pytest.mark.parametrize("route_mutation", ["provider", "config"])
++def test_gateway_wrapper_lifecycle_and_read_methods_recheck_retained_route(
++    monkeypatch, route_mutation
++):
++    import sys
++    from types import ModuleType
++
++    clients = []
++
++    class _TrackingGatewayClient:
++        def __init__(self, **kwargs):
++            self.kwargs = kwargs
++            self.calls = []
++            clients.append(self)
++
++        def __getattr__(self, name):
++            def call(*args, **kwargs):
++                self.calls.append((name, args, kwargs))
++                if name == "get_balance":
++                    return {"balance": 100}
++                return None
++
++            return call
++
++    root_module = ModuleType("bt_api_py")
++    root_module.__path__ = []
++    gateway_module = ModuleType("bt_api_py.gateway")
++    gateway_module.__path__ = []
++    client_module = ModuleType("bt_api_py.gateway.client")
++    client_module.GatewayClient = _TrackingGatewayClient
++    monkeypatch.setitem(sys.modules, "bt_api_py", root_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
++    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", client_module)
++
++    store = BtApiStore(
++        provider="ib_web_gateway",
++        backend="gateway",
++        config={"exchange_type": "IB_WEB"},
++    )
++    store._ensure_api_ready()
++    wrapper = store._api
++    before = list(clients[0].calls)
++    assert before
++
++    if route_mutation == "provider":
++        store.provider = "ctp"
++    else:
++        store._config["exchange_type"] = "CTP"
++
++    calls = (
++        lambda: wrapper.connect(),
++        lambda: wrapper.start(),
++        lambda: wrapper.disconnect(),
++        lambda: wrapper.stop(),
++        lambda: wrapper.get_session_state(),
++        lambda: wrapper.subscribe(["rb2710"]),
++        lambda: wrapper.poll_tick("rb2710"),
++        lambda: wrapper.get_next_tick("rb2710"),
++        lambda: wrapper.has_pending_tick("rb2710"),
++        lambda: wrapper.supports_live_ticks("rb2710"),
++        lambda: wrapper.supports_live_streaming("rb2710"),
++        lambda: wrapper.get_balance(),
++        lambda: wrapper.get_account(),
++        lambda: wrapper.get_positions(),
++        lambda: wrapper.fetch_bars("rb2710"),
++        lambda: wrapper.fetch_ohlcv("rb2710"),
++        lambda: wrapper.fetch_symbol_info("rb2710"),
++        lambda: wrapper.get_symbol_info("rb2710"),
++        lambda: wrapper.fetch_open_orders(),
++        lambda: wrapper.poll_bar("rb2710"),
++        lambda: wrapper.get_next_bar("rb2710"),
++        lambda: wrapper.submit_order({}),
++        lambda: wrapper.create_order(symbol="rb2710"),
++        lambda: wrapper.cancel_order("order-ref"),
++        lambda: wrapper.poll_broker_update(),
++    )
++    for call in calls:
++        with pytest.raises(BtApiStoreError, match="route changed"):
++            call()
++
++    assert clients[0].calls == before
++
++
++def test_retained_sdk_api_method_rechecks_route_before_provider_call():
++    class _RetainedApi:
++        exchange_kwargs = {}
++
++        def __init__(self):
++            self.calls = []
++            self.client = object()
++
++        def read_marker(self):
++            self.calls.append("read_marker")
++            return {"ok": True}
++
++    api = _RetainedApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    retained = store.sdk_api
++    retained_method = retained.read_marker
++    assert retained_method() == {"ok": True}
++    assert api.calls == ["read_marker"]
++
++    store._config["exchange_type"] = "CTP"
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        retained_method()
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        retained.read_marker
++    assert api.calls == ["read_marker"]
++
++    store._config["exchange_type"] = "OKX"
++    with pytest.raises(BtApiStoreError, match="opaque client attributes"):
++        _ = store.sdk_api.client
++    assert retained is not api
++
++
++def test_route_mutation_after_queue_blocks_sdk_worker_before_api_dispatch():
++    import asyncio
++
++    class _DispatchApi:
++        exchange_kwargs = {}
++
++        def __init__(self):
++            self.calls = []
++
++        async def async_query_order(self, *args, **kwargs):
++            self.calls.append((args, kwargs))
++            return {"status": "ok"}
++
++    api = _DispatchApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    command = {
++        "operation": "query",
++        "venue": "okx",
++        "request": object(),
++        "priority": "query",
++    }
++    receipt = store._enqueue_sdk_command(command, priority_name="query")
++    assert receipt["queued"] is True
++    assert api.calls == []
++
++    store._config["exchange_type"] = "CTP"
++    completion = asyncio.run(store._execute_sdk_command(command))
++    assert completion["status"] == "failed"
++    assert completion["definite_reject"] is True
++    assert completion["execution_unknown"] is False
++    assert completion["error_code"] == "store_route_changed"
++    assert api.calls == []
++
++
++@pytest.mark.parametrize(
++    "entrypoint",
++    [
++        "start",
++        "get_balance",
++        "get_execution_summary",
++        "get_account_risk_snapshot",
++        "get_callback_account_risk_state",
++        "get_reconcile_snapshot",
++        "initialize_account_risk_baseline",
++        "enable_openings_after_account_risk",
++        "prepare_ctp_settlement",
++        "verify_ctp_settlement",
++        "prepare_execution_recovery",
++        "arm_execution_recovery",
++        "cancel_execution_recovery_orders",
++        "complete_execution_recovery",
++        "arm_sdk_execution",
++        "arm_registered_sim_execution",
++        "supports_position_mode",
++        "stop",
++    ],
++)
++def test_store_entrypoints_reject_route_mutation_before_touching_retained_api(entrypoint):
++    class _TrapApi:
++        exchange_kwargs = {}
++        ctp_query_min_interval_seconds = 1.0
++        poll_event = None
++
++        def __init__(self):
++            self.reads = []
++
++        def __getattr__(self, name):
++            self.reads.append(name)
++            raise AssertionError(f"provider attribute touched after route mutation: {name}")
++
++    api = _TrapApi()
++    store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
++    if entrypoint == "get_execution_summary":
++        store._last_execution_summary = {"active_orders": 0}
++    store._config["exchange_type"] = "CTP"
++
++    calls = {
++        "arm_sdk_execution": lambda: store.arm_sdk_execution({}),
++        "arm_registered_sim_execution": lambda: store.arm_registered_sim_execution(
++            "rb2710",
++            strategy_identity_sha256="a" * 64,
++            execution_cycle_id="cycle",
++            preflight_sha256="b" * 64,
++        ),
++        "prepare_execution_recovery": lambda: store.prepare_execution_recovery({}),
++        "arm_execution_recovery": lambda: store.arm_execution_recovery(
++            {}, recovery_token_sha256="c" * 64
++        ),
++        "cancel_execution_recovery_orders": lambda: store.cancel_execution_recovery_orders(
++            recovery_token_sha256="c" * 64
++        ),
++        "complete_execution_recovery": lambda: store.complete_execution_recovery(
++            recovery_token_sha256="c" * 64
++        ),
++        "supports_position_mode": lambda: store.supports_position_mode("net"),
++    }
++    with pytest.raises(BtApiStoreError, match="route changed"):
++        calls[entrypoint]() if entrypoint in calls else getattr(store, entrypoint)()
++    assert api.reads == []
+diff --git a/tests/unit/stores/test_ctp_non_authorizing_contracts.py b/tests/unit/stores/test_ctp_non_authorizing_contracts.py
+new file mode 100644
+index 0000000..1f56067
+--- /dev/null
++++ b/tests/unit/stores/test_ctp_non_authorizing_contracts.py
+@@ -0,0 +1,74 @@
++"""Pure CTP DTO/receipt contracts; these never create a Store or grant authority."""
++
++import pytest
++
++from backtrader.stores.btapistore import BtApiStore
++from backtrader_runtime.managed_execution import (
++    CtpQueueReceiptState,
++    classify_ctp_queue_receipt,
++)
++
++
++def _receipt(operation, *, queued=True):
++    result = {
++        "kind": "command_receipt",
++        "command": operation,
++        "receipt_id": ("a" if operation == "submit" else "b") * 32,
++        "bt_order_ref": 7,
++        "client_order_id": "000000000123",
++        "status": "submitted" if queued else "rejected",
++        "queued": queued,
++        "priority": "cancel" if operation == "cancel" else "open",
++        "queue_depth": 1 if queued else 0,
++    }
++    if not queued:
++        result.update(
++            error_code="command_queue_full",
++            error_msg="SDK command queue cannot safely accept this command",
++        )
++    return result
++
++
++@pytest.mark.parametrize("operation", ("submit", "cancel"))
++def test_local_queue_receipt_is_unknown_not_provider_ack(operation):
++    classification = classify_ctp_queue_receipt(
++        _receipt(operation),
++        operation=operation,
++        expected_bt_order_ref=7,
++        expected_client_order_id="000000000123",
++    )
++
++    assert classification.operation == operation
++    assert classification.state is CtpQueueReceiptState.UNKNOWN
++    assert classification.queued is True
++    assert classification.receipt_id == ("a" if operation == "submit" else "b") * 32
++    assert not hasattr(classification, "provider_order_id")
++    assert not hasattr(classification, "provider_acknowledgement")
++
++
++def test_local_queue_rejection_is_not_a_provider_observation():
++    classification = classify_ctp_queue_receipt(
++        _receipt("submit", queued=False),
++        operation="submit",
++        expected_bt_order_ref=7,
++        expected_client_order_id="000000000123",
++    )
++
++    assert classification.state is CtpQueueReceiptState.REJECTED
++    assert classification.queued is False
++    assert classification.error_code == "command_queue_full"
++    assert not hasattr(classification, "provider_order_id")
++
++
++def test_managed_request_model_identity_shape_is_a_pure_signature_contract():
++    class ManagedOrderRequest:
++        def __init__(self, managed_intent_id, runtime_order_id, hedge_flag):
++            self.managed_intent_id = managed_intent_id
++            self.runtime_order_id = runtime_order_id
++            self.hedge_flag = hedge_flag
++
++    BtApiStore._require_sdk_request_model_fields(
++        ManagedOrderRequest,
++        ("managed_intent_id", "runtime_order_id", "hedge_flag"),
++        "OrderRequest",
++    )
+diff --git a/tests/unit/stores/test_managed_ctp_store_adapter.py b/tests/unit/stores/test_managed_ctp_store_adapter.py
+index a3bd1bc..64abbee 100644
+--- a/tests/unit/stores/test_managed_ctp_store_adapter.py
++++ b/tests/unit/stores/test_managed_ctp_store_adapter.py
+@@ -10,7 +10,7 @@ from typing import Optional
+ import pytest
+ 
+ from backtrader.order import OrderBase
+-from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, ManagedCtpHandoffError
++from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+ from backtrader.stores.managed_execution import (
+     CtpManagedCancelDispatch,
+     CtpManagedExecutionProjection,
+@@ -20,7 +20,6 @@ from backtrader.stores.managed_execution import (
+     require_ctp_managed_execution_projection,
+ )
+ from backtrader_runtime.managed_execution import (
+-    CtpManagedExecutionAdapterPlaceholder,
+     ManagedExecutionBindingError,
+     _managed_runtime_order_id,
+     classify_ctp_queue_receipt,
+@@ -521,391 +520,150 @@ def _order(*, info=None):
+     )
+ 
+ 
+-def test_managed_ctp_submission_projects_typed_identity_to_sdk_only():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    dispatched = []
+-
+-    def enqueue(order, *, ctp_managed_identity=None):
+-        dispatched.append((order, ctp_managed_identity))
+-        return _queue_receipt("submit")
+-
+-    store._enqueue_order_command = enqueue
+-
+-    result = store.submit_order(_order())
+-
+-    assert result["kind"] == "managed_execution_projection"
+-    assert result["state"] == "PENDING"
+-    assert result["local_queue_receipt_id"] == "a" * 32
+-    assert len(dispatched) == 1
+-    assert dispatched[0][1].managed_intent_id == "intent-1"
+-    assert dispatched[0][1].hedge_flag == "2"
+-    assert api.submissions == []
+-
+-
+-def test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write():
+-    class GenericAdapter:
+-        def __init__(self):
+-            self.called = False
+-
+-        def submit_order(self, order, dispatch):
+-            self.called = True
+-            return dispatch(order)
+-
+-    adapter = GenericAdapter()
+-    api = _Api()
+-
+-    with pytest.raises(BtApiStoreError, match="typed runtime adapter"):
++# Prior Store-local CTP fakes are retained as migration rows, not authority.
++_LEGACY_CTP_STORE_CASES = (
++    ('test_managed_ctp_submission_projects_typed_identity_to_sdk_only', 'local fake adapter projects typed submit identity through the SDK queue', 'future external Actor migration', 'An authenticated actor accepts the exact signed submit intent, atomically claims its durable identity, and returns a typed receipt bound to account, epoch, and request digest; caller/provider IDs remain rejected.'),
++    ('test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write', 'generic local adapter used to reach adapter-type validation before writes', 'current fail-closed assertion; future external Actor adapter contract', 'A configured external Actor endpoint is authenticated and versioned; only its typed submit/cancel API is reachable, while generic adapters and legacy dispatch callbacks reject before side effects.'),
++    ('test_managed_ctp_placeholder_is_a_local_rejection_before_queueing', 'local placeholder used to reject at submit after Store creation', 'current earlier fail-closed assertion', 'Without external Actor readiness, Store construction or admission remains unavailable; an actor-authenticated explicit local rejection may be surfaced only after trusted actor validation.'),
++    ('test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only', 'fake submit/cancel projection and in-memory restart replay', 'future external Actor and durable recovery migration', 'After restart, the actor reads the same durable account ledger and returns the existing submit/cancel disposition for the exact intent without re-enqueue; no in-memory reader or caller seed supplies history.'),
++    ('test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref', 'fake recovered cancel mapping without a framework ref', 'future external Actor and durable recovery migration', 'Actor obtains and validates a durable same-account order binding, then authorizes cancel identity from that binding; no caller/framework reference can substitute for the ledger row.'),
++    ('test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation', 'fake reader demonstrates duplicate queues absent durable reserve', 'future external Actor durable-reservation migration', 'Concurrent/restarted attempts for one scoped intent yield exactly one durable actor claim; UNKNOWN retains the claim and never causes local redispatch.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection]', 'submit missing projection yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'An authenticated actor receipt must resolve to a matching durable submit projection; absent projection remains UNKNOWN, fences the intent, and cannot invoke local SDK fallback.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch]', 'submit receipt mismatch yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'The actor receipt and durable projection must bind the same command ID, account, epoch, intent, and digest; any mismatch is UNKNOWN and fenced.'),
++    ('test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error]', 'submit projection read failure yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'Actor ledger unavailability after a possible dispatch is UNKNOWN; retain durable claim and query through the authenticated actor, never retry through local SDK.'),
++    ('test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection]', 'cancel missing projection yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'A cancel dispatch without a matching durable actor projection remains UNKNOWN and frozen; retry requires actor-owned reconciliation evidence.'),
++    ('test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch]', 'cancel receipt mismatch yields UNKNOWN and freezes', 'future external Actor receipt/projection migration', 'Cancel receipt and actor projection must match exact cancel ID, target order, account, epoch, and digest; mismatch is UNKNOWN with no fallback.'),
++    ('test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter', 'caller native identifier must reject before local adapter', 'current earlier fail-closed assertion; retain identity rule in future Actor contract', 'Caller-supplied OrderRef/ActionRef/client IDs are rejected before actor dispatch; the authenticated actor allocates and durably binds provider identifiers.'),
++    ('test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback', 'untyped fake receipt must not trigger direct fallback', 'future external Actor typed-receipt migration', 'Only a versioned authenticated actor receipt with exact operation/context/identity/digest is accepted; malformed or unknown responses fence the command and never trigger direct fallback.'),
++    ('test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue]', 'queued submit receipt must stop a second local OrderRef allocator', 'future external Actor/ledger integration', 'One actor-owned durable allocator supplies OrderRef exactly once across crash/restart; local Store/SDK ledgers cannot allocate a second reference.'),
++    ('test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification]', 'unknown submit classification must stop a second allocator', 'future external Actor/ledger integration', 'An unclassified actor/queue response keeps the single allocation claim UNKNOWN and blocks every allocator/retry until trusted reconciliation.'),
++    ('test_managed_ctp_order_request_refuses_a_second_orderref_allocator', 'Store request path rejects second OrderRef source', 'current earlier fail-closed assertion; retain allocator invariant in future Actor contract', 'The request builder consumes the actor-reserved typed OrderRef without allocating another; a pure model check must still require the identity fields.'),
++    ('test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids', 'fake cancel projects durable cancel ID without native IDs', 'future external Actor durable cancel migration', 'The actor derives/claims a stable cancel ID from the durable target binding and intent; native IDs are supplied only by actor-owned ledger evidence.'),
++    ('test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing', 'missing native order ref must not queue cancel', 'current earlier fail-closed assertion; retain validation in future Actor contract', 'If the actor cannot prove the durable native order binding, cancel rejects before provider dispatch and records no guessed identifier.'),
++    ('test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback', 'typed local adapter receives cancel callback', 'future external Actor dispatch migration', 'Store sends only a typed cancel command to the authenticated actor; no caller callback can directly reach a local SDK write method.'),
++    ('test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority', 'SDK OrderRef ledger cannot substitute for single durable outbox', 'future external Actor and shared-ledger migration', 'The actor-owned shared durable outbox is the sole allocator/recovery authority; SDK-local OrderRef history is evidence only and cannot authorize a second dispatch.'),
++    ('test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown', 'actual Store queue receipt classification for submit and recovered cancel', 'future external Actor receipt integration', 'Local enqueue receipt remains non-authorizing UNKNOWN; actor reconciliation must bind the same durable account command and provider observation before changing state.'),
++)
++
++
++class _FailClosedAdapterProbe:
++    def __init__(self):
++        self.calls = []
++
++    def submit_order(self, *args, **kwargs):
++        self.calls.append(("submit", args, kwargs))
++        raise AssertionError("local CTP adapter was invoked before external Actor admission")
++
++    def cancel_order(self, *args, **kwargs):
++        self.calls.append(("cancel", args, kwargs))
++        raise AssertionError("local CTP adapter was invoked before external Actor admission")
++
++
++class _FailClosedCredentialProbe:
++    def __init__(self):
++        self.reads = []
++
++    def __bool__(self):
++        self.reads.append("bool")
++        raise AssertionError("credential was touched before CTP route closure")
++
++    def __str__(self):
++        self.reads.append("str")
++        raise AssertionError("credential was touched before CTP route closure")
++
++
++class _RouteEnvironmentProbe:
++    def __init__(self, delegate):
++        self.delegate = delegate
++        self.reads = []
++
++    def get(self, key, default=None):
++        if key in {"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"}:
++            self.reads.append(key)
++        return self.delegate.get(key, default)
++
++
++@pytest.mark.parametrize(
++    ("legacy_case", "former_local_expectation", "disposition", "future_actor_contract"),
++    _LEGACY_CTP_STORE_CASES,
++    ids=[case[0] for case in _LEGACY_CTP_STORE_CASES],
++)
++def test_legacy_ctp_store_composition_is_now_explicitly_fail_closed(
++    monkeypatch, legacy_case, former_local_expectation, disposition, future_actor_contract
++):
++    """Each legacy local-CTP composition case now proves the admission boundary."""
++    from backtrader.stores import btapistore as store_module
++
++    api = _Api()
++    adapter = _FailClosedAdapterProbe()
++    credential = _FailClosedCredentialProbe()
++    environment = _RouteEnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module, "os", SimpleNamespace(environ=environment))
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("local resolver/client reached before CTP actor gate")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="btapi",
+             api=api,
+             config={
+                 "exchange_kwargs": {"CTP": {}},
+-                "execution_config": {"market_data_only": False, "strategy_id": "strategy"},
++                "execution_config": {
++                    "market_data_only": False,
++                    "strategy_id": "strategy",
++                },
++                "execution_authorization_secret": credential,
+             },
+             managed_execution_adapter=adapter,
++            autostart=True,
+         )
+ 
+-    assert adapter.called is False
+-    assert api.submissions == []
+-
+-
+-def test_managed_ctp_placeholder_is_a_local_rejection_before_queueing():
+-    adapter = CtpManagedExecutionAdapterPlaceholder(runtime=object())
+-    store, api = _store(adapter)
+-
+-    with pytest.raises(
+-        ManagedExecutionBindingError,
+-        match="MANAGED_CTP_WRITE_COMPOSITION_UNAVAILABLE",
+-    ) as raised:
+-        store.submit_order(_order())
+-
+-    assert raised.value.managed_local_reject is True
+-    assert raised.value.definite_reject is True
+-    assert not store._command_heap
++    assert legacy_case.startswith("test_")
++    assert former_local_expectation
++    assert disposition
++    assert future_actor_contract
++    assert environment.reads == []
++    assert credential.reads == []
++    assert adapter.calls == []
++    assert resolver_calls == []
+     assert api.submissions == []
+     assert api.cancellations == []
+     assert api.async_submissions == []
+     assert api.async_cancellations == []
++    assert api.reservations == []
++    assert api.binding_reads == 0
+ 
+ 
+-def test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only():
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    submit_calls = []
+-    cancel_calls = []
+-
+-    def queue_submit(order, *, ctp_managed_identity=None):
+-        assert type(ctp_managed_identity) is CtpManagedOrderDispatch
+-        submit_calls.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        receipt = _queue_receipt("submit", bt_order_ref=order.ref)
+-        reader.persist("submit", ctp_managed_identity, receipt)
+-        return receipt
+-
+-    def queue_cancel(identity, dataname):
+-        assert type(identity) is CtpManagedCancelDispatch
+-        assert dataname == "rb"
+-        cancel_calls.append(identity)
+-        receipt = _queue_receipt("cancel")
+-        reader.persist("cancel", identity, receipt)
+-        return receipt
+-
+-    store._enqueue_order_command = queue_submit
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+-    order = _order()
+-
+-    submitted = store.submit_order(order)
+-    cancelled = store.cancel_order(order)
+-
+-    assert submitted["kind"] == cancelled["kind"] == "managed_execution_projection"
+-    assert submitted["state"] == cancelled["state"] == "PENDING"
+-    assert submitted["operation"] == "submit"
+-    assert cancelled["operation"] == "cancel"
+-    assert submitted["local_queue_receipt_id"] == "a" * 32
+-    assert cancelled["local_queue_receipt_id"] == "b" * 32
+-    assert len(submit_calls) == len(cancel_calls) == 1
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-    # A new adapter and Store recover the durable rows before asking either
+-    # queue callback to run again. The framework ref may change after restart.
+-    restarted_adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    restarted_store, restarted_api = _store(restarted_adapter)
+-
+-    def unexpected_submit(*_args, **_kwargs):
+-        raise AssertionError("recovered submit was queued again")
+-
+-    def unexpected_cancel(*_args, **_kwargs):
+-        raise AssertionError("recovered cancel was queued again")
+-
+-    restarted_store._enqueue_order_command = unexpected_submit
+-    restarted_store._enqueue_ctp_managed_cancel = unexpected_cancel
+-    replay_order = _order()
+-    replay_order.ref = 9001
+-
+-    replayed_submit = restarted_store.submit_order(replay_order)
+-    replayed_cancel = restarted_store.cancel_order(replay_order)
+-
+-    assert replayed_submit["state"] == replayed_cancel["state"] == "PENDING"
+-    assert replayed_submit["runtime_order_id"] == submitted["runtime_order_id"]
+-    assert replayed_cancel["managed_cancel_intent_id"] == cancelled[
+-        "managed_cancel_intent_id"
+-    ]
+-    assert len(submit_calls) == len(cancel_calls) == 1
+-    assert restarted_api.submissions == restarted_api.cancellations == []
+-
+-
+-def test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref():
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    order = _order(
+-        info={
+-            "client_order_id": "000000000123",
+-            "runtime_order_id": _managed_runtime_order_id(runtime.scope, "intent-1"),
+-        }
+-    )
+-    order.ref = 9001
+-    queued = []
+ 
+-    def queue_cancel(identity, _dataname):
+-        queued.append(identity)
+-        receipt = _queue_receipt("cancel", bt_order_ref=None)
+-        reader.persist("cancel", identity, receipt)
+-        return receipt
+ 
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+ 
+-    result = store.cancel_order(order)
+ 
+-    assert result["state"] == "PENDING"
+-    assert len(queued) == 1
+-    assert api.cancellations == api.async_cancellations == []
+ 
+ 
+-def test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation():
+-    reader = _FakeDurableProjectionReader()
+-    adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    queued = []
+-
+-    def queue_without_persisting(order, *, ctp_managed_identity=None):
+-        queued.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        return _queue_receipt("submit", bt_order_ref=order.ref)
+-
+-    store._enqueue_order_command = queue_without_persisting
+-    for _ in range(2):
+-        with pytest.raises(ManagedCtpHandoffError) as raised:
+-            store.submit_order(_order())
+-        assert raised.value.managed_execution_state == "UNKNOWN"
+-
+-    assert len(queued) == 2
+-    assert len(reader.freezes) == 2
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-
+-@pytest.mark.parametrize("failure", ("missing_projection", "receipt_mismatch", "reader_error"))
+-def test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback(failure):
+-    reader = _FakeDurableProjectionReader()
+-    adapter = _FakeCtpProjectionAdapter(
+-        _FakeManagedRuntime(),
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    queued = []
+-
+-    def queue_submit(order, *, ctp_managed_identity=None):
+-        queued.append(ctp_managed_identity)
+-        order.info["client_order_id"] = "000000000123"
+-        order.info["runtime_order_id"] = ctp_managed_identity.runtime_order_id
+-        receipt = _queue_receipt(
+-            "submit",
+-            bt_order_ref=order.ref,
+-            client_order_id=(
+-                "000000000999" if failure == "receipt_mismatch" else "000000000123"
+-            ),
+-        )
+-        if failure == "receipt_mismatch":
+-            reader.persist("submit", ctp_managed_identity, receipt)
+-        return receipt
+-
+-    store._enqueue_order_command = queue_submit
+-    if failure == "reader_error":
+-        reader.fail_reads = True
+-
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.submit_order(_order())
+-
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.execution_unknown is True
+-    assert reader.freezes
+-    assert reader.freezes[0][0] == "submit"
+-    assert len(queued) == (0 if failure == "reader_error" else 1)
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+-
+-
+-@pytest.mark.parametrize("failure", ("missing_projection", "receipt_mismatch"))
+-def test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown(failure):
+-    reader = _FakeDurableProjectionReader()
+-    runtime = _FakeManagedRuntime()
+-    adapter = _FakeCtpProjectionAdapter(
+-        runtime,
+-        reader=reader.read,
+-        freeze=reader.freeze,
+-        hedge_flag="2",
+-    )
+-    store, api = _store(adapter)
+-    order = _order(
+-        info={
+-            "client_order_id": "000000000123",
+-            "runtime_order_id": _managed_runtime_order_id(runtime.scope, "intent-1"),
+-        }
+-    )
+-    queued = []
+-
+-    def queue_cancel(identity, _dataname):
+-        queued.append(identity)
+-        receipt = _queue_receipt(
+-            "cancel",
+-            client_order_id=(
+-                "000000000999" if failure == "receipt_mismatch" else "000000000123"
+-            ),
+-        )
+-        if failure == "receipt_mismatch":
+-            reader.persist("cancel", identity, receipt)
+-        return receipt
+ 
+-    store._enqueue_ctp_managed_cancel = queue_cancel
+ 
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.cancel_order(order)
+ 
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.execution_unknown is True
+-    assert reader.freezes
+-    assert reader.freezes[0][0] == "cancel"
+-    assert len(queued) == 1
+-    assert api.submissions == api.cancellations == []
+-    assert api.async_submissions == api.async_cancellations == []
+ 
+ 
+-def test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+ 
+-    with pytest.raises(BtApiStoreError, match="caller-supplied"):
+-        store.submit_order(_order(info={"managed_intent_id": "intent-1", "client_order_id": "77"}))
+ 
+-    assert adapter.submit_dispatches == []
+-    assert api.submissions == []
+ 
+ 
+-def test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback():
+-    adapter = _AuthorizedFakeRuntime(malformed_submit=True)
+-    store, api = _store(adapter)
+ 
+-    with pytest.raises(ManagedCtpHandoffError) as raised:
+-        store.submit_order(_order())
+ 
+-    assert raised.value.managed_execution_state == "UNKNOWN"
+-    assert raised.value.managed_projection_pending is True
+-    assert api.submissions == []
+ 
+ 
+-@pytest.mark.parametrize("response_kind", ("queue", "unknown_classification"))
+-def test_managed_ctp_real_queue_fails_before_second_orderref_allocator(
+-    response_kind,
+-):
+-    class RawQueueRuntime(_AuthorizedFakeRuntime):
+-        def submit_order(self, order, sdk_dispatch):
+-            command = CtpManagedOrderDispatch(
+-                order=order,
+-                managed_intent_id="intent-1",
+-                runtime_order_id=RUNTIME_ORDER_ID,
+-                hedge_flag="2",
+-            )
+-            receipt = sdk_dispatch(command)
+-            self.submit_queue_receipts.append(receipt)
+-            if response_kind == "queue":
+-                return receipt
+-            return classify_ctp_queue_receipt(
+-                receipt,
+-                operation="submit",
+-                expected_bt_order_ref=7,
+-                expected_client_order_id="000000000123",
+-            )
+ 
+-    adapter = RawQueueRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_exchange = lambda _symbol: "CTP"
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    store._start_command_worker = lambda: None
+ 
+-    with pytest.raises(BtApiStoreError, match="single execution outbox") as raised:
+-        store.submit_order(_order())
+ 
+-    assert raised.value.managed_local_reject is True
+-    assert raised.value.definite_reject is True
+-    assert adapter.submit_queue_receipts == []
+-    assert store._command_heap == []
+-    assert api.submissions == []
+-    assert api.cancellations == []
+-    assert api.async_submissions == []
+-    assert api.async_cancellations == []
+-
+-
+-def test_managed_ctp_order_request_refuses_a_second_orderref_allocator():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    payload = {
+-        "symbol": "rb",
+-        "bt_order_ref": 7,
+-        "side": "buy",
+-        "size": 1,
+-        "price": 3500,
+-        "order_type": "limit",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "hedge_flag": "2",
+-    }
+-
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._sdk_order_request("CTP", payload)
+-
+-    assert api.reservations == []
+-    assert api.binding_reads == 0
+ 
+ 
+ def test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields():
+@@ -922,156 +680,11 @@ def test_managed_ctp_order_request_rejects_sdk_model_without_identity_fields():
+         )
+ 
+ 
+-def test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    binding = {
+-        "symbol": "rb",
+-        "exchange_name": "CTP",
+-        "account_id": "account",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "bt_order_ref": 7,
+-        "client_order_id": "000000000123",
+-    }
+-    store._sdk_runtime_refs[("CTP", RUNTIME_ORDER_ID)] = binding
+-    queued = []
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    store._start_command_worker = lambda: None
+-    store._enqueue_sdk_command = lambda command, *, priority_name: queued.append(
+-        (command, priority_name)
+-    ) or _queue_receipt("cancel")
+-
+-    command = CtpManagedCancelDispatch(
+-        managed_intent_id="intent-1",
+-        runtime_order_id=RUNTIME_ORDER_ID,
+-        managed_cancel_intent_id="cancel.intent-1",
+-    )
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._enqueue_ctp_managed_cancel(command, "rb")
+ 
+-    assert queued == []
+-    assert api.cancellations == []
+ 
+ 
+-def test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_runtime_refs[("CTP", RUNTIME_ORDER_ID)] = {
+-        "symbol": "rb",
+-        "exchange_name": "CTP",
+-        "account_id": "account",
+-        "runtime_order_id": RUNTIME_ORDER_ID,
+-        "managed_intent_id": "intent-1",
+-        "bt_order_ref": 7,
+-    }
+-    queued = []
+-    store._enqueue_sdk_command = lambda command, *, priority_name: queued.append(command)
+-
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store._enqueue_ctp_managed_cancel(
+-            CtpManagedCancelDispatch(
+-                managed_intent_id="intent-1",
+-                runtime_order_id=RUNTIME_ORDER_ID,
+-                managed_cancel_intent_id="cancel.intent-1",
+-            ),
+-            "rb",
+-        )
+-
+-    assert queued == []
+-    assert api.cancellations == []
+-
+ 
+-def test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback():
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    dispatched = []
+-    store._enqueue_ctp_managed_cancel = lambda identity, dataname: dispatched.append(
+-        (identity, dataname)
+-    ) or _queue_receipt("cancel")
+ 
+-    result = store.cancel_order(_order())
+-
+-    assert result["kind"] == "managed_execution_projection"
+-    assert result["state"] == "PENDING"
+-    assert result["operation"] == "cancel"
+-    assert len(dispatched) == 1
+-    assert dispatched[0][0].managed_cancel_intent_id == "cancel.intent-1"
+-    assert dispatched[0][1] == "rb"
+-    assert api.cancellations == []
+ 
+ 
+-def test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority():
+-    """A separate bt_api_py OrderRef ledger cannot satisfy the shared outbox port."""
+ 
+-    scope = SimpleNamespace(
+-        provider="CTP",
+-        strategy_id="strategy",
+-        environment="sandbox",
+-        key="scope:" + ("b" * 64),
+-    )
+-    intent_id = "intent.e2e"
+-    runtime_order_id = _managed_runtime_order_id(scope, intent_id)
+-
+-    class FakeComposedRuntime(_AuthorizedFakeRuntime):
+-        def submit_order(self, order, sdk_dispatch):
+-            identity = CtpManagedOrderDispatch(
+-                order=order,
+-                managed_intent_id=intent_id,
+-                runtime_order_id=runtime_order_id,
+-                hedge_flag="2",
+-            )
+-            receipt = sdk_dispatch(identity)
+-            return self._projection("submit", identity, receipt)
+-
+-        def cancel_order(self, order_or_ref, dataname, sdk_dispatch):
+-            identity = CtpManagedCancelDispatch(
+-                managed_intent_id=intent_id,
+-                runtime_order_id=runtime_order_id,
+-                managed_cancel_intent_id="cancel.intent.e2e",
+-            )
+-            receipt = sdk_dispatch(identity)
+-            return self._projection("cancel", identity, receipt)
+-
+-    adapter = FakeComposedRuntime()
+-    store, api = _store(adapter)
+-    order = _order(info={"managed_intent_id": intent_id})
+-    caller_order_info = dict(order.info)
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store.submit_order(order)
+-
+-    assert adapter.submit_dispatches == []
+-    assert store._sdk_runtime_refs == {}
+-    assert store._sdk_client_refs == {}
+-    assert "client_order_id" not in caller_order_info
+-    assert "runtime_order_id" not in caller_order_info
+-    assert "client_order_id" not in order.info
+-    assert "runtime_order_id" not in order.info
+-    assert api.reservations == []
+-    assert api.binding_reads == 0
+-    assert api.submissions == []
+-    assert api.cancellations == []
+-
+-
+-def test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown():
+-    """Use the Store's actual queue envelope, with only local fake ports."""
+-
+-    adapter = _AuthorizedFakeRuntime()
+-    store, api = _store(adapter)
+-    store._sdk_exchange = lambda _symbol: "CTP"
+-    store._ensure_api_ready = lambda: api
+-    store._require_async_sdk_commands = lambda: None
+-    # The queue itself is exercised, but its background dispatcher must stay
+-    # stopped so this integration test cannot reach an SDK/provider method.
+-    store._start_command_worker = lambda: None
+-
+-    order = _order()
+-    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+-        store.submit_order(order)
+-
+-    assert adapter.submit_queue_receipts == []
+-    assert adapter.cancel_queue_receipts == []
+-    assert store._command_heap == []
+-    assert api.submissions == []
+-    assert api.cancellations == []

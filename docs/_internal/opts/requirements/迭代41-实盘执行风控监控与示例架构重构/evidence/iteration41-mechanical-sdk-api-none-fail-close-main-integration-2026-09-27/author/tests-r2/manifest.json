@@ -1,0 +1,60 @@
+{
+  "schema": "iteration41-mechanical-sdk-api-failclose-test-only-r2-clean",
+  "freeze_path": "D:\\temp\\iteration41-mechanical-sdk-api-failclose-testpatch-r2-clean-20260927",
+  "freeze_scope": "canonical test-only patch, current replay proof artifacts, report, manifest, and hashes; no stale replay tree",
+  "test_patch": {
+    "path": "tests-only.patch",
+    "sha256": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7",
+    "change": "one added fake-only test module"
+  },
+  "target": {
+    "path": "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py",
+    "main_preimage": "ABSENT",
+    "main_absent_at_freeze": true,
+    "candidate_sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783"
+  },
+  "main_inputs": {
+    "source_path": "examples/ctp_options_simnow_mechanical_operator.py",
+    "source_preimage_sha256": "AA4292252D86E560A733B1030CE3C1438BC37FD99CD5B66518C853FD87CCFA19",
+    "related_test_path": "tests/unit/test_ctp_options_simnow_mechanical_cycle.py",
+    "related_test_sha256": "67614A96854400E175EEFC69F1F291914E036160DDBBB80D448365A4AF2189A4"
+  },
+  "replay": {
+    "method": "fresh temp staging copy; applied exact source candidate then canonical test-only patch",
+    "source_patch_external_path": "D:\\temp\\iteration41-mechanical-sdk-api-failclose-r0-20260927\\candidate.patch",
+    "source_patch_sha256": "299CD0215A8636F25C7E3B74F70CD05C30372059EFC1150E9BB96A47F668B70C",
+    "source_candidate_sha256": "549276111279275BEB000D8104C4330A6D11B7C181AE66087079A555AF26D81F",
+    "test_candidate_sha256": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+    "baseline_test_sha256": "67614A96854400E175EEFC69F1F291914E036160DDBBB80D448365A4AF2189A4"
+  },
+  "verification": {
+    "pytest": {
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0,
+      "log": "focused-tests.txt",
+      "log_sha256": "F18929240C1207004D1843DB38DE40157271E27D64EF73D8AA02B692CC7289FD",
+      "junit": "focused-junit.xml",
+      "junit_sha256": "7D7D44EF968E32F5763E77DA692D2C7087990D4D1FAD401DA13EBD8FBB4C8AE5",
+      "warning": "one existing Quandl deprecation warning"
+    },
+    "ruff": {
+      "status": "PASS",
+      "log": "ruff.txt",
+      "log_sha256": "A4443AFDCFB6D7363ADB285762515CCF7CF50473B1A05C20C1A50F6BED4D26B0"
+    },
+    "sdk_native_network_guard": {
+      "events": "[]",
+      "log": "guard-events.json",
+      "log_sha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "harness": "sitecustomize.py",
+      "harness_sha256": "16D8AF9E37810B95726ACEE8DEB22C87F85B5E167BF36D8D1D45AD0C71A4AE3D"
+    },
+    "main_git_apply_check": "PASS; target absent; no mutation",
+    "compatibility_impact": "Source candidate rejects sdk_api=None instead of invoking private _ensure_api_ready; supplied public sdk_api behavior remains tested unchanged.",
+    "scope_limit": "Fake local regression only; no provider, SDK, native session, private config, credentials, network, or write authority."
+  },
+  "patch_hash_reverified_at_freeze": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7",
+  "main_test_target_absent_at_freeze": true
+}

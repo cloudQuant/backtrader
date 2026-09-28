@@ -1,0 +1,103 @@
+{
+  "format": "iteration41-g5-worker-handoff-copy-verification.v1",
+  "verified_at_local": "2026-09-27T09:01:04.0774872+08:00",
+  "file_count": 12,
+  "files": [
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate.zip",
+      "archived": "worker-handoff-candidate.zip",
+      "bytes": 476519,
+      "source_sha256": "92B3ADD8E73DC51E7552A1C439D2663EBB20053E755C4DCF9194CAB39C53B4B3",
+      "archived_sha256": "92B3ADD8E73DC51E7552A1C439D2663EBB20053E755C4DCF9194CAB39C53B4B3",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\final-output-manifest.json",
+      "archived": "output-manifest.json",
+      "bytes": 17378,
+      "source_sha256": "D9641AAF6757CF5AEFF4A5246C42EDB36B4BF6036268E05FF2134F41235D0E62",
+      "archived_sha256": "D9641AAF6757CF5AEFF4A5246C42EDB36B4BF6036268E05FF2134F41235D0E62",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\frozen-input-manifest.json",
+      "archived": "frozen-input-manifest.json",
+      "bytes": 9691,
+      "source_sha256": "79BAB5C0C0E136B722EF5F55C74F93ABA2920F138A629B9AB8B4506D29003827",
+      "archived_sha256": "79BAB5C0C0E136B722EF5F55C74F93ABA2920F138A629B9AB8B4506D29003827",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\implementation\\main_repo_patch\\G5_ORDERREF_ACTIONREF_WORKER_HANDOFF.patch",
+      "archived": "worker-handoff.patch",
+      "bytes": 7272,
+      "source_sha256": "331B5AD8BE656815DBFD72D743587BB641767011B414C82A0CE4DCAF156A1F6D",
+      "archived_sha256": "331B5AD8BE656815DBFD72D743587BB641767011B414C82A0CE4DCAF156A1F6D",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\README.md",
+      "archived": "author-candidate-README.md",
+      "bytes": 9417,
+      "source_sha256": "0F3414AE37E5AB76F43007A4215482DCAE8F2B73688B639202758A98F54B18C2",
+      "archived_sha256": "0F3414AE37E5AB76F43007A4215482DCAE8F2B73688B639202758A98F54B18C2",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-followon-focus-tests.log",
+      "archived": "focus-tests.log",
+      "bytes": 102,
+      "source_sha256": "4FB2312A40770321E6B2595AD8F82994793CEECAA1C0C21C0A77B47986B22ED8",
+      "archived_sha256": "4FB2312A40770321E6B2595AD8F82994793CEECAA1C0C21C0A77B47986B22ED8",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-frozen-sdk-tests.log",
+      "archived": "frozen-sdk-tests.log",
+      "bytes": 102,
+      "source_sha256": "B53B48077DA06FD081FA5E74FA0DF1B8517B7457B5B074744FF42BDED66D1A3D",
+      "archived_sha256": "B53B48077DA06FD081FA5E74FA0DF1B8517B7457B5B074744FF42BDED66D1A3D",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-followon-ruff.log",
+      "archived": "ruff.log",
+      "bytes": 20,
+      "source_sha256": "A4443AFDCFB6D7363ADB285762515CCF7CF50473B1A05C20C1A50F6BED4D26B0",
+      "archived_sha256": "A4443AFDCFB6D7363ADB285762515CCF7CF50473B1A05C20C1A50F6BED4D26B0",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-followon-pycompile.log",
+      "archived": "pycompile.log",
+      "bytes": 20,
+      "source_sha256": "EC62D872AA22140BEC6A1E4B34CE5066953EBA2D1690476E0E87E71C971DBCA1",
+      "archived_sha256": "EC62D872AA22140BEC6A1E4B34CE5066953EBA2D1690476E0E87E71C971DBCA1",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-followon-patch-apply-check.log",
+      "archived": "patch-apply-check.log",
+      "bytes": 629,
+      "source_sha256": "12A92232A7238A38CAB7C2DB174E19C13F7FDE9D2C6A5896C987173376CF8EF6",
+      "archived_sha256": "12A92232A7238A38CAB7C2DB174E19C13F7FDE9D2C6A5896C987173376CF8EF6",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-followon-patch-stat.log",
+      "archived": "patch-stat.log",
+      "bytes": 197,
+      "source_sha256": "F5135F3E01649B9710E95662040D94C9A921E8161230EB214C244AC1AC17CBEC",
+      "archived_sha256": "F5135F3E01649B9710E95662040D94C9A921E8161230EB214C244AC1AC17CBEC",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g5-order-authority-20260927-candidate\\evidence\\g5-frozen-input-integrity.log",
+      "archived": "frozen-input-integrity.log",
+      "bytes": 32,
+      "source_sha256": "60D299380BC994DE79AB25BBAEEFDA787AB82BFDA5D0F2B885095D41191292BC",
+      "archived_sha256": "60D299380BC994DE79AB25BBAEEFDA787AB82BFDA5D0F2B885095D41191292BC",
+      "match": true
+    }
+  ]
+}

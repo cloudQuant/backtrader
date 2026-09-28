@@ -1,0 +1,41 @@
+CPython 3.11.5 stdlib source: C:\anaconda3\Lib\importlib\_bootstrap_external.py
+SHA-256: 
+5B7F704FD3198CB474FEA0E74CB21DF2D159CEB6BDE78AAD5DB3EB5EFA883CCF
+Excerpt confirms ExtensionFileLoader(name, path) delegates dynamic load using the module spec; it has no retained-handle argument.
+No extension module was loaded by this inspection.
+
+1212: class ExtensionFileLoader(FileLoader, _LoaderBasics):
+1213: 
+1214:     """Loader for extension modules.
+1215: 
+1216:     The constructor is designed to work with FileFinder.
+1217: 
+1218:     """
+1219: 
+1220:     def __init__(self, name, path):
+1221:         self.name = name
+1222:         self.path = path
+1223: 
+1224:     def __eq__(self, other):
+1225:         return (self.__class__ == other.__class__ and
+1226:                 self.__dict__ == other.__dict__)
+1227: 
+1228:     def __hash__(self):
+1229:         return hash(self.name) ^ hash(self.path)
+1230: 
+1231:     def create_module(self, spec):
+1232:         """Create an uninitialized extension module"""
+1233:         module = _bootstrap._call_with_frames_removed(
+1234:             _imp.create_dynamic, spec)
+1235:         _bootstrap._verbose_message('extension module {!r} loaded from {!r}',
+1236:                          spec.name, self.path)
+1237:         return module
+1238: 
+1239:     def exec_module(self, module):
+1240:         """Initialize an extension module"""
+1241:         _bootstrap._call_with_frames_removed(_imp.exec_dynamic, module)
+1242:         _bootstrap._verbose_message('extension module {!r} executed from {!r}',
+1243:                          self.name, self.path)
+1244: 
+1245:     def is_package(self, fullname):
+1246:         """Return True if the extension module is a package."""

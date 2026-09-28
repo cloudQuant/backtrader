@@ -1,0 +1,1344 @@
+{
+  "frozen_code_test_file_count": 12,
+  "frozen_code_test_mismatches": [],
+  "support_python_file_count_not_bound_by_source_manifest": 105,
+  "support_copy_mismatches_against_main_at_verification": [],
+  "missing_review_payload_runtime_dependencies": [
+    {
+      "path": "scripts/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641",
+      "role": "imported directly by inert supervisor module"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_inert_parent.py",
+      "sha256": "fd0a0e35ea34a2c3be9fc26902aea49593a470e3025c1aa9dd8798b3ed025117",
+      "role": "launched by inert supervisor via sibling path"
+    }
+  ],
+  "private_config_named_files_in_replay": [],
+  "frozen_replay_files": [
+    {
+      "path": "backtrader_runtime/cli.py",
+      "sha256": "bca2632e261fe2b663008e8b0758c2c932df917f9376e9b90230848b41ef5ef4",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_preflight.py",
+      "sha256": "3effc1d05763a6eb685c322f8ca5514893adf2e2b60513512d78a83a7ddf7386",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_operator.py",
+      "sha256": "9112a8411a8f13045a1e2c3b040517bb06c4db1f8c959a2650a4f2ab3afcc6db",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_readonly_runtime.py",
+      "sha256": "778be3b5efb64ee4dd4c6a735f0c6b5bff329fc455f9e460338a6ea298e30bc5",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_sdk_readonly.py",
+      "sha256": "5b42ecd25c91d5b76894fc9bd68c1950a053cc2e69dd55cbee3fcb207d779c7a",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "scripts/ctp_i13_i15_inert_deadline_supervisor.py",
+      "sha256": "0810739298df61c62fdabaf3aa3a0387d87b8efc78fe4751bbddf4f1bbf05109",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+      "sha256": "9a4b059d7007881933a8af5bea94d1a6831554acee9912ce9f14c92e4279a8ba",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+      "sha256": "7debbe58ccf690fb2103e1441eb9dbf813ca30bd478c4048f622c0f8a70b59fd",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "tests/unit/scripts/test_ctp_i13_i15_inert_deadline_supervisor.py",
+      "sha256": "806b004572caa5b64cb6407989d54d8963ce4ef95a450265b69b40bea22fd90a",
+      "matches_source_manifest": true
+    },
+    {
+      "path": "tests/unit/runtime/test_ctp_simnow_operator_route.py",
+      "sha256": "bd78d5513cced9a1a93c03a83e0ea0e598ab4efe85cda4f275e77f1b0d84eaa1",
+      "matches_source_manifest": true
+    }
+  ],
+  "supplemental_support_files": [
+    {
+      "path": "backtrader_runtime/__init__.py",
+      "stage": {
+        "bytes": 8656,
+        "sha256": "3f071f55a089f8bf54e0338139b7401988a5421607345ffad808ec4ecebcebfb"
+      },
+      "main_at_verification": {
+        "bytes": 8656,
+        "sha256": "3f071f55a089f8bf54e0338139b7401988a5421607345ffad808ec4ecebcebfb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/__main__.py",
+      "stage": {
+        "bytes": 113,
+        "sha256": "36053545f4682a69c27b05cb17c38872e7c4a2f5933f7d38abbbdcde14b57dd0"
+      },
+      "main_at_verification": {
+        "bytes": 113,
+        "sha256": "36053545f4682a69c27b05cb17c38872e7c4a2f5933f7d38abbbdcde14b57dd0"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_ctp_credential_binding.py",
+      "stage": {
+        "bytes": 32403,
+        "sha256": "769d5a4ae3588035fe71569f923da11ed22f83f32e5ed58b2852110aeb8f8549"
+      },
+      "main_at_verification": {
+        "bytes": 32403,
+        "sha256": "769d5a4ae3588035fe71569f923da11ed22f83f32e5ed58b2852110aeb8f8549"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_backtest_fixture/__init__.py",
+      "stage": {
+        "bytes": 296,
+        "sha256": "5c6e093cda9dbb0b4108135337304d9c4979b4012c76adc5af0c3b506c7a925e"
+      },
+      "main_at_verification": {
+        "bytes": 296,
+        "sha256": "5c6e093cda9dbb0b4108135337304d9c4979b4012c76adc5af0c3b506c7a925e"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_backtest_fixture/run.py",
+      "stage": {
+        "bytes": 7062,
+        "sha256": "b274305ad4998f4dfded31ed6525b7a83bd406cfd8b2bc6cf0777bed22c1a20f"
+      },
+      "main_at_verification": {
+        "bytes": 7062,
+        "sha256": "b274305ad4998f4dfded31ed6525b7a83bd406cfd8b2bc6cf0777bed22c1a20f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_l2_fixture/__init__.py",
+      "stage": {
+        "bytes": 259,
+        "sha256": "d305892f4a20e3427d2dfd5e2fbf80a11dd9f01c2413bb75ac861fc6af4cb5ec"
+      },
+      "main_at_verification": {
+        "bytes": 259,
+        "sha256": "d305892f4a20e3427d2dfd5e2fbf80a11dd9f01c2413bb75ac861fc6af4cb5ec"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+      "stage": {
+        "bytes": 24157,
+        "sha256": "62b518900d132f83d3abf402485ddfbc78178519c98ee8b0ee5fe03068287b26"
+      },
+      "main_at_verification": {
+        "bytes": 24157,
+        "sha256": "62b518900d132f83d3abf402485ddfbc78178519c98ee8b0ee5fe03068287b26"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py",
+      "stage": {
+        "bytes": 21643,
+        "sha256": "573882b80db8f47f8b7c8cca8ae2c9c790469eb741c81bb523fc104e7d6c0c33"
+      },
+      "main_at_verification": {
+        "bytes": 21643,
+        "sha256": "573882b80db8f47f8b7c8cca8ae2c9c790469eb741c81bb523fc104e7d6c0c33"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+      "stage": {
+        "bytes": 41434,
+        "sha256": "38696e2c08439c5d471327f22377c65d589ef3be043a2924f751cbae9c8bc5ee"
+      },
+      "main_at_verification": {
+        "bytes": 41434,
+        "sha256": "38696e2c08439c5d471327f22377c65d589ef3be043a2924f751cbae9c8bc5ee"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py",
+      "stage": {
+        "bytes": 218,
+        "sha256": "74e1d790cfc3157ae54adfbd918244bba6bb311b719e775ab7e797e68a5aaf26"
+      },
+      "main_at_verification": {
+        "bytes": 218,
+        "sha256": "74e1d790cfc3157ae54adfbd918244bba6bb311b719e775ab7e797e68a5aaf26"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py",
+      "stage": {
+        "bytes": 25738,
+        "sha256": "1cb3cfa6534da6974e7ec656ac54c413445401c819b3efd48e57c6be54cb7409"
+      },
+      "main_at_verification": {
+        "bytes": 25738,
+        "sha256": "1cb3cfa6534da6974e7ec656ac54c413445401c819b3efd48e57c6be54cb7409"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py",
+      "stage": {
+        "bytes": 63111,
+        "sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106"
+      },
+      "main_at_verification": {
+        "bytes": 63111,
+        "sha256": "92fb8c2f5e71ee7b062b157ec3949c2bc7b743bcfe8b71e0754e30c9f56af106"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py",
+      "stage": {
+        "bytes": 21723,
+        "sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31"
+      },
+      "main_at_verification": {
+        "bytes": 21723,
+        "sha256": "a43f477ca365761bbf18144c20013c82b6b180a0bf2ec4d72fe73c4b12065b31"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py",
+      "stage": {
+        "bytes": 10622,
+        "sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c"
+      },
+      "main_at_verification": {
+        "bytes": 10622,
+        "sha256": "a268127f1e9d0a04cd1c326c0c72efc6372e5b0b643d87e4d2b71878d603dc0c"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py",
+      "stage": {
+        "bytes": 5114,
+        "sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1"
+      },
+      "main_at_verification": {
+        "bytes": 5114,
+        "sha256": "291eda0a2f0a31fde9b66304161bdf86285abe6a959405add6ec04473084d5d1"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/capability_imports.py",
+      "stage": {
+        "bytes": 33973,
+        "sha256": "6bbf61cb72c2df588d4934b5cb8b811c0a3c9076a9daa9e5b802aed672881d54"
+      },
+      "main_at_verification": {
+        "bytes": 33973,
+        "sha256": "6bbf61cb72c2df588d4934b5cb8b811c0a3c9076a9daa9e5b802aed672881d54"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/config.py",
+      "stage": {
+        "bytes": 64814,
+        "sha256": "684f908b501be688717344f6e9458944929cef1fc666740c3c8ad77d9e3d16c2"
+      },
+      "main_at_verification": {
+        "bytes": 64814,
+        "sha256": "684f908b501be688717344f6e9458944929cef1fc666740c3c8ad77d9e3d16c2"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/credential_resolver.py",
+      "stage": {
+        "bytes": 68801,
+        "sha256": "90c0dfff8f2499a2641cc8d31f20cdbdfcaffa3656982eeb100048283def59c2"
+      },
+      "main_at_verification": {
+        "bytes": 68801,
+        "sha256": "90c0dfff8f2499a2641cc8d31f20cdbdfcaffa3656982eeb100048283def59c2"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_artifact_provenance.py",
+      "stage": {
+        "bytes": 47141,
+        "sha256": "78f7b385db4c33f522a645e160b23076d7b600cf539cf6a121897483c49b3c75"
+      },
+      "main_at_verification": {
+        "bytes": 47141,
+        "sha256": "78f7b385db4c33f522a645e160b23076d7b600cf539cf6a121897483c49b3c75"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_config_action_linearization.py",
+      "stage": {
+        "bytes": 16236,
+        "sha256": "b6d367a0d2b44b2b342c62b8e477082cc9ffbdc4a369aaf8da162d35a8fac23f"
+      },
+      "main_at_verification": {
+        "bytes": 16236,
+        "sha256": "b6d367a0d2b44b2b342c62b8e477082cc9ffbdc4a369aaf8da162d35a8fac23f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_configured_front_check.py",
+      "stage": {
+        "bytes": 14826,
+        "sha256": "31c0d348fe44656b8fc1ceec2c71dcc67b87119246b8ab7e555712d5940eca50"
+      },
+      "main_at_verification": {
+        "bytes": 14826,
+        "sha256": "31c0d348fe44656b8fc1ceec2c71dcc67b87119246b8ab7e555712d5940eca50"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_dispatch_read_model.py",
+      "stage": {
+        "bytes": 16733,
+        "sha256": "9d576dd980b37150c4aac9fc4a2a66c80fa6069817cf21469ceb0fab7e4f9a1b"
+      },
+      "main_at_verification": {
+        "bytes": 16733,
+        "sha256": "9d576dd980b37150c4aac9fc4a2a66c80fa6069817cf21469ceb0fab7e4f9a1b"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_f14_external_admission.py",
+      "stage": {
+        "bytes": 14044,
+        "sha256": "7ba54c6c658ef269f1049fab1a6d2c14d85d0a7b777767479081ce3f53b7016b"
+      },
+      "main_at_verification": {
+        "bytes": 14044,
+        "sha256": "7ba54c6c658ef269f1049fab1a6d2c14d85d0a7b777767479081ce3f53b7016b"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_f14_signed_receipt_contract.py",
+      "stage": {
+        "bytes": 31238,
+        "sha256": "f16b3c9b02b19dcfd1e8f06f4c7cadc9553e80c290cbbed17e437a8376e1ec86"
+      },
+      "main_at_verification": {
+        "bytes": 31238,
+        "sha256": "f16b3c9b02b19dcfd1e8f06f4c7cadc9553e80c290cbbed17e437a8376e1ec86"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_front_pair_probe.py",
+      "stage": {
+        "bytes": 23652,
+        "sha256": "473fde83c1acb18f1cfa4908623b0104238fdfe7431c0af61341101992a544bf"
+      },
+      "main_at_verification": {
+        "bytes": 23652,
+        "sha256": "473fde83c1acb18f1cfa4908623b0104238fdfe7431c0af61341101992a544bf"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i10_attempt_latch.py",
+      "stage": {
+        "bytes": 2808,
+        "sha256": "1cbfb3d0b5de6a0c2977cd449d36d434bdc2b4c28281d877df851bfff1f5be8e"
+      },
+      "main_at_verification": {
+        "bytes": 2808,
+        "sha256": "1cbfb3d0b5de6a0c2977cd449d36d434bdc2b4c28281d877df851bfff1f5be8e"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i10_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 33556,
+        "sha256": "25f184dc2f3fddab333d191e64492f819421184f796d99e3b95fcbd96a6194c3"
+      },
+      "main_at_verification": {
+        "bytes": 33556,
+        "sha256": "25f184dc2f3fddab333d191e64492f819421184f796d99e3b95fcbd96a6194c3"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i10_oneshot_md_readonly.py",
+      "stage": {
+        "bytes": 26532,
+        "sha256": "fb47a661ba08d623204a628717f6b0621b427f3d6406a5f40233b7f450ffd6b2"
+      },
+      "main_at_verification": {
+        "bytes": 26532,
+        "sha256": "fb47a661ba08d623204a628717f6b0621b427f3d6406a5f40233b7f450ffd6b2"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i11_attempt_latch.py",
+      "stage": {
+        "bytes": 4677,
+        "sha256": "02957f12412d27dd8eb0aa85abe42bbcb8d3c77166fa983374c945900578e50f"
+      },
+      "main_at_verification": {
+        "bytes": 4677,
+        "sha256": "02957f12412d27dd8eb0aa85abe42bbcb8d3c77166fa983374c945900578e50f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i11_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 57929,
+        "sha256": "aec09859adba4ebe14896480042ecdd7084759f95fc1df1b1c9eb3dd50c742f4"
+      },
+      "main_at_verification": {
+        "bytes": 57929,
+        "sha256": "aec09859adba4ebe14896480042ecdd7084759f95fc1df1b1c9eb3dd50c742f4"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i12_td_only_latch.py",
+      "stage": {
+        "bytes": 3611,
+        "sha256": "7503aeddd7529663faeabefa4b27b591018d51a71a17e36c48972d7456353d5f"
+      },
+      "main_at_verification": {
+        "bytes": 3611,
+        "sha256": "7503aeddd7529663faeabefa4b27b591018d51a71a17e36c48972d7456353d5f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i12_td_only_readonly.py",
+      "stage": {
+        "bytes": 62296,
+        "sha256": "7e69220354489140808f2828436c7e82f992bf83a30d5dea316130cad977a825"
+      },
+      "main_at_verification": {
+        "bytes": 62296,
+        "sha256": "7e69220354489140808f2828436c7e82f992bf83a30d5dea316130cad977a825"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i13_md_observability.py",
+      "stage": {
+        "bytes": 30815,
+        "sha256": "8e935f2d907854ee6bf0d6efa93c5f3e208317d208577856cb76ae3d2370f463"
+      },
+      "main_at_verification": {
+        "bytes": 30815,
+        "sha256": "8e935f2d907854ee6bf0d6efa93c5f3e208317d208577856cb76ae3d2370f463"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i13_md_oneshot_supervisor.py",
+      "stage": {
+        "bytes": 91088,
+        "sha256": "b3c8ab930cbf5b2dd1257018ae5444d9b8116350ead0f1f8f4fa15d18f2ca1d4"
+      },
+      "main_at_verification": {
+        "bytes": 91088,
+        "sha256": "b3c8ab930cbf5b2dd1257018ae5444d9b8116350ead0f1f8f4fa15d18f2ca1d4"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i13_source_identity.py",
+      "stage": {
+        "bytes": 32477,
+        "sha256": "70908411e3a582a136efeb40d52db1ce8843e8697dead21896940904b5a7747d"
+      },
+      "main_at_verification": {
+        "bytes": 32477,
+        "sha256": "70908411e3a582a136efeb40d52db1ce8843e8697dead21896940904b5a7747d"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i13_source_identity_pin.py",
+      "stage": {
+        "bytes": 201,
+        "sha256": "1b2ed8511bf7b183cd027caa26a093ec82a439fabb8b3805f5489f4639c03800"
+      },
+      "main_at_verification": {
+        "bytes": 201,
+        "sha256": "1b2ed8511bf7b183cd027caa26a093ec82a439fabb8b3805f5489f4639c03800"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i13_worker_dependency_seal.py",
+      "stage": {
+        "bytes": 39682,
+        "sha256": "8f37263c5fbdf7743d34511131a4ab1abc5fc239b2e742726a0626291c668b4b"
+      },
+      "main_at_verification": {
+        "bytes": 39682,
+        "sha256": "8f37263c5fbdf7743d34511131a4ab1abc5fc239b2e742726a0626291c668b4b"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i15_source_identity.py",
+      "stage": {
+        "bytes": 27833,
+        "sha256": "f29aee330a1205c60fa8fb7b88fcc1390bab110b99e7d1cc7282fa5b8e68259c"
+      },
+      "main_at_verification": {
+        "bytes": 27833,
+        "sha256": "f29aee330a1205c60fa8fb7b88fcc1390bab110b99e7d1cc7282fa5b8e68259c"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i15_source_identity_pin.py",
+      "stage": {
+        "bytes": 321,
+        "sha256": "782cfdb0a9c5fedbb74a305eb3ad850a1c5aa655d92565190e215e726a756324"
+      },
+      "main_at_verification": {
+        "bytes": 321,
+        "sha256": "782cfdb0a9c5fedbb74a305eb3ad850a1c5aa655d92565190e215e726a756324"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i15_td_only_readonly.py",
+      "stage": {
+        "bytes": 47519,
+        "sha256": "b6ddb73ce89a8de1280c28013e7845253e3341e8e7e97a9f1844d329e1dac809"
+      },
+      "main_at_verification": {
+        "bytes": 47519,
+        "sha256": "b6ddb73ce89a8de1280c28013e7845253e3341e8e7e97a9f1844d329e1dac809"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i3_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 11289,
+        "sha256": "ca93ad9a6c26a39b970285e0a21120883a9b3d41966647326d0745edb48589aa"
+      },
+      "main_at_verification": {
+        "bytes": 11289,
+        "sha256": "ca93ad9a6c26a39b970285e0a21120883a9b3d41966647326d0745edb48589aa"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i3_oneshot_md_readonly.py",
+      "stage": {
+        "bytes": 28563,
+        "sha256": "f515e726a82a1e09b45f588b7d57549f90d9568524e9e7b1c0096ee83f4abae0"
+      },
+      "main_at_verification": {
+        "bytes": 28563,
+        "sha256": "f515e726a82a1e09b45f588b7d57549f90d9568524e9e7b1c0096ee83f4abae0"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i4_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 13368,
+        "sha256": "bb5bd656ed9e36e7632d6c097cf15755a6032b896a6ce80500ea8110604d9a5e"
+      },
+      "main_at_verification": {
+        "bytes": 13368,
+        "sha256": "bb5bd656ed9e36e7632d6c097cf15755a6032b896a6ce80500ea8110604d9a5e"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i4_oneshot_md_readonly.py",
+      "stage": {
+        "bytes": 842,
+        "sha256": "39ffd3fc7b8d60781a49d500a8f323325502a140b0deef7fc573f39eec80db8f"
+      },
+      "main_at_verification": {
+        "bytes": 842,
+        "sha256": "39ffd3fc7b8d60781a49d500a8f323325502a140b0deef7fc573f39eec80db8f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i5_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 19216,
+        "sha256": "fee4c201457c8c3be549d8071b877cd6f2b2c1d13a2c97592406176a8037d827"
+      },
+      "main_at_verification": {
+        "bytes": 19216,
+        "sha256": "fee4c201457c8c3be549d8071b877cd6f2b2c1d13a2c97592406176a8037d827"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i6_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 20930,
+        "sha256": "d3faa5eed326fb0bdc49064c6cfb1e31003caf33aa5f45a6ee4eb17c940e2c07"
+      },
+      "main_at_verification": {
+        "bytes": 20930,
+        "sha256": "d3faa5eed326fb0bdc49064c6cfb1e31003caf33aa5f45a6ee4eb17c940e2c07"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i7_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 22197,
+        "sha256": "d1b9367186daacd2da20569f499b71dda68c6d4c4ed1f93132df4ab32baf7b87"
+      },
+      "main_at_verification": {
+        "bytes": 22197,
+        "sha256": "d1b9367186daacd2da20569f499b71dda68c6d4c4ed1f93132df4ab32baf7b87"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i8_oneshot_md_diagnostic.py",
+      "stage": {
+        "bytes": 47721,
+        "sha256": "5c1094551160197fd5ab29903a47c0c5728ed84fdc02c2be964c4a9b5d02e5bb"
+      },
+      "main_at_verification": {
+        "bytes": 47721,
+        "sha256": "5c1094551160197fd5ab29903a47c0c5728ed84fdc02c2be964c4a9b5d02e5bb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i8_oneshot_md_readonly.py",
+      "stage": {
+        "bytes": 26473,
+        "sha256": "9295ab41e1dfd7c5f13448afe59ff7d9c202e28211c407e601c22b3d504b26eb"
+      },
+      "main_at_verification": {
+        "bytes": 26473,
+        "sha256": "9295ab41e1dfd7c5f13448afe59ff7d9c202e28211c407e601c22b3d504b26eb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "stage": {
+        "bytes": 45968,
+        "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+      },
+      "main_at_verification": {
+        "bytes": 45968,
+        "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i9_artifact_candidate.py",
+      "stage": {
+        "bytes": 2048,
+        "sha256": "a0ccd5a5d4d4227f34481761bdb45af916f2e9e29cd5ac918b219243ac868622"
+      },
+      "main_at_verification": {
+        "bytes": 2048,
+        "sha256": "a0ccd5a5d4d4227f34481761bdb45af916f2e9e29cd5ac918b219243ac868622"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_i9_candidate_artifact_set.py",
+      "stage": {
+        "bytes": 21033,
+        "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a"
+      },
+      "main_at_verification": {
+        "bytes": 21033,
+        "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "stage": {
+        "bytes": 31570,
+        "sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da"
+      },
+      "main_at_verification": {
+        "bytes": 31570,
+        "sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_action_authority.py",
+      "stage": {
+        "bytes": 48077,
+        "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66"
+      },
+      "main_at_verification": {
+        "bytes": 48077,
+        "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_action_scope_resolver.py",
+      "stage": {
+        "bytes": 23058,
+        "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461"
+      },
+      "main_at_verification": {
+        "bytes": 23058,
+        "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_cancel_binding.py",
+      "stage": {
+        "bytes": 5809,
+        "sha256": "d358489d123aa69a762760f4f8620afa4fdf52eaed7986ff5d2e026a656f44ca"
+      },
+      "main_at_verification": {
+        "bytes": 5809,
+        "sha256": "d358489d123aa69a762760f4f8620afa4fdf52eaed7986ff5d2e026a656f44ca"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_handoff.py",
+      "stage": {
+        "bytes": 17303,
+        "sha256": "c3bc250d7d6c0a3e3cf2d651fed84a2e8f3df72392160f8316ff3988608a5aa7"
+      },
+      "main_at_verification": {
+        "bytes": 17303,
+        "sha256": "c3bc250d7d6c0a3e3cf2d651fed84a2e8f3df72392160f8316ff3988608a5aa7"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_managed_reconciliation.py",
+      "stage": {
+        "bytes": 12889,
+        "sha256": "7e5a35b55ad371c6e60244b747fec858b8280fc474a80e69b3b1d3fbd468691f"
+      },
+      "main_at_verification": {
+        "bytes": 12889,
+        "sha256": "7e5a35b55ad371c6e60244b747fec858b8280fc474a80e69b3b1d3fbd468691f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_mode_scope.py",
+      "stage": {
+        "bytes": 18133,
+        "sha256": "9f9d6d7c3baaedbf8f96967274720f4ba0774123eb2af3498a01a8add02ce93d"
+      },
+      "main_at_verification": {
+        "bytes": 18133,
+        "sha256": "9f9d6d7c3baaedbf8f96967274720f4ba0774123eb2af3498a01a8add02ce93d"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_native_shutdown.py",
+      "stage": {
+        "bytes": 3548,
+        "sha256": "4bf25ecbc5771b31642068db8e6e81befad2aff0bfc85414730ea5c2f3c18822"
+      },
+      "main_at_verification": {
+        "bytes": 3548,
+        "sha256": "4bf25ecbc5771b31642068db8e6e81befad2aff0bfc85414730ea5c2f3c18822"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_private_config_setup.py",
+      "stage": {
+        "bytes": 63369,
+        "sha256": "2a1f8d461fcf065f7d1193d23e0a0010dac8659b26e8a62c4ddd9dee04067528"
+      },
+      "main_at_verification": {
+        "bytes": 63369,
+        "sha256": "2a1f8d461fcf065f7d1193d23e0a0010dac8659b26e8a62c4ddd9dee04067528"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_action_binding.py",
+      "stage": {
+        "bytes": 32551,
+        "sha256": "84aa5a50c0231701e386324a38928438c9b2fdff68531903352118f2108f074a"
+      },
+      "main_at_verification": {
+        "bytes": 32551,
+        "sha256": "84aa5a50c0231701e386324a38928438c9b2fdff68531903352118f2108f074a"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_approval_binding.py",
+      "stage": {
+        "bytes": 14927,
+        "sha256": "a776d5e13993d65589b4417ab48a531fc094313058910fa6567a8db6dfbcf978"
+      },
+      "main_at_verification": {
+        "bytes": 14927,
+        "sha256": "a776d5e13993d65589b4417ab48a531fc094313058910fa6567a8db6dfbcf978"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_artifact_provenance.py",
+      "stage": {
+        "bytes": 1543,
+        "sha256": "a7f4a868ead6a5c228a9d6f3104f05d33b0bee3bfda9550b76d3d127fa2d968d"
+      },
+      "main_at_verification": {
+        "bytes": 1543,
+        "sha256": "a7f4a868ead6a5c228a9d6f3104f05d33b0bee3bfda9550b76d3d127fa2d968d"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_capability_binding.py",
+      "stage": {
+        "bytes": 11949,
+        "sha256": "b4ce32e5202aeb737154237cb6c045ad639ffab1fcbf317e3419ee85de178e9d"
+      },
+      "main_at_verification": {
+        "bytes": 11949,
+        "sha256": "b4ce32e5202aeb737154237cb6c045ad639ffab1fcbf317e3419ee85de178e9d"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_config_setup.py",
+      "stage": {
+        "bytes": 1664,
+        "sha256": "e75bda55a48f1e2577da84094d46ed338e964dab1e57ca6a4a02d0ebd3a1fc49"
+      },
+      "main_at_verification": {
+        "bytes": 1664,
+        "sha256": "e75bda55a48f1e2577da84094d46ed338e964dab1e57ca6a4a02d0ebd3a1fc49"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_credentials.py",
+      "stage": {
+        "bytes": 13812,
+        "sha256": "0536b19c8d494c761ebe0fb2f942fdf734dff32a936d1ee95ce8c2f18c41d799"
+      },
+      "main_at_verification": {
+        "bytes": 13812,
+        "sha256": "0536b19c8d494c761ebe0fb2f942fdf734dff32a936d1ee95ce8c2f18c41d799"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_execution_admission.py",
+      "stage": {
+        "bytes": 35146,
+        "sha256": "cc639f1b5d362a3b21c5406db25b067eb88cea51cb04e65a412ad776c16cd3d9"
+      },
+      "main_at_verification": {
+        "bytes": 35146,
+        "sha256": "cc639f1b5d362a3b21c5406db25b067eb88cea51cb04e65a412ad776c16cd3d9"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_managed_composition.py",
+      "stage": {
+        "bytes": 11123,
+        "sha256": "d77db1a245604a0078986759595fd7731feeb8d782cf3b6dc4594282adb287e4"
+      },
+      "main_at_verification": {
+        "bytes": 11123,
+        "sha256": "d77db1a245604a0078986759595fd7731feeb8d782cf3b6dc4594282adb287e4"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_readonly_admission.py",
+      "stage": {
+        "bytes": 18011,
+        "sha256": "b9a2c0d0619a1308f39576a9cc4a62fa724c2fcf2de85dfc1694acad90d725aa"
+      },
+      "main_at_verification": {
+        "bytes": 18011,
+        "sha256": "b9a2c0d0619a1308f39576a9cc4a62fa724c2fcf2de85dfc1694acad90d725aa"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_readonly_runtime.py",
+      "stage": {
+        "bytes": 29926,
+        "sha256": "4a92c790adfd5d7df1dcdf560bc0589d0841733ce6cdac654dbf7ff9a279ee58"
+      },
+      "main_at_verification": {
+        "bytes": 29926,
+        "sha256": "4a92c790adfd5d7df1dcdf560bc0589d0841733ce6cdac654dbf7ff9a279ee58"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_production_sdk_readonly.py",
+      "stage": {
+        "bytes": 40210,
+        "sha256": "5a0a784aa77c059c067393908e9dcdd2f3e94afe8eb2b20410ef59ed1deba2d9"
+      },
+      "main_at_verification": {
+        "bytes": 40210,
+        "sha256": "5a0a784aa77c059c067393908e9dcdd2f3e94afe8eb2b20410ef59ed1deba2d9"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_readonly_job_supervisor.py",
+      "stage": {
+        "bytes": 63905,
+        "sha256": "0f6df9d3a9b4b3f3f62e89e8dfd1ba82f61d0496838004d8143da5652ed11b75"
+      },
+      "main_at_verification": {
+        "bytes": 63905,
+        "sha256": "0f6df9d3a9b4b3f3f62e89e8dfd1ba82f61d0496838004d8143da5652ed11b75"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_sandbox_readonly_admission.py",
+      "stage": {
+        "bytes": 39471,
+        "sha256": "8de0737ae19bd1789772f83c24632f50f2def407025aa7eeb62338823a8786d9"
+      },
+      "main_at_verification": {
+        "bytes": 39471,
+        "sha256": "8de0737ae19bd1789772f83c24632f50f2def407025aa7eeb62338823a8786d9"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_sdk_market_readonly.py",
+      "stage": {
+        "bytes": 52286,
+        "sha256": "ffb1233b313feb89ce1d1f2f6d526f68b79cf54eff86f897347aef6f1f67c368"
+      },
+      "main_at_verification": {
+        "bytes": 52286,
+        "sha256": "ffb1233b313feb89ce1d1f2f6d526f68b79cf54eff86f897347aef6f1f67c368"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_shared_managed_runner.py",
+      "stage": {
+        "bytes": 39363,
+        "sha256": "cdaf82fb6532443373203b7c820d8d381d3e36d52e02bbbc28c61dc6336c3f31"
+      },
+      "main_at_verification": {
+        "bytes": 39363,
+        "sha256": "cdaf82fb6532443373203b7c820d8d381d3e36d52e02bbbc28c61dc6336c3f31"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_shared_managed_runtime.py",
+      "stage": {
+        "bytes": 15923,
+        "sha256": "499a1f90e084e611bc4f08f896457a950650943bceb1680d4a01ecf7cc81c0ee"
+      },
+      "main_at_verification": {
+        "bytes": 15923,
+        "sha256": "499a1f90e084e611bc4f08f896457a950650943bceb1680d4a01ecf7cc81c0ee"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_managed_composition.py",
+      "stage": {
+        "bytes": 9998,
+        "sha256": "f8a3a51df5fbd10e84658d27d3e80311209372bc9a926592bf70fad8e012ad08"
+      },
+      "main_at_verification": {
+        "bytes": 9998,
+        "sha256": "f8a3a51df5fbd10e84658d27d3e80311209372bc9a926592bf70fad8e012ad08"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_managed_operator.py",
+      "stage": {
+        "bytes": 22153,
+        "sha256": "fea3699c1d274a7aad2d86f0d190b2137036ac85615776d5c8ee88220e54c875"
+      },
+      "main_at_verification": {
+        "bytes": 22153,
+        "sha256": "fea3699c1d274a7aad2d86f0d190b2137036ac85615776d5c8ee88220e54c875"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_managed_runtime.py",
+      "stage": {
+        "bytes": 30573,
+        "sha256": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958"
+      },
+      "main_at_verification": {
+        "bytes": 30573,
+        "sha256": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_md_diagnostic.py",
+      "stage": {
+        "bytes": 16426,
+        "sha256": "0eb185fe7606861eae2bcea6699e3ed8046a790a8b13defe9cccc40dacbf5290"
+      },
+      "main_at_verification": {
+        "bytes": 16426,
+        "sha256": "0eb185fe7606861eae2bcea6699e3ed8046a790a8b13defe9cccc40dacbf5290"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_native_readiness.py",
+      "stage": {
+        "bytes": 27966,
+        "sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94"
+      },
+      "main_at_verification": {
+        "bytes": 27966,
+        "sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_operational_window.py",
+      "stage": {
+        "bytes": 22196,
+        "sha256": "cf2f8e543b4e52be6386059ba082ba4408487f749d8b1d8d27fb92ab7e876875"
+      },
+      "main_at_verification": {
+        "bytes": 22196,
+        "sha256": "cf2f8e543b4e52be6386059ba082ba4408487f749d8b1d8d27fb92ab7e876875"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+      "stage": {
+        "bytes": 51979,
+        "sha256": "4c35e8087685db8c2e798db3bbf81c9219f4564468bba13aed10383ec799fc9e"
+      },
+      "main_at_verification": {
+        "bytes": 51979,
+        "sha256": "4c35e8087685db8c2e798db3bbf81c9219f4564468bba13aed10383ec799fc9e"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "stage": {
+        "bytes": 19104,
+        "sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d"
+      },
+      "main_at_verification": {
+        "bytes": 19104,
+        "sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simulation_execution.py",
+      "stage": {
+        "bytes": 115265,
+        "sha256": "7618c31d119ba906d49090585623adf91952a67d78c0b81ee38a629651ffb9ec"
+      },
+      "main_at_verification": {
+        "bytes": 115265,
+        "sha256": "7618c31d119ba906d49090585623adf91952a67d78c0b81ee38a629651ffb9ec"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_simulation_query_evidence.py",
+      "stage": {
+        "bytes": 50546,
+        "sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b"
+      },
+      "main_at_verification": {
+        "bytes": 50546,
+        "sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/ctp_trader_client_port.py",
+      "stage": {
+        "bytes": 66622,
+        "sha256": "db34b11a36e201af01fcabb83c1ae6e03ade820035855f38fee5a2ac8ca4b6e4"
+      },
+      "main_at_verification": {
+        "bytes": 66622,
+        "sha256": "db34b11a36e201af01fcabb83c1ae6e03ade820035855f38fee5a2ac8ca4b6e4"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/economic_fact_projection.py",
+      "stage": {
+        "bytes": 11569,
+        "sha256": "b6ec6009b04fa131a3d5099b0c935a50968e6ca3444b8c5ded11a5a2dca7942c"
+      },
+      "main_at_verification": {
+        "bytes": 11569,
+        "sha256": "b6ec6009b04fa131a3d5099b0c935a50968e6ca3444b8c5ded11a5a2dca7942c"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/errors.py",
+      "stage": {
+        "bytes": 2606,
+        "sha256": "07a6a77cfddd1c9f59602a77a4ecb317bc6b21e7e0435860423a2c4fd05921be"
+      },
+      "main_at_verification": {
+        "bytes": 2606,
+        "sha256": "07a6a77cfddd1c9f59602a77a4ecb317bc6b21e7e0435860423a2c4fd05921be"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/evidence_bundle.py",
+      "stage": {
+        "bytes": 12271,
+        "sha256": "4fc9835d290fed193020b82687c1041fb3b6f753d71bf26ccad58c8a03c0977a"
+      },
+      "main_at_verification": {
+        "bytes": 12271,
+        "sha256": "4fc9835d290fed193020b82687c1041fb3b6f753d71bf26ccad58c8a03c0977a"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/framework_projection.py",
+      "stage": {
+        "bytes": 50088,
+        "sha256": "b3fbeaeea8665fea84bcb3ad46366b3a12285fcf6f5f6f7c37470aaefe85bbb0"
+      },
+      "main_at_verification": {
+        "bytes": 50088,
+        "sha256": "b3fbeaeea8665fea84bcb3ad46366b3a12285fcf6f5f6f7c37470aaefe85bbb0"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/inventory.py",
+      "stage": {
+        "bytes": 16457,
+        "sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb"
+      },
+      "main_at_verification": {
+        "bytes": 16457,
+        "sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/legacy.py",
+      "stage": {
+        "bytes": 2887,
+        "sha256": "ac5dfa8cc770f1c30f38cf96bb55048236bc2040647382f42a4d2086aaa9b47c"
+      },
+      "main_at_verification": {
+        "bytes": 2887,
+        "sha256": "ac5dfa8cc770f1c30f38cf96bb55048236bc2040647382f42a4d2086aaa9b47c"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/managed_execution.py",
+      "stage": {
+        "bytes": 153275,
+        "sha256": "2ea43b4be82c4645333b15289ff582278415bca9781e9c4d735f230983174dec"
+      },
+      "main_at_verification": {
+        "bytes": 153275,
+        "sha256": "2ea43b4be82c4645333b15289ff582278415bca9781e9c4d735f230983174dec"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/policy.py",
+      "stage": {
+        "bytes": 5299,
+        "sha256": "631b326ed570e076cb9199ff73755d1ad8ec268197d0964008725b0c58983074"
+      },
+      "main_at_verification": {
+        "bytes": 5299,
+        "sha256": "631b326ed570e076cb9199ff73755d1ad8ec268197d0964008725b0c58983074"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/provider_deployment.py",
+      "stage": {
+        "bytes": 33478,
+        "sha256": "571c4b2ca179ee1be8268330e5db6c6f240d13164d2be89ccbc9a492021cd0eb"
+      },
+      "main_at_verification": {
+        "bytes": 33478,
+        "sha256": "571c4b2ca179ee1be8268330e5db6c6f240d13164d2be89ccbc9a492021cd0eb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/provider_preflight.py",
+      "stage": {
+        "bytes": 16931,
+        "sha256": "32e2567ab56e6cf5edd147725a1e5849f580be6d4ec5ed39ce5f0bffde86d99f"
+      },
+      "main_at_verification": {
+        "bytes": 16931,
+        "sha256": "32e2567ab56e6cf5edd147725a1e5849f580be6d4ec5ed39ce5f0bffde86d99f"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/registry.py",
+      "stage": {
+        "bytes": 86819,
+        "sha256": "f359e0d0576662bc8d5f966ef2345fe723c8802cd504ad383323e59959fe5a01"
+      },
+      "main_at_verification": {
+        "bytes": 86819,
+        "sha256": "f359e0d0576662bc8d5f966ef2345fe723c8802cd504ad383323e59959fe5a01"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/review_evidence.py",
+      "stage": {
+        "bytes": 18855,
+        "sha256": "b6cf1ea6ee3cf040c8ab59f5a3b33f721daa4ff6c3ef3eba8047d0b1c22a7649"
+      },
+      "main_at_verification": {
+        "bytes": 18855,
+        "sha256": "b6cf1ea6ee3cf040c8ab59f5a3b33f721daa4ff6c3ef3eba8047d0b1c22a7649"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/runner.py",
+      "stage": {
+        "bytes": 55150,
+        "sha256": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd"
+      },
+      "main_at_verification": {
+        "bytes": 55150,
+        "sha256": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "backtrader_runtime/test_execution_profile.py",
+      "stage": {
+        "bytes": 32293,
+        "sha256": "c44ea4c38db24d7e00a4b9446611429cfcb9c95b56da5b5d41a792f242dba913"
+      },
+      "main_at_verification": {
+        "bytes": 32293,
+        "sha256": "c44ea4c38db24d7e00a4b9446611429cfcb9c95b56da5b5d41a792f242dba913"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "scripts/__init__.py",
+      "stage": {
+        "bytes": 53,
+        "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+      },
+      "main_at_verification": {
+        "bytes": 53,
+        "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "scripts/ctp_i13_i15_inert_parent.py",
+      "stage": {
+        "bytes": 8054,
+        "sha256": "fd0a0e35ea34a2c3be9fc26902aea49593a470e3025c1aa9dd8798b3ed025117"
+      },
+      "main_at_verification": {
+        "bytes": 8054,
+        "sha256": "fd0a0e35ea34a2c3be9fc26902aea49593a470e3025c1aa9dd8798b3ed025117"
+      },
+      "copied_bytes_match_main": true
+    },
+    {
+      "path": "scripts/ctp_i13_i15_windows_guardian.py",
+      "stage": {
+        "bytes": 7732,
+        "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+      },
+      "main_at_verification": {
+        "bytes": 7732,
+        "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+      },
+      "copied_bytes_match_main": true
+    }
+  ],
+  "note": "All tests in replay come from verified frozen-inputs. Current-main tests were not copied or used. Unmanifested runtime/script dependencies were copied as .py-only support files into this isolated replay; no config or credential files were copied."
+}

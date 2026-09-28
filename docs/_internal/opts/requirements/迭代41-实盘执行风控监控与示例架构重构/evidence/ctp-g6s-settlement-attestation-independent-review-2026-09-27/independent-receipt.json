@@ -1,0 +1,341 @@
+{
+  "schema": "g6s-independent-review-receipt-v1",
+  "disposition": "AUTHOR_CANDIDATE_ONLY / NOT_ACCEPTED / G6-S CLOSED / G7-S CLOSED",
+  "environment": "CPython 3.11.5; read-only source/archive inspection plus local fake pytest only",
+  "test_command": "python -m pytest -q -p no:cacheprovider . (cwd D:\\temp\\simnow-settlement-g6s-20260927)",
+  "test_result": "75 passed in 0.42s",
+  "test_exit_code": 0,
+  "archive": {
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-g6s-settlement-attestation-author-candidate-2026-09-27.raw.zip",
+    "sha256": "eebf640bdf8be00caa5bac4875002dc29c263729a7fda30fed2be88fc33c9c4f",
+    "expected_sha256": "eebf640bdf8be00caa5bac4875002dc29c263729a7fda30fed2be88fc33c9c4f",
+    "matches": true,
+    "members": [
+      {
+        "name": "manifest.json",
+        "archive_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+        "directory_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "provenance-r2.json",
+        "archive_sha256": "aac303aae803756672c1e971e9f2e681e3f7595eecb11f4857d675d0e8528f6a",
+        "directory_sha256": "aac303aae803756672c1e971e9f2e681e3f7595eecb11f4857d675d0e8528f6a",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "README.md",
+        "archive_sha256": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+        "directory_sha256": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "receipt.md",
+        "archive_sha256": "454538c4089252328d7ee80794a93d195f11926c0ba37c673cdff7c62bba9880",
+        "directory_sha256": "454538c4089252328d7ee80794a93d195f11926c0ba37c673cdff7c62bba9880",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "settlement_attestation.py",
+        "archive_sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+        "directory_sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "archive_sha256": "27e537d3c3a1854e59baeec8cc2235da557a1cbc580116102150c6cb5f5ab3ee",
+        "directory_sha256": "27e537d3c3a1854e59baeec8cc2235da557a1cbc580116102150c6cb5f5ab3ee",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "source-lineage-r2.json",
+        "archive_sha256": "d88a4a93eb4c716a5a9d8a4ee74e7ab01f872faa5ebb3bf6b5b10a7ba31cbb37",
+        "directory_sha256": "d88a4a93eb4c716a5a9d8a4ee74e7ab01f872faa5ebb3bf6b5b10a7ba31cbb37",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "test_settlement_attestation.py",
+        "archive_sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+        "directory_sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+        "bytes_identical_to_directory": true
+      },
+      {
+        "name": "test-stdout.txt",
+        "archive_sha256": "210658d741f099f5eda0a232fae16f3831f83a15a734666fbf72f1539c9be002",
+        "directory_sha256": "210658d741f099f5eda0a232fae16f3831f83a15a734666fbf72f1539c9be002",
+        "bytes_identical_to_directory": true
+      }
+    ],
+    "sha256sums_checks": [
+      {
+        "name": "manifest.json",
+        "declared": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+        "actual": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+        "matches": true
+      },
+      {
+        "name": "provenance-r2.json",
+        "declared": "aac303aae803756672c1e971e9f2e681e3f7595eecb11f4857d675d0e8528f6a",
+        "actual": "aac303aae803756672c1e971e9f2e681e3f7595eecb11f4857d675d0e8528f6a",
+        "matches": true
+      },
+      {
+        "name": "README.md",
+        "declared": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+        "actual": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+        "matches": true
+      },
+      {
+        "name": "receipt.md",
+        "declared": "454538c4089252328d7ee80794a93d195f11926c0ba37c673cdff7c62bba9880",
+        "actual": "454538c4089252328d7ee80794a93d195f11926c0ba37c673cdff7c62bba9880",
+        "matches": true
+      },
+      {
+        "name": "settlement_attestation.py",
+        "declared": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+        "actual": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+        "matches": true
+      },
+      {
+        "name": "source-lineage-r2.json",
+        "declared": "d88a4a93eb4c716a5a9d8a4ee74e7ab01f872faa5ebb3bf6b5b10a7ba31cbb37",
+        "actual": "d88a4a93eb4c716a5a9d8a4ee74e7ab01f872faa5ebb3bf6b5b10a7ba31cbb37",
+        "matches": true
+      },
+      {
+        "name": "test_settlement_attestation.py",
+        "declared": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+        "actual": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+        "matches": true
+      },
+      {
+        "name": "test-stdout.txt",
+        "declared": "210658d741f099f5eda0a232fae16f3831f83a15a734666fbf72f1539c9be002",
+        "actual": "210658d741f099f5eda0a232fae16f3831f83a15a734666fbf72f1539c9be002",
+        "matches": true
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "declared_from_author_readme": "27e537d3c3a1854e59baeec8cc2235da557a1cbc580116102150c6cb5f5ab3ee",
+        "actual": "27e537d3c3a1854e59baeec8cc2235da557a1cbc580116102150c6cb5f5ab3ee",
+        "matches": true
+      }
+    ]
+  },
+  "candidate_files_identical_to_author_archive": true,
+  "reviewed_inputs": [
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simulation_query_evidence.py",
+      "exists": true,
+      "manifest_sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "current_sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simnow_native_readiness.py",
+      "exists": true,
+      "manifest_sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94",
+      "current_sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "exists": true,
+      "manifest_sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d",
+      "current_sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "exists": true,
+      "manifest_sha256": "b7cba6ac34626726340565ad5ba002750efe87ea668e3419035357d071c276f3",
+      "current_sha256": "b7cba6ac34626726340565ad5ba002750efe87ea668e3419035357d071c276f3",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+      "exists": true,
+      "manifest_sha256": "08c80203f62ded15b2b3f711dd5babb83731ecb0bb57348a8ce4dad6855f9084",
+      "current_sha256": "de40bc21faefafc426b56e796ede0307fb2296d208d33076d1395c2cb5c77c90",
+      "current_bytes_match": false
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ADR-41-16-simnow-f14-writer-fence-proposal.md",
+      "exists": true,
+      "manifest_sha256": "376e299ea9939a904eb5c9b725bc03880b0058ce35153e0a12e972916ebed08d",
+      "current_sha256": "376e299ea9939a904eb5c9b725bc03880b0058ce35153e0a12e972916ebed08d",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-settlement-readiness-gate-audit-2026-09-25.md",
+      "exists": true,
+      "manifest_sha256": "56d79090288829fd9aa2abad9f1a3981e20a63c997ffe8ccc25cc86b24fcc46d",
+      "current_sha256": "56d79090288829fd9aa2abad9f1a3981e20a63c997ffe8ccc25cc86b24fcc46d",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/ctp-accountwide-control-feasibility-2026-09-23.md",
+      "exists": true,
+      "manifest_sha256": "561b2ec8f6e576ff6aa2bd08e02783af6b87636ca12fa12374c7b7a7db15d289",
+      "current_sha256": "561b2ec8f6e576ff6aa2bd08e02783af6b87636ca12fa12374c7b7a7db15d289",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/client.py",
+      "exists": true,
+      "manifest_sha256": "b61b32f9a2a2e61035bf88bcb7acf669c8c7ee8e5bf5d7e1f6e375e69f053eab",
+      "current_sha256": "b61b32f9a2a2e61035bf88bcb7acf669c8c7ee8e5bf5d7e1f6e375e69f053eab",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query.py",
+      "exists": true,
+      "manifest_sha256": "a65be5fc46a6a7658c1cf017197f1de14cad018fb46dbafd9ead1ca8fcfc93ad",
+      "current_sha256": "a65be5fc46a6a7658c1cf017197f1de14cad018fb46dbafd9ead1ca8fcfc93ad",
+      "current_bytes_match": true
+    },
+    {
+      "path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+      "exists": true,
+      "manifest_sha256": "a76e4e1245e84c782ffb9a92b4a804c377fc58c7f3672fd33265e3260e059fbe",
+      "current_sha256": "a76e4e1245e84c782ffb9a92b4a804c377fc58c7f3672fd33265e3260e059fbe",
+      "current_bytes_match": true
+    }
+  ],
+  "matrix_path_review": {
+    "manifest_path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+    "canonical_current_path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+    "path_matches": true,
+    "r1_manifest_sha256": "08c80203f62ded15b2b3f711dd5babb83731ecb0bb57348a8ce4dad6855f9084",
+    "current_sha256": "de40bc21faefafc426b56e796ede0307fb2296d208d33076d1395c2cb5c77c90",
+    "r2_captured_sha256": "73901647326beb1ec67ff470ba3c22153b28162942dec83b54f357c474075f4c",
+    "r2_capture_time": "2026-09-26T22:44:50Z",
+    "current_last_write_utc": "2026-09-26T22:57:48.551280+00:00",
+    "note": "R1 JSON path resolves to the canonical current file in this review; its listed digest is not current. R2 capture hash is time-bounded and cannot be revalidated against current bytes after later edits.",
+    "prior_root_finding_reproduced": false,
+    "review_note": "The earlier root preflight reported a mojibake matrix path. This independent UTF-8 comparison resolves the r1 manifest path exactly to the canonical file path, so I did not reproduce a spelling failure. The r1 digest is stale against the current matrix bytes; R2 is a time-bounded capture, not proof of historical r1 bytes."
+  },
+  "sdk_source_lineage": {
+    "clean_g4_client_path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\ctp\\client.py",
+    "clean_g4_client_sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+    "matches_c217be3e...e6ff": true,
+    "dirty_r1_client_path": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py",
+    "dirty_r1_client_sha256": "b61b32f9a2a2e61035bf88bcb7acf669c8c7ee8e5bf5d7e1f6e375e69f053eab",
+    "matches_r1_manifest": true,
+    "r1_source_claim_limited_to_exact_dirty_hash": "The r1 missing-request_filters observation applies only to this exact dirty checkout snapshot: its settlement query did not pass request_filters to _execute_query. Do not generalize that observation to other SDK candidate source.",
+    "clean_g4_report": {
+      "status": "REPORTED_BY_SDK_MERGE / INDEPENDENTLY_UNVERIFIED_IN_THIS_ARCHIVE",
+      "source_path": null,
+      "source_sha256": null,
+      "line_refs": null,
+      "reported_behavior": "The separate clean G4-r2 source-a candidate passes request_filter_field plus request_intent_filters; _execute_query reads actual native field values through _read_native_query_filter_items() before send and records them in QuerySource.",
+      "request_type": "settlement_confirmation",
+      "row_day_field": "ConfirmDate",
+      "session_day_field": "TradingDay sealed in QuerySource/session; native CThostFtdcSettlementInfoConfirmField has no TradingDay member.",
+      "evidence_limit": "Exact source-a path/hash/line references were not supplied at capture time; this report is not independently verified here and does not establish SDK pinning or acceptance."
+    },
+    "settlement_row_field": "ConfirmDate",
+    "ctp_6_7_7_windows_header": {
+      "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\ctp\\api\\6.7.7\\windows\\ThostFtdcUserApiStruct.h",
+      "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5",
+      "field_contract": "CThostFtdcSettlementInfoConfirmField declares BrokerID, InvestorID, ConfirmDate, ConfirmTime, SettlementID, AccountID, CurrencyID; no TradingDay."
+    },
+    "clean_g4_r2_independent_review": "Independently checked exact candidate bytes/hash and lines 8021-8051: the clean G4-r2 method sets BrokerID/InvestorID, passes request_filter_field and request_intent_filters to _execute_query. This is static source review; no SDK package import or native/provider execution."
+  },
+  "negative_case": {
+    "test_name": "test_correct_looking_row_without_exact_native_provenance_rejects_with_zero_writes",
+    "parameterized_gaps": [
+      "request_filters",
+      "source_seal",
+      "history",
+      "records_digest"
+    ],
+    "counter_assertions": {
+      "query_settlement_confirmation": 1,
+      "settlement_confirm": 0,
+      "order_insert": 0,
+      "order_action": 0
+    },
+    "verifier_not_called_when_filters_missing": true,
+    "fixture_limitation": "The frozen r1 negative uses a row mapping with both TradingDay and ConfirmDate. The actual 6.7.7 CThostFtdcSettlementInfoConfirmField has ConfirmDate but no TradingDay. The candidate implementation permits ConfirmDate-only and this limitation was separately exercised by the QA-only probe."
+  },
+  "gates": {
+    "all_evidence_hashes_valid": true,
+    "no_provider_native_network_config_or_production_route_used": true,
+    "g6s_g7s_closed": true
+  },
+  "checks": {
+    "r1_test_passed": true,
+    "raw_zip_sha_matches_readme": true,
+    "all_archive_members_identical_to_evidence_directory": true,
+    "all_author_sha256sums_valid": true,
+    "r1_candidate_files_match_author_archive": true,
+    "reviewed_inputs_currently_match": 10,
+    "r1_matrix_path_exact_canonical_path": true,
+    "clean_g4_client_hash_matches_requested": true,
+    "dirty_r1_sdk_client_hash_matches_manifest": true,
+    "candidate_hashes_match_manifest": true,
+    "no_sdk_or_provider_import_in_candidate": true
+  },
+  "candidate_file_manifest_checks": [
+    {
+      "path": "settlement_attestation.py",
+      "declared_sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+      "actual_sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+      "matches": true
+    },
+    {
+      "path": "test_settlement_attestation.py",
+      "declared_sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+      "actual_sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+      "matches": true
+    },
+    {
+      "path": "README.md",
+      "declared_sha256": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+      "actual_sha256": "fbe319e36ae6ce0f2ece1a577ae795e4c7ad28a1d028716afd5fe9cae26e4aaf",
+      "matches": true
+    }
+  ],
+  "candidate_import_roots": [
+    "__future__",
+    "dataclasses",
+    "datetime",
+    "decimal",
+    "hashlib",
+    "json",
+    "pytest",
+    "re",
+    "settlement_attestation",
+    "typing"
+  ],
+  "confirmdate_only_probe": {
+    "scope": "QA-only isolated copy; frozen candidate files copied byte-for-byte; no candidate/source tree edits",
+    "path": "D:\\temp\\simnow-settlement-g6s-independent-confirmdate-probe-20260927",
+    "command": "python -m pytest -q -p no:cacheprovider . (cwd D:\\temp\\simnow-settlement-g6s-independent-confirmdate-probe-20260927)",
+    "result": "77 passed in 0.47s (75 baseline plus 2 QA-only cases)",
+    "exit_code": 0,
+    "tests": [
+      "test_confirmdate_only_native_shaped_row_attests_in_fake_positive_control",
+      "test_confirmdate_only_correct_looking_row_without_request_filters_rejects_zero_writes"
+    ],
+    "probe_test_sha256": "55cbcd9a4e220acec315f38e4d1276b8a5dee9287e1f4d3b923b2f2ebd4ae4b2",
+    "copied_candidate_source_sha256": "f747706573534acd8d93b69eedcd79272c24dc231bb7077ddbd820295af1a76f",
+    "copied_candidate_test_sha256": "8e433a9d030f11a9bbc8b0aa9053bc0dc2af9e91a770e121a8da216d452ba059",
+    "pytest_log_sha256": "924ed6761b64447e2e6cf623af2940470a044332ee890d9f143d697d0b99b86b",
+    "interpretation": "The candidate accepts the actual-shaped ConfirmDate-only mapping with complete fake provenance and rejects the same correct-looking mapping when request_filters are absent; all fake write counters remain zero. This closes the fixture-shape probe only, not SDK/main readiness."
+  },
+  "r1_manifest_observation": {
+    "r1_manifest_path": "D:\\temp\\simnow-settlement-g6s-20260927\\manifest.json",
+    "r1_manifest_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+    "author_archive_manifest_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+    "candidate_and_archive_manifest_bytes_identical": true,
+    "decoded_matrix_path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+    "matrix_path_unicode_escape": "D:/source_code/backtrader/docs/_internal/opts/requirements/\\u8fed\\u4ee341-\\u5b9e\\u76d8\\u6267\\u884c\\u98ce\\u63a7\\u76d1\\u63a7\\u4e0e\\u793a\\u4f8b\\u67b6\\u6784\\u91cd\\u6784/ctp-current-acceptance-matrix.md",
+    "matrix_path_has_replacement_character": false,
+    "matrix_path_exactly_equals_current_canonical_path": true,
+    "manifest_matrix_digest": "08c80203f62ded15b2b3f711dd5babb83731ecb0bb57348a8ce4dad6855f9084",
+    "manifest_sha256_is_frozen_author_archive_sha": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1"
+  }
+}

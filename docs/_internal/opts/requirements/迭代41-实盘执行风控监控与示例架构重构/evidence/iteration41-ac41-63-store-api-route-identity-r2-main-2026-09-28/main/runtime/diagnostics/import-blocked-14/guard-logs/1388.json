@@ -1,0 +1,20 @@
+{
+  "events": [
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp",
+    "blocked_provider_import:bt_api_ctp"
+  ],
+  "native_modules_loaded": []
+}

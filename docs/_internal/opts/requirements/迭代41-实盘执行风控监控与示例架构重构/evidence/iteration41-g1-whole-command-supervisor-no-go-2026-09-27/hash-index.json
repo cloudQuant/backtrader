@@ -1,0 +1,116 @@
+{
+  "schema": "iteration41-ctp-preflight-supervisor-independent-qa-hash-index-v1",
+  "index_self_excluded": true,
+  "hashes": [
+    {
+      "path": "REPORT.md",
+      "bytes": 5578,
+      "sha256": "72EDECA7C5052D1DB5E73E5E5EE8F29B56F6A256410542D5B91E04A1856AAC6C"
+    },
+    {
+      "path": "qa-manifest.json",
+      "bytes": 3444,
+      "sha256": "CB7F38A1347B326B9B7A41DF86EFC3171D9012C97BE65DA24AD8304A5ADE68FE"
+    },
+    {
+      "path": "package-verification.json",
+      "bytes": 2335,
+      "sha256": "93C14DBA8F0F8BF67CDC3D816D435A9DA0922EB74127D1816EEE999E42170A3B"
+    },
+    {
+      "path": "replay-source-verification.json",
+      "bytes": 46921,
+      "sha256": "F26DB2272DF9A07EA48C51DA990D61398CF21C4AF63A47422352B19814FEE35C"
+    },
+    {
+      "path": "guard-summary.json",
+      "bytes": 1177,
+      "sha256": "B03334688D4AF76B82402579B1B7BA201E8479336B390C9FB486452C2F405EE1"
+    },
+    {
+      "path": "supervisor-complete.log",
+      "bytes": 226,
+      "sha256": "8AE44297BA965C56E49C198366F9AAE6E4841934FA484294432E6678B664DFA6"
+    },
+    {
+      "path": "supervisor-complete.junit.xml",
+      "bytes": 11019,
+      "sha256": "B65808900E3F31339A14DA32735E7597A25512014193533FD21DC91C7C18BD23"
+    },
+    {
+      "path": "supervisor-complete.exit.txt",
+      "bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "cli-gate-complete.log",
+      "bytes": 222,
+      "sha256": "FF35723BE51967C345B616925467469437B609BEF0CBB195BFD4090CE6EF1D9E"
+    },
+    {
+      "path": "cli-gate-complete.junit.xml",
+      "bytes": 381,
+      "sha256": "EFAE4A53D56F1457F5B6769B71128133D84D80C3734A725D416F08D96702138D"
+    },
+    {
+      "path": "cli-gate-complete.exit.txt",
+      "bytes": 1,
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9"
+    },
+    {
+      "path": "supervisor-focused.log",
+      "bytes": 1486,
+      "sha256": "DF7839421D43BC7CD60BB0ACAE8DD82C1A545DFB33BE50797F2C0EC751401142"
+    },
+    {
+      "path": "supervisor-focused.junit.xml",
+      "bytes": 1324,
+      "sha256": "FE9F0F8C02BA4E5447107BA5671CBDB925F979C0645A46F36E127A505090A813"
+    },
+    {
+      "path": "supervisor-focused.exit.txt",
+      "bytes": 1,
+      "sha256": "D4735E3A265E16EEE03F59718B9B5D03019C07D8B6C51F90DA3A666EEC13AB35"
+    },
+    {
+      "path": "supervisor-rerun.log",
+      "bytes": 4338,
+      "sha256": "EF2A7ABF32751AD932815DDE63A9AD00A667F6CE68E5F2238BAD521D3324693E"
+    },
+    {
+      "path": "supervisor-rerun.junit.xml",
+      "bytes": 14359,
+      "sha256": "E93F685DA9EA412FF97539A65067A863F7CF30155BCACB9ECF92E64434DCEA30"
+    },
+    {
+      "path": "supervisor-rerun.exit.txt",
+      "bytes": 1,
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+    },
+    {
+      "path": "supervisor-final.log",
+      "bytes": 4338,
+      "sha256": "D7DD06B7A9095E897DA3FD43804A0E7C479FC1D19E3D9E5F06352C35E152D882"
+    },
+    {
+      "path": "supervisor-final.junit.xml",
+      "bytes": 14359,
+      "sha256": "F7F12847545295495D4494C871927FEF28B1B60B661F1496B6017A13544A8A83"
+    },
+    {
+      "path": "supervisor-final.exit.txt",
+      "bytes": 1,
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+    },
+    {
+      "path": "verify_package.py",
+      "bytes": 3421,
+      "sha256": "B4DC58339986D9C77A9473B081B99EE292F47D03B4126E072A4F5B078D58FDB8"
+    },
+    {
+      "path": "verify_replay_sources.py",
+      "bytes": 3328,
+      "sha256": "AE07F07D6198130BD006D05F727FD75B364EA0A7CDADB8EE16C97AB4B24BA245"
+    }
+  ]
+}

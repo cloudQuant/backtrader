@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="3" failures="0" skipped="0" tests="3" time="0.236" timestamp="2026-09-27T07:38:46.977812" hostname="yun"><testcase classname="" name="tests.test_cancel_dispatch_resolution_proof" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\parent-source\tests\test_cancel_dispatch_resolution_proof.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\test_cancel_dispatch_resolution_proof.py:20: in &lt;module&gt;
+    from bt_api_execution import contracts as _execution_contracts  # noqa: E402
+..\origin-guard\sitecustomize.py:88: in find_spec
+    raise ImportError(f"wrong source origin for {fullname}: {origin}; expected under {pkg}")
+E   ImportError: wrong source origin for bt_api_execution: D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src\bt_api_execution\__init__.py; expected under D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src\bt_api_execution</error></testcase><testcase classname="" name="tests.test_cancel_dispatch_resolution_proof_store" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\parent-source\tests\test_cancel_dispatch_resolution_proof_store.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\test_cancel_dispatch_resolution_proof_store.py:18: in &lt;module&gt;
+    import bt_api_execution as execution  # noqa: E402
+..\origin-guard\sitecustomize.py:88: in find_spec
+    raise ImportError(f"wrong source origin for {fullname}: {origin}; expected under {pkg}")
+E   ImportError: wrong source origin for bt_api_execution: D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src\bt_api_execution\__init__.py; expected under D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src\bt_api_execution</error></testcase><testcase classname="" name="tests.test_cancellation_dispatch_resolution_control" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\parent-source\tests\test_cancellation_dispatch_resolution_control.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\test_cancellation_dispatch_resolution_control.py:25: in &lt;module&gt;
+    import bt_api_execution as execution  # noqa: E402
+..\origin-guard\sitecustomize.py:88: in find_spec
+    raise ImportError(f"wrong source origin for {fullname}: {origin}; expected under {pkg}")
+E   ImportError: wrong source origin for bt_api_execution: D:\temp\iteration41_v20_r3_cancel_terminal_candidate_20260927\src\bt_api_execution\__init__.py; expected under D:\temp\iteration41-parent-r4-r3r3-independent-qa-20260927\package-roots\execution\src\bt_api_execution</error></testcase></testsuite></testsuites>

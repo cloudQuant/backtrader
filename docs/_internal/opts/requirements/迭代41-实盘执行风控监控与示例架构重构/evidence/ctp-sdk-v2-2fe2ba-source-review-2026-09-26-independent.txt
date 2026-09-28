@@ -1,0 +1,55 @@
+Iteration 41 SDK V2 independent source-union receipt
+Date: 2026-09-26
+
+Purpose and evidence boundary
+- This receipt distinguishes my independent 14-file source union from the author's earlier 472-pass run whose PYTHONPATH pointed at the nested package directory.
+- No wheel build, matching Windows native extension, provider session, network call, private config, or execution route was used.
+- The SDK V2 contract tests are fake-only. A warning confirms no matching CPython 3.11 Windows _ctp extension was available; the package used its unavailable-extension fallback.
+
+Frozen SDK source
+- SDK commit: 2fe2ba9d78bab6477aa4e232795aad35a14f2313
+- SDK tree: 4d87dc1feb2aa1c38383ddce061c11bd6640f6b1
+- client.py SHA256: A80D060577C210C5FAAFC57E72B5F2435D6E7B25F6B4FAD7EB5797827ABE6BD6
+- tests/test_ctp_callback_ingress_client.py SHA256: 82DE7C2539EDFA7E7C6F2A84DC821D09FE8F7D2927638EA4ED18507D081313CE
+
+Parent source identity
+- Parent repository root used in my test command: D:\bt_api_py_codex_i9_integrated_20260926
+- Parent HEAD: 62e683bc5ec9a04117e39f4a5dcbba1f6e3b16ec
+- Parent checkout had other modified files. The three owner-frozen files below were dirty/uncommitted at that HEAD; their current byte hashes match the frozen manifest. This source union is not a clean parent wheel/package acceptance.
+- bt_api_py/_contracts/models.py SHA256: A325326825E958A0CC0D885C34E391BDE9751199745863E87914D426D6213C11
+- bt_api_py/_execution_session.py SHA256: 925ABBE05D33B36A0D3C37DD2D4B5733190CF9C3A6BD0B7ECBEB0A152FD2D82F
+- tests/bt_api_contract/test_ctp_orderref_consume.py SHA256: BF9999BA32FF2457113F2B20C2438E8746AEB6EABFA4754EA3462E764CFA9677
+- Additional imported-source hashes: bt_api_py/__init__.py D7704AB15DD3A09BEB033BE65536C70F24748AD77E1EE7D446C633D7F864D999; bt_api_py/_normalization.py FD0EFCBAEB086F667E0C50876966C782ADE525D33ED2E92834F082101E32E544.
+- The three owner-frozen parent files above were not exercised as a group by my 14-file union. The union's relevant parent import is test_iter22_contracts.py::test_gateway_quote_v2_serialized_payload_reaches_parent_normalizer, which imports bt_api_py._normalization.normalize_event.
+
+My independent 14-file union command
+- Working directory: D:\bt_api_ctp_i13_g5_manual_candidate_20260926
+- Environment:
+  - PYTHONPATH=D:\bt_api_ctp_i13_g5_manual_candidate_20260926\src;D:\source_code\backtrader;D:\bt_api_py_codex_i9_integrated_20260926;D:\temp\bt_api_i9_store_broker_src_20260926\bt_api_base\src
+  - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  - PYTHONDONTWRITEBYTECODE=1
+- Command:
+  python -m pytest tests/test_ctp_callback_ingress.py tests/test_ctp_callback_ingress_client.py tests/test_ctp_g5_source_unification.py tests/test_ctp_trader_login_identity.py tests/test_ctp_native_callback_events.py tests/test_ctp_md_disconnect_observability.py tests/test_ctp_md_subscribe_batched.py tests/test_md_identity.py tests/test_md_client_identity.py tests/test_md_startup_locking.py tests/test_ctp_shutdown.py tests/test_ctp_feed.py tests/test_iter22_contracts.py tests/test_ctp_native_query_certificate.py -q --tb=short -p no:cacheprovider
+- Result: 472 passed, 2 expected warnings, 62.54s, exit 0.
+- The independent command used the parent repository root, not its nested bt_api_py directory.
+
+Import-origin readback immediately after my run
+With the same PYTHONPATH, importlib.util.find_spec returned:
+- bt_api_py: D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py\__init__.py
+- bt_api_py._normalization: D:\bt_api_py_codex_i9_integrated_20260926\bt_api_py\_normalization.py
+- bt_api_py.models: not present (the source package has no bt_api_py.models module).
+No difference was observed in the imported _normalization.py between test and post-run readback; git status did not list that file as modified.
+
+Independent focused V2 slice
+- Environment used candidate src on PYTHONPATH, PYTEST_DISABLE_PLUGIN_AUTOLOAD=1, PYTHONDONTWRITEBYTECODE=1.
+- Command: python -m pytest tests/test_ctp_callback_ingress_client.py -q --tb=short -p no:cacheprovider
+- Result: 44 passed, 2 expected warnings, 0.85s.
+- Static checks: Ruff on client.py and the V2 integration test passed; py_compile passed; git diff --check passed.
+
+JUnit/log provenance
+- My independent 14-file invocation was run interactively and did not write a JUnit or raw log file. Its result above is the direct tool output.
+- The author's earlier artifacts D:\temp\iteration41-sdk-v2-union-20260926.xml and D:\temp\iteration41-sdk-v2-union-20260926.log are preserved, but the author's manifest records the wrong nested parent path and marks the parent-normalizer provenance invalid. Do not use those artifacts as proof of correct parent origin.
+- The author's corrected origin-asserted single-node rerun is separately recorded at D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.manifest.txt. Runner: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.py. Log: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.log. JUnit: D:\temp\iteration41-sdk-v2-parent-normalizer-20260926.xml. Result: 1 passed, 2 expected warnings; all three asserted origins are under the parent repository root.
+
+Scope note
+- The independent source union supports the SDK candidate source regression claim only. It does not establish a clean/pinned parent wheel, parent three-file test coverage, native ABI load, or provider/deployment authority.

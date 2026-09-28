@@ -1,0 +1,12 @@
+{
+  "base_seed_and_projection_verifiers": "FAIL_CLOSED_NO_COMMAND",
+  "counter_ahead_burned_gap": {
+    "counter_burned": 39,
+    "first": 38,
+    "next": 40
+  },
+  "counter_below_allocation": "FAIL_CLOSED",
+  "counter_rollback": "TRIGGER_BLOCKED",
+  "missing_counter_with_allocations": "FAIL_CLOSED",
+  "replay_without_action_mapping": "FAIL_CLOSED"
+}

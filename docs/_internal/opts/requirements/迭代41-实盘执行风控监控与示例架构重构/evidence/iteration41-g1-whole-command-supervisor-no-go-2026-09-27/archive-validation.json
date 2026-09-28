@@ -1,0 +1,170 @@
+{
+  "schema": "iteration41-g1-evidence-archive-validation-v1",
+  "verdict": "PASS_ARCHIVE_INTEGRITY_ONLY",
+  "author_zip_sha256": "3EF6D18F4CE3E1F2F28391176C75706ACF2E7018A6EA6C0AC66C2605FB9D2B67",
+  "zip_testzip": null,
+  "zip_member_count": 30,
+  "author_manifest_payload_count": 29,
+  "author_payload_hash_mismatches": 0,
+  "author_zip_extra_member": "qa-package-manifest.json",
+  "markdown_relative_links_checked": 30,
+  "markdown_relative_link_failures": 0,
+  "relative_links": [
+    {
+      "from": "README.md",
+      "target": "AUTHOR-README.md",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "author-review.zip",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "AUTHOR-PACKAGE-MANIFEST.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "AUTHOR-RECEIPT.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "source-manifest.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "QA-REPORT.md",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "qa-manifest.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "hash-index.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "package-verification.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "replay-source-verification.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "guard-summary.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "supervisor-complete.log",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "supervisor-complete.junit.xml",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "cli-gate-complete.log",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "cli-gate-complete.junit.xml",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "raw/",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "preliminary/",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "qa-guard/sitecustomize.py",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "qa-supplemental-sources/scripts/",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "frozen-inputs/evidence-docs/",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "archive-validation.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "archive-hash-index.json",
+      "exists": true
+    },
+    {
+      "from": "README.md",
+      "target": "replay-source-verification.json",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "author-review.zip",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "source-manifest.json",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "frozen-inputs/evidence-docs/",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "raw/",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "frozen-inputs/evidence-docs/DESIGN.md",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "frozen-inputs/evidence-docs/R11_G1_HARD_DEADLINE_AUDIT.md",
+      "exists": true
+    },
+    {
+      "from": "AUTHOR-README.md",
+      "target": "frozen-inputs/evidence-docs/R10_CHANNEL_FAULTS_REPORT.md",
+      "exists": true
+    }
+  ],
+  "author_readme_note": "Extracted AUTHOR-README.md adjusts its three cited evidence links and source-tree sentence for this compact archive; byte-exact original remains in author-review.zip and is bound by the author manifest.",
+  "limits": [
+    "Archive integrity checks do not establish G1 deadline acceptance or route authority.",
+    "The author ZIP omitted two direct helper sources; independent replay added those plus 105 other support Python files from the current main tree in isolated temp.",
+    "Only the three cited design docs are expanded; source payload remains in the author ZIP."
+  ]
+}

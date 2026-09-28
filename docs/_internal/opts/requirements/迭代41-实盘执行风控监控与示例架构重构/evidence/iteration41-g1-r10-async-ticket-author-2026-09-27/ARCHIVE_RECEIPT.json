@@ -1,0 +1,19 @@
+{
+  "archive_member_count": 29,
+  "author_page": "AUTHOR_R10_EVIDENCE.md",
+  "author_page_sha256": "e421fa38eda80585d9a8d890f51ebcdcc897ed1b608a9c2bd462c14dc26f1344",
+  "candidate": "R10 Windows inert one-shot asynchronous ticket API + prestarted broker/reaper",
+  "candidate_manifest_sha256": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+  "candidate_payload_count": 23,
+  "candidate_receipt_sha256": "deb34cbe0584710fa41f6623f0febcec0a2a2a71c5ff15e0c54f2fbf39c877c7",
+  "index": "ARCHIVE_INDEX.json",
+  "index_sha256": "fd51f44aba6e6acb364cba5bdb1d70e698cb3eb8ef38c6f53232598d074483fb",
+  "scope": "No production code changed; no CTP/native/provider, credentials, private config, network, SCM, or default preflight integration. G1 remains closed.",
+  "sha256sums": "SHA256SUMS.txt",
+  "sha256sums_sha256": "d49fc41202ad9025dc8abb693f21cd8174ded8590d874f056738734b31a8c6a9",
+  "status": "AUTHOR_ARCHIVE_ONLY_G1_CLOSED",
+  "verification": "All frozen manifest payload hashes matched source and copied bytes; ZIP CRC and every indexed member SHA-256 verified.",
+  "zip": "r10_candidate_raw.zip",
+  "zip_sha256": "8c8a04d449e773388119fa63cd64a527816e353f800156ae475805905d55bec9",
+  "zip_size_bytes": 2083779
+}

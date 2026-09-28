@@ -1,0 +1,92 @@
+{
+  "archive_id": "g6-p-account-actor-server-core-r5",
+  "frozen_source": "D:\\temp\\iteration41-g6-account-actor-server-core-freeze-20260927-r1",
+  "frozen_manifest_sha256": "925a72915cca210431a25d7db1993d6290025f241b6d76fe170b0cbe8f9b0420",
+  "frozen_receipt_sha256": "0132ff5b6097483a131fac26d2c8ee42d1d9de7b2178466a2f950a8c07d469c2",
+  "payload_count": 11,
+  "zip_member_count": 16,
+  "zip_sha256": "92d60f7d70a40fdf2485d17523d14a70e0129c9ebe747c1c2703dbf1130a2410",
+  "members": [
+    {
+      "path": "candidate/account_actor_port.py",
+      "size_bytes": 25739,
+      "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48"
+    },
+    {
+      "path": "candidate/account_actor_server_core.py",
+      "size_bytes": 44569,
+      "sha256": "40cee121d25bd3b7a0acbc4ecdd5d637ea99dc97a32b09e1b155cff2c7af5bd0"
+    },
+    {
+      "path": "candidate/compile-results.txt",
+      "size_bytes": 59,
+      "sha256": "3afc1f1db429e87ee573090cdc6290f91cab51c0b5f468053911a412430381f0"
+    },
+    {
+      "path": "candidate/INTEGRATION_CONTRACT.md",
+      "size_bytes": 8414,
+      "sha256": "26f61a820ead33d6a8358bd2c2ef4b976370ea1b2158b7fae716da0141c3ee5b"
+    },
+    {
+      "path": "candidate/MAIN_SOURCE_INVENTORY.md",
+      "size_bytes": 2730,
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+    },
+    {
+      "path": "candidate/manifest.json",
+      "size_bytes": 2034,
+      "sha256": "925a72915cca210431a25d7db1993d6290025f241b6d76fe170b0cbe8f9b0420"
+    },
+    {
+      "path": "candidate/manifest.sha256",
+      "size_bytes": 80,
+      "sha256": "5daa6b2b5be681ba2f21baaa795f1c9a8ac3a247085f763374859cde7d6e1073"
+    },
+    {
+      "path": "candidate/README.md",
+      "size_bytes": 1723,
+      "sha256": "31e80c1e1d797e7c41b9675115ac35c41bcba3448b14144f132305a240e0385c"
+    },
+    {
+      "path": "candidate/receipt.md",
+      "size_bytes": 4364,
+      "sha256": "0132ff5b6097483a131fac26d2c8ee42d1d9de7b2178466a2f950a8c07d469c2"
+    },
+    {
+      "path": "candidate/receipt.sha256",
+      "size_bytes": 77,
+      "sha256": "6e191faf14c9273acad6117fc8bc59b0ada6068c5e1f34956d19a7de9e26fa9a"
+    },
+    {
+      "path": "candidate/ruff-results.txt",
+      "size_bytes": 33,
+      "sha256": "b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4"
+    },
+    {
+      "path": "candidate/store_boundary_harness.py",
+      "size_bytes": 5114,
+      "sha256": "087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0"
+    },
+    {
+      "path": "candidate/test-results.txt",
+      "size_bytes": 9305,
+      "sha256": "20bae2c16aa7212d1664826b055139619db5953b77262c3ff64aff3d1fec2d46"
+    },
+    {
+      "path": "candidate/tests/test_account_actor_server_core.py",
+      "size_bytes": 18919,
+      "sha256": "175d91e7fdcd53c09e40c3c04ac22f3711bebae4748f0ea16d79bd80567a1bfd"
+    },
+    {
+      "path": "candidate/tests/test_store_boundary_harness.py",
+      "size_bytes": 31213,
+      "sha256": "f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa"
+    },
+    {
+      "path": "ARCHIVE-NOTE.md",
+      "size_bytes": 1176,
+      "sha256": "8d3b70b35fdae5367e8abb365127ad587fc082ca8b7a9509832f78cf1c548929"
+    }
+  ],
+  "status": "author-recorded fake-only checks; independent QA pending; G6-P BLOCKED"
+}

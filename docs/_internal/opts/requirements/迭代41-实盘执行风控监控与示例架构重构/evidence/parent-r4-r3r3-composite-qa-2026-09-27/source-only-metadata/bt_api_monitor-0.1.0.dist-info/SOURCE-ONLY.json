@@ -1,0 +1,12 @@
+{
+  "package_key": "monitor",
+  "distribution": "bt_api_monitor",
+  "version": "0.1.0",
+  "source_root": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src",
+  "project_file": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\pyproject.toml",
+  "project_sha256": "eaa86477419236e7e07485769406cc271ae5e99f9798c58642676e5693df1ad2",
+  "source_file_count": 12,
+  "source_tree_sha256": "a9df89868c878997ef6c55c3ad149dc8a935ead5f505b34e80a4f6cdf729812e",
+  "metadata_sha256": "c6a3790cd5151eb05a6d773e989df5c48ebd805557abecc6e78a57c1f19ef231",
+  "classification": "SOURCE-ONLY metadata; no wheel built or installed"
+}

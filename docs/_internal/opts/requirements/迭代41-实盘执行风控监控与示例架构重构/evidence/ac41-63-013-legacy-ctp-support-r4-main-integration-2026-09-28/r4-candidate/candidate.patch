@@ -1,0 +1,191 @@
+--- a/examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py
++++ b/examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py
+@@ -67,6 +67,10 @@
+ 
+ def load_dotenv_if_available():
+     """Load environment variables from .env file if dotenv is available."""
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:load_dotenv_if_available"
++    )
+     try:
+         from dotenv import load_dotenv
+ 
+@@ -640,6 +644,10 @@
+     Raises:
+         RuntimeError: If credentials are not set.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:get_simnow_credentials"
++    )
+     investor_id = os.getenv("SIMNOW_USER_ID") or os.getenv("simnow_user_id")
+     password = os.getenv("SIMNOW_PASSWORD") or os.getenv("simnow_password")
+     if not investor_id or not password:
+@@ -674,6 +682,10 @@
+     Raises:
+         ValueError: If environment key is not supported.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:iter_simnow_env_candidates"
++    )
+     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+     if not selected_env:
+         selected_env = DEFAULT_SIMNOW_ENV
+@@ -714,6 +726,10 @@
+     Raises:
+         ValueError: If environment is not supported.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_simnow_connection"
++    )
+     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+     if selected_env not in SIMNOW_ENVIRONMENTS:
+         raise ValueError(
+@@ -814,6 +830,10 @@
+     Returns:
+         List of added data feeds.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:add_live_feeds"
++    )
+     feed_config = dict(config.get("feed") or {})
+     timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
+     compression = int(feed_config.pop("compression", 1))
+@@ -844,6 +864,10 @@
+     Returns:
+         List of strategy results.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:run_cerebro_with_timeout"
++    )
+     timer = threading.Timer(float(timeout_seconds), cerebro.runstop)
+     timer.daemon = True
+     timer.start()
+--- a/examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py
++++ b/examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py
+@@ -67,6 +67,10 @@
+ 
+ def load_dotenv_if_available():
+     """Load environment variables from .env file if dotenv is available."""
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:load_dotenv_if_available"
++    )
+     try:
+         from dotenv import load_dotenv
+ 
+@@ -640,6 +644,10 @@
+     Raises:
+         RuntimeError: If credentials are not set.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:get_simnow_credentials"
++    )
+     investor_id = os.getenv("SIMNOW_USER_ID") or os.getenv("simnow_user_id")
+     password = os.getenv("SIMNOW_PASSWORD") or os.getenv("simnow_password")
+     if not investor_id or not password:
+@@ -674,6 +682,10 @@
+     Raises:
+         ValueError: If environment key is not supported.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:iter_simnow_env_candidates"
++    )
+     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+     if not selected_env:
+         selected_env = DEFAULT_SIMNOW_ENV
+@@ -714,6 +726,10 @@
+     Raises:
+         ValueError: If environment is not supported.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:create_simnow_connection"
++    )
+     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+     if selected_env not in SIMNOW_ENVIRONMENTS:
+         raise ValueError(
+@@ -814,6 +830,10 @@
+     Returns:
+         List of added data feeds.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:add_live_feeds"
++    )
+     feed_config = dict(config.get("feed") or {})
+     timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
+     compression = int(feed_config.pop("compression", 1))
+@@ -844,6 +864,10 @@
+     Returns:
+         List of strategy results.
+     """
++    from backtrader_runtime.legacy import legacy_direct_execution_error
++    raise legacy_direct_execution_error(
++        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py:run_cerebro_with_timeout"
++    )
+     timer = threading.Timer(float(timeout_seconds), cerebro.runstop)
+     timer.daemon = True
+     timer.start()
+--- a/tests/unit/test_iteration41_legacy_ctp_support_inert_import.py
++++ b/tests/unit/test_iteration41_legacy_ctp_support_inert_import.py
+@@ -110,20 +110,41 @@
+             raise AssertionError(f"helper inspected a forbidden argument: {name}")
+ 
+     constructor_calls = []
++    environment_reads = []
++    timer_calls = []
+ 
+     def forbidden_constructor(*args, **kwargs):
+         constructor_calls.append((args, kwargs))
+-        raise AssertionError("legacy helper reached a Store/Broker constructor")
++        raise AssertionError("legacy helper reached a Store/Broker/Feed constructor")
++
++    def forbidden_getenv(*args, **kwargs):
++        environment_reads.append((args, kwargs))
++        raise AssertionError("legacy helper read credential or route environment")
++
++    def forbidden_timer(*args, **kwargs):
++        timer_calls.append((args, kwargs))
++        raise AssertionError("legacy helper started a Cerebro timeout timer")
+ 
+     for label, module in loaded:
+         monkeypatch.setattr(module, "BtApiStore", forbidden_constructor)
+         monkeypatch.setattr(module, "BtApiBroker", forbidden_constructor)
++        monkeypatch.setattr(module, "BtApiFeed", forbidden_constructor)
++        monkeypatch.setattr(module, "os", types.SimpleNamespace(getenv=forbidden_getenv))
++        monkeypatch.setattr(module, "threading", types.SimpleNamespace(Timer=forbidden_timer))
+         for helper, args in (
++            ("load_dotenv_if_available", ()),
++            ("get_simnow_credentials", ()),
++            ("create_simnow_connection", (Bomb(),)),
++            ("iter_simnow_env_candidates", ()),
+             ("create_live_store", (Bomb(),)),
+             ("create_live_broker", (Bomb(), Bomb())),
++            ("add_live_feeds", (Bomb(), Bomb(), Bomb())),
++            ("run_cerebro_with_timeout", (Bomb(),)),
+         ):
+             with pytest.raises(Exception) as failure:
+-                getattr(module, helper)(*args)
++                result = getattr(module, helper)(*args)
++                if helper == "iter_simnow_env_candidates":
++                    list(result)
+             assert getattr(failure.value, "reason", None) == "legacy_direct_execution_not_supported", (
+                 label,
+                 helper,
+@@ -131,6 +152,8 @@
+             )
+ 
+     assert constructor_calls == []
++    assert environment_reads == []
++    assert timer_calls == []
+     assert dotenv_imports == []
+     assert dotenv_calls == []
+     assert env_reads == []

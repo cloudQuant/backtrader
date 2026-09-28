@@ -1,0 +1,371 @@
+--- r1/backtrader_runtime/ctp_sdk_artifact_binding.py
++++ r2/backtrader_runtime/ctp_sdk_artifact_binding.py
+@@ -38,6 +38,53 @@
+ _EVIDENCE_MODULE = "bt_api_ctp.containers.ctp.ctp_native_query_certificate"
+ _LOWER_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+ _ORIGINAL_IMPORT = builtins.__import__
++_TRUSTED_IMPORTLIB_MODULE = importlib
++_TRUSTED_MACHINERY_MODULE = importlib.machinery
++_TRUSTED_IMPORTLIB_UTIL_MODULE = importlib.util
++_TRUSTED_MODULE_SPEC = importlib.machinery.ModuleSpec
++_TRUSTED_MODULE_FROM_SPEC = importlib.util.module_from_spec
++_TRUSTED_BUILTIN_IMPORTER = importlib.machinery.BuiltinImporter
++_TRUSTED_FROZEN_IMPORTER = importlib.machinery.FrozenImporter
++_TRUSTED_PATH_FINDER = importlib.machinery.PathFinder
++_TRUSTED_BUILTIN_FIND_SPEC = vars(_TRUSTED_BUILTIN_IMPORTER).get("find_spec")
++_TRUSTED_FROZEN_FIND_SPEC = vars(_TRUSTED_FROZEN_IMPORTER).get("find_spec")
++_TRUSTED_PATH_FIND_SPEC = vars(_TRUSTED_PATH_FINDER).get("find_spec")
++_TRUSTED_EXTENSION_FILE_LOADER = importlib.machinery.ExtensionFileLoader
++_TRUSTED_EXTENSION_CREATE_MODULE = vars(_TRUSTED_EXTENSION_FILE_LOADER).get(
++    "create_module"
++)
++_TRUSTED_EXTENSION_EXEC_MODULE = vars(_TRUSTED_EXTENSION_FILE_LOADER).get("exec_module")
++
++
++def _assert_trusted_importlib_runtime() -> None:
++    """Reject same-process replacement of the import machinery used by the gate."""
++
++    machinery = _TRUSTED_MACHINERY_MODULE
++    loader = _TRUSTED_EXTENSION_FILE_LOADER
++    if (
++        importlib is not _TRUSTED_IMPORTLIB_MODULE
++        or sys.modules.get("importlib") is not _TRUSTED_IMPORTLIB_MODULE
++        or getattr(_TRUSTED_IMPORTLIB_MODULE, "machinery", None) is not machinery
++        or sys.modules.get("importlib.machinery") is not machinery
++        or getattr(_TRUSTED_IMPORTLIB_MODULE, "util", None)
++        is not _TRUSTED_IMPORTLIB_UTIL_MODULE
++        or sys.modules.get("importlib.util") is not _TRUSTED_IMPORTLIB_UTIL_MODULE
++        or getattr(machinery, "ModuleSpec", None) is not _TRUSTED_MODULE_SPEC
++        or getattr(_TRUSTED_IMPORTLIB_UTIL_MODULE, "module_from_spec", None)
++        is not _TRUSTED_MODULE_FROM_SPEC
++        or getattr(machinery, "BuiltinImporter", None) is not _TRUSTED_BUILTIN_IMPORTER
++        or getattr(machinery, "FrozenImporter", None) is not _TRUSTED_FROZEN_IMPORTER
++        or getattr(machinery, "PathFinder", None) is not _TRUSTED_PATH_FINDER
++        or vars(_TRUSTED_BUILTIN_IMPORTER).get("find_spec")
++        is not _TRUSTED_BUILTIN_FIND_SPEC
++        or vars(_TRUSTED_FROZEN_IMPORTER).get("find_spec")
++        is not _TRUSTED_FROZEN_FIND_SPEC
++        or vars(_TRUSTED_PATH_FINDER).get("find_spec") is not _TRUSTED_PATH_FIND_SPEC
++        or getattr(machinery, "ExtensionFileLoader", None) is not loader
++        or vars(loader).get("create_module") is not _TRUSTED_EXTENSION_CREATE_MODULE
++        or vars(loader).get("exec_module") is not _TRUSTED_EXTENSION_EXEC_MODULE
++    ):
++        _fail("sdk_artifact_importlib_machinery_changed")
+ 
+ 
+ class CtpSdkArtifactBindingError(RuntimeError):
+@@ -550,20 +597,30 @@
+     def __init__(
+         self, importer: _PinnedSdkImporter, fullname: str, origin: str
+     ) -> None:
++        importer.assert_context()
+         self.name = fullname
+         self.path = origin
+         self._importer = importer
+-        self._delegate = importlib.machinery.ExtensionFileLoader(fullname, origin)
++        self._delegate = _TRUSTED_EXTENSION_FILE_LOADER(fullname, origin)
+ 
+     def create_module(self, spec: object) -> ModuleType | None:
+         self._importer.assert_context()
+         self._importer.verify_extension_path(self.name, self.path)
+-        return self._delegate.create_module(spec)
++        self._importer.assert_trusted_extension_delegate(
++            self._delegate, self.name, self.path
++        )
++        return _TRUSTED_EXTENSION_CREATE_MODULE(self._delegate, spec)
+ 
+     def exec_module(self, module: ModuleType) -> None:
+         self._importer.begin_loader_exec(module, self.name, self)
+         self._importer.verify_extension_path(self.name, self.path)
+-        self._delegate.exec_module(module)
++        # The digest read itself may run in the presence of a same-process
++        # mutation hook; revalidate machinery immediately before entering the
++        # platform loader and invoke the code-owned method descriptor directly.
++        self._importer.assert_trusted_extension_delegate(
++            self._delegate, self.name, self.path
++        )
++        _TRUSTED_EXTENSION_EXEC_MODULE(self._delegate, module)
+         self._importer.assert_context()
+         self._importer.finish_loader_exec(module, self.name, self)
+ 
+@@ -593,6 +650,7 @@
+         self._loaded: dict[str, ModuleType] = {}
+         self._pending: dict[str, ModuleType] = {}
+         self._loaders: dict[str, object] = {}
++        self._specs: dict[str, object] = {}
+         self._original_path: object = None
+         self._original_meta_path: object = None
+         self._original_path_hooks: object = None
+@@ -640,6 +698,7 @@
+     def assert_context(self) -> None:
+         if not self._installed:
+             _fail("sdk_artifact_importer_not_installed")
++        _assert_trusted_importlib_runtime()
+         if (
+             sys.path is not self._path_tuple
+             or tuple(sys.path) != self._path_entries
+@@ -653,17 +712,28 @@
+         current_cache = tuple(sys.path_importer_cache.items())
+         if len(current_cache) != len(self._cache_snapshot):
+             _fail("sdk_artifact_importer_cache_changed")
++        old_cache = {key: value for key, value in self._cache_snapshot}
++        if any(
++            key not in old_cache or old_cache[key] is not value
++            for key, value in current_cache
++        ):
++            _fail("sdk_artifact_importer_cache_changed")
+         for name, module in tuple(sys.modules.items()):
+             if name == _DIST_NAME or name.startswith(_DIST_NAME + "."):
+                 expected = self._loaded.get(name) or self._pending.get(name)
+                 if expected is not module:
+                     _fail("sdk_artifact_sys_modules_spoof")
+-        old_cache = {key: value for key, value in self._cache_snapshot}
+-        if any(
+-            key not in old_cache or old_cache[key] is not value
+-            for key, value in current_cache
+-        ):
+-            _fail("sdk_artifact_importer_cache_changed")
++
++    def assert_trusted_extension_delegate(
++        self, delegate: object, fullname: str, origin: str
++    ) -> None:
++        _assert_trusted_importlib_runtime()
++        if (
++            type(delegate) is not _TRUSTED_EXTENSION_FILE_LOADER
++            or getattr(delegate, "name", None) != fullname
++            or _absolute(getattr(delegate, "path", "")) != _absolute(origin)
++        ):
++            _fail("sdk_artifact_native_loader_identity_mismatch")
+ 
+     def find_spec(
+         self, fullname: str, path: object = None, target: object = None
+@@ -685,13 +755,13 @@
+                 self, fullname, relative, origin, digest, is_package
+             )
+             self._loaders[fullname] = loader
+-            return importlib.machinery.ModuleSpec(
++            spec = _TRUSTED_MODULE_SPEC(
+                 fullname,
+                 loader,
+                 origin=origin,
+                 is_package=is_package,
+             )
+-        if fullname == "bt_api_ctp.ctp._ctp":
++        elif fullname == "bt_api_ctp.ctp._ctp":
+             matches = [
+                 path
+                 for path in self.artifact.extension_paths
+@@ -702,7 +772,11 @@
+             origin = matches[0]
+             loader = _PinnedExtensionLoader(self, fullname, origin)
+             self._loaders[fullname] = loader
+-        return importlib.machinery.ModuleSpec(fullname, loader, origin=origin)
++            spec = _TRUSTED_MODULE_SPEC(fullname, loader, origin=origin)
++        else:
++            _fail("sdk_artifact_unpinned_module_import")
++        self._specs[fullname] = spec
++        return spec
+ 
+     def verify_extension_path(self, fullname: str, origin: str) -> None:
+         if (
+@@ -737,6 +811,22 @@
+             _fail("sdk_artifact_module_reentry")
+         if self._loaders.get(fullname) is not loader:
+             _fail("sdk_artifact_loaded_module_loader_mismatch")
++        spec = self._specs.get(fullname)
++        if (
++            spec is None
++            or getattr(module, "__spec__", None) is not spec
++            or getattr(spec, "loader", None) is not loader
++            or getattr(spec, "name", None) != fullname
++        ):
++            _fail("sdk_artifact_loaded_module_origin_mismatch")
++        if fullname == "bt_api_ctp.ctp._ctp":
++            origin = getattr(spec, "origin", None)
++            if (
++                type(origin) is not str
++                or _absolute(origin) not in self.artifact.extension_paths
++                or _absolute(getattr(module, "__file__", "")) != _absolute(origin)
++            ):
++                _fail("sdk_artifact_native_module_origin_mismatch")
+         self._pending[fullname] = module
+         try:
+             self.assert_context()
+@@ -770,7 +860,7 @@
+                 _fail("sdk_artifact_parent_package_unpinned")
+             self.import_module(parent_name)
+         spec = self._spec_for(fullname)
+-        module = importlib.util.module_from_spec(spec)
++        module = _TRUSTED_MODULE_FROM_SPEC(spec)
+         sys.modules[fullname] = module
+         try:
+             loader = spec.loader
+@@ -887,10 +977,11 @@
+ 
+ def _require_standard_import_chain() -> None:
+     expected = (
+-        importlib.machinery.BuiltinImporter,
+-        importlib.machinery.FrozenImporter,
+-        importlib.machinery.PathFinder,
++        _TRUSTED_BUILTIN_IMPORTER,
++        _TRUSTED_FROZEN_IMPORTER,
++        _TRUSTED_PATH_FINDER,
+     )
++    _assert_trusted_importlib_runtime()
+     if len(sys.meta_path) != len(expected) or any(
+         actual is not trusted for actual, trusted in zip(sys.meta_path, expected)
+     ):
+@@ -935,6 +1026,7 @@
+     artifact: VerifiedCtpSdkArtifact,
+     importer: _PinnedSdkImporter | None = None,
+ ) -> None:
++    _assert_trusted_importlib_runtime()
+     fullname = "bt_api_ctp.ctp._ctp"
+     module = sys.modules.get(fullname)
+     if module is None:
+@@ -948,7 +1040,7 @@
+         or (
+             importer is None
+             and type(getattr(spec, "loader", None))
+-            is not importlib.machinery.ExtensionFileLoader
++            is not _TRUSTED_EXTENSION_FILE_LOADER
+         )
+         or getattr(spec.loader, "name", None) != fullname
+         or _absolute(getattr(spec.loader, "path", "")) != _absolute(origin)
+--- r1/tests/unit/runtime/test_ctp_sdk_artifact_binding.py
++++ r2/tests/unit/runtime/test_ctp_sdk_artifact_binding.py
+@@ -289,6 +289,134 @@
+     assert raised.value.reason == "sdk_artifact_sys_modules_spoof"
+ 
+ 
++def test_extension_loader_replacement_after_gate_is_rejected_before_construction(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    calls: list[str] = []
++
++    class InertReplacementLoader:
++        def __init__(self, fullname: str, path: str) -> None:
++            calls.append("constructed")
++
++        def create_module(self, spec: object) -> None:
++            calls.append("create_module")
++
++        def exec_module(self, module: object) -> None:
++            calls.append("exec_module")
++
++    monkeypatch.setattr(
++        binding.importlib.machinery,
++        "ExtensionFileLoader",
++        InertReplacementLoader,
++    )
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        binding._get_preclient_code_owned_verifier()
++    assert raised.value.reason == "sdk_artifact_importlib_machinery_changed"
++    assert calls == []
++
++
++@pytest.mark.parametrize(
++    ("target", "attribute"),
++    [
++        (importlib.machinery, "ModuleSpec"),
++        (importlib.util, "module_from_spec"),
++        (importlib.machinery.PathFinder, "find_spec"),
++    ],
++)
++def test_import_chain_replacement_after_gate_is_rejected_before_use(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++    target: object,
++    attribute: str,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    calls: list[str] = []
++
++    def replacement(*args: object, **kwargs: object) -> None:
++        calls.append("called")
++
++    monkeypatch.setattr(target, attribute, replacement)
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        binding._get_preclient_code_owned_verifier()
++    assert raised.value.reason == "sdk_artifact_importlib_machinery_changed"
++    assert calls == []
++
++
++def test_extension_loader_replacement_during_retained_hash_read_is_rejected(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    importer = binding._CODE_OWNED_IMPORTER
++    assert importer is not None
++    fullname = "bt_api_ctp.ctp._ctp"
++    spec = importer._spec_for(fullname)
++    module = types.ModuleType(fullname)
++    module.__spec__ = spec
++    module.__file__ = spec.origin
++    monkeypatch.setitem(sys.modules, fullname, module)
++    custody = importer.artifact.custody
++    assert custody is not None
++    original_read = custody.read
++    extension_relative = policy.extension_paths[0]
++    calls: list[str] = []
++
++    class InertReplacementLoader:
++        def __init__(self, fullname: str, path: str) -> None:
++            calls.append("constructed")
++
++        def create_module(self, spec: object) -> None:
++            calls.append("create_module")
++
++        def exec_module(self, module: object) -> None:
++            calls.append("exec_module")
++
++    def replace_after_read(
++        relative: str, *, max_bytes: int = 128 * 1024 * 1024
++    ) -> bytes:
++        raw = original_read(relative, max_bytes=max_bytes)
++        if relative == extension_relative:
++            monkeypatch.setattr(
++                binding.importlib.machinery,
++                "ExtensionFileLoader",
++                InertReplacementLoader,
++            )
++        return raw
++
++    monkeypatch.setattr(custody, "read", replace_after_read)
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        spec.loader.exec_module(module)
++    assert raised.value.reason == "sdk_artifact_importlib_machinery_changed"
++    assert calls == []
++    assert fullname not in importer._loaded
++
++
+ def test_swap_after_hash_scan_but_before_custody_never_imports_marker(
+     secure_install_root: Path,
+     monkeypatch: pytest.MonkeyPatch,

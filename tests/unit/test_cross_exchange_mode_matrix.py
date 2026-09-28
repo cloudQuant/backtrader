@@ -346,7 +346,7 @@ def test_012_1_shadow_calibration_diagnostic_skips_model_admission_and_reports_s
             return Decimal("2000")
 
     broker = Broker()
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
     monkeypatch.setattr(runner, "MixBroker", lambda **_kwargs: broker)
     strategy_parameters = {}
     strategy = SimpleNamespace()
@@ -380,7 +380,7 @@ def test_012_1_shadow_calibration_diagnostic_skips_model_admission_and_reports_s
     }
     monkeypatch.setattr(runner, "_trade_logger_report", lambda _strategy: ({}, strategy_report))
 
-    report = runner.run_network("shadow", config["run_timeout_seconds"])
+    report = runner._run_network_impl("shadow", config["run_timeout_seconds"])
 
     assert strategy_parameters["execution_enabled"] is False
     assert strategy_parameters["shadow"] is True
@@ -594,82 +594,30 @@ def test_operator_demo_lease_is_short_and_reuses_broker_expiry_and_count_bounds(
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
-def test_cli_preserves_explicit_zero_duration_as_a_shadow_one_shot(runner, monkeypatch, tmp_path):
-    captured = {}
-
-    def run_network(mode, duration, *args):
-        captured["mode"] = mode
-        captured["duration"] = duration
-        captured["allow_rejected_demo_simulation"] = args[-1]
-        return {"status": "SHADOW_ONE_SHOT_COMPLETE"}
-
-    monkeypatch.setattr(runner, "run_network", run_network)
-    output = tmp_path / f"{runner.STRATEGY_ID}-one-shot.json"
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "shadow",
-                "--duration",
-                "0",
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--mode", "shadow", "--duration", "0"],
+        ["--mode", "demo", "--preflight"],
+        ["--mode", "live"],
+    ],
+)
+def test_legacy_cli_rejects_mode_overrides_before_store(runner, arguments, monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_build_store_impl",
+        lambda *_args, **_kwargs: calls.append("store"),
     )
-    assert captured == {
-        "mode": "shadow",
-        "duration": 0.0,
-        "allow_rejected_demo_simulation": False,
-    }
-    assert json.loads(output.read_text(encoding="utf-8")) == {"status": "SHADOW_ONE_SHOT_COMPLETE"}
-
-
-@pytest.mark.parametrize("runner", RUNNERS)
-def test_cli_forwards_explicit_rejected_demo_simulation_acknowledgement(
-    runner, monkeypatch, tmp_path
-):
-    captured = {}
-
-    def run_network(mode, duration, *args):
-        captured["mode"] = mode
-        captured["duration"] = duration
-        if runner.STRATEGY_ID == "012_1_midfreq_cross_exchange":
-            captured["manifest_path"] = args[-3]
-            captured["allow_rejected_demo_simulation"] = args[-2]
-            captured["demo_execution_smoke"] = args[-1]
-        else:
-            captured["manifest_path"] = args[-2]
-            captured["allow_rejected_demo_simulation"] = args[-1]
-            captured["demo_execution_smoke"] = False
-        return {"status": "INCOMPLETE"}
-
-    monkeypatch.setattr(runner, "run_network", run_network)
-    output = tmp_path / f"{runner.STRATEGY_ID}-operator-demo.json"
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "demo",
-                "--duration",
-                "30",
-                "--allow-rejected-demo-simulation",
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
+    monkeypatch.setattr(
+        runner,
+        "_load_demo_credentials",
+        lambda *_args, **_kwargs: calls.append("credentials"),
     )
-    assert captured == {
-        "mode": "demo",
-        "duration": 30.0,
-        "manifest_path": runner.REPO_CANONICAL_MANIFEST,
-        "allow_rejected_demo_simulation": True,
-        "demo_execution_smoke": False,
-    }
+
+    assert runner.main(arguments) == 2
+    assert calls == []
+    assert "legacy_cli_arguments_not_supported" in capsys.readouterr().err
 
 
 def test_012_1_demo_smoke_rejects_non_demo_preflight_and_missing_operator_ack_before_store(
@@ -677,12 +625,12 @@ def test_012_1_demo_smoke_rejects_non_demo_preflight_and_missing_operator_ack_be
 ):
     runner = RUNNERS[0]
     store_calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store_calls.append(True))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: store_calls.append(True))
 
     with pytest.raises(runner.RunnerConfigurationError, match="only valid with demo mode"):
-        runner.run_network("paper-live", 30, demo_execution_smoke=True)
+        runner._run_network_impl("paper-live", 30, demo_execution_smoke=True)
     with pytest.raises(runner.RunnerConfigurationError, match="not valid during preflight"):
-        runner.run_network(
+        runner._run_network_impl(
             "demo",
             30,
             preflight=True,
@@ -690,53 +638,9 @@ def test_012_1_demo_smoke_rejects_non_demo_preflight_and_missing_operator_ack_be
             demo_execution_smoke=True,
         )
     with pytest.raises(runner.DemoApprovalError, match="requires --allow-rejected"):
-        runner.run_network("demo", 30, demo_execution_smoke=True)
+        runner._run_network_impl("demo", 30, demo_execution_smoke=True)
 
     assert store_calls == []
-
-
-def test_012_1_cli_demo_smoke_requires_acknowledgement_and_forwards_both_flags(
-    monkeypatch, tmp_path
-):
-    runner = RUNNERS[0]
-    calls = []
-    output = tmp_path / "012_1-demo-smoke.json"
-
-    def run_network(mode, duration, *args):
-        calls.append((mode, duration, args[-2], args[-1]))
-        return {"status": "MECHANICAL_DEMO_SMOKE_INCOMPLETE"}
-
-    monkeypatch.setattr(runner, "run_network", run_network)
-    with pytest.raises(runner.DemoApprovalError, match="requires --allow-rejected"):
-        runner.main(
-            [
-                "--mode",
-                "demo",
-                "--duration",
-                "30",
-                "--demo-execution-smoke",
-                "--output",
-                str(output),
-            ]
-        )
-    assert calls == []
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "demo",
-                "--duration",
-                "30",
-                "--allow-rejected-demo-simulation",
-                "--demo-execution-smoke",
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
-    )
-    assert calls == [("demo", 30.0, True, True)]
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
@@ -775,7 +679,7 @@ def test_zero_duration_shadow_is_a_read_only_metadata_one_shot(runner, monkeypat
         def stop(self, timeout):
             pytest.fail("one-shot probe owns its Store lifecycle")
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
     monkeypatch.setattr(
         runner,
         "_rules_from_store",
@@ -797,7 +701,7 @@ def test_zero_duration_shadow_is_a_read_only_metadata_one_shot(runner, monkeypat
         lambda *_args, **_kwargs: pytest.fail("one-shot must not build a broker"),
     )
 
-    report = runner.run_network("shadow", 0)
+    report = runner._run_network_impl("shadow", 0)
 
     assert report["status"] == "SHADOW_ONE_SHOT_COMPLETE"
     assert report["evidence_level"] == "R0_BOUNDED_READ_ONLY_METADATA_PROBE"
@@ -853,9 +757,9 @@ def test_zero_duration_requires_a_bounded_sdk_probe_before_store_start_or_reads(
             calls.append(("funding", symbol))
             return _funding_snapshot(symbol)
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
 
-    report = runner.run_network("shadow", 0)
+    report = runner._run_network_impl("shadow", 0)
 
     assert report["status"] == "SHADOW_FAILED"
     assert report["orders_submitted"] == report["fills"] == 0
@@ -908,9 +812,9 @@ def test_zero_duration_uses_only_an_sdk_owned_bounded_metadata_probe(runner, mon
         def stop(self, timeout):
             pytest.fail("bounded one-shot probe owns its Store lifecycle")
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
 
-    report = runner.run_network("shadow", 0)
+    report = runner._run_network_impl("shadow", 0)
 
     assert report["status"] == "SHADOW_ONE_SHOT_COMPLETE"
     assert report["evidence_level"] == "R0_BOUNDED_READ_ONLY_METADATA_PROBE"
@@ -964,10 +868,10 @@ def test_zero_duration_validates_full_observation_configuration_before_store_set
         lambda _path: (manifest, candidate, Path(runner.MANIFEST_PATH).resolve()),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("build"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("build"))
 
     with pytest.raises(runner.RunnerConfigurationError, match=error):
-        runner.run_network("shadow", 0)
+        runner._run_network_impl("shadow", 0)
 
     assert calls == []
 
@@ -986,10 +890,10 @@ def test_zero_duration_rejects_nonrepresentable_shutdown_timeout_before_store_se
         lambda _path: (manifest, candidate, Path(runner.MANIFEST_PATH).resolve()),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("build"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("build"))
 
     with pytest.raises(runner.RunnerConfigurationError, match="finite representable timeout"):
-        runner.run_network("shadow", 0)
+        runner._run_network_impl("shadow", 0)
 
     assert calls == []
 
@@ -1024,9 +928,9 @@ def test_zero_duration_probe_failure_or_malformed_result_stops_store_before_repo
             calls.append(("stop", timeout))
             return _passing_store_health()
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
 
-    report = runner.run_network("shadow", 0)
+    report = runner._run_network_impl("shadow", 0)
 
     assert report["status"] == "SHADOW_FAILED"
     assert report["store_stop_proven"] is True
@@ -1035,101 +939,6 @@ def test_zero_duration_probe_failure_or_malformed_result_stops_store_before_repo
     assert calls[0][0] == "probe"
     assert calls[-1][0] == "stop"
     assert not any(call == "start" for call in calls)
-
-
-@pytest.mark.parametrize("runner", RUNNERS)
-def test_shadow_cli_config_load_failure_is_redacted_and_terminal(
-    runner, monkeypatch, tmp_path, capsys
-):
-    secret = "NEVER_SERIALIZE_THIS_BAD_CONFIG_SECRET"
-    malformed = tmp_path / f"{runner.STRATEGY_ID}-invalid.yaml"
-    malformed.write_text(f"observation: [unterminated {secret}\n", encoding="utf-8")
-    output = tmp_path / f"{runner.STRATEGY_ID}-config-failure.json"
-    monkeypatch.setattr(
-        runner,
-        "run_network",
-        lambda *_args, **_kwargs: pytest.fail("config failure must not start a network run"),
-    )
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "shadow",
-                "--duration",
-                "0",
-                "--config",
-                str(malformed),
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
-    )
-
-    report = json.loads(output.read_text(encoding="utf-8"))
-    assert report["status"] == "SHADOW_FAILED"
-    assert report["normalized_config_sha256"] is None
-    assert report["configuration_status"] == "NOT_LOADED"
-    assert report["shadow_failure"]["stage"] == "runner_setup"
-    serialized = output.read_text(encoding="utf-8") + capsys.readouterr().out
-    assert secret not in serialized
-
-
-@pytest.mark.parametrize("runner", RUNNERS)
-def test_shadow_cli_runner_source_binding_rejection_is_terminal_and_redacted(
-    runner, monkeypatch, tmp_path, capsys
-):
-    original_file_sha256 = runner._file_sha256
-    calls = []
-
-    def runner_source_mismatch(path, label):
-        if label == "runner source":
-            return "0" * 64
-        return original_file_sha256(path, label)
-
-    monkeypatch.setattr(runner, "_file_sha256", runner_source_mismatch)
-    monkeypatch.setattr(
-        runner,
-        "build_store",
-        lambda *_args, **_kwargs: calls.append("build"),
-    )
-    output = tmp_path / f"{runner.STRATEGY_ID}-runner-source-rejection.json"
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "shadow",
-                "--duration",
-                "0",
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
-    )
-
-    report = json.loads(output.read_text(encoding="utf-8"))
-    assert report["status"] == "SHADOW_FAILED"
-    assert report["provenance_status"] == "RUNNER_SOURCE_BINDING_REJECTED"
-    assert report["candidate_status"] == "UNTRUSTED"
-    assert report["admission_status"] == "NOT_EVALUATED"
-    assert report["configuration_status"] == "LOADED_UNBOUND"
-    assert report["orders_submitted"] == report["fills"] == 0
-    assert report["execution_status"] == "NOT_RUN"
-    assert report["shadow_failure"] == {
-        "failure_code": "RUNNER_SOURCE_BINDING_REJECTED",
-        "stage": "runner_setup",
-        "exception_type": "RunnerSourceBindingError",
-        "exchange_error_code": None,
-        "detail": "REDACTED",
-    }
-    serialized = output.read_text(encoding="utf-8") + capsys.readouterr().out
-    assert "sha256" not in serialized.lower()
-    assert "fingerprint mismatch" not in serialized
-    assert str(Path(runner.__file__).resolve()) not in serialized
-    assert calls == []
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
@@ -1228,7 +1037,7 @@ def test_network_shadow_late_execution_anomaly_retains_observed_counts(runner, m
         def run(self):
             return [object()]
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
     monkeypatch.setattr(runner, "MixBroker", Broker)
     monkeypatch.setattr(runner.bt, "Cerebro", Cerebro)
     monkeypatch.setattr(
@@ -1268,7 +1077,7 @@ def test_network_shadow_late_execution_anomaly_retains_observed_counts(runner, m
             lambda *_args, **_kwargs: ({}, {"status": "TEST_ONLY"}),
         )
 
-    report = runner.run_network("shadow", runner.load_config()["run_timeout_seconds"])
+    report = runner._run_network_impl("shadow", runner.load_config()["run_timeout_seconds"])
 
     assert report["status"] == "SHADOW_FAILED"
     assert report["shadow_failure"]["stage"] == "complete"
@@ -1346,7 +1155,7 @@ def test_shadow_execution_started_failures_preserve_unknown_execution_evidence_a
                 raise RuntimeError("Cerebro.run failed after execution start")
             return [object()]
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
     monkeypatch.setattr(runner, "MixBroker", Broker)
     monkeypatch.setattr(runner.bt, "Cerebro", Cerebro)
     monkeypatch.setattr(
@@ -1388,7 +1197,7 @@ def test_shadow_execution_started_failures_preserve_unknown_execution_evidence_a
             lambda *_args, **_kwargs: ({}, {"status": "TEST_ONLY"}),
         )
 
-    report = runner.run_network("shadow", runner.load_config()["run_timeout_seconds"])
+    report = runner._run_network_impl("shadow", runner.load_config()["run_timeout_seconds"])
 
     assert report["status"] == "SHADOW_FAILED"
     assert report["shadow_failure"]["stage"] == "complete"
@@ -1466,24 +1275,10 @@ def test_shadow_failure_is_redacted_persisted_and_closes_store(
                 "account_id": account,
             }
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
-    output = tmp_path / f"{runner.STRATEGY_ID}-shadow-failure.json"
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "shadow",
-                "--duration",
-                str(runner.load_config()["run_timeout_seconds"]),
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
+    report = runner._run_network_impl(
+        "shadow", runner.load_config()["run_timeout_seconds"]
     )
-
-    report = json.loads(output.read_text(encoding="utf-8"))
     assert report["status"] == "SHADOW_FAILED"
     assert report["orders_submitted"] == report["fills"] == 0
     assert report["execution_status"] == "NOT_RUN"
@@ -1504,56 +1299,11 @@ def test_shadow_failure_is_redacted_persisted_and_closes_store(
         "broker_update_conservation": True,
         "last_error_present": False,
     }
-    serialized = output.read_text(encoding="utf-8") + capsys.readouterr().out
+    serialized = json.dumps(report, sort_keys=True)
     assert secret not in serialized
     assert account not in serialized
     assert calls[0] == "start"
     assert calls[-1][0] == "stop"
-
-
-@pytest.mark.parametrize("runner", RUNNERS)
-def test_shadow_cli_setup_failure_is_redacted_and_terminal(runner, monkeypatch, tmp_path, capsys):
-    secret = "NEVER_SERIALIZE_THIS_SETUP_CREDENTIAL"
-    account = "NEVER_SERIALIZE_THIS_SETUP_ACCOUNT"
-
-    class VendorError(RuntimeError):
-        code = "50119"
-
-    def fail_network(*_args, **_kwargs):
-        raise VendorError(f"api_secret={secret} account={account}")
-
-    monkeypatch.setattr(runner, "run_network", fail_network)
-    output = tmp_path / f"{runner.STRATEGY_ID}-shadow-setup-failure.json"
-
-    assert (
-        runner.main(
-            [
-                "--mode",
-                "shadow",
-                "--duration",
-                "0",
-                "--output",
-                str(output),
-            ]
-        )
-        == 2
-    )
-
-    report = json.loads(output.read_text(encoding="utf-8"))
-    assert report["status"] == "SHADOW_FAILED"
-    assert report["orders_submitted"] == report["fills"] == 0
-    assert report["execution_status"] == "NOT_RUN"
-    assert report["store_stop_proven"] is False
-    assert report["shadow_failure"] == {
-        "failure_code": "SHADOW_OPERATION_FAILED",
-        "stage": "runner_setup",
-        "exception_type": "VendorError",
-        "exchange_error_code": "50119",
-        "detail": "REDACTED",
-    }
-    serialized = output.read_text(encoding="utf-8") + capsys.readouterr().out
-    assert secret not in serialized
-    assert account not in serialized
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
@@ -2181,7 +1931,7 @@ def test_demo_preflight_failure_is_redacted_persisted_and_closes_store(
                 "account_id": account,
             }
 
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: Store())
     monkeypatch.setattr(
         runner,
         "_rules_from_store",
@@ -2211,23 +1961,12 @@ def test_demo_preflight_failure_is_redacted_persisted_and_closes_store(
         raise AssertionError("readiness must not run after a start failure")
 
     monkeypatch.setattr(runner, "_readiness", readiness)
-    output = tmp_path / f"{runner.STRATEGY_ID}-{failure_stage}.json"
-
-    exit_code = runner.main(
-        [
-            "--mode",
-            "demo",
-            "--preflight",
-            "--duration",
-            str(runner.load_config()["run_timeout_seconds"]),
-            "--output",
-            str(output),
-        ]
+    report = runner._run_network_impl(
+        "demo",
+        runner.load_config()["run_timeout_seconds"],
+        preflight=True,
+        manifest_path=runner.REPO_CANONICAL_MANIFEST,
     )
-
-    assert exit_code == 2
-    assert output.is_file()
-    report = json.loads(output.read_text(encoding="utf-8"))
     assert report["status"] == "PREFLIGHT_FAILED"
     assert report["readiness_complete"] is False
     assert report["orders_submitted"] == report["fills"] == 0
@@ -2249,7 +1988,7 @@ def test_demo_preflight_failure_is_redacted_persisted_and_closes_store(
         "broker_update_conservation": True,
         "last_error_present": False,
     }
-    serialized = output.read_text(encoding="utf-8") + capsys.readouterr().out
+    serialized = json.dumps(report, sort_keys=True)
     assert secret not in serialized
     assert account not in serialized
     assert calls[0] == "start"
@@ -2353,15 +2092,15 @@ def test_ac_gate_incomplete_candidate_blocks_paper_and_demo_before_store(runner,
         lambda _path: (manifest, candidate, Path(runner.MANIFEST_PATH).resolve()),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
     # Demo first requires the repository-canonical manifest (Iteration 30); bind
     # that to the same manifest so the admission gate is the rule under test.
     monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", Path(runner.MANIFEST_PATH))
 
     with pytest.raises(runner.RunnerConfigurationError, match="research candidate"):
-        runner.run_network("paper-live", 1000)
+        runner._run_network_impl("paper-live", 1000)
     with pytest.raises(runner.DemoApprovalError, match="research candidate"):
-        runner.run_network("demo", 1000)
+        runner._run_network_impl("demo", 1000)
     assert calls == []
 
 
@@ -2411,10 +2150,10 @@ def test_rejected_demo_override_uses_operator_lease_without_signed_receipt(
         store_modes.append(mode)
         raise RuntimeError("test stopped before store startup")
 
-    monkeypatch.setattr(runner, "build_store", stop_before_network)
+    monkeypatch.setattr(runner, "_build_store_impl", stop_before_network)
 
     with pytest.raises(RuntimeError, match="stopped before store startup"):
-        runner.run_network(
+        runner._run_network_impl(
             "demo",
             config["run_timeout_seconds"],
             manifest_path=manifest_path,
@@ -2497,7 +2236,7 @@ def test_operator_demo_lease_starts_after_store_readiness_setup(monkeypatch):
             }
 
     store = Store()
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store)
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: store)
     rules = runner.replay_rules()
     monkeypatch.setattr(runner, "_rules_from_store", lambda *_args: (rules, {}))
     monkeypatch.setattr(
@@ -2561,7 +2300,7 @@ def test_operator_demo_lease_starts_after_store_readiness_setup(monkeypatch):
     monkeypatch.setattr(runner.bt, "Cerebro", lambda *_args, **_kwargs: cerebro)
 
     with pytest.raises(RuntimeError, match="active-window validation"):
-        runner.run_network(
+        runner._run_network_impl(
             "demo",
             config["run_timeout_seconds"],
             manifest_path=manifest_path,
@@ -2584,10 +2323,10 @@ def test_rejected_event_demo_keeps_candidate_bound_model_gate(monkeypatch):
     manifest_path = Path(runner.MANIFEST_PATH).resolve()
     monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", manifest_path)
     store_calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store_calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: store_calls.append("store"))
 
     with pytest.raises(runner.RunnerConfigurationError, match="immutable.*path models"):
-        runner.run_network(
+        runner._run_network_impl(
             "demo",
             runner.load_config()["run_timeout_seconds"],
             manifest_path=manifest_path,
@@ -2609,10 +2348,10 @@ def test_run_network_rejects_non_demo_preflight_before_store(runner, monkeypatch
         lambda _path: (manifest, candidate, Path(runner.MANIFEST_PATH).resolve()),
     )
     calls = []
-    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    monkeypatch.setattr(runner, "_build_store_impl", lambda *_args, **_kwargs: calls.append("store"))
 
     with pytest.raises(runner.RunnerConfigurationError, match="preflight is only valid"):
-        runner.run_network("shadow", 1, preflight=True)
+        runner._run_network_impl("shadow", 1, preflight=True)
 
     assert calls == []
 

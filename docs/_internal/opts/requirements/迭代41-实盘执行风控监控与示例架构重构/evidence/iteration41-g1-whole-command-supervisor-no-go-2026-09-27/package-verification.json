@@ -1,0 +1,47 @@
+{
+  "review_root": "D:\\temp\\iteration41-ctp-preflight-supervisor-review-20260927",
+  "package_sha256": "3ef6d18f4ce3e1f2f28391176c75706acf2e7018a6ea6c0ac66c2605fb9d2b67",
+  "package_manifest_sha256": "a1495a4e01c7134472696d94521e8608cd906047eb7b4d79ee07fcfec6853060",
+  "source_manifest_sha256": "5bed3eb4197f25ea79af58b5d06801c004f65112e249ec346d91f3cd409fc654",
+  "readme_sha256": "eac8cc77123be84bfc59f4452836f843e558cbdbc26f1d2bf1fc8d68e1e89f7b",
+  "receipt_sha256": "f0b1217862a42bc751fc7efb2ab3827d6b6bdd4fb7655b92476bb1303f0cfcfd",
+  "payload_count": 29,
+  "manifest_record_count": 29,
+  "unique_payload_paths": 29,
+  "zip_member_count": 30,
+  "zip_extra_members": [
+    "qa-package-manifest.json"
+  ],
+  "zip_missing_members": [],
+  "payload_mismatches": [],
+  "zip_testzip": null,
+  "frozen_source_record_count": 15,
+  "frozen_source_mismatches": [],
+  "readme_evidence_hash_checks": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-whole-command-feasibility-2026-09-27/DESIGN.md",
+      "sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e",
+      "frozen_bytes_match": true,
+      "hash_appears_in_readme": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-r11-design-only-author-2026-09-27/R11_G1_HARD_DEADLINE_AUDIT.md",
+      "sha256": "cb100aa79f695124c87e1ccdd228090227e557eec2c4f40b02f2104f38f98401",
+      "frozen_bytes_match": true,
+      "hash_appears_in_readme": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-r10-p14-channel-faults-independent-qa-2026-09-27/packet/REPORT.md",
+      "sha256": "b3a510f78702c62f93cc538771c484929f1d7551e6428cedf99a2090ecf37b12",
+      "frozen_bytes_match": true,
+      "hash_appears_in_readme": true
+    }
+  ],
+  "receipt_hash_bindings": {
+    "zip": true,
+    "package_manifest": true,
+    "source_manifest": true
+  },
+  "current_main_test_files_used_as_replay_input": false,
+  "current_main_test_hash_comparison": "intentionally omitted after concurrent main-tree Ruff-format notice; frozen tests from verified ZIP were used"
+}

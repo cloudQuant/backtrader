@@ -1,0 +1,5 @@
+# QA harness notes
+
+Two initial QA-only validators made incorrect schema assumptions; neither changed the candidate, its lock, wheelhouse, or venv inputs. The first static checker expected a `wheel_record_rows` field in `wheelhouse-manifest.json` (the candidate records that count in a separate audit) and searched the settlement method under an outdated function name. The independent review inspected the frozen schema/source and corrected its checks to require a nonempty RECORD and inspect the actual `_require_exact_source` method. The corrected static audit passed with no errors.
+
+The first installed-origin audit used one incorrectly normalized root distribution key and stopped before completing the report. The key was corrected; the rerun verified all 52 distributions and 13,147 RECORD rows with no errors. Both initial outputs are preserved in `logs/*initial*` and the initial static JSON is preserved in `evidence/artifact-static-audit-initial-review-tool-errors.json`. These were reviewer-script errors, not candidate failures.

@@ -1,0 +1,351 @@
+.......FFFFFFFFFFFFFFFF.FFFFF.                                           [100%]
+================================== FAILURES ===================================
+_______ test_managed_ctp_submission_projects_typed_identity_to_sdk_only _______
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:526: in test_managed_ctp_submission_projects_typed_identity_to_sdk_only
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+____ test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write _____
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:559: in test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write
+    BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+
+During handling of the above exception, another exception occurred:
+tests\unit\stores\test_managed_ctp_store_adapter.py:558: in test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write
+    with pytest.raises(BtApiStoreError, match="typed runtime adapter"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'typed runtime adapter'
+E    Input: 'external account actor unavailable'
+______ test_managed_ctp_placeholder_is_a_local_rejection_before_queueing ______
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:575: in test_managed_ctp_placeholder_is_a_local_rejection_before_queueing
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+__ test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only __
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:601: in test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+___ test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref ____
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:681: in test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:714: in test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:744: in test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:788: in test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:788: in test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+__ test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter __
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:825: in test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:836: in test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+__ test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue] __
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:870: in test_managed_ctp_real_queue_fails_before_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification] _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:870: in test_managed_ctp_real_queue_fails_before_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_____ test_managed_ctp_order_request_refuses_a_second_orderref_allocator ______
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:891: in test_managed_ctp_order_request_refuses_a_second_orderref_allocator
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+____ test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids ____
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:927: in test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+__ test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing ___
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:960: in test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+______ test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback _______
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:988: in test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:1038: in test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+_ test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown _
+backtrader\stores\btapistore.py:3753: in __init__
+    actor_port = require_account_actor_before_local_client(initial_route, account_actor_port)
+backtrader\stores\ctp_account_actor_port.py:458: in require_account_actor_before_local_client
+    raise AccountActorGateError("external_account_actor_unavailable")
+E   backtrader.stores.ctp_account_actor_port.AccountActorGateError: external account actor unavailable
+
+The above exception was the direct cause of the following exception:
+tests\unit\stores\test_managed_ctp_store_adapter.py:1061: in test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown
+    store, api = _store(adapter)
+tests\unit\stores\test_managed_ctp_store_adapter.py:474: in _store
+    store = BtApiStore(
+backtrader\stores\btapistore.py:3755: in __init__
+    raise BtApiStoreError(str(error)) from error
+E   backtrader.stores.btapistore.BtApiStoreError: external account actor unavailable
+============================== warnings summary ===============================
+backtrader\feeds\__init__.py:69
+  D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1\backtrader\feeds\__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_submission_projects_typed_identity_to_sdk_only
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_rejects_generic_adapter_and_never_uses_legacy_write
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_placeholder_is_a_local_rejection_before_queueing
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_projection_adapter_submit_cancel_and_restart_are_queue_only
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_cancel_accepts_a_recovered_binding_without_framework_ref
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_adapter_does_not_claim_at_most_once_without_durable_reservation
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[missing_projection]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[receipt_mismatch]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_projection_failures_freeze_and_surface_unknown_without_fallback[reader_error]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[missing_projection]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_fake_ctp_cancel_projection_failures_freeze_and_surface_unknown[receipt_mismatch]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_rejects_caller_owned_provider_identifiers_before_adapter
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_rejects_untyped_adapter_projection_without_direct_fallback
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_real_queue_fails_before_second_orderref_allocator[queue]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_real_queue_fails_before_second_orderref_allocator[unknown_classification]
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_order_request_refuses_a_second_orderref_allocator
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_cancel_projects_durable_cancel_id_without_native_ids
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_cancel_rejects_missing_native_order_ref_before_queueing
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_cancel_uses_the_typed_adapter_dispatch_callback
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_managed_ctp_orderref_from_sdk_ledger_is_not_reused_as_second_authority
+FAILED tests/unit/stores/test_managed_ctp_store_adapter.py::test_real_store_queue_receipts_classify_submit_and_recovered_cancel_as_unknown
+21 failed, 9 passed, 1 warning in 19.37s

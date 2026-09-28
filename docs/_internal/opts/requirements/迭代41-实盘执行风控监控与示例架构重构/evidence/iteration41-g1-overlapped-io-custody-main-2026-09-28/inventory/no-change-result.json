@@ -1,0 +1,32 @@
+{
+  "status": "NO_CHANGE",
+  "boundary": "STATIC_INVENTORY_ONLY_NOT_WRITER_CLOSURE_OR_ROUTE_AUTHORITY",
+  "baseline_inventory": {
+    "path_from_repo_root": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-inventory-candidates.json",
+    "sha256": "0874a81ac23ba4f659acaac833a976ecec44fa892a3a97778ea3d9779db67a67"
+  },
+  "fresh_collection": {
+    "path": "inventory/fresh-collection.json",
+    "sha256": "3436acc11b769a1676a8f19364159b67281b24b8e6325b0c3162c0e28d145146",
+    "counts": {
+      "dynamic_execution_candidates": 97,
+      "files_scanned": 355,
+      "parse_errors": 0,
+      "writer_candidates": 363
+    },
+    "status": "CANDIDATE_DISCOVERY_ONLY",
+    "source_path_coverage_status": "BASELINE_CLASSIFIED"
+  },
+  "comparison": {
+    "writer_rows_exact_and_ordered": true,
+    "dynamic_rows_exact_and_ordered": true,
+    "counts_equal": true,
+    "writer_rows_added_removed_moved": 0,
+    "dynamic_rows_added_removed_moved": 0,
+    "changed_channel_script_candidate_rows": []
+  },
+  "source_hashes": {
+    "channel_source_sha256": "4f9ff31428cdfd9d62acc8118ae4bb00bc09cc0e5883fb07c6b1daea85f41178",
+    "channel_test_sha256": "25332e48979f7827fa97e5dc4c8fa4fb7acd8eb17262c505bde4f4afec182861"
+  }
+}

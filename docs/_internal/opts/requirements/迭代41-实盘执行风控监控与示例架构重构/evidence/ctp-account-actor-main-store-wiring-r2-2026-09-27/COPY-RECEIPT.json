@@ -1,0 +1,11 @@
+{
+  "archive_index_sha256": "27da48132a1beb2b3e93b2a711114760abbd1f6d5ed000cde5b35ad9d7916051",
+  "archive_member_count": 651,
+  "candidate_manifest_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+  "candidate_payload_count": 649,
+  "default_route_changed": false,
+  "external_actor_dispatch": false,
+  "raw_zip_sha256": "1b6c0a9d03295d9c96548ee63342a6931d7ab7a23e214161c2cde8661739f98a",
+  "raw_zip_testzip": "passed",
+  "status": "COPY_VERIFIED"
+}

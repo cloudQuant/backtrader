@@ -1,0 +1,48 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.r2_independent_qa_receipt.v1",
+  "classification": "FAKE_LOCAL_CONTRACT_ONLY / G6-S CLOSED / G7-S CLOSED",
+  "candidate_manifest_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+  "candidate_zip_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+  "manifest_verification": {
+    "payload_count": 92,
+    "zip_members": 94,
+    "crc": "ok",
+    "result": "pass"
+  },
+  "r1_lineage": {
+    "prior_qa_files_checked": 47,
+    "result": "pass",
+    "zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+    "prior_focus": 35,
+    "manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+    "prior_adversarial": 21
+  },
+  "r2_focus": {
+    "failed": 0,
+    "forbidden_modules_loaded": false,
+    "import_blocked": [
+      "bt_api_ctp",
+      "_ctp"
+    ],
+    "passed": 39
+  },
+  "r2_adversarial": {
+    "failed": 0,
+    "checks": [
+      "R1 boolean generation/code cases reject",
+      "other bool/int aliases reject",
+      "mutable attestor property returns different callable across repeated lookup; shape accepted but trust flags remain false",
+      "caller-constructed receipt DTO can set trust flags true",
+      "ConfirmDate-only shape case remains non-authorizing"
+    ],
+    "passed": 34
+  },
+  "main_runtime_wired": false,
+  "limits": [
+    "Attestor injection unauthenticated",
+    "Receipt DTO nominal type is not authority",
+    "No durable provider provenance",
+    "No main runtime integration",
+    "No SDK/native/provider/private config/network/orders"
+  ]
+}

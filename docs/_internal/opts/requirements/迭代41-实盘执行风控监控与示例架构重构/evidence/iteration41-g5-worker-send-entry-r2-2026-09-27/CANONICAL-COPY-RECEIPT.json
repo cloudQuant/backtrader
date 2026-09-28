@@ -1,0 +1,262 @@
+{
+  "candidate_manifest_entry_count": 138,
+  "candidate_manifest_sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+  "canonical_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27",
+  "external_copy_mismatches": [],
+  "external_files_copied": 4,
+  "files": [
+    {
+      "bytes": 6033,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\R2-CANDIDATE-README.md",
+      "destination_sha256_after_copy": "1d128158efd7534d8cd702f2c8d4212d03d479a6c76a2900a5c52b14be40689c",
+      "manifest_sha256": "1d128158efd7534d8cd702f2c8d4212d03d479a6c76a2900a5c52b14be40689c",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\README.md",
+      "source_sha256_before_copy": "1d128158efd7534d8cd702f2c8d4212d03d479a6c76a2900a5c52b14be40689c"
+    },
+    {
+      "bytes": 27081,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\candidate-output-manifest.json",
+      "destination_sha256_after_copy": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+      "manifest_sha256": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\candidate-output-manifest.json",
+      "source_sha256_before_copy": "2b92b0a4d777221714f6b13f93eb9b39388993b4d0a585b35113d1eb4d6ed5e3"
+    },
+    {
+      "bytes": 97,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\candidate-output-manifest.sha256",
+      "destination_sha256_after_copy": "cdbfae966c87a87fa34d51320d1a8b74fafd9b1842914c552394e18707a524c8",
+      "manifest_sha256": null,
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\candidate-output-manifest.sha256",
+      "source_sha256_before_copy": "cdbfae966c87a87fa34d51320d1a8b74fafd9b1842914c552394e18707a524c8"
+    },
+    {
+      "bytes": 74875,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\G5_SEND_ENTRY_FAIL_CLOSED_R2.patch",
+      "destination_sha256_after_copy": "48aa0096432bcb4e46ee93c886d659b67a0ad402522898db01e58a32926d4f48",
+      "manifest_sha256": "48aa0096432bcb4e46ee93c886d659b67a0ad402522898db01e58a32926d4f48",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\implementation\\sdk_patch\\G5_SEND_ENTRY_FAIL_CLOSED_R2.patch",
+      "source_sha256_before_copy": "48aa0096432bcb4e46ee93c886d659b67a0ad402522898db01e58a32926d4f48"
+    },
+    {
+      "bytes": 101,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-implementation-focus.log",
+      "destination_sha256_after_copy": "0022b3c4b5afa4b4b9113d924294bf0db0f0c7dc4571b3f69b61ece564334279",
+      "manifest_sha256": "0022b3c4b5afa4b4b9113d924294bf0db0f0c7dc4571b3f69b61ece564334279",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-implementation-focus.log",
+      "source_sha256_before_copy": "0022b3c4b5afa4b4b9113d924294bf0db0f0c7dc4571b3f69b61ece564334279"
+    },
+    {
+      "bytes": 1,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-implementation-focus.exit",
+      "destination_sha256_after_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "manifest_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-implementation-focus.exit",
+      "source_sha256_before_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 20,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-ruff.log",
+      "destination_sha256_after_copy": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "manifest_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-ruff.log",
+      "source_sha256_before_copy": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "bytes": 1,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-ruff.exit",
+      "destination_sha256_after_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "manifest_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-ruff.exit",
+      "source_sha256_before_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 0,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-pycompile.log",
+      "destination_sha256_after_copy": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "manifest_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-pycompile.log",
+      "source_sha256_before_copy": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-pycompile.exit",
+      "destination_sha256_after_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "manifest_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-pycompile.exit",
+      "source_sha256_before_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 2788,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-sdk-tests-candidate-source.log",
+      "destination_sha256_after_copy": "87665e902533b764378fd0336eb5dec5afb715cd05ae70c744d58e0c67661d02",
+      "manifest_sha256": "87665e902533b764378fd0336eb5dec5afb715cd05ae70c744d58e0c67661d02",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-sdk-tests-candidate-source.log",
+      "source_sha256_before_copy": "87665e902533b764378fd0336eb5dec5afb715cd05ae70c744d58e0c67661d02"
+    },
+    {
+      "bytes": 1,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-sdk-tests-candidate-source.exit",
+      "destination_sha256_after_copy": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "manifest_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-sdk-tests-candidate-source.exit",
+      "source_sha256_before_copy": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "bytes": 101,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-sdk-tests-frozen-source.log",
+      "destination_sha256_after_copy": "1aa6101ec20d1108710cccdd867603614014175f5b2a1cfc1059bfd4e2648c17",
+      "manifest_sha256": "1aa6101ec20d1108710cccdd867603614014175f5b2a1cfc1059bfd4e2648c17",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-sdk-tests-frozen-source.log",
+      "source_sha256_before_copy": "1aa6101ec20d1108710cccdd867603614014175f5b2a1cfc1059bfd4e2648c17"
+    },
+    {
+      "bytes": 1,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-sdk-tests-frozen-source.exit",
+      "destination_sha256_after_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "manifest_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-sdk-tests-frozen-source.exit",
+      "source_sha256_before_copy": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 642,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-patch-replay.log",
+      "destination_sha256_after_copy": "16f0573ca049c66a8d34efe6d298d68c1622aae0054355e1aacf9eb9a8b56c71",
+      "manifest_sha256": "16f0573ca049c66a8d34efe6d298d68c1622aae0054355e1aacf9eb9a8b56c71",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r2-patch-replay.log",
+      "source_sha256_before_copy": "16f0573ca049c66a8d34efe6d298d68c1622aae0054355e1aacf9eb9a8b56c71"
+    },
+    {
+      "bytes": 6127,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-send-entry-regressions.py",
+      "destination_sha256_after_copy": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b",
+      "manifest_sha256": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.py",
+      "source_sha256_before_copy": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b"
+    },
+    {
+      "bytes": 2820,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-send-entry-regressions.log",
+      "destination_sha256_after_copy": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6",
+      "manifest_sha256": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.log",
+      "source_sha256_before_copy": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6"
+    },
+    {
+      "bytes": 3517,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-send-entry-regressions.junit.xml",
+      "destination_sha256_after_copy": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2",
+      "manifest_sha256": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.junit.xml",
+      "source_sha256_before_copy": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2"
+    },
+    {
+      "bytes": 3,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-send-entry-regressions.exit",
+      "destination_sha256_after_copy": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "manifest_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions.exit",
+      "source_sha256_before_copy": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 2180,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-send-entry-regressions-copy-verification.json",
+      "destination_sha256_after_copy": "bfa236222577f513b1d9af1e5f6f2295b38ae480c8fcf7bee625cebdd6ff4472",
+      "manifest_sha256": "bfa236222577f513b1d9af1e5f6f2295b38ae480c8fcf7bee625cebdd6ff4472",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-send-entry-regressions-copy-verification.json",
+      "source_sha256_before_copy": "bfa236222577f513b1d9af1e5f6f2295b38ae480c8fcf7bee625cebdd6ff4472"
+    },
+    {
+      "bytes": 29924,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r1-worker-focus-original.py",
+      "destination_sha256_after_copy": "0422df1a61a0c4e8b8e06a92a00a3d5f2fb7bca26498ee841e8a2ef33faa7aa0",
+      "manifest_sha256": "0422df1a61a0c4e8b8e06a92a00a3d5f2fb7bca26498ee841e8a2ef33faa7aa0",
+      "match": true,
+      "preexisting_identical": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate\\evidence\\r1-worker-focus-original.py",
+      "source_sha256_before_copy": "0422df1a61a0c4e8b8e06a92a00a3d5f2fb7bca26498ee841e8a2ef33faa7aa0"
+    },
+    {
+      "bytes": 608197,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-candidate.zip",
+      "destination_sha256_after_copy": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283",
+      "match": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate.zip",
+      "source_sha256_before_copy": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283"
+    },
+    {
+      "bytes": 83,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-candidate.zip.sha256",
+      "destination_sha256_after_copy": "8932412d8450135a8038d476e5fdb88c52a576d65090e1a6d7ea3cd1f4dbc5c8",
+      "match": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate.zip.sha256",
+      "source_sha256_before_copy": "8932412d8450135a8038d476e5fdb88c52a576d65090e1a6d7ea3cd1f4dbc5c8"
+    },
+    {
+      "bytes": 796,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-candidate-archive-verification.json",
+      "destination_sha256_after_copy": "d75b5e0d39fc187fa32db8e35ddd563b355e483a0acec7fbb8fee0b0f6899bc3",
+      "match": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\evidence\\r2-candidate-archive-verification.json",
+      "source_sha256_before_copy": "d75b5e0d39fc187fa32db8e35ddd563b355e483a0acec7fbb8fee0b0f6899bc3"
+    },
+    {
+      "bytes": 906,
+      "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-g5-worker-send-entry-r2-2026-09-27\\r2-candidate-archive-content-verification.json",
+      "destination_sha256_after_copy": "efce50871bb27d92923eeb510f04f83aa17d2030b909512fd725fe03635534ae",
+      "match": true,
+      "source": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\evidence\\r2-candidate-archive-content-verification.json",
+      "source_sha256_before_copy": "efce50871bb27d92923eeb510f04f83aa17d2030b909512fd725fe03635534ae"
+    }
+  ],
+  "format": "iteration41-g5-worker-send-entry-r2-canonical-copy.v1",
+  "r1_three_red_evidence_copy_verified": true,
+  "raw_zip_crc_bad_member": null,
+  "raw_zip_manifest_member_hash_mismatches": [],
+  "raw_zip_member_count": 140,
+  "raw_zip_members_match_manifest": true,
+  "raw_zip_sha256": "1ce285ed3e90f778ad05f55ded4263e522a54e04c7a20e3a5c30009bb298e283",
+  "selected_manifest_file_mismatches": [],
+  "selected_manifest_files_copied": 21,
+  "source_candidate_root": "D:\\temp\\iteration41-g5-worker-projection-r2-boundary-20260927\\r2-candidate",
+  "status": "R2_FAIL_CLOSED / G5 NOT ACCEPTED"
+}

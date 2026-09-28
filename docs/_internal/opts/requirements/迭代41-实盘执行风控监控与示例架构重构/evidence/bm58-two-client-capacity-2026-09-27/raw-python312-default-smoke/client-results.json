@@ -1,0 +1,27 @@
+[
+  {
+    "client_id": 0,
+    "counters": {
+      "accepted_unique_intents": 10,
+      "claimed_intents": 8,
+      "completed_intents": 8,
+      "duplicate_attempts": 2,
+      "fake_provider_calls": 8,
+      "producer_done": 1,
+      "producer_expected_intents": 10
+    },
+    "kind": "complete"
+  },
+  {
+    "client_id": 1,
+    "counters": {
+      "accepted_unique_intents": 10,
+      "claimed_intents": 12,
+      "completed_intents": 12,
+      "fake_provider_calls": 12,
+      "producer_done": 1,
+      "producer_expected_intents": 10
+    },
+    "kind": "complete"
+  }
+]

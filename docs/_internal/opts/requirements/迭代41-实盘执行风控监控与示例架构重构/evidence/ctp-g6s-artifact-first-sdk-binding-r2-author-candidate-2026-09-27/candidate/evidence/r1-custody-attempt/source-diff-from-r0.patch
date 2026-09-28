@@ -1,0 +1,1829 @@
+--- R0/backtrader_runtime/ctp_sdk_artifact_binding.py
++++ R1/backtrader_runtime/ctp_sdk_artifact_binding.py
+@@ -9,11 +9,13 @@
+ from __future__ import annotations
+ 
+ import base64
++import builtins
+ import csv
+ import hashlib
+ import hmac
+ import importlib
+ import importlib._bootstrap_external
++import importlib.abc
+ import importlib.machinery
+ import io
+ import os
+@@ -22,14 +24,20 @@
+ import sys
+ import zipimport
+ from collections.abc import Mapping
+-from dataclasses import dataclass
++from dataclasses import dataclass, field
+ from email.parser import Parser
+ from types import ModuleType
+ from typing import Optional
+ 
++from backtrader_runtime.ctp_windows_artifact_custody import (
++    WindowsArtifactCustody,
++    WindowsArtifactCustodyError,
++)
++
+ _DIST_NAME = "bt_api_ctp"
+ _EVIDENCE_MODULE = "bt_api_ctp.containers.ctp.ctp_native_query_certificate"
+ _LOWER_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
++_ORIGINAL_IMPORT = builtins.__import__
+ 
+ 
+ class CtpSdkArtifactBindingError(RuntimeError):
+@@ -69,6 +77,9 @@
+     file_sha256: tuple[tuple[str, str], ...]
+     module_origins: tuple[tuple[str, str], ...]
+     extension_paths: tuple[str, ...]
++    custody: WindowsArtifactCustody | None = field(
++        default=None, repr=False, compare=False
++    )
+ 
+ 
+ # A candidate may set this only after an installed wheel, complete RECORD,
+@@ -76,6 +87,7 @@
+ # Never replace None with a candidate/source-tree hash as a production pin.
+ _CODE_OWNED_ARTIFACT_POLICY: Optional[CtpSdkArtifactPolicy] = None  # noqa: UP045
+ _CODE_OWNED_VERIFIER_CACHE: Optional["_CodeOwnedSettlementEvidenceVerifier"] = None  # noqa: UP045, UP037
++_CODE_OWNED_IMPORTER: Optional["_PinnedSdkImporter"] = None  # noqa: UP045, UP037
+ 
+ 
+ def _fail(reason: str) -> None:
+@@ -120,8 +132,16 @@
+             _fail("sdk_artifact_reparse_or_symlink")
+ 
+ 
+-def _read_regular_file(path: str, root: str) -> bytes:
++def _read_regular_file(
++    path: str, root: str, custody: WindowsArtifactCustody | None = None
++) -> bytes:
+     _reject_link_components(path, root)
++    if custody is not None:
++        relative = os.path.relpath(path, root).replace(os.sep, "/")
++        try:
++            return custody.read(relative)
++        except WindowsArtifactCustodyError:
++            _fail("sdk_artifact_retained_file_read_failed")
+     try:
+         info = os.stat(path, follow_symlinks=False)
+         if not stat.S_ISREG(info.st_mode):
+@@ -199,6 +219,7 @@
+     package_root: str,
+     dist_info_root: str,
+     policy: CtpSdkArtifactPolicy,
++    custody: WindowsArtifactCustody | None = None,
+ ) -> tuple[tuple[str, str], ...]:
+     root = _absolute(distribution_root)
+     package = _absolute(package_root)
+@@ -213,7 +234,9 @@
+         != expected_dist_info
+     ):
+         _fail("sdk_artifact_dist_info_name_mismatch")
+-    metadata_raw = _read_regular_file(os.path.join(dist_info, "METADATA"), root)
++    metadata_raw = _read_regular_file(
++        os.path.join(dist_info, "METADATA"), root, custody
++    )
+     metadata_name, metadata_version = _parse_metadata(metadata_raw)
+     if (
+         _norm_name(metadata_name) != _norm_name(policy.distribution_name)
+@@ -222,7 +245,7 @@
+         _fail("sdk_artifact_distribution_identity_mismatch")
+ 
+     record_path = os.path.join(dist_info, "RECORD")
+-    record_raw = _read_regular_file(record_path, root)
++    record_raw = _read_regular_file(record_path, root, custody)
+     if (
+         type(policy.record_sha256) is not str
+         or not _LOWER_HEX64_RE.fullmatch(policy.record_sha256)
+@@ -249,7 +272,7 @@
+             _fail("sdk_artifact_record_size_invalid")
+         digest = _decode_record_hash(record_hash)
+         path = os.path.join(root, *relative.split("/"))
+-        raw = _read_regular_file(path, root)
++        raw = _read_regular_file(path, root, custody)
+         if len(raw) != int(record_size) or _sha256(raw) != digest:
+             _fail("sdk_artifact_record_file_mismatch")
+         entries[relative] = (digest, len(raw))
+@@ -304,6 +327,83 @@
+     return tuple(sorted((path, digest) for path, digest in expected.items()))
+ 
+ 
++def _acquire_windows_artifact_custody(
++    *, distribution_root: str, dist_info_root: str, policy: CtpSdkArtifactPolicy
++) -> WindowsArtifactCustody:
++    """Lock every RECORD member before the final validation/import pass.
++
++    The initial RECORD read is untrusted discovery. Its digest is checked
++    against the code-owned policy before any listed path is used, then the
++    record itself is retained first. Every referenced member is acquired from
++    the same distribution root with share-read-only handles and checked again
++    through those handles by ``_verify_distribution_tree``.
++    """
++
++    if os.name != "nt":
++        _fail("sdk_artifact_windows_custody_required")
++    root = _absolute(distribution_root)
++    record_path = os.path.join(_absolute(dist_info_root), "RECORD")
++    record_relative = os.path.relpath(record_path, root).replace(os.sep, "/")
++    _safe_record_relative(record_relative)
++    if not _LOWER_HEX64_RE.fullmatch(policy.record_sha256):
++        _fail("sdk_artifact_record_digest_mismatch")
++    preliminary = _read_regular_file(record_path, root)
++    if not hmac.compare_digest(_sha256(preliminary), policy.record_sha256):
++        _fail("sdk_artifact_record_digest_mismatch")
++    try:
++        rows = list(csv.reader(io.StringIO(preliminary.decode("utf-8"), newline="")))
++    except (UnicodeError, csv.Error):
++        _fail("sdk_artifact_record_invalid")
++    if not rows or any(len(row) != 3 for row in rows):
++        _fail("sdk_artifact_record_invalid")
++    members: dict[str, str] = {}
++    saw_record = False
++    for relative, record_hash, record_size in rows:
++        relative = _safe_record_relative(relative)
++        if relative in members:
++            _fail("sdk_artifact_record_duplicate_path")
++        if relative == record_relative:
++            if record_hash or record_size:
++                _fail("sdk_artifact_record_self_hash_invalid")
++            members[relative] = policy.record_sha256
++            saw_record = True
++            continue
++        if not record_size.isdigit():
++            _fail("sdk_artifact_record_size_invalid")
++        members[relative] = _decode_record_hash(record_hash)
++    if not saw_record:
++        _fail("sdk_artifact_record_self_hash_invalid")
++    for relative, digest in policy.files.items():
++        if members.get(relative) != digest:
++            _fail("sdk_artifact_pinned_file_mismatch")
++
++    # First retain RECORD alone so a concurrent writer cannot change the
++    # member list while the remaining file handles are being acquired.
++    record_custody = WindowsArtifactCustody.acquire(
++        root,
++        (record_relative,),
++        expected_sha256={record_relative: policy.record_sha256},
++    )
++    try:
++        locked_record = record_custody.read(record_relative)
++        if not hmac.compare_digest(_sha256(locked_record), policy.record_sha256):
++            _fail("sdk_artifact_record_digest_mismatch")
++        if locked_record != preliminary:
++            _fail("sdk_artifact_record_changed_during_lock")
++        custody = WindowsArtifactCustody.acquire(
++            root,
++            tuple(members),
++            expected_sha256=members,
++        )
++        custody.verify_current()
++        if custody.read(record_relative) != locked_record:
++            custody.close()
++            _fail("sdk_artifact_record_changed_during_lock")
++        return custody
++    finally:
++        record_custody.close()
++
++
+ def _discover_and_verify(policy: CtpSdkArtifactPolicy) -> VerifiedCtpSdkArtifact:
+     if sys.dont_write_bytecode is not True:
+         _fail("sdk_artifact_requires_no_bytecode")
+@@ -347,25 +447,414 @@
+         or not policy.module_files
+     ):
+         _fail("sdk_artifact_source_manifest_unpinned")
+-    return VerifiedCtpSdkArtifact(
+-        distribution_root=distribution_root,
+-        package_root=package_root,
+-        dist_info_root=dist_infos[0][1],
+-        version=policy.version,
+-        record_sha256=policy.record_sha256,
+-        source_manifest_sha256=policy.source_manifest_sha256,
+-        file_sha256=source_hashes,
+-        module_origins=tuple(
+-            sorted(
+-                (name, _absolute(os.path.join(distribution_root, *relative.split("/"))))
+-                for name, relative in policy.module_files.items()
++    try:
++        custody = _acquire_windows_artifact_custody(
++            distribution_root=distribution_root,
++            dist_info_root=dist_infos[0][1],
++            policy=policy,
++        )
++    except WindowsArtifactCustodyError:
++        _fail("sdk_artifact_custody_acquire_failed")
++    try:
++        locked_hashes = _verify_distribution_tree(
++            distribution_root=distribution_root,
++            package_root=package_root,
++            dist_info_root=dist_infos[0][1],
++            policy=policy,
++            custody=custody,
++        )
++        if locked_hashes != source_hashes:
++            _fail("sdk_artifact_inventory_changed_during_lock")
++        return VerifiedCtpSdkArtifact(
++            distribution_root=distribution_root,
++            package_root=package_root,
++            dist_info_root=dist_infos[0][1],
++            version=policy.version,
++            record_sha256=policy.record_sha256,
++            source_manifest_sha256=policy.source_manifest_sha256,
++            file_sha256=source_hashes,
++            module_origins=tuple(
++                sorted(
++                    (
++                        name,
++                        _absolute(
++                            os.path.join(distribution_root, *relative.split("/"))
++                        ),
++                    )
++                    for name, relative in policy.module_files.items()
++                )
++            ),
++            extension_paths=tuple(
++                _absolute(os.path.join(distribution_root, *relative.split("/")))
++                for relative in policy.extension_paths
++            ),
++            custody=custody,
++        )
++    except BaseException:
++        custody.close()
++        raise
++
++
++class _RetainedSourceLoader(importlib.abc.Loader):
++    """Compile one exact Python source module from a retained file handle."""
++
++    def __init__(
++        self,
++        importer: _PinnedSdkImporter,
++        fullname: str,
++        relative_path: str,
++        origin: str,
++        expected_sha256: str,
++        is_package: bool,
++    ) -> None:
++        self.name = fullname
++        self.path = origin
++        self._importer = importer
++        self._relative_path = relative_path
++        self._expected_sha256 = expected_sha256
++        self._is_package = is_package
++
++    def create_module(self, _spec: object) -> None:
++        return None
++
++    def exec_module(self, module: ModuleType) -> None:
++        self._importer.begin_loader_exec(module, self.name, self)
++        self._importer.assert_context()
++        custody = self._importer.artifact.custody
++        if custody is None:
++            _fail("sdk_artifact_windows_custody_required")
++        try:
++            raw = custody.read(self._relative_path)
++        except WindowsArtifactCustodyError:
++            _fail("sdk_artifact_retained_source_unavailable")
++        if not hmac.compare_digest(_sha256(raw), self._expected_sha256):
++            _fail("sdk_artifact_retained_source_hash_mismatch")
++        module.__file__ = self.path
++        module.__cached__ = None
++        if self._is_package:
++            module.__path__ = [os.path.dirname(self.path)]
++        builtins_map = dict(vars(builtins))
++        builtins_map["__import__"] = self._importer.guarded_import
++        module.__dict__["__builtins__"] = builtins_map
++        code = compile(raw, self.path, "exec", dont_inherit=True)
++        # The code object comes only from source bytes re-read from the retained,
++        # hash-verified installation handle above; never from caller text.
++        exec(code, module.__dict__)  # noqa: S102
++        self._importer.assert_context()
++        self._importer.finish_loader_exec(module, self.name, self)
++
++
++class _PinnedExtensionLoader(importlib.abc.Loader):
++    """Delegate one extension load only after its path is handle-pinned."""
++
++    def __init__(
++        self, importer: _PinnedSdkImporter, fullname: str, origin: str
++    ) -> None:
++        self.name = fullname
++        self.path = origin
++        self._importer = importer
++        self._delegate = importlib.machinery.ExtensionFileLoader(fullname, origin)
++
++    def create_module(self, spec: object) -> ModuleType | None:
++        self._importer.assert_context()
++        self._importer.verify_extension_path(self.name, self.path)
++        return self._delegate.create_module(spec)
++
++    def exec_module(self, module: ModuleType) -> None:
++        self._importer.begin_loader_exec(module, self.name, self)
++        self._importer.verify_extension_path(self.name, self.path)
++        self._delegate.exec_module(module)
++        self._importer.assert_context()
++        self._importer.finish_loader_exec(module, self.name, self)
++
++
++class _PinnedSdkImporter(importlib.abc.MetaPathFinder):
++    """Load only code-pinned SDK modules and reject all package fallbacks."""
++
++    def __init__(self, artifact: VerifiedCtpSdkArtifact) -> None:
++        if artifact.custody is None:
++            _fail("sdk_artifact_windows_custody_required")
++        self.artifact = artifact
++        self._source_modules: dict[str, tuple[str, str, str, bool]] = {}
++        hashes = dict(artifact.file_sha256)
++        for fullname, origin in artifact.module_origins:
++            relative = os.path.relpath(origin, artifact.distribution_root).replace(
++                os.sep, "/"
+             )
+-        ),
+-        extension_paths=tuple(
+-            _absolute(os.path.join(distribution_root, *relative.split("/")))
+-            for relative in policy.extension_paths
+-        ),
+-    )
++            digest = hashes.get(relative)
++            if digest is None:
++                _fail("sdk_artifact_module_source_unpinned")
++            self._source_modules[fullname] = (
++                relative,
++                origin,
++                digest,
++                relative.endswith("/__init__.py"),
++            )
++        self._loaded: dict[str, ModuleType] = {}
++        self._pending: dict[str, ModuleType] = {}
++        self._loaders: dict[str, object] = {}
++        self._original_path: object = None
++        self._original_meta_path: object = None
++        self._original_path_hooks: object = None
++        self._original_importer_cache: object = None
++        self._path_entries: tuple[object, ...] = ()
++        self._path_tuple: tuple[object, ...] = ()
++        self._hooks_tuple: tuple[object, ...] = ()
++        self._meta_tuple: tuple[object, ...] = ()
++        self._cache_snapshot: tuple[tuple[object, object], ...] = ()
++        self._installed = False
++
++    def install(self) -> None:
++        if self._installed:
++            _fail("sdk_artifact_importer_already_installed")
++        _require_standard_import_chain()
++        _verified_search_roots()
++        if any(
++            name == _DIST_NAME or name.startswith(_DIST_NAME + ".")
++            for name in sys.modules
++        ):
++            _fail("sdk_artifact_check_after_import")
++        self._original_path = sys.path
++        self._original_meta_path = sys.meta_path
++        self._original_path_hooks = sys.path_hooks
++        self._original_importer_cache = sys.path_importer_cache
++        self._path_entries = tuple(sys.path)
++        self._path_tuple = tuple(sys.path)
++        self._hooks_tuple = tuple(sys.path_hooks)
++        self._cache_snapshot = tuple(sys.path_importer_cache.items())
++        self._meta_tuple = (
++            importlib.machinery.BuiltinImporter,
++            importlib.machinery.FrozenImporter,
++            self,
++            importlib.machinery.PathFinder,
++        )
++        # Immutable sequences prevent accidental in-place changes during the
++        # import phase. Every custom source loader rechecks object identity and
++        # contents before and after executing pinned bytes.
++        sys.path = self._path_tuple
++        sys.path_hooks = self._hooks_tuple
++        sys.meta_path = self._meta_tuple
++        self._installed = True
++        self.assert_context()
++
++    def assert_context(self) -> None:
++        if not self._installed:
++            _fail("sdk_artifact_importer_not_installed")
++        if (
++            sys.path is not self._path_tuple
++            or tuple(sys.path) != self._path_entries
++            or sys.path_hooks is not self._hooks_tuple
++            or tuple(sys.path_hooks) != self._hooks_tuple
++            or sys.meta_path is not self._meta_tuple
++            or tuple(sys.meta_path) != self._meta_tuple
++            or sys.path_importer_cache is not self._original_importer_cache
++        ):
++            _fail("sdk_artifact_import_environment_changed")
++        current_cache = tuple(sys.path_importer_cache.items())
++        if len(current_cache) != len(self._cache_snapshot):
++            _fail("sdk_artifact_importer_cache_changed")
++        for name, module in tuple(sys.modules.items()):
++            if name == _DIST_NAME or name.startswith(_DIST_NAME + "."):
++                expected = self._loaded.get(name) or self._pending.get(name)
++                if expected is not module:
++                    _fail("sdk_artifact_sys_modules_spoof")
++        old_cache = {key: value for key, value in self._cache_snapshot}
++        if any(
++            key not in old_cache or old_cache[key] is not value
++            for key, value in current_cache
++        ):
++            _fail("sdk_artifact_importer_cache_changed")
++
++    def find_spec(
++        self, fullname: str, path: object = None, target: object = None
++    ) -> object:
++        if fullname == _DIST_NAME or fullname.startswith(_DIST_NAME + "."):
++            self.assert_context()
++            if (
++                fullname not in self._source_modules
++                and fullname != "bt_api_ctp.ctp._ctp"
++            ):
++                _fail("sdk_artifact_unpinned_module_import")
++            return self._spec_for(fullname)
++        return None
++
++    def _spec_for(self, fullname: str) -> object:
++        if fullname in self._source_modules:
++            relative, origin, digest, is_package = self._source_modules[fullname]
++            loader = _RetainedSourceLoader(
++                self, fullname, relative, origin, digest, is_package
++            )
++            self._loaders[fullname] = loader
++            return importlib.machinery.ModuleSpec(
++                fullname,
++                loader,
++                origin=origin,
++                is_package=is_package,
++            )
++        if fullname == "bt_api_ctp.ctp._ctp":
++            matches = [
++                path
++                for path in self.artifact.extension_paths
++                if os.path.basename(path).lower().startswith("_ctp")
++            ]
++            if len(matches) != 1:
++                _fail("sdk_artifact_native_extension_unpinned")
++            origin = matches[0]
++            loader = _PinnedExtensionLoader(self, fullname, origin)
++            self._loaders[fullname] = loader
++        return importlib.machinery.ModuleSpec(fullname, loader, origin=origin)
++
++    def verify_extension_path(self, fullname: str, origin: str) -> None:
++        if (
++            fullname != "bt_api_ctp.ctp._ctp"
++            or _absolute(origin) not in self.artifact.extension_paths
++        ):
++            _fail("sdk_artifact_native_module_unpinned")
++        custody = self.artifact.custody
++        if custody is None:
++            _fail("sdk_artifact_windows_custody_required")
++        relative = os.path.relpath(origin, self.artifact.distribution_root).replace(
++            os.sep, "/"
++        )
++        expected = dict(self.artifact.file_sha256).get(relative)
++        if expected is None:
++            _fail("sdk_artifact_native_module_unpinned")
++        try:
++            raw = custody.read(relative, max_bytes=128 * 1024 * 1024)
++        except WindowsArtifactCustodyError:
++            _fail("sdk_artifact_native_module_unavailable")
++        if not hmac.compare_digest(_sha256(raw), expected):
++            _fail("sdk_artifact_native_module_hash_mismatch")
++
++    def begin_loader_exec(
++        self, module: ModuleType, fullname: str, loader: object
++    ) -> None:
++        if fullname not in self._source_modules and fullname != "bt_api_ctp.ctp._ctp":
++            _fail("sdk_artifact_unpinned_module_import")
++        if sys.modules.get(fullname) is not module:
++            _fail("sdk_artifact_sys_modules_spoof")
++        if fullname in self._loaded or fullname in self._pending:
++            _fail("sdk_artifact_module_reentry")
++        if self._loaders.get(fullname) is not loader:
++            _fail("sdk_artifact_loaded_module_loader_mismatch")
++        self._pending[fullname] = module
++        try:
++            self.assert_context()
++        except BaseException:
++            self._pending.pop(fullname, None)
++            raise
++
++    def finish_loader_exec(
++        self, module: ModuleType, fullname: str, loader: object
++    ) -> None:
++        if (
++            self._pending.get(fullname) is not module
++            or self._loaders.get(fullname) is not loader
++        ):
++            _fail("sdk_artifact_module_execution_state_invalid")
++        self._pending.pop(fullname, None)
++        self._loaded[fullname] = module
++
++    def import_module(self, fullname: str) -> ModuleType:
++        self.assert_context()
++        if fullname not in self._source_modules and fullname != "bt_api_ctp.ctp._ctp":
++            _fail("sdk_artifact_unpinned_module_import")
++        existing = sys.modules.get(fullname)
++        if existing is not None:
++            if self._loaded.get(fullname) is existing:
++                return existing
++            _fail("sdk_artifact_sys_modules_spoof")
++        parent_name, separator, _child = fullname.rpartition(".")
++        if separator:
++            if parent_name not in self._source_modules:
++                _fail("sdk_artifact_parent_package_unpinned")
++            self.import_module(parent_name)
++        spec = self._spec_for(fullname)
++        module = importlib.util.module_from_spec(spec)
++        sys.modules[fullname] = module
++        try:
++            loader = spec.loader
++            self._loaders[fullname] = loader
++            loader.exec_module(module)
++            if sys.modules.get(fullname) is not module:
++                _fail("sdk_artifact_sys_modules_spoof")
++            if module.__spec__ is not spec or module.__spec__.loader is not loader:
++                _fail("sdk_artifact_loaded_module_origin_mismatch")
++            return module
++        except BaseException:
++            sys.modules.pop(fullname, None)
++            raise
++
++    def guarded_import(
++        self,
++        name: str,
++        globals: dict[str, object] | None = None,
++        locals: dict[str, object] | None = None,
++        fromlist: object = (),
++        level: int = 0,
++    ) -> object:
++        self.assert_context()
++        if level:
++            package = (globals or {}).get("__package__")
++            if type(package) is not str:
++                _fail("sdk_artifact_relative_import_invalid")
++            absolute_name = importlib.util.resolve_name("." * level + name, package)
++        else:
++            absolute_name = name
++        if absolute_name == _DIST_NAME or absolute_name.startswith(_DIST_NAME + "."):
++            module = self.import_module(absolute_name)
++            if fromlist:
++                for item in fromlist:
++                    if type(item) is not str or item == "*" or hasattr(module, item):
++                        continue
++                    child = absolute_name + "." + item
++                    if child in self._source_modules or child == "bt_api_ctp.ctp._ctp":
++                        self.import_module(child)
++                self.assert_context()
++                return module
++            self.assert_context()
++            return self.import_module(_DIST_NAME)
++        result = _ORIGINAL_IMPORT(name, globals, locals, fromlist, level)
++        self.assert_context()
++        return result
++
++    def verify_module(
++        self, module: object, fullname: str, expected_origin: str
++    ) -> None:
++        if sys.modules.get(fullname) is not self._loaded.get(fullname):
++            _fail("sdk_artifact_module_identity_changed")
++        spec = getattr(module, "__spec__", None)
++        loader = self._loaders.get(fullname)
++        if (
++            spec is None
++            or getattr(spec, "name", None) != fullname
++            or spec.loader is not loader
++            or type(getattr(spec, "origin", None)) is not str
++            or _absolute(spec.origin) != _absolute(expected_origin)
++            or _absolute(getattr(module, "__file__", "")) != _absolute(expected_origin)
++        ):
++            _fail("sdk_artifact_loaded_module_origin_mismatch")
++        relative = os.path.relpath(
++            expected_origin, self.artifact.distribution_root
++        ).replace(os.sep, "/")
++        expected_hash = dict(self.artifact.file_sha256).get(relative)
++        if expected_hash is None or self.artifact.custody is None:
++            _fail("sdk_artifact_loaded_module_not_in_verified_inventory")
++        if not hmac.compare_digest(
++            _sha256(self.artifact.custody.read(relative)), expected_hash
++        ):
++            _fail("sdk_artifact_loaded_module_hash_mismatch")
++
++    def close_after_failure(self) -> None:
++        for fullname in tuple(self._loaded):
++            sys.modules.pop(fullname, None)
++        if self._installed and sys.meta_path is self._meta_tuple:
++            sys.meta_path = self._original_meta_path
++        if self._installed and sys.path is self._path_tuple:
++            sys.path = self._original_path
++        if self._installed and sys.path_hooks is self._hooks_tuple:
++            sys.path_hooks = self._original_path_hooks
++        self._installed = False
+ 
+ 
+ def _verify_loaded_module(
+@@ -442,7 +931,10 @@
+     return roots
+ 
+ 
+-def _verify_loaded_native_extension(artifact: VerifiedCtpSdkArtifact) -> None:
++def _verify_loaded_native_extension(
++    artifact: VerifiedCtpSdkArtifact,
++    importer: _PinnedSdkImporter | None = None,
++) -> None:
+     fullname = "bt_api_ctp.ctp._ctp"
+     module = sys.modules.get(fullname)
+     if module is None:
+@@ -453,8 +945,11 @@
+     if (
+         type(origin) is not str
+         or type(module_file) is not str
+-        or type(getattr(spec, "loader", None))
+-        is not importlib.machinery.ExtensionFileLoader
++        or (
++            importer is None
++            and type(getattr(spec, "loader", None))
++            is not importlib.machinery.ExtensionFileLoader
++        )
+         or getattr(spec.loader, "name", None) != fullname
+         or _absolute(getattr(spec.loader, "path", "")) != _absolute(origin)
+         or _absolute(module_file) != _absolute(origin)
+@@ -466,10 +961,21 @@
+     if expected_hash is None:
+         _fail("sdk_artifact_native_module_unpinned")
+     try:
+-        with open(origin, "rb") as stream:
+-            actual_hash = _sha256(stream.read())
+-    except OSError:
++        if artifact.custody is not None:
++            actual_hash = _sha256(
++                artifact.custody.read(relative, max_bytes=128 * 1024 * 1024)
++            )
++        elif importer is None:
++            # Retain this private passive checker for synthetic inert-module
++            # tests. Production verifier always supplies the custody importer.
++            with open(origin, "rb") as stream:
++                actual_hash = _sha256(stream.read())
++        else:
++            _fail("sdk_artifact_windows_custody_required")
++    except (OSError, WindowsArtifactCustodyError):
+         _fail("sdk_artifact_native_module_unavailable")
++    if importer is not None and spec.loader is not importer._loaders.get(fullname):
++        _fail("sdk_artifact_native_module_loader_mismatch")
+     if not hmac.compare_digest(actual_hash, expected_hash):
+         _fail("sdk_artifact_native_module_hash_mismatch")
+ 
+@@ -478,13 +984,17 @@
+     """Verifier composed only after the no-argument artifact gate succeeds."""
+ 
+     def __init__(
+-        self, artifact: VerifiedCtpSdkArtifact, certificate_module: ModuleType
++        self,
++        artifact: VerifiedCtpSdkArtifact,
++        certificate_module: ModuleType,
++        importer: _PinnedSdkImporter,
+     ) -> None:
+         self.source_manifest_sha256 = artifact.source_manifest_sha256
+         self.evidence_type = certificate_module.CtpSettlementConfirmationEvidence
+         self._builder_type = certificate_module.CtpSettlementConfirmationEvidenceBuilder
+         self._certificate_module = certificate_module
+         self._artifact = artifact
++        self._importer = importer
+         self._file_hashes = dict(artifact.file_sha256)
+         self._policy = _CODE_OWNED_ARTIFACT_POLICY
+         self._module_objects: dict[str, object] = {}
+@@ -499,12 +1009,20 @@
+     def assert_current(self) -> None:
+         if self._policy is None:
+             _fail("sdk_artifact_release_pin_unavailable")
++        self._importer.assert_context()
++        if self._artifact.custody is None:
++            _fail("sdk_artifact_windows_custody_required")
++        try:
++            self._artifact.custody.verify_current()
++        except WindowsArtifactCustodyError:
++            _fail("sdk_artifact_custody_changed")
+         if (
+             _verify_distribution_tree(
+                 distribution_root=self._artifact.distribution_root,
+                 package_root=self._artifact.package_root,
+                 dist_info_root=self._artifact.dist_info_root,
+                 policy=self._policy,
++                custody=self._artifact.custody,
+             )
+             != self._artifact.file_sha256
+         ):
+@@ -519,8 +1037,8 @@
+             expected_hash = self._file_hashes.get(relative)
+             if expected_hash is None:
+                 _fail("sdk_artifact_loaded_module_not_in_verified_inventory")
+-            _verify_loaded_module(module, fullname, origin, expected_hash)
+-        _verify_loaded_native_extension(self._artifact)
++            self._importer.verify_module(module, fullname, origin)
++        _verify_loaded_native_extension(self._artifact, self._importer)
+ 
+     def verify_current(self, trader_client: object, result: object) -> object:
+         self.assert_current()
+@@ -536,7 +1054,7 @@
+ def _load_code_owned_settlement_verifier() -> _CodeOwnedSettlementEvidenceVerifier:
+     """Verify the pinned distribution before importing the SDK evidence module."""
+ 
+-    global _CODE_OWNED_VERIFIER_CACHE
++    global _CODE_OWNED_VERIFIER_CACHE, _CODE_OWNED_IMPORTER
+     if _CODE_OWNED_VERIFIER_CACHE is not None:
+         _CODE_OWNED_VERIFIER_CACHE.assert_current()
+         return _CODE_OWNED_VERIFIER_CACHE
+@@ -544,47 +1062,36 @@
+     if policy is None:
+         _fail("sdk_artifact_release_pin_unavailable")
+     artifact = _discover_and_verify(policy)
++    importer = _PinnedSdkImporter(artifact)
+     try:
+-        certificate_module = importlib.import_module(_EVIDENCE_MODULE)
+-    except (ImportError, AttributeError, RuntimeError, OSError, TypeError, ValueError):
+-        _fail("sdk_artifact_evidence_module_import_failed")
+-    file_hashes = dict(artifact.file_sha256)
+-    for fullname, expected_origin in artifact.module_origins:
+-        module = sys.modules.get(fullname)
+-        if module is None:
+-            if fullname == _EVIDENCE_MODULE:
+-                module = certificate_module
+-            else:
+-                try:
+-                    module = importlib.import_module(fullname)
+-                except (
+-                    ImportError,
+-                    AttributeError,
+-                    RuntimeError,
+-                    OSError,
+-                    TypeError,
+-                    ValueError,
+-                ):
+-                    _fail("sdk_artifact_required_module_import_failed")
+-        relative = os.path.relpath(expected_origin, artifact.distribution_root).replace(
+-            os.sep, "/"
++        importer.install()
++        certificate_module = importer.import_module(_EVIDENCE_MODULE)
++        for fullname, expected_origin in artifact.module_origins:
++            module = importer.import_module(fullname)
++            importer.verify_module(module, fullname, expected_origin)
++        _verify_loaded_native_extension(artifact, importer)
++        if (
++            getattr(certificate_module, "CtpSettlementConfirmationEvidence", None)
++            is None
++            or getattr(
++                certificate_module, "CtpSettlementConfirmationEvidenceBuilder", None
++            )
++            is None
++            or sys.modules.get(_EVIDENCE_MODULE) is not certificate_module
++        ):
++            _fail("sdk_artifact_evidence_type_unavailable")
++        verifier = _CodeOwnedSettlementEvidenceVerifier(
++            artifact, certificate_module, importer
+         )
+-        expected_hash = file_hashes.get(relative)
+-        if expected_hash is None:
+-            _fail("sdk_artifact_loaded_module_not_in_verified_inventory")
+-        _verify_loaded_module(module, fullname, expected_origin, expected_hash)
+-    _verify_loaded_native_extension(artifact)
+-    if (
+-        getattr(certificate_module, "CtpSettlementConfirmationEvidence", None) is None
+-        or getattr(certificate_module, "CtpSettlementConfirmationEvidenceBuilder", None)
+-        is None
+-        or sys.modules.get(_EVIDENCE_MODULE) is not certificate_module
+-    ):
+-        _fail("sdk_artifact_evidence_type_unavailable")
+-    verifier = _CodeOwnedSettlementEvidenceVerifier(artifact, certificate_module)
+-    verifier.bind_modules()
+-    verifier.assert_current()
++        verifier.bind_modules()
++        verifier.assert_current()
++    except BaseException:
++        importer.close_after_failure()
++        if artifact.custody is not None:
++            artifact.custody.close()
++        raise
+     _CODE_OWNED_VERIFIER_CACHE = verifier
++    _CODE_OWNED_IMPORTER = importer
+     return verifier
+ 
+ 
+--- /dev/null
++++ R1/backtrader_runtime/ctp_windows_artifact_custody.py
+@@ -0,0 +1,576 @@
++"""Windows retained-handle custody for exact installed SDK files.
++
++This module is an isolated candidate helper. It intentionally refuses on
++non-Windows hosts and on ACLs it cannot prove safe. It is not a deployment
++trust root or a signed artifact pin.
++"""
++
++from __future__ import annotations
++
++import ctypes
++import hashlib
++import hmac
++import os
++import re
++import threading
++from collections.abc import Iterable, Mapping
++from ctypes import wintypes
++from dataclasses import dataclass
++
++
++class WindowsArtifactCustodyError(RuntimeError):
++    """A path could not be retained as the exact read-only Windows object."""
++
++    def __init__(self, reason: str) -> None:
++        self.reason = reason
++        super().__init__(reason)
++
++
++_LOWER_HEX64 = re.compile(r"^[0-9a-f]{64}$")
++_FILE_SHARE_READ = 0x00000001
++_OPEN_EXISTING = 3
++_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
++_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
++_FILE_ATTRIBUTE_DIRECTORY = 0x00000010
++_FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
++_FILE_LIST_DIRECTORY = 0x00000001
++_FILE_READ_ATTRIBUTES = 0x00000080
++_READ_CONTROL = 0x00020000
++_GENERIC_READ = 0x80000000
++_SE_FILE_OBJECT = 1
++_OWNER_SECURITY_INFORMATION = 0x00000001
++_DACL_SECURITY_INFORMATION = 0x00000004
++_ACL_SIZE_INFORMATION = 2
++_ACCESS_ALLOWED_ACE_TYPE = 0
++_ACCESS_DENIED_ACE_TYPE = 1
++_ACE_INHERIT_ONLY = 0x08
++_TOKEN_QUERY = 0x0008
++_TOKEN_USER = 1
++_LOCAL_SYSTEM_SID = "S-1-5-18"
++_BUILTIN_ADMINS_SID = "S-1-5-32-544"
++# The Windows volume root is owned by the protected Windows Modules Installer
++# service on this host. Treat that exact OS service SID as a trusted owner;
++# arbitrary service/application owners remain rejected.
++_TRUSTED_INSTALLER_SID = (
++    "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"
++)
++_AUTHENTICATED_USERS_SID = "S-1-5-11"
++_FILE_ADD_SUBDIRECTORY = 0x00000004
++_UNSAFE_WRITE_MASK = (
++    0x00000002  # FILE_WRITE_DATA / FILE_ADD_FILE
++    | 0x00000004  # FILE_APPEND_DATA / FILE_ADD_SUBDIRECTORY
++    | 0x00000010  # FILE_WRITE_EA
++    | 0x00000040  # FILE_DELETE_CHILD
++    | 0x00000100  # FILE_WRITE_ATTRIBUTES
++    | 0x00010000  # DELETE
++    | 0x00040000  # WRITE_DAC
++    | 0x00080000  # WRITE_OWNER
++    | 0x40000000  # GENERIC_WRITE
++    | 0x10000000  # GENERIC_ALL
++)
++_INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
++
++
++class _ByHandleFileInformation(ctypes.Structure):
++    _fields_ = [
++        ("dwFileAttributes", wintypes.DWORD),
++        ("ftCreationTime", wintypes.FILETIME),
++        ("ftLastAccessTime", wintypes.FILETIME),
++        ("ftLastWriteTime", wintypes.FILETIME),
++        ("dwVolumeSerialNumber", wintypes.DWORD),
++        ("nFileSizeHigh", wintypes.DWORD),
++        ("nFileSizeLow", wintypes.DWORD),
++        ("nNumberOfLinks", wintypes.DWORD),
++        ("nFileIndexHigh", wintypes.DWORD),
++        ("nFileIndexLow", wintypes.DWORD),
++    ]
++
++
++class _AclSizeInformation(ctypes.Structure):
++    _fields_ = [
++        ("AceCount", wintypes.DWORD),
++        ("AclBytesInUse", wintypes.DWORD),
++        ("AclBytesFree", wintypes.DWORD),
++    ]
++
++
++class _AceHeader(ctypes.Structure):
++    _fields_ = [
++        ("AceType", ctypes.c_ubyte),
++        ("AceFlags", ctypes.c_ubyte),
++        ("AceSize", wintypes.WORD),
++    ]
++
++
++class _SidAndAttributes(ctypes.Structure):
++    _fields_ = [("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD)]
++
++
++@dataclass(frozen=True)
++class RetainedFileIdentity:
++    path: str
++    size: int
++    volume_serial: int
++    file_index: int
++    sha256: str
++
++
++def _win32() -> tuple[ctypes.WinDLL, ctypes.WinDLL]:
++    if os.name != "nt":
++        raise WindowsArtifactCustodyError("windows_handle_custody_required")
++    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
++    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
++    kernel32.CreateFileW.argtypes = [
++        wintypes.LPCWSTR,
++        wintypes.DWORD,
++        wintypes.DWORD,
++        ctypes.c_void_p,
++        wintypes.DWORD,
++        wintypes.DWORD,
++        wintypes.HANDLE,
++    ]
++    kernel32.CreateFileW.restype = wintypes.HANDLE
++    kernel32.GetFileInformationByHandle.argtypes = [
++        wintypes.HANDLE,
++        ctypes.POINTER(_ByHandleFileInformation),
++    ]
++    kernel32.GetFileInformationByHandle.restype = wintypes.BOOL
++    kernel32.SetFilePointerEx.argtypes = [
++        wintypes.HANDLE,
++        ctypes.c_longlong,
++        ctypes.POINTER(ctypes.c_longlong),
++        wintypes.DWORD,
++    ]
++    kernel32.SetFilePointerEx.restype = wintypes.BOOL
++    kernel32.ReadFile.argtypes = [
++        wintypes.HANDLE,
++        ctypes.c_void_p,
++        wintypes.DWORD,
++        ctypes.POINTER(wintypes.DWORD),
++        ctypes.c_void_p,
++    ]
++    kernel32.ReadFile.restype = wintypes.BOOL
++    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
++    kernel32.CloseHandle.restype = wintypes.BOOL
++    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
++    advapi32.OpenProcessToken.argtypes = [
++        wintypes.HANDLE,
++        wintypes.DWORD,
++        ctypes.POINTER(wintypes.HANDLE),
++    ]
++    advapi32.OpenProcessToken.restype = wintypes.BOOL
++    advapi32.GetTokenInformation.argtypes = [
++        wintypes.HANDLE,
++        ctypes.c_int,
++        ctypes.c_void_p,
++        wintypes.DWORD,
++        ctypes.POINTER(wintypes.DWORD),
++    ]
++    advapi32.GetTokenInformation.restype = wintypes.BOOL
++    advapi32.GetSecurityInfo.argtypes = [
++        wintypes.HANDLE,
++        ctypes.c_int,
++        wintypes.DWORD,
++        ctypes.POINTER(ctypes.c_void_p),
++        ctypes.POINTER(ctypes.c_void_p),
++        ctypes.POINTER(ctypes.c_void_p),
++        ctypes.POINTER(ctypes.c_void_p),
++        ctypes.POINTER(ctypes.c_void_p),
++    ]
++    advapi32.GetSecurityInfo.restype = wintypes.DWORD
++    advapi32.GetAclInformation.argtypes = [
++        ctypes.c_void_p,
++        ctypes.c_void_p,
++        wintypes.DWORD,
++        ctypes.c_int,
++    ]
++    advapi32.GetAclInformation.restype = wintypes.BOOL
++    advapi32.GetAce.argtypes = [
++        ctypes.c_void_p,
++        wintypes.DWORD,
++        ctypes.POINTER(ctypes.c_void_p),
++    ]
++    advapi32.GetAce.restype = wintypes.BOOL
++    advapi32.ConvertSidToStringSidW.argtypes = [
++        ctypes.c_void_p,
++        ctypes.POINTER(wintypes.LPWSTR),
++    ]
++    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
++    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
++    kernel32.LocalFree.restype = ctypes.c_void_p
++    return kernel32, advapi32
++
++
++def _extended(path: str) -> str:
++    absolute = os.path.abspath(path)
++    if absolute.startswith("\\\\?\\"):
++        return absolute
++    if absolute.startswith("\\\\"):
++        return "\\\\?\\UNC\\" + absolute[2:]
++    return "\\\\?\\" + absolute
++
++
++def _sid_string(advapi32: ctypes.WinDLL, kernel32: ctypes.WinDLL, sid: int) -> str:
++    value = wintypes.LPWSTR()
++    if not advapi32.ConvertSidToStringSidW(ctypes.c_void_p(sid), ctypes.byref(value)):
++        raise WindowsArtifactCustodyError("windows_sid_conversion_failed")
++    try:
++        return value.value or ""
++    finally:
++        # ConvertSidToStringSidW allocates with LocalAlloc; LocalFree is
++        # exported by kernel32, not advapi32.
++        kernel32.LocalFree(ctypes.cast(value, ctypes.c_void_p))
++
++
++def _current_sid(advapi32: ctypes.WinDLL, kernel32: ctypes.WinDLL) -> str:
++    token = wintypes.HANDLE()
++    if not advapi32.OpenProcessToken(
++        kernel32.GetCurrentProcess(), _TOKEN_QUERY, ctypes.byref(token)
++    ):
++        raise WindowsArtifactCustodyError("windows_process_token_query_failed")
++    try:
++        needed = wintypes.DWORD()
++        advapi32.GetTokenInformation(token, _TOKEN_USER, None, 0, ctypes.byref(needed))
++        if needed.value <= ctypes.sizeof(_SidAndAttributes) or needed.value > 65536:
++            raise WindowsArtifactCustodyError("windows_process_token_size_invalid")
++        buffer = ctypes.create_string_buffer(needed.value)
++        if not advapi32.GetTokenInformation(
++            token, _TOKEN_USER, buffer, needed.value, ctypes.byref(needed)
++        ):
++            raise WindowsArtifactCustodyError("windows_process_token_query_failed")
++        user = ctypes.cast(buffer, ctypes.POINTER(_SidAndAttributes)).contents
++        return _sid_string(advapi32, kernel32, user.Sid)
++    finally:
++        kernel32.CloseHandle(token)
++
++
++def _identity(
++    kernel32: ctypes.WinDLL, handle: int, *, directory: bool
++) -> tuple[int, int, int, int]:
++    info = _ByHandleFileInformation()
++    if not kernel32.GetFileInformationByHandle(handle, ctypes.byref(info)):
++        raise WindowsArtifactCustodyError("windows_handle_identity_unavailable")
++    is_directory = bool(info.dwFileAttributes & _FILE_ATTRIBUTE_DIRECTORY)
++    if info.dwFileAttributes & _FILE_ATTRIBUTE_REPARSE_POINT:
++        raise WindowsArtifactCustodyError("windows_reparse_component_rejected")
++    if is_directory != directory:
++        raise WindowsArtifactCustodyError("windows_path_type_mismatch")
++    size = (info.nFileSizeHigh << 32) | info.nFileSizeLow
++    index = (info.nFileIndexHigh << 32) | info.nFileIndexLow
++    return (
++        int(info.dwVolumeSerialNumber),
++        int(index),
++        int(size),
++        int(info.dwFileAttributes),
++    )
++
++
++def _check_dacl(
++    advapi32: ctypes.WinDLL,
++    kernel32: ctypes.WinDLL,
++    handle: int,
++    path: str,
++    *,
++    volume_root: bool,
++    current_sid: str,
++) -> None:
++    owner = ctypes.c_void_p()
++    group = ctypes.c_void_p()
++    dacl = ctypes.c_void_p()
++    sacl = ctypes.c_void_p()
++    descriptor = ctypes.c_void_p()
++    status = advapi32.GetSecurityInfo(
++        handle,
++        _SE_FILE_OBJECT,
++        _OWNER_SECURITY_INFORMATION | _DACL_SECURITY_INFORMATION,
++        ctypes.byref(owner),
++        ctypes.byref(group),
++        ctypes.byref(dacl),
++        ctypes.byref(sacl),
++        ctypes.byref(descriptor),
++    )
++    if status != 0 or not owner.value or not dacl.value:
++        raise WindowsArtifactCustodyError("windows_acl_unavailable")
++    try:
++        owner_sid = _sid_string(advapi32, kernel32, owner.value)
++        allowed_owners = {
++            current_sid,
++            _LOCAL_SYSTEM_SID,
++            _BUILTIN_ADMINS_SID,
++            _TRUSTED_INSTALLER_SID,
++        }
++        if owner_sid not in allowed_owners:
++            raise WindowsArtifactCustodyError("windows_acl_owner_untrusted")
++        size_info = _AclSizeInformation()
++        if not advapi32.GetAclInformation(
++            dacl,
++            ctypes.byref(size_info),
++            ctypes.sizeof(size_info),
++            _ACL_SIZE_INFORMATION,
++        ):
++            raise WindowsArtifactCustodyError("windows_acl_parse_failed")
++        for index in range(size_info.AceCount):
++            ace_pointer = ctypes.c_void_p()
++            if not advapi32.GetAce(dacl, index, ctypes.byref(ace_pointer)):
++                raise WindowsArtifactCustodyError("windows_acl_parse_failed")
++            header = ctypes.cast(ace_pointer, ctypes.POINTER(_AceHeader)).contents
++            if header.AceType == _ACCESS_DENIED_ACE_TYPE:
++                continue
++            if header.AceType != _ACCESS_ALLOWED_ACE_TYPE or header.AceSize < 8:
++                raise WindowsArtifactCustodyError("windows_acl_ace_unclassified")
++            if header.AceFlags & _ACE_INHERIT_ONLY:
++                continue
++            mask = ctypes.c_uint32.from_address(ace_pointer.value + 4).value
++            sid_pointer = ace_pointer.value + 8
++            ace_sid = _sid_string(advapi32, kernel32, sid_pointer)
++            if not mask & _UNSAFE_WRITE_MASK:
++                continue
++            if ace_sid in {
++                current_sid,
++                _LOCAL_SYSTEM_SID,
++                _BUILTIN_ADMINS_SID,
++                _TRUSTED_INSTALLER_SID,
++            }:
++                continue
++            # The Windows volume root commonly permits authenticated users to
++            # create a new top-level directory. It cannot replace any existing
++            # held path; any broader root permission remains rejected.
++            if (
++                volume_root
++                and ace_sid == _AUTHENTICATED_USERS_SID
++                and mask == _FILE_ADD_SUBDIRECTORY
++            ):
++                continue
++            raise WindowsArtifactCustodyError("windows_acl_untrusted_write_grant")
++    finally:
++        if descriptor.value:
++            kernel32.LocalFree(descriptor)
++
++
++class WindowsArtifactCustody:
++    """Retain exact files and ancestors with share-read-only handles.
++
++    Handles stay open until ``close``. A compatible Python read handle can be
++    opened, while new write/delete handles and renames are denied by Windows.
++    """
++
++    def __init__(self, root: str) -> None:
++        self.root = os.path.abspath(root)
++        self._kernel32, self._advapi32 = _win32()
++        self._current_sid = _current_sid(self._advapi32, self._kernel32)
++        self._handles: list[int] = []
++        self._directories: dict[str, tuple[int, tuple[int, int]]] = {}
++        self._files: dict[str, tuple[int, RetainedFileIdentity]] = {}
++        self._read_lock = threading.RLock()
++        self._closed = False
++
++    @classmethod
++    def acquire(
++        cls,
++        root: str,
++        relative_files: Iterable[str],
++        *,
++        expected_sha256: Mapping[str, str],
++        max_file_bytes: int = 128 * 1024 * 1024,
++    ) -> WindowsArtifactCustody:
++        custody = cls(root)
++        try:
++            paths = tuple(sorted(set(relative_files)))
++            if not paths or set(paths) != set(expected_sha256):
++                raise WindowsArtifactCustodyError("windows_custody_file_set_invalid")
++            for relative in paths:
++                if (
++                    type(relative) is not str
++                    or not relative
++                    or "\\" in relative
++                    or "\x00" in relative
++                    or relative.startswith("/")
++                    or any(part in {"", ".", ".."} for part in relative.split("/"))
++                ):
++                    raise WindowsArtifactCustodyError(
++                        "windows_custody_relative_path_invalid"
++                    )
++                digest = expected_sha256.get(relative)
++                if type(digest) is not str or not _LOWER_HEX64.fullmatch(digest):
++                    raise WindowsArtifactCustodyError("windows_custody_hash_invalid")
++                path = os.path.join(custody.root, *relative.split("/"))
++                custody._retain_ancestors(path)
++                custody._retain_file(relative, path, digest, max_file_bytes)
++            custody.verify_current()
++            return custody
++        except BaseException:
++            custody.close()
++            raise
++
++    def _open(self, path: str, *, directory: bool) -> int:
++        access = (
++            (_FILE_LIST_DIRECTORY | _FILE_READ_ATTRIBUTES | _READ_CONTROL)
++            if directory
++            else (_GENERIC_READ | _FILE_READ_ATTRIBUTES | _READ_CONTROL)
++        )
++        flags = _FILE_FLAG_OPEN_REPARSE_POINT | (
++            _FILE_FLAG_BACKUP_SEMANTICS if directory else 0
++        )
++        handle = self._kernel32.CreateFileW(
++            _extended(path), access, _FILE_SHARE_READ, None, _OPEN_EXISTING, flags, None
++        )
++        value = ctypes.cast(handle, ctypes.c_void_p).value
++        if value == _INVALID_HANDLE_VALUE or value is None:
++            error = ctypes.get_last_error()
++            reason = (
++                "windows_share_violation" if error == 32 else "windows_path_open_failed"
++            )
++            raise WindowsArtifactCustodyError(reason)
++        self._handles.append(value)
++        _identity(self._kernel32, value, directory=directory)
++        _check_dacl(
++            self._advapi32,
++            self._kernel32,
++            value,
++            path,
++            volume_root=os.path.dirname(path) == path,
++            current_sid=self._current_sid,
++        )
++        return value
++
++    def _retain_ancestors(self, path: str) -> None:
++        drive, tail = os.path.splitdrive(os.path.abspath(path))
++        if not drive or not drive.endswith(":"):
++            raise WindowsArtifactCustodyError("windows_nonlocal_volume_rejected")
++        current = drive + os.sep
++        self._retain_directory(current)
++        parts = [part for part in tail.split(os.sep) if part]
++        for part in parts[:-1]:
++            current = os.path.join(current, part)
++            self._retain_directory(current)
++
++    def _retain_directory(self, path: str) -> None:
++        key = os.path.normcase(os.path.abspath(path))
++        if key in self._directories:
++            return
++        handle = self._open(path, directory=True)
++        volume, index, _size, _attrs = _identity(self._kernel32, handle, directory=True)
++        self._directories[key] = (handle, (volume, index))
++
++    def _retain_file(
++        self, relative: str, path: str, expected_sha256: str, max_file_bytes: int
++    ) -> None:
++        handle = self._open(path, directory=False)
++        volume, index, size, _attrs = _identity(self._kernel32, handle, directory=False)
++        if size < 0 or size > max_file_bytes:
++            raise WindowsArtifactCustodyError("windows_file_size_out_of_bounds")
++        raw = self._read_handle(handle, size)
++        actual = hashlib.sha256(raw).hexdigest()
++        if not hmac.compare_digest(actual, expected_sha256):
++            raise WindowsArtifactCustodyError("windows_file_hash_mismatch")
++        identity = RetainedFileIdentity(
++            path=os.path.abspath(path),
++            size=size,
++            volume_serial=volume,
++            file_index=index,
++            sha256=actual,
++        )
++        self._files[relative] = (handle, identity)
++
++    def _read_handle(self, handle: int, size: int) -> bytes:
++        with self._read_lock:
++            if not self._kernel32.SetFilePointerEx(handle, 0, None, 0):
++                raise WindowsArtifactCustodyError("windows_file_seek_failed")
++            remaining = size
++            chunks: list[bytes] = []
++            while remaining:
++                amount = min(remaining, 1024 * 1024)
++                buffer = ctypes.create_string_buffer(amount)
++                read = wintypes.DWORD()
++                if not self._kernel32.ReadFile(
++                    handle, buffer, amount, ctypes.byref(read), None
++                ):
++                    raise WindowsArtifactCustodyError("windows_file_read_failed")
++                if read.value <= 0 or read.value > amount:
++                    raise WindowsArtifactCustodyError("windows_file_read_short")
++                chunks.append(buffer.raw[: read.value])
++                remaining -= read.value
++            return b"".join(chunks)
++
++    def read(self, relative: str, *, max_bytes: int = 128 * 1024 * 1024) -> bytes:
++        if self._closed:
++            raise WindowsArtifactCustodyError("windows_custody_closed")
++        entry = self._files.get(relative)
++        if entry is None:
++            raise WindowsArtifactCustodyError("windows_file_not_retained")
++        handle, identity = entry
++        if identity.size > max_bytes:
++            raise WindowsArtifactCustodyError("windows_file_size_out_of_bounds")
++        raw = self._read_handle(handle, identity.size)
++        if not hmac.compare_digest(hashlib.sha256(raw).hexdigest(), identity.sha256):
++            raise WindowsArtifactCustodyError("windows_retained_handle_content_changed")
++        return raw
++
++    def verify_current(self) -> None:
++        if self._closed:
++            raise WindowsArtifactCustodyError("windows_custody_closed")
++        for path, (handle, identity) in self._directories.items():
++            _identity(self._kernel32, handle, directory=True)
++            check = self._open(path, directory=True)
++            try:
++                volume, index, _size, _attrs = _identity(
++                    self._kernel32, check, directory=True
++                )
++                if (volume, index) != identity:
++                    raise WindowsArtifactCustodyError(
++                        "windows_directory_path_identity_changed"
++                    )
++            finally:
++                self._kernel32.CloseHandle(check)
++                self._handles.remove(check)
++        for relative, (handle, identity) in self._files.items():
++            volume, index, size, _attrs = _identity(
++                self._kernel32, handle, directory=False
++            )
++            if (volume, index, size) != (
++                identity.volume_serial,
++                identity.file_index,
++                identity.size,
++            ):
++                raise WindowsArtifactCustodyError(
++                    "windows_file_handle_identity_changed"
++                )
++            path_handle = self._open(identity.path, directory=False)
++            try:
++                path_volume, path_index, path_size, _attrs = _identity(
++                    self._kernel32, path_handle, directory=False
++                )
++                if (path_volume, path_index, path_size) != (volume, index, size):
++                    raise WindowsArtifactCustodyError(
++                        "windows_file_path_identity_changed"
++                    )
++            finally:
++                self._kernel32.CloseHandle(path_handle)
++                self._handles.remove(path_handle)
++            self.read(relative, max_bytes=identity.size)
++
++    @property
++    def files(self) -> Mapping[str, RetainedFileIdentity]:
++        return {
++            relative: identity for relative, (_handle, identity) in self._files.items()
++        }
++
++    def close(self) -> None:
++        if self._closed:
++            return
++        self._closed = True
++        first_error: BaseException | None = None
++        while self._handles:
++            handle = self._handles.pop()
++            if not self._kernel32.CloseHandle(handle) and first_error is None:
++                first_error = WindowsArtifactCustodyError("windows_handle_close_failed")
++        self._directories.clear()
++        self._files.clear()
++        if first_error is not None:
++            raise first_error
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, _kind: object, _value: object, _traceback: object) -> None:
++        self.close()
+--- R0/tests/unit/runtime/test_ctp_sdk_artifact_binding.py
++++ R1/tests/unit/runtime/test_ctp_sdk_artifact_binding.py
+@@ -8,8 +8,10 @@
+ import importlib
+ import importlib._bootstrap_external
+ import importlib.machinery
++import os
+ import shutil
+ import sys
++import tempfile
+ import types
+ import zipimport
+ from pathlib import Path
+@@ -42,18 +44,33 @@
+     path.write_bytes(raw)
+ 
+ 
+-def _build_fake_distribution(root: Path) -> binding.CtpSdkArtifactPolicy:
+-    package_files = {
+-        "bt_api_ctp/__init__.py": b"\n",
+-        "bt_api_ctp/containers/__init__.py": b"\n",
+-        "bt_api_ctp/containers/ctp/__init__.py": b"\n",
+-        "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": (
++@pytest.fixture
++def secure_install_root(monkeypatch: pytest.MonkeyPatch) -> Any:
++    parent = Path(os.environ["USERPROFILE"]) / "Temp"
++    if not parent.is_dir():
++        pytest.skip("protected per-user Temp directory is unavailable")
++    root = Path(tempfile.mkdtemp(prefix="iter41-sdk-fake-", dir=parent))
++    yield root
++    _clear_sdk_modules(monkeypatch)
++    shutil.rmtree(root, ignore_errors=True)
++
++
++def _build_fake_distribution(
++    root: Path, *, evidence_source: bytes = b""
++) -> binding.CtpSdkArtifactPolicy:
++    if not evidence_source:
++        evidence_source = (
+             b"class CtpSettlementConfirmationEvidence:\n"
+             b"    pass\n"
+             b"class CtpSettlementConfirmationEvidenceBuilder:\n"
+             b"    def __init__(self, client): self.client = client\n"
+             b"    def build(self, result): return CtpSettlementConfirmationEvidence()\n"
+-        ),
++        )
++    package_files = {
++        "bt_api_ctp/__init__.py": b"\n",
++        "bt_api_ctp/containers/__init__.py": b"\n",
++        "bt_api_ctp/containers/ctp/__init__.py": b"\n",
++        "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py": evidence_source,
+         "bt_api_ctp/ctp/_ctp.cp311-win_amd64.pyd": b"not a native image; inert fixture bytes",
+     }
+     for relative, raw in package_files.items():
+@@ -97,7 +114,14 @@
+ 
+ 
+ def _clear_sdk_modules(monkeypatch: pytest.MonkeyPatch) -> None:
++    verifier = binding._CODE_OWNED_VERIFIER_CACHE
++    importer = binding._CODE_OWNED_IMPORTER
++    if importer is not None:
++        importer.close_after_failure()
++    if verifier is not None and verifier._artifact.custody is not None:
++        verifier._artifact.custody.close()
+     monkeypatch.setattr(binding, "_CODE_OWNED_VERIFIER_CACHE", None)
++    monkeypatch.setattr(binding, "_CODE_OWNED_IMPORTER", None)
+     for name in tuple(sys.modules):
+         if name == _DIST or name.startswith(_DIST + "."):
+             monkeypatch.delitem(sys.modules, name, raising=False)
+@@ -171,12 +195,11 @@
+ 
+ 
+ def test_exact_fake_install_binds_record_module_origin_and_evidence_class(
+-    tmp_path: Path,
+-    monkeypatch: pytest.MonkeyPatch,
+-) -> None:
+-    _clear_sdk_modules(monkeypatch)
+-    root = tmp_path / "site-packages"
+-    root.mkdir()
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
+     policy = _build_fake_distribution(root)
+     monkeypatch.setattr(sys, "path", [str(root)])
+     monkeypatch.setattr(sys, "dont_write_bytecode", True)
+@@ -189,19 +212,20 @@
+ 
+     assert type(evidence) is module.CtpSettlementConfirmationEvidence
+     assert verifier.evidence_type is module.CtpSettlementConfirmationEvidence
+-    assert module.__spec__.origin == str(
+-        root / "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py"
+-    )
++    assert binding._absolute(module.__spec__.origin) == binding._absolute(
++        str(root / "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py")
++    )
++    assert type(module.__spec__.loader).__name__ == "_RetainedSourceLoader"
++    assert binding._CODE_OWNED_VERIFIER_CACHE._artifact.custody is not None
+     assert verifier.source_manifest_sha256 == _SOURCE_MANIFEST
+ 
+ 
+ def test_preclient_binding_rechecks_source_bytes_before_readiness(
+-    tmp_path: Path,
+-    monkeypatch: pytest.MonkeyPatch,
+-) -> None:
+-    _clear_sdk_modules(monkeypatch)
+-    root = tmp_path / "site-packages"
+-    root.mkdir()
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
+     policy = _build_fake_distribution(root)
+     monkeypatch.setattr(sys, "path", [str(root)])
+     monkeypatch.setattr(sys, "dont_write_bytecode", True)
+@@ -210,11 +234,186 @@
+ 
+     assert readiness.require_trusted_ctp_sdk_artifact_before_client() is None
+     source = root / "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py"
+-    source.write_bytes(source.read_bytes() + b"# changed after preclient seal\n")
+-
+-    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++    with pytest.raises(PermissionError):
++        source.write_bytes(source.read_bytes() + b"# changed after preclient seal\n")
++    assert (
+         binding._get_preclient_code_owned_verifier()
+-    assert raised.value.reason == "sdk_artifact_record_file_mismatch"
++        is binding._CODE_OWNED_VERIFIER_CACHE
++    )
++
++
++@pytest.mark.parametrize("field", ["path", "meta_path", "path_hooks", "importer_cache"])
++def test_import_environment_mutation_rejects_cached_artifact_before_use(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++    field: str,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    if field == "path":
++        monkeypatch.setattr(sys, "path", [str(root), str(root / "untrusted-shadow")])
++    elif field == "meta_path":
++        monkeypatch.setattr(sys, "meta_path", [object()])
++    elif field == "path_hooks":
++        monkeypatch.setattr(sys, "path_hooks", [])
++    else:
++        monkeypatch.setattr(sys, "path_importer_cache", {})
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        binding._get_preclient_code_owned_verifier()
++    assert raised.value.reason == "sdk_artifact_import_environment_changed"
++
++
++def test_sys_modules_replacement_rejects_cached_artifact_before_use(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    monkeypatch.setitem(sys.modules, _DIST, type("SpoofedPackage", (), {})())
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        binding._get_preclient_code_owned_verifier()
++    assert raised.value.reason == "sdk_artifact_sys_modules_spoof"
++
++
++def test_swap_after_hash_scan_but_before_custody_never_imports_marker(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    source = root / "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py"
++    replacement = root / "swap-before-custody.py"
++    marker = root / "pre-custody-marker.txt"
++    replacement.write_text(
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('executed', encoding='ascii')\n",
++        encoding="utf-8",
++    )
++    original_acquire = binding._acquire_windows_artifact_custody
++    race: list[str] = []
++
++    def replace_before_acquire(**kwargs: object) -> object:
++        os.replace(replacement, source)
++        race.append("replacement-installed-before-custody")
++        return original_acquire(**kwargs)
++
++    monkeypatch.setattr(
++        binding, "_acquire_windows_artifact_custody", replace_before_acquire
++    )
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        readiness.require_trusted_ctp_sdk_artifact_before_client()
++    assert race == ["replacement-installed-before-custody"]
++    assert raised.value.reason == "sdk_artifact_custody_acquire_failed"
++    assert not marker.exists()
++    assert not any(
++        name == _DIST or name.startswith(_DIST + ".") for name in sys.modules
++    )
++
++
++def test_source_swap_after_custody_cannot_execute_replacement_marker(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    policy = _build_fake_distribution(root)
++    source = root / "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py"
++    replacement = root / "swap.py"
++    marker = root / "malicious-marker.txt"
++    replacement.write_text(
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('executed', encoding='ascii')\n",
++        encoding="utf-8",
++    )
++    attacks: list[str] = []
++    original_install = binding._PinnedSdkImporter.install
++
++    def install_then_replace(importer: object) -> None:
++        original_install(importer)
++        try:
++            os.replace(replacement, source)
++            attacks.append("replace_succeeded")
++        except OSError as error:
++            attacks.append(f"blocked:{getattr(error, 'winerror', None)}")
++
++    monkeypatch.setattr(binding._PinnedSdkImporter, "install", install_then_replace)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    readiness.require_trusted_ctp_sdk_artifact_before_client()
++    assert attacks and attacks[0].startswith("blocked:")
++    assert not marker.exists()
++    assert source.read_bytes() == policy_source_bytes(policy, source, root)
++
++
++def policy_source_bytes(
++    policy: binding.CtpSdkArtifactPolicy, source: Path, root: Path
++) -> bytes:
++    relative = source.relative_to(root).as_posix()
++    expected = dict(policy.files)[relative]
++    raw = source.read_bytes()
++    assert _sha(raw) == expected
++    return raw
++
++
++def test_unpinned_new_package_module_added_after_scan_never_executes(
++    secure_install_root: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    _clear_sdk_modules(monkeypatch)
++    root = secure_install_root
++    evidence_source = b"import bt_api_ctp.injected\n" + (
++        b"class CtpSettlementConfirmationEvidence:\n"
++        b"    pass\n"
++        b"class CtpSettlementConfirmationEvidenceBuilder:\n"
++        b"    def __init__(self, client): self.client = client\n"
++        b"    def build(self, result): return CtpSettlementConfirmationEvidence()\n"
++    )
++    policy = _build_fake_distribution(root, evidence_source=evidence_source)
++    injected = root / "bt_api_ctp/injected.py"
++    marker = root / "injected-marker.txt"
++    original_install = binding._PinnedSdkImporter.install
++
++    def install_then_add_module(importer: object) -> None:
++        original_install(importer)
++        injected.write_text(
++            "from pathlib import Path\n"
++            f"Path({str(marker)!r}).write_text('executed', encoding='ascii')\n",
++            encoding="utf-8",
++        )
++
++    monkeypatch.setattr(binding._PinnedSdkImporter, "install", install_then_add_module)
++    monkeypatch.setattr(sys, "path", [str(root)])
++    monkeypatch.setattr(sys, "dont_write_bytecode", True)
++    _use_standard_import_chain(monkeypatch)
++    monkeypatch.setattr(binding, "_CODE_OWNED_ARTIFACT_POLICY", policy)
++
++    with pytest.raises(binding.CtpSdkArtifactBindingError) as raised:
++        readiness.require_trusted_ctp_sdk_artifact_before_client()
++    assert raised.value.reason == "sdk_artifact_unpinned_module_import"
++    assert not marker.exists()
+ 
+ 
+ def test_same_name_and_module_spoof_is_rejected_by_exact_class_identity() -> None:
+--- /dev/null
++++ R1/tests/unit/runtime/test_ctp_windows_artifact_custody.py
+@@ -0,0 +1,125 @@
++"""Windows-only probes for retained installed-artifact handles."""
++
++from __future__ import annotations
++
++import hashlib
++import importlib.util
++import os
++import shutil
++import tempfile
++import threading
++from pathlib import Path
++
++import pytest
++
++from backtrader_runtime.ctp_windows_artifact_custody import (
++    WindowsArtifactCustody,
++    WindowsArtifactCustodyError,
++)
++
++pytestmark = pytest.mark.skipif(os.name != "nt", reason="requires Windows file sharing")
++
++
++def _secure_test_root() -> Path:
++    parent = Path(os.environ["USERPROFILE"]) / "Temp"
++    if not parent.is_dir():
++        pytest.skip("protected per-user Temp directory is unavailable")
++    return Path(tempfile.mkdtemp(prefix="iter41-custody-", dir=parent))
++
++
++def test_retained_source_handle_blocks_concurrent_replace_before_import() -> None:
++    root = _secure_test_root()
++    source = root / "pinned_module.py"
++    marker = root / "executed.txt"
++    replacement = root / "replacement.py"
++    source_bytes = (
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('pinned', encoding='ascii')\n"
++        "VALUE = 41\n"
++    ).encode()
++    replacement_bytes = (
++        "from pathlib import Path\n"
++        f"Path({str(marker)!r}).write_text('malicious', encoding='ascii')\n"
++    ).encode()
++    source.write_bytes(source_bytes)
++    replacement.write_bytes(replacement_bytes)
++    custody = WindowsArtifactCustody.acquire(
++        str(root),
++        (source.name,),
++        expected_sha256={source.name: hashlib.sha256(source_bytes).hexdigest()},
++    )
++    attempts: list[tuple[str, str, int | None]] = []
++
++    def replace_source() -> None:
++        try:
++            source.write_bytes(b"VALUE = 99\n")
++        except OSError as error:
++            attempts.append(
++                ("overwrite", type(error).__name__, getattr(error, "winerror", None))
++            )
++        else:
++            attempts.append(("overwrite", "write_succeeded", None))
++        try:
++            os.replace(replacement, source)
++        except OSError as error:
++            attempts.append(
++                ("replace", type(error).__name__, getattr(error, "winerror", None))
++            )
++        else:
++            attempts.append(("replace", "replace_succeeded", None))
++
++    thread = threading.Thread(target=replace_source)
++    try:
++        thread.start()
++        thread.join(timeout=3)
++        assert not thread.is_alive()
++        assert attempts[0][:2] == ("overwrite", "PermissionError")
++        assert attempts[1] == ("replace", "PermissionError", 32)
++
++        spec = importlib.util.spec_from_file_location("pinned_module", source)
++        assert spec is not None and spec.loader is not None
++        module = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(module)
++        assert module.VALUE == 41
++        assert marker.read_text(encoding="ascii") == "pinned"
++        assert custody.read(source.name) == source_bytes
++        custody.verify_current()
++    finally:
++        custody.close()
++        shutil.rmtree(root, ignore_errors=True)
++
++
++def test_untrusted_writable_candidate_root_is_rejected_before_file_read() -> None:
++    # The r1 source tree under D:\temp is intentionally writable and must not
++    # be accepted as an installed artifact root.
++    source = Path(__file__).resolve().parents[3] / "README.md"
++    with pytest.raises(WindowsArtifactCustodyError) as raised:
++        WindowsArtifactCustody.acquire(
++            str(source.parent),
++            (source.name,),
++            expected_sha256={
++                source.name: hashlib.sha256(source.read_bytes()).hexdigest()
++            },
++        )
++    assert raised.value.reason == "windows_acl_untrusted_write_grant"
++
++
++def test_directory_handle_does_not_claim_to_prevent_new_child_creation() -> None:
++    root = _secure_test_root()
++    source = root / "pinned.py"
++    raw = b"VALUE = 1\n"
++    source.write_bytes(raw)
++    custody = WindowsArtifactCustody.acquire(
++        str(root),
++        (source.name,),
++        expected_sha256={source.name: hashlib.sha256(raw).hexdigest()},
++    )
++    child = root / "unexpected_module.py"
++    try:
++        # Windows share modes pin existing objects; they are not a substitute
++        # for a directory DACL when the current user can add new names.
++        child.write_bytes(b"MARKER = True\n")
++        assert child.read_bytes() == b"MARKER = True\n"
++    finally:
++        custody.close()
++        shutil.rmtree(root, ignore_errors=True)

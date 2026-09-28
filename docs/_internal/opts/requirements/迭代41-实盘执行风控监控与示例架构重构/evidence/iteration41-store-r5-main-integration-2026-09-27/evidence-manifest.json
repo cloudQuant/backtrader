@@ -1,0 +1,81 @@
+{
+  "schema": "iteration41-evidence-copy-manifest.v1",
+  "created_utc": "2026-09-27",
+  "files": {
+    "source/btapistore-r5-current.py": {
+      "source_path": "backtrader\\stores\\btapistore.py",
+      "sha256": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+      "size_bytes": 780202
+    },
+    "source/btapistore-r5-preimage.py": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-preimage-backup-20260927\\btapistore.py",
+      "sha256": "05268B4953A20FA0699639F7E05EE354A4BCAFC4B47915DD4BA352B26276E0D9",
+      "size_bytes": 780464
+    },
+    "tests/test_btapistore_normalized.current.py": {
+      "source_path": "tests\\unit\\stores\\test_btapistore_normalized.py",
+      "sha256": "4A8A7FC5922A77F8356D9A189041C125F8384FABC35A6F09E43BE1E1D6F542DB",
+      "size_bytes": 57281
+    },
+    "store-focused/focused-store.junit.xml": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\focused-store.junit.xml",
+      "sha256": "77FB7A6461327CA11B11CF7B1F5550FDB904EF7152732C5FD301DB4FBBE01701",
+      "size_bytes": 21869
+    },
+    "store-focused/focused-store.log": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\focused-store.log",
+      "sha256": "45F4688ED5742427E1B80A33EFAF9461FE8F1348672CE9B1803D1B0FBBAEDD1C",
+      "size_bytes": 737
+    },
+    "store-focused/focused-exit-code.txt": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\focused-exit-code.txt",
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+      "size_bytes": 1
+    },
+    "checks/ruff.log": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\ruff.log",
+      "sha256": "A4443AFDCFB6D7363ADB285762515CCF7CF50473B1A05C20C1A50F6BED4D26B0",
+      "size_bytes": 20
+    },
+    "checks/pycompile.log": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\pycompile.log",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "size_bytes": 0
+    },
+    "checks/diffcheck.log": {
+      "source_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\diffcheck.log",
+      "sha256": "0AC25373057C0A09CB781384A6F9431010662FF3A309586589F33A59D713137D",
+      "size_bytes": 125
+    },
+    "broad/first-order-dependent-failure.junit.xml": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-20260927\\stores-runtime.junit.xml",
+      "sha256": "E77D5B39F4E93CB9E448E66447051B582C78B7DC282562B90A568C9120353688",
+      "size_bytes": 1754173
+    },
+    "broad/first-order-dependent-failure.log": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-20260927\\stores-runtime.log",
+      "sha256": "B29E1351BB0CF3E10CC13863B201C8A71D285263C6DEC007E3CC47BE607CCD46",
+      "size_bytes": 612180
+    },
+    "broad/first-order-dependent-failure.exit.txt": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-20260927\\exit.txt",
+      "sha256": "6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B",
+      "size_bytes": 1
+    },
+    "broad/corrected.junit.xml": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-fix-20260927\\stores-runtime.junit.xml",
+      "sha256": "1FA7802C8437ED770AADC19A9285D5AA1513BD99E8BAE166AD813B44973F4A60",
+      "size_bytes": 485133
+    },
+    "broad/corrected.log": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-fix-20260927\\stores-runtime.log",
+      "sha256": "B4B2D82FC491C3218797AD2ECA315D901FBD53F78CAB117C1131681B736B9BA8",
+      "size_bytes": 3791
+    },
+    "broad/corrected.exit.txt": {
+      "source_path": "D:\\temp\\iteration41-main-broad-after-store-gateway-g6-norm-r3-fix-20260927\\exit.txt",
+      "sha256": "5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9",
+      "size_bytes": 1
+    }
+  }
+}

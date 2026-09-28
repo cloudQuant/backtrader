@@ -1,0 +1,25 @@
+Frozen r2 manifest SHA256: f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587
+Frozen r2 ZIP SHA256: 6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03
+
+All Python checks below used the disposable wheelhouse interpreter:
+D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe
+Environment: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; PYTHONDONTWRITEBYTECODE=1; PYTHONPATH=<this QA directory>\import-guard (the pytest source also inserts candidate-copy and D:\source_code\backtrader for the existing synthetic fixture).
+
+Candidate verification, from extracted candidate-copy:
+  C:\anaconda3\python.exe verify_candidate_archive.py
+  Result: 92 payload, 94 ZIP members, CRC ok, all listed hashes/source checks matched.
+
+Nested r1 verification and lineage comparison:
+  C:\anaconda3\python.exe candidate-copy\lineage-r1-independent-qa\candidate-copy\verify_candidate_archive.py
+  C:\anaconda3\python.exe verify_r1_lineage.py <r2 candidate-copy\lineage-r1-independent-qa> <canonical r1 QA evidence directory>
+  Result: exact r1 manifest+ZIP match; 47 prior QA package files/checksums match; report byte-identical; r1 receipt records 35 focused + 21 adversarial.
+
+Independent r2 focus (cwd is QA candidate-copy):
+  python -m pytest -q -p no:cacheprovider tests\test_ctp_simnow_settlement_consumer.py --tb=short --junitxml <QA>\pytest-r2-focus.junit.xml
+  Result: 39 passed.
+
+Independent r2 adversarial probes:
+  python -m pytest -q -p no:cacheprovider <QA>\adversarial\test_independent_r2_adversarial.py --tb=short --junitxml <QA>\pytest-r2-adversarial.junit.xml
+  Result: 34 passed. Mutable-attestor and caller-constructed receipt cases are deliberate boundary probes; tests assert the consumer function's own emitted flags remain false/false.
+
+Direct import guard smoke imported only the candidate consumer; startup blocker active and forbidden module list empty. `rg` over `backtrader_runtime` returned exit 1, meaning no candidate consumer references were found.

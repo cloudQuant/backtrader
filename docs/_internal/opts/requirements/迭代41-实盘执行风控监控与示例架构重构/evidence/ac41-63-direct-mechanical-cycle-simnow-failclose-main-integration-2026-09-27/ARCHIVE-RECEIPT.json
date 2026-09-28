@@ -1,0 +1,31 @@
+{
+  "schema": "ac41-63.direct-dispatch-main-integration-archive.v1",
+  "disposition": "DIRECT_FAILCLOSE_MAIN_INTEGRATED / LOCAL_REGRESSION_ONLY / NO_WRITE / LIVE_NO_GO",
+  "readme_sha256": "708ac6a683c851621637daa6406cb4ce6c2e14e4e07132df6d9d1b72f6e9f800",
+  "payload_manifest_sha256": "87059838ea05b4af242dcd9ff286ad74b5581649391d64a7f3cb6e1390ed5b1b",
+  "sha256sums_sha256": "e2bd56add60227091e7deeea412f206338b1f82dad62103a1063c00d6db0bbce",
+  "evidence_zip_sha256": "eb4a3b1915b76c1c0ce2d3d1957f57e462cf9218d3dc5dd060e93d081e01fafa",
+  "zip_receipt_sha256": "0e3111040344dc2415aa8da0021fa19059544568671348b7aa25160fbcbebcc6",
+  "independent_qa_report_sha256": "DA769EA3FBB3E64FB00E0EE08811AE57D37226B1F5AD5A636223C1E317B01A98",
+  "candidate_manifest_sha256": "D0FBC2C38F6BAD8A8778A447FAD4C8F0D5C7C7F34D9348D558DA8B7791749DDA",
+  "main_test_result": {
+    "tests": 53,
+    "passed": 52,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 1,
+    "exit_code": 0
+  },
+  "supplemental_store_runtime_run": {
+    "tests": 2686,
+    "passed": 2641,
+    "skipped": 43,
+    "xfailed": 2,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 1,
+    "exit_code": 0,
+    "duration_seconds": 112.27
+  }
+}

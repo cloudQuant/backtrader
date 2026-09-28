@@ -1,0 +1,275 @@
+diff --git a/backtrader/stores/btapistore.py b/backtrader/stores/btapistore.py
+index bdb3aaeae735ec8cfe11510b66b21179d0740c2a..b2ae89fd7de8e800bc1217dc6d01e57a2e6c2126 100644
+--- a/backtrader/stores/btapistore.py
++++ b/backtrader/stores/btapistore.py
+@@ -3675,10 +3675,31 @@ class BtApiStore(LiveStoreBase):
+             autostart: Whether to start the store on initialization.
+             **kwargs: Additional provider-specific arguments.
+         """
+-        initial_route = _candidate_route_descriptor(
+-            provider, backend, config,
+-            _candidate_merge_api_route_snapshot(api_kwargs, kwargs), api, api_cls,
+-            os.environ.get("BT_STORE_PROVIDER"), os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
++        explicit_provider = provider.strip().lower() if type(provider) is str else ""
++        if explicit_provider in {"ctp", "ctp_gateway"}:
++            raise BtApiStoreError("external account actor unavailable")
++
++        explicit_api_kwargs = _candidate_merge_api_route_snapshot(api_kwargs, kwargs)
++        explicit_route = _candidate_route_descriptor(
++            provider, backend, config, explicit_api_kwargs, api, api_cls,
++        )
++        # Reclassify only the frozen route maps with a neutral provider so
++        # explicit nested CTP selectors fail before consulting environment.
++        # The route snapshot helpers accept exact built-in dictionaries and
++        # scalar strings only; opaque caller objects remain ambiguous.
++        explicit_route_facts = StoreRouteDescriptor(
++            provider="btapi", backend="direct",
++            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
++        )
++        if classify_store_route(explicit_route_facts) is RouteKind.CTP:
++            raise BtApiStoreError("external account actor unavailable")
++
++        initial_route = StoreRouteDescriptor(
++            provider=explicit_route.provider, backend=explicit_route.backend,
++            config=explicit_route.config, api_kwargs=explicit_route.api_kwargs,
++            api=explicit_route.api, api_cls=explicit_route.api_cls,
++            environment_provider=os.environ.get("BT_STORE_PROVIDER"),
++            environment_exchange_type=os.environ.get("BT_GATEWAY_EXCHANGE_TYPE"),
+         )
+         route_kind = classify_store_route(initial_route)
+         self._candidate_adapter_only = False
+diff --git a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+index 0815f609158eb2920892b9468262ae085077caeb..5cd67e9852cfe8b8f59893e4f75044797235f530 100644
+--- a/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
++++ b/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py
+@@ -60,6 +60,62 @@ class _CredentialTrap:
+         raise AssertionError("credential was tested before the route gate")
+ 
+ 
++class _CustomRouteTrap:
++    def __init__(self):
++        self.reads = []
++
++    def __getattr__(self, name):
++        self.reads.append(name)
++        raise AssertionError(f"unknown route object attribute was traversed: {name}")
++
++    def __iter__(self):
++        self.reads.append("__iter__")
++        raise AssertionError("unknown route object was iterated")
++
++    def __getitem__(self, key):
++        self.reads.append("__getitem__")
++        raise AssertionError("unknown route object was indexed")
++
++    def items(self):
++        self.reads.append("items")
++        raise AssertionError("unknown route object items were traversed")
++
++
++class _EnvironmentProbe:
++    def __init__(self, delegate, *, blocked_keys=()):
++        self.delegate = delegate
++        self.blocked_keys = set(blocked_keys)
++        self.reads = []
++
++    def get(self, key, default=None):
++        if key in {"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"}:
++            self.reads.append(key)
++            if key in self.blocked_keys:
++                raise AssertionError(f"route environment read before explicit CTP rejection: {key}")
++        return self.delegate.get(key, default)
++
++    def __getitem__(self, key):
++        value = self.get(key, None)
++        if value is None and key not in self.delegate:
++            raise KeyError(key)
++        return value
++
++    def __setitem__(self, key, value):
++        self.delegate[key] = value
++
++    def __delitem__(self, key):
++        del self.delegate[key]
++
++    def __contains__(self, key):
++        return key in self.delegate
++
++    def __iter__(self):
++        return iter(self.delegate)
++
++    def __len__(self):
++        return len(self.delegate)
++
++
+ class _QueuePort(CtpAccountActorPort):
+     def __init__(self, *, corrupt=False):
+         self.calls = []
+@@ -147,7 +203,7 @@ def test_ctp_forwarding_env_rewrite_and_secret_traps_reject_before_any_local_bou
+     monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
+     monkeypatch.setenv("BT_STORE_PROVIDER", "ib_web_gateway")
+     monkeypatch.setenv("BT_CTP_EXECUTION_AUTHORIZATION_SECRET", "should-not-be-read")
+-    with pytest.raises(BtApiStoreError, match="route ambiguous"):
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="ctp",
+             backend="forwarding",
+@@ -159,6 +215,131 @@ def test_ctp_forwarding_env_rewrite_and_secret_traps_reject_before_any_local_bou
+     assert calls == []
+ 
+ 
++@pytest.mark.parametrize("route_kind", ["direct_ctp", "nested_ctp"])
++def test_explicit_ctp_rejects_before_route_environment_or_caller_object_reads(
++    monkeypatch, route_kind
++):
++    environment = _EnvironmentProbe(
++        store_module.os.environ,
++        blocked_keys={"BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"},
++    )
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    api = _AttributeTrap()
++    api_cls = _AttributeTrap()
++    actor = _AttributeTrap()
++    context = _AttributeTrap()
++    credential = _CredentialTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("a local resolver/client boundary ran before CTP rejection")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    if route_kind == "direct_ctp":
++        provider = "ctp"
++        config = {"execution_authorization_secret": credential}
++    else:
++        provider = "okx"
++        config = {
++            "exchange_kwargs": {
++                "CTP": {"execution_authorization_secret": credential}
++            }
++        }
++
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
++        BtApiStore(
++            provider=provider,
++            backend="forwarding",
++            api=api,
++            api_cls=api_cls,
++            config=config,
++            account_actor_port=actor,
++            account_actor_context=context,
++            account_actor_test_ledger=context,
++            autostart=True,
++        )
++
++    assert environment.reads == []
++    assert api.reads == []
++    assert api_cls.reads == []
++    assert actor.reads == []
++    assert context.reads == []
++    assert resolver_calls == []
++
++
++def test_unknown_custom_route_object_remains_untraversed_and_fails_closed(monkeypatch):
++    environment = _EnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    config = _CustomRouteTrap()
++    api = _AttributeTrap()
++    actor = _AttributeTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("ambiguous custom route reached local resolver/client")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="store route ambiguous"):
++        BtApiStore(
++            provider="okx",
++            backend="forwarding",
++            config=config,
++            api=api,
++            account_actor_port=actor,
++            autostart=True,
++        )
++
++    assert config.reads == []
++    assert api.reads == []
++    assert actor.reads == []
++    assert environment.reads == ["BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"]
++    assert resolver_calls == []
++
++
++def test_environment_selected_ambiguous_btapi_still_rejects_without_local_effects(monkeypatch):
++    monkeypatch.setenv("BT_STORE_PROVIDER", "okx")
++    monkeypatch.delenv("BT_GATEWAY_EXCHANGE_TYPE", raising=False)
++    environment = _EnvironmentProbe(store_module.os.environ)
++    monkeypatch.setattr(store_module.os, "environ", environment)
++    api = _AttributeTrap()
++    adapter = _ProjectionAdapter()
++    credential = _CredentialTrap()
++    resolver_calls = []
++
++    def forbidden(*args, **kwargs):
++        resolver_calls.append((args, kwargs))
++        raise AssertionError("ambiguous btapi route reached a local resolver/client")
++
++    monkeypatch.setattr(BtApiStore, "_resolve_provider", forbidden)
++    monkeypatch.setattr(BtApiStore, "_apply_env_gateway_overrides", forbidden)
++    monkeypatch.setattr(BtApiStore, "_create_forwarding_client", forbidden)
++    monkeypatch.setattr(store_module, "_resolve_bt_api_client", forbidden)
++
++    with pytest.raises(BtApiStoreError, match="store route ambiguous"):
++        BtApiStore(
++            provider="btapi",
++            api=api,
++            config={"execution_authorization_secret": credential},
++            managed_execution_adapter=adapter,
++            autostart=True,
++        )
++
++    assert environment.reads == ["BT_STORE_PROVIDER", "BT_GATEWAY_EXCHANGE_TYPE"]
++    assert api.reads == []
++    assert adapter.calls == []
++    assert resolver_calls == []
++
++
+ def test_explicit_non_ctp_route_preserves_raw_api_injection_without_route_ambiguity():
+     api = _SafeInjectedApi()
+     store = BtApiStore(provider="okx", api=api, config={"exchange_type": "OKX"})
+@@ -292,7 +473,7 @@ def test_descriptor_copies_route_facts_before_caller_mutation():
+ def test_nested_ctp_evidence_cannot_turn_an_unrelated_or_unknown_provider_into_actor_route():
+     port = _QueuePort()
+     context = _context()
+-    with pytest.raises(BtApiStoreError, match="route ambiguous"):
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="custom-provider",
+             config={"exchange_type": "CTP"},
+@@ -300,7 +481,7 @@ def test_nested_ctp_evidence_cannot_turn_an_unrelated_or_unknown_provider_into_a
+             account_actor_context=context,
+             account_actor_test_ledger=FakeLocalActorReplayLedger(),
+         )
+-    with pytest.raises(BtApiStoreError, match="route ambiguous"):
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="okx",
+             api_kwargs={"symbol_routes": {"rb2710": "CTP"}},
+@@ -308,7 +489,7 @@ def test_nested_ctp_evidence_cannot_turn_an_unrelated_or_unknown_provider_into_a
+             account_actor_context=context,
+             account_actor_test_ledger=FakeLocalActorReplayLedger(),
+         )
+-    with pytest.raises(BtApiStoreError, match="route ambiguous"):
++    with pytest.raises(BtApiStoreError, match="external account actor unavailable"):
+         BtApiStore(
+             provider="ctp",
+             backend="unknown-backend",

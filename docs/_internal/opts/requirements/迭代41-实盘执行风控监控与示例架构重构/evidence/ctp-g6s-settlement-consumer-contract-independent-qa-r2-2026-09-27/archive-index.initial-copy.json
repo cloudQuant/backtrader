@@ -1,0 +1,26 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.r2_independent_qa_archive_index.v1",
+  "classification": "FAKE_LOCAL_CONTRACT_ONLY / G6-S CLOSED / G7-S CLOSED",
+  "candidate_manifest_sha256": "f989c834be030e7f7227cea408697c4b98fa7f750f55c1c4bbaa59d318976587",
+  "candidate_zip_sha256": "6302f9ebb04b1c33f7d25da228e5ee215beedced7a9061173201c005939bad03",
+  "candidate_payload_entries": 92,
+  "candidate_zip_members": 94,
+  "independent_focus": "39 passed",
+  "independent_adversarial": "34 passed",
+  "r1_preserved_focus": "35 passed",
+  "r1_preserved_adversarial": "21 passed",
+  "qa_directory": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2",
+  "qa_zip": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2.zip",
+  "qa_zip_sha256": "4a0b412287e636814c436cfd533fda60d4d151c03ea7a2e4c9e7ccbf54958a9f",
+  "qa_sha256sums_path": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2\\SHA256SUMS.txt",
+  "qa_sha256sums_sha256": "42cef7ebf09f1330f4e94028c836b3f84de750d4ae392dcc6dcbcc7e189ba915",
+  "verification_path": "D:\\temp\\iteration41-g6s-settlement-consumer-independent-qa-20260927-r2-verification.json",
+  "verification_sha256": "2c207afad22bc514c2a16cc815a263737b4004ec9f1cc8afbc1ffa4081f31514",
+  "limitations": [
+    "mutable injected attestor is not authenticated",
+    "public receipt DTO can be caller-constructed with true flags",
+    "no durable provider provenance",
+    "main runtime not wired",
+    "no SDK/native/provider/private config/network/orders"
+  ]
+}

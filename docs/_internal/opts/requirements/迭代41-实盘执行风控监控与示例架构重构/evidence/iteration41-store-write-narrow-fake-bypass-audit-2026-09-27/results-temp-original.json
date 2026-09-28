@@ -1,0 +1,280 @@
+{
+  "schema": "ac41-63-store-write-narrow-fake-audit.v1",
+  "source": "D:\\temp\\ac41-63-store-write-narrow-audit-20260927\\fresh-replay\\backtrader\\stores\\btapistore.py",
+  "source_sha256": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+  "base_source_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+  "frozen_r3_patch_sha256": "C1550368359A159F18CE6777F6377CCA83DA7F948DE81B99D8DE86BEEE6CCAD3",
+  "candidate_sha256_expected": "00D31700B8554E954C52A748E2DBA09CB781DAED403EEC82AA750D1844513F55",
+  "optional_imports_blocked": [],
+  "ast_write_sink_calls": [
+    {
+      "line": 2576,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def submit_order",
+      "call": "self._send_native_order_insert"
+    },
+    {
+      "line": 2602,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def create_order",
+      "call": "self.submit_order"
+    },
+    {
+      "line": 2644,
+      "scope": "def _create_ctp_wrapper_class > class CtpClientWrapper > def cancel_order",
+      "call": "self._send_native_order_action"
+    },
+    {
+      "line": 3338,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def submit_order",
+      "call": "self._client.submit_order"
+    },
+    {
+      "line": 3353,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def create_order",
+      "call": "self.submit_order"
+    },
+    {
+      "line": 3366,
+      "scope": "def _create_ctp_gateway_wrapper_class > class CtpGatewayClientWrapper > def cancel_order",
+      "call": "self._client.cancel_order"
+    },
+    {
+      "line": 6557,
+      "scope": "class BtApiStore > async _execute_sdk_command",
+      "call": "self._invoke_sdk_command"
+    },
+    {
+      "line": 7187,
+      "scope": "class BtApiStore > def enqueue_order",
+      "call": "self._enqueue_order_command"
+    },
+    {
+      "line": 7317,
+      "scope": "class BtApiStore > def _enqueue_order_command",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7353,
+      "scope": "class BtApiStore > def enqueue_cancel",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7474,
+      "scope": "class BtApiStore > def enqueue_query",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7491,
+      "scope": "class BtApiStore > def enqueue_reconcile",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7507,
+      "scope": "class BtApiStore > def enqueue_ctp_reconciliation",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7563,
+      "scope": "class BtApiStore > def enqueue_execution_recovery_completion",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7633,
+      "scope": "class BtApiStore > def _dispatch_prepared_account_risk_refresh",
+      "call": "self._enqueue_sdk_command"
+    },
+    {
+      "line": 7757,
+      "scope": "class BtApiStore > def submit_order",
+      "call": "adapter.submit_order"
+    },
+    {
+      "line": 7836,
+      "scope": "class BtApiStore > def _submit_ctp_managed_order > def sdk_dispatch",
+      "call": "self._enqueue_order_command"
+    },
+    {
+      "line": 7845,
+      "scope": "class BtApiStore > def _submit_ctp_managed_order",
+      "call": "ctp_adapter.submit_order"
+    },
+    {
+      "line": 7958,
+      "scope": "class BtApiStore > def _submit_order_legacy",
+      "call": "api.submit_order"
+    },
+    {
+      "line": 7960,
+      "scope": "class BtApiStore > def _submit_order_legacy",
+      "call": "api.create_order"
+    },
+    {
+      "line": 8102,
+      "scope": "class BtApiStore > def _cancel_managed > def dispatch_cancel",
+      "call": "self._enqueue_ctp_managed_cancel"
+    },
+    {
+      "line": 8242,
+      "scope": "class BtApiStore > def _cancel_order_ref_legacy",
+      "call": "api.cancel_order"
+    }
+  ],
+  "findings": [
+    {
+      "id": "route-mismatched-injected-direct-api",
+      "status": "FAKE_REPRODUCED_CONDITIONAL_BYPASS",
+      "store_route": "provider=binance, backend=direct",
+      "injected_api_route": "CTP___TEST",
+      "public_calls": [
+        "BtApiStore.submit_order",
+        "BtApiStore.cancel_order_ref"
+      ],
+      "trace": [
+        "submit_order",
+        "_submit_order_legacy",
+        "_ensure_api_ready",
+        "api.submit_order",
+        "fake ReqOrderInsert shim",
+        "cancel_order_ref",
+        "_cancel_order_ref_legacy",
+        "_ensure_api_ready",
+        "api.cancel_order",
+        "fake ReqOrderAction shim"
+      ],
+      "classification": "_is_ctp_write_provider returns False because non-btapi/direct provider identity is trusted; the injected API route is not consulted.",
+      "fake_calls": [
+        [
+          "api.submit_order",
+          "CTP___TEST"
+        ],
+        [
+          "fake.ReqOrderInsert",
+          "CTP___TEST"
+        ],
+        [
+          "api.cancel_order",
+          "CTP___TEST"
+        ],
+        [
+          "fake.ReqOrderAction",
+          "CTP___TEST"
+        ]
+      ],
+      "limit": "Only local fake CTP-labelled API hooks ran; this demonstrates Store-to-API reachability, not vendor/native acceptance."
+    },
+    {
+      "id": "mutable-api-route-snapshot-toctou",
+      "status": "FAKE_REPRODUCED_CONDITIONAL_BYPASS",
+      "initial_api_route": "BINANCE",
+      "post_init_api_route": "CTP___TEST",
+      "public_calls": [
+        "BtApiStore.submit_order",
+        "BtApiStore.cancel_order_ref"
+      ],
+      "trace": [
+        "constructor-style dict snapshot of api.exchange_kwargs into _sdk_exchanges",
+        "mutate retained api.exchange_kwargs to CTP___TEST",
+        "_is_ctp_write_provider remains False",
+        "public submit/cancel enqueue paths accept",
+        "_execute_sdk_command -> _invoke_sdk_command -> fake async_make_order/async_cancel_order"
+      ],
+      "classifier_mismatch": {
+        "_is_ctp_write_provider": false,
+        "_is_ctp_session_provider": true,
+        "sdk_api_returns_raw_api": true
+      },
+      "queued_responses": [
+        {
+          "queued": true,
+          "via": "local fake queue"
+        },
+        {
+          "queued": true,
+          "via": "local fake queue"
+        }
+      ],
+      "fake_calls": [
+        [
+          "fake.async_make_order",
+          "CTP___TEST",
+          [
+            "CTP___TEST"
+          ]
+        ],
+        [
+          "fake.async_cancel_order",
+          "CTP___TEST",
+          [
+            "CTP___TEST"
+          ]
+        ]
+      ],
+      "completions": [
+        {
+          "kind": "command_completion",
+          "command": "submit",
+          "receipt_id": "fake-s1",
+          "bt_order_ref": "bt-sdk-1",
+          "client_order_id": "fake-client",
+          "data_name": "FAKE",
+          "exchange_name": "CTP___TEST",
+          "priority": "open",
+          "session_generation": 1,
+          "risk_incident_epoch_at_enqueue": 0,
+          "completed_monotonic_ns": 276549890000000,
+          "success": true,
+          "status": "completed",
+          "response": {
+            "ok": true,
+            "operation": "submit",
+            "symbol": "FAKE",
+            "client_order_id": "fake-client"
+          }
+        },
+        {
+          "kind": "command_completion",
+          "command": "cancel",
+          "receipt_id": "fake-c1",
+          "bt_order_ref": "bt-sdk-1",
+          "client_order_id": "fake-client",
+          "data_name": "FAKE",
+          "exchange_name": "CTP___TEST",
+          "priority": "cancel",
+          "session_generation": 1,
+          "risk_incident_epoch_at_enqueue": 0,
+          "completed_monotonic_ns": 276549906000000,
+          "success": true,
+          "status": "completed",
+          "response": {
+            "ok": true,
+            "operation": "cancel",
+            "symbol": "FAKE",
+            "client_order_id": "fake-client"
+          }
+        }
+      ],
+      "limit": "No worker thread or provider SDK/native code ran; worker sink was invoked manually with fake queue commands after public Store enqueue accepted them."
+    }
+  ],
+  "negative_scope_check": {
+    "ctp_direct_wrapper_native_insert_and_action_methods": "A028+r3 body is unconditional BtApiStoreError; higher-level CtpClientWrapper submit/cancel route only through those closed methods.",
+    "ctp_gateway_wrapper_direct_methods": "guarded by _ensure_direct_writes_allowed; CTP/suffixed CTP route flag computed closed.",
+    "r3_generic_queue_and_generic_sdk_sink": "existing guards were not claimed as new findings.",
+    "managed_ctp_dispatcher_branch": "known unresolved typed-adapter authority surface, excluded per task."
+  },
+  "correctly_labelled_ctp_control": {
+    "errors": [
+      [
+        "submit",
+        "direct CTP Store order writes are disabled"
+      ],
+      [
+        "cancel",
+        "direct CTP Store cancellation is disabled"
+      ]
+    ],
+    "fake_calls": []
+  },
+  "no_real_io": true,
+  "main_tree_modified": false,
+  "tests_used": "direct local-fake Python assertions only; no pytest, SDK, native import, config, credentials, network or provider access."
+}

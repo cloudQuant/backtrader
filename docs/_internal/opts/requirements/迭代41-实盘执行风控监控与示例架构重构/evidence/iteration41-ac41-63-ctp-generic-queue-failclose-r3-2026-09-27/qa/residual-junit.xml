@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="3.289" timestamp="2026-09-27T21:14:37.520195" hostname="yun"><testcase classname="tests.test_r2_snapshot_residual" name="test_stale_sdk_route_snapshot_is_a_conditional_direct_helper_residual" time="0.003" /></testsuite></testsuites>

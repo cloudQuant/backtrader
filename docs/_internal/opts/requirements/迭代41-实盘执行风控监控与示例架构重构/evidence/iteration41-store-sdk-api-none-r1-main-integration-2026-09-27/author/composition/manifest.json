@@ -1,0 +1,78 @@
+{
+  "schema": "iteration41-sdk-api-none-r1-p4-composition-freeze-v1",
+  "date": "2026-09-27",
+  "scope": "temporary isolated candidate only; main repository unchanged",
+  "objective": "Public BtApiStore.sdk_api returns None for CTP sessions, gateways, and forwarding routes; no proxy is returned. Non-CTP direct route preserves the existing API identity. P4 mechanical fallback blocks when the CTP getter returns None.",
+  "main_preimage": {
+    "backtrader/stores/btapistore.py": "B9E1BCD3EFA6CF57BF8D3029D60AE89A7158D5332B313EE8DFE12A4A0CA557FF",
+    "tests/unit/stores/test_btapistore.py": "F7E1FA01AA383367F518C61A0AE30285DB2C8EEFF22B9CF75BA0E1C3D774F853",
+    "examples/ctp_options_simnow_mechanical_operator.py": "AA4292252D86E560A733B1030CE3C1438BC37FD99CD5B66518C853FD87CCFA19"
+  },
+  "inputs": {
+    "r1_patch_sha256": "C4075E0395D312B476511365B1FFFE40D981BB1A42E22B2A6E282BE360917A65",
+    "r1_manifest_sha256": "77361DCDB642CA42C32CF9E5E68DB915C29FDBDA0EA002DC277637F9958EE227",
+    "p4_source_patch_sha256": "299CD0215A8636F25C7E3B74F70CD05C30372059EFC1150E9BB96A47F668B70C",
+    "p4_manifest_sha256": "09A430C20D684D6F24D6CB359519328AF65A552A7B9195B683F6D8FE4FD31C4E",
+    "p4_tests_patch_sha256": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7",
+    "composition_order": [
+      "Apply sdk-api-none-r1.patch to the main Store preimage.",
+      "Apply P4 source patch to the mechanical example preimage.",
+      "Apply P4 test patch and add test_sdk_api_none_mechanical_fallback_composition.py."
+    ]
+  },
+  "candidate": {
+    "backtrader/stores/btapistore.py": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "examples/ctp_options_simnow_mechanical_operator.py": "549276111279275BEB000D8104C4330A6D11B7C181AE66087079A555AF26D81F",
+    "tests/unit/test_sdk_api_none_mechanical_fallback_composition.py": "57489F3CC76BE1D188BB46AAC4F5BF7CD83D7AC09E183E55452B56AD863F4658",
+    "tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py": "9B26A37DCDCCD887429868774D77AF3F82D54F8CD8FDC1593294A20016260CCB",
+    "tests/unit/stores/test_btapistore_sdk_api_none.py": "A62003FDC1BAEB3FCB9F998B82951C15E5A271060600360E05203340D74FCB37"
+  },
+  "verification": {
+    "runner": "python D:/temp/iteration41-store-sdk-api-guard-only-20260927/run_fake_only_pytest.py",
+    "working_directory": "D:/temp/iteration41-store-sdk-api-guard-only-20260927/compose-r1-p4",
+    "result": "12 passed, 1 existing PytestConfigWarning",
+    "junit_sha256": "1843CE812DF347C216E6597EBDFB3F818C4357E79AA3D7F8A7BFAB757B7314B7",
+    "log_sha256": "214B73498B43BFCC55E2F5E2F7B5E7FDE53674934A3AA968076B1D0B1C2F5E63",
+    "optional_sdk_native_import_guard": [],
+    "network_guard": [],
+    "fake_coverage": [
+      "Actual BtApiStore(provider='ctp', api=fake) getter returns None.",
+      "Mechanical runner raises STORE_SDK_API_NOT_READY before _ensure_api_ready, fake connect, or fake order/cancel methods.",
+      "P4 dummy-store contract remains green for the intentional supplied-public-API case.",
+      "R1 fake Store cases exercise no-client None and non-CTP direct identity compatibility."
+    ]
+  },
+  "excluded_runs": [
+    {
+      "classification": "INVALID_SUPERSEDED_DO_NOT_USE_AS_EVIDENCE",
+      "result": "277 passed, 1 warning",
+      "reason": "The broader baseline Store suite calls tests.test_utils.optional_sdk(), which imports installed bt_api_py/bt_api_ctp when available. The command was run before adding import tripwires, so it is excluded from this no-real-SDK/native task.",
+      "log_sha256": "735857FA4427B18DAFA1B3C97F83B839311C4B5101884D889D70F433AEEE4EF1",
+      "junit_sha256": "D4387CEBA1FD976815E2A315BB62111E04EE66AB91655CA3966CA94F8B681850"
+    }
+  ],
+  "compatibility_and_limits": [
+    "CTP public sdk_api consumers, including the old mechanical example, now observe None and fail closed when combined with the P4 fallback guard; future mechanical execution needs a separately reviewed Store authority API.",
+    "Non-CTP direct sdk_api identity and Store internal read-only query paths remain covered by the isolated fake tests.",
+    "This getter guard does not revoke raw API handles already held by callers and does not prevent direct private _api access or constructing an SDK client independently.",
+    "This is not an authorization, provider, SimNow, or production acceptance claim."
+  ],
+  "files_sha256": {
+    "candidate/backtrader/stores/btapistore.py": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "candidate/examples/ctp_options_simnow_mechanical_operator.py": "549276111279275BEB000D8104C4330A6D11B7C181AE66087079A555AF26D81F",
+    "candidate/tests/unit/stores/test_btapistore_sdk_api_none.py": "A62003FDC1BAEB3FCB9F998B82951C15E5A271060600360E05203340D74FCB37",
+    "candidate/tests/unit/test_ctp_options_simnow_mechanical_api_boundary.py": "9B26A37DCDCCD887429868774D77AF3F82D54F8CD8FDC1593294A20016260CCB",
+    "candidate/tests/unit/test_sdk_api_none_mechanical_fallback_composition.py": "57489F3CC76BE1D188BB46AAC4F5BF7CD83D7AC09E183E55452B56AD863F4658",
+    "fake-only-guarded.junit.xml": "1843CE812DF347C216E6597EBDFB3F818C4357E79AA3D7F8A7BFAB757B7314B7",
+    "fake-only-guarded.log": "214B73498B43BFCC55E2F5E2F7B5E7FDE53674934A3AA968076B1D0B1C2F5E63",
+    "INVALID-SUPERSEDED-broad.junit.xml": "D4387CEBA1FD976815E2A315BB62111E04EE66AB91655CA3966CA94F8B681850",
+    "INVALID-SUPERSEDED-broad.log": "735857FA4427B18DAFA1B3C97F83B839311C4B5101884D889D70F433AEEE4EF1",
+    "patches/p4-mechanical-manifest.json": "09A430C20D684D6F24D6CB359519328AF65A552A7B9195B683F6D8FE4FD31C4E",
+    "patches/p4-mechanical-source.patch": "299CD0215A8636F25C7E3B74F70CD05C30372059EFC1150E9BB96A47F668B70C",
+    "patches/p4-mechanical-test-source.py": "3F462651E3CC5F66B990B495BE2BFC50913BB60E11D17D28F02F215E67998783",
+    "patches/p4-mechanical-tests.patch": "5DB64E45C19C63F060786740242B081998ED079E2E4D7086B4C7A99201E453F7",
+    "patches/sdk-api-none-r1-manifest.json": "77361DCDB642CA42C32CF9E5E68DB915C29FDBDA0EA002DC277637F9958EE227",
+    "patches/sdk-api-none-r1.patch": "C4075E0395D312B476511365B1FFFE40D981BB1A42E22B2A6E282BE360917A65",
+    "run_fake_only_pytest.py": "33EE7631978ECC2884AA3BC590DD56B77E8C5697E79A3E61A034CCA76E7AEE2E"
+  }
+}

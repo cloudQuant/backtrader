@@ -1,0 +1,92 @@
+{
+  "schema": "iteration41.g6s.main_td_settlement_consumer.archive_manifest.v1",
+  "source_candidate_manifest_sha256": "1fd47cff2514fa25e4298efe7051989ad97427c8056693374004791d6b983661",
+  "archived_file_count": 17,
+  "files": [
+    {
+      "path": "archive-index.md",
+      "size": 3040,
+      "sha256": "5016f54fc1aeb2019fe35634ac5bdb09c83f60d86325c7755d8a4bbeaaff606d"
+    },
+    {
+      "path": "candidate-source-manifest.json",
+      "size": 25170,
+      "sha256": "1fd47cff2514fa25e4298efe7051989ad97427c8056693374004791d6b983661"
+    },
+    {
+      "path": "evidence/command-and-environment.txt",
+      "size": 1040,
+      "sha256": "488cc62bc23411c16f65a6e9ee96b0fbf9a539745969abf45e9258b4fef17afc"
+    },
+    {
+      "path": "evidence/focused-exit-code.txt",
+      "size": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "evidence/focused-junit.xml",
+      "size": 4511,
+      "sha256": "41224a6d6811eed3a5abc2f98f6fa058fad0dbdf47fb99d94e013fccd2ba732b"
+    },
+    {
+      "path": "evidence/focused-pytest.log",
+      "size": 219,
+      "sha256": "3d31684beb0f27c3a47960af38e8694a27f86937d84d0bd718ceac248cd92bc3"
+    },
+    {
+      "path": "evidence/sdk/settlement-freeze-receipt.json",
+      "size": 2422,
+      "sha256": "3f83d971c8b4b0834bf2a7ab5607a559cff440593ad7dc04d44e011897c2b243"
+    },
+    {
+      "path": "evidence/sdk/settlement-source-manifest.json",
+      "size": 6831,
+      "sha256": "da9d20d35d0b5680267f1a95c5b7fff54f25e9f57f0dfda270b55eb7f251ebe9"
+    },
+    {
+      "path": "evidence/source_origin_sdk_block_guard.py",
+      "size": 967,
+      "sha256": "6a1cd958a1412a84d6acddbd407200d74437351c0324774a3018744feede7ef9"
+    },
+    {
+      "path": "evidence/source-origin-sdk-block-guard.log",
+      "size": 171,
+      "sha256": "45045a5e92602782608fbcc8537f72ff7a575dd31405bba84ac3d90902b8059b"
+    },
+    {
+      "path": "evidence/static-checks.log",
+      "size": 498,
+      "sha256": "544054a276925f2452cd159ff3b03277f273f6e0225a9bfd6f6846c306657414"
+    },
+    {
+      "path": "freeze-receipt.json",
+      "size": 4578,
+      "sha256": "c9ec14de8e8e3cd9608d445fbb5f9de805e20677c0386bbc0db1fa57f01c1f11"
+    },
+    {
+      "path": "README.md",
+      "size": 2803,
+      "sha256": "bdc2fec80ea86c47713c09ed4dad0028b0bff2cdc15b02c0c8ff177ad5b43003"
+    },
+    {
+      "path": "source-diff/ctp_simnow_td_trading_readiness.py.patch",
+      "size": 14958,
+      "sha256": "19b01b262a07394feb70e176d98244d0cfab4d6c42992460c7aec811e2065d2e"
+    },
+    {
+      "path": "source-diff/test_ctp_simnow_td_trading_readiness.py.patch",
+      "size": 17035,
+      "sha256": "5d760125093ce885efc8c90448aa20ff51e44ad430223c89ac5c25b1a47fb78c"
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "size": 29245,
+      "sha256": "368446ce5a8972af7360039a7c79c42aaa10ba413ceb58f6ffeff3d03f1f0d41"
+    },
+    {
+      "path": "source/tests/unit/runtime/test_ctp_simnow_td_trading_readiness.py",
+      "size": 28659,
+      "sha256": "2fe41cb9b271f5817b14d6319493d4152786b2f1faba82866f20216967478794"
+    }
+  ]
+}

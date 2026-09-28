@@ -1,0 +1,22 @@
+{
+  "disposition": "LOCAL_OFFLINE_GUARDED_FOCUS_ONLY",
+  "failure_count": 0,
+  "guard_log": {
+    "events": [],
+    "native_modules_loaded": [],
+    "path": "guard-16488.json",
+    "sha256": "407D0472E0E545089725F1E19305A0EBFA3C8A5F9B8C77C671E26FFEECDF030A"
+  },
+  "junit": {
+    "path": "focus.xml",
+    "sha256": "6FCC3FA742D8DC94D4AC9F93EC9E3992EE243B080C0CC2F67E2BD7134BE738BD",
+    "tests": 6
+  },
+  "pytest_configuration_warnings": 1,
+  "ruff": "PASS",
+  "source_sha256": "1D80D22C431068D991955093C2778AC98F39A6BC36A90F6F427FA8665AA67B3B",
+  "test_sha256": "34C19391CD3B3EB7152EB78E8B569C8DEF5A7995C39215D296CACD74AD12AF49",
+  "tests_skipped": 0,
+  "tests_status": "PASS",
+  "workspace_diff_check": "PASS"
+}

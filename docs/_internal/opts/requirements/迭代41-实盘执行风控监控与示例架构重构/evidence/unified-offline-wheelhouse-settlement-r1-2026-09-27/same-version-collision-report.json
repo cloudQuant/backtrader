@@ -1,0 +1,39 @@
+{
+  "schema": "iteration41.ctp-version-collision-resolution.v1",
+  "diagnostic_only": [
+    {
+      "file": "original-g4-probe-wheel.whl",
+      "version": "2.0.4+g4r2.probe.20260927",
+      "sha256": "00E0C0C56574F60013115EE6010E531F72A8C811780F27DFCBA3249CDAFB5384",
+      "size_bytes": 5433813,
+      "zip_crc": "ok"
+    },
+    {
+      "file": "settlement-overlay-old-version-build-a.whl",
+      "version": "2.0.4+g4r2.probe.20260927",
+      "sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF",
+      "size_bytes": 5435634,
+      "zip_crc": "ok"
+    },
+    {
+      "file": "settlement-overlay-old-version-build-b.whl",
+      "version": "2.0.4+g4r2.probe.20260927",
+      "sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF",
+      "size_bytes": 5435634,
+      "zip_crc": "ok"
+    }
+  ],
+  "collision": {
+    "same_version": "2.0.4+g4r2.probe.20260927",
+    "distinct_content_count": 2,
+    "original_g4_sha256": "00E0C0C56574F60013115EE6010E531F72A8C811780F27DFCBA3249CDAFB5384",
+    "settlement_overlay_old_version_sha256": "76DADBCE12B5AC469B5B791AF65C9195FA848CC76FA9E762D7C17932BEF45BAF"
+  },
+  "selected_wheel": {
+    "file": "bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+    "version": "2.0.4+g4r2.settlement.probe.20260927",
+    "sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D"
+  },
+  "excluded_from_final_wheelhouse_and_lock": true,
+  "resolution": "unique local version identifies settlement overlay; old same-version artifacts remain diagnostic only"
+}

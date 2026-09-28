@@ -1,0 +1,18 @@
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\account_actor_port.py 25739 e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\compile-results.txt 59 4cac00d710806727905ea0eee943ebe8c690fbeaa9507328c8a36342fc002337
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\INTEGRATION_CONTRACT.md 5574 0a68828d986a5c942c6fb76ac3b5aa1414e86f35b5a11f55cd70739bf3b8ba0b
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\MAIN_SOURCE_INVENTORY.md 2730 7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\README.md 1232 de8288865b7174d09936d3e285ee5d52da16b142c023ce10b1d157e239b638ad
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\ruff-results.txt 33 b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\store_boundary_harness.py 5114 087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\test-results.txt 6119 8aa1807fdc356d7b6059a330731179b5a82d4ebc09924b20a3c939c5a6804099
+VERIFIED D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\tests\test_store_boundary_harness.py 31213 f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa
+MANIFEST D:\temp\iteration41-ctp-account-actor-port-freeze-20260927-r4\manifest.json 8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8
+AST-EQUAL classify_store_route
+AST-EQUAL require_account_actor_before_local_client
+AST-EQUAL _collect_config_routes
+AST-EQUAL _collect_symbol_routes
+AST-EQUAL _collect_nested_selector_fields
+AST-EQUAL _selector
+AST-EQUAL _venue
+UPSTREAM-CONTRACTS-PASS

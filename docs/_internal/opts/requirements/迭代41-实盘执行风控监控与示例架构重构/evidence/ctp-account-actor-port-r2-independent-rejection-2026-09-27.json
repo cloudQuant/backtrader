@@ -1,0 +1,45 @@
+{
+  "format": "iteration41-account-actor-port-independent-qa-v1",
+  "date": "2026-09-27",
+  "verdict": "REJECTED_FOR_INTEGRATION",
+  "gates": {
+    "g6_p": "UNCHANGED",
+    "live_no_go": "UNCHANGED"
+  },
+  "source_candidate": {
+    "path": "D:\\temp\\iteration41-ctp-account-actor-port-freeze-20260927-r2",
+    "manifest_sha256": "ac45026c48d247b66f0da18e59211c7bd2e610cdaa5e7bd605a89cf1625f7a76",
+    "independent_copy_payload_hash_mismatches": 0
+  },
+  "independent_tests": {
+    "command": "python -m unittest discover -s tests -v",
+    "result": "15 passed",
+    "exit_code": 0,
+    "provider_native_network_or_protected_config_used": false
+  },
+  "main_source_review": {
+    "btapistore_sha256": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "ctp_f14_admission_sha256": "7BA54C6C658EF269F1049FAB1A6D2C14D85D0A7B777767479081CE3F53B7016B",
+    "account_actor_gate_found": false,
+    "static_legacy_paths_reachable": true,
+    "actual_main_ctp_send_executed": false
+  },
+  "findings": [
+    "Candidate unknown custom provider plus api_cls can classify NON_CTP and reach fake local legacy fallback.",
+    "Candidate misses nested CTP symbol_routes mapping.",
+    "Candidate reads injected btapi API exchange_kwargs property before absent-actor rejection.",
+    "Candidate accepts stale actor epoch, mismatched actor account and replayed intent; wrong command id is rejected.",
+    "Main Store has no AccountActorPort gate and its no-adapter submit/cancel path remains legacy reachable; static only."
+  ],
+  "boundaries": [
+    "No deployable actor/authentication.",
+    "No cross-host/account fence or common snapshot.",
+    "No CTP SDK/provider/network/credentials or protected config.",
+    "No main Store dispatch was run.",
+    "Nested route actual main send was not established."
+  ],
+  "packet_zip": "ctp-account-actor-port-r2-independent-rejection-2026-09-27.raw.zip",
+  "packet_zip_sha256": "C168377915A48E08DC30C0B93901EF5979AC051E235B26CAB041E535365CE397",
+  "packet_manifest_sha256": "2ACBD2333B38537256631C924F60CF8DD7CCCD4B90ECE988725FFD25BBC31204",
+  "review_page_sha256": "1DFD573632B96D691E27ACDB36DA2C44852474E6CA8A5FA7ED1C35C45DBD04E3"
+}

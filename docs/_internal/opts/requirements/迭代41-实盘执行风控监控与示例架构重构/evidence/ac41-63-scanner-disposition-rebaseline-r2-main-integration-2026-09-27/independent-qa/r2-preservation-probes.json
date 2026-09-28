@@ -1,0 +1,105 @@
+{
+  "root": "D:\\temp\\ac41-63-writer-rebaseline-independent-qa-20260927\\full-current-source-replay-r2",
+  "inventory_counts": {
+    "files_scanned": 355,
+    "writer_candidates": 363,
+    "dynamic_execution_candidates": 97,
+    "parse_errors": 0
+  },
+  "candidate_checklist_sha256": "b55a054a8e53cec27a7b20ad43a653cee07082febe51844cccb129c0ed365426",
+  "cases": [
+    {
+      "case": "valid_control",
+      "status": "PASS",
+      "reason_codes": []
+    },
+    {
+      "case": "baseline_preservation_missing",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_preservation_invalid"
+      ]
+    },
+    {
+      "case": "baseline_preservation_null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_preservation_invalid"
+      ]
+    },
+    {
+      "case": "preservation_and_history_and_lineage_missing",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_preservation_invalid"
+      ]
+    },
+    {
+      "case": "lineage_missing",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_tombstone_lineage_mismatch"
+      ]
+    },
+    {
+      "case": "baseline_ids_null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_389_id_digest_mismatch",
+        "checklist_baseline_389_ids_invalid",
+        "checklist_baseline_389_payload_mismatch"
+      ]
+    },
+    {
+      "case": "baseline_ids_object_member",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_baseline_389_id_digest_mismatch",
+        "checklist_baseline_389_ids_invalid",
+        "checklist_baseline_389_payload_mismatch"
+      ]
+    },
+    {
+      "case": "previous_ids_null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_previous_445_ids_invalid"
+      ]
+    },
+    {
+      "case": "previous_ids_object_member",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_previous_445_ids_invalid"
+      ]
+    },
+    {
+      "case": "removed_ids_null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_tombstone_archive_ids_invalid"
+      ]
+    },
+    {
+      "case": "removed_ids_object_member",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_tombstone_archive_ids_invalid"
+      ]
+    },
+    {
+      "case": "new_ids_null",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_new_g6_candidate_ids_invalid"
+      ]
+    },
+    {
+      "case": "new_ids_object_member",
+      "status": "REJECTED",
+      "reason_codes": [
+        "checklist_new_g6_candidate_ids_invalid"
+      ]
+    }
+  ]
+}

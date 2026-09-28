@@ -1,0 +1,27 @@
+Working directory:
+D:\temp\iteration41-g6s-main-td-settlement-candidate-20260927
+
+Interpreter:
+C:\anaconda3\python.exe
+Python 3.11.5
+
+Environment:
+PYTHONPATH=D:\temp\iteration41-g6s-main-td-settlement-candidate-20260927
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+PYTHONDONTWRITEBYTECODE=1
+
+Command:
+python -m pytest --noconftest tests\unit\runtime\test_ctp_simnow_td_trading_readiness.py -q --tb=short --junitxml=evidence\run\focused-junit.xml
+
+Result:
+22 passed; zero skips; process exit code 0.
+The unit-test fixture uses fake clients and a stubbed connector only.
+
+Fresh-process optional-SDK import guard:
+python evidence\run\source_origin_sdk_block_guard.py
+Result: the candidate module resolved from this candidate root and no bt_api_ctp module was loaded.
+
+Static checks:
+Python compile() passed on changed runtime source and test source without writing bytecode.
+ruff check --no-fix --select I001,UP035 backtrader_runtime\ctp_simnow_td_trading_readiness.py tests\unit\runtime\test_ctp_simnow_td_trading_readiness.py
+Result: All checks passed.

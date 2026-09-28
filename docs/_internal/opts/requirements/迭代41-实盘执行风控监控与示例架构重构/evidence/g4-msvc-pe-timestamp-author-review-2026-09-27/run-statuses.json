@@ -1,0 +1,7 @@
+{
+  "runs": [
+    {"label":"brepro-a","script":"build_repro.cmd a","internal_batch":"BUILD_EXIT=0","outer_exec_exit_code":1,"artifact_wheel_sha256":"70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2","interpretation":"Preserve the outer status discrepancy; pip log and batch captured exit report successful build."},
+    {"label":"brepro-b","script":"cmd.exe /d /c build_repro.cmd b","internal_batch":"BUILD_EXIT=0","outer_exec_exit_code":0,"artifact_wheel_sha256":"70efd2ee7302b0fa197e6709a044ef85d50ab1cbc36f79d9d055d81b289a2ed2"},
+    {"label":"strict-legacy-c","script":"cmd.exe /d /c build_legacy_strict.cmd","internal_batch":"BUILD_EXIT=0","outer_exec_exit_code":0,"artifact_wheel_sha256":"7dad3140ab8a700939022282a78f75b165a612637bac90da5caa7df06f4d64f7"}
+  ]
+}

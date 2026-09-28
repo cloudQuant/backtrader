@@ -1,0 +1,78 @@
+[
+  {
+    "cell": null,
+    "code": "SIM112",
+    "end_location": {
+      "column": 76,
+      "row": 651
+    },
+    "filename": "D:\\temp\\ac41-013-legacy-ctp-support-r3-candidate-20260928\\qa-replay-r4\\examples\\013_1_midfreq_cross_arbitrage\\ctp_example_support.py",
+    "fix": null,
+    "location": {
+      "column": 60,
+      "row": 651
+    },
+    "message": "Use capitalized environment variable `SIMNOW_USER_ID` instead of `simnow_user_id`",
+    "name": "uncapitalized-environment-variables",
+    "noqa_row": 651,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/uncapitalized-environment-variables"
+  },
+  {
+    "cell": null,
+    "code": "SIM112",
+    "end_location": {
+      "column": 75,
+      "row": 652
+    },
+    "filename": "D:\\temp\\ac41-013-legacy-ctp-support-r3-candidate-20260928\\qa-replay-r4\\examples\\013_1_midfreq_cross_arbitrage\\ctp_example_support.py",
+    "fix": null,
+    "location": {
+      "column": 58,
+      "row": 652
+    },
+    "message": "Use capitalized environment variable `SIMNOW_PASSWORD` instead of `simnow_password`",
+    "name": "uncapitalized-environment-variables",
+    "noqa_row": 652,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/uncapitalized-environment-variables"
+  },
+  {
+    "cell": null,
+    "code": "SIM112",
+    "end_location": {
+      "column": 76,
+      "row": 651
+    },
+    "filename": "D:\\temp\\ac41-013-legacy-ctp-support-r3-candidate-20260928\\qa-replay-r4\\examples\\013_2_highfreq_calendar_arbitrage\\ctp_example_support.py",
+    "fix": null,
+    "location": {
+      "column": 60,
+      "row": 651
+    },
+    "message": "Use capitalized environment variable `SIMNOW_USER_ID` instead of `simnow_user_id`",
+    "name": "uncapitalized-environment-variables",
+    "noqa_row": 651,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/uncapitalized-environment-variables"
+  },
+  {
+    "cell": null,
+    "code": "SIM112",
+    "end_location": {
+      "column": 75,
+      "row": 652
+    },
+    "filename": "D:\\temp\\ac41-013-legacy-ctp-support-r3-candidate-20260928\\qa-replay-r4\\examples\\013_2_highfreq_calendar_arbitrage\\ctp_example_support.py",
+    "fix": null,
+    "location": {
+      "column": 58,
+      "row": 652
+    },
+    "message": "Use capitalized environment variable `SIMNOW_PASSWORD` instead of `simnow_password`",
+    "name": "uncapitalized-environment-variables",
+    "noqa_row": 652,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/uncapitalized-environment-variables"
+  }
+]

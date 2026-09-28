@@ -1,0 +1,11 @@
+diff --git a/examples/007_ctp/ctp_example_support.py b/examples/007_ctp/ctp_example_support.py
+--- a/examples/007_ctp/ctp_example_support.py
++++ b/examples/007_ctp/ctp_example_support.py
+@@ -21,7 +21,7 @@ from pathlib import Path
+ import backtrader as bt
+ import yaml
+ 
+-from backtrader.brokers.btapibroker import BtApiBroker
++from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker
+ from backtrader.channel import DataChannel
+ from backtrader.feeds.btapifeed import BtApiFeed

@@ -1,0 +1,9 @@
+PATCH_SHA256=D5DE326F61EDE3D4776392C158587B89A7098B38274C8B6C0E7AB7B0BB0D319D
+APPLY_CHECK=git -c core.autocrlf=false apply --whitespace=error --check <patch> : PASS against main preimages
+REPLAY=isolated scratch apply : PASS, four exact target hashes match rebaseline manifest
+PYTEST=python -m pytest -p no:asyncio tests/unit/scripts/test_verify_iteration41_writer_dispositions.py -q --tb=short : 6 passed in 8.97s
+CLI=python scripts/verify_iteration41_writer_dispositions.py --source-root . --checklist <candidate checklist> : exit 0, PASS 460/460, six tombstones, no reasons
+PY_COMPILE=python -m py_compile scripts/verify_iteration41_writer_dispositions.py tests/unit/scripts/test_verify_iteration41_writer_dispositions.py : exit 0
+RUFF=ruff check --config D:\source_code\backtrader\pyproject.toml scripts/verify_iteration41_writer_dispositions.py tests/unit/scripts/test_verify_iteration41_writer_dispositions.py : All checks passed
+BLACK=repository config unavailable (installed black 0.0 rejects configured py312); fallback diff/line100/py311 flags unchanged baseline hunks only; full --check remains non-clean
+PROBE=python r2_preservation_probe.py : valid control PASS; 12 malformed preservation/history/lineage/list inputs REJECTED; zero exceptions

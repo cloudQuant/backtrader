@@ -1,0 +1,20 @@
+{
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.r2_copy_verification.v1",
+  "status": "AUTHOR_CANDIDATE / NO_G4 / NO_G6-S",
+  "source_manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+  "payload_file_count": 191,
+  "copied_candidate_files_and_zip_verified": 194,
+  "copied_payload_hash_mismatches": [],
+  "zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+  "zip_entry_count": 193,
+  "zip_crc": "valid",
+  "evidence_readme_path": "docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\README.md",
+  "evidence_readme_sha256_at_copy_index_snapshot": "306fcc54d549062691f30523b2820a6cbb458aefa159a6db56e0211b3f42fc75",
+  "evidence_readme_hash_note": "Snapshot only; README is shared and may receive later appends; candidate payload does not depend on this hash.",
+  "default_route_or_pin_changed": false,
+  "native_loaded_or_called": false,
+  "provider_or_network_called": false,
+  "G4_accepted": false,
+  "G6S_accepted": false,
+  "evidence_readme_hash_snapshot_utc": "2026-09-27T01:43:41Z"
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="2.742" timestamp="2026-09-27T07:33:11.306140" hostname="yun"><testcase classname="tests.integration.test_iteration41_managed_replay_l2" name="test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline" time="0.004"><failure message="tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory">tests\integration\test_iteration41_managed_replay_l2.py:177: in test_cli_bootstrap_runs_the_registered_managed_fake_provider_l2_and_stays_offline
+    environment["PYTHONPATH"] = iteration41_child_pythonpath(_sdk_sources)
+tests\test_utils\iteration41_source_roots.py:178: in iteration41_child_pythonpath
+    raise Iteration41SourceRootError(
+E   tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory</failure></testcase><testcase classname="tests.integration.test_iteration41_managed_cancellation_composition" name="test_managed_cancellation_is_journaled_idempotent_and_never_falls_back[offline_fake-3-2-reconciled]" time="0.004"><failure message="tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory">tests\integration\test_iteration41_managed_cancellation_composition.py:755: in test_managed_cancellation_is_journaled_idempotent_and_never_falls_back
+    environment["PYTHONPATH"] = iteration41_child_pythonpath(_sdk_sources)
+tests\test_utils\iteration41_source_roots.py:178: in iteration41_child_pythonpath
+    raise Iteration41SourceRootError(
+E   tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory</failure></testcase><testcase classname="tests.integration.test_iteration41_managed_cancellation_composition" name="test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart" time="0.003"><failure message="tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory">tests\integration\test_iteration41_managed_cancellation_composition.py:1202: in test_unknown_cancel_after_lease_takeover_blocks_live_bridge_until_restart
+    environment["PYTHONPATH"] = iteration41_child_pythonpath(_sdk_sources)
+tests\test_utils\iteration41_source_roots.py:178: in iteration41_child_pythonpath
+    raise Iteration41SourceRootError(
+E   tests.test_utils.iteration41_source_roots.Iteration41SourceRootError: BT_API_TEST_GUARD_ROOT must be an existing absolute directory</failure></testcase></testsuite></testsuites>

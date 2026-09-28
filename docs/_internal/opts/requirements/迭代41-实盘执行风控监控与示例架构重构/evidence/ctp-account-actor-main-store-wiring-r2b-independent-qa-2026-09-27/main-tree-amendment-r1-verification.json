@@ -1,0 +1,9 @@
+{
+  "zip_sha256": "6b05af6e7ff28d1ce73f79852aae5db5d26599c1a29f59746a213516ecf2c271",
+  "zip_testzip": "clean",
+  "zip_member_count": 5,
+  "indexed_payload_count": 4,
+  "index_sha256": "213ecf87f7374a2593330cced533a1ecc47df112ec2bc8edaa51000eaf090429",
+  "main_junit_files_not_duplicated": true,
+  "raw_junit_location": "../ctp-account-actor-r2b-main-integration-2026-09-27/"
+}

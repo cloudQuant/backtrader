@@ -1,0 +1,88 @@
+{
+  "status": "SMOKE_ONLY",
+  "acceptance": "NOT_ACCEPTED_FULL_MATRIX",
+  "exit_code": 2,
+  "source_directory": "D:\\temp\\iteration41-bm59-cpu-diagnostic-20260926-1933",
+  "source_harness_sha256": "f9d89f460522eaf36b6ed7a70908d0ea05598d8de36cd0717f5218b7faef228d",
+  "temporary_changes": {
+    "smoke_duration_seconds": [
+      3,
+      300
+    ],
+    "smoke_warmup_events": [
+      20,
+      1000
+    ]
+  },
+  "root_independent_verification": {
+    "producer_rows": 6000,
+    "consumer_rows": 6000,
+    "resource_rows": 5442,
+    "exact_measurement_id_sets_match": true,
+    "checkpoint": 7000,
+    "cpu_fixed_300s_percent": 4.026041666666667,
+    "lateness_over_50ms": [
+      {
+        "index": 1057,
+        "lateness_ns": 93395500
+      },
+      {
+        "index": 1058,
+        "lateness_ns": 89012700
+      },
+      {
+        "index": 4604,
+        "lateness_ns": 80058400
+      },
+      {
+        "index": 4605,
+        "lateness_ns": 68272500
+      }
+    ]
+  },
+  "host_window": "Other nine agents deferred pytest/builds/subprocess tests during this run; no claim that every external host process was idle.",
+  "artifact_manifest": {
+    "run-start.txt": {
+      "sha256": "d0dc8e12ba922873ebfbc29cd9013dec021b9a92fe0eee02586b262ccc08b1bf",
+      "bytes": 35
+    },
+    "run-end.txt": {
+      "sha256": "b285be1766b0914591c7d906bd1add6c2c1cc7de325964a1080a11e6778ad2e4",
+      "bytes": 48
+    },
+    "run.stdout.txt": {
+      "sha256": "600258cc415587c36c66b87852b07125e46e253c5881a98e978776a2bc264738",
+      "bytes": 365
+    },
+    "source-diff.patch": {
+      "sha256": "62fa2d769c48db8ac993e21b0e0beba11f3a87057abcf4f3539043c8ee38fee4",
+      "bytes": 1159
+    },
+    "run_iteration41_monitor_benchmark.py": {
+      "sha256": "fb8b8da091ee0eed60bde081142eb6088e14bc1acc147aaa747c039b20ffdf36",
+      "bytes": 22222
+    },
+    "run/result.json": {
+      "sha256": "4e48832730822d7f9f88d1174558e36aa07260fb122dcdeebc67f545c5e562bf",
+      "bytes": 4594
+    },
+    "run/consumer-summary.json": {
+      "sha256": "df51be9df31bbc90942ce35f138e4e01669cad1530197795bdee04435d38b773",
+      "bytes": 1252
+    },
+    "run/producer-samples.csv": {
+      "sha256": "6d62f819e3e006b04e58b10cfb39976c07a4ac1ee3e9345f188e3798ae46523f",
+      "bytes": 322940
+    },
+    "run/consumer-samples.csv": {
+      "sha256": "b9d50439fa5f039b46f10ede2605e00eefc5e0895ea459499e14ef8b7db2e484",
+      "bytes": 304942
+    },
+    "run/consumer-resources.csv": {
+      "sha256": "17d7b926bed00f1f2c9630bd52746f23244dedf40daaa24cf61a149290035578",
+      "bytes": 202579
+    }
+  },
+  "raw_zip_sha256": "a1d9aa6ad5ad9b990905c50f68f1f5a2c4741d9f13021b299523bcb690a5d7ff",
+  "production_or_native_io": "none; process-local audit guard only, not OS isolation"
+}

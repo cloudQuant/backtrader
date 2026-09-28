@@ -1,0 +1,10 @@
+# LOCAL_REPLAY_ONLY: copy to config.yaml in this registered directory.
+# This wrapper never accepts SimNow, live, account, approval, or provider settings.
+config_schema_version: 4
+strategy:
+  id: example.014_2.ctp_options_midfreq
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_edge

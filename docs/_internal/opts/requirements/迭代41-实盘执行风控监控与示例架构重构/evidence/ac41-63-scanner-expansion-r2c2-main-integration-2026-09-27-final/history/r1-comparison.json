@@ -1,0 +1,20 @@
+{
+  "baseline_id_digest": "e482c7b95050c4573e10d0ee46829470877936cdd9f87f228772f82cf0327f7e",
+  "baseline_ids": 389,
+  "baseline_records_equal_by_id": true,
+  "baseline_relative_order_preserved": true,
+  "candidate_id_digest": "33ec3e5bcd575cab2bf63a4300c535016c0095d514c67d351c0d0af302c0a973",
+  "candidate_ids": 445,
+  "coverage_status": "BASELINE_CLASSIFIED",
+  "discovered_paths": 211,
+  "dynamic_new_count": 39,
+  "file_list_equal": true,
+  "files_scanned": 349,
+  "matches_author_frozen_candidate_inventory": true,
+  "missing_baseline_paths": 0,
+  "new_ids": 56,
+  "parse_errors": 0,
+  "private_state_source_paths": [],
+  "unclassified_paths": 0,
+  "writer_new_count": 17
+}

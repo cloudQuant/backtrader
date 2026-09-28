@@ -1,0 +1,270 @@
+--- a/source/store_boundary_harness.py
++++ b/source/store_boundary_harness.py
+@@ -41,7 +41,13 @@
+         self._route_snapshot: StoreRouteSnapshot = capture_store_route_snapshot(route)
+         if self._route_snapshot.route_kind is not self.route_kind:
+             raise AccountActorGateError("store_route_changed_during_construction")
++        # Retain only immutable selector facts from the accepted snapshot.
++        # Never use the mutable descriptor dictionary after an injected
++        # callback has had an opportunity to mutate it.
+         route_fields = object.__getattribute__(route, "__dict__")
++        route_backend = route_fields["backend"]
++        route_api_present = route_fields["api"] is not None
++        route_api_cls_present = route_fields["api_cls"] is not None
+         if self.route_kind is RouteKind.CTP:
+             if type(actor_context) is not ActorCommandContextV1:
+                 raise AccountActorGateError("actor_command_context_required")
+@@ -53,13 +59,22 @@
+         # This ordering models the production boundary: classification and the
+         # unavailable-actor rejection precede credential resolution too.
+         if self.route_kind is RouteKind.NON_CTP and credential_resolver is not None:
++            self._require_current_route_snapshot()
+             credential_resolver()
++            # A resolver is caller code and may mutate a shared nested route.
++            # Stop before any gateway/client factory or subsequent route use.
++            self._require_current_route_snapshot()
+         if self.route_kind is RouteKind.NON_CTP:
+-            if route_fields["api"] is not None or route_fields["api_cls"] is not None:
++            if route_api_present or route_api_cls_present:
+                 raise AccountActorGateError("store_route_changed_during_construction")
+-            if route_fields["backend"] == "gateway":
+-                self.api = gateway_factory() if gateway_factory is not None else None
+-        elif route_fields["api"] is not None or route_fields["api_cls"] is not None:
++            if route_backend == "gateway" and gateway_factory is not None:
++                self._require_current_route_snapshot()
++                api = gateway_factory()
++                # Factories are executable callbacks too. Do not publish or
++                # use their result if the route changed during construction.
++                self._require_current_route_snapshot()
++                self.api = api
++        elif route_api_present or route_api_cls_present:
+             # The gate above rejects these for an actor-owned CTP route.
+             raise AccountActorGateError("local_ctp_client_injection_forbidden")
+ 
+
+--- a/source/README.md
++++ b/source/README.md
+@@ -1,4 +1,4 @@
+-# External CTP Account Actor Port — offline candidate r5
++# External CTP Account Actor Port — offline candidate r6
+ 
+ This isolated candidate hardens the route snapshot and local fake boundary. It does not edit or import the main Backtrader package, implement a remote service, or create a CTP write route. Unknown providers, ambiguous gateway selectors, and raw `api`/`api_cls` injection fail closed without inspecting injected objects.
+ 
+@@ -6,7 +6,9 @@
+ 
+     python -m unittest discover -s tests -v
+ 
+-The default CTP command path rejects with `trusted_durable_remote_actor_unavailable`, even when a local fake port is supplied. Tests that deliberately exercise fake command/receipt plumbing use the separate `store_boundary_harness_testonly.LocalFakeStoreBoundaryHarness` module and a `FakeLocalActorReplayLedger`. The ordinary harness has no local fake-dispatch switch. The test-only mode has no durable or cross-process uniqueness and is not imported by Backtrader, a Store, or a runtime registry. Route snapshots are rehashed before every submit/cancel. Mutations fail closed; an equal-content replacement mapping keeps the same semantic digest.
++The default CTP command path rejects with `trusted_durable_remote_actor_unavailable`, even when a local fake port is supplied. Tests that deliberately exercise fake command/receipt plumbing use the separate `store_boundary_harness_testonly.LocalFakeStoreBoundaryHarness` module and a `FakeLocalActorReplayLedger`. The ordinary harness has no `test_only_local_fake_dispatch` flag. Importing the separate test-only class is an explicit caller-controlled test path; that caller choice is not an external authority, production safety gate, or authorization. The test-only mode has no durable or cross-process uniqueness and is not imported by Backtrader, a Store, or a runtime registry.
++
++Route snapshots are recaptured and compared before and after each constructor callback (`credential_resolver` and `gateway_factory`) and before gateway construction. If a resolver mutates shared route state, construction stops before any gateway/API factory. If a gateway factory mutates the route, the post-callback check rejects and its result is not published. Submit/cancel also rehash the route before dispatch. Mutations fail closed; an equal-content replacement mapping keeps the same semantic digest. These checks cover the tested synchronous callback sequence; they do not make arbitrary concurrent writes to shared mutable route data atomic.
+ 
+ The tests cover stale context/receipt bindings, CTP environment-downgrade attempts, nested route maps, route mutation, cross-process/reopen replay attempts, unknown providers, and injected API objects with trap properties. `ActorCommandContextV1`, the typed V2 intents/receipts, and the in-memory ledger remain local contract fixtures, not authenticated actor authority.
+ 
+
+--- a/source/INTEGRATION_CONTRACT.md
++++ b/source/INTEGRATION_CONTRACT.md
+@@ -40,17 +40,22 @@
+ candidate rules, not a claim that all historical BtApiStore paths have been
+ integrated.
+ 
+-## r5 immutable route snapshot and authority limit
++## r6 immutable route snapshot and authority limit
+ 
+ `StoreRouteSnapshot` stores a frozen route kind, canonical bytes, and SHA-256
+ digest. It accepts only the exact route descriptor and built-in nested values,
+ and reads the descriptor's instance dictionary instead of invoking caller
+ properties or mapping methods. API/API-class objects are represented only as
+ presence bits; the route gate rejects their injection before snapshot use.
+-Submit and cancel recapture and compare the digest and canonical bytes
+-before dispatch. A changed nested field or route selector rejects before
+-legacy dispatch; replacing a mapping with equal canonical content is allowed
+-because the route meaning is unchanged.
++Construction rechecks the digest and canonical bytes immediately before and
++after each injected resolver/factory callback. A resolver that changes a
++shared nested route is rejected before the gateway factory runs; a gateway
++factory that changes it is rejected before its result is published. Submit
++and cancel also recapture and compare before dispatch. A changed nested field
++or route selector rejects before later harness dispatch; replacing a mapping
++with equal canonical content is allowed because the route meaning is
++unchanged. These synchronous checks do not provide atomicity against arbitrary
++concurrent mutation of caller-owned mutable route data.
+ 
+ `ActorCommandContextV1` carries account reference, runtime id, mode, config
+ digest, session id, session generation, and expected actor epoch. The V2
+@@ -66,8 +71,10 @@
+ trusted durable remote Actor exists; this candidate has no trust handshake or
+ implementation for one. The separate
+ `store_boundary_harness_testonly.LocalFakeStoreBoundaryHarness` module opts
+-into fake actor calls for unit tests. The ordinary harness exposes no fake
+-dispatch flag. The test-only module uses an in-memory ledger to check
++into fake actor calls for unit tests. The ordinary harness exposes no
++`test_only_local_fake_dispatch` flag. Importing that separate class is a
++caller-controlled test entry point and cannot serve as external authority or
++a production security gate. The test-only module uses an in-memory ledger to check
+ same-process duplicate calls and is not imported by Backtrader, a Store, or a
+ runtime registry. It makes no cross-process, durability, account-fence, or
+ external-authority claim. Fresh processes submitting the same command both
+
+--- a/tests/test_store_boundary_harness.py
++++ b/tests/test_store_boundary_harness.py
+@@ -515,8 +515,158 @@
+         self.assertEqual(counters.connected, 0)
+         self.assertEqual(counters.native_calls, 0)
+ 
++    def test_constructor_rechecks_route_after_resolver_before_any_factory(self):
++        class OpaqueApi:
++            reads = 0
++
++            @property
++            def probe(self):
++                type(self).reads += 1
++                raise AssertionError("opaque API descriptor must not be read")
++
++        route = StoreRouteDescriptor(
++            provider="gateway",
++            backend="gateway",
++            config={"exchange_type": "IB_WEB"},
++        )
++        calls = {"resolver": 0, "gateway": 0, "api": 0}
++        opaque_api = OpaqueApi()
++
++        def resolve_credentials():
++            calls["resolver"] += 1
++            # This remains a syntactically valid mutable descriptor, but it no
++            # longer denotes the snapshot accepted at constructor entry.
++            route.config["exchange_type"] = "CTP"
++            object.__setattr__(route, "api", opaque_api)
++
++        def gateway_factory():
++            calls["gateway"] += 1
++            return object()
++
++        def api_factory():
++            calls["api"] += 1
++            return object()
++
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            StoreBoundaryHarness(
++                route,
++                credential_resolver=resolve_credentials,
++                gateway_factory=gateway_factory,
++                api_factory=api_factory,
++            )
++
++        self.assertEqual(calls, {"resolver": 1, "gateway": 0, "api": 0})
++        self.assertEqual(OpaqueApi.reads, 0)
++
++    def test_constructor_detects_same_kind_nested_route_change_after_resolver(self):
++        route = StoreRouteDescriptor(
++            provider="gateway",
++            backend="gateway",
++            config={"exchange_type": "IB_WEB"},
++        )
++        calls = {"resolver": 0, "gateway": 0}
++
++        def resolve_credentials():
++            calls["resolver"] += 1
++            # Both values classify as NON_CTP. The constructor must compare
++            # the canonical route bytes/digest, not just its RouteKind.
++            route.config["exchange_type"] = "MT5"
++
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            StoreBoundaryHarness(
++                route,
++                credential_resolver=resolve_credentials,
++                gateway_factory=lambda: calls.__setitem__("gateway", calls["gateway"] + 1),
++            )
++
++        self.assertEqual(calls, {"resolver": 1, "gateway": 0})
++
++    def test_constructor_recheck_does_not_evaluate_replaced_route_mapping(self):
++        class TrapMapping(dict):
++            reads = 0
++
++            def items(self):
++                type(self).reads += 1
++                raise AssertionError("custom route mapping must not be traversed")
++
++        route = StoreRouteDescriptor(
++            provider="gateway",
++            backend="gateway",
++            config={"exchange_type": "IB_WEB"},
++        )
++        calls = {"resolver": 0, "gateway": 0}
++
++        def resolve_credentials():
++            calls["resolver"] += 1
++            object.__setattr__(route, "config", TrapMapping(exchange_type="IB_WEB"))
++
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            StoreBoundaryHarness(
++                route,
++                credential_resolver=resolve_credentials,
++                gateway_factory=lambda: calls.__setitem__("gateway", calls["gateway"] + 1),
++            )
++
++        self.assertEqual(calls, {"resolver": 1, "gateway": 0})
++        self.assertEqual(TrapMapping.reads, 0)
++
++    def test_constructor_rechecks_route_after_gateway_factory(self):
++        route = StoreRouteDescriptor(
++            provider="gateway",
++            backend="gateway",
++            config={"exchange_type": "IB_WEB"},
++        )
++        calls = {"resolver": 0, "gateway": 0, "api": 0}
++
++        def resolve_credentials():
++            calls["resolver"] += 1
++
++        def gateway_factory():
++            calls["gateway"] += 1
++            route.config["symbol_routes"] = {"IF2601": "CTP"}
++            return object()
++
++        def api_factory():
++            calls["api"] += 1
++            return object()
++
++        with self.assertRaisesRegex(
++            AccountActorGateError, "store route changed after construction"
++        ):
++            StoreBoundaryHarness(
++                route,
++                credential_resolver=resolve_credentials,
++                gateway_factory=gateway_factory,
++                api_factory=api_factory,
++            )
++
++        # A factory's own effects cannot be rolled back by a later check. The
++        # check does prevent the harness from publishing its result or moving
++        # to any later client/API factory.
++        self.assertEqual(calls, {"resolver": 1, "gateway": 1, "api": 0})
++        self.assertEqual(route.config["exchange_type"], "IB_WEB")
++
+     def test_default_fake_port_never_claims_cross_process_or_reopen_uniqueness(self):
+         intent = submit_intent(intent_id="reopen-replay")
++
++        # A caller-controlled boolean is not the test-only opt-in and is not
++        # accepted by the ordinary harness constructor.
++        ordinary_actor = FakeActorPort()
++        with self.assertRaises(TypeError):
++            StoreBoundaryHarness(
++                StoreRouteDescriptor(provider="ctp", backend="direct"),
++                actor_port=ordinary_actor,
++                actor_context=actor_context(),
++                test_only_local_fake_dispatch=True,
++            )
++        self.assertEqual(ordinary_actor.submits, [])
++        self.assertEqual(ordinary_actor.cancels, [])
+ 
+         for _ in range(2):
+             actor = FakeActorPort()
+

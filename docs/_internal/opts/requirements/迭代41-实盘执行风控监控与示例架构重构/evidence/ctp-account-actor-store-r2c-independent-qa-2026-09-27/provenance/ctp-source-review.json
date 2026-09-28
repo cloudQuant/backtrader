@@ -1,0 +1,63 @@
+{
+  "schema": "iteration41.local_evidence.v1",
+  "status": "SOURCE_FAKE_SLICE_ACCEPTED",
+  "sdk_commit": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "sdk_tree": "a7ebae409036aa69a18dc71e2063ad149b0f4741",
+  "root_result": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "63",
+    "time": "0.538",
+    "timestamp": "2026-09-26T21:37:01.223729",
+    "hostname": "yun"
+  },
+  "source_receipt": {
+    "exit_code": 0,
+    "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "prefix": "D:\\q\\strict-consumer",
+    "origins": {
+      "bt_api_base": "D:\\q\\strict-consumer\\Lib\\site-packages\\bt_api_base\\__init__.py",
+      "bt_api_ctp": "D:\\q\\e\\src\\bt_api_ctp\\__init__.py",
+      "bt_api_ctp.ctp.client": "D:\\q\\e\\src\\bt_api_ctp\\ctp\\client.py"
+    },
+    "before": {
+      "D:\\q\\e\\src\\bt_api_ctp\\ctp\\client.py": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+      "D:\\q\\e\\tests\\test_ctp_callback_ingress_client.py": "2950f29a32b8fff49f293554fc3765d8c0a8e566eea0207a7444380fd9251bcd",
+      "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simulation_query_evidence.py": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_ctp_simulation_query_evidence.py": "f54ce3af74f624b723bc1bcbf4163ccb6556aa995f9dab0a936365c23b5b0c41"
+    },
+    "after": {
+      "D:\\q\\e\\src\\bt_api_ctp\\ctp\\client.py": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+      "D:\\q\\e\\tests\\test_ctp_callback_ingress_client.py": "2950f29a32b8fff49f293554fc3765d8c0a8e566eea0207a7444380fd9251bcd",
+      "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simulation_query_evidence.py": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_ctp_simulation_query_evidence.py": "f54ce3af74f624b723bc1bcbf4163ccb6556aa995f9dab0a936365c23b5b0c41"
+    },
+    "native_blocked_attempts": [
+      "bt_api_ctp.ctp._ctp",
+      "bt_api_ctp.ctp._ctp"
+    ],
+    "native_loaded": false,
+    "scope": "source-only SDK candidate plus installed base; no wheel acceptance"
+  },
+  "raw_zip_sha256": "ed09e7358784c20b86377b1bf4279111446aa6f84a10ff9d0a1fa93ef35120e2",
+  "raw_payload_sha256": {
+    "author/md-profile-focus-v2.log": "75b2483c2bd995650bea8be02ccabc577a4524447f3c7ff45b588b6ad2eeb73a",
+    "author/md-profile-query-v2.log": "39146d1cf3e5d6cc9d576615245052645f57a532cad073dedcad7d9208f5f8c2",
+    "author/md-profile-query-v2.xml": "9333dfbfa3b53b6ce786f0ef521e4f22f40baa75b755718256f444e3d576284c",
+    "independent.log": "b4ef034fa0764c20d64eb0d7f32aa00984616ee234417e9d00fef4bd56d4be60",
+    "main/backtrader_runtime/ctp_simulation_query_evidence.py": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+    "main/tests/unit/runtime/test_ctp_simulation_query_evidence.py": "f54ce3af74f624b723bc1bcbf4163ccb6556aa995f9dab0a936365c23b5b0c41",
+    "receipt.json": "07d8581ef407d99babb8ac133c4bdc71d928a36c88aa194a95268638ed3382c6",
+    "result.xml": "e6d9389c58dbbba8e8fbf8171bfce375ffae41dc73b22476281352236bc22bb6",
+    "runner.py": "7e3e4cd881ebbc370b59b5c74264d5c32102a6c1ce405473ff833d947f3e9744",
+    "sdk/src/bt_api_ctp/ctp/client.py": "bf915128c41da83efdff517e3ea711c43d7555406bd831a0dfcd775b64840d1c",
+    "sdk/tests/test_ctp_callback_ingress_client.py": "2950f29a32b8fff49f293554fc3765d8c0a8e566eea0207a7444380fd9251bcd"
+  },
+  "limitations": [
+    "SDK source plus installed base; not installed SDK wheel acceptance",
+    "No native extension, network, private config, provider or credential access",
+    "Readonly properties constrain ordinary assignment, not hostile in-process Python"
+  ]
+}

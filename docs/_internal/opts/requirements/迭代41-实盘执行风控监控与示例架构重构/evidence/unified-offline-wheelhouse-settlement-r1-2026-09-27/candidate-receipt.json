@@ -1,0 +1,78 @@
+{
+  "schema": "iteration41.unified_offline_wheelhouse_settlement.receipt.v1",
+  "classification": "FAKE_ONLY / NO_RELEASE / G1-G5_NOT_ACCEPTED",
+  "candidate_root": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1",
+  "wheelhouse_count": 52,
+  "hash_lock_file": "requirements-hashes.txt",
+  "installation": {
+    "python": "CPython 3.11.5 Windows x64",
+    "pip_no_index": true,
+    "require_hashes": true,
+    "hash_locked_install_exit": 0,
+    "direct_root_wheel_reinstall_exit": 0,
+    "pip_check_exit": 0,
+    "pip_check_result": "No broken requirements found.",
+    "installed_record_rows_checked": 13147,
+    "installed_record_errors": 0,
+    "pep610_roots_match_wheel_hashes": true,
+    "all_install_report_urls_are_candidate_local_file_urls": true,
+    "loaded_ctp_modules": [],
+    "loaded_native_modules": []
+  },
+  "artifacts": {
+    "bt_api_py": {
+      "version": "0.15.7.dev0+r4r3r3.67e54513",
+      "sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+    },
+    "bt_api_execution": {
+      "version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+      "sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+    },
+    "bt_api_base": {
+      "version": "0.15.4",
+      "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+      "source_match": "104/104 Python package files; no independent A/B rebuild here"
+    },
+    "bt_api_ctp": {
+      "version": "2.0.4+g4r2.settlement.probe.20260927",
+      "filename": "bt_api_ctp-2.0.4+g4r2.settlement.probe.20260927-cp311-cp311-win_amd64.whl",
+      "build_a_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+      "build_b_sha256": "857b06c914cfc4f58bc04a77f11b77ad5dc3c47dc2be4d9d18b8e2fc805b264d",
+      "same_version_collision_excluded_from_lock": true,
+      "native_payload_loaded": false
+    }
+  },
+  "ctp_source_lineage": {
+    "clean_g4_source_a_manifest_sha256": "10AA5DAE8464DCCCFF6AC831FF7E6E63106EFEF6ADCAE81C00EAC38618D45B9A",
+    "settlement_overlay_manifest_sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+    "client_py_sha256": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+    "filter_readback_source_lines": "clean G4 source-a client.py SHA C217BE...: query_settlement_confirmation_result 8021-8051 passes native filter/readback arguments at 8049-8050; _execute_query 7491-7547 reads native getters before send",
+    "overlay_source_files": {
+      "ctp_native_query_certificate.py": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+      "bt_api_ctp/__init__.py": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+      "tests/test_ctp_settlement_query_evidence.py": "D8CE90248ACBF87EE8E05525E4102EB9D917AC7E13E42D2FEB2D0C3BC11B4E65"
+    },
+    "only_non_frozen_source_edit": "pyproject.toml version metadata to unique 2.0.4+g4r2.settlement.probe.20260927",
+    "fake_source_tests": "48 passed",
+    "readiness_consumer_gap": "main readiness does not consume settlement-specific source/callback evidence; no native authorization is established",
+    "sdk_ready_promotion_lines": "verify_settlement_confirmation 8062-86 checks complete/generation/account; row accepts TradingDay or ConfirmDate equal expected TradingDay; 8108-15 promotes _ready=True",
+    "main_readiness_gap": "settlement builder not wired to main readiness; current SDK-promoted readiness is trusted. backtrader_runtime/ctp_simnow_native_readiness.py:607-615 emits MD/TD flags only.",
+    "ctp_settlement_row_field_limit": "native CTP settlement-confirmation row has ConfirmDate but no TradingDay; session TradingDay is separate QuerySource evidence"
+  },
+  "safety_boundary": {
+    "main_repo_modified": false,
+    "protected_config_modified": false,
+    "default_pin_modified": false,
+    "credentials_read": false,
+    "network_or_provider_calls": false,
+    "native_calls": false,
+    "official_7x24_rule": "exact selected pair; fail closed with zero write if exact current settlement provenance is unproved; no time/set fallback",
+    "acceptance": "G4/G6-S/G7-S and default route remain closed"
+  },
+  "diagnostics": {
+    "old_same_version_g4_wheel_sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384",
+    "old_same_version_settlement_overlay_sha256": "76dadbce12b5ac469b5b791af65c9195fa848cc76fa9e762d7c17932bef45baf",
+    "old_collision_artifacts_in_final_wheelhouse": false,
+    "initial_record_audit_false_positive": "copied v1 audit expected the old wheelhouse URL prefix; fixed audit passes and initial log/json retained"
+  }
+}

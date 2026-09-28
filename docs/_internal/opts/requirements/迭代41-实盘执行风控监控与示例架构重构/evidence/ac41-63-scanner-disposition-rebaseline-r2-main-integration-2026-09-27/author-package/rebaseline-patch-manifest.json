@@ -1,0 +1,84 @@
+{
+  "schema": "ac41-63-writer-disposition-rebaseline-patch.v2",
+  "decision": "NO_WRITE / LIVE_NO_GO",
+  "patch_file": "writer-inventory-dispositions-460-r2.patch",
+  "patch_sha256": "D5DE326F61EDE3D4776392C158587B89A7098B38274C8B6C0E7AB7B0BB0D319D",
+  "patch_apply_target": "current main only after independent QA; this package does not apply it",
+  "strict_apply_check": "passed on exact current main and isolated exact-base replay with core.autocrlf=false and --whitespace=error",
+  "isolated_exact_replay_target_hashes_match": true,
+  "changed_files": {
+    "scripts/verify_iteration41_writer_dispositions.py": {
+      "preimage_sha256": "633AD4749EAEBF54E8A6BE257A6DBBE1900326992122EEDD5C161B3485EE42E1",
+      "target_sha256": "8508BF4E394BFB77EA369710B3A37AA1F6FA987DF4484BFEA413CA4ACC97CA53",
+      "preimage_bytes": 16725,
+      "target_bytes": 23244
+    },
+    "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": {
+      "preimage_sha256": "E1E9A96A040AC510B4BB48A13195651D71199D9C4B7071083EB617B14F3B3F49",
+      "target_sha256": "4CE31FE03CF0671FD573157E27DBF3E8D35266B6FBACE96A830CF8F0F8A73824",
+      "preimage_bytes": 7972,
+      "target_bytes": 13992
+    },
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json": {
+      "preimage_sha256": "FACBBC93067D77A317E3A0ABDE5EF89BC77BD53E4A4EB18722B51124E3E20780",
+      "target_sha256": "D81C98A73E32B8D2CFB39034FCC1DCEAD7EA5434CDF38C8ADC30AB6B47A60710",
+      "preimage_bytes": 198905,
+      "target_bytes": 225377
+    },
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-writer-dispositions.json": {
+      "preimage_sha256": "E6ECE21E16AF6C6A6220431DD0C2669D81206A136B500DFD5214CA766818E841",
+      "target_sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426",
+      "preimage_bytes": 454683,
+      "target_bytes": 517507
+    }
+  },
+  "source_inventory_sha256": "D81C98A73E32B8D2CFB39034FCC1DCEAD7EA5434CDF38C8ADC30AB6B47A60710",
+  "source_inventory_collector_sha256": "B37ED7A309C057B4F97AB8E96FE20D3E840D54084B6BCA8EDBEF3491230AB6E3",
+  "source_path_scope_baseline_sha256": "C473B4390D70477978C0EB9673E267244D78A57D0ACB2E8DF6D5F7D3BFA60DD7",
+  "g6_r4_identity": {
+    "candidate_manifest_sha256": "8BFCFB67C5D8DE21D56E3D03D63478F81375E65F86B0F8C98E144A197B7F994F",
+    "candidate_patch_sha256": "E9C3996CC836C2D7628BA92C569060CFA78C140768CF612DB7F395F66CF2CA22",
+    "candidate_delta_inventory_sha256": "6D91F4474CDF69C5F776442EA23C3F87C3122447F83970ABA348A1953CDAC337",
+    "proposed_21_crosswalk_sha256": "45AC3621456E49426D491C3F0D01D616D5C35C149B4446062D1E2E8C8D1743E9",
+    "r4_target_count": 10,
+    "r4_target_hash_matches": 9,
+    "r4_verified_target_sha256": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": "74E1D790CFC3157AE54ADFBD918244BBA6BB311B719E775AB7E797E68A5AAF26",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": "1CB3CFA6534DA6974E7EC656AC54C413445401C819B3EFD48E57C6BE54CB7409",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": "A268127F1E9D0A04CD1C326C0C72EFC6372E5B0B643D87E4D2B71878D603DC0C",
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1",
+      "backtrader_runtime/_local_fake_account_actor_candidate/LOCAL_FAKE_ONLY.md": "2B56C26DEBD5C330084EF05D53E108A25F7F9C118CE0CC64146A9D139755A757",
+      "tests/unit/runtime/test_local_fake_account_actor_server_core_candidate.py": "4BBF23974897FE8B37B4D59294BE468376E7B761AE807C6B0763F2E0AD06C0F5",
+      "tests/unit/runtime/test_local_fake_account_actor_store_boundary_candidate.py": "31BA27D73FDFAD55BA0DAFCB1C22D08FC851D29863ECFC62BF30689DAD4C001B"
+    },
+    "scanner_source_target_count": 6,
+    "integrated_scanned_source_sha256": {
+      "backtrader_runtime/_local_fake_account_actor_candidate/__init__.py": "74E1D790CFC3157AE54ADFBD918244BBA6BB311B719E775AB7E797E68A5AAF26",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_port.py": "1CB3CFA6534DA6974E7EC656AC54C413445401C819B3EFD48E57C6BE54CB7409",
+      "backtrader_runtime/_local_fake_account_actor_candidate/account_actor_server_core.py": "92FB8C2F5E71EE7B062B157EC3949C2BC7B743BCFE8B71E0754E30C9F56AF106",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_client.py": "A43F477CA365761BBF18144C20013C82B6B180A0BF2EC4D72FE73C4B12065B31",
+      "backtrader_runtime/_local_fake_account_actor_candidate/fake_actor_service.py": "A268127F1E9D0A04CD1C326C0C72EFC6372E5B0B643D87E4D2B71878D603DC0C",
+      "backtrader_runtime/_local_fake_account_actor_candidate/store_boundary_harness.py": "291EDA0A2F0A31FDE9B66304161BDF86285ABE6A959405ADD6EC04473084D5D1"
+    },
+    "post_r4_test_only_drift": {
+      "tests/unit/runtime/test_local_fake_account_actor_candidate.py": {
+        "r4_target_sha256": "67FE20C2CBDE93CD2B29B21E85472C4675A4D43DDB50A6DF546B442CA3B99018",
+        "current_sha256": "4FCE80027D16D4618B82BD9C6CBC93CFD05A3C45301B4453227C21BB08923EE5"
+      }
+    }
+  },
+  "source_inventory_counts": {
+    "writer_candidates": 363,
+    "dynamic_execution_candidates": 97,
+    "files_scanned": 355,
+    "parse_errors": 0
+  },
+  "active_disposition_count": 460,
+  "historical_tombstone_count": 6,
+  "all_dispositions": "REVIEW_REQUIRED / NOT_AVAILABLE",
+  "main_tree_modified": false,
+  "private_config_or_credentials_read": false,
+  "provider_sdk_network_or_order_io": false
+}

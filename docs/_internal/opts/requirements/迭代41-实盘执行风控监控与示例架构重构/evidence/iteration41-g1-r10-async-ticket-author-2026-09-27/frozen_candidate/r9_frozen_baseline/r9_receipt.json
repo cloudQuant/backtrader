@@ -1,0 +1,10 @@
+{
+  "decision": "R9 demonstrates a narrower prewarmed local topology only; G1 remains closed.",
+  "manifest": "r9_manifest.json",
+  "manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+  "no_provider_or_credentials": true,
+  "no_repo_changes": true,
+  "source_sha256": "92c3bc3a2a85399473059e36f23572f48442778326dbd5cd2917413f1f740b2a",
+  "status": "INERT_PROTOTYPE_ONLY_G1_CLOSED",
+  "trials_sha256": "c848ab2f51360399a399a16a441e66821eb3368ee36bdd44c17d2018dbd50dc7"
+}

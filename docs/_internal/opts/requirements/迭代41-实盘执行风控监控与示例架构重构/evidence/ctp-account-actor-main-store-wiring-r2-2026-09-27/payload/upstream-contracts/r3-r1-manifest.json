@@ -1,0 +1,51 @@
+{
+  "candidate": "ctp-account-actor-port-r3-r1",
+  "created_utc": "2026-09-26T22:52:40Z",
+  "files": [
+    {
+      "path": "account_actor_port.py",
+      "bytes": 17058,
+      "sha256": "c78cbdcbc5b184c1bca96b90d318e19c2b2032f2a3c859234d9b2a2ab59980a3"
+    },
+    {
+      "path": "store_boundary_harness.py",
+      "bytes": 3505,
+      "sha256": "77ab4b0b60f5d4dc83ae25e16168c772f34d3125bdaf64c10cac4895cf5a39e3"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1100,
+      "sha256": "9392935cc9cb502e9a3320bdca14731e0fdf080002a4f043aaced0856b4f1584"
+    },
+    {
+      "path": "INTEGRATION_CONTRACT.md",
+      "bytes": 4601,
+      "sha256": "3c7c039724aa91cb3075e78cbbb3ccb513762f15ec967b5da6b51e65ba28879c"
+    },
+    {
+      "path": "MAIN_SOURCE_INVENTORY.md",
+      "bytes": 2730,
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2"
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "bytes": 19914,
+      "sha256": "6e26495fb0182dc365dfe2d93b2935086bf0c7d288aaef2c8b0d8c75532fcd30"
+    },
+    {
+      "path": "test-results.txt",
+      "bytes": 4286,
+      "sha256": "6a214d67120f80c4db9676ad7b9239864b062bdecaab3a21fbe28d004893d763"
+    },
+    {
+      "path": "ruff-results.txt",
+      "bytes": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "compile-results.txt",
+      "bytes": 46,
+      "sha256": "472c24ecf487096653ac765f2785d25e41c9587c081b1374bcbffc41ed42d64f"
+    }
+  ]
+}

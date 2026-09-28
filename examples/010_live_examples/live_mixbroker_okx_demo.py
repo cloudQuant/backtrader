@@ -1,96 +1,49 @@
 #!/usr/bin/env python
-"""Live MixBroker demo using OKX public market data.
+"""Retired OKX MixBroker demo, pending a reviewed Iteration 41 shadow route.
 
-The example streams tickers, five-level order books, and one-minute bars for
-two OKX perpetual contracts.  It never submits orders and therefore does not
-load API credentials into the exchange client.
+The historical example streamed public market data for two OKX perpetual
+contracts. Its direct network route is paused. Run it only through a future
+registered schema-v4 ``simulation/shadow`` runtime; the current registered
+profile is a local no-action replay probe.
 
 Requirements:
     pip install ccxt[pro]
 
 Usage:
-    python examples/010_live_examples/live_mixbroker_okx_demo.py
+    bt-runtime run --strategy-dir examples/010_live_examples/runtime
 """
 
 import asyncio
-import os
-import socket
 import sys
 import time
 from collections import defaultdict
 from pathlib import Path
-from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import backtrader as bt
-from backtrader.brokers.mixbroker import MixBroker
+from backtrader_runtime.legacy import run_legacy_config_first_cli  # noqa: E402
+
+RUNTIME_DIR = PROJECT_ROOT / "examples" / "010_live_examples" / "runtime"
 
 
-def _load_env():
-    """Load an optional project-root ``.env`` file."""
-    try:
-        from dotenv import load_dotenv
-    except ImportError:
-        return False
-
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.exists():
-        return False
-    load_dotenv(dotenv_path=env_path)
-    return True
+def main(argv=None):
+    """Route the old command through its registered config-first replay gate."""
+    return run_legacy_config_first_cli(RUNTIME_DIR, argv)
 
 
-def _proxy_endpoint(proxy_url):
-    """Return a display-safe proxy endpoint without credentials."""
-    parsed = urlparse(proxy_url)
-    if not parsed.hostname:
-        return "configured proxy"
+if __name__ == "__main__":
+    raise SystemExit(main())
 
-    scheme = f"{parsed.scheme}://" if parsed.scheme else ""
-    port = f":{parsed.port}" if parsed.port else ""
-    return f"{scheme}{parsed.hostname}{port}"
-
-
-def _proxy_is_reachable(proxy_url):
-    """Check that a configured proxy is listening before using it."""
-    parsed = urlparse(proxy_url)
-    host = parsed.hostname
-    if not host:
-        return False
-
-    try:
-        port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        with socket.create_connection((host, port), timeout=1.0):
-            return True
-    except (OSError, ValueError):
-        return False
+import backtrader as bt  # noqa: E402
 
 
 def _build_exchange_config():
-    """Build a public-only CCXT configuration and validate an optional proxy."""
-    config = {
+    """Return the fixed public-only CCXT options without reading environment state."""
+    return {
         "enableRateLimit": True,
         "options": {"defaultType": "swap"},
     }
-
-    credentials = (os.getenv("OKX_API_KEY"), os.getenv("OKX_SECRET"), os.getenv("OKX_PASSWORD"))
-    if all(credentials):
-        print("OKX credentials found but ignored: this public demo never places orders.")
-
-    proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-    if not proxy_url:
-        print("No proxy configured; connecting directly to OKX.")
-        return config, None
-
-    endpoint = _proxy_endpoint(proxy_url)
-    if _proxy_is_reachable(proxy_url):
-        print(f"Using reachable proxy at {endpoint}.")
-        return config, proxy_url
-
-    print(f"Configured proxy at {endpoint} is unreachable; connecting directly to OKX.")
-    return config, None
 
 
 async def _create_exchange(ccxtpro, config, proxy_url):
@@ -286,84 +239,37 @@ async def watch_ohlcv(exchange, symbol, strategy, start_time, duration):
 
 
 async def run_live_stream(strategy, symbols, duration):
-    """Connect to OKX and run all public data watchers concurrently."""
+    """Reject the retired direct network route before importing a provider."""
+    from backtrader_runtime.errors import PRESET_POLICY_VIOLATION, RuntimeConfigError
+    from backtrader_runtime.inventory import iteration41_runtime_registry
+
+    registry = iteration41_runtime_registry()
+    shadow_runtime_dir = PROJECT_ROOT / "examples" / "010_live_examples" / "runtime-okx-shadow"
     try:
-        import ccxt.pro as ccxtpro
-    except ImportError:
-        print("ERROR: ccxt.pro not installed. Install with: pip install ccxt[pro]")
-        return False
+        registration = registry.require_runtime_dir(shadow_runtime_dir)
+    except RuntimeConfigError:
+        raise RuntimeConfigError(
+            PRESET_POLICY_VIOLATION,
+            "the public OKX demo requires a separately reviewed simulation/shadow runtime",
+            field_path="runtime.preset",
+            reason="shadow_registration_required",
+        ) from None
 
-    config, proxy_url = _build_exchange_config()
-    exchange = None
-    try:
-        exchange = await _create_exchange(ccxtpro, config, proxy_url)
-        missing_symbols = [symbol for symbol in symbols if symbol not in exchange.markets]
-        if missing_symbols:
-            print(f"ERROR: Symbols not found in OKX markets: {missing_symbols}")
-            return False
+    # This historical helper accepts caller-supplied strategy objects and
+    # settings, so it cannot dispatch the separately registered sealed runner.
+    if "shadow" not in registration.allowed_presets:
+        raise RuntimeConfigError(
+            PRESET_POLICY_VIOLATION,
+            "the public OKX demo requires a separately reviewed simulation/shadow runtime",
+            field_path="runtime.preset",
+            reason="shadow_registration_required",
+        )
 
-        print("Connected to OKX exchange")
-        print(f"Symbols: {symbols}")
-        print(f"Duration: {duration}s")
-        print("=" * 80)
-
-        start_time = time.time()
-        tasks = []
-        for symbol in symbols:
-            tasks.extend(
-                (
-                    watch_ticker(exchange, symbol, strategy, start_time, duration),
-                    watch_orderbook(exchange, symbol, strategy, start_time, duration),
-                    watch_ohlcv(exchange, symbol, strategy, start_time, duration),
-                )
-            )
-        await asyncio.gather(*tasks)
-        return True
-    finally:
-        if exchange is not None:
-            await exchange.close()
-
-
-def main():
-    """Run the public-data MixBroker demo."""
-    _load_env()
-    symbols = ["BTC/USDT:USDT", "ETH/USDT:USDT"]
-    duration = 30
-
-    print("\n" + "=" * 80)
-    print("Live MixBroker Demo - OKX Multi-Symbol Data Stream")
-    print("=" * 80)
-
-    cerebro = bt.Cerebro()
-    cerebro.setbroker(MixBroker(cash=100000.0))
-    cerebro.addstrategy(LiveMultiSymbolStrategy, symbols=symbols)
-    strategies = cerebro.run(channel=True)
-    strategy = strategies[0]
-
-    try:
-        connected = asyncio.run(run_live_stream(strategy, symbols, duration))
-    except KeyboardInterrupt:
-        print("\nStopped by user")
-        connected = False
-    finally:
-        cerebro.runstop()
-        cerebro.close_channel()
-
-    stats = strategy.get_stats()
-    print("\n" + "=" * 80)
-    print("Results")
-    print("=" * 80)
-    print(f"Duration:           {stats['elapsed']:.1f}s")
-    print(f"Ticks received:     {stats['ticks']}")
-    print(f"Orderbooks:         {stats['orderbooks']}")
-    print(f"Bars:               {stats['bars']}")
-    print(f"next() calls:       {stats['next_calls']}")
-
-    received_all = all(
-        stats["ticks"].get(symbol, 0) and stats["orderbooks"].get(symbol, 0) for symbol in symbols
+    # Keep this legacy function closed; operators use bt-runtime dispatch for
+    # the independent config-first observer.
+    raise RuntimeConfigError(
+        PRESET_POLICY_VIOLATION,
+        "the historical OKX helper cannot dispatch the sealed shadow runtime",
+        field_path="runtime.runner",
+        reason="shadow_dispatch_required",
     )
-    return 0 if connected and received_all and stats["next_calls"] else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

@@ -1,0 +1,679 @@
+--- a/scripts/ctp_i13_i15_worker_output_channel.py
++++ b/scripts/ctp_i13_i15_worker_output_channel.py
+@@ -41,13 +41,26 @@
+ _ERROR_BROKEN_PIPE = 109
+ _ERROR_IO_INCOMPLETE = 996
+ _ERROR_IO_PENDING = 997
++_ERROR_OPERATION_ABORTED = 995
+ _ERROR_MORE_DATA = 234
++_ERROR_NO_DATA = 232
++_ERROR_PIPE_NOT_CONNECTED = 233
+ _ERROR_PIPE_CONNECTED = 535
+ _ERROR_PIPE_BUSY = 231
+ _ERROR_FILE_NOT_FOUND = 2
+ _WAIT_OBJECT_0 = 0
+ _WAIT_TIMEOUT = 0x102
+ _STILL_ACTIVE = 259
++_DEFAULT_IO_DRAIN_SECONDS = 0.25
++_TERMINAL_OVERLAPPED_ERRORS = frozenset(
++    {
++        _ERROR_OPERATION_ABORTED,
++        _ERROR_BROKEN_PIPE,
++        _ERROR_MORE_DATA,
++        _ERROR_NO_DATA,
++        _ERROR_PIPE_NOT_CONNECTED,
++    }
++)
+ 
+ _DUPLICATE_SAME_ACCESS = 0x00000002
+ _FILE_WRITE_DATA = 0x00000002
+@@ -65,9 +78,22 @@
+ _FILE_ATTRIBUTE_NORMAL = 0x00000080
+ _HANDLE_FLAG_INHERIT = 0x00000001
+ 
+-# A constructor cleanup failure is not safely disposable: retain the instance
+-# and its handles so the owning process keeps explicit custody of the failure.
+-_FAILED_CONSTRUCTOR_CHANNELS: list[object] = []
++# An unresolved cancellation/close is not safely disposable: retain the
++# instance, OVERLAPPED objects, events, and native handles in process custody.
++_RETAINED_UNRESOLVED_CHANNELS: list[object] = []
++# Kept as a compatibility alias for the constructor-failure contract tests.
++_FAILED_CONSTRUCTOR_CHANNELS = _RETAINED_UNRESOLVED_CHANNELS
++
++
++def _retain_unresolved_channel(channel: object) -> None:
++    if not any(retained is channel for retained in _RETAINED_UNRESOLVED_CHANNELS):
++        _RETAINED_UNRESOLVED_CHANNELS.append(channel)
++
++
++def _release_retained_channel(channel: object) -> None:
++    _RETAINED_UNRESOLVED_CHANNELS[:] = [
++        retained for retained in _RETAINED_UNRESOLVED_CHANNELS if retained is not channel
++    ]
+ 
+ 
+ class WorkerOutputChannelError(ValueError):
+@@ -456,7 +482,9 @@
+         self._connected = False
+         self._eof = False
+         self._failure: Optional[str] = None
++        self._deadline_monotonic: Optional[float] = None
+         self._close_attempted = False
++        self._close_deadline_missed = False
+         self._closed = False
+         self._server_pid = self._current_pid()
+         try:
+@@ -904,6 +932,10 @@
+                 raise OverflowError
+         except BaseException:
+             raise WorkerOutputChannelError("worker_output_deadline_invalid") from None
++        bound_deadline = getattr(self, "_deadline_monotonic", None)
++        if bound_deadline is not None and float(bound_deadline) != deadline:
++            raise WorkerOutputChannelError("worker_output_deadline_mismatch")
++        self._deadline_monotonic = deadline
+         if self._failure is not None:
+             raise WorkerOutputChannelError(self._failure)
+         while not self._eof:
+@@ -946,8 +978,15 @@
+         if worker_exit != _WAIT_OBJECT_0:
+             raise WorkerOutputChannelError("worker_output_process_exit_unobserved")
+         frame = _validate_bounded_frame(self._frame_message)
+-        if not self.close():
++        if not self.close(deadline_monotonic=deadline, monotonic=monotonic):
+             raise WorkerOutputChannelError("worker_output_channel_close_unconfirmed")
++        try:
++            if float(monotonic()) >= deadline:
++                raise WorkerOutputChannelError("worker_output_deadline_exceeded")
++        except WorkerOutputChannelError:
++            raise
++        except BaseException:
++            raise WorkerOutputChannelError("worker_output_clock_invalid") from None
+         return frame[FRAME_LENGTH_BYTES:]
+ 
+     def read_after_job_empty(
+@@ -974,41 +1013,193 @@
+         )
+         return _decode_frame_payload(frame, request_id=request_id, nonce=self._nonce)
+ 
+-    def close(self) -> bool:
+-        """Cancel pending I/O and close every channel-owned native handle."""
++    def _consume_overlapped_completion(
++        self,
++        overlapped: Any,
++        *,
++        deadline_monotonic: float,
++        monotonic: Callable[[], float],
++    ) -> bool:
++        """Wait for and consume one final completion without extending D."""
++
++        while True:
++            try:
++                result = overlapped.GetOverlappedResult(False)
++            except OSError as error:
++                error_code = getattr(error, "winerror", None)
++                if type(error_code) is not int:
++                    return False
++                if error_code != _ERROR_IO_INCOMPLETE:
++                    # Accept only known terminal statuses for this pipe
++                    # transport. An invalid handle or unknown API error is not
++                    # enough evidence to release the OVERLAPPED storage.
++                    return error_code in _TERMINAL_OVERLAPPED_ERRORS
++            except BaseException:
++                return False
++            else:
++                if type(result) is int:
++                    return True
++                if type(result) is not tuple or len(result) != 2:
++                    return False
++                if type(result[1]) is not int:
++                    return False
++                if result[1] == 0 or result[1] in _TERMINAL_OVERLAPPED_ERRORS:
++                    return True
++                if result[1] != _ERROR_IO_INCOMPLETE:
++                    return False
++
++            try:
++                current = float(monotonic())
++            except BaseException:
++                return False
++            if not math.isfinite(current) or current >= deadline_monotonic:
++                return False
++            event_handle = _handle_value(getattr(overlapped, "event", None))
++            if event_handle <= 0:
++                return False
++            remaining_ms = max(
++                1, min(600_000, math.ceil((deadline_monotonic - current) * 1000.0))
++            )
++            try:
++                wait = self._kernel32.WaitForSingleObject
++                wait.argtypes = [wintypes.HANDLE, wintypes.DWORD]
++                wait.restype = wintypes.DWORD
++                wait_result = int(wait(wintypes.HANDLE(event_handle), remaining_ms))
++            except BaseException:
++                return False
++            if wait_result == _WAIT_TIMEOUT:
++                continue
++            if wait_result != _WAIT_OBJECT_0:
++                return False
++
++    def close(
++        self,
++        *,
++        deadline_monotonic: Optional[float] = None,
++        monotonic: Callable[[], float] = time.monotonic,
++    ) -> bool:
++        """Cancel I/O, consume final completions, then close owned handles.
++
++        A caller-supplied absolute deadline is never restarted. Before a run
++        has bound a request deadline, constructor cleanup gets only a short
++        local drain window. If completion or close is uncertain, this object
++        remains globally retained with its OVERLAPPED/event/handle custody.
++        """
+ 
+         if self._closed:
+             return True
++        if getattr(self, "_close_deadline_missed", False):
++            _retain_unresolved_channel(self)
++            return False
+         self._close_attempted = True
+-        ok = True
+-        if self._pipe_handle is not None:
++        if deadline_monotonic is None:
++            deadline_monotonic = getattr(self, "_deadline_monotonic", None)
++        bound_deadline = getattr(self, "_deadline_monotonic", None)
++        try:
++            if deadline_monotonic is None:
++                deadline = float(monotonic()) + _DEFAULT_IO_DRAIN_SECONDS
++            else:
++                if type(deadline_monotonic) not in (int, float):
++                    raise ValueError
++                deadline = float(deadline_monotonic)
++            if not math.isfinite(deadline) or not callable(monotonic):
++                raise ValueError
++            if bound_deadline is not None and deadline != float(bound_deadline):
++                raise ValueError
++        except BaseException:
++            _retain_unresolved_channel(self)
++            return False
++
++        def still_before_deadline() -> bool:
++            try:
++                current = float(monotonic())
++            except BaseException:
++                return False
++            return math.isfinite(current) and current < deadline
++
++        if not still_before_deadline():
++            self._close_deadline_missed = True
++            _retain_unresolved_channel(self)
++            return False
++
++        pipe_handle = getattr(self, "_pipe_handle", None)
++        if pipe_handle is not None:
+             try:
+                 cancel = self._kernel32.CancelIoEx
+                 cancel.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
+                 cancel.restype = wintypes.BOOL
+-                if not cancel(wintypes.HANDLE(self._pipe_handle), None):
+-                    code = _winerror(self._kernel32)
+-                    if code != 1168:  # ERROR_NOT_FOUND: no pending operation.
+-                        ok = False
++                if not cancel(wintypes.HANDLE(pipe_handle), None):
++                    _winerror(self._kernel32)
++                # Neither ERROR_NOT_FOUND nor another CancelIoEx error proves
++                # that an OVERLAPPED result was consumed. The per-operation
++                # GetOverlappedResult checks below decide.
+             except BaseException:
+-                ok = False
+-        if self._security_descriptor_handle is not None:
+-            if _free_security_descriptor(self._kernel32, self._security_descriptor_handle):
++                # Cancellation failure is fail-closed unless the exact
++                # operation independently reaches a consumed completion.
++                pass
++        if not still_before_deadline():
++            self._close_deadline_missed = True
++            _retain_unresolved_channel(self)
++            return False
++
++        for name in ("_connect_overlapped", "_read_overlapped"):
++            overlapped = getattr(self, name, None)
++            if overlapped is None:
++                continue
++            if not self._consume_overlapped_completion(
++                overlapped,
++                deadline_monotonic=deadline,
++                monotonic=monotonic,
++            ):
++                if not still_before_deadline():
++                    self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++            setattr(self, name, None)
++            if not still_before_deadline():
++                self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++
++        ok = True
++        if getattr(self, "_security_descriptor_handle", None) is not None:
++            if not still_before_deadline():
++                self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++            descriptor = self._security_descriptor_handle
++            if _free_security_descriptor(self._kernel32, descriptor):
+                 self._security_descriptor_handle = None
+             else:
+                 ok = False
++            if not still_before_deadline():
++                self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++
+         for name in ("_peer_handle", "_worker_handle", "_pipe_handle"):
+-            handle = getattr(self, name)
+-            if handle is not None:
+-                if _close_handle(self._kernel32, handle):
+-                    setattr(self, name, None)
+-                else:
+-                    ok = False
++            handle = getattr(self, name, None)
++            if handle is None:
++                continue
++            if not still_before_deadline():
++                self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++            if _close_handle(self._kernel32, handle):
++                setattr(self, name, None)
++            else:
++                ok = False
++            if not still_before_deadline():
++                self._close_deadline_missed = True
++                _retain_unresolved_channel(self)
++                return False
++
+         if ok:
+-            self._connect_overlapped = None
+-            self._read_overlapped = None
+             self._closed = True
+-        return ok
++            _release_retained_channel(self)
++            return True
++        _retain_unresolved_channel(self)
++        return False
+ 
+ 
+ def _write_bounded_frame(
+@@ -1171,10 +1362,16 @@
+         or channel._supervision_request_id is not None
+     ):
+         raise WorkerOutputChannelError("worker_output_run_binding_invalid")
++    if (
++        type(deadline_monotonic) not in (int, float)
++        or not math.isfinite(float(deadline_monotonic))
++    ):
++        raise WorkerOutputChannelError("worker_output_deadline_invalid")
+     from . import ctp_i13_i15_outer_watchdog
+     from .ctp_i13_i15_outer_watchdog import OuterWatchdogResult
+ 
+     channel._supervision_request_id = request_id
++    channel._deadline_monotonic = float(deadline_monotonic)
+     result = ctp_i13_i15_outer_watchdog.run_outer_watchdog(
+         command,
+         backend=backend,
+--- a/tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py
++++ b/tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py
+@@ -66,6 +66,8 @@
+     channel._peer_handle = 11
+     channel._closed = False
+     channel._close_attempted = False
++    channel._close_deadline_missed = False
++    channel._deadline_monotonic = None
+     channel._failure = None
+     channel._eof = True
+     channel._frame_message = output_channel._encode_frame(
+@@ -73,7 +75,8 @@
+     )
+     channel._supervision_poll_count = 1
+     channel._kernel32 = SimpleNamespace(WaitForSingleObject=lambda *_args: 0)
+-    channel.close = close or (lambda: True)
++    close_callback = close or (lambda: True)
++    channel.close = lambda **_kwargs: close_callback()
+     return channel
+ 
+ 
+@@ -384,6 +387,7 @@
+ 
+ def test_generic_frame_read_accepts_clean_exit_code_two_for_fixed_role_parser(monkeypatch):
+     result = _outer_result(exit_code=2)
++    deadline = time.monotonic() + 10.0
+     channel = _readable_channel(result)
+     channel._supervision_result = None
+     channel._supervision_request_id = None
+@@ -394,7 +398,7 @@
+         command="fixed-command",
+         backend="fixed-backend",
+         request_id=REQUEST_ID,
+-        deadline_monotonic=10.0,
++        deadline_monotonic=deadline,
+     )
+     assert supervised_result is result
+     monkeypatch.setattr(output_channel, "_process_id", lambda _kernel32, _handle: 12)
+@@ -407,7 +411,7 @@
+     frame = channel.read_frame_after_job_empty(
+         request_id=REQUEST_ID,
+         outer_result=supervised_result,
+-        deadline_monotonic=10.0,
++        deadline_monotonic=deadline,
+     )
+ 
+     envelope = output_channel._parse_canonical_object(
+@@ -430,7 +434,12 @@
+ 
+     cancel_io = ApiFunction(1)
+     close_handle = ApiFunction(1)
+-    kernel32 = SimpleNamespace(CancelIoEx=cancel_io, CloseHandle=close_handle)
++    wait = ApiFunction(output_channel._WAIT_OBJECT_0)
++    kernel32 = SimpleNamespace(
++        CancelIoEx=cancel_io,
++        CloseHandle=close_handle,
++        WaitForSingleObject=wait,
++    )
+     monkeypatch.setattr(output_channel, "_load_kernel32", lambda: kernel32)
+     monkeypatch.setattr(
+         output_channel._BoundedOutputChannel, "_load_winapi", lambda _self: object()
+@@ -441,7 +450,14 @@
+         channel._pipe_handle = 99
+ 
+     def begin_accept(channel):
+-        channel._connect_overlapped = object()
++        class CompletedOverlapped:
++            event = 101
++
++            @staticmethod
++            def GetOverlappedResult(_wait):
++                raise _Win32Error(output_channel._ERROR_OPERATION_ABORTED)
++
++        channel._connect_overlapped = CompletedOverlapped()
+         raise output_channel.WorkerOutputChannelError("worker_output_pipe_accept_failed")
+ 
+     monkeypatch.setattr(output_channel._BoundedOutputChannel, "_create_server_pipe", create_pipe)
+@@ -458,6 +474,277 @@
+     assert len(cancel_io.calls) == 1
+     assert len(close_handle.calls) == 1
+     assert output_channel._FAILED_CONSTRUCTOR_CHANNELS == []
++
++
++def _pending_close_channel(overlapped, *, kernel32, pending_attribute="_connect_overlapped"):
++    channel = object.__new__(output_channel._BoundedOutputChannel)
++    channel._kernel32 = kernel32
++    channel._pipe_handle = 90
++    channel._security_descriptor_handle = None
++    channel._connect_overlapped = None
++    channel._read_overlapped = None
++    setattr(channel, pending_attribute, overlapped)
++    channel._peer_handle = None
++    channel._worker_handle = None
++    channel._closed = False
++    channel._close_attempted = False
++    channel._close_deadline_missed = False
++    channel._deadline_monotonic = None
++    return channel
++
++
++class _Win32Error(OSError):
++    def __init__(self, code):
++        super().__init__(code, "fake overlapped result")
++        self.winerror = code
++
++
++@pytest.mark.parametrize("pending_attribute", ["_connect_overlapped", "_read_overlapped"])
++def test_close_waits_for_delayed_cancellation_completion_before_handle_release(
++    pending_attribute,
++):
++    class DelayedCompletion:
++        event = 101
++
++        def __init__(self):
++            self.pending = True
++            self.polls = 0
++
++        def GetOverlappedResult(self, _wait):
++            self.polls += 1
++            if self.pending:
++                raise _Win32Error(output_channel._ERROR_IO_INCOMPLETE)
++            raise _Win32Error(output_channel._ERROR_OPERATION_ABORTED)
++
++    clock = [0.0]
++    overlap = DelayedCompletion()
++    call_order = []
++
++    class ApiFunction:
++        def __init__(self, callback):
++            self.callback = callback
++
++        def __call__(self, *args):
++            return self.callback(*args)
++
++    def wait(_event, timeout_ms):
++        assert timeout_ms > 0
++        call_order.append("wait")
++        clock[0] += 0.1
++        if clock[0] >= 0.3:
++            overlap.pending = False
++            return output_channel._WAIT_OBJECT_0
++        return output_channel._WAIT_TIMEOUT
++
++    def close(handle):
++        assert overlap.pending is False
++        call_order.append(("close", int(handle.value)))
++        return 1
++
++    kernel32 = SimpleNamespace(
++        CancelIoEx=ApiFunction(lambda *_args: call_order.append("cancel") or 1),
++        CloseHandle=ApiFunction(close),
++        WaitForSingleObject=ApiFunction(wait),
++    )
++    channel = _pending_close_channel(
++        overlap, kernel32=kernel32, pending_attribute=pending_attribute
++    )
++
++    assert channel.close(deadline_monotonic=1.0, monotonic=lambda: clock[0]) is True
++    assert overlap.polls >= 4
++    assert call_order[0] == "cancel"
++    assert call_order[-1] == ("close", 90)
++    assert getattr(channel, pending_attribute) is None
++    assert channel._pipe_handle is None
++    assert channel._closed is True
++    assert channel not in output_channel._RETAINED_UNRESOLVED_CHANNELS
++
++
++@pytest.mark.parametrize("cancel_error", [None, 1168, 5])
++@pytest.mark.parametrize("pending_attribute", ["_connect_overlapped", "_read_overlapped"])
++def test_close_retains_pending_overlapped_and_handles_when_completion_never_arrives(
++    monkeypatch, cancel_error, pending_attribute
++):
++    class NeverCompletes:
++        event = 102
++        completed = False
++
++        def GetOverlappedResult(self, _wait):
++            if self.completed:
++                raise _Win32Error(output_channel._ERROR_OPERATION_ABORTED)
++            raise _Win32Error(output_channel._ERROR_IO_INCOMPLETE)
++
++    clock = [0.0]
++    overlap = NeverCompletes()
++    close_calls = []
++    observed_cancel_errors = []
++
++    class ApiFunction:
++        def __init__(self, callback):
++            self.callback = callback
++
++        def __call__(self, *args):
++            return self.callback(*args)
++
++    def cancel(*_args):
++        if cancel_error is not None:
++            return 0
++        return 1
++
++    def fake_winerror(_kernel):
++        observed_cancel_errors.append(cancel_error)
++        return cancel_error or 0
++
++    monkeypatch.setattr(output_channel, "_winerror", fake_winerror)
++
++    def wait(_event, timeout_ms):
++        assert timeout_ms > 0
++        clock[0] = 2.0
++        return output_channel._WAIT_TIMEOUT
++
++    kernel32 = SimpleNamespace(
++        CancelIoEx=ApiFunction(cancel),
++        CloseHandle=ApiFunction(lambda handle: close_calls.append(int(handle.value)) or 1),
++        WaitForSingleObject=ApiFunction(wait),
++    )
++    channel = _pending_close_channel(
++        overlap, kernel32=kernel32, pending_attribute=pending_attribute
++    )
++
++    try:
++        assert channel.close(deadline_monotonic=2.0, monotonic=lambda: clock[0]) is False
++        assert getattr(channel, pending_attribute) is overlap
++        assert channel._pipe_handle == 90
++        assert channel._closed is False
++        assert close_calls == []
++        assert any(retained is channel for retained in output_channel._RETAINED_UNRESOLVED_CHANNELS)
++        assert observed_cancel_errors == ([] if cancel_error is None else [cancel_error])
++        overlap.completed = True
++        assert channel.close(deadline_monotonic=4.0, monotonic=lambda: clock[0]) is False
++        assert close_calls == []
++    finally:
++        output_channel._release_retained_channel(channel)
++
++
++def test_close_retains_channel_when_overlapped_query_error_is_not_a_known_completion():
++    class UncertainCompletion:
++        event = 103
++
++        def GetOverlappedResult(self, _wait):
++            raise _Win32Error(6)  # ERROR_INVALID_HANDLE is not completion evidence.
++
++    close_calls = []
++
++    class ApiFunction:
++        def __init__(self, callback):
++            self.callback = callback
++
++        def __call__(self, *args):
++            return self.callback(*args)
++
++    kernel32 = SimpleNamespace(
++        CancelIoEx=ApiFunction(lambda *_args: 1),
++        CloseHandle=ApiFunction(lambda handle: close_calls.append(int(handle.value)) or 1),
++        WaitForSingleObject=ApiFunction(lambda *_args: output_channel._WAIT_OBJECT_0),
++    )
++    channel = _pending_close_channel(UncertainCompletion(), kernel32=kernel32)
++
++    try:
++        assert channel.close(deadline_monotonic=1.0, monotonic=lambda: 0.0) is False
++        assert channel._connect_overlapped is not None
++        assert channel._pipe_handle == 90
++        assert close_calls == []
++        assert any(retained is channel for retained in output_channel._RETAINED_UNRESOLVED_CHANNELS)
++    finally:
++        output_channel._release_retained_channel(channel)
++
++
++def test_close_cannot_replace_the_deadline_bound_by_the_outer_run():
++    class CompletedOverlapped:
++        event = 104
++
++        def GetOverlappedResult(self, _wait):
++            raise _Win32Error(output_channel._ERROR_OPERATION_ABORTED)
++
++    close_calls = []
++
++    class ApiFunction:
++        def __init__(self, callback):
++            self.callback = callback
++
++        def __call__(self, *args):
++            return self.callback(*args)
++
++    kernel32 = SimpleNamespace(
++        CancelIoEx=ApiFunction(lambda *_args: 1),
++        CloseHandle=ApiFunction(lambda handle: close_calls.append(int(handle.value)) or 1),
++        WaitForSingleObject=ApiFunction(lambda *_args: output_channel._WAIT_OBJECT_0),
++    )
++    channel = _pending_close_channel(CompletedOverlapped(), kernel32=kernel32)
++    channel._deadline_monotonic = 1.0
++
++    try:
++        assert channel.close(deadline_monotonic=5.0, monotonic=lambda: 0.0) is False
++        assert channel._connect_overlapped is not None
++        assert channel._pipe_handle == 90
++        assert close_calls == []
++        assert any(retained is channel for retained in output_channel._RETAINED_UNRESOLVED_CHANNELS)
++    finally:
++        output_channel._release_retained_channel(channel)
++
++
++def test_frame_is_not_published_when_native_handle_close_returns_after_deadline(
++    monkeypatch,
++):
++    clock = [0.0]
++    closed_handles = []
++
++    class ApiFunction:
++        def __init__(self, callback):
++            self.callback = callback
++
++        def __call__(self, *args):
++            return self.callback(*args)
++
++    def close(handle):
++        closed_handles.append(int(handle.value))
++        clock[0] = 2.0
++        return 1
++
++    channel = _readable_channel(_outer_result())
++    del channel.close
++    channel._kernel32 = SimpleNamespace(
++        CancelIoEx=ApiFunction(lambda *_args: 1),
++        CloseHandle=ApiFunction(close),
++        WaitForSingleObject=ApiFunction(lambda *_args: output_channel._WAIT_OBJECT_0),
++    )
++    channel._pipe_handle = 90
++    channel._security_descriptor_handle = None
++    channel._connect_overlapped = None
++    channel._read_overlapped = None
++
++    monkeypatch.setattr(output_channel, "_process_id", lambda _kernel32, _handle: 12)
++    monkeypatch.setattr(
++        output_channel,
++        "_process_creation_time",
++        lambda _kernel32, _handle: (0, 13),
++    )
++
++    try:
++        with pytest.raises(output_channel.WorkerOutputChannelError) as caught:
++            channel.read_frame_after_job_empty(
++                request_id=REQUEST_ID,
++                outer_result=channel._supervision_result,
++                deadline_monotonic=1.0,
++                monotonic=lambda: clock[0],
++            )
++        assert caught.value.reason == "worker_output_channel_close_unconfirmed"
++        assert closed_handles == [11]
++        assert channel._worker_handle == 10
++        assert channel._pipe_handle == 90
++        assert any(retained is channel for retained in output_channel._RETAINED_UNRESOLVED_CHANNELS)
++    finally:
++        output_channel._release_retained_channel(channel)
+ 
+ 
+ @pytest.mark.parametrize(

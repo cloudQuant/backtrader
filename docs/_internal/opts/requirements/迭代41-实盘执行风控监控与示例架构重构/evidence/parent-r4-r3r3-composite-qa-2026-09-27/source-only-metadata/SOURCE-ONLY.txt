@@ -1,0 +1,1 @@
+SOURCE-ONLY importlib.metadata records only. No wheel built or installed.

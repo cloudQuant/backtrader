@@ -1,0 +1,12 @@
+{
+  "zip_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-account-actor-main-store-wiring-r2b-independent-qa-2026-09-27\\r2b-independent-qa.raw.zip",
+  "zip_sha256": "71980d10e70102e6fed895d96c813521346133fd829c79448e811cf897efc648",
+  "zip_testzip": "clean",
+  "zip_member_count": 790,
+  "indexed_payload_count": 789,
+  "index_sha256": "6ca8740586922b9569fb33cf4303b69bc89d9a1ccc9fe042a5a68f80ec005f9d",
+  "source_payload_count": 724,
+  "source_payloads_hash_verified_before_packaging": true,
+  "private_config_or_credentials_included": false,
+  "note": "archive-index.json lists every ZIP member except itself; its SHA-256 is recorded here."
+}

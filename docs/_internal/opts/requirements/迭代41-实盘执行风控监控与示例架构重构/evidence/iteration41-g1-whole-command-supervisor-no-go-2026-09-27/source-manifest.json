@@ -1,0 +1,77 @@
+[
+  {
+    "path": "backtrader_runtime/cli.py",
+    "bytes": 66230,
+    "sha256": "bca2632e261fe2b663008e8b0758c2c932df917f9376e9b90230848b41ef5ef4"
+  },
+  {
+    "path": "backtrader_runtime/ctp_preflight.py",
+    "bytes": 39532,
+    "sha256": "3effc1d05763a6eb685c322f8ca5514893adf2e2b60513512d78a83a7ddf7386"
+  },
+  {
+    "path": "backtrader_runtime/ctp_simnow_operator.py",
+    "bytes": 22971,
+    "sha256": "9112a8411a8f13045a1e2c3b040517bb06c4db1f8c959a2650a4f2ab3afcc6db"
+  },
+  {
+    "path": "backtrader_runtime/ctp_simnow_readonly_runtime.py",
+    "bytes": 29089,
+    "sha256": "778be3b5efb64ee4dd4c6a735f0c6b5bff329fc455f9e460338a6ea298e30bc5"
+  },
+  {
+    "path": "backtrader_runtime/ctp_sdk_readonly.py",
+    "bytes": 35924,
+    "sha256": "5b42ecd25c91d5b76894fc9bd68c1950a053cc2e69dd55cbee3fcb207d779c7a"
+  },
+  {
+    "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+    "bytes": 24746,
+    "sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+  },
+  {
+    "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+    "bytes": 46080,
+    "sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+  },
+  {
+    "path": "scripts/ctp_i13_i15_inert_deadline_supervisor.py",
+    "bytes": 13357,
+    "sha256": "0810739298df61c62fdabaf3aa3a0387d87b8efc78fe4751bbddf4f1bbf05109"
+  },
+  {
+    "path": "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+    "bytes": 30787,
+    "sha256": "9a4b059d7007881933a8af5bea94d1a6831554acee9912ce9f14c92e4279a8ba"
+  },
+  {
+    "path": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+    "bytes": 31415,
+    "sha256": "7debbe58ccf690fb2103e1441eb9dbf813ca30bd478c4048f622c0f8a70b59fd"
+  },
+  {
+    "path": "tests/unit/scripts/test_ctp_i13_i15_inert_deadline_supervisor.py",
+    "bytes": 28294,
+    "sha256": "806b004572caa5b64cb6407989d54d8963ce4ef95a450265b69b40bea22fd90a"
+  },
+  {
+    "path": "tests/unit/runtime/test_ctp_simnow_operator_route.py",
+    "bytes": 34954,
+    "sha256": "bd78d5513cced9a1a93c03a83e0ea0e598ab4efe85cda4f275e77f1b0d84eaa1"
+  },
+  {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-whole-command-feasibility-2026-09-27/DESIGN.md",
+    "bytes": 4909,
+    "sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e"
+  },
+  {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-r11-design-only-author-2026-09-27/R11_G1_HARD_DEADLINE_AUDIT.md",
+    "bytes": 13737,
+    "sha256": "cb100aa79f695124c87e1ccdd228090227e557eec2c4f40b02f2104f38f98401"
+  },
+  {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-g1-r10-p14-channel-faults-independent-qa-2026-09-27/packet/REPORT.md",
+    "bytes": 4124,
+    "sha256": "b3a510f78702c62f93cc538771c484929f1d7551e6428cedf99a2090ecf37b12"
+  }
+]

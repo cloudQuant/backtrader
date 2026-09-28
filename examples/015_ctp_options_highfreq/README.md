@@ -3,6 +3,42 @@
 这是一个独立的 C/P/F 三腿 tick-only 回放示例。它只依赖本目录、标准库和公开的
 `backtrader` 接口；不会 import、读取或通过路径注入依赖其它 `examples/` 目录。
 
+## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+
+日常入口是 `run_runtime.py`。它必须先读取本目录的
+`runtime/config.yaml`（schema v4），并且该目录必须是中央受审清单中的原始目录；缺少配置、
+复制目录、旧 schema、`--mode`/`--preset`/`--config` 等命令行覆写都会在导入策略、SDK 或
+provider 之前拒绝。配置由用户只维护 `runtime.mode`、`runtime.preset` 和可选的离线
+`parameters.scenario`，不会让用户填写 provider、凭据、审批或写入开关。
+
+缺少 `runtime/config.yaml` 的稳定拒绝码是 `CONFIG_REQUIRED`；启动器不会从模板、当前目录或父目录回退读取。
+
+本例当前只有一个已验收的运行档案：
+
+| `runtime.mode` / `runtime.preset` | 状态 | 实际行为 |
+| --- | --- | --- |
+| `simulation` / `replay` | **SUPPORTED — LOCAL_REPLAY_ONLY** | 读取冻结的本地三腿 tick fixture；网络、provider 构造、外部订单/撤单/成交均为 0。 |
+| `backtest` / `local_backtest` | NOT_SUPPORTED | 不会把高频候选降级或改写为另一套回测入口。 |
+| `simulation` / `shadow`、`paper`、`sandbox` | NOT_SUPPORTED | 不会连接公开行情、SimNow 或账户。 |
+| `live` / `managed_live_direct`、`managed_live_gateway` | NOT_SUPPORTED | 本例没有 execution child；配置不能产生真实交易权限。 |
+
+首次运行推荐只用 bootstrap 生成私有配置，然后运行受清单绑定的入口：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/015_ctp_options_highfreq/runtime
+bt-runtime run --strategy-dir examples/015_ctp_options_highfreq/runtime
+```
+
+`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录。正式配置被 Git 忽略；受版本控制的 `runtime/config.example.yaml` 只供审阅且不是运行时回退来源。修改场景时编辑 `parameters.scenario`，例如 `valid_cohort`、
+`insufficient_cohort` 或 `bar_only`，随后重跑固定入口。输出必须保留
+`admission_status=LOCAL_REPLAY_ONLY`、`hft_status=NOT_ADMITTED`、
+`external_network_requests=0`、`external_write_requests=0`、`actual_fills=0`。这些结果不是
+HFT 能力、真实行情、真实成交、盈利或交易准入证据。
+
+`run_runtime.py` 不读取 `.env`、不接受凭据、不启动 `simnow_launcher.py`，也不创建
+`BtApiStore` 或任何 provider。下面保留的 `run.py` 和工程观测说明是既有回归/诊断材料，
+不构成迭代 41 的操作入口，不能用来绕过上述 `runtime/config.yaml` 合同。
+
 本例使用 `Cerebro.run(channel=...)`、`Event`、`TickEvent` 和 `TickBroker`。策略只有
 `notify_tick` 能创建本地的普通候选 intent；`next`、`notify_bar` 和 `notify_idle` 只保留
 兼容/安全观察行为。每个完整 cohort 先做经济方向和净边际筛选，只有连续两轮同方向合格
@@ -37,9 +73,10 @@ idle 50ms。默认 `runtime_provider: unavailable`，所以普通 replay 仍明�
 `idle` 的无参回调在**没有任何可信时钟来源**时只计数跳过，不再 latch 成时钟违规；注入的
 时钟来源失败或违规仍然 latch。
 
-## live 只读观测（分层，不构成可交易证据）
+## 历史只读工程观测（分层，不构成迭代 41 运行入口）
 
-`simnow_launcher.py` 是唯一的 live 入口：它先做制品前置检查（加载的 `backtrader` 必须是
+`simnow_launcher.py` 是保留的历史工程观测工具，不是本例的 Iteration 41 runtime 入口，也不会由
+`runtime/config.yaml` 选择或启动。它先做制品前置检查（加载的 `backtrader` 必须是
 本仓源码，否则以 `BACKTRADER_ARTIFACT_MISMATCH` 失败关闭；诊断用的
 `ITER30_ALLOW_EXTERNAL_BACKTRADER=1` 产物不得作为 G3/G4 证据），再用只读
 `market_data_only=True` 链路运行有界观测。报告按层给出独立结论：
@@ -69,7 +106,7 @@ cd examples/015_ctp_options_highfreq
 
 这是本例唯一的运行时库依赖；它不读取、不导入或通过路径注入依赖其它 `examples/` 目录。
 
-直接运行本地零写回放：
+历史回归 API 的直接本地零写回放（日常操作请使用上方 `run_runtime.py`）：
 
 ```bash
 cd examples/015_ctp_options_highfreq
@@ -124,14 +161,14 @@ bar、`next` 与无可信时钟的 idle 回调均不能创建普通意图。任�
 | `timing` | 单腿 1s、未对冲 3s、最大持仓 60s、idle 50ms | 缺失 SDK 只读风险 provider 时状态为 `OFFLINE_SIGNAL_ONLY`。 |
 | `execution` | 限价、2 次/s、每日普通/应急 80/20 | replay 不会调用该写入通道。 |
 
-## 启动、输出与结论阅读
+## 历史回归 API 的输出与结论阅读
 
 ```bash
 python examples/015_ctp_options_highfreq/run.py --mode replay --purpose formula \
   --scenario valid_cohort --output-dir examples/015_ctp_options_highfreq/reports/local-replay
 ```
 
-输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
+此命令只用于既有回归 API，不替代必需的 `runtime/config.yaml` 入口。输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
 `external_write_requests=0`、`actual_fills=0`、`execution_basis=none` 与
 `hft_status=NOT_ADMITTED`。`valid_cohort` 仅展示一个本地 conversion intent；其它场景用于负例。
 `simnow_launcher.py` 只做有界、只读分层观测，且当前 L2 受上游资格签发阻断；它不能被用来

@@ -1,0 +1,11 @@
+{
+  "all_checks_passed": false,
+  "archive_members": 49,
+  "archive_sha256": "546cd325f670629e6d56798f6abd6c444bcf1d954e589c10860b3696d4f84749",
+  "content_errors": [
+    "member-set-mismatch"
+  ],
+  "crc": "ok",
+  "duplicate_names": false,
+  "expected_payload_hashes_checked": 47
+}

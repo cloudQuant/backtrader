@@ -1,0 +1,111 @@
+{
+  "schema_version": "ac41-63-writer-partition-independent-qa.v1",
+  "generated_at_utc": "2026-09-27T14:59:37Z",
+  "verdict": "PASS_WITH_SCOPE_LIMITS",
+  "scope": {
+    "writer_indices": "241..362 inclusive",
+    "writer_count": 122,
+    "dynamic_indices": "0..96 inclusive",
+    "dynamic_count": 97,
+    "review_findings": 219,
+    "static_only": true,
+    "project_imports_or_execution": false,
+    "provider_sdk_native_network_or_credentials_access": false,
+    "shared_workspace_edits": false
+  },
+  "inputs": {
+    "author_artifacts_directory": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72",
+    "hashes": {
+      "author_findings": "79dc0bb1cc190f7d0bec8e5467804957b16a4c4f0b68953202d0a193932c1186",
+      "author_report": "d3a48ed71f8f76b1237380d60753f1109c756ffcaffbdc9659e14ef23ac829f9",
+      "inventory": "03658257d97e31c2d8f8bfd48685441533552b32674f5d63810141e3038ab456",
+      "official_dispositions": "b55a054a8e53cec27a7b20ad43a653cee07082febe51844cccb129c0ed365426"
+    },
+    "inventory_expected_sha256": "03658257d97e31c2d8f8bfd48685441533552b32674f5d63810141e3038ab456"
+  },
+  "integrity_checks": {
+    "inventory_sha_matches_author_binding": true,
+    "writer_indices_exact": true,
+    "dynamic_indices_exact": true,
+    "inventory_row_identity_fields_checked": [
+      "path",
+      "line",
+      "column",
+      "class_name",
+      "function_name",
+      "call"
+    ],
+    "inventory_row_identity_mismatches": 0,
+    "current_source_hashes_checked": 219,
+    "unique_current_source_files": 83,
+    "current_source_hash_mismatches": 0,
+    "source_line_checks": 219,
+    "source_line_mismatches": 0,
+    "partition_status_violations": 0,
+    "official_disposition_entries": 460,
+    "official_disposition_status_violations": 0
+  },
+  "claim_trace": {
+    "default_runtime_live_block": {
+      "assessment": "supported",
+      "anchors": [
+        "backtrader_runtime/registry.py:1049-1062",
+        "backtrader_runtime/inventory.py:329-358",
+        "backtrader_runtime/runner.py:1175-1185",
+        "backtrader_runtime/runner.py:1209-1215"
+      ],
+      "note": "Default CLI chooses default_runtime_registry when no registry is injected. The dispatcher rejects live mode before runner import; the 013_3 private profile is deny-write/no-runner and declares live/managed_live_direct unavailable."
+    },
+    "strategy_custom_broker": {
+      "assessment": "supported_as_possible_out_of_registry_route",
+      "anchors": [
+        "backtrader/strategy.py:2612-2627",
+        "backtrader/strategy.py:2679-2694",
+        "backtrader/cerebro.py:538-545"
+      ],
+      "note": "Strategy buy/sell call its attached broker and Cerebro.setbroker replaces it. This supports broker-polymorphic intent outside bt-runtime registry enforcement; it does not prove any supplied broker reaches a real CTP/provider write."
+    },
+    "ctp_candidate_writers": {
+      "assessment": "supported_with_candidate_only_scope",
+      "anchors": [
+        "backtrader_runtime/ctp_trader_client_port.py:244-254",
+        "backtrader_runtime/ctp_trader_client_port.py:350-377",
+        "backtrader_runtime/ctp_trader_client_port.py:996-1018",
+        "backtrader_runtime/ctp_managed_account_runtime_candidate.py:117-173"
+      ],
+      "note": "The simulation port has explicit write gates, staged binding/approval checks, order-reference resolution and a second _require_write before dispatch. Managed account candidate public __init__ rejects; the sealed-scope factory is separate and docs say unregistered. No default registration or authority is demonstrated."
+    },
+    "owned_native_port_forwarder": {
+      "assessment": "supported",
+      "anchors": [
+        "backtrader_runtime/ctp_simnow_managed_runtime.py:197-208"
+      ],
+      "note": "__getattr__ forwards arbitrary attributes to wrapped port; this shows in-process attribute exposure when caller holds the wrapper, not a bypass of the underlying port gates or accepted route."
+    },
+    "custom_registry_import_fallback": {
+      "assessment": "supported_with_qualification",
+      "anchors": [
+        "backtrader_runtime/registry.py:578-586",
+        "backtrader_runtime/runner.py:749-803",
+        "backtrader_runtime/runner.py:1122-1152",
+        "backtrader_runtime/cli.py:1342"
+      ],
+      "note": "Exact shipped bindings use fixed roots; no binding falls back to importlib.import_module. RuntimeRegistry defaults trusted=True and CLI accepts an injected registry, so the word reviewed is a caller/process expectation, not an enforced review credential. The default installed invocation uses default_runtime_registry."
+    },
+    "runner_source_identity_only": {
+      "assessment": "supported",
+      "anchors": [
+        "backtrader_runtime/runner.py:654-665",
+        "backtrader_runtime/runner.py:681-729",
+        "backtrader_runtime/runner.py:1048-1081"
+      ],
+      "note": "The loader checks regular-file/no-reparse plus device/inode/mode identity before, during, and after source read, then compiles and executes those bytes. It does not compare an expected source-content SHA-256; same-inode content edits are not pinned by this check."
+    }
+  },
+  "review_assessment": {
+    "material_inaccuracies_found": 0,
+    "qualification": "Treat “reviewed programmatic callers” as intended governance, not a code-enforced gate: a caller can construct RuntimeRegistry(trusted=True) because trusted defaults True. The report separately identifies custom programmatic registries as outside the default trust boundary.",
+    "reachability_limit": "All conclusions are static source traces. Custom broker/client/API reflection paths are possible out-of-registry surfaces, not proof of actual provider, CTP, or live execution.",
+    "official_status": "All 460 current official checklist entries remain REVIEW_REQUIRED / NOT_AVAILABLE; zero rows authorize writes."
+  }
+}

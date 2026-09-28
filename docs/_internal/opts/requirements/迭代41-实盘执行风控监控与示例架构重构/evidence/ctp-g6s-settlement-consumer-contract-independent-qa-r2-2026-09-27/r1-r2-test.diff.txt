@@ -1,0 +1,14 @@
+--- r1/test.py
++++ r2/test.py
+@@ -157,6 +157,10 @@
+         ("current_trading_day", "20260925", "settlement_current_trading_day_or_generation_mismatch"),
+         ("query_connection_generation", 2, "settlement_current_trading_day_or_generation_mismatch"),
+         ("current_connection_generation", 2, "settlement_current_trading_day_or_generation_mismatch"),
++        ("query_connection_generation", True, "settlement_current_trading_day_or_generation_mismatch"),
++        ("current_connection_generation", True, "settlement_current_trading_day_or_generation_mismatch"),
++        ("error_code", False, "settlement_query_not_terminal"),
++        ("submit_code", False, "settlement_query_not_terminal"),
+         ("selected_pair_sha256", "f" * 64, "settlement_selected_pair_or_account_mismatch"),
+         ("current_account_fingerprint_sha256", "f" * 64, "settlement_selected_pair_or_account_mismatch"),
+         ("confirm_date", "20260925", "settlement_confirmation_row_scope_mismatch"),
+

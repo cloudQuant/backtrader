@@ -1,0 +1,54 @@
+{
+  "archive": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27",
+  "manifest_sha256": "159a0b2df96646c47fa2f2eb7ec3e2015997a94ba4df2c5555c4edd24d0c7716",
+  "checksum_file_sha256": "c1e98c27e9860d58daeaf9de9f5f3aae2a8fd0dea4804c6d28ff6d6041aba842",
+  "checksum_rows": 37,
+  "checksum_rows_ok": 37,
+  "payload_manifest_rows": 36,
+  "payload_manifest_rows_ok": 36,
+  "readme_hash_in_manifest": "c724a966bbf1dd079a60b3540a18127b628b06ea767f06ece749df724ed9d028",
+  "readme_actual_sha256": "c724a966bbf1dd079a60b3540a18127b628b06ea767f06ece749df724ed9d028",
+  "readme_row_matches": true,
+  "relative_link_count": 4,
+  "relative_links": [
+    {
+      "source": "README.md",
+      "destination": "REPORT.md",
+      "resolved": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27\\REPORT.md",
+      "exists": true,
+      "within_archive": true
+    },
+    {
+      "source": "README.md",
+      "destination": "pyd-pe-analysis.json",
+      "resolved": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27\\pyd-pe-analysis.json",
+      "exists": true,
+      "within_archive": true
+    },
+    {
+      "source": "README.md",
+      "destination": "pyd-section-diff-summary.json",
+      "resolved": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27\\pyd-section-diff-summary.json",
+      "exists": true,
+      "within_archive": true
+    },
+    {
+      "source": "README.md",
+      "destination": "SHA256SUMS.txt",
+      "resolved": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\g4-msvc-pe-timestamp-author-review-2026-09-27\\SHA256SUMS.txt",
+      "exists": true,
+      "within_archive": true
+    }
+  ],
+  "all_relative_links_valid": true,
+  "disposition_strings": {
+    "report_no_exact_pin": true,
+    "report_no_g4": true,
+    "manifest_no_exact_pin": true,
+    "manifest_no_g4": true
+  },
+  "report_sha256": "e20890730e61d301e569b740374547677786167ea5506c69519507ec36e5d801",
+  "readme_sha256": "c724a966bbf1dd079a60b3540a18127b628b06ea767f06ece749df724ed9d028",
+  "prior_independent_qa_report_sha256": "9d11413cc87c2f6f31b6479daf5a4281fc58d6aa9272a2a170b9ba17562e53d7",
+  "scope": "Read-only evidence inspection; no SDK/native import or load, build, install, network, credentials, private config, or tests."
+}

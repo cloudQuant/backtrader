@@ -1,0 +1,20 @@
+{
+  "blocked_sdk_import_attempts": [],
+  "network_attempts": 0,
+  "pytest_exit_code": 0,
+  "scope": [
+    "-p",
+    "no:asyncio",
+    "tests/unit/stores/test_btapistore_iteration22.py::test_empty_incomplete_query_is_not_interpreted_as_zero_records",
+    "tests/unit/stores/test_btapistore_iteration22.py::test_query_request_type_mismatch_fails_closed",
+    "tests/unit/stores/test_btapistore_iteration22.py::test_preflight_rejects_trade_rows_outside_the_requested_scope",
+    "tests/unit/stores/test_ctp_shared_session_read_port.py",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\pytest-basetemp-focused",
+    "--junitxml",
+    "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\candidate-focused.junit.xml"
+  ],
+  "sdk_native_modules_loaded": []
+}

@@ -1,0 +1,60 @@
+{
+  "schema": "iteration41-g4-parent-artifact-status-independent-qa-v1",
+  "result": "DISPOSABLE_PARENT_WHEEL_VERIFIED / THREE_PACKAGE_PIN_NOT_AVAILABLE / G4_CLOSED",
+  "candidate": {
+    "source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+    "build_input_manifest_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+    "parent_build_inputs": {
+      "build-a": 156,
+      "build-b": 156
+    },
+    "wheel_a_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+    "wheel_b_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+    "wheel_size_bytes": 534260,
+    "wheel_zip_members": 144,
+    "wheel_embedded_record_sha256": "5ae8306e16193a5bcd438104b62369bc57151b6f4f4fd7088499dd0b09b22728",
+    "wheel_embedded_record_rows": 144,
+    "wheel_embedded_record_payload_rows_checked": 143,
+    "distribution_version": "0.15.7.dev0+r4r3r3.67e54513"
+  },
+  "isolated_consumer": {
+    "author_archive_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+    "author_archive_zip_members": 1016,
+    "venv_no_system_site_packages": true,
+    "pip_check_exit": 0,
+    "pip_check_output": "No broken requirements found.",
+    "installed_record_sha256": "2157c78969a17576397cd05828264111f79e793e6bb653532effb13b41ddf036",
+    "installed_record_rows": 286,
+    "installed_record_file_hashes_checked": 146,
+    "installed_direct_url_archive_hash": "sha256=5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+    "fake_test_executions": 143,
+    "fake_test_unique_ids": 123,
+    "fake_test_failures": 0,
+    "fake_test_errors": 0,
+    "fake_test_skips": 0,
+    "native_modules_loaded": []
+  },
+  "code_owned_pin": {
+    "source_sha256": "78f7b385db4c33f522a645e160b23076d7b600cf539cf6a121897483c49b3c75",
+    "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_artifact_provenance.py",
+    "parent_pin_present": false,
+    "managed_verifier_requires": [
+      "bt_api_base",
+      "bt_api_ctp",
+      "bt_api_py"
+    ],
+    "managed_verifier_pin_mapping": "CTP_SDK_ARTIFACT_PINS (contains only bt_api_base and bt_api_ctp)",
+    "expected_fail_closed_reason": "artifact_pin_unavailable"
+  },
+  "scope": [
+    "offline wheel/hash/RECORD/origin checks",
+    "local fake tests only"
+  ],
+  "not_established": [
+    "three-package code pin",
+    "G4 native start/Join/Release",
+    "provider session",
+    "default route",
+    "release approval"
+  ]
+}

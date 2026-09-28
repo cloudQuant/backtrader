@@ -1,0 +1,201 @@
+{
+  "disposition": "PARTIAL_PATH_CUSTODY_ONLY_NO_G4_NO_G6S",
+  "files": [
+    {
+      "path": "fake-pyd-custody-command.txt",
+      "sha256": "f23d5489daa1f0a67bfb3a5e23853c26235f7689df20d045772930d7776729a6",
+      "size": 301
+    },
+    {
+      "path": "fake-pyd-custody-debug.stdout.txt",
+      "sha256": "8307d8053105e57bc3927f3b203a66f951b3f7826f537d4bfdda53c301bd8d3a",
+      "size": 275
+    },
+    {
+      "path": "fake-pyd-custody.stdout.txt",
+      "sha256": "751701d792ccadbb9f6e994645efc5eafa2263a37e80d055650c736243e7fd3e",
+      "size": 686
+    },
+    {
+      "path": "fake_pyd_custody_debug.py",
+      "sha256": "a0889b3a86f42011ed99e72845ae42d5682aee34c941d7b48097bbc7d41a9008",
+      "size": 1387
+    },
+    {
+      "path": "fake_pyd_custody_probe.py",
+      "sha256": "691dca64febb28fc21fd41e5cf2b30551cd17029de044f8eeba00a1c518607ab",
+      "size": 3436
+    },
+    {
+      "path": "frozen-input/custody-test-command.txt",
+      "sha256": "786dd6da86fe635c0a0d00ea863cce39d4c183d316e1b812767d85e185204ff6",
+      "size": 488
+    },
+    {
+      "path": "frozen-input/custody-test.stdout.txt",
+      "sha256": "a47b1dc6ece0d272cf791577b3c78fc858c918df8b72f44425469cfcc34e07eb",
+      "size": 540
+    },
+    {
+      "path": "frozen-input/MANIFEST.json",
+      "sha256": "16fb9b7df3073e93cf6da39705d5399ff6c9b7459a1f3c2978ba21ef50df2dec",
+      "size": 1045
+    },
+    {
+      "path": "frozen-input/probe_extension_loader.py",
+      "sha256": "be9b3c85b5525cc5363dc156629733a08d0285edf1e6f187cb8ca6e7786d6f47",
+      "size": 1099
+    },
+    {
+      "path": "frozen-input/probe_extension_loader.stdout.txt",
+      "sha256": "ae4bb23d9056411be5348c6c0b7795d8fe0ae3a8267f8a12206b4be5f2a1f818",
+      "size": 305
+    },
+    {
+      "path": "frozen-input/receipt.json",
+      "sha256": "2b9e03f56e28b796d1412c6397e1859184a42d20e83bcdf69217760796ae854c",
+      "size": 3067
+    },
+    {
+      "path": "frozen-input/report.md",
+      "sha256": "61699f3d0323c21108e1d5fb723ce99aa37d16ac70be47dff1ff64b29b640cfa",
+      "size": 7462
+    },
+    {
+      "path": "initial-probe-classifier-note.json",
+      "sha256": "7b326706bbd34ff960de9ec0d2782cd6533de8dc2aec068b82a7a28548624c3b",
+      "size": 688
+    },
+    {
+      "path": "loader-probe-command.txt",
+      "sha256": "778f351c493355a9661ae65f9713e6f76f73132ae040c0e2c796cbb6f80b09a1",
+      "size": 193
+    },
+    {
+      "path": "loader-probe.stdout.txt",
+      "sha256": "ae4bb23d9056411be5348c6c0b7795d8fe0ae3a8267f8a12206b4be5f2a1f818",
+      "size": 305
+    },
+    {
+      "path": "original-candidate-r2.zip",
+      "sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+      "size": 861670
+    },
+    {
+      "path": "primary-source-notes.md",
+      "sha256": "9b15255654488993751d5ef873c2dd06c91803fd6dc01b1b94f3b53bcca7d516",
+      "size": 1722
+    },
+    {
+      "path": "QA-REPORT.md",
+      "sha256": "e38842fcce37acfd66bb6b7ce0c7de10dd761f5e3b356467c342f092e6a04089",
+      "size": 5815
+    },
+    {
+      "path": "r2-bundle-verification.stdout.txt",
+      "sha256": "55324af4c12d84edcd204ffa0815b49b0fa2d1f2c7c9280d0fc1e9f27c5852d7",
+      "size": 673
+    },
+    {
+      "path": "r2-custody-pytest.stdout.txt",
+      "sha256": "82fa318d15ea2af29458ba3a530c72fb1368c1604db614b767d77f244cc9d735",
+      "size": 550
+    },
+    {
+      "path": "r2-custody-qa-command.txt",
+      "sha256": "0b28bb96aeb43c3569474e2519c17f18f89f208e1660746123cdad7ed4f9cfec",
+      "size": 496
+    },
+    {
+      "path": "r2-reference/backtrader_runtime/ctp_sdk_artifact_binding.py",
+      "sha256": "a7a27a318d4c3efeb5cc781c4c6479d56439da579d46da669c6f9349f96fb049",
+      "size": 49839
+    },
+    {
+      "path": "r2-reference/backtrader_runtime/ctp_windows_artifact_custody.py",
+      "sha256": "eaf794fceed98ed18bc23d21bc9d1d962575d27ceee9b78bfd84d86b2003f421",
+      "size": 21798
+    },
+    {
+      "path": "r2-reference/candidate-source-manifest.json",
+      "sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+      "size": 44230
+    },
+    {
+      "path": "r2-reference/candidate-zip.sha256",
+      "sha256": "3cd47a8501c002c7ee2b216558afcc6276f1162b502c94f9f0110296e2244a54",
+      "size": 115
+    },
+    {
+      "path": "r2-reference/evidence/r2-loader-identity/cpython-extension-loader-source.txt",
+      "sha256": "46f1bbe433b7ffd06864a169c790f4ff6a986c4681670fd7a6bf4a93dcf1cb13",
+      "size": 1755
+    },
+    {
+      "path": "r2-reference/freeze-receipt.json",
+      "sha256": "624ba96440e9099dc667fe840b5d73b0fac8aec28d88355506302fe5944b90ee",
+      "size": 970
+    },
+    {
+      "path": "r2-reference/tests/unit/runtime/test_ctp_windows_artifact_custody.py",
+      "sha256": "14a643deca3aa8f259fca54d3c6066dc77817c4537e2e8a0eccbb034685db841",
+      "size": 4411
+    },
+    {
+      "path": "verify_r2_bundle.py",
+      "sha256": "cddc01bc07668f6389dd50b26a0b47f51e4e85f08f77a53e1c968c8fb6cf6523",
+      "size": 2454
+    }
+  ],
+  "local_checks": {
+    "cpython": "3.11.5 Windows AMD64",
+    "extension_loader_probe": "PATH_ONLY_LOADER_SURFACE; no extension loaded",
+    "fake_pyd_path_custody": "write/replace denied with retained share-read handle; rename succeeds after close; invalid PE placeholder never loaded",
+    "r2_windows_custody_test": "3 passed; one existing unknown pytest config warning"
+  },
+  "primary_source_urls": [
+    "https://github.com/python/cpython/blob/v3.11.5/Lib/importlib/_bootstrap_external.py",
+    "https://github.com/python/cpython/blob/v3.11.5/Python/importdl.c",
+    "https://github.com/python/cpython/blob/v3.11.5/Python/dynload_win.c",
+    "https://docs.python.org/3.11/library/importlib.html#importlib.machinery.ExtensionFileLoader",
+    "https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw"
+  ],
+  "r2_candidate_zip_sha256": "dbbcbd8a5de4daf5265ae10b5eb114cbd6b2a429dc4ff9535aca5c3de8779d14",
+  "r2_payload_files_verified": 191,
+  "r2_source_manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+  "schema": "iteration41.g6s.pyd_loader_boundary_independent_qa_manifest.v1",
+  "source_packet": "D:\\temp\\iteration41-g6s-pyd-loader-boundary-20260927",
+  "source_packet_manifest_sha256": "16fb9b7df3073e93cf6da39705d5399ff6c9b7459a1f3c2978ba21ef50df2dec",
+  "source_packet_payload_checks": [
+    {
+      "path": "custody-test-command.txt",
+      "sha256_ok": true,
+      "size_ok": true
+    },
+    {
+      "path": "custody-test.stdout.txt",
+      "sha256_ok": true,
+      "size_ok": true
+    },
+    {
+      "path": "probe_extension_loader.py",
+      "sha256_ok": true,
+      "size_ok": true
+    },
+    {
+      "path": "probe_extension_loader.stdout.txt",
+      "sha256_ok": true,
+      "size_ok": true
+    },
+    {
+      "path": "receipt.json",
+      "sha256_ok": true,
+      "size_ok": true
+    },
+    {
+      "path": "report.md",
+      "sha256_ok": true,
+      "size_ok": true
+    }
+  ]
+}

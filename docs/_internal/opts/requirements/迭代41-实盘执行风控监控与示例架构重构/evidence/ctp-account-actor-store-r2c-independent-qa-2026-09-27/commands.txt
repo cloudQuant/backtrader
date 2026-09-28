@@ -1,0 +1,34 @@
+Working directory for all commands: D:\temp\iteration41-r2c-independent-qa-20260927
+Interpreter: C:\Users\yunji\AppData\Local\Temp\bt-pytest-asyncio-compat-20260926\Scripts\python.exe
+
+Environment exports used for pytest invocations:
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+  PYTHONDONTWRITEBYTECODE=1
+  BT_API_PY_LIGHT_IMPORT=1
+  PYTHONPATH composed from source-roots-reviewed-r2c-v2.json, the isolated main copy, the matching SOURCE-ONLY metadata root, and the per-worker guard directory
+  Per-worker guard policy: loopback-only networking; protected-config deny; synthetic configs allowed only under the owned --basetemp root; explicit import-origin enforcement.
+
+The complete package-root mapping and the runtime-observed module origins are recorded in source-roots-reviewed-r2c-v2.json, source-only-metadata-manifest-reviewed-r2c-v3.json, source-origin-check-reviewed-r2c.log, and origin-guard-log-reviewed-r2c-full/*.jsonl. The original PowerShell one-liner that assembled PYTHONPATH ordering was not persisted, so this record does not claim an independently preserved byte-for-byte shell transcript. Each package origin was checked by the runtime guard.
+
+Broad Store/Runtime suite:
+  python -B -m pytest -p no:asyncio tests/unit/stores tests/unit/runtime -q --tb=short --basetemp D:\temp\iteration41-r2c-independent-qa-20260927\pytest-basetemp-reviewed-r2c-full --junitxml D:\temp\iteration41-r2c-independent-qa-20260927\stores-runtime-reviewed-r2c.xml
+  Result: 258 failed, 2460 passed, 28 skipped, 2 xfailed, 1 warning; exit 1.
+
+Route safety focus (candidate test file plus the migrated symbol-info alias test):
+  python -B -m pytest -p no:asyncio tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py tests/unit/stores/test_btapistore.py::test_gateway_wrapper_symbol_info_alias_requires_store_bound_non_ctp_route -q --tb=short --basetemp D:\temp\iteration41-r2c-independent-qa-20260927\pytest-basetemp-reviewed-r2c-focus-final --junitxml D:\temp\iteration41-r2c-independent-qa-20260927\r2c-route-focus-reviewed.xml
+  Result: 44 passed, 1 warning; exit 0.
+
+Query-evidence focus:
+  python -B -m pytest -p no:asyncio tests/unit/runtime/test_ctp_simulation_query_evidence.py -q --tb=short --basetemp D:\temp\iteration41-r2c-independent-qa-20260927\pytest-basetemp-reviewed-r2c-query --junitxml D:\temp\iteration41-r2c-independent-qa-20260927\query-reviewed-r2c.xml
+  Result: 7 passed, 1 warning; exit 0.
+
+Fake-only same-process private-attribute boundary probe:
+  python -B private-api-same-process-probe.py
+  Result: exit 0; public wrapper rejected after route mutation with 0 fake calls; direct private `_client` access made 1 in-memory fake call; no `_ctp` or `ctp_wrap` module loaded.
+
+Patch replay:
+  git apply --check/apply r2b-main-base-apply.patch, then git apply --check/apply iteration41-r2c-store-safety.patch, on a fresh exact-base copy.
+  Windows CRLF required --ignore-space-change for clean replay. All five changed files match after CRLF-to-LF normalization; raw hashes differ by line endings. See patch-replay.log and patch-replay-content-comparison.log.
+
+Environment checks:
+  Python 3.11.5; pytest 8.2.2; python -m pip check => No broken requirements found.

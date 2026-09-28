@@ -1,0 +1,177 @@
+{
+  "files": [
+    {
+      "bytes": 647,
+      "path": "actor-final.log",
+      "sha256": "e03f1f3824d5f4fa7d9710d2c49e041f0fa707161ccf8c993c38fa3e995b2b6e"
+    },
+    {
+      "bytes": 13282,
+      "path": "actor-final.xml",
+      "sha256": "feb805d8e45ba43b08385910f356072aaf3c6069133e911dff1f698a6911adf9"
+    },
+    {
+      "bytes": 649,
+      "path": "actor-guarded.log",
+      "sha256": "8ac40edfef7acfd96fcec06bb7075a62a4e7484abfe5a0fd38be79d235b7eec2"
+    },
+    {
+      "bytes": 13282,
+      "path": "actor-guarded.xml",
+      "sha256": "4b0ee240fd79c1bcac7e562452bf1d52b4f8d69d0e861bed4f5f92786355b3a7"
+    },
+    {
+      "bytes": 641,
+      "path": "actor.log",
+      "sha256": "d00cd5c6b33d9f9db766561a789a212d10386af68df6a2199d21ce840710ed6f"
+    },
+    {
+      "bytes": 13282,
+      "path": "actor.xml",
+      "sha256": "1086c56dad052ed0f12e58232076030425b0e06004375b3330012d72c29d73dc"
+    },
+    {
+      "bytes": 2277,
+      "path": "build_package.py",
+      "sha256": "67019851195e9529d5315716f2a8b57d9bab26a3ef1ea13c94a00ffebe75e13d"
+    },
+    {
+      "bytes": 4763,
+      "path": "commands-and-results.txt",
+      "sha256": "bb411307210ac623e1232434bac1eae4b94bd6590939cbf04de6c14d8ad86e61"
+    },
+    {
+      "bytes": 662,
+      "path": "framework-final.log",
+      "sha256": "97cd10bf8e37d1764953861d4efb81903169187e3e8a021ef56d0434992c1365"
+    },
+    {
+      "bytes": 5133,
+      "path": "framework-final.xml",
+      "sha256": "2d960a27ea3663428c2aa090cb53b48bb08fa1cee055082fd2cdc626990782f7"
+    },
+    {
+      "bytes": 11881,
+      "path": "framework-projection-guarded.log",
+      "sha256": "9f873ff583bd0df73629411998460a0c9d1506b7e68cf29a8eb1e87761be3d96"
+    },
+    {
+      "bytes": 12496,
+      "path": "framework-projection-guarded.xml",
+      "sha256": "c03b2ef56a36607196b220df0eba8b90f62c804ea5d9b6169efcc29b47bf3a6f"
+    },
+    {
+      "bytes": 277,
+      "path": "framework-projection.guard.log",
+      "sha256": "5eb92146d2f9dad723148cda84464506e8257a8861ab73884b6ba0133c3d0a5c"
+    },
+    {
+      "bytes": 667,
+      "path": "framework-projection.log",
+      "sha256": "0ccced2a5b4ef479906cca3d8e32ecc253ecbd2fbb80ba48dbfc5cc496c559d2"
+    },
+    {
+      "bytes": 5106,
+      "path": "framework-projection.xml",
+      "sha256": "6419d397d0e22b4e7658cc21d256bddd7a1c4a05f08a482619143fc796c34c09"
+    },
+    {
+      "bytes": 34,
+      "path": "framework.final.guard.log",
+      "sha256": "a3dc454a230c4402311b5957febc56d25d335467e70529cb273f51b64f6489fc"
+    },
+    {
+      "bytes": 3015,
+      "path": "guards/sitecustomize.py",
+      "sha256": "9aa28afd63491c2589e38b461de0f56b7f3945ed35a91771a69c69f3d74c58f9"
+    },
+    {
+      "bytes": 2701,
+      "path": "integration-inventory.json",
+      "sha256": "1c3c672f9dc1c4cc2da49dfed15a9aa00843d3f794cfb99deb20589d2ee79222"
+    },
+    {
+      "bytes": 3944,
+      "path": "qa-receipt.md",
+      "sha256": "92e569e978db75288a45a7a26d6bd824b18b9e332fb14989f4607f1525656d5c"
+    },
+    {
+      "bytes": 650,
+      "path": "scanner-final.log",
+      "sha256": "763b76cdeddc40dbb45584f5be94ea6237e1d8c2063bb8aeec4c4040a4e317cb"
+    },
+    {
+      "bytes": 2839,
+      "path": "scanner-final.xml",
+      "sha256": "870d82b741b10591e7a3e58128209d546b813eae6f57f1ff26d406df2499974f"
+    },
+    {
+      "bytes": 652,
+      "path": "scanner-guarded.log",
+      "sha256": "f0489d7ca56c511f452b101ddf95775bd7e676f63389f6c96f2115d671c1f6a1"
+    },
+    {
+      "bytes": 2838,
+      "path": "scanner-guarded.xml",
+      "sha256": "bac6895c640fc01605cea210ed31134974f12f7b141e1ba156dc642bdc10bf97"
+    },
+    {
+      "bytes": 644,
+      "path": "scanner.log",
+      "sha256": "453e1de90a2ff987a0e986bb01f09eaf6bc266f00575197df6b8b82ddec47a76"
+    },
+    {
+      "bytes": 2838,
+      "path": "scanner.xml",
+      "sha256": "f4b5f341df7a2b3fa7a0fa3af45ab82a57f61d6d71b36405d357004c75b21a59"
+    },
+    {
+      "bytes": 6030,
+      "path": "source-hashes.json",
+      "sha256": "913b20cb10c5f62e672757c68c985adbdb9302f9c2cde0e0af75e9e9e323106d"
+    },
+    {
+      "bytes": 655,
+      "path": "store-gateway-final.log",
+      "sha256": "80f7f0a5e93c32c5b2a902199af8a279ad19612676e0748f056c5b48905ee2b9"
+    },
+    {
+      "bytes": 2800,
+      "path": "store-gateway-final.xml",
+      "sha256": "6e67d3cb1c58e6836ff8334fd8231e5827311c8f5385f7266e02cab0a0d6aeb5"
+    },
+    {
+      "bytes": 5460,
+      "path": "store-gateway-guarded.log",
+      "sha256": "64133ed6f75aef72d1193584de5fca214c30b0b203f71f8b10d091b139e25808"
+    },
+    {
+      "bytes": 6659,
+      "path": "store-gateway-guarded.xml",
+      "sha256": "0c96154011b8aa4352a3df52e372c4faf3d82df2819538d688ce38135e790894"
+    },
+    {
+      "bytes": 120,
+      "path": "store-gateway.final.guard.log",
+      "sha256": "8c703bde577d35eb1397843751adc4f55cd5d6e9cf594c1853ee999066e729d5"
+    },
+    {
+      "bytes": 279,
+      "path": "store-gateway.guard.log",
+      "sha256": "b31f6da07349ee8e054533ae6c1561f882813ca212657372fd0a61126b24c853"
+    },
+    {
+      "bytes": 649,
+      "path": "store-gateway.log",
+      "sha256": "346a012fead0535a77f7b111d36fbff98b9973e50f36d7e325bb835a04d26719"
+    },
+    {
+      "bytes": 2800,
+      "path": "store-gateway.xml",
+      "sha256": "3011581e59e73f200e77e0c2a43141dceb41a72076aafa72c87af5cc14f3d02c"
+    }
+  ],
+  "format": "iteration41-integration-regression-qa-payload-v1",
+  "payload_file_count": 34,
+  "scope": "fake/offline-only; current main-tree source hashes are separately recorded"
+}

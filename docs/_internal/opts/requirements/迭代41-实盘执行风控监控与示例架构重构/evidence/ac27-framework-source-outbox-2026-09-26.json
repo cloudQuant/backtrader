@@ -1,0 +1,17 @@
+{
+  "scope": "local_fake_SQLite_projection_only",
+  "tests": 64,
+  "recorded_independent_rerun_duration_seconds": 4.69,
+  "earlier_independent_run_duration_seconds": 4.6,
+  "recorded_result": "64 passed, exit 0",
+  "test_invocation_failure_preserved": "First evidence-capture invocation ran no tests; corrected invocation generated the 64-test JUnit.",
+  "bundle_sha256_file_sha256": "783d418c5d95d34fda88ff93bfee60e2def7bb315344e65a158a5495e04dba90",
+  "artifacts": {
+    "ac27-framework-source-outbox-2026-09-26.junit.xml": "7927c099b1264102b44e273e2f7aa09b6ac3c585099d6b31bb19585f25c752fe",
+    "ac27-framework-source-outbox-2026-09-26.log": "1e329277cbda8cac8875e49b77c4e6bc26a6ca8819830348c1ebf4fee039ec31",
+    "ac27-framework-source-outbox-2026-09-26-probes.zip": "9a4393b68f46692aa879b433f6869b13cbf44a02a5847515a325d1fa79d20471"
+  },
+  "main_source_sha256": "3353051390b28e869749cd7c0a9e38e741b63ef1f536831555bbb6e4b5a67362",
+  "dependency_provenance": "Explicit source overlay; execution dirty source manifests retained in bundle; not installed-wheel evidence.",
+  "archive_scope": "Top-level diagnostic scripts/manifests/logs only; generated nested fake database directories excluded."
+}

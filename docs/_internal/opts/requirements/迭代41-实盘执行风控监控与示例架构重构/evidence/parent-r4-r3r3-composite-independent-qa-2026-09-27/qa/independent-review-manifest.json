@@ -1,0 +1,279 @@
+{
+  "schema": "iteration41-parent-r4-r3r3-independent-qa-artifacts.v1",
+  "status": "ACCEPTED_WITH_LIMITS_FOR_FAKE_LOCAL_CONTRACT_ONLY",
+  "candidate_source_manifest_sha256": "751717a2ec7a579f2823fbdc93036a65063f0dd3c3cfc9227dd8ff55161bf131",
+  "archive_index_sha256": "7d28aee603b06896711cb83cbdb68041a05f44e9b50a1e9d28216f866a3d1b6c",
+  "artifacts": [
+    {
+      "path": "qa\\independent-review.md",
+      "sha256": "6a08430af9692bbe0426b72fcaaf97aeb3e2d794c414749f36bca890d006c610",
+      "bytes": 4225
+    },
+    {
+      "path": "qa\\independent-review-receipt.json",
+      "sha256": "eb2b08557e1e488ab17c95651179217d3c48f7aedf469e9d11907e4c0247a29f",
+      "bytes": 11494
+    },
+    {
+      "path": "qa\\independent-review-commands.json",
+      "sha256": "b4617acc2044bcf4a5e125b893d041ceebebcf94b41c66af1ddf193ff111fa65",
+      "bytes": 3361
+    },
+    {
+      "path": "qa\\test-path-adaptations.diff",
+      "sha256": "56c5460e1fe6f9d877499642fd8c10156119c5448bf518463b73760c386e2e67",
+      "bytes": 3433
+    },
+    {
+      "path": "qa\\source-roots.json",
+      "sha256": "5cf8b8f596ab5f2cd8bc89c52ed62f5421240ba93fe7b6ae7ba346496d21fa3e",
+      "bytes": 1149
+    },
+    {
+      "path": "origin-guard\\sitecustomize.py",
+      "sha256": "c8ee9716718b69f61cb79241fbf2115fc87dacd47563d97ea48b2f82769703df",
+      "bytes": 7264
+    },
+    {
+      "path": "qa\\ind-parent-r4-final.log",
+      "sha256": "7a8785ba99090b13dc9fec4fec434ab7e004bb7ff1f0118abd516ddd24082c7a",
+      "bytes": 773
+    },
+    {
+      "path": "qa\\ind-parent-r4-final.xml",
+      "sha256": "14f5970227b20590c06acfd0274dfa72bc1576f5cf223bce95f9e040b454465c",
+      "bytes": 7220
+    },
+    {
+      "path": "qa\\ind-parent-r4-final.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-main-three-rerun.log",
+      "sha256": "fee051c51eb928e9fecac3cfdd05df2402bb08c20c15bb245bed3326e0d380d1",
+      "bytes": 693
+    },
+    {
+      "path": "qa\\ind-main-three-rerun.xml",
+      "sha256": "2651fd561077077522e286a278ebc9bb3bf492ea76d786730e5c8968085dca5d",
+      "bytes": 791
+    },
+    {
+      "path": "qa\\ind-main-three-rerun.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-main-five.log",
+      "sha256": "5073ff6460431603c0cf46ae9a37cccfd0f5612644e0f72ef88b5aca434fc9ee",
+      "bytes": 768
+    },
+    {
+      "path": "qa\\ind-main-five.xml",
+      "sha256": "a93451552a032246a61e086d858e8c2ee09ac37e97868eb9b5ea4106affd83e9",
+      "bytes": 13569
+    },
+    {
+      "path": "qa\\ind-main-five.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-main-control-rerun.log",
+      "sha256": "9b51dd1fa8577c88413093147065b2b71227ef2d6c1328a08f34944d63eccf77",
+      "bytes": 216
+    },
+    {
+      "path": "qa\\ind-main-control-rerun.xml",
+      "sha256": "cce91117960307b90ca13ca78f9d4ccce342cbf90e8c129a24521cd99e3e266b",
+      "bytes": 3474
+    },
+    {
+      "path": "qa\\ind-main-control-rerun.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-parent-r4.log",
+      "sha256": "fff7cebb329d7cb037fb5e0957f7acf5029652cc9ac054b765f749d63526a0cc",
+      "bytes": 767
+    },
+    {
+      "path": "qa\\ind-parent-r4.xml",
+      "sha256": "8423e64ff89cd6d09d2a33159e2ce4a87515f3a5d4ad1b486d6f528ac3e14756",
+      "bytes": 7220
+    },
+    {
+      "path": "qa\\ind-parent-r4.exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-parent-r4-guarded.log",
+      "sha256": "92d80d40d5e4eaa4f32d021db4583750e38f79672bb7a6f0d7c07607b4b9fd22",
+      "bytes": 3765
+    },
+    {
+      "path": "qa\\ind-parent-r4-guarded.xml",
+      "sha256": "ff05f4ab9d6ec1d98a4395bdfef91c52c7c04da227ac7fd5fcbd5ce4101c6216",
+      "bytes": 3074
+    },
+    {
+      "path": "qa\\ind-parent-r4-guarded.exit.txt",
+      "sha256": "df4e26a04a444901b95afef44e4a96cfae34690fff2ad2c66389c70079cdff2b",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-main-three.log",
+      "sha256": "58c5354bdc8cd6220bb9c3d7f62273acf8a258a2debfe75eaff97dc0a4eb13d2",
+      "bytes": 3060
+    },
+    {
+      "path": "qa\\ind-main-three.xml",
+      "sha256": "4a3aa62b3bf5ccfbaaefa4a6ab04ab93b591e4a0e808828a63d60adc63e0dfd5",
+      "bytes": 2752
+    },
+    {
+      "path": "qa\\ind-main-three.exit.txt",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\ind-main-control.log",
+      "sha256": "0f8fd70e2e3b05af4925d174b7a3de19e388c6f6e5a936be7ff51dbcf93a5676",
+      "bytes": 1441
+    },
+    {
+      "path": "qa\\ind-main-control.xml",
+      "sha256": "27fa192977287bd6682773054ccf689f409efc0f6b60060e647f8c7cc13426c0",
+      "bytes": 1294
+    },
+    {
+      "path": "qa\\ind-main-control.exit.txt",
+      "sha256": "df4e26a04a444901b95afef44e4a96cfae34690fff2ad2c66389c70079cdff2b",
+      "bytes": 3
+    },
+    {
+      "path": "qa\\origin-guard-independent-parent-final\\origin-guard-29020.jsonl",
+      "sha256": "150fa0d1b01e1e707a3b9be23c7968ebbd3b3419ff44f371208e6ceb417cfed0",
+      "bytes": 1409
+    },
+    {
+      "path": "qa\\origin-guard-independent-parent-final\\origin-guard-30108.jsonl",
+      "sha256": "6656b55db3170d5550adccd239228e774fb944304d5ff792edf951fa59f06510",
+      "bytes": 31377
+    },
+    {
+      "path": "qa\\origin-guard-independent-parent-final\\origin-guard-42708.jsonl",
+      "sha256": "a731bb1452c2435e707a38c14c8b11a527a36b015f09e455f3b4e7ce0a72b256",
+      "bytes": 1409
+    },
+    {
+      "path": "qa\\origin-guard-independent-parent-final\\origin-guard-43412.jsonl",
+      "sha256": "252a953785e5754869c156e96e1b116402e7a4d872bf1db19adcc043b493a7e4",
+      "bytes": 1409
+    },
+    {
+      "path": "qa\\origin-guard-independent-three-rerun\\origin-guard-29568.jsonl",
+      "sha256": "1816707b455685843b191ce36be7107430837c0639b2bf8e0ad29d147bdd3372",
+      "bytes": 1408
+    },
+    {
+      "path": "qa\\origin-guard-independent-three-rerun\\origin-guard-39456.jsonl",
+      "sha256": "9179b17dad14f8168dbf2a017184ff3b698ec7fa4b95bbf3c236cca5b0581f04",
+      "bytes": 30596
+    },
+    {
+      "path": "qa\\origin-guard-independent-three-rerun\\origin-guard-39484.jsonl",
+      "sha256": "69f2ee75c31df66065314834dcd3076962d529ee9082d170ea453afa0022345e",
+      "bytes": 30596
+    },
+    {
+      "path": "qa\\origin-guard-independent-three-rerun\\origin-guard-41960.jsonl",
+      "sha256": "2dc27aca403a31988eb68a055e81de96601e75ff6a03e3a7b07c74e1a69edee9",
+      "bytes": 30596
+    },
+    {
+      "path": "qa\\origin-guard-independent-three-rerun\\origin-guard-9656.jsonl",
+      "sha256": "bc66bf77e5b5bc5c6971ba1941f308ce0a65c48393e7209eb7d893e2e0a1a429",
+      "bytes": 1407
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-17312.jsonl",
+      "sha256": "1b96b4d06127115557564d1795788e0b409ea8844330894a0300736f94ddd2a0",
+      "bytes": 1401
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-30964.jsonl",
+      "sha256": "3789fba9f927028403382b60979ced8338a85e2b04073c2713f33a559b1ad9e0",
+      "bytes": 30589
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-35960.jsonl",
+      "sha256": "978b5327f4e92a731b70ce65243b6d5e437d19a908b87636c7a97f75e3889599",
+      "bytes": 30589
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-38488.jsonl",
+      "sha256": "39782f681c62a7e9c731a508e9740ca7ef53ed4c9484ac8bba425815df6fd613",
+      "bytes": 30589
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-39568.jsonl",
+      "sha256": "aef68d048f17cfe66f77677008b8e960ae9375772f3d065df630c177318cead8",
+      "bytes": 30589
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-44948.jsonl",
+      "sha256": "311373db61c4f58586b83e959eb3690186d786882fb0cd726e76c6bbd8dc8c15",
+      "bytes": 24796
+    },
+    {
+      "path": "qa\\origin-guard-independent-five\\origin-guard-45312.jsonl",
+      "sha256": "e2ef41031d711618a4847faca233ff711dfd273be118a303eab560a11aaa2c89",
+      "bytes": 30589
+    },
+    {
+      "path": "qa\\origin-guard-independent-control-rerun\\origin-guard-16604.jsonl",
+      "sha256": "3b3b1f721de69f9e361bef6b6a9c611ac588689fd63c81823dea28a8f3d129f5",
+      "bytes": 31378
+    },
+    {
+      "path": "qa\\origin-guard-independent-control-rerun\\origin-guard-34584.jsonl",
+      "sha256": "145e8837c55d9877e6c4cdb33b961b44f46ab15bbfbf6cc9151d9485744280da",
+      "bytes": 1410
+    },
+    {
+      "path": "qa\\origin-guard-independent-control-rerun\\origin-guard-43412.jsonl",
+      "sha256": "b2d3e1af654e2d127fca18ce0c93ab7d79d67a10ba0bf4569972088e17e8489e",
+      "bytes": 1410
+    },
+    {
+      "path": "qa\\origin-guard-independent-control-rerun\\origin-guard-7772.jsonl",
+      "sha256": "d213878198d0c327ff219cfc5ed7ca8521d53c568b0af9cf915dd317dc71ffac",
+      "bytes": 1409
+    },
+    {
+      "path": "qa\\test_cancel_dispatch_resolution_proof.py.original-before-path-adapt.py",
+      "sha256": "36acb7c8221ee313fd98d8995538f05bd6e7eb9d95b719f3b5e9bae8e5d52da8",
+      "bytes": 33411
+    },
+    {
+      "path": "qa\\test_cancel_dispatch_resolution_proof_store.py.original-before-path-adapt.py",
+      "sha256": "f9fbdd96587e0ea76375e64d0c1c0f5627dda1bc1c7db0d345543878409dde90",
+      "bytes": 11081
+    },
+    {
+      "path": "qa\\test_cancellation_dispatch_resolution_control.py.original-before-path-adapt.py",
+      "sha256": "03e797b03bf1c8d2f00407b677d2481b4a64ce096188ed4d5a4968358fedad4d",
+      "bytes": 42310
+    },
+    {
+      "path": "qa\\test_cancellation_dispatch_resolution_control.original.py",
+      "sha256": "02485974a728d3f85a63b0042c19277fede8a0d89a527802f40654365ea0b250",
+      "bytes": 42278
+    }
+  ],
+  "excluded": "Pytest basetemp trees and copied source trees are excluded; they are bound by the frozen composite source manifest and source-roots map."
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "g6s-settlement-source-lineage-correction-r2",
+  "captured_at_utc": "2026-09-26T22:49:13Z",
+  "disposition": "AUTHOR_CANDIDATE_ONLY / NOT_ACCEPTED",
+  "preserved_r1": true,
+  "r1_scope_correction": {
+    "source_path": "D:/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/client.py",
+    "source_sha256": "b61b32f9a2a2e61035bf88bcb7acf669c8c7ee8e5bf5d7e1f6e375e69f053eab",
+    "checkout_commit": "d3674e19",
+    "checkout_state": "dirty; not an accepted or pinned SDK artifact",
+    "referenced_lines": "6171-6184",
+    "statement": "The r1 missing-request_filters observation applies only to this exact dirty checkout snapshot: its settlement query did not pass request_filters to _execute_query. Do not generalize that observation to other SDK candidate source."
+  },
+  "separate_clean_g4_r2_report": {
+    "status": "REPORTED_BY_SDK_MERGE / INDEPENDENTLY_UNVERIFIED_IN_THIS_ARCHIVE",
+    "source_path": null,
+    "source_sha256": null,
+    "line_refs": null,
+    "reported_behavior": "The separate clean G4-r2 source-a candidate passes request_filter_field plus request_intent_filters; _execute_query reads actual native field values through _read_native_query_filter_items() before send and records them in QuerySource.",
+    "request_type": "settlement_confirmation",
+    "row_day_field": "ConfirmDate",
+    "session_day_field": "TradingDay sealed in QuerySource/session; native CThostFtdcSettlementInfoConfirmField has no TradingDay member.",
+    "evidence_limit": "Exact source-a path/hash/line references were not supplied at capture time; this report is not independently verified here and does not establish SDK pinning or acceptance."
+  },
+  "remaining_gap": "A settlement-specific native source/callback-history evidence builder and an independently reviewed main readiness validator are still required. The existing seven-query certificate builder omits settlement confirmation.",
+  "candidate_contract": "The frozen fake uses request_type settlement_confirmation. query_settlement_confirmation is a request-counter name only. Its injected verifier must bind the source seal, exact request filters, current retained history/result digest, terminal callback and freshness before attestation.",
+  "acceptance": "No G6-S or G7-S acceptance."
+}

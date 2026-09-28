@@ -1,0 +1,8 @@
+.                                                                        [100%]
+============================== warnings summary ===============================
+test_iteration41_legacy_ctp_support_inert_import.py::test_legacy_support_import_is_inert_and_live_helpers_default_deny
+  D:\temp\ac41-63-writer-partition4-regression-test-r1-apply-20260927\tests\unit\test_iteration41_legacy_ctp_support_inert_import.py:71: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    return original_import(name, *args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 4.76s

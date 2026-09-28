@@ -1,0 +1,153 @@
+{
+  "schema": "iteration41_g1_overlapped_io_custody_main_archive.v1",
+  "date": "2026-09-28",
+  "status": "GO_LOCAL_SUBGATE_ONLY; STRICT_WHOLE_COMMAND_G1_NO_GO; ORDINARY_PREFLIGHT_CLOSED",
+  "files": [
+    {
+      "path": "adjacent-suite/adjacent.log",
+      "sha256": "72d2f4b8b4e552bc36bb4de3f9265ce59cdc457f14d06e4af1cd15346cf0f55c",
+      "bytes": 988
+    },
+    {
+      "path": "adjacent-suite/exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "adjacent-suite/guard-logs/27784.json",
+      "sha256": "407d0472e0e545089725f1e19305a0ebfa3c8a5f9b8c77c671e26ffeecdf030a",
+      "bytes": 54
+    },
+    {
+      "path": "adjacent-suite/junit.xml",
+      "sha256": "757f3fee3a3fa73d52479a91a4a06879506f063e6ace2a065dd7c20f697b5373",
+      "bytes": 54578
+    },
+    {
+      "path": "candidate/FROZEN-MANIFEST.json",
+      "sha256": "074235d2ff29afb6256ef385f29f5c6b7a9e84be8eacbb3bc3fb4fbaa472668c",
+      "bytes": 2919
+    },
+    {
+      "path": "candidate/PATCH.diff",
+      "sha256": "c27ddf0d605a9705956dff9ba00b05f3b6640492162c8e58f4e07d4791a44bdd",
+      "bytes": 25781
+    },
+    {
+      "path": "finalize_archive.ps1",
+      "sha256": "f931f8b0dd0f3b706bb38b49662b9cc673516fe43a016f667072fa16651f801b",
+      "bytes": 7101
+    },
+    {
+      "path": "inventory/collector.log",
+      "sha256": "e0429db069101be0072c4c5316fb1015d7d82749a99dd367ae4033f6bca3945b",
+      "bytes": 483
+    },
+    {
+      "path": "inventory/compare_inventory.py",
+      "sha256": "88333e74c56157a94651822a29ab452e63f5dc9c2d3944d2fca04121e2627431",
+      "bytes": 2705
+    },
+    {
+      "path": "inventory/exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "inventory/fresh-collection.json",
+      "sha256": "3436acc11b769a1676a8f19364159b67281b24b8e6325b0c3162c0e28d145146",
+      "bytes": 225377
+    },
+    {
+      "path": "inventory/no-change-result.json",
+      "sha256": "d8104912b50ca10bd583903946e9fba7d060aeeeda5afc9f9cd51b7ec1b60fa7",
+      "bytes": 1328
+    },
+    {
+      "path": "main-focus/exit.txt",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "main-focus/guard-logs/23572.json",
+      "sha256": "407d0472e0e545089725f1e19305a0ebfa3c8a5f9b8c77c671e26ffeecdf030a",
+      "bytes": 54
+    },
+    {
+      "path": "main-focus/junit.xml",
+      "sha256": "acda539676894c7f37b60db670c2e1e242df7b18464814bf131a28a104e82435",
+      "bytes": 6096
+    },
+    {
+      "path": "main-focus/pytest.log",
+      "sha256": "ffb470e85ce2a86f7a7f6b53e16579a9dd03d2fa14e861dcc8eab5815905e042",
+      "bytes": 643
+    },
+    {
+      "path": "qa/INDEPENDENT-QA-RECEIPT.md",
+      "sha256": "423a79a759c1e1181f7e2da57932c8eb8f22b696ec11683e1df7d576cf016089",
+      "bytes": 6558
+    },
+    {
+      "path": "qa/qa-extra-test-source.py",
+      "sha256": "d5316f7a3b4d0a163684c777e0bbb59b70bce94d9725134e26c01d35c17f158b",
+      "bytes": 39536
+    },
+    {
+      "path": "qa/qa-focus-exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "qa/qa-focus-junit.xml",
+      "sha256": "945c95375c1c0292ae52e8a41a0d27cc4279a8e764d900ad276baf0b8cc65772",
+      "bytes": 6587
+    },
+    {
+      "path": "qa/qa-focus.log",
+      "sha256": "0be841e7c822583f89bdc8fb54e72e54f8b92712b1eb9bee29b7bc57f477c6bf",
+      "bytes": 341
+    },
+    {
+      "path": "README.md",
+      "sha256": "12e6c7af93eaa19a7ac5b49e4d541745c991d18830e80bf4e1be88c8d0890551",
+      "bytes": 4864
+    }
+  ],
+  "external_references": [
+    {
+      "path": "scripts/ctp_i13_i15_worker_output_channel.py",
+      "sha256": "4f9ff31428cdfd9d62acc8118ae4bb00bc09cc0e5883fb07c6b1daea85f41178"
+    },
+    {
+      "path": "tests/unit/scripts/test_ctp_i13_i15_worker_output_channel.py",
+      "sha256": "25332e48979f7827fa97e5dc4c8fa4fb7acd8eb17262c505bde4f4afec182861"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "sha256": "0874a81ac23ba4f659acaac833a976ecec44fa892a3a97778ea3d9779db67a67"
+    }
+  ],
+  "verification": {
+    "main_focus": "33 passed, 0 failed, exit 0",
+    "adjacent_guarded_suite": "305 passed, 0 failed, exit 0; 12 test modules",
+    "adjacent_test_modules": [
+      "tests.unit.scripts.test_ctp_i13_i15_bootstrap_receipt_runtime",
+      "tests.unit.scripts.test_ctp_i13_i15_guardian_deployment_anchor",
+      "tests.unit.scripts.test_ctp_i13_i15_inert_deadline_supervisor",
+      "tests.unit.scripts.test_ctp_i13_i15_outer_watchdog",
+      "tests.unit.scripts.test_ctp_i13_i15_parent_launcher",
+      "tests.unit.scripts.test_ctp_i13_i15_readonly_roles",
+      "tests.unit.scripts.test_ctp_i13_i15_runtime_closure",
+      "tests.unit.scripts.test_ctp_i13_i15_sealed_import",
+      "tests.unit.scripts.test_ctp_i13_i15_windows_guardian",
+      "tests.unit.scripts.test_ctp_i13_i15_windows_guardian_service",
+      "tests.unit.scripts.test_ctp_i13_i15_windows_job_backend",
+      "tests.unit.scripts.test_ctp_i13_i15_worker_output_channel"
+    ],
+    "independent_qa": "GO_LOCAL_SUBGATE; 36 passed, Ruff clean, py_compile exit 0",
+    "inventory": "NO_CHANGE; 363 writer + 97 dynamic across 355 scanned files; zero parse errors/unclassified paths; exact ordered rows and locations",
+    "guard": "main and adjacent logs both have zero events and zero native modules"
+  },
+  "limits": "Does not bound synchronous Win32 calls, SCM/CLI startup or Windows scheduling. A prewarmed service request SLA is not the whole-command startup-inclusive deadline."
+}

@@ -1,0 +1,3 @@
+Command: python -m py_compile scripts/verify_iteration41_writer_dispositions.py tests/unit/scripts/test_verify_iteration41_writer_dispositions.py
+Command: ruff check --config D:\source_code\backtrader\pyproject.toml scripts/verify_iteration41_writer_dispositions.py tests/unit/scripts/test_verify_iteration41_writer_dispositions.py
+Result: py_compile exit 0; All checks passed!

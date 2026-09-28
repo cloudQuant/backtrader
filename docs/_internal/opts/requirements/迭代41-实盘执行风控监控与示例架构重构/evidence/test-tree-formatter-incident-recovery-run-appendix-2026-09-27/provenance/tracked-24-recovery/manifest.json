@@ -1,0 +1,2129 @@
+{
+  "format": "iteration41-test-preimage-recovery-r2",
+  "created_utc": "2026-09-27T13:05:04.564297+00:00",
+  "incident_root": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927",
+  "package_root": "D:\\temp\\g6-actionref-main-tree-test-preimage-recovery-r2-20260927",
+  "ruff_version": "ruff 0.16.2",
+  "ruff_config_path": "D:\\source_code\\backtrader\\pyproject.toml",
+  "ruff_config_sha256": "2e65494605e0bcb7edaa5c2a9899355eb4255b6ef9d4292f9a1ff33562870f48",
+  "postincident_snapshot_zip_sha256": "4a7459b80fd85afdbaa6fc22a1c6e77ebce5dd90d8d7c0c0e7ab72d713076258",
+  "postincident_snapshot_zip_mtime_utc": "2026-09-27T12:31:46.682205+00:00",
+  "candidate_scope": "89 initial same-basename direct/zip candidates plus 6 full-tree main-copy alternatives",
+  "comparison_rule": "Ruff format output bytes under repository pyproject.toml exactly equal the corresponding post-incident snapshot ZIP member bytes/SHA. Exactly one of 95 scoped inputs matches per target. This is not a mathematical inverse proof: Ruff formatting is many-to-one; unseen raw preimages may exist.",
+  "classification_counts": {
+    "A_MAIN_SOURCE_HASH_RECORDED": 24,
+    "B_CANDIDATE_ONLY_NO_MAIN_IDENTITY": 0
+  },
+  "classification_caveat": "A means pre-incident main-source evidence records this candidate SHA for the target. It does not prove no later unarchived edit occurred. Compare with incident-time status/diff and chronology before restoration.",
+  "invalid_r1_note": "The first postformat comparison tried repository-relative paths under flattened tests-current and got null member hashes. It is invalid; r2 compares repository-relative ZIP members directly.",
+  "identity_reference_copies": {
+    "main-source-copy-manifest.json": {
+      "original_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-main-store-combined-five-patches-2026-09-27\\BASE-COPY-MANIFEST.json",
+      "source_sha256": "2741df7a063a827cd595bc6d5dbe43ab38d099ebe803b96de59315896bafbe4c",
+      "source_mtime_utc": "2026-09-27T04:50:39.769795+00:00",
+      "package_path": "references/main-source-copy-manifest.json"
+    },
+    "certification-helper-main-integration-README.md": {
+      "original_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-certification-helper-fail-close-main-integration-2026-09-27\\README.md",
+      "source_sha256": "d2ca3d2584013c0e04546cf19aab2df8afdd0d2b3130de6cc866a3e6d7293cbb",
+      "source_mtime_utc": "2026-09-27T08:12:09.098671+00:00",
+      "package_path": "references/certification-helper-main-integration-README.md"
+    },
+    "store-sdk-api-guard-r0-independent-QA-README.md": {
+      "original_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-guard-r0-independent-qa-2026-09-27\\README.md",
+      "source_sha256": "1eef949c4ae71579cc4d2e0f1b63e550d3946151a52eac873603bee6d2c461b3",
+      "source_mtime_utc": "2026-09-27T11:13:42.268301+00:00",
+      "package_path": "references/store-sdk-api-guard-r0-independent-QA-README.md"
+    },
+    "normalized-test-migration-r3-main-README.md": {
+      "original_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-normalized-test-migration-r3-2026-09-27\\README.md",
+      "source_sha256": "29a88eb6d5790829b560832647d4fbd5e1a04b044213204cd82b23d6f5292091",
+      "source_mtime_utc": "2026-09-27T10:26:25.376788+00:00",
+      "package_path": "references/normalized-test-migration-r3-main-README.md"
+    },
+    "direct-mechanical-cycle-main-README.md": {
+      "original_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-direct-mechanical-cycle-simnow-failclose-main-integration-2026-09-27\\README.md",
+      "source_sha256": "708ac6a683c851621637daa6406cb4ce6c2e14e4e07132df6d9d1b72f6e9f800",
+      "source_mtime_utc": "2026-09-27T09:14:29.594815+00:00",
+      "package_path": "references/direct-mechanical-cycle-main-README.md"
+    }
+  },
+  "control_reference_copies": {
+    "incident-snapshot.zip": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\tests-py-current-snapshot.zip",
+      "sha256": "4a7459b80fd85afdbaa6fc22a1c6e77ebce5dd90d8d7c0c0e7ab72d713076258",
+      "bytes": 9322373,
+      "mtime_utc": "2026-09-27T12:31:46.682205+00:00",
+      "package_path": "controls/incident-snapshot.zip"
+    },
+    "incident-snapshot-manifest.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\tests-py-current-snapshot-manifest.json",
+      "sha256": "7f7b20cb32c0342f3c19aecd293ae834a69ebe7826ca1ecfab88d240dd0ebaa2",
+      "bytes": 427929,
+      "mtime_utc": "2026-09-27T12:31:46.692431+00:00",
+      "package_path": "controls/incident-snapshot-manifest.json"
+    },
+    "candidate-index.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\candidate-preimage-ruff-check\\preimage-candidate-index.json",
+      "sha256": "17d959993a52d6b24d463606c3be3c2b68375d15961872baa05b1a7c5e7b05a9",
+      "bytes": 48861,
+      "mtime_utc": "2026-09-27T12:46:58.819477+00:00",
+      "package_path": "controls/candidate-index.json"
+    },
+    "candidate-format-match-results.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\candidate-preimage-ruff-check\\format-match-results.json",
+      "sha256": "e91809b27b00c4706e3a5d2c047c12fabb4734ba882e1974dd4317ebabd78980",
+      "bytes": 51010,
+      "mtime_utc": "2026-09-27T12:46:58.821849+00:00",
+      "package_path": "controls/candidate-format-match-results.json"
+    },
+    "postformat-member-match-r2.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\ruff-preimage-snapshot-byte-match-r2.json",
+      "sha256": "d631f20e6e8fafb1dab802b06f79591fed868979c21b9582a0ce43d188e05138",
+      "bytes": 24548,
+      "mtime_utc": "2026-09-27T12:49:05.415148+00:00",
+      "package_path": "controls/postformat-member-match-r2.json"
+    },
+    "source-verification-r2.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\ruff-preimage-source-verification-r2.json",
+      "sha256": "ad969445ff17731d68db2312c8cf54f7e820a5a47310cc6d9d497593d06e6ab0",
+      "bytes": 22034,
+      "mtime_utc": "2026-09-27T12:49:55.509556+00:00",
+      "package_path": "controls/source-verification-r2.json"
+    },
+    "same-basename-search-r1.txt": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\same-basename-search-r1.txt",
+      "sha256": "f548cd53f117f3ade392cc27f5290a32e029669b7489c538ba51e9fa6cbd5991",
+      "bytes": 53484,
+      "mtime_utc": "2026-09-27T12:44:59.917723+00:00",
+      "package_path": "controls/same-basename-search-r1.txt"
+    },
+    "candidate-search-summary.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\direct-snapshot-name-scan.json",
+      "sha256": "e186b061e33f5b40dd2b7691a881ca4349b0dac44bd5fbe44cc3aa4b72c6d056",
+      "bytes": 187070,
+      "mtime_utc": "2026-09-27T12:42:00.614553+00:00",
+      "package_path": "controls/candidate-search-summary.json"
+    },
+    "zip-search-summary.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\zip-test-snapshot-scan.json",
+      "sha256": "04ddbf3fefd364c4ffa8f120319726c195a055e6c846ce533aa7d42685f11ef4",
+      "bytes": 84477,
+      "mtime_utc": "2026-09-27T12:44:31.977904+00:00",
+      "package_path": "controls/zip-search-summary.json"
+    },
+    "main-copy-alternative-ruff-check-r1.json": {
+      "original_path": "D:\\temp\\g6-actionref-validator-main-tree-incident-20260927\\main-copy-alternative-ruff-check-r1.json",
+      "sha256": "7e1251def5c0b0003d8b9450aa34a21f40e6b6350552553152d0fb53d6c8c61e",
+      "bytes": 5536,
+      "mtime_utc": "2026-09-27T13:00:30.170432+00:00",
+      "package_path": "controls/main-copy-alternative-ruff-check-r1.json"
+    }
+  },
+  "targets": [
+    {
+      "index": 1,
+      "target": "tests/functional/strategies/time_based/test_0202_fnn_embedding.py",
+      "incident_snapshot_member_sha256": "75e74ec767cd1380fd8f526c1948787dbb083599860860771e3e807c92597bb4",
+      "incident_snapshot_member_bytes": 3183,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-e6afee8c2de3",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\functional\\strategies\\time_based\\test_0202_fnn_embedding.py",
+        "source_member": null,
+        "source_sha256": "e6afee8c2de3f6485bff77f0b06c9a99609254df32b58ac60d37c369ef0a8d4a",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:51.594773+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:51.594773+00:00",
+        "ruff_output_sha256": "75e74ec767cd1380fd8f526c1948787dbb083599860860771e3e807c92597bb4",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/01/index-01-e6afee8c2de3-source.py",
+        "ruff_output_package_path": "targets/01/index-01-e6afee8c2de3-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\functional\\strategies\\time_based\\test_0202_fnn_embedding.py",
+        "source_sha256": "4a26d85aa3e6788120f91051885c4a9cbc631c9b0ce9c3c96565d57d22a70192",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:10.742781+00:00",
+        "ruff_output_sha256": "4a26d85aa3e6788120f91051885c4a9cbc631c9b0ce9c3c96565d57d22a70192",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/functional/strategies/time_based/test_0202_fnn_embedding.py",
+        "recorded_main_source_sha256": "e6afee8c2de3f6485bff77f0b06c9a99609254df32b58ac60d37c369ef0a8d4a",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-e6afee8c2de3",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\functional\\strategies\\time_based\\test_0202_fnn_embedding.py",
+          "source_member": null,
+          "source_sha256": "e6afee8c2de3f6485bff77f0b06c9a99609254df32b58ac60d37c369ef0a8d4a",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:51.594773+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:51.594773+00:00",
+          "ruff_output_sha256": "75e74ec767cd1380fd8f526c1948787dbb083599860860771e3e807c92597bb4",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/01/index-01-e6afee8c2de3-source.py",
+          "ruff_output_package_path": "targets/01/index-01-e6afee8c2de3-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-4a26d85aa3e6",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\functional\\strategies\\time_based\\test_0202_fnn_embedding.py",
+          "source_member": null,
+          "source_sha256": "4a26d85aa3e6788120f91051885c4a9cbc631c9b0ce9c3c96565d57d22a70192",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:10.742781+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:10.742781+00:00",
+          "ruff_output_sha256": "4a26d85aa3e6788120f91051885c4a9cbc631c9b0ce9c3c96565d57d22a70192",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/01/index-02-4a26d85aa3e6-source.py",
+          "ruff_output_package_path": "targets/01/index-02-4a26d85aa3e6-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "target": "tests/integration/test_cross_exchange_demo_contract.py",
+      "incident_snapshot_member_sha256": "9dfb829c993f59e2a934795a99d9eafa39d23c29080eaf732ac28fc8a7c79cdb",
+      "incident_snapshot_member_bytes": 47393,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-98366a1bd4a9",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_cross_exchange_demo_contract.py",
+        "source_member": null,
+        "source_sha256": "98366a1bd4a950b83165bed19c4bd5ee644a229efb5cc82e35217d8071e2714a",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.233082+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.233082+00:00",
+        "ruff_output_sha256": "9dfb829c993f59e2a934795a99d9eafa39d23c29080eaf732ac28fc8a7c79cdb",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/02/index-01-98366a1bd4a9-source.py",
+        "ruff_output_package_path": "targets/02/index-01-98366a1bd4a9-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\integration\\test_cross_exchange_demo_contract.py",
+        "source_sha256": "cb6f85e26198d67af1c56e82f8118dfc405dc98397e279cd51c6e6a28bc6d5a1",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:10.921016+00:00",
+        "ruff_output_sha256": "f1f65f97879438f4d0a3165ab2518674950269e8b7233484da1b027ace65f8a9",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/integration/test_cross_exchange_demo_contract.py",
+        "recorded_main_source_sha256": "98366a1bd4a950b83165bed19c4bd5ee644a229efb5cc82e35217d8071e2714a",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-98366a1bd4a9",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_cross_exchange_demo_contract.py",
+          "source_member": null,
+          "source_sha256": "98366a1bd4a950b83165bed19c4bd5ee644a229efb5cc82e35217d8071e2714a",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.233082+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.233082+00:00",
+          "ruff_output_sha256": "9dfb829c993f59e2a934795a99d9eafa39d23c29080eaf732ac28fc8a7c79cdb",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/02/index-01-98366a1bd4a9-source.py",
+          "ruff_output_package_path": "targets/02/index-01-98366a1bd4a9-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-cb6f85e26198",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\integration\\test_cross_exchange_demo_contract.py",
+          "source_member": null,
+          "source_sha256": "cb6f85e26198d67af1c56e82f8118dfc405dc98397e279cd51c6e6a28bc6d5a1",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:10.921016+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:10.921016+00:00",
+          "ruff_output_sha256": "f1f65f97879438f4d0a3165ab2518674950269e8b7233484da1b027ace65f8a9",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/02/index-02-cb6f85e26198-source.py",
+          "ruff_output_package_path": "targets/02/index-02-cb6f85e26198-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "target": "tests/integration/test_cross_exchange_real_rule_replay.py",
+      "incident_snapshot_member_sha256": "ee88b777094d9341813224467c14d023a9993be48fda69ea301cd67b6f1385bf",
+      "incident_snapshot_member_bytes": 11035,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-50c896880df5",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_cross_exchange_real_rule_replay.py",
+        "source_member": null,
+        "source_sha256": "50c896880df503b5aa667ebf38de631ed09ba5656c84dadef1d8b5c07fb4297e",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.236166+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.236166+00:00",
+        "ruff_output_sha256": "ee88b777094d9341813224467c14d023a9993be48fda69ea301cd67b6f1385bf",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/03/index-01-50c896880df5-source.py",
+        "ruff_output_package_path": "targets/03/index-01-50c896880df5-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\integration\\test_cross_exchange_real_rule_replay.py",
+        "source_sha256": "0a4fb9e0216bb77b718ce03e293dcbb4b7d6a528c2a25a4ed2e007cf0cda0754",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:10.922028+00:00",
+        "ruff_output_sha256": "0a4fb9e0216bb77b718ce03e293dcbb4b7d6a528c2a25a4ed2e007cf0cda0754",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/integration/test_cross_exchange_real_rule_replay.py",
+        "recorded_main_source_sha256": "50c896880df503b5aa667ebf38de631ed09ba5656c84dadef1d8b5c07fb4297e",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-50c896880df5",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\integration\\test_cross_exchange_real_rule_replay.py",
+          "source_member": null,
+          "source_sha256": "50c896880df503b5aa667ebf38de631ed09ba5656c84dadef1d8b5c07fb4297e",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.236166+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.236166+00:00",
+          "ruff_output_sha256": "ee88b777094d9341813224467c14d023a9993be48fda69ea301cd67b6f1385bf",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/03/index-01-50c896880df5-source.py",
+          "ruff_output_package_path": "targets/03/index-01-50c896880df5-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-0a4fb9e0216b",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\integration\\test_cross_exchange_real_rule_replay.py",
+          "source_member": null,
+          "source_sha256": "0a4fb9e0216bb77b718ce03e293dcbb4b7d6a528c2a25a4ed2e007cf0cda0754",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:10.922028+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:10.922028+00:00",
+          "ruff_output_sha256": "0a4fb9e0216bb77b718ce03e293dcbb4b7d6a528c2a25a4ed2e007cf0cda0754",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/03/index-02-0a4fb9e0216b-source.py",
+          "ruff_output_package_path": "targets/03/index-02-0a4fb9e0216b-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "target": "tests/unit/brokers/test_btapibroker_arbitrage.py",
+      "incident_snapshot_member_sha256": "2e3cd198fe20c089453e034611cb46c2d61f1743e52dcd9fb24e65f9276ab770",
+      "incident_snapshot_member_bytes": 30364,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-dfcdd3a81925",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\brokers\\test_btapibroker_arbitrage.py",
+        "source_member": null,
+        "source_sha256": "dfcdd3a81925bc1b6dd5a71d068726d1bdb555a05ccf44eb28e9f91faf2a7f35",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.422162+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.422162+00:00",
+        "ruff_output_sha256": "2e3cd198fe20c089453e034611cb46c2d61f1743e52dcd9fb24e65f9276ab770",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/04/index-01-dfcdd3a81925-source.py",
+        "ruff_output_package_path": "targets/04/index-01-dfcdd3a81925-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\brokers\\test_btapibroker_arbitrage.py",
+        "source_sha256": "cf0de5172301bc91ed4c37d8ceeb9f5640a9a769615bdac286050048e94e2a7d",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:10.952747+00:00",
+        "ruff_output_sha256": "f0460382f51e2bb0d8b4dc15adf192e9ab80d2c89cd613f30e402120a92ac633",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/brokers/test_btapibroker_arbitrage.py",
+        "recorded_main_source_sha256": "dfcdd3a81925bc1b6dd5a71d068726d1bdb555a05ccf44eb28e9f91faf2a7f35",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-dfcdd3a81925",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\brokers\\test_btapibroker_arbitrage.py",
+          "source_member": null,
+          "source_sha256": "dfcdd3a81925bc1b6dd5a71d068726d1bdb555a05ccf44eb28e9f91faf2a7f35",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.422162+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.422162+00:00",
+          "ruff_output_sha256": "2e3cd198fe20c089453e034611cb46c2d61f1743e52dcd9fb24e65f9276ab770",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/04/index-01-dfcdd3a81925-source.py",
+          "ruff_output_package_path": "targets/04/index-01-dfcdd3a81925-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-cf0de5172301",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\brokers\\test_btapibroker_arbitrage.py",
+          "source_member": null,
+          "source_sha256": "cf0de5172301bc91ed4c37d8ceeb9f5640a9a769615bdac286050048e94e2a7d",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:10.952747+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:10.952747+00:00",
+          "ruff_output_sha256": "f0460382f51e2bb0d8b4dc15adf192e9ab80d2c89cd613f30e402120a92ac633",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/04/index-02-cf0de5172301-source.py",
+          "ruff_output_package_path": "targets/04/index-02-cf0de5172301-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "target": "tests/unit/live_certification/test_hongyuan_penetration_strictness.py",
+      "incident_snapshot_member_sha256": "1b68e433d8546b9d4f5cbc3d3f2ffd18bf6238fcd17abf834123227a71e2d7c2",
+      "incident_snapshot_member_bytes": 29200,
+      "scanned_candidate_count_including_maincopy_alts": 3,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-cfaee420fc99",
+        "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_hongyuan_penetration_strictness.py",
+        "source_member": null,
+        "source_sha256": "cfaee420fc99fc41efaf730a21bfc5e67c36f9710c225265df4d836aed271fb6",
+        "source_mtime_utc_recorded": "2026-09-27T08:06:26.917767+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T08:06:26.917767+00:00",
+        "ruff_output_sha256": "1b68e433d8546b9d4f5cbc3d3f2ffd18bf6238fcd17abf834123227a71e2d7c2",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/05/index-01-cfaee420fc99-source.py",
+        "ruff_output_package_path": "targets/05/index-01-cfaee420fc99-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_hongyuan_penetration_strictness.py",
+        "source_sha256": "cfaee420fc99fc41efaf730a21bfc5e67c36f9710c225265df4d836aed271fb6",
+        "source_mtime_utc_recorded": "2026-09-27T08:06:26.917767+00:00",
+        "ruff_output_sha256": "1b68e433d8546b9d4f5cbc3d3f2ffd18bf6238fcd17abf834123227a71e2d7c2",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/certification-helper-main-integration-README.md",
+        "recorded_main_source_sha256": "cfaee420fc99fc41efaf730a21bfc5e67c36f9710c225265df4d836aed271fb6",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-cfaee420fc99",
+          "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_hongyuan_penetration_strictness.py",
+          "source_member": null,
+          "source_sha256": "cfaee420fc99fc41efaf730a21bfc5e67c36f9710c225265df4d836aed271fb6",
+          "source_mtime_utc_recorded": "2026-09-27T08:06:26.917767+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:06:26.917767+00:00",
+          "ruff_output_sha256": "1b68e433d8546b9d4f5cbc3d3f2ffd18bf6238fcd17abf834123227a71e2d7c2",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/05/index-01-cfaee420fc99-source.py",
+          "ruff_output_package_path": "targets/05/index-01-cfaee420fc99-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-e6f06fe2af78",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\live_certification\\test_hongyuan_penetration_strictness.py",
+          "source_member": null,
+          "source_sha256": "e6f06fe2af7843a1b7fc1c1e12e91bf5586c61d76ee874d768148c8563f8b7b5",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.025917+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.025917+00:00",
+          "ruff_output_sha256": "e422280f6226f596b4146d0fff02a6de6f4e522a2baf0d8e7c0f3da1438c68d0",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/05/index-02-e6f06fe2af78-source.py",
+          "ruff_output_package_path": "targets/05/index-02-e6f06fe2af78-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-e6f06fe2af78",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\live_certification\\test_hongyuan_penetration_strictness.py",
+          "source_member": null,
+          "source_sha256": "e6f06fe2af7843a1b7fc1c1e12e91bf5586c61d76ee874d768148c8563f8b7b5",
+          "source_mtime_utc_recorded": "2026-09-21T00:41:20.822756+00:00",
+          "source_container_observed_mtime_utc": "2026-09-21T00:41:20.822756+00:00",
+          "ruff_output_sha256": "e422280f6226f596b4146d0fff02a6de6f4e522a2baf0d8e7c0f3da1438c68d0",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/05/main-copy-alt-e6f06fe2af78-source.py",
+          "ruff_output_package_path": "targets/05/main-copy-alt-e6f06fe2af78-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "target": "tests/unit/live_certification/test_simnow_investor_id_redaction.py",
+      "incident_snapshot_member_sha256": "2b2f7460e87005c25cee0d714c34a40f1a75e044ef379a5eb84a0ad0f9d2657b",
+      "incident_snapshot_member_bytes": 2070,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-5177f7a07024",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\live_certification\\test_simnow_investor_id_redaction.py",
+        "source_member": null,
+        "source_sha256": "5177f7a07024060937027ac0f084f4bb477ea02370ccf6f0f167f35820802abf",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.739839+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.739839+00:00",
+        "ruff_output_sha256": "2b2f7460e87005c25cee0d714c34a40f1a75e044ef379a5eb84a0ad0f9d2657b",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/06/index-01-5177f7a07024-source.py",
+        "ruff_output_package_path": "targets/06/index-01-5177f7a07024-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\live_certification\\test_simnow_investor_id_redaction.py",
+        "source_sha256": "4b0a481114cfba2a61deea9b4de41126cb8e373e34ba5137bd74beeb17c34f93",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.026931+00:00",
+        "ruff_output_sha256": "4b0a481114cfba2a61deea9b4de41126cb8e373e34ba5137bd74beeb17c34f93",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/live_certification/test_simnow_investor_id_redaction.py",
+        "recorded_main_source_sha256": "5177f7a07024060937027ac0f084f4bb477ea02370ccf6f0f167f35820802abf",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-5177f7a07024",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\live_certification\\test_simnow_investor_id_redaction.py",
+          "source_member": null,
+          "source_sha256": "5177f7a07024060937027ac0f084f4bb477ea02370ccf6f0f167f35820802abf",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.739839+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.739839+00:00",
+          "ruff_output_sha256": "2b2f7460e87005c25cee0d714c34a40f1a75e044ef379a5eb84a0ad0f9d2657b",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/06/index-01-5177f7a07024-source.py",
+          "ruff_output_package_path": "targets/06/index-01-5177f7a07024-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-4b0a481114cf",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\live_certification\\test_simnow_investor_id_redaction.py",
+          "source_member": null,
+          "source_sha256": "4b0a481114cfba2a61deea9b4de41126cb8e373e34ba5137bd74beeb17c34f93",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.026931+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.026931+00:00",
+          "ruff_output_sha256": "4b0a481114cfba2a61deea9b4de41126cb8e373e34ba5137bd74beeb17c34f93",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/06/index-02-4b0a481114cf-source.py",
+          "ruff_output_package_path": "targets/06/index-02-4b0a481114cf-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "target": "tests/unit/live_certification/test_simnow_penetration_certification.py",
+      "incident_snapshot_member_sha256": "44639e7ac0a9da89f76307ea0ba7d451054088b2971e881bd849a587f2edb6f6",
+      "incident_snapshot_member_bytes": 30391,
+      "scanned_candidate_count_including_maincopy_alts": 3,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-07a7f374ac79",
+        "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_simnow_penetration_certification.py",
+        "source_member": null,
+        "source_sha256": "07a7f374ac79883eaa86de6a4c945dbb237034bcee37c9a8a35a930f0ac1a5ae",
+        "source_mtime_utc_recorded": "2026-09-27T08:05:29.146035+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T08:05:29.146035+00:00",
+        "ruff_output_sha256": "44639e7ac0a9da89f76307ea0ba7d451054088b2971e881bd849a587f2edb6f6",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/07/index-01-07a7f374ac79-source.py",
+        "ruff_output_package_path": "targets/07/index-01-07a7f374ac79-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_simnow_penetration_certification.py",
+        "source_sha256": "07a7f374ac79883eaa86de6a4c945dbb237034bcee37c9a8a35a930f0ac1a5ae",
+        "source_mtime_utc_recorded": "2026-09-27T08:05:29.146035+00:00",
+        "ruff_output_sha256": "44639e7ac0a9da89f76307ea0ba7d451054088b2971e881bd849a587f2edb6f6",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/certification-helper-main-integration-README.md",
+        "recorded_main_source_sha256": "07a7f374ac79883eaa86de6a4c945dbb237034bcee37c9a8a35a930f0ac1a5ae",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-07a7f374ac79",
+          "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\live_certification\\test_simnow_penetration_certification.py",
+          "source_member": null,
+          "source_sha256": "07a7f374ac79883eaa86de6a4c945dbb237034bcee37c9a8a35a930f0ac1a5ae",
+          "source_mtime_utc_recorded": "2026-09-27T08:05:29.146035+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:05:29.146035+00:00",
+          "ruff_output_sha256": "44639e7ac0a9da89f76307ea0ba7d451054088b2971e881bd849a587f2edb6f6",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/07/index-01-07a7f374ac79-source.py",
+          "ruff_output_package_path": "targets/07/index-01-07a7f374ac79-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-27cdb40899aa",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\live_certification\\test_simnow_penetration_certification.py",
+          "source_member": null,
+          "source_sha256": "27cdb40899aaa8f8d68ff5c2651b14d0474f106c29926e33bc3952344efe9782",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.026931+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.026931+00:00",
+          "ruff_output_sha256": "528b9a725976d889a5ae46eb9e1c00eb69b2ff14b8ad48f718c078353a6d888f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/07/index-02-27cdb40899aa-source.py",
+          "ruff_output_package_path": "targets/07/index-02-27cdb40899aa-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-27cdb40899aa",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\live_certification\\test_simnow_penetration_certification.py",
+          "source_member": null,
+          "source_sha256": "27cdb40899aaa8f8d68ff5c2651b14d0474f106c29926e33bc3952344efe9782",
+          "source_mtime_utc_recorded": "2026-09-21T00:41:20.823751+00:00",
+          "source_container_observed_mtime_utc": "2026-09-21T00:41:20.823751+00:00",
+          "ruff_output_sha256": "528b9a725976d889a5ae46eb9e1c00eb69b2ff14b8ad48f718c078353a6d888f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/07/main-copy-alt-27cdb40899aa-source.py",
+          "ruff_output_package_path": "targets/07/main-copy-alt-27cdb40899aa-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "target": "tests/unit/notifications/test_session_channels.py",
+      "incident_snapshot_member_sha256": "f1fdcbd3a8efe0f8d3d6223a6ec4bda4923508ee244658c88356a0e89e6636c7",
+      "incident_snapshot_member_bytes": 15694,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-7a3bc3ce233b",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\notifications\\test_session_channels.py",
+        "source_member": null,
+        "source_sha256": "7a3bc3ce233bd7ff4116cd5ab6ea02d412afbe0604ae0a117751faa4b71f9ea9",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.757921+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.757921+00:00",
+        "ruff_output_sha256": "f1fdcbd3a8efe0f8d3d6223a6ec4bda4923508ee244658c88356a0e89e6636c7",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/08/index-01-7a3bc3ce233b-source.py",
+        "ruff_output_package_path": "targets/08/index-01-7a3bc3ce233b-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\notifications\\test_session_channels.py",
+        "source_sha256": "7e4bacbbdab9d5c9f0491a9245d401d1c3d4322e8a78ae710964f1863f673054",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.029993+00:00",
+        "ruff_output_sha256": "7e4bacbbdab9d5c9f0491a9245d401d1c3d4322e8a78ae710964f1863f673054",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/notifications/test_session_channels.py",
+        "recorded_main_source_sha256": "7a3bc3ce233bd7ff4116cd5ab6ea02d412afbe0604ae0a117751faa4b71f9ea9",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-7a3bc3ce233b",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\notifications\\test_session_channels.py",
+          "source_member": null,
+          "source_sha256": "7a3bc3ce233bd7ff4116cd5ab6ea02d412afbe0604ae0a117751faa4b71f9ea9",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.757921+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.757921+00:00",
+          "ruff_output_sha256": "f1fdcbd3a8efe0f8d3d6223a6ec4bda4923508ee244658c88356a0e89e6636c7",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/08/index-01-7a3bc3ce233b-source.py",
+          "ruff_output_package_path": "targets/08/index-01-7a3bc3ce233b-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-7e4bacbbdab9",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\notifications\\test_session_channels.py",
+          "source_member": null,
+          "source_sha256": "7e4bacbbdab9d5c9f0491a9245d401d1c3d4322e8a78ae710964f1863f673054",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.029993+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.029993+00:00",
+          "ruff_output_sha256": "7e4bacbbdab9d5c9f0491a9245d401d1c3d4322e8a78ae710964f1863f673054",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/08/index-02-7e4bacbbdab9-source.py",
+          "ruff_output_package_path": "targets/08/index-02-7e4bacbbdab9-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "target": "tests/unit/stores/test_btapistore.py",
+      "incident_snapshot_member_sha256": "400ebd411122155e1e35f16a6bc0b4a675a1c65e83ae09f9e224449ef770bc4d",
+      "incident_snapshot_member_bytes": 147773,
+      "scanned_candidate_count_including_maincopy_alts": 17,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-13-f7e1fa01aa38",
+        "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\tests\\unit\\stores\\test_btapistore.py",
+        "source_member": null,
+        "source_sha256": "f7e1fa01aa383367f518c61a0ae30285db2c8eeff22b9cf75ba0e1c3d774f853",
+        "source_mtime_utc_recorded": "2026-09-27T09:55:14.718588+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T09:55:14.718588+00:00",
+        "ruff_output_sha256": "400ebd411122155e1e35f16a6bc0b4a675a1c65e83ae09f9e224449ef770bc4d",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/09/index-13-f7e1fa01aa38-source.py",
+        "ruff_output_package_path": "targets/09/index-13-f7e1fa01aa38-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\tests\\unit\\stores\\test_btapistore.py",
+        "source_sha256": "f7e1fa01aa383367f518c61a0ae30285db2c8eeff22b9cf75ba0e1c3d774f853",
+        "source_mtime_utc_recorded": "2026-09-27T09:55:14.718588+00:00",
+        "ruff_output_sha256": "400ebd411122155e1e35f16a6bc0b4a675a1c65e83ae09f9e224449ef770bc4d",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/store-sdk-api-guard-r0-independent-QA-README.md",
+        "recorded_main_source_sha256": "f7e1fa01aa383367f518c61a0ae30285db2c8eeff22b9cf75ba0e1c3d774f853",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-649137b29e68",
+          "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+          "source_mtime_utc_recorded": "2026-09-27T06:09:36.973895+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:09:36.973895+00:00",
+          "ruff_output_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-01-649137b29e68-source.py",
+          "ruff_output_package_path": "targets/09/index-01-649137b29e68-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-9ea81c2b3eed",
+          "source_absolute_path": "D:\\temp\\ac41-63-store-arm-r1-independent-qa-20260927-a\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "9ea81c2b3eedc872baeec9987d0e87d350855870d713eb78d9358dce5a1d4add",
+          "source_mtime_utc_recorded": "2026-09-27T08:16:40.147446+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:16:40.147446+00:00",
+          "ruff_output_sha256": "0980bbf9e2ac2b6dbb1804eba9a3cd858b602476768db1c979aaf6a7e3be80ca",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-02-9ea81c2b3eed-source.py",
+          "ruff_output_package_path": "targets/09/index-02-9ea81c2b3eed-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-03-1441868ba4f3",
+          "source_absolute_path": "D:\\temp\\ac41-63-store-arm-r2-independent-qa-20260927\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "1441868ba4f3e2314d752e17671c7cd352d7cca9291e0e36012f50699eda9bc6",
+          "source_mtime_utc_recorded": "2026-09-27T08:44:23.891342+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:44:23.891342+00:00",
+          "ruff_output_sha256": "e25c570ca3a3bd0e5e7d50608a1f5a0fe2fc6b72a8d1ad8600f56f2b5c6719d6",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-03-1441868ba4f3-source.py",
+          "ruff_output_package_path": "targets/09/index-03-1441868ba4f3-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-04-208715107070",
+          "source_absolute_path": "D:\\temp\\ac41-63-store-arm-r3-independent-qa-20260927\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "208715107070f825d55ff592c8447c2d8c1f7d88a647196a88c58936b23ebee8",
+          "source_mtime_utc_recorded": "2026-09-27T08:59:49.464469+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:59:49.464469+00:00",
+          "ruff_output_sha256": "99eb76fcec675209bd87fefecd25a825a04dadf311429de5d173263d518a5b02",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-04-208715107070-source.py",
+          "ruff_output_package_path": "targets/09/index-04-208715107070-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-05-1425899de03b",
+          "source_absolute_path": "D:\\temp\\iteration41-gateway-wrapper-persistent-test-only-20260927\\source-preimage\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "1425899de03be458e80acc8c283d12424d633770c90ce5fce7461242cea0eeba",
+          "source_mtime_utc_recorded": "2026-09-27T09:29:06.010925+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:29:06.010925+00:00",
+          "ruff_output_sha256": "d9e4d4a5e942fc23dbc92965011d0ae01cb4dab142d74b9f5890784f4e28b456",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-05-1425899de03b-source.py",
+          "ruff_output_package_path": "targets/09/index-05-1425899de03b-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-06-e9052311fdd0",
+          "source_absolute_path": "D:\\temp\\ac41-63-writer-partitions-r2c2-20260927\\partition1-audit\\registered-sim-arm-fail-close-r2\\replay-check\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "e9052311fdd08e58e7e9d5f42227ff790443d84df44cdd2d085410faccba069a",
+          "source_mtime_utc_recorded": "2026-09-27T08:25:26.629949+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:25:26.629949+00:00",
+          "ruff_output_sha256": "e25c570ca3a3bd0e5e7d50608a1f5a0fe2fc6b72a8d1ad8600f56f2b5c6719d6",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-06-e9052311fdd0-source.py",
+          "ruff_output_package_path": "targets/09/index-06-e9052311fdd0-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-07-23b6b6f901ec",
+          "source_absolute_path": "D:\\temp\\ac41-63-writer-slice2-20260927\\audit-evidence.zip!test-harness/test_btapistore.py",
+          "source_member": "test-harness/test_btapistore.py",
+          "source_sha256": "23b6b6f901ec5b6b5989cf40700d7a3061df78c894c0c711d406972fe08dfe4e",
+          "source_mtime_utc_recorded": "2026-09-27T05:14:49.912519+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:14:49.912519+00:00",
+          "ruff_output_sha256": "23b6b6f901ec5b6b5989cf40700d7a3061df78c894c0c711d406972fe08dfe4e",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-07-23b6b6f901ec-source.py",
+          "ruff_output_package_path": "targets/09/index-07-23b6b6f901ec-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-08-43c87c4e6ad7",
+          "source_absolute_path": "D:\\temp\\ac41-63-writer-slice2-diag-20260927\\patched\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "43c87c4e6ad7c31ead85308b02302f3fd2c56c9bc397747c7f591ac8abf54a2e",
+          "source_mtime_utc_recorded": "2026-09-27T05:19:41.176958+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:19:41.176958+00:00",
+          "ruff_output_sha256": "43c87c4e6ad7c31ead85308b02302f3fd2c56c9bc397747c7f591ac8abf54a2e",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-08-43c87c4e6ad7-source.py",
+          "ruff_output_package_path": "targets/09/index-08-43c87c4e6ad7-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-09-675aed765b28",
+          "source_absolute_path": "D:\\temp\\ac41-63-writer-slice2-r2-20260927\\patched\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "675aed765b2890e89f21cd28826e43f20b555cb24b6a253a838aa7c80208c583",
+          "source_mtime_utc_recorded": "2026-09-27T05:24:11.622707+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:24:11.622707+00:00",
+          "ruff_output_sha256": "675aed765b2890e89f21cd28826e43f20b555cb24b6a253a838aa7c80208c583",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-09-675aed765b28-source.py",
+          "ruff_output_package_path": "targets/09/index-09-675aed765b28-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-10-e7e7b985130f",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "e7e7b985130f010deed84b920fd0f91712bfe54ac24b5ef8bf1c8fc687bca6b1",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.040124+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.040124+00:00",
+          "ruff_output_sha256": "e7e7b985130f010deed84b920fd0f91712bfe54ac24b5ef8bf1c8fc687bca6b1",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-10-e7e7b985130f-source.py",
+          "ruff_output_package_path": "targets/09/index-10-e7e7b985130f-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-11-360bb885a3b2",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\src\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "360bb885a3b2be58fb8b5f26d41b50aa81fb56b597f1be7b0d4ec2b1cf4081ff",
+          "source_mtime_utc_recorded": "2026-09-27T04:55:02.305801+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:55:02.305801+00:00",
+          "ruff_output_sha256": "bd6c1aa93f70680e05e89cf4b4d903785502b772605f02abff5e681a07799cf2",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-11-360bb885a3b2-source.py",
+          "ruff_output_package_path": "targets/09/index-11-360bb885a3b2-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-12-6012d6f77af1",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-account-actor-r2b-route-test-migration-r2-2026-09-27\\r2b-route-test-migration-r2-evidence.zip!tests/unit/stores/test_btapistore.py",
+          "source_member": "tests/unit/stores/test_btapistore.py",
+          "source_sha256": "6012d6f77af1c97f2f5156eaf0d0ce82a4757e634bb09ee3f178f7003d110163",
+          "source_mtime_utc_recorded": "2026-09-27T04:31:29.187075+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:31:29.187075+00:00",
+          "ruff_output_sha256": "6012d6f77af1c97f2f5156eaf0d0ce82a4757e634bb09ee3f178f7003d110163",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-12-6012d6f77af1-source.py",
+          "ruff_output_package_path": "targets/09/index-12-6012d6f77af1-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-13-f7e1fa01aa38",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "f7e1fa01aa383367f518c61a0ae30285db2c8eeff22b9cf75ba0e1c3d774f853",
+          "source_mtime_utc_recorded": "2026-09-27T09:55:14.718588+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:55:14.718588+00:00",
+          "ruff_output_sha256": "400ebd411122155e1e35f16a6bc0b4a675a1c65e83ae09f9e224449ef770bc4d",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/09/index-13-f7e1fa01aa38-source.py",
+          "ruff_output_package_path": "targets/09/index-13-f7e1fa01aa38-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-14-694887fc7233",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-account-actor-r2d-independent-qa-2026-09-27\\author\\iteration41-store-account-actor-r2d-20260927.zip!baseline/tests/unit/stores/test_btapistore.py",
+          "source_member": "baseline/tests/unit/stores/test_btapistore.py",
+          "source_sha256": "694887fc723367e04e5ad339a24649fe22cff1877d4e48190bd7e7f14dc4a075",
+          "source_mtime_utc_recorded": "2026-09-27T06:46:03.158497+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:46:03.158497+00:00",
+          "ruff_output_sha256": "694887fc723367e04e5ad339a24649fe22cff1877d4e48190bd7e7f14dc4a075",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-14-694887fc7233-source.py",
+          "ruff_output_package_path": "targets/09/index-14-694887fc7233-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-15-432136f913c8",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "432136f913c89ec52dc6fbfb8b5b1f73f5d063b256f88b01699f959ed12ac8a0",
+          "source_mtime_utc_recorded": "2026-09-27T04:42:43.456774+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:42:43.456774+00:00",
+          "ruff_output_sha256": "432136f913c89ec52dc6fbfb8b5b1f73f5d063b256f88b01699f959ed12ac8a0",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-15-432136f913c8-source.py",
+          "ruff_output_package_path": "targets/09/index-15-432136f913c8-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-16-8f19a9a3484b",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-patch-replay-20260927\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "8f19a9a3484b63c021bf506be6118d158ce6b27f4e6ea6c09c24afae5f70a435",
+          "source_mtime_utc_recorded": "2026-09-27T05:23:26.443986+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:23:26.443986+00:00",
+          "ruff_output_sha256": "432136f913c89ec52dc6fbfb8b5b1f73f5d063b256f88b01699f959ed12ac8a0",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/index-16-8f19a9a3484b-source.py",
+          "ruff_output_package_path": "targets/09/index-16-8f19a9a3484b-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-432136f913c8",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\stores\\test_btapistore.py",
+          "source_member": null,
+          "source_sha256": "432136f913c89ec52dc6fbfb8b5b1f73f5d063b256f88b01699f959ed12ac8a0",
+          "source_mtime_utc_recorded": "2026-09-27T04:42:43.456774+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:42:43.456774+00:00",
+          "ruff_output_sha256": "432136f913c89ec52dc6fbfb8b5b1f73f5d063b256f88b01699f959ed12ac8a0",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/09/main-copy-alt-432136f913c8-source.py",
+          "ruff_output_package_path": "targets/09/main-copy-alt-432136f913c8-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "target": "tests/unit/stores/test_btapistore_entry_approval_arm.py",
+      "incident_snapshot_member_sha256": "39700d22c19955326fa62a48c81b0d501d49c7c9ab524c8949763921ffef5715",
+      "incident_snapshot_member_bytes": 6988,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-f1c63aabb57d",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_btapistore_entry_approval_arm.py",
+        "source_member": null,
+        "source_sha256": "f1c63aabb57d3c6b5f291c86083441e1ce196da75cc4ea458841d1dcf022407d",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.989379+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.989379+00:00",
+        "ruff_output_sha256": "39700d22c19955326fa62a48c81b0d501d49c7c9ab524c8949763921ffef5715",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/10/index-01-f1c63aabb57d-source.py",
+        "ruff_output_package_path": "targets/10/index-01-f1c63aabb57d-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_entry_approval_arm.py",
+        "source_sha256": "56be3dff22bd43a9d9c6930947c71cd619ab5f5227b0c6a6e984f1c8d6b92fb2",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.040124+00:00",
+        "ruff_output_sha256": "56be3dff22bd43a9d9c6930947c71cd619ab5f5227b0c6a6e984f1c8d6b92fb2",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/stores/test_btapistore_entry_approval_arm.py",
+        "recorded_main_source_sha256": "f1c63aabb57d3c6b5f291c86083441e1ce196da75cc4ea458841d1dcf022407d",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-f1c63aabb57d",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_btapistore_entry_approval_arm.py",
+          "source_member": null,
+          "source_sha256": "f1c63aabb57d3c6b5f291c86083441e1ce196da75cc4ea458841d1dcf022407d",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.989379+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.989379+00:00",
+          "ruff_output_sha256": "39700d22c19955326fa62a48c81b0d501d49c7c9ab524c8949763921ffef5715",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/10/index-01-f1c63aabb57d-source.py",
+          "ruff_output_package_path": "targets/10/index-01-f1c63aabb57d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-56be3dff22bd",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_entry_approval_arm.py",
+          "source_member": null,
+          "source_sha256": "56be3dff22bd43a9d9c6930947c71cd619ab5f5227b0c6a6e984f1c8d6b92fb2",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.040124+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.040124+00:00",
+          "ruff_output_sha256": "56be3dff22bd43a9d9c6930947c71cd619ab5f5227b0c6a6e984f1c8d6b92fb2",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/10/index-02-56be3dff22bd-source.py",
+          "ruff_output_package_path": "targets/10/index-02-56be3dff22bd-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "target": "tests/unit/stores/test_btapistore_iteration21.py",
+      "incident_snapshot_member_sha256": "d2f1a22ddff91c38a5058ecad409d09799c3c178edf04dd852e3dffc747f15a1",
+      "incident_snapshot_member_bytes": 139481,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-af4e258cfc7f",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_btapistore_iteration21.py",
+        "source_member": null,
+        "source_sha256": "af4e258cfc7f4f81aeb9119a8add91fb379ecc3318b44c89eadd0403f59f2bdb",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.993637+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.993637+00:00",
+        "ruff_output_sha256": "d2f1a22ddff91c38a5058ecad409d09799c3c178edf04dd852e3dffc747f15a1",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/11/index-01-af4e258cfc7f-source.py",
+        "ruff_output_package_path": "targets/11/index-01-af4e258cfc7f-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_iteration21.py",
+        "source_sha256": "9bd956ca13ecd1966771de35db05b13b058e3c43dee2dff9e1a559510d756095",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.043159+00:00",
+        "ruff_output_sha256": "29918b3f715b51b336cb9253392c3672fd85c8c477c2232bf385c102d01ab0ac",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/stores/test_btapistore_iteration21.py",
+        "recorded_main_source_sha256": "af4e258cfc7f4f81aeb9119a8add91fb379ecc3318b44c89eadd0403f59f2bdb",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-af4e258cfc7f",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_btapistore_iteration21.py",
+          "source_member": null,
+          "source_sha256": "af4e258cfc7f4f81aeb9119a8add91fb379ecc3318b44c89eadd0403f59f2bdb",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.993637+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.993637+00:00",
+          "ruff_output_sha256": "d2f1a22ddff91c38a5058ecad409d09799c3c178edf04dd852e3dffc747f15a1",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/11/index-01-af4e258cfc7f-source.py",
+          "ruff_output_package_path": "targets/11/index-01-af4e258cfc7f-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-9bd956ca13ec",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_iteration21.py",
+          "source_member": null,
+          "source_sha256": "9bd956ca13ecd1966771de35db05b13b058e3c43dee2dff9e1a559510d756095",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.043159+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.043159+00:00",
+          "ruff_output_sha256": "29918b3f715b51b336cb9253392c3672fd85c8c477c2232bf385c102d01ab0ac",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/11/index-02-9bd956ca13ec-source.py",
+          "ruff_output_package_path": "targets/11/index-02-9bd956ca13ec-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "target": "tests/unit/stores/test_btapistore_iteration22.py",
+      "incident_snapshot_member_sha256": "090cb07846a2a379afea9b0b7efc0685a1958231d741bcf11a0116a912c4f8b1",
+      "incident_snapshot_member_bytes": 173549,
+      "scanned_candidate_count_including_maincopy_alts": 18,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-02-30eeaa2c9816",
+        "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-i22-shared-session-readonly-port-r2d-independent-qa-2026-09-27\\author\\r2d-author-final.zip!iteration41-r2d-author-bundle-final/preimage/tests/unit/stores/test_btapistore_iteration22.py",
+        "source_member": "iteration41-r2d-author-bundle-final/preimage/tests/unit/stores/test_btapistore_iteration22.py",
+        "source_sha256": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d",
+        "source_mtime_utc_recorded": "2026-09-27T06:55:14.543527+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T06:55:14.543527+00:00",
+        "ruff_output_sha256": "090cb07846a2a379afea9b0b7efc0685a1958231d741bcf11a0116a912c4f8b1",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/12/index-02-30eeaa2c9816-source.py",
+        "ruff_output_package_path": "targets/12/index-02-30eeaa2c9816-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\ac41-63-store-readonly-query-port-group-r2-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+        "source_sha256": "601dee546c148f655f5efaf2d076802387c332df81607034a1ad433e2f94445b",
+        "source_mtime_utc_recorded": "2026-09-27T12:12:23.338517+00:00",
+        "ruff_output_sha256": "316025dc1194fa2024f57438c7f92710cd55143fd345e6c91584041d9b841da6",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/stores/test_btapistore_iteration22.py",
+        "recorded_main_source_sha256": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-c04745de3d1f",
+          "source_absolute_path": "D:\\temp\\ac41-63-current-B9-pure-query-seam-qa-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "c04745de3d1ff2b42b425f9f3cfea7c9b4a1f60c651c5aca626964121944123e",
+          "source_mtime_utc_recorded": "2026-09-27T09:57:02.554454+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:57:02.554454+00:00",
+          "ruff_output_sha256": "b25e8c31f2f329be4feb9abf6b099ee2f956947cd27566656b5f24bdfcd21e9d",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-01-c04745de3d1f-source.py",
+          "ruff_output_package_path": "targets/12/index-01-c04745de3d1f-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-30eeaa2c9816",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-i22-shared-session-readonly-port-r2d-independent-qa-2026-09-27\\author\\r2d-author-final.zip!iteration41-r2d-author-bundle-final/preimage/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "iteration41-r2d-author-bundle-final/preimage/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "30eeaa2c9816e6d0792e801a6ea2a8960cc1bcaa3728679111318e5178afa49d",
+          "source_mtime_utc_recorded": "2026-09-27T06:55:14.543527+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:55:14.543527+00:00",
+          "ruff_output_sha256": "090cb07846a2a379afea9b0b7efc0685a1958231d741bcf11a0116a912c4f8b1",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/12/index-02-30eeaa2c9816-source.py",
+          "ruff_output_package_path": "targets/12/index-02-30eeaa2c9816-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-03-6fd9ef408ace",
+          "source_absolute_path": "D:\\temp\\ac41-63-store-readonly-query-port-group-r1-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "6fd9ef408ace34a06efe254bd3cf36b2efd672bb8ff5195cee89fa54cc3c16e6",
+          "source_mtime_utc_recorded": "2026-09-27T11:06:47.450383+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T11:06:47.450383+00:00",
+          "ruff_output_sha256": "9bb1a01fbd650327afa5fbc11be82e7444a1e6344d728a8889c536e14df8be9f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-03-6fd9ef408ace-source.py",
+          "ruff_output_package_path": "targets/12/index-03-6fd9ef408ace-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-04-601dee546c14",
+          "source_absolute_path": "D:\\temp\\ac41-63-store-readonly-query-port-group-r2-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "601dee546c148f655f5efaf2d076802387c332df81607034a1ad433e2f94445b",
+          "source_mtime_utc_recorded": "2026-09-27T12:12:23.338517+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T12:12:23.338517+00:00",
+          "ruff_output_sha256": "316025dc1194fa2024f57438c7f92710cd55143fd345e6c91584041d9b841da6",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-04-601dee546c14-source.py",
+          "ruff_output_package_path": "targets/12/index-04-601dee546c14-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-05-c1d45fddc6ee",
+          "source_absolute_path": "D:\\temp\\ac41-63-writer-slice2-20260927\\audit-evidence.zip!test-harness/test_btapistore_iteration22.py",
+          "source_member": "test-harness/test_btapistore_iteration22.py",
+          "source_sha256": "c1d45fddc6eeeaa0a7370d6c76779ac4e5016ce123d8a59218c07f89051f75c1",
+          "source_mtime_utc_recorded": "2026-09-27T05:14:49.912519+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:14:49.912519+00:00",
+          "ruff_output_sha256": "e2c3713ce6700afb6329598b09c1a60d005cf7435813a3a1944b818f093b900e",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-05-c1d45fddc6ee-source.py",
+          "ruff_output_package_path": "targets/12/index-05-c1d45fddc6ee-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-06-6fe4681c2838",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "6fe4681c2838c153163f84d4014ad7a5ce898b8337bc785d105ec7a23b597bb1",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.044172+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.044172+00:00",
+          "ruff_output_sha256": "dbfc29b32df6d2a66ea39d8ed24fa7941952d0d464feff9608d52fb7c329b03f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-06-6fe4681c2838-source.py",
+          "ruff_output_package_path": "targets/12/index-06-6fe4681c2838-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-07-c2ab236dd4d2",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\independent-qa-r2.raw.zip!independent-qa-r2/replay/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "independent-qa-r2/replay/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "c2ab236dd4d2ba64c567ba667c71bb400532c4b6f030b62bb46c4d6921758ae3",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:14.382767+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:14.382767+00:00",
+          "ruff_output_sha256": "e7097ff7acdc75eb770b84430974573147a9fe98e03ffcd70883520fa6c8cb63",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-07-c2ab236dd4d2-source.py",
+          "ruff_output_package_path": "targets/12/index-07-c2ab236dd4d2-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-08-505e8f414d3f",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\independent-qa-r2.raw.zip!independent-qa-r2/replay-autocrlf-false/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "independent-qa-r2/replay-autocrlf-false/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "505e8f414d3ffd97355c5a4e81504b9286786581dcf86b21d4571b3135390904",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:14.382767+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:14.382767+00:00",
+          "ruff_output_sha256": "e7097ff7acdc75eb770b84430974573147a9fe98e03ffcd70883520fa6c8cb63",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-08-505e8f414d3f-source.py",
+          "ruff_output_package_path": "targets/12/index-08-505e8f414d3f-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-09-85ae07083029",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\author-r1.raw.zip!author-r1/evidence/patch-apply-check-r1/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "author-r1/evidence/patch-apply-check-r1/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "85ae070830297f1fa44d06c5f45126766f39bf9610b997298495b3e9b8c6dd95",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:11.630871+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:11.630871+00:00",
+          "ruff_output_sha256": "076f69e9ff7f9aa49f7c69f443b649dc8f3bc8e1ad0dcba028ce1c37ce3d1e4d",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-09-85ae07083029-source.py",
+          "ruff_output_package_path": "targets/12/index-09-85ae07083029-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-10-64337e4fa355",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\independent-qa-r1.raw.zip!independent-qa-r1/replay/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "independent-qa-r1/replay/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "64337e4fa3552121d4e3d85fdef828b57e2f671057cd4b6ac387ec0e63e3d655",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:12.124592+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:12.124592+00:00",
+          "ruff_output_sha256": "362c4bf16618ecac6f3ace0637fbe9d2fce4f8a7719ccb4059382868729491e1",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-10-64337e4fa355-source.py",
+          "ruff_output_package_path": "targets/12/index-10-64337e4fa355-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-11-e2482a6e0db0",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\author-r2.raw.zip!author-r2/evidence/patch-apply-check/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "author-r2/evidence/patch-apply-check/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "e2482a6e0db0a7b25578be200487265de8f208b9c0cb63b3fe9f981dd1b37c6d",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:12.973576+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:12.973576+00:00",
+          "ruff_output_sha256": "ec698a43fc5b6c7f6b5f3d33e5cb6679beaf34ebcab799bb8494473921706973",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-11-e2482a6e0db0-source.py",
+          "ruff_output_package_path": "targets/12/index-11-e2482a6e0db0-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-12-e251c9381bab",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\i22-stable-runtime-id-independent-qa-2026-09-27\\author-r2.raw.zip!author-r2/evidence/patch-apply-check-r2/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "author-r2/evidence/patch-apply-check-r2/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "e251c9381babd4ffa3a710635f52d39678bdb1cbb0af09511e509f89461a156b",
+          "source_mtime_utc_recorded": "2026-09-27T05:43:12.973576+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:43:12.973576+00:00",
+          "ruff_output_sha256": "ec698a43fc5b6c7f6b5f3d33e5cb6679beaf34ebcab799bb8494473921706973",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-12-e251c9381bab-source.py",
+          "ruff_output_package_path": "targets/12/index-12-e251c9381bab-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-13-8e593373445d",
+          "source_absolute_path": "D:\\temp\\iteration41-r2d-final-expected-composite-r3-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "8e593373445dd694851d9f72621c808e1bbb7ef82c56bfcf6d745ffd41d8bb1d",
+          "source_mtime_utc_recorded": "2026-09-27T06:54:23.697813+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:54:23.697813+00:00",
+          "ruff_output_sha256": "447e5201aee9e808a51f33204d736dcb8c5f2cde664528a8def8610eb539abbc",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-13-8e593373445d-source.py",
+          "ruff_output_package_path": "targets/12/index-13-8e593373445d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-14-399db743a430",
+          "source_absolute_path": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "399db743a4303ce407d556d2cc2a472b1445ce463a9eb48e930bb851f996e5ba",
+          "source_mtime_utc_recorded": "2026-09-27T06:56:56.660235+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:56:56.660235+00:00",
+          "ruff_output_sha256": "e383202556544ed89df461a3ade262688f91ff0a1cf5038b37e8f3fcb1fd6134",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-14-399db743a430-source.py",
+          "ruff_output_package_path": "targets/12/index-14-399db743a430-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-15-2d103ffcbab1",
+          "source_absolute_path": "D:\\temp\\iteration41-r2d-final-sequential-replay-r3-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "2d103ffcbab138ff8a35bc05bc885a50e1799d1b5c8907a3634d9ff41cbd5169",
+          "source_mtime_utc_recorded": "2026-09-27T06:54:23.537655+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:54:23.537655+00:00",
+          "ruff_output_sha256": "c14b2ce569b9f2ff95b931f2eeeb702906898824d8c80952ad8a36965c50c2ba",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-15-2d103ffcbab1-source.py",
+          "ruff_output_package_path": "targets/12/index-15-2d103ffcbab1-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-16-5f966a67d99d",
+          "source_absolute_path": "D:\\temp\\iteration41-r2d-patch-replay-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "5f966a67d99d280b746bae4407330a33e351fc2184e83225199b3db8abc89c6c",
+          "source_mtime_utc_recorded": "2026-09-27T06:37:57.927776+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:37:57.927776+00:00",
+          "ruff_output_sha256": "e383202556544ed89df461a3ade262688f91ff0a1cf5038b37e8f3fcb1fd6134",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-16-5f966a67d99d-source.py",
+          "ruff_output_package_path": "targets/12/index-16-5f966a67d99d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-17-958a880463b4",
+          "source_absolute_path": "D:\\temp\\iteration41-r2d-sequential-replay-20260927\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+          "source_member": null,
+          "source_sha256": "958a880463b4055e1ff1e4ad4d4898d9397f1fd01480b4305a32aaa1bd0a22dd",
+          "source_mtime_utc_recorded": "2026-09-27T06:39:33.881941+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:39:33.881941+00:00",
+          "ruff_output_sha256": "c14b2ce569b9f2ff95b931f2eeeb702906898824d8c80952ad8a36965c50c2ba",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-17-958a880463b4-source.py",
+          "ruff_output_package_path": "targets/12/index-17-958a880463b4-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-18-cf2433f1c21d",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-i22-shared-session-readonly-port-r2d-independent-qa-2026-09-27\\author\\r2d-author-final.zip!iteration41-r2d-author-bundle-final/output/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_member": "iteration41-r2d-author-bundle-final/output/tests/unit/stores/test_btapistore_iteration22.py",
+          "source_sha256": "cf2433f1c21d91534223fdf79c8d9dd2f10b38d88bec7be25939c6b8169e187d",
+          "source_mtime_utc_recorded": "2026-09-27T06:55:14.543527+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T06:55:14.543527+00:00",
+          "ruff_output_sha256": "038d568c5b2ee10c4aa770a6f556b762b2517e1e9e9cb804bd864ea3767fe8a3",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/12/index-18-cf2433f1c21d-source.py",
+          "ruff_output_package_path": "targets/12/index-18-cf2433f1c21d-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "target": "tests/unit/stores/test_btapistore_normalized.py",
+      "incident_snapshot_member_sha256": "5039edda2ca36d430205a7078009fef89d0f9c5da983fcb588c7dede2a91aad8",
+      "incident_snapshot_member_bytes": 57426,
+      "scanned_candidate_count_including_maincopy_alts": 13,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-05-4a8a7fc5922a",
+        "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-normalized-test-migration-r3-2026-09-27.zip!main/test_btapistore_normalized.py",
+        "source_member": "main/test_btapistore_normalized.py",
+        "source_sha256": "4a8a7fc5922a77f8356d9a189041c125f8384fabc35a6f09e43be1e1d6f542db",
+        "source_mtime_utc_recorded": "2026-09-27T10:26:25.398663+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T10:26:25.398663+00:00",
+        "ruff_output_sha256": "5039edda2ca36d430205a7078009fef89d0f9c5da983fcb588c7dede2a91aad8",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/13/index-05-4a8a7fc5922a-source.py",
+        "ruff_output_package_path": "targets/13/index-05-4a8a7fc5922a-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-normalized-test-migration-r3-2026-09-27.zip!main/test_btapistore_normalized.py",
+        "source_sha256": "4a8a7fc5922a77f8356d9a189041c125f8384fabc35a6f09e43be1e1d6f542db",
+        "source_mtime_utc_recorded": "2026-09-27T10:26:25.398663+00:00",
+        "ruff_output_sha256": "5039edda2ca36d430205a7078009fef89d0f9c5da983fcb588c7dede2a91aad8",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/normalized-test-migration-r3-main-README.md",
+        "recorded_main_source_sha256": "4a8a7fc5922a77f8356d9a189041c125f8384fabc35a6f09e43be1e1d6f542db",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-84c570a2ea1d",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "84c570a2ea1ddc03a3ae3560e30177cd695b5720bc05225256bc7f6d1016d397",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.996945+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.996945+00:00",
+          "ruff_output_sha256": "dcb7e42cb4ae7909437a6fac04051dc7bd6866ae06a470a315981765f97e2ab9",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-01-84c570a2ea1d-source.py",
+          "ruff_output_package_path": "targets/13/index-01-84c570a2ea1d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-7f38710f2e58",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "7f38710f2e583ac560373a9c4975f0a6a3ff2fb33e9d1b6185e2ce7f3c485aa5",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.044172+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.044172+00:00",
+          "ruff_output_sha256": "7f38710f2e583ac560373a9c4975f0a6a3ff2fb33e9d1b6185e2ce7f3c485aa5",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-02-7f38710f2e58-source.py",
+          "ruff_output_package_path": "targets/13/index-02-7f38710f2e58-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-03-24dabc8612bb",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\src\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "24dabc8612bb0f6e0e1cf20c2de1d39abe2a4dbeba1a55cf1d45495fa740f83d",
+          "source_mtime_utc_recorded": "2026-09-27T04:55:02.306814+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:55:02.306814+00:00",
+          "ruff_output_sha256": "5c4dd9fc19bf5ef4ad7bd306eeaa5ea245229ae3f9fa3da248c4b3f40e23586c",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-03-24dabc8612bb-source.py",
+          "ruff_output_package_path": "targets/13/index-03-24dabc8612bb-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-04-8c706ba73995",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-account-actor-r2b-route-test-migration-r2-2026-09-27\\r2b-route-test-migration-r2-evidence.zip!tests/unit/stores/test_btapistore_normalized.py",
+          "source_member": "tests/unit/stores/test_btapistore_normalized.py",
+          "source_sha256": "8c706ba73995d90608a384182221373f1ca4862a5d064841e3b1ddde3dbd0b70",
+          "source_mtime_utc_recorded": "2026-09-27T04:31:29.187075+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:31:29.187075+00:00",
+          "ruff_output_sha256": "5c4dd9fc19bf5ef4ad7bd306eeaa5ea245229ae3f9fa3da248c4b3f40e23586c",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-04-8c706ba73995-source.py",
+          "ruff_output_package_path": "targets/13/index-04-8c706ba73995-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-05-4a8a7fc5922a",
+          "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-normalized-test-migration-r3-2026-09-27.zip!main/test_btapistore_normalized.py",
+          "source_member": "main/test_btapistore_normalized.py",
+          "source_sha256": "4a8a7fc5922a77f8356d9a189041c125f8384fabc35a6f09e43be1e1d6f542db",
+          "source_mtime_utc_recorded": "2026-09-27T10:26:25.398663+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T10:26:25.398663+00:00",
+          "ruff_output_sha256": "5039edda2ca36d430205a7078009fef89d0f9c5da983fcb588c7dede2a91aad8",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/13/index-05-4a8a7fc5922a-source.py",
+          "ruff_output_package_path": "targets/13/index-05-4a8a7fc5922a-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-06-02abf88765fc",
+          "source_absolute_path": "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927\\base-inputs\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "02abf88765fcd62745613f306d08466becb3b1208396339b596729639029d369",
+          "source_mtime_utc_recorded": "2026-09-27T04:16:50.313399+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:16:50.313399+00:00",
+          "ruff_output_sha256": "02abf88765fcd62745613f306d08466becb3b1208396339b596729639029d369",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-06-02abf88765fc-source.py",
+          "ruff_output_package_path": "targets/13/index-06-02abf88765fc-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-07-b67a8a2aa20b",
+          "source_absolute_path": "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927\\captured-r1-inputs\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "b67a8a2aa20b81387120eb8d6512deb94791f15fdb2fa5583e4d1426f53a62ff",
+          "source_mtime_utc_recorded": "2026-09-27T04:17:32.448004+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:17:32.448004+00:00",
+          "ruff_output_sha256": "dcb7e42cb4ae7909437a6fac04051dc7bd6866ae06a470a315981765f97e2ab9",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-07-b67a8a2aa20b-source.py",
+          "ruff_output_package_path": "targets/13/index-07-b67a8a2aa20b-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-08-d48fdd39fb61",
+          "source_absolute_path": "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927-independent-replay\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "d48fdd39fb617f4ad7f946d321f59f9e283aa673e63dcb2a379712025afb5c20",
+          "source_mtime_utc_recorded": "2026-09-27T03:59:24.304111+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T03:59:24.304111+00:00",
+          "ruff_output_sha256": "f47538548cffa8c6362f72d4697d0b598448db005838c8f0569e09eeeb5c01d4",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-08-d48fdd39fb61-source.py",
+          "ruff_output_package_path": "targets/13/index-08-d48fdd39fb61-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-09-e2ac4f39daf1",
+          "source_absolute_path": "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927-start-probe\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "e2ac4f39daf176e7fb0a5e3fe1f8a403d119b3cc3db8762cea9ace62157a92ca",
+          "source_mtime_utc_recorded": "2026-09-27T04:13:44.394537+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:13:44.394537+00:00",
+          "ruff_output_sha256": "2584522a2d514d3ef658cc89773108ecc113d29ba6d0f37c34f027dafdb3a828",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-09-e2ac4f39daf1-source.py",
+          "ruff_output_package_path": "targets/13/index-09-e2ac4f39daf1-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-10-e57e4f88c7ad",
+          "source_absolute_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r1\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "e57e4f88c7ad281382863466a37f59954292429df28b0b9650fdc3bf90f898ec",
+          "source_mtime_utc_recorded": "2026-09-27T09:40:54.987986+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:40:54.987986+00:00",
+          "ruff_output_sha256": "94c14d610acbdafbb9531b08e52cebe05c6258fe45d1f14f79350bc62ca24db2",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-10-e57e4f88c7ad-source.py",
+          "ruff_output_package_path": "targets/13/index-10-e57e4f88c7ad-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-11-0991fd5d69e3",
+          "source_absolute_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r2\\strict-replay\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "0991fd5d69e3db4c0955ddbfbe9143d084f766c218afa857e678180278583265",
+          "source_mtime_utc_recorded": "2026-09-27T09:52:43.920007+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:52:43.920007+00:00",
+          "ruff_output_sha256": "e25c81c2a46e8d57645e966f382f7552b63026dd5d66051fed1fd6c995ce1872",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-11-0991fd5d69e3-source.py",
+          "ruff_output_package_path": "targets/13/index-11-0991fd5d69e3-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-12-c3004a537aed",
+          "source_absolute_path": "D:\\temp\\iteration41-store-r5-main-integration-20260927\\normalized-test-migration-r3\\strict-replay\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "c3004a537aed8df41b106f2a8d03287b02f54720b468e12c423be2a82a5994f5",
+          "source_mtime_utc_recorded": "2026-09-27T10:05:16.729310+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T10:05:16.729310+00:00",
+          "ruff_output_sha256": "002244b9941bc6deebb9582abfe95822c40d6fb612f34f1ffdb7bc8dde593288",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/index-12-c3004a537aed-source.py",
+          "ruff_output_package_path": "targets/13/index-12-c3004a537aed-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-84c570a2ea1d",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\stores\\test_btapistore_normalized.py",
+          "source_member": null,
+          "source_sha256": "84c570a2ea1ddc03a3ae3560e30177cd695b5720bc05225256bc7f6d1016d397",
+          "source_mtime_utc_recorded": "2026-09-23T06:03:23.663715+00:00",
+          "source_container_observed_mtime_utc": "2026-09-23T06:03:23.663715+00:00",
+          "ruff_output_sha256": "dcb7e42cb4ae7909437a6fac04051dc7bd6866ae06a470a315981765f97e2ab9",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/13/main-copy-alt-84c570a2ea1d-source.py",
+          "ruff_output_package_path": "targets/13/main-copy-alt-84c570a2ea1d-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "target": "tests/unit/test_cross_exchange_mode_matrix.py",
+      "incident_snapshot_member_sha256": "44967a81830c82eaf1ed29550708f5717f194af971b90333bf202bc8c63df89e",
+      "incident_snapshot_member_bytes": 90169,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-ee051afc84af",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_cross_exchange_mode_matrix.py",
+        "source_member": null,
+        "source_sha256": "ee051afc84afcf591951dc1b0950ac44af0cee9d0d92540c7335cd1483f1eacc",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.299400+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.299400+00:00",
+        "ruff_output_sha256": "44967a81830c82eaf1ed29550708f5717f194af971b90333bf202bc8c63df89e",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/14/index-01-ee051afc84af-source.py",
+        "ruff_output_package_path": "targets/14/index-01-ee051afc84af-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_cross_exchange_mode_matrix.py",
+        "source_sha256": "f7ea0bd663b876f22a19eaa136197a0a0e9baa8e1bc0b7558d346d8a1078726c",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.048364+00:00",
+        "ruff_output_sha256": "0cf6c3c152e1e0051dc46e2b8e7f6852272fe0da6912161dba0a9e9bb53e9931",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_cross_exchange_mode_matrix.py",
+        "recorded_main_source_sha256": "ee051afc84afcf591951dc1b0950ac44af0cee9d0d92540c7335cd1483f1eacc",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-ee051afc84af",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_cross_exchange_mode_matrix.py",
+          "source_member": null,
+          "source_sha256": "ee051afc84afcf591951dc1b0950ac44af0cee9d0d92540c7335cd1483f1eacc",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.299400+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.299400+00:00",
+          "ruff_output_sha256": "44967a81830c82eaf1ed29550708f5717f194af971b90333bf202bc8c63df89e",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/14/index-01-ee051afc84af-source.py",
+          "ruff_output_package_path": "targets/14/index-01-ee051afc84af-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-f7ea0bd663b8",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_cross_exchange_mode_matrix.py",
+          "source_member": null,
+          "source_sha256": "f7ea0bd663b876f22a19eaa136197a0a0e9baa8e1bc0b7558d346d8a1078726c",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.048364+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.048364+00:00",
+          "ruff_output_sha256": "0cf6c3c152e1e0051dc46e2b8e7f6852272fe0da6912161dba0a9e9bb53e9931",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/14/index-02-f7ea0bd663b8-source.py",
+          "ruff_output_package_path": "targets/14/index-02-f7ea0bd663b8-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "target": "tests/unit/test_cross_exchange_pair_examples.py",
+      "incident_snapshot_member_sha256": "7f4bf5fa11ac911584eadeb6bc0c4f9e5e8265f3c8053c823f9b43d4550c6806",
+      "incident_snapshot_member_bytes": 20198,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-b54643615627",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_cross_exchange_pair_examples.py",
+        "source_member": null,
+        "source_sha256": "b54643615627123a93896f8bb6eed272486f334be8c50e1ed4aae8a6c081d16b",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.301650+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.301650+00:00",
+        "ruff_output_sha256": "7f4bf5fa11ac911584eadeb6bc0c4f9e5e8265f3c8053c823f9b43d4550c6806",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/15/index-01-b54643615627-source.py",
+        "ruff_output_package_path": "targets/15/index-01-b54643615627-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_cross_exchange_pair_examples.py",
+        "source_sha256": "cca4362b17bcc4b2bfcbe46b0c20a445e065b210ee6b0c33230742709143af95",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.049373+00:00",
+        "ruff_output_sha256": "cca4362b17bcc4b2bfcbe46b0c20a445e065b210ee6b0c33230742709143af95",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_cross_exchange_pair_examples.py",
+        "recorded_main_source_sha256": "b54643615627123a93896f8bb6eed272486f334be8c50e1ed4aae8a6c081d16b",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-b54643615627",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_cross_exchange_pair_examples.py",
+          "source_member": null,
+          "source_sha256": "b54643615627123a93896f8bb6eed272486f334be8c50e1ed4aae8a6c081d16b",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.301650+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.301650+00:00",
+          "ruff_output_sha256": "7f4bf5fa11ac911584eadeb6bc0c4f9e5e8265f3c8053c823f9b43d4550c6806",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/15/index-01-b54643615627-source.py",
+          "ruff_output_package_path": "targets/15/index-01-b54643615627-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-cca4362b17bc",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_cross_exchange_pair_examples.py",
+          "source_member": null,
+          "source_sha256": "cca4362b17bcc4b2bfcbe46b0c20a445e065b210ee6b0c33230742709143af95",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.049373+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.049373+00:00",
+          "ruff_output_sha256": "cca4362b17bcc4b2bfcbe46b0c20a445e065b210ee6b0c33230742709143af95",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/15/index-02-cca4362b17bc-source.py",
+          "ruff_output_package_path": "targets/15/index-02-cca4362b17bc-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "target": "tests/unit/test_ctp_options_lowfreq_example.py",
+      "incident_snapshot_member_sha256": "60b974deee9009af40da89d3f0d7c428971c8748be9540c35866b21cd3eca937",
+      "incident_snapshot_member_bytes": 16848,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-eed04a77467d",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_lowfreq_example.py",
+        "source_member": null,
+        "source_sha256": "eed04a77467da22c86a0fd30775a64e4117c479cfa1f3e10aa5509c9b0aae041",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.320002+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.320002+00:00",
+        "ruff_output_sha256": "60b974deee9009af40da89d3f0d7c428971c8748be9540c35866b21cd3eca937",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/16/index-01-eed04a77467d-source.py",
+        "ruff_output_package_path": "targets/16/index-01-eed04a77467d-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_lowfreq_example.py",
+        "source_sha256": "547f5d15680c51a1f959f2f401049b75d6948a28fd8415c7b584a8f59ce44d4a",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.054424+00:00",
+        "ruff_output_sha256": "547f5d15680c51a1f959f2f401049b75d6948a28fd8415c7b584a8f59ce44d4a",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_ctp_options_lowfreq_example.py",
+        "recorded_main_source_sha256": "eed04a77467da22c86a0fd30775a64e4117c479cfa1f3e10aa5509c9b0aae041",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-eed04a77467d",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_lowfreq_example.py",
+          "source_member": null,
+          "source_sha256": "eed04a77467da22c86a0fd30775a64e4117c479cfa1f3e10aa5509c9b0aae041",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.320002+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.320002+00:00",
+          "ruff_output_sha256": "60b974deee9009af40da89d3f0d7c428971c8748be9540c35866b21cd3eca937",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/16/index-01-eed04a77467d-source.py",
+          "ruff_output_package_path": "targets/16/index-01-eed04a77467d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-547f5d15680c",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_lowfreq_example.py",
+          "source_member": null,
+          "source_sha256": "547f5d15680c51a1f959f2f401049b75d6948a28fd8415c7b584a8f59ce44d4a",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.054424+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.054424+00:00",
+          "ruff_output_sha256": "547f5d15680c51a1f959f2f401049b75d6948a28fd8415c7b584a8f59ce44d4a",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/16/index-02-547f5d15680c-source.py",
+          "ruff_output_package_path": "targets/16/index-02-547f5d15680c-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 17,
+      "target": "tests/unit/test_ctp_options_midfreq_example.py",
+      "incident_snapshot_member_sha256": "7a31207ff783ae8c7e4b3eefe7e4f1a9442d2ed9c151ad09a1cc21dbdc191665",
+      "incident_snapshot_member_bytes": 6939,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-3f92a922fe76",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_example.py",
+        "source_member": null,
+        "source_sha256": "3f92a922fe762f9203f68d9d7a299db4de0e4bee6394dc010bec86ffc88cca31",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.325982+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.325982+00:00",
+        "ruff_output_sha256": "7a31207ff783ae8c7e4b3eefe7e4f1a9442d2ed9c151ad09a1cc21dbdc191665",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/17/index-01-3f92a922fe76-source.py",
+        "ruff_output_package_path": "targets/17/index-01-3f92a922fe76-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_example.py",
+        "source_sha256": "a03be6d1f3578a7907a83599bb9645029f1d6983e5cf72eddd89bd7ca6ce8605",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.056447+00:00",
+        "ruff_output_sha256": "a03be6d1f3578a7907a83599bb9645029f1d6983e5cf72eddd89bd7ca6ce8605",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_ctp_options_midfreq_example.py",
+        "recorded_main_source_sha256": "3f92a922fe762f9203f68d9d7a299db4de0e4bee6394dc010bec86ffc88cca31",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-3f92a922fe76",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_example.py",
+          "source_member": null,
+          "source_sha256": "3f92a922fe762f9203f68d9d7a299db4de0e4bee6394dc010bec86ffc88cca31",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.325982+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.325982+00:00",
+          "ruff_output_sha256": "7a31207ff783ae8c7e4b3eefe7e4f1a9442d2ed9c151ad09a1cc21dbdc191665",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/17/index-01-3f92a922fe76-source.py",
+          "ruff_output_package_path": "targets/17/index-01-3f92a922fe76-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-a03be6d1f357",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_example.py",
+          "source_member": null,
+          "source_sha256": "a03be6d1f3578a7907a83599bb9645029f1d6983e5cf72eddd89bd7ca6ce8605",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.056447+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.056447+00:00",
+          "ruff_output_sha256": "a03be6d1f3578a7907a83599bb9645029f1d6983e5cf72eddd89bd7ca6ce8605",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/17/index-02-a03be6d1f357-source.py",
+          "ruff_output_package_path": "targets/17/index-02-a03be6d1f357-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 18,
+      "target": "tests/unit/test_ctp_options_midfreq_fq2.py",
+      "incident_snapshot_member_sha256": "23f36813d5c31e4375b5dc6846d626b066d553960881a78842fcc04c595d1a88",
+      "incident_snapshot_member_bytes": 23752,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-9928eb476a6c",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_fq2.py",
+        "source_member": null,
+        "source_sha256": "9928eb476a6ce9cb5b3a985a82aea03fda99f8c94cc730a5ad470552fdd86ccc",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.327739+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.327739+00:00",
+        "ruff_output_sha256": "23f36813d5c31e4375b5dc6846d626b066d553960881a78842fcc04c595d1a88",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/18/index-01-9928eb476a6c-source.py",
+        "ruff_output_package_path": "targets/18/index-01-9928eb476a6c-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_fq2.py",
+        "source_sha256": "1d894bd1702e5f47b1096b79104cd39d4ffce40fc704a3ee606bd1df2eb6455a",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.056447+00:00",
+        "ruff_output_sha256": "1d894bd1702e5f47b1096b79104cd39d4ffce40fc704a3ee606bd1df2eb6455a",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_ctp_options_midfreq_fq2.py",
+        "recorded_main_source_sha256": "9928eb476a6ce9cb5b3a985a82aea03fda99f8c94cc730a5ad470552fdd86ccc",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-9928eb476a6c",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_fq2.py",
+          "source_member": null,
+          "source_sha256": "9928eb476a6ce9cb5b3a985a82aea03fda99f8c94cc730a5ad470552fdd86ccc",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.327739+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.327739+00:00",
+          "ruff_output_sha256": "23f36813d5c31e4375b5dc6846d626b066d553960881a78842fcc04c595d1a88",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/18/index-01-9928eb476a6c-source.py",
+          "ruff_output_package_path": "targets/18/index-01-9928eb476a6c-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-1d894bd1702e",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_fq2.py",
+          "source_member": null,
+          "source_sha256": "1d894bd1702e5f47b1096b79104cd39d4ffce40fc704a3ee606bd1df2eb6455a",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.056447+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.056447+00:00",
+          "ruff_output_sha256": "1d894bd1702e5f47b1096b79104cd39d4ffce40fc704a3ee606bd1df2eb6455a",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/18/index-02-1d894bd1702e-source.py",
+          "ruff_output_package_path": "targets/18/index-02-1d894bd1702e-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 19,
+      "target": "tests/unit/test_ctp_options_midfreq_timing.py",
+      "incident_snapshot_member_sha256": "c62e15389080f3c75ffc5f527d1863af12a75c0cdd14a7fca4319ef67b4d2043",
+      "incident_snapshot_member_bytes": 44525,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-aa69bfcb6b85",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_timing.py",
+        "source_member": null,
+        "source_sha256": "aa69bfcb6b852aa0b09965a6e46aef2d16ce05ceab25143db8df876db8d74a4a",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.331728+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.331728+00:00",
+        "ruff_output_sha256": "c62e15389080f3c75ffc5f527d1863af12a75c0cdd14a7fca4319ef67b4d2043",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/19/index-01-aa69bfcb6b85-source.py",
+        "ruff_output_package_path": "targets/19/index-01-aa69bfcb6b85-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_timing.py",
+        "source_sha256": "a27a53a65d021ebe909c3a08895cf6d1072da9b9c504b36366ebddd61d6647fb",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.057466+00:00",
+        "ruff_output_sha256": "a27a53a65d021ebe909c3a08895cf6d1072da9b9c504b36366ebddd61d6647fb",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_ctp_options_midfreq_timing.py",
+        "recorded_main_source_sha256": "aa69bfcb6b852aa0b09965a6e46aef2d16ce05ceab25143db8df876db8d74a4a",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-aa69bfcb6b85",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_midfreq_timing.py",
+          "source_member": null,
+          "source_sha256": "aa69bfcb6b852aa0b09965a6e46aef2d16ce05ceab25143db8df876db8d74a4a",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.331728+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.331728+00:00",
+          "ruff_output_sha256": "c62e15389080f3c75ffc5f527d1863af12a75c0cdd14a7fca4319ef67b4d2043",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/19/index-01-aa69bfcb6b85-source.py",
+          "ruff_output_package_path": "targets/19/index-01-aa69bfcb6b85-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-a27a53a65d02",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_midfreq_timing.py",
+          "source_member": null,
+          "source_sha256": "a27a53a65d021ebe909c3a08895cf6d1072da9b9c504b36366ebddd61d6647fb",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.057466+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.057466+00:00",
+          "ruff_output_sha256": "a27a53a65d021ebe909c3a08895cf6d1072da9b9c504b36366ebddd61d6647fb",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/19/index-02-a27a53a65d02-source.py",
+          "ruff_output_package_path": "targets/19/index-02-a27a53a65d02-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 20,
+      "target": "tests/unit/test_ctp_options_simnow_live_runner.py",
+      "incident_snapshot_member_sha256": "ddad37fb2a35836174e8e0e8c39619d438d7bed4f8b01d12c5d76e46f25f6afd",
+      "incident_snapshot_member_bytes": 29369,
+      "scanned_candidate_count_including_maincopy_alts": 3,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-02-d0f1439fdad6",
+        "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-direct-mechanical-cycle-simnow-failclose-main-integration-2026-09-27\\evidence.zip!main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+        "source_member": "main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+        "source_sha256": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+        "source_mtime_utc_recorded": "2026-09-27T09:14:29.632073+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T09:14:29.632073+00:00",
+        "ruff_output_sha256": "ddad37fb2a35836174e8e0e8c39619d438d7bed4f8b01d12c5d76e46f25f6afd",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/20/index-02-d0f1439fdad6-source.py",
+        "ruff_output_package_path": "targets/20/index-02-d0f1439fdad6-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-direct-mechanical-cycle-simnow-failclose-main-integration-2026-09-27\\evidence.zip!main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+        "source_sha256": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+        "source_mtime_utc_recorded": "2026-09-27T09:14:29.632073+00:00",
+        "ruff_output_sha256": "ddad37fb2a35836174e8e0e8c39619d438d7bed4f8b01d12c5d76e46f25f6afd",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/direct-mechanical-cycle-main-README.md",
+        "recorded_main_source_sha256": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-e3de03054f54",
+          "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\test_ctp_options_simnow_live_runner.py",
+          "source_member": null,
+          "source_sha256": "e3de03054f543e3598cd8dfb013e557a92888f903128988c0867c8e76b3be783",
+          "source_mtime_utc_recorded": "2026-09-27T08:42:44.291888+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:42:44.291888+00:00",
+          "ruff_output_sha256": "e3de03054f543e3598cd8dfb013e557a92888f903128988c0867c8e76b3be783",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/20/index-01-e3de03054f54-source.py",
+          "ruff_output_package_path": "targets/20/index-01-e3de03054f54-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-d0f1439fdad6",
+          "source_absolute_path": "D:\\temp\\iteration41-ac41-63-store-failclose-prototype-20260927\\base\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ac41-63-direct-mechanical-cycle-simnow-failclose-main-integration-2026-09-27\\evidence.zip!main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+          "source_member": "main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+          "source_sha256": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+          "source_mtime_utc_recorded": "2026-09-27T09:14:29.632073+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T09:14:29.632073+00:00",
+          "ruff_output_sha256": "ddad37fb2a35836174e8e0e8c39619d438d7bed4f8b01d12c5d76e46f25f6afd",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/20/index-02-d0f1439fdad6-source.py",
+          "ruff_output_package_path": "targets/20/index-02-d0f1439fdad6-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-e3de03054f54",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\test_ctp_options_simnow_live_runner.py",
+          "source_member": null,
+          "source_sha256": "e3de03054f543e3598cd8dfb013e557a92888f903128988c0867c8e76b3be783",
+          "source_mtime_utc_recorded": "2026-09-20T16:01:51.627531+00:00",
+          "source_container_observed_mtime_utc": "2026-09-20T16:01:51.627531+00:00",
+          "ruff_output_sha256": "e3de03054f543e3598cd8dfb013e557a92888f903128988c0867c8e76b3be783",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/20/main-copy-alt-e3de03054f54-source.py",
+          "ruff_output_package_path": "targets/20/main-copy-alt-e3de03054f54-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 21,
+      "target": "tests/unit/test_ctp_options_simnow_mechanical_cycle.py",
+      "incident_snapshot_member_sha256": "aaeedeb22a670d7c3142948fa29595a9839adefbb93b707e3a851253160b5803",
+      "incident_snapshot_member_bytes": 23827,
+      "scanned_candidate_count_including_maincopy_alts": 4,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-02-67614a968544",
+        "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\evidence.zip!main-tree/test_ctp_options_simnow_mechanical_cycle.py",
+        "source_member": "main-tree/test_ctp_options_simnow_mechanical_cycle.py",
+        "source_sha256": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4",
+        "source_mtime_utc_recorded": "2026-09-27T11:42:29.244904+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T11:42:29.244904+00:00",
+        "ruff_output_sha256": "aaeedeb22a670d7c3142948fa29595a9839adefbb93b707e3a851253160b5803",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/21/index-02-67614a968544-source.py",
+        "ruff_output_package_path": "targets/21/index-02-67614a968544-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\evidence.zip!main-tree/test_ctp_options_simnow_mechanical_cycle.py",
+        "source_sha256": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4",
+        "source_mtime_utc_recorded": "2026-09-27T11:42:29.244904+00:00",
+        "ruff_output_sha256": "aaeedeb22a670d7c3142948fa29595a9839adefbb93b707e3a851253160b5803",
+        "ruff_output_matches_snapshot": true
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/direct-mechanical-cycle-main-README.md",
+        "recorded_main_source_sha256": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4",
+        "basis": "Pre-incident main integration or test-preimage record names this exact target hash."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-192012c4b829",
+          "source_absolute_path": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-base-r1\\tests\\unit\\test_ctp_options_simnow_mechanical_cycle.py",
+          "source_member": null,
+          "source_sha256": "192012c4b829388bb930218fa1cbcc7e31a4bcea4607977f50f3e70f1dfe19e4",
+          "source_mtime_utc_recorded": "2026-09-27T08:42:44.291888+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T08:42:44.291888+00:00",
+          "ruff_output_sha256": "df6d7487106231431dacb9dd6c0c706be8a63f0f9185ece75ef7831f26de164f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/21/index-01-192012c4b829-source.py",
+          "ruff_output_package_path": "targets/21/index-01-192012c4b829-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-67614a968544",
+          "source_absolute_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-store-sdk-api-none-r1-main-integration-2026-09-27\\evidence.zip!main-tree/test_ctp_options_simnow_mechanical_cycle.py",
+          "source_member": "main-tree/test_ctp_options_simnow_mechanical_cycle.py",
+          "source_sha256": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4",
+          "source_mtime_utc_recorded": "2026-09-27T11:42:29.244904+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T11:42:29.244904+00:00",
+          "ruff_output_sha256": "aaeedeb22a670d7c3142948fa29595a9839adefbb93b707e3a851253160b5803",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/21/index-02-67614a968544-source.py",
+          "ruff_output_package_path": "targets/21/index-02-67614a968544-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-03-e7f07180cb4b",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_simnow_mechanical_cycle.py",
+          "source_member": null,
+          "source_sha256": "e7f07180cb4b60adf6257e47e0773e47efb9136d7aca9aae72009968238875a2",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.060566+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.060566+00:00",
+          "ruff_output_sha256": "e7f07180cb4b60adf6257e47e0773e47efb9136d7aca9aae72009968238875a2",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/21/index-03-e7f07180cb4b-source.py",
+          "ruff_output_package_path": "targets/21/index-03-e7f07180cb4b-ruff-output.py"
+        },
+        {
+          "candidate_id": "main-copy-alt-192012c4b829",
+          "source_absolute_path": "D:\\temp\\iteration41-r2c-independent-qa-20260927\\tests\\unit\\test_ctp_options_simnow_mechanical_cycle.py",
+          "source_member": null,
+          "source_sha256": "192012c4b829388bb930218fa1cbcc7e31a4bcea4607977f50f3e70f1dfe19e4",
+          "source_mtime_utc_recorded": "2026-09-22T14:03:14.635107+00:00",
+          "source_container_observed_mtime_utc": "2026-09-22T14:03:14.635107+00:00",
+          "ruff_output_sha256": "df6d7487106231431dacb9dd6c0c706be8a63f0f9185ece75ef7831f26de164f",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/21/main-copy-alt-192012c4b829-source.py",
+          "ruff_output_package_path": "targets/21/main-copy-alt-192012c4b829-ruff-output.py",
+          "candidate_type": "additional full-tree main-source-copy alternative"
+        }
+      ]
+    },
+    {
+      "index": 22,
+      "target": "tests/unit/test_ctp_options_simnow_operator.py",
+      "incident_snapshot_member_sha256": "8b0b296a312f04ceb28b0cfb64a8663e7dc03fa0a5c0e8de8a575f6df3fe0097",
+      "incident_snapshot_member_bytes": 26121,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-611664e5ad3d",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_simnow_operator.py",
+        "source_member": null,
+        "source_sha256": "611664e5ad3d9dd92d311725032efc0823978b3e18e84de553cf75704061fe78",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.343383+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.343383+00:00",
+        "ruff_output_sha256": "8b0b296a312f04ceb28b0cfb64a8663e7dc03fa0a5c0e8de8a575f6df3fe0097",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/22/index-01-611664e5ad3d-source.py",
+        "ruff_output_package_path": "targets/22/index-01-611664e5ad3d-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_simnow_operator.py",
+        "source_sha256": "2baafc8fd254fccae46606921eb5fdc5f6fc01f59807b6ed772ac9afa1e67104",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.060566+00:00",
+        "ruff_output_sha256": "2b62238e5ca2cf57a9348e0c52c9cd36344a013228f618781bcc92a2cdf90bb5",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_ctp_options_simnow_operator.py",
+        "recorded_main_source_sha256": "611664e5ad3d9dd92d311725032efc0823978b3e18e84de553cf75704061fe78",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-611664e5ad3d",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_ctp_options_simnow_operator.py",
+          "source_member": null,
+          "source_sha256": "611664e5ad3d9dd92d311725032efc0823978b3e18e84de553cf75704061fe78",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.343383+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.343383+00:00",
+          "ruff_output_sha256": "8b0b296a312f04ceb28b0cfb64a8663e7dc03fa0a5c0e8de8a575f6df3fe0097",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/22/index-01-611664e5ad3d-source.py",
+          "ruff_output_package_path": "targets/22/index-01-611664e5ad3d-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-2baafc8fd254",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_ctp_options_simnow_operator.py",
+          "source_member": null,
+          "source_sha256": "2baafc8fd254fccae46606921eb5fdc5f6fc01f59807b6ed772ac9afa1e67104",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.060566+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.060566+00:00",
+          "ruff_output_sha256": "2b62238e5ca2cf57a9348e0c52c9cd36344a013228f618781bcc92a2cdf90bb5",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/22/index-02-2baafc8fd254-source.py",
+          "ruff_output_package_path": "targets/22/index-02-2baafc8fd254-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 23,
+      "target": "tests/unit/test_live_mixbroker_okx_demo.py",
+      "incident_snapshot_member_sha256": "8dd2362fbe7832dac4bc2bc23f6cba998a3756ae7027b2ff190a96c5d40481b9",
+      "incident_snapshot_member_bytes": 4209,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-42e2209fa1cf",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_live_mixbroker_okx_demo.py",
+        "source_member": null,
+        "source_sha256": "42e2209fa1cfcc0317ca10080f11e3d1d4df4a0716c1bf637ddd70759ec5e2ff",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:52.366920+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:52.366920+00:00",
+        "ruff_output_sha256": "8dd2362fbe7832dac4bc2bc23f6cba998a3756ae7027b2ff190a96c5d40481b9",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/23/index-01-42e2209fa1cf-source.py",
+        "ruff_output_package_path": "targets/23/index-01-42e2209fa1cf-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_live_mixbroker_okx_demo.py",
+        "source_sha256": "dfee8c1d1b74e76d3cdf97118670eab3e24f18771b57ad1c327ae42f4509a6a5",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.066626+00:00",
+        "ruff_output_sha256": "dfee8c1d1b74e76d3cdf97118670eab3e24f18771b57ad1c327ae42f4509a6a5",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/test_live_mixbroker_okx_demo.py",
+        "recorded_main_source_sha256": "42e2209fa1cfcc0317ca10080f11e3d1d4df4a0716c1bf637ddd70759ec5e2ff",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-42e2209fa1cf",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\test_live_mixbroker_okx_demo.py",
+          "source_member": null,
+          "source_sha256": "42e2209fa1cfcc0317ca10080f11e3d1d4df4a0716c1bf637ddd70759ec5e2ff",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:52.366920+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:52.366920+00:00",
+          "ruff_output_sha256": "8dd2362fbe7832dac4bc2bc23f6cba998a3756ae7027b2ff190a96c5d40481b9",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/23/index-01-42e2209fa1cf-source.py",
+          "ruff_output_package_path": "targets/23/index-01-42e2209fa1cf-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-dfee8c1d1b74",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\test_live_mixbroker_okx_demo.py",
+          "source_member": null,
+          "source_sha256": "dfee8c1d1b74e76d3cdf97118670eab3e24f18771b57ad1c327ae42f4509a6a5",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.066626+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.066626+00:00",
+          "ruff_output_sha256": "dfee8c1d1b74e76d3cdf97118670eab3e24f18771b57ad1c327ae42f4509a6a5",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/23/index-02-dfee8c1d1b74-source.py",
+          "ruff_output_package_path": "targets/23/index-02-dfee8c1d1b74-ruff-output.py"
+        }
+      ]
+    },
+    {
+      "index": 24,
+      "target": "tests/unit/utils/test_logging_split_files.py",
+      "incident_snapshot_member_sha256": "ed43e0cdaef53c9c52f3a598843c910e8e7a533f749e2a47449b47b4eda86aba",
+      "incident_snapshot_member_bytes": 33639,
+      "scanned_candidate_count_including_maincopy_alts": 2,
+      "unique_ruff_output_match_count": 1,
+      "matching_candidate": {
+        "candidate_id": "index-01-daa2ce568977",
+        "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\utils\\test_logging_split_files.py",
+        "source_member": null,
+        "source_sha256": "daa2ce568977751fd71f451677cd3453577fab95277c814ca9b8b4b149b46c3e",
+        "source_mtime_utc_recorded": "2026-09-27T04:58:53.018528+00:00",
+        "source_container_observed_mtime_utc": "2026-09-27T04:58:53.018528+00:00",
+        "ruff_output_sha256": "ed43e0cdaef53c9c52f3a598843c910e8e7a533f749e2a47449b47b4eda86aba",
+        "ruff_output_matches_incident_snapshot": true,
+        "source_copy_package_path": "targets/24/index-01-daa2ce568977-source.py",
+        "ruff_output_package_path": "targets/24/index-01-daa2ce568977-ruff-output.py"
+      },
+      "latest_same_basename_candidate_in_initial_scan": {
+        "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\utils\\test_logging_split_files.py",
+        "source_sha256": "abaeb2ca8d818c6f6d5a91a473fd7f4c622172b6af2ba2977488f1adc47034d1",
+        "source_mtime_utc_recorded": "2026-09-27T05:06:11.070155+00:00",
+        "ruff_output_sha256": "abaeb2ca8d818c6f6d5a91a473fd7f4c622172b6af2ba2977488f1adc47034d1",
+        "ruff_output_matches_snapshot": false
+      },
+      "main_identity": {
+        "class": "A_MAIN_SOURCE_HASH_RECORDED",
+        "evidence_ref": "references/main-source-copy-manifest.json",
+        "evidence_entry_path": "tests/unit/utils/test_logging_split_files.py",
+        "recorded_main_source_sha256": "daa2ce568977751fd71f451677cd3453577fab95277c814ca9b8b4b149b46c3e",
+        "basis": "Full-tree main-source copy manifest records this exact target hash; its source_root is the repository."
+      },
+      "candidates": [
+        {
+          "candidate_id": "index-01-daa2ce568977",
+          "source_absolute_path": "D:\\temp\\i41-store-merge\\baseline\\tests\\unit\\utils\\test_logging_split_files.py",
+          "source_member": null,
+          "source_sha256": "daa2ce568977751fd71f451677cd3453577fab95277c814ca9b8b4b149b46c3e",
+          "source_mtime_utc_recorded": "2026-09-27T04:58:53.018528+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T04:58:53.018528+00:00",
+          "ruff_output_sha256": "ed43e0cdaef53c9c52f3a598843c910e8e7a533f749e2a47449b47b4eda86aba",
+          "ruff_output_matches_incident_snapshot": true,
+          "source_copy_package_path": "targets/24/index-01-daa2ce568977-source.py",
+          "ruff_output_package_path": "targets/24/index-01-daa2ce568977-ruff-output.py"
+        },
+        {
+          "candidate_id": "index-02-abaeb2ca8d81",
+          "source_absolute_path": "D:\\temp\\guardianqa-credential-safety-r2b-independent-20260927\\repo\\tests\\unit\\utils\\test_logging_split_files.py",
+          "source_member": null,
+          "source_sha256": "abaeb2ca8d818c6f6d5a91a473fd7f4c622172b6af2ba2977488f1adc47034d1",
+          "source_mtime_utc_recorded": "2026-09-27T05:06:11.070155+00:00",
+          "source_container_observed_mtime_utc": "2026-09-27T05:06:11.070155+00:00",
+          "ruff_output_sha256": "abaeb2ca8d818c6f6d5a91a473fd7f4c622172b6af2ba2977488f1adc47034d1",
+          "ruff_output_matches_incident_snapshot": false,
+          "source_copy_package_path": "targets/24/index-02-abaeb2ca8d81-source.py",
+          "ruff_output_package_path": "targets/24/index-02-abaeb2ca8d81-ruff-output.py"
+        }
+      ]
+    }
+  ]
+}

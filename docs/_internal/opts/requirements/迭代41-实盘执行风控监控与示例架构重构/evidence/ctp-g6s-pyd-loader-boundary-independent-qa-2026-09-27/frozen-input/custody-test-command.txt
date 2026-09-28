@@ -1,0 +1,7 @@
+PowerShell, with working directory set to the frozen R2 candidate root:
+$env:PYTHONPATH = '<R2 candidate>\candidate'
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
+& 'C:\anaconda3\python.exe' -m pytest --noconftest tests\unit\runtime\test_ctp_windows_artifact_custody.py -q --tb=short
+
+Observed: 3 passed, 1 pre-existing unknown pytest asyncio config warning, 0.35s.
+The test contains source-file overwrite/rename, ACL rejection and directory-child behavior cases; it does not import a .pyd.

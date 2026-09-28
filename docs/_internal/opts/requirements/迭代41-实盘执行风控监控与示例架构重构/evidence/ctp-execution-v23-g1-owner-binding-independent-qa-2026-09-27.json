@@ -1,0 +1,289 @@
+{
+  "artifact_sha256": {
+    "focus-loopback-guard.json": "0491fe652b68fd8e9cbda20674ac9f438ca3bcb146a1b5953a0fdbe34631bae9",
+    "focus-loopback.stdout.txt": "3754bf043d1958f3306ab2fdc0db9960ce16b1d52b0ad448098511fb0afc2c0a",
+    "focus-loopback.xml": "f54f495eb79e8329b47f9a22a14c89f364ff9f87760f7d63a6d4d26c7fe69a75",
+    "full-package-loopback-guard.json": "a598edfd6f89218f830c6e980f67e45c0e4358cac229f33623cf6288e6fb85df",
+    "full-package-loopback.stdout.txt": "d69c5c7ee7377d11c71dd2f52feceb7d1bb5118d79fa6d26cf9e3db06bb26870",
+    "full-package-loopback.xml": "dd4231a35a44a7012affc8a9d88a92fbfa9efb41b09e9b0d243c9355c17ae398",
+    "prepare_and_verify.py": "fc6b304fc1cef5a85bf8c012c83e79e3ef6a2ab8932b1ae08759a0f035194731",
+    "run_v23_tests_loopback.py": "eba8a8bdd358a4e924454bbd4342958e3e40bc53ad0b4e66188e05e86f9213e6",
+    "source-validation.json": "2b3c3f91e32bfa29e687dcac5611d042e4c76916413368b358d640bfd6f29eca"
+  },
+  "environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONNOUSERSITE": "1",
+    "plugin_autoload": "enabled",
+    "pytest_cache_provider": "disabled",
+    "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "python_B": true,
+    "pythonpath_order": [
+      "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\snapshot\\src",
+      "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\snapshot\\tests",
+      "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927"
+    ]
+  },
+  "frozen_source": {
+    "base_source_commit": "33d132d6f9d16f64cc229f576435b0fafc6bfab1",
+    "composite_manifest_sha256": "00577665667a33c9a7d62d331c0cad99b0b660790d0b475d0bd8c1b6caa6e2dd",
+    "delta_added": 2,
+    "delta_modified": 10,
+    "delta_paths": [
+      {
+        "change": "modified",
+        "path": "src/bt_api_execution/ctp_single_worker_candidate.py"
+      },
+      {
+        "change": "modified",
+        "path": "src/bt_api_execution/store.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_account_family_owner.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_account_owner_handoff.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_callback_session_owner.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_callback_session_router.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_callback_source_bridge.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_dispatch_commands.py"
+      },
+      {
+        "change": "added",
+        "path": "tests/test_ctp_native_owner_process_binding_v23.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_ctp_process_exit_recovery_v22.py"
+      },
+      {
+        "change": "modified",
+        "path": "tests/test_execution_store.py"
+      },
+      {
+        "change": "added",
+        "path": "tests/v23_native_owner_fake.py"
+      }
+    ],
+    "delta_removed": 0,
+    "delta_verified_against_source": true,
+    "distribution_version": "0.2.0",
+    "manifest_sha256": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+    "payload_bytes": 1748219,
+    "payload_files": 44,
+    "root": "D:\\temp\\iteration41_v23_g1_owner_binding_freeze_20260927-r3",
+    "store_schema": 23,
+    "v22_base_status": "SOURCE_ONLY_CANDIDATE_NOT_G5_ACCEPTANCE",
+    "v22_delta_entries": 12,
+    "verified_copy": "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\snapshot"
+  },
+  "guard": {
+    "external_network_or_dns_attempts": {
+      "focus": 0,
+      "full": 0
+    },
+    "external_network_or_dns_blocked": true,
+    "local_loopback_ipc": {
+      "focus": 7,
+      "full": 13
+    },
+    "module_origins": {
+      "_bt_api_execution_frozen_v20.store": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r2_20260927a\\src\\bt_api_execution\\store.py",
+      "_bt_api_execution_frozen_v21.store": "D:\\temp\\iteration41_v20_r3r3_v21_handoff_freeze_r1_20260927\\src\\bt_api_execution\\store.py",
+      "bt_api_execution": "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\snapshot\\src\\bt_api_execution\\__init__.py"
+    },
+    "native_modules_loaded": {
+      "focus": [],
+      "full": []
+    },
+    "plugin": "v23_isolation_guard.py",
+    "provider_calls": 0,
+    "sdk_import_attempts": {
+      "focus": [],
+      "full": [
+        "bt_api_ctp.ctp.client",
+        "bt_api_ctp.ctp.client"
+      ]
+    },
+    "sha256": "e5ac89b2379f988ad784830a00d212eea91041cf848c1bf0b56e9a8d514b104b"
+  },
+  "key_file_sha256": {
+    "dispatch_tests": "cc5fff9288997f3586f146346f25256338f2c2b6a032d465ec4d735d127b2f0e",
+    "execution_store": "677d4edb5e3b768844117c40fc35dc991e9a6ef850cb94fd069e511c130b6328",
+    "fake_attestor_fixture": "ed267318344220465ff81fb382895d1e68de235c79199112a83ac6d17d5355b8",
+    "frozen_manifest": "f94b924e1e20fba6ccfe5bc028d88a0ad541022afb8e9c7a5f66a597687ab330",
+    "migration_tests": "5796ce86bc762fdae767b0cb6deed71aa3613a7a2659c7f779d77ca3c0639eb2",
+    "owner_binding_tests": "a982870baf03650f5dc7ef71eebf681c997cb41e5ebed6483212edb5a30e064d",
+    "single_worker_candidate": "ee2e3649d398c1aa4a01b675231c48e4f34b669661dc5f81b5f1f6c83b6e91bc"
+  },
+  "limitations": [
+    "Declared distribution_version 0.2.0 collides with existing Execution identity; install/release remains blocked pending unique version/pin migration.",
+    "SOURCE-ONLY suite only, not installed-wheel acceptance; V22 base status is SOURCE_ONLY_CANDIDATE_NOT_G5_ACCEPTANCE.",
+    "Two optional real TraderClient tests skipped because bt_api_ctp is absent.",
+    "Ruff format reported nonclean for 11 files; no formatting edits made.",
+    "No provider/native calls; fake attestor is not OS-level G1/G5 evidence."
+  ],
+  "output_directory": "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927",
+  "schema": "iteration41-v23-g1-independent-source-qa-receipt.v1",
+  "static_review": {
+    "call_graph": [
+      {
+        "finding": "Candidate states no code-owned native session adapter; it does not claim or call sender.",
+        "lines": "397-404",
+        "path": "src/bt_api_execution/ctp_single_worker_candidate.py"
+      },
+      {
+        "finding": "Existing CLAIMED/COMPLETED/UNKNOWN returns durable projection. Queued READY fails closed via Store. Sender never called.",
+        "lines": "490-516",
+        "path": "src/bt_api_execution/ctp_single_worker_candidate.py"
+      },
+      {
+        "finding": "Generic claim is local admission only; no provider/SDK call.",
+        "lines": "11863-11883",
+        "path": "src/bt_api_execution/store.py"
+      },
+      {
+        "finding": "Distinct session claim requires active owner handle and process-bound claim.",
+        "lines": "12306-12340",
+        "path": "src/bt_api_execution/store.py"
+      },
+      {
+        "finding": "Generic CLAIMED/inflight=0 projection cannot reach candidate sender; fake sender count stays zero.",
+        "lines": "2951-2996",
+        "path": "tests/test_ctp_dispatch_commands.py"
+      }
+    ],
+    "fake_attestor_limit": "FakeNativeOwnerProcessAttestor verifies only synthetic typed binding/DB invariants. It is not OS Job/process attestation and proves neither G1 nor G5.",
+    "migrations": [
+      {
+        "finding": "Exact frozen V20 store database upgrades to schema 23.",
+        "lines": "667-702",
+        "path": "tests/test_ctp_process_exit_recovery_v22.py"
+      },
+      {
+        "finding": "Exact frozen V21 claimed row migrates UNKNOWN/g1_process_binding_missing, inflight=1, owner and family poisoned; generic recovery cannot clear.",
+        "lines": "740-...",
+        "path": "tests/test_ctp_process_exit_recovery_v22.py"
+      }
+    ],
+    "ready_failclose": [
+      {
+        "finding": "Submit/cancel READY queue becomes UNKNOWN/inflight=0, family POISONED, sender=0; close/reopen preserves state.",
+        "lines": "1041-1153",
+        "path": "tests/test_ctp_dispatch_commands.py"
+      },
+      {
+        "finding": "Poison-write failure atomically rolls back to READY/ACTIVE; retry after trigger removal commits UNKNOWN.",
+        "lines": "1158-1219",
+        "path": "tests/test_ctp_dispatch_commands.py"
+      }
+    ]
+  },
+  "status": "PASS_SOURCE_ONLY_QA_WITH_RELEASE_BLOCKER",
+  "superseded_harness_attempt": {
+    "focus_exit": 1,
+    "full_exit": 1,
+    "reason": "Temporary guard initially blocked only literal 127.0.0.1 Windows asyncio self-pipe; superseded by loopback-only/AF_UNIX guard, source unchanged.",
+    "retained": [
+      "focus.stdout.txt",
+      "focus.xml",
+      "focus-guard.json",
+      "full-package.stdout.txt",
+      "full-package.xml",
+      "full-package-guard.json"
+    ]
+  },
+  "tests": {
+    "all_before_after_maps_equal": true,
+    "focused": {
+      "command": [
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "tests/test_ctp_dispatch_commands.py::test_single_worker_freezes_queued_command_without_native_owner_adapter",
+        "tests/test_ctp_dispatch_commands.py::test_generic_zero_inflight_claim_cannot_flow_to_candidate_sender",
+        "tests/test_ctp_native_owner_process_binding_v23.py",
+        "tests/test_ctp_process_exit_recovery_v22.py::test_v20_account_identity_store_migrates_to_v23_native_owner_binding_schema",
+        "tests/test_ctp_process_exit_recovery_v22.py::test_v21_claim_without_process_binding_migrates_to_unknown_and_poisoned_fence",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "v23_isolation_guard",
+        "--basetemp",
+        "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\pytest-tmp-focus-loopback",
+        "--junitxml",
+        "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\focus-loopback.xml"
+      ],
+      "exit": 0,
+      "junit": "focus-loopback.xml",
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 20,
+        "skipped": 0,
+        "tests": 20
+      },
+      "log": "focus-loopback.stdout.txt",
+      "pytest_elapsed_s": 2.29,
+      "source_hashes_unchanged": true
+    },
+    "full": {
+      "command": [
+        "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "tests",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "v23_isolation_guard",
+        "--basetemp",
+        "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\pytest-tmp-full-package-loopback",
+        "--junitxml",
+        "D:\\temp\\iteration41-v23-g1-owner-independent-qa-20260927\\full-package-loopback.xml"
+      ],
+      "exit": 0,
+      "junit": "full-package-loopback.xml",
+      "junit_counts": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 322,
+        "skipped": 2,
+        "tests": 324
+      },
+      "log": "full-package-loopback.stdout.txt",
+      "pytest_elapsed_s": 26.51,
+      "reported": "322 passed, 2 skipped",
+      "source_hashes_unchanged": true
+    },
+    "skips": [
+      {
+        "node": "tests.test_ctp_callback_source_bridge.test_close_wakes_real_trader_client_poll_and_discards_its_result",
+        "reason": "bt_api_ctp.ctp.client unavailable: No module named 'bt_api_ctp'"
+      },
+      {
+        "node": "tests.test_ctp_callback_source_bridge.test_close_discards_real_sdk_event_dequeued_before_close_wins",
+        "reason": "bt_api_ctp.ctp.client unavailable: No module named 'bt_api_ctp'"
+      }
+    ],
+    "source_payload_hash_map_sha256": "2b07a67f51b07263284028c401878eba84759cb71a85eccc52975e9a7d27d6bc",
+    "warning": "pytest-asyncio PytestDeprecationWarning: asyncio_default_fixture_loop_scope unset"
+  }
+}

@@ -1,0 +1,10 @@
+# LOCAL_REPLAY_ONLY: synthetic formula fixture, zero network/provider writes.
+# Copy to config.yaml in this registered directory; no secrets or approvals.
+config_schema_version: 4
+strategy:
+  id: example.012_1.midfreq_cross_exchange
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_edge

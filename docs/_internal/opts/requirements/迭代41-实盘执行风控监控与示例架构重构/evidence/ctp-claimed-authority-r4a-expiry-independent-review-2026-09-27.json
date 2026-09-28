@@ -1,0 +1,110 @@
+{
+  "schema": "iteration41.g6_r4a.root_archive.v1",
+  "status": "ACCEPTED_LOCAL_BOUNDED_SKEW_FAKE_CALL_SLICE_ONLY",
+  "author_manifest_sha256": "6b9b516b5a777d6e81b3595dfe170772a11b5d7737121cb4945e34815ddbbb7a",
+  "independent_manifest_sha256": "e8a41e770f73daa4c29c65021fc83c5698036a78baa1549f56f7a6a85f8250c6",
+  "source_test_payloads_verified": 8,
+  "independent_focus": "100 passed, 0 skipped",
+  "limitations": [
+    "Source-only metadata shim; no unified wheel",
+    "Fake Req only; no native CTP/provider",
+    "No external atomic account fence or protected deployment"
+  ],
+  "archive": {
+    "file": "ctp-claimed-authority-r4a-expiry-independent-review-2026-09-27.raw.zip",
+    "sha256": "4fd0d8ef28c1761d3e8609e17be18f6aa7febf4a20d338810fa49478781c6aa6",
+    "entries": 18
+  },
+  "files": [
+    {
+      "path": "author/manifest.json",
+      "sha256": "6b9b516b5a777d6e81b3595dfe170772a11b5d7737121cb4945e34815ddbbb7a",
+      "bytes": 6740
+    },
+    {
+      "path": "independent/README.md",
+      "sha256": "344c88f558f3ef6354fe978b4e3bc12f0d0ca7f3f86cd1a019f5f35c74c8b549",
+      "bytes": 3358
+    },
+    {
+      "path": "independent/artifact-manifest.json",
+      "sha256": "e8a41e770f73daa4c29c65021fc83c5698036a78baa1549f56f7a6a85f8250c6",
+      "bytes": 1415
+    },
+    {
+      "path": "independent/qa-tests/test_r4_bounded_skew.py",
+      "sha256": "e27e53cc49ec118e31f58326a3db2e63be66811900e52271654fe6e270c0c96c",
+      "bytes": 7220
+    },
+    {
+      "path": "independent/r4a-author-evidence-manifest.json",
+      "sha256": "6b9b516b5a777d6e81b3595dfe170772a11b5d7737121cb4945e34815ddbbb7a",
+      "bytes": 6740
+    },
+    {
+      "path": "independent/results/independent.stderr.log",
+      "sha256": "0aa96fd2cbf292bfe8131c3810498428a1767f56ed255bdf2be485f52d117029",
+      "bytes": 1256
+    },
+    {
+      "path": "independent/results/independent.stdout.log",
+      "sha256": "276a549dc45cf3b43f4acfab8599cf0e3d7bc6b36c27898ce8751b75eb6f8986",
+      "bytes": 3516
+    },
+    {
+      "path": "independent/results/r4a-independent.junit.xml",
+      "sha256": "c33d2f7691e08d4766974d7fc426401f211c9c31f6cbc341ef21d41f192b0530",
+      "bytes": 24629
+    },
+    {
+      "path": "independent/run_r4a_independent.py",
+      "sha256": "5d09dde242bf382601469d0978cec9b4b52d60e3952d395280ea1aa910a522e4",
+      "bytes": 5426
+    },
+    {
+      "path": "independent/source-mapping.json",
+      "sha256": "dc828c2c23e5de9c73a2b08b819cdf562054047b430cd7608fcf97ce8dd2ea30",
+      "bytes": 4048
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "bytes": 45968
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "sha256": "91dd7c3c8524341650d6a1a91880f195e2882bd4c90ee1c115246add74fa730b",
+      "bytes": 22829
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "bytes": 48077
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_action_scope_resolver.py",
+      "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461",
+      "bytes": 23058
+    },
+    {
+      "path": "source/tests/integration/test_iteration41_ctp_i9_account_session_candidate.py",
+      "sha256": "e4b21c7008383b06528388f34d666d47d8bf94dc18a835a406a3b983e6301eec",
+      "bytes": 80482
+    },
+    {
+      "path": "source/tests/integration/test_iteration41_ctp_managed_account_runtime_candidate.py",
+      "sha256": "fa4107797d103624aba3410591c1468225457301cb96c027799e91c00b73ec37",
+      "bytes": 3571
+    },
+    {
+      "path": "source/tests/unit/runtime/test_ctp_managed_action_authority.py",
+      "sha256": "6a6435bc8857016204c75e0a45e402b4ba2f1a89ac1d347284b65b6a2acf16ab",
+      "bytes": 45380
+    },
+    {
+      "path": "source/tests/unit/runtime/test_ctp_managed_action_scope_resolver.py",
+      "sha256": "d32c168099e20465397045e385e9697ba25d48f7e310f1a31d56b2dec301d1a7",
+      "bytes": 19772
+    }
+  ]
+}

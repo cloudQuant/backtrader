@@ -1,0 +1,16 @@
+{
+  "candidate_zip_sha256": "92b3add8e73dc51e7552a1c439d2663ebb20053e755c4dcf9194cab39c53b4b3",
+  "candidate_output_manifest_sha256": "d9641aaf6757cf5aeff4a5246c42edb36b4bf6036268e05ff2134f41235d0e62",
+  "candidate_frozen_input_manifest_sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827",
+  "payload_counts": {"frozen_inputs": 50, "candidate_outputs": 91},
+  "source_files": [
+    {"path":"implementation/sdk/src/bt_api_execution/ctp_identity_authority.py","sha256":"8e7abdd2819f66b6ec3d5ff1d5a049fcbb91ae8e71327665ee925098d35f647d"},
+    {"path":"implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py","sha256":"5bfb2a6a12c5d7ecfbb589ec3ff9af61cc7ec14ac9b5740675168da4a926abd1"},
+    {"path":"implementation/backtrader_bridge/ctp_order_action_bridge.py","sha256":"5f70cfe5cf70fcde1008ab60d6cfee09158f70e5d3d0cd70622f0d24c675e15a"},
+    {"path":"implementation/tests/test_g5_unified_order_action_authority.py","sha256":"50f54ffeedc5698b27b0a052245950583fa8beb107af9674fbc1a6c4d316acf7"},
+    {"path":"implementation/tests/test_g5_store_order_action_bridge.py","sha256":"9968c9e08cd699bae4ffb7ba4aacf080e31d3b19ee3d7a04ab86e9adda64c0a2"},
+    {"path":"implementation/tests/test_g5_single_worker_action_handoff.py","sha256":"ce80414a11b66dfd493271e8e518deabe92a1b9b2162752705ef56b94386f685"},
+    {"path":"implementation/main_repo_patch/G5_ORDERREF_ACTIONREF_WORKER_HANDOFF.patch","sha256":"331b5ad8be656815dbfd72d743587bb641767011b414c82a0ce4dcaf156a1f6d"},
+    {"path":"inputs/sdk/src/bt_api_execution/store.py","sha256":"1de4e83b9163b941e941e4adb71b1c8d2db5a92740d79b55b77ae5b7dd1b4bc4"}
+  ]
+}

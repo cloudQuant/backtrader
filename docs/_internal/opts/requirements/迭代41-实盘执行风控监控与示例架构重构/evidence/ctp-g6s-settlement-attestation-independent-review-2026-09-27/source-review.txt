@@ -1,0 +1,99 @@
+CLEAN G4-R2 SDK client.py, exact pinned candidate bytes; lines 8021-8051
+8021:     def query_settlement_confirmation_result(self, timeout=5) -> QueryResult[Any]:
+8022:         field = CThostFtdcQrySettlementInfoConfirmField()
+8023:         intent_filters = {
+8024:             "BrokerID": self._bound_broker_id,
+8025:             "InvestorID": self._bound_user_id,
+8026:         }
+8027:         try:
+8028:             for name, value in intent_filters.items():
+8029:                 setattr(field, name, value)
+8030:         except Exception:
+8031:             return self._local_query_failure(
+8032:                 "settlement_confirmation",
+8033:                 "native_query_fields_unsupported",
+8034:                 unsupported=True,
+8035:                 include_query_source=False,
+8036:             )
+8037:         api = self._api
+8038:         method = getattr(api, "ReqQrySettlementInfoConfirm", None) if api is not None else None
+8039:         return self._execute_query(
+8040:             "settlement_confirmation",
+8041:             (
+8042:                 (lambda request_id: self._invoke_session_native_request(
+8043:                     api, "ReqQrySettlementInfoConfirm", field, request_id
+8044:                 ))
+8045:                 if callable(method)
+8046:                 else None
+8047:             ),
+8048:             timeout,
+8049:             request_filter_field=field,
+8050:             request_intent_filters=intent_filters,
+8051:         )
+
+DIRTY R1 SDK source, exact manifest-hash checkout; lines 6171-6184
+6171:     def query_settlement_confirmation_result(self, timeout=5) -> QueryResult[Any]:
+6172:         field = CThostFtdcQrySettlementInfoConfirmField()
+6173:         field.BrokerID = self._bound_broker_id
+6174:         field.InvestorID = self._bound_user_id
+6175:         method = (
+6176:             getattr(self._native_api, "ReqQrySettlementInfoConfirm", None)
+6177:             if self._native_api
+6178:             else None
+6179:         )
+6180:         return self._execute_query(
+6181:             "settlement_confirmation",
+6182:             ((lambda request_id: method(field, request_id)) if callable(method) else None),
+6183:             timeout,
+6184:         )
+
+CTP 6.7.7 Windows header; settlement confirmation struct lines 2077-2093
+2077: struct CThostFtdcSettlementInfoConfirmField
+2078: {
+2079: 	///经纪公司代码
+2080: 	TThostFtdcBrokerIDType	BrokerID;
+2081: 	///投资者代码
+2082: 	TThostFtdcInvestorIDType	InvestorID;
+2083: 	///确认日期
+2084: 	TThostFtdcDateType	ConfirmDate;
+2085: 	///确认时间
+2086: 	TThostFtdcTimeType	ConfirmTime;
+2087: 	///结算编号
+2088: 	TThostFtdcSettlementIDType	SettlementID;
+2089: 	///投资者帐号
+2090: 	TThostFtdcAccountIDType	AccountID;
+2091: 	///币种代码
+2092: 	TThostFtdcCurrencyIDType	CurrencyID;
+2093: };
+
+G6-S fake correct-looking-row negative and no-write counters; test lines 297-326
+297: @pytest.mark.parametrize("gap", ["request_filters", "source_seal", "history", "records_digest"])
+298: def test_correct_looking_row_without_exact_native_provenance_rejects_with_zero_writes(gap):
+299:     scope = _scope()
+300:     current = _session(scope)
+301:     query = _query(scope, current)
+302:     verifier = _FakeVerifier()
+303:     if gap == "request_filters":
+304:         query = replace(query, source=replace(query.source, request_filters=()))
+305:     elif gap == "source_seal":
+306:         verifier = _FakeVerifier(seal=False)
+307:     elif gap == "history":
+308:         verifier = _FakeVerifier(history=False)
+309:     else:
+310:         verifier = _FakeVerifier(records="5" * 64)
+311: 
+312:     assert query.records == (
+313:         {"BrokerID": BROKER, "InvestorID": INVESTOR, "TradingDay": DAY, "ConfirmDate": DAY},
+314:     )
+315:     with pytest.raises(SettlementAttestationError):
+316:         _attest(scope=scope, current=current, query=query, verifier=verifier)
+317: 
+318:     counts_after = dict(query.request_counts_after)
+319:     assert counts_after["query_settlement_confirmation"] == 1
+320:     assert counts_after["settlement_confirm"] == 0
+321:     assert counts_after["order_insert"] == 0
+322:     assert counts_after["order_action"] == 0
+323:     if gap == "request_filters":
+324:         assert verifier.calls == 0
+325:     else:
+326:         assert verifier.calls == 1

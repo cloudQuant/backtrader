@@ -1,0 +1,23 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.archive_receipt.v1",
+  "candidate_root": "D:\\temp\\iteration41-g6s-settlement-consumer-contract-candidate-20260927",
+  "candidate_manifest": "candidate-manifest.json",
+  "candidate_manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+  "raw_zip": "candidate-evidence.zip",
+  "raw_zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb",
+  "manifest_file_count": 24,
+  "zip_member_count": 26,
+  "zip_testzip": "ok",
+  "archive_hash_validation": "all 24 manifest files plus manifest and manifest.sha256 matched byte-for-byte",
+  "external_source_refs": "10/10 matched",
+  "copied_snapshots": "9/9 matched",
+  "focused_tests": "35 passed",
+  "py_compile_exit": 0,
+  "classification": "FAKE_ONLY / NO_RELEASE / G6-S CLOSED / G7-S CLOSED",
+  "production_source_modified_by_candidate": false,
+  "default_inventory_or_cli_connected": false,
+  "provider_or_network_used": false,
+  "ctp_or_native_imported": false,
+  "execution_authorized": false,
+  "independent_qa": "pending"
+}

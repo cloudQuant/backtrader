@@ -1,0 +1,19 @@
+{
+  "all_candidate_files_in_zip": 19,
+  "author_page": "AUTHOR_R9_EVIDENCE.md",
+  "author_page_sha256": "9358b1d1645a12b7d3e04c89a4292c39e99e7770ca7a534172c0647f8d974d89",
+  "candidate_manifest_sha256": "98a8110a5c99e960d052c18d57c9aaedf3bd43fa61dc3271a8b7235a0280da81",
+  "candidate_receipt_sha256": "833939ba976f9ea6474ca9c67e4b33a1cdf91022c6003816c8c00ceb004a0709",
+  "candidate_trials_sha256": "c848ab2f51360399a399a16a441e66821eb3368ee36bdd44c17d2018dbd50dc7",
+  "classification": "AUTHOR_NEGATIVE_EVIDENCE_ONLY_G1_CLOSED",
+  "disposition": "G1 CLOSED; P05 and both Popen wrapper caller returns were 3 ms late in the final 1200 ms trials.",
+  "entry_index": "r9_candidate_entries.json",
+  "entry_index_sha256": "1957b0bdc47c26903de96eed6a8c08bb4d25613d56d495de2c3add2198852665",
+  "first_failed_trial_sha256": "e2addd9c7f16f6fe3a3c83ded4034b9eb4ff447e4340c0731e9e0914147485f1",
+  "payload_entry_hashes_verified": 15,
+  "raw_zip": "r9_candidate_raw.zip",
+  "raw_zip_sha256": "2055fb8329a06d80abe8fc52ae2d2fec25674686300defe96192faf3a4e44f3a",
+  "schema": "iteration41_g1_r9_author_archive_receipt.v1",
+  "source_directory": "D:\\temp\\iteration41-g1-r9-prestarted-inert-custodian-20260927",
+  "zip_testzip": "passed"
+}

@@ -138,6 +138,62 @@ def test_broker_account_risk_snapshot_malformed_execution_summary_fails_closed()
     assert store.redaction_calls == 2
 
 
+@pytest.mark.parametrize(
+    ("refresh_state", "expected_error"),
+    [
+        ("refresh_pending", "account_risk_refresh_in_progress"),
+        ("refresh_rejected", "account_risk_refresh_queue_rejected"),
+        ("refresh_failed", "account_risk_refresh_queue_failed"),
+    ],
+)
+def test_broker_account_risk_snapshot_uses_atomic_callback_state_without_summary_read(
+    refresh_state, expected_error
+):
+    broker, store, original = _account_risk_read_model_broker({"evidence_errors": []})
+
+    store.get_callback_account_risk_state = lambda: {
+        "snapshot": deepcopy(original),
+        "refresh_state": refresh_state,
+        "entry_allowed": False,
+    }
+    store.get_execution_summary = lambda: pytest.fail(
+        "atomic callback state must not read the potentially blocking SDK summary"
+    )
+
+    result = broker.get_account_risk_snapshot()
+
+    assert result["evidence_complete"] is False
+    assert result["evidence_errors"] == [expected_error]
+    assert result["error_code"] == expected_error
+    assert result["trading_blocked"] is False
+    assert original["evidence_complete"] is True
+    assert store.redaction_calls == 1
+
+
+def test_broker_callback_state_failure_is_fail_closed_even_if_route_lookup_fails():
+    broker, store, _original = _account_risk_read_model_broker({"evidence_errors": []})
+
+    def fail_callback_state():
+        raise RuntimeError("callback state unavailable")
+
+    def fail_route_lookup():
+        raise RuntimeError("route lookup unavailable")
+
+    store.get_callback_account_risk_state = fail_callback_state
+    store.get_symbol_routes = fail_route_lookup
+    store.get_execution_summary = lambda: pytest.fail(
+        "failed atomic callback state must not fall back to SDK summary"
+    )
+
+    result = broker.get_account_risk_snapshot()
+
+    assert result["configured_venues"] == []
+    assert result["trading_blocked"] is True
+    assert result["evidence_complete"] is False
+    assert result["evidence_errors"] == ["account_risk_callback_state_read_failed"]
+    assert result["error_code"] == "account_risk_callback_state_read_failed"
+
+
 def leased_stack(expires_at, maximum_orders):
     """Return a started stack bound to a demo approval lease."""
     client = FakeBtApiClient(history={DEFAULT_SYMBOL: [make_bar(0, 100, 101, 99, 100)]})

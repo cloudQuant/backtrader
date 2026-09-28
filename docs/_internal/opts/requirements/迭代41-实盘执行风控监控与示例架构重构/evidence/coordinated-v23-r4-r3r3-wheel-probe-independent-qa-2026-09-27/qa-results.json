@@ -1,0 +1,330 @@
+{
+  "schema": "independent-coordinated-release-probe-qa-results-v1",
+  "created_utc": "2026-09-27T01:04:01.303564+00:00",
+  "frozen_author_inputs": {
+    "source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+    "archive_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+    "raw_archive_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+    "declared_source_files": 843,
+    "indexed_payload_members": 1015,
+    "total_raw_zip_members": 1016,
+    "unindexed_self_index_member": "ARCHIVE-INDEX.json",
+    "self_index_sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+    "source_manifest_paths_verified": [
+      {
+        "root": "execution-project",
+        "manifest_files_checked": 36,
+        "bytes_checked": 1711438,
+        "all_match": true,
+        "unmanifested_live_directory_extras": 0,
+        "extra_samples": []
+      },
+      {
+        "root": "main-overlay",
+        "manifest_files_checked": 631,
+        "bytes_checked": 10169283,
+        "all_match": true,
+        "unmanifested_live_directory_extras": 472,
+        "extra_samples": [
+          ".pytest_cache/.gitignore",
+          ".pytest_cache/CACHEDIR.TAG",
+          ".pytest_cache/README.md",
+          ".pytest_cache/v/cache/lastfailed",
+          ".pytest_cache/v/cache/nodeids",
+          ".pytest_cache/v/cache/stepwise",
+          "backtrader/__pycache__/__init__.cpython-311.pyc",
+          "backtrader/__pycache__/analyzer.cpython-311.pyc"
+        ]
+      },
+      {
+        "root": "parent-source",
+        "manifest_files_checked": 156,
+        "bytes_checked": 17235087,
+        "all_match": true,
+        "unmanifested_live_directory_extras": 0,
+        "extra_samples": []
+      },
+      {
+        "root": "source-only-metadata",
+        "manifest_files_checked": 20,
+        "bytes_checked": 6731,
+        "all_match": true,
+        "unmanifested_live_directory_extras": 0,
+        "extra_samples": []
+      }
+    ]
+  },
+  "wheel_qa": {
+    "schema": "independent-coordinated-wheel-qa-install-v1",
+    "created_utc": "2026-09-27T00:56:16.678386+00:00",
+    "python_executable": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Scripts\\python.exe",
+    "venv_no_system_site_packages": true,
+    "pip_install_exit": 0,
+    "base_wheel_uninstall_exit": 0,
+    "pip_check_exit": 0,
+    "pip_check_output": "No broken requirements found.",
+    "wheel_builds": {
+      "execution": {
+        "build_a_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+        "build_b_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+        "copied_wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+        "size_bytes": 177675,
+        "byte_identical": true
+      },
+      "parent": {
+        "build_a_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+        "build_b_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+        "copied_wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+        "size_bytes": 534260,
+        "byte_identical": true
+      }
+    },
+    "installed_record_pep610": {
+      "bt_api_execution": {
+        "record_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info\\RECORD",
+        "installed_record_rows_all_valid": 34,
+        "wheel_payload_members_checked": 17,
+        "all_installed_wheel_payloads_byte_identical": true,
+        "pip_generated_extra_record_rows": 17,
+        "direct_url_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217",
+        "direct_url": "file:///D:/temp/iteration41-coordinated-release-probe-independent-qa-20260927/wheelhouse/bt_api_execution-0.2.4.dev0%2Bv23r3r3.f94b924e1e20-py3-none-any.whl"
+      },
+      "bt_api_py": {
+        "record_path": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info\\RECORD",
+        "installed_record_rows_all_valid": 286,
+        "wheel_payload_members_checked": 143,
+        "all_installed_wheel_payloads_byte_identical": true,
+        "pip_generated_extra_record_rows": 143,
+        "direct_url_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f",
+        "direct_url": "file:///D:/temp/iteration41-coordinated-release-probe-independent-qa-20260927/wheelhouse/bt_api_py-0.15.7.dev0%2Br4r3r3.67e54513-py3-none-any.whl"
+      }
+    },
+    "source_roots": {
+      "parent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+      "base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src",
+      "ctp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\ctp\\src",
+      "execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages",
+      "risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src",
+      "monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src",
+      "gateway": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\gateway\\src",
+      "transport_zmq": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\transport_zmq\\src",
+      "agent": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\agent\\src",
+      "skills": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\skills\\src",
+      "mcp": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\mcp\\src"
+    },
+    "base_runtime_distribution_uninstalled": true,
+    "tests": "not run yet"
+  },
+  "tests": {
+    "schema": "independent-coordinated-probe-test-summary-v1",
+    "created_utc": "2026-09-27T01:04:01.303564+00:00",
+    "suite_results": [
+      {
+        "suite": "main-bridge",
+        "tests": 73,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "47e9d190bf13aac68b026303fdc7ea1ac5276dceb425032850ae9dc7971a8696",
+        "junit_sha256": "134249c98a4de1deff2029d8779109530fa34bdcc3e1402a9d2589a52768da76",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py"
+        },
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "main-cancel-control",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "01da13ede3891679814de5aeb591fc18bd185e30ab0b6d2df9019fa6710253ad",
+        "junit_sha256": "87ff88991f239ce0f838f93894ec60d58715d4552fe06bea1179c45dca51a502",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src\\bt_api_risk\\__init__.py"
+        },
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "main-artifact-set",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "d9d0e1bc172d8966a9327063f0b9536bb8a3daa520b9d6fb635d2ba715934902",
+        "junit_sha256": "e176d024b51252749dcafea87f911f607d817feeb3f7c681f8d7cee49f26680a",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {},
+        "native_modules_loaded": []
+      },
+      {
+        "suite": "parent-issuer-control",
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "exit_code": 0,
+        "stdout_sha256": "e1a994126bb1af7ae262cce50338bc364cee30c1495ef08a7031af83de2ebd70",
+        "junit_sha256": "cf7ea32f61f146c09b0d00e856ba71da443027ea0a05e9497e602769aaf18a81",
+        "exit_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "origins": {
+          "bt_api_base": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src\\bt_api_base\\__init__.py",
+          "bt_api_execution": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+          "bt_api_monitor": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src\\bt_api_monitor\\__init__.py",
+          "bt_api_py": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\venv\\Lib\\site-packages\\bt_api_py\\__init__.py",
+          "bt_api_risk": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src\\bt_api_risk\\__init__.py"
+        },
+        "native_modules_loaded": []
+      }
+    ],
+    "total_executions": 143,
+    "total_failures": 0,
+    "total_errors": 0,
+    "total_skipped": 0,
+    "unique_node_ids": 123,
+    "duplicate_node_executions": 20,
+    "node_id_duplicates": {
+      "tests.test_cancellation_dispatch_resolution_control::test_typed_cancel_proof_resolves_dispatch_then_unknown_with_final_barrier": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_missing_authority_rejects_without_clearing_either_latch": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_proof_issuance_failure_reasserts_both_latches": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_restart_replays_exact_proof_after_risk_commit_before_unknown_clear": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_restart_finishes_last_latch_after_released_audit_commit": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_corrupt_replay_proof_reasserts_both_latches": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_released_replay_requires_exact_prepared_monitor_fact[delete]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_released_replay_requires_exact_prepared_monitor_fact[corrupt]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_authorization_callback_returned_after_expiry_is_rejected": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_expiry_after_release_audit_commit_reasserts_latches_and_marks_expired": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_first_release_rejects_monitor_event_deleted_after_append": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_release_holds_monitor_writer_boundary_against_cross_process_delete": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_same_user_schema_writer_can_bypass_sqlite_only_guard_after_commit": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_readback_connection_is_closed_after_exact_monitor_check": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_monitor_fact_readback_connection_is_closed": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_risk_write_failure_reasserts_latches_and_releases_monitor_lock": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_resolution_authority_rejects_ctp_labeled_execution_scope": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[ctp_provider]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_account]": 2,
+      "tests.test_cancellation_dispatch_resolution_control::test_fake_authority_constructor_rejects_unregistered_execution_scope[wrong_strategy]": 2
+    }
+  },
+  "guards": {
+    "schema": "independent-coordinated-probe-guard-summary-v1",
+    "created_utc": "2026-09-27T01:04:01.302271+00:00",
+    "guard_log_count": 13,
+    "event_counts": {
+      "guard-started": 13,
+      "source-import": 1031,
+      "source-namespace": 7
+    },
+    "blocked_event_counts": {
+      "network-blocked": 0,
+      "native-import-blocked": 0,
+      "private-config-blocked": 0,
+      "origin-rejected": 0
+    },
+    "native_modules_imported_by_suite_runner": {
+      "main-bridge": [],
+      "main-cancel-control": [],
+      "main-artifact-set": [],
+      "parent-issuer-control": []
+    },
+    "bt_api_ctp_source_import_events": 0,
+    "all_source_import_origins_under_mapped_roots": true,
+    "guard_log_hashes": [
+      {
+        "path": "independent-runs\\main-artifact-set-independent-wheel-qa-guard\\origin-guard-44204.jsonl",
+        "size_bytes": 1589,
+        "sha256": "62af7dbaae8ec9d8a2027f31230a246d08df43a06d63f15795bbfa6f16e18b5a",
+        "event_count": 1
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-12756.jsonl",
+        "size_bytes": 32862,
+        "sha256": "5bf4031702d100013165f8215b5d3b79479c08634bfc328e23da5dfd7120be7a",
+        "event_count": 133
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-15032.jsonl",
+        "size_bytes": 32862,
+        "sha256": "d13e7af624af5cefa9edefad77b57622faefe84157bf1f7faacde953c2c56fda",
+        "event_count": 133
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-20344.jsonl",
+        "size_bytes": 32862,
+        "sha256": "f9b5cefc710964729d4125c1512a6714af346ac6a143ded64d7323ba6a8b48f2",
+        "event_count": 133
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-36304.jsonl",
+        "size_bytes": 26851,
+        "sha256": "b1dd71304133e689918f996dd62df249623110f12654357f5562cbc22ebab2d8",
+        "event_count": 107
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-36476.jsonl",
+        "size_bytes": 32862,
+        "sha256": "11703c56fa3ab0f29e51a117a1dbaa1d8f27819a42030c964dc01f4d49a40818",
+        "event_count": 133
+      },
+      {
+        "path": "independent-runs\\main-bridge-independent-wheel-qa-guard\\origin-guard-41596.jsonl",
+        "size_bytes": 32862,
+        "sha256": "a972f0804c8ed2b0a24520e7f0ba06b7a7be8c49f09c70a8bf87f5ee24dc99e2",
+        "event_count": 133
+      },
+      {
+        "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-28448.jsonl",
+        "size_bytes": 33738,
+        "sha256": "1c3c5638b11bb875e88fc8e49d9d8a4d92f7122144eca1b7fcd54490ac4a8048",
+        "event_count": 137
+      },
+      {
+        "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-38276.jsonl",
+        "size_bytes": 1591,
+        "sha256": "6c3eebec64150697f38b33693823a308aad8f2f63f6c628c7a0c90992b634d7c",
+        "event_count": 1
+      },
+      {
+        "path": "independent-runs\\main-cancel-control-independent-wheel-qa-guard\\origin-guard-7860.jsonl",
+        "size_bytes": 1590,
+        "sha256": "63cd34d45b0c041a82ef201b6fead4a295b776e3ed851ad75a0da087f642f9f0",
+        "event_count": 1
+      },
+      {
+        "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-18576.jsonl",
+        "size_bytes": 1593,
+        "sha256": "c727b97fcd612373538fa1194a72a16abc6468727627a640e95e3d11f75bea7f",
+        "event_count": 1
+      },
+      {
+        "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-28548.jsonl",
+        "size_bytes": 33740,
+        "sha256": "9dca07a57975ba5cb0d49d436eca621163d2aa209dc6c75bf4a73ef4f76e881a",
+        "event_count": 137
+      },
+      {
+        "path": "independent-runs\\parent-issuer-control-independent-wheel-qa-guard\\origin-guard-37800.jsonl",
+        "size_bytes": 1593,
+        "sha256": "19566cf4c9a244d52f680202e6035268019e989198ee2ac2624c0eca00df5d65",
+        "event_count": 1
+      }
+    ],
+    "interpretation": "Four fake-only suites ran under the copied origin guard. No non-loopback network or native/provider access was performed; Python-level guard logged zero blocked network/native/private-config/origin events. This is local QA evidence, not OS-level isolation or G1/G4/G5 acceptance."
+  },
+  "limitations": [
+    "Base remains SOURCE-ONLY in this QA: its runtime wheel was removed; only its source tree plus source-only distribution metadata were provided.",
+    "The author candidate live directory includes 472 unmanifested main-overlay cache/bytecode files; they are not part of the sealed 843-file source manifest.",
+    "External helper source roots were copied with source-only/sensitive/native filters and hash-bound in source-adjunct-manifest.json; those roots are QA adjuncts, not part of the author source manifest.",
+    "The final verification is offline fake-only evidence. No provider, credentials, CTP native module, remote endpoint or default pin was used or authorized. This is not G1/G4/G5 or release acceptance."
+  ]
+}

@@ -1,0 +1,737 @@
+{
+  "base_r1_candidate_zip_sha256": "c75cba6adcf7db95e420d0d4cfafac39e7179eb6db985cce5096a4c49237d268",
+  "base_r1_output_manifest_sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf",
+  "excluded_generated_cache_files": 24,
+  "files": [
+    {
+      "bytes": 6033,
+      "path": "README.md",
+      "sha256": "1d128158efd7534d8cd702f2c8d4212d03d479a6c76a2900a5c52b14be40689c"
+    },
+    {
+      "bytes": 696,
+      "path": "compare_patch.py",
+      "sha256": "ecb2f7715154a92cf04ce3e8145f12c5cc4cbbcf52911a6c50280ef2a36ddf4e"
+    },
+    {
+      "bytes": 25155,
+      "path": "evidence/final-output-manifest.json",
+      "sha256": "5ddb3ca53bff3d61d287846a5feeaa8814fa9d211da109dd05f527c534351fbf"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-backtrader-existing-tests-plugin-failure.exit",
+      "sha256": "7a0ae22f4bbd97c1212bda208fc96c52e5471474effd776ac1f11174954ded01"
+    },
+    {
+      "bytes": 1372,
+      "path": "evidence/g5-backtrader-existing-tests-plugin-failure.log",
+      "sha256": "e63eab8436d258f17887385ff1439549621239c006aa45beffb57410095c222e"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-backtrader-existing-tests-retry.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 645,
+      "path": "evidence/g5-backtrader-existing-tests-retry.log",
+      "sha256": "72d87c632d086fcabee7ed87949ffc45775349fb70e0813b4059e493e28b62f5"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-backtrader-existing-tests.exit",
+      "sha256": "7a0ae22f4bbd97c1212bda208fc96c52e5471474effd776ac1f11174954ded01"
+    },
+    {
+      "bytes": 1372,
+      "path": "evidence/g5-backtrader-existing-tests.log",
+      "sha256": "e63eab8436d258f17887385ff1439549621239c006aa45beffb57410095c222e"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/g5-candidate-failures-run-2.log",
+      "sha256": "7a299686eff5ab6996a154d8b0d8bb85e1499836c7e113e51dc8d789bbd6a025"
+    },
+    {
+      "bytes": 1135,
+      "path": "evidence/g5-candidate-failures-run-3.log",
+      "sha256": "154100de5d3c78d8117f1be9ff331bc7be637c7644da700483d55d8cf992bad4"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/g5-candidate-failures-run-4.log",
+      "sha256": "060b447544fa8228a0ce63740531520ebdea05d8a8b52c8d7439c48bd4747195"
+    },
+    {
+      "bytes": 6680,
+      "path": "evidence/g5-candidate-failures.log",
+      "sha256": "fc72e93d67e7ce7226a52084ffe525afed484ce08c0762a69a48d51b140bc83d"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-final-tests.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/g5-candidate-final-tests.log",
+      "sha256": "d018653c5a087695a02d74a3faf9b03cd7c5c17c568084170cf28494de28c874"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-path-retest-failure.exit",
+      "sha256": "34b31e11d07447cfe5a8dedcfb45f43a75a17153244aae2e01e572c81cd9d2a2"
+    },
+    {
+      "bytes": 7777,
+      "path": "evidence/g5-candidate-path-retest-failure.log",
+      "sha256": "af500190c13dc14a6c20e1f4c42f2b8238f093fe513ded34fe3ede48a7fab5ee"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-run-1.exit",
+      "sha256": "4fa76b808b0441857562232acabf29490555d9e389f4509f2b240b0a5b5e3812"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-run-2.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-run-3.exit",
+      "sha256": "4fa76b808b0441857562232acabf29490555d9e389f4509f2b240b0a5b5e3812"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-candidate-run-4.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-focus-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/g5-focus-final.log",
+      "sha256": "2ac3c4e61c9f417f3a873410303ae49b446bb5fba738063efd5293fa862abc54"
+    },
+    {
+      "bytes": 102,
+      "path": "evidence/g5-followon-focus-tests.log",
+      "sha256": "4fb2312a40770321e6b2595ad8f82994793ceecaa1c0c21c0a77b47986b22ed8"
+    },
+    {
+      "bytes": 629,
+      "path": "evidence/g5-followon-patch-apply-check.log",
+      "sha256": "12a92232a7238a38cab7c2db174e19c13f7fde9d2c6a5896c987173376cf8ef6"
+    },
+    {
+      "bytes": 197,
+      "path": "evidence/g5-followon-patch-stat.log",
+      "sha256": "f5135f3e01649b9710e95662040d94c9a921e8161230eb214c244ac1ac17cbec"
+    },
+    {
+      "bytes": 20,
+      "path": "evidence/g5-followon-pycompile.log",
+      "sha256": "ec62d872aa22140bec6a1e4b34ce5066953eba2d1690476e0e87e71c971dbca1"
+    },
+    {
+      "bytes": 20,
+      "path": "evidence/g5-followon-ruff.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-frozen-input-integrity-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 88,
+      "path": "evidence/g5-frozen-input-integrity-final.log",
+      "sha256": "b854467cde89b16437a778cf68995f7f9064ba138a43f92d6b5a36cc694d0ac3"
+    },
+    {
+      "bytes": 32,
+      "path": "evidence/g5-frozen-input-integrity.log",
+      "sha256": "60d299380bc994de79ab25bbaeefda787ab82bfda5d0f2b885095d41191292bc"
+    },
+    {
+      "bytes": 102,
+      "path": "evidence/g5-frozen-sdk-tests.log",
+      "sha256": "b53b48077da06fd081fa5e74fa0df1b8517b7457b5b074744ff42bded66d1a3d"
+    },
+    {
+      "bytes": 517,
+      "path": "evidence/g5-patch-apply-check.log",
+      "sha256": "7c1505cf210f28ef6a8b1347282661d6fb3168c4d8515d1aebb22243983269a1"
+    },
+    {
+      "bytes": 211,
+      "path": "evidence/g5-patch-apply-raw-hash.log",
+      "sha256": "670445d43352f46617d4010fde3a1bdddb917052e2f81f74d6a9e0055f8b1f02"
+    },
+    {
+      "bytes": 2148,
+      "path": "evidence/g5-projection-patch-apply-check.log",
+      "sha256": "202b0ec5b9ea93ec3b40fbb0c74f8ea9de298866fdb079ab10e1faaefb1aef96"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-pycompile-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 47,
+      "path": "evidence/g5-pycompile-final.log",
+      "sha256": "68103e1ac4c8b6d752363f83ff4f57e37aa982123e12951eac2260661fcc5666"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-pycompile.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 0,
+      "path": "evidence/g5-pycompile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-ruff-final.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 20,
+      "path": "evidence/g5-ruff-final.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-ruff-full-sdk-scope-known-failures.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 2267,
+      "path": "evidence/g5-ruff-full-sdk-scope-known-failures.log",
+      "sha256": "fd4556c9f2ba4eac11a5246690ca9d10702fcbb0410fa38e634a23f5c2ff8c99"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-ruff.exit",
+      "sha256": "4fa76b808b0441857562232acabf29490555d9e389f4509f2b240b0a5b5e3812"
+    },
+    {
+      "bytes": 625,
+      "path": "evidence/g5-ruff.log",
+      "sha256": "fb4b42b767a9547663fc196723fc68213c8eb8a9593532d4924831796a814c1c"
+    },
+    {
+      "bytes": 13,
+      "path": "evidence/g5-sdk-existing-tests.exit",
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627"
+    },
+    {
+      "bytes": 102,
+      "path": "evidence/g5-sdk-existing-tests.log",
+      "sha256": "757a2a37a832d7925bc354209a1e4c065c736be9e97d12482370432949776a99"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-sdk-tests-candidate-source.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 2101,
+      "path": "evidence/g5-sdk-tests-candidate-source.log",
+      "sha256": "d6841350087a6da759f528cf838572c078c73e1d06918abcc0cb2fecea186079"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/g5-sdk-tests-frozen-source.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/g5-sdk-tests-frozen-source.log",
+      "sha256": "aab3d9bfb33c6f3efff84c0d0a17d6c4c8961ece12965acb8b765e21cdd8b393"
+    },
+    {
+      "bytes": 2180,
+      "path": "evidence/r1-send-entry-regressions-copy-verification.json",
+      "sha256": "bfa236222577f513b1d9af1e5f6f2295b38ae480c8fcf7bee625cebdd6ff4472"
+    },
+    {
+      "bytes": 3,
+      "path": "evidence/r1-send-entry-regressions.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+    },
+    {
+      "bytes": 3517,
+      "path": "evidence/r1-send-entry-regressions.junit.xml",
+      "sha256": "a3b9f58dd10b8b52634c65978e9768823dcc891fd4a54718493fa826c52589b2"
+    },
+    {
+      "bytes": 2820,
+      "path": "evidence/r1-send-entry-regressions.log",
+      "sha256": "e57ecdf0aff461c9093b111b2c5a56e7f56149c577f6414052d91809d61a6ad6"
+    },
+    {
+      "bytes": 6127,
+      "path": "evidence/r1-send-entry-regressions.py",
+      "sha256": "b5686a652a6ad2d0e1fb1d2ff871d32a2317f0faf57ef3f03193284e44f5a39b"
+    },
+    {
+      "bytes": 29924,
+      "path": "evidence/r1-worker-focus-original.py",
+      "sha256": "0422df1a61a0c4e8b8e06a92a00a3d5f2fb7bca26498ee841e8a2ef33faa7aa0"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r2-implementation-focus.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/r2-implementation-focus.log",
+      "sha256": "0022b3c4b5afa4b4b9113d924294bf0db0f0c7dc4571b3f69b61ece564334279"
+    },
+    {
+      "bytes": 642,
+      "path": "evidence/r2-patch-replay.log",
+      "sha256": "16f0573ca049c66a8d34efe6d298d68c1622aae0054355e1aacf9eb9a8b56c71"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r2-pycompile.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 0,
+      "path": "evidence/r2-pycompile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r2-ruff.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 20,
+      "path": "evidence/r2-ruff.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r2-sdk-tests-candidate-source.exit",
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "bytes": 2788,
+      "path": "evidence/r2-sdk-tests-candidate-source.log",
+      "sha256": "87665e902533b764378fd0336eb5dec5afb715cd05ae70c744d58e0c67661d02"
+    },
+    {
+      "bytes": 1,
+      "path": "evidence/r2-sdk-tests-frozen-source.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "bytes": 101,
+      "path": "evidence/r2-sdk-tests-frozen-source.log",
+      "sha256": "1aa6101ec20d1108710cccdd867603614014175f5b2a1cfc1059bfd4e2648c17"
+    },
+    {
+      "bytes": 6313,
+      "path": "evidence/v21-projection-contract-audit.md",
+      "sha256": "4b0d0db4b4aebdff906862a38244f22a4ab9766755fa3af4ddc14aef72f757ee"
+    },
+    {
+      "bytes": 6225,
+      "path": "freeze_r2_candidate.py",
+      "sha256": "538b08b21eb969dacbd005f8bbc0546eccae5e09fd2e0d1efc797bcf15050c07"
+    },
+    {
+      "bytes": 9691,
+      "path": "frozen-input-manifest.json",
+      "sha256": "79bab5c0c0e136b722ef5f55c74f93aba2920f138a629b9ab8b4506d29003827"
+    },
+    {
+      "bytes": 10201,
+      "path": "implementation/backtrader_bridge/ctp_order_action_bridge.py",
+      "sha256": "0719d46863c3f5797e705b8abbfe3289e6fe2c4e568e1de3893faa51c1c3e73e"
+    },
+    {
+      "bytes": 6490,
+      "path": "implementation/main_repo_patch/G5_ORDERREF_ACTIONREF_AUTHORITY.patch",
+      "sha256": "b5e1a309ba198f9622546107b1cad2cff42df7685da80f4bc266e51ac3a07816"
+    },
+    {
+      "bytes": 7272,
+      "path": "implementation/main_repo_patch/G5_ORDERREF_ACTIONREF_WORKER_HANDOFF.patch",
+      "sha256": "331b5ad8be656815dbfd72d743587bb641767011b414c82a0ce4dcaf156a1f6d"
+    },
+    {
+      "bytes": 43339,
+      "path": "implementation/main_repo_patch/backtrader/stores/ctp_i9_managed_dispatch.py",
+      "sha256": "b472103b607d44a3b7f9b33387e8c4c888094142aa3f0660e6ad4ee11252724e"
+    },
+    {
+      "bytes": 41619,
+      "path": "implementation/main_repo_patch/backtrader/stores/ctp_i9_parent_request_builder.py",
+      "sha256": "ed00fc6ac6257700de37d865b954edd7ac4dcbabe532f48b1b143014ccef78e2"
+    },
+    {
+      "bytes": 3057,
+      "path": "implementation/sdk/src/bt_api_execution/__init__.py",
+      "sha256": "98c92fb48b7ae81a9e9181c94a51c88d459506eeec1f861025f2037232fafa28"
+    },
+    {
+      "bytes": 3330,
+      "path": "implementation/sdk/src/bt_api_execution/admission.py",
+      "sha256": "66c3338c717f9333826f90faba8a5e4dfb5056c50a1e6c9947a2f8b9ef076713"
+    },
+    {
+      "bytes": 16515,
+      "path": "implementation/sdk/src/bt_api_execution/cancellation.py",
+      "sha256": "73ca88e5eb0f15534cd17a157ca07c9722261eaa18c6dcb14bad32c23cd5db98"
+    },
+    {
+      "bytes": 31754,
+      "path": "implementation/sdk/src/bt_api_execution/contracts.py",
+      "sha256": "d4f9aca4e558fbf0e54b10666ba8590b34554710452ee04fcc099901e79ff8b6"
+    },
+    {
+      "bytes": 28798,
+      "path": "implementation/sdk/src/bt_api_execution/ctp_identity_authority.py",
+      "sha256": "197395d6802cabcdf534f98057c46bd9ffb5da94f5dfd5f05e592cf48a4b3d80"
+    },
+    {
+      "bytes": 49452,
+      "path": "implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py",
+      "sha256": "d74b6929756fbd63a7646a35de1e76bda26c38fe3498a7ec6b35e23cd2b97888"
+    },
+    {
+      "bytes": 2050,
+      "path": "implementation/sdk/src/bt_api_execution/errors.py",
+      "sha256": "068ce22d1f9d836d50a8e1d0da5e5ac71d07bc0a18b567347d602fc8bbcc7718"
+    },
+    {
+      "bytes": 21639,
+      "path": "implementation/sdk/src/bt_api_execution/facade.py",
+      "sha256": "5e098ad9f6062d86aae6eb50f9ead494b143fcd52b04b51b6f47f3dcb430c1cd"
+    },
+    {
+      "bytes": 1445,
+      "path": "implementation/sdk/src/bt_api_execution/ports.py",
+      "sha256": "9e6fe2df31d6daca74f1b176271ea34ef41e5c5bc2780fe078874f16d3860847"
+    },
+    {
+      "bytes": 1,
+      "path": "implementation/sdk/src/bt_api_execution/py.typed",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "bytes": 182162,
+      "path": "implementation/sdk/src/bt_api_execution/store.py",
+      "sha256": "691288c3b3a56ac3c531d23aa79296e6868535ba2dfa2bd33f1548d2d68a6aa2"
+    },
+    {
+      "bytes": 74875,
+      "path": "implementation/sdk_patch/G5_SEND_ENTRY_FAIL_CLOSED_R2.patch",
+      "sha256": "48aa0096432bcb4e46ee93c886d659b67a0ad402522898db01e58a32926d4f48"
+    },
+    {
+      "bytes": 83113,
+      "path": "implementation/sdk_patch/G5_TYPED_TARGET_PROJECTION_DURABLE_CONSUMER.patch",
+      "sha256": "a64175be7ca4c855c7cffdfee727463962ff00def4fdc1ca4b18e2839b5c95a6"
+    },
+    {
+      "bytes": 8537,
+      "path": "implementation/tests/_g5_worker_test_support.py",
+      "sha256": "8d73c2ee6ff3cdab45e018094c00c46ca7650e7dea51bc357ad3b7553e51a51c"
+    },
+    {
+      "bytes": 11935,
+      "path": "implementation/tests/test_g5_store_order_action_bridge.py",
+      "sha256": "6249456a69a5540ff924bf447cadf95d75b2e7a8bfee493be5ea3da20e6bd0e7"
+    },
+    {
+      "bytes": 25010,
+      "path": "implementation/tests/test_g5_unified_order_action_authority.py",
+      "sha256": "e128f4c3c4fce795effb41d569ba0409338d5f2a5d1ac040a274fc4cb9180f1d"
+    },
+    {
+      "bytes": 6720,
+      "path": "implementation/tests/test_g5_worker_send_entry_r2.py",
+      "sha256": "c1e3fad9339e5bebfa6db5d8775d2ca6c7934f0ba02b62730b8ce508748c5b87"
+    },
+    {
+      "bytes": 780123,
+      "path": "inputs/backtrader/backtrader/stores/btapistore.py",
+      "sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826"
+    },
+    {
+      "bytes": 43222,
+      "path": "inputs/backtrader/backtrader/stores/ctp_i9_managed_dispatch.py",
+      "sha256": "454c039e85b7559b7f37291bc7eb77f7e7a845cadf48faa9262cb7042636c6ad"
+    },
+    {
+      "bytes": 38539,
+      "path": "inputs/backtrader/backtrader/stores/ctp_i9_parent_request_builder.py",
+      "sha256": "4ef2264441adb020e92ad1eef3a52e58d870c66b406bd2dd795d737a6f0711e8"
+    },
+    {
+      "bytes": 36603,
+      "path": "inputs/backtrader/backtrader/stores/managed_execution.py",
+      "sha256": "1c31f89412e8e1177eb2e27389c62b50e074361ef808098846c06704f18440c5"
+    },
+    {
+      "bytes": 80482,
+      "path": "inputs/backtrader/tests/integration/test_iteration41_ctp_i9_account_session_candidate.py",
+      "sha256": "e4b21c7008383b06528388f34d666d47d8bf94dc18a835a406a3b983e6301eec"
+    },
+    {
+      "bytes": 38378,
+      "path": "inputs/backtrader/tests/unit/stores/test_ctp_i9_managed_dispatch_bridge.py",
+      "sha256": "697cf8cb65c2ac383c501d4ec5bf612b80c4eaf7c8f037a8f247458b7de0bfb9"
+    },
+    {
+      "bytes": 35360,
+      "path": "inputs/backtrader/tests/unit/stores/test_ctp_i9_parent_request_builder.py",
+      "sha256": "83c50a5860e95edbf79f45230f460149cc718283f3c45c72a1afbb5221780240"
+    },
+    {
+      "bytes": 24928,
+      "path": "inputs/backtrader/tests/unit/stores/test_ctp_managed_projection_bridge.py",
+      "sha256": "08095b558369f1c9674f10f0994e1344fc91a5a2bc6aed8a9aceec98872832bb"
+    },
+    {
+      "bytes": 57327,
+      "path": "inputs/docs/ctp-current-acceptance-matrix.md",
+      "sha256": "4fc12e6552e52703922887b6df46218958f4521af5db88678195572ecfacac6d"
+    },
+    {
+      "bytes": 150309,
+      "path": "inputs/docs/\u8fed\u4ee3\u8ba1\u5212.md",
+      "sha256": "7dae69355b22d8a32d0b5c5b4803e578987d2390fa3e9de3893ef594dfab8e94"
+    },
+    {
+      "bytes": 4919,
+      "path": "inputs/sdk/README.md",
+      "sha256": "213bce5d6188608729bf0da48c20a1971633a7bb0617f1eced44be71c5b84c7a"
+    },
+    {
+      "bytes": 1696,
+      "path": "inputs/sdk/pyproject.toml",
+      "sha256": "c1dae6c5b214512a1fbdc6eea6868feff5c29077da39ce1cd7bc3fa0cadab554"
+    },
+    {
+      "bytes": 2827,
+      "path": "inputs/sdk/src/bt_api_execution/__init__.py",
+      "sha256": "ac5bb1bdcfebdab07a6d52c27255061c836fb9e87f923e51858deac1454b309d"
+    },
+    {
+      "bytes": 3330,
+      "path": "inputs/sdk/src/bt_api_execution/admission.py",
+      "sha256": "66c3338c717f9333826f90faba8a5e4dfb5056c50a1e6c9947a2f8b9ef076713"
+    },
+    {
+      "bytes": 16515,
+      "path": "inputs/sdk/src/bt_api_execution/cancellation.py",
+      "sha256": "73ca88e5eb0f15534cd17a157ca07c9722261eaa18c6dcb14bad32c23cd5db98"
+    },
+    {
+      "bytes": 31754,
+      "path": "inputs/sdk/src/bt_api_execution/contracts.py",
+      "sha256": "d4f9aca4e558fbf0e54b10666ba8590b34554710452ee04fcc099901e79ff8b6"
+    },
+    {
+      "bytes": 2050,
+      "path": "inputs/sdk/src/bt_api_execution/errors.py",
+      "sha256": "068ce22d1f9d836d50a8e1d0da5e5ac71d07bc0a18b567347d602fc8bbcc7718"
+    },
+    {
+      "bytes": 21639,
+      "path": "inputs/sdk/src/bt_api_execution/facade.py",
+      "sha256": "5e098ad9f6062d86aae6eb50f9ead494b143fcd52b04b51b6f47f3dcb430c1cd"
+    },
+    {
+      "bytes": 1445,
+      "path": "inputs/sdk/src/bt_api_execution/ports.py",
+      "sha256": "9e6fe2df31d6daca74f1b176271ea34ef41e5c5bc2780fe078874f16d3860847"
+    },
+    {
+      "bytes": 1,
+      "path": "inputs/sdk/src/bt_api_execution/py.typed",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "bytes": 146030,
+      "path": "inputs/sdk/src/bt_api_execution/store.py",
+      "sha256": "1de4e83b9163b941e941e4adb71b1c8d2db5a92740d79b55b77ae5b7dd1b4bc4"
+    },
+    {
+      "bytes": 2289,
+      "path": "inputs/sdk/tests/test_admission_adapter.py",
+      "sha256": "463859b8dd70c8ef02eae6812a4c870b187eeab747f71a41809b51dd80bddf00"
+    },
+    {
+      "bytes": 17523,
+      "path": "inputs/sdk/tests/test_cancellation.py",
+      "sha256": "8d40e9748b79be00a585708df65fddb3faf5ee8129fe665faf3e804d659ca6b2"
+    },
+    {
+      "bytes": 4405,
+      "path": "inputs/sdk/tests/test_contracts.py",
+      "sha256": "a828c8e78739ef2758160d985ee48318bed81ab39c4bfcdadac17f56af2f7690"
+    },
+    {
+      "bytes": 21795,
+      "path": "inputs/sdk/tests/test_ctp_dispatch_commands.py",
+      "sha256": "31a401c4b51d46cc66c1bcb616ff9c1599fc74bfef53bd3ebfb1ebd75604290e"
+    },
+    {
+      "bytes": 17871,
+      "path": "inputs/sdk/tests/test_execution_facade.py",
+      "sha256": "1943b4ecaefd2a8957f271ca0579844ae575d6245e572e0208e3b7951a792698"
+    },
+    {
+      "bytes": 9381,
+      "path": "inputs/sdk/tests/test_execution_store.py",
+      "sha256": "240937811dbcc2ccc3731d4220abf2ed094ab034cd62609169c85bbf2bc71be0"
+    },
+    {
+      "bytes": 705,
+      "path": "make_candidate_zip.py",
+      "sha256": "fe111e47af7a4c67d392bf8a430582d85e12a7696372ac0d2df934ef9fd758de"
+    },
+    {
+      "bytes": 5377,
+      "path": "make_output_manifest.py",
+      "sha256": "c220f55f41310a44c7935ce9f3f1516cbe2fc9a8797c88a218817a1bdb3ca0e2"
+    },
+    {
+      "bytes": 1077,
+      "path": "make_patch.py",
+      "sha256": "64c5cdbc6d182681430e8293cd018b049a5cb58e1b80494ee59d4e2ffc142d01"
+    },
+    {
+      "bytes": 1475,
+      "path": "make_projection_patch.py",
+      "sha256": "9246b0fbc7483e08f61c60827ebe12e258948aa6075d2b527892f13d11b1ebeb"
+    },
+    {
+      "bytes": 2179,
+      "path": "make_r2_patch.py",
+      "sha256": "d93801b98f791e38950019e6d4106a9e34024516dd9d522b91af217eb7b44ffb"
+    },
+    {
+      "bytes": 44274,
+      "path": "patch-check/backtrader/stores/ctp_i9_managed_dispatch.py",
+      "sha256": "bd36b20b86036a2dce91d5643d7e0d8f4c071859bb3d87cb5f45d8db3c295531"
+    },
+    {
+      "bytes": 42573,
+      "path": "patch-check/backtrader/stores/ctp_i9_parent_request_builder.py",
+      "sha256": "6aa3ad5bc20e8ec8e51ad61e25f4a5d19ea2ad25e0fbecb3735368f37d550e54"
+    },
+    {
+      "bytes": 10439,
+      "path": "patch-check/projection-durable/implementation/backtrader_bridge/ctp_order_action_bridge.py",
+      "sha256": "da9d34a69c5e713a1cb1c9db0362a863b5475abadc0da20e9425c2a66d30dc27"
+    },
+    {
+      "bytes": 3181,
+      "path": "patch-check/projection-durable/implementation/sdk/src/bt_api_execution/__init__.py",
+      "sha256": "01ede177d947e8940d89d9523a74719eac0db441e57802c9409980885a155597"
+    },
+    {
+      "bytes": 29372,
+      "path": "patch-check/projection-durable/implementation/sdk/src/bt_api_execution/ctp_identity_authority.py",
+      "sha256": "573463d3053767ce88e82f17d9f7d6754ce7daa74fc5ad1a56aa560758017f70"
+    },
+    {
+      "bytes": 49295,
+      "path": "patch-check/projection-durable/implementation/sdk/src/bt_api_execution/ctp_single_worker_candidate.py",
+      "sha256": "6f9fb767bfee727cca9a003dbcbe2ce3566f591a0bd21092bc78632406a0f116"
+    },
+    {
+      "bytes": 186144,
+      "path": "patch-check/projection-durable/implementation/sdk/src/bt_api_execution/store.py",
+      "sha256": "37b869bf972c8915927dfec890019587d5b68f77bb45fa78f2ae66e4b047c1aa"
+    },
+    {
+      "bytes": 30639,
+      "path": "patch-check/projection-durable/implementation/tests/test_g5_single_worker_action_handoff.py",
+      "sha256": "8c6ac959a59ea80851cbb91b7911e08372fbdeee799599bdb5c0cfcac5383257"
+    },
+    {
+      "bytes": 12247,
+      "path": "patch-check/projection-durable/implementation/tests/test_g5_store_order_action_bridge.py",
+      "sha256": "8c317f8b8fca2deffae3319d9a88d3698f4d266b2009a149909fb6fbe1f47ecc"
+    },
+    {
+      "bytes": 25609,
+      "path": "patch-check/projection-durable/implementation/tests/test_g5_unified_order_action_authority.py",
+      "sha256": "65e50c721a18157786c3f6866614518ef82893ccdc456e3c3cea1564e205d430"
+    },
+    {
+      "bytes": 1239,
+      "path": "verify_frozen_inputs.py",
+      "sha256": "36b45b44eb4129090e266f4eb929069429a07b6193592e71979152d551ebb430"
+    },
+    {
+      "bytes": 1976,
+      "path": "verify_patch.py",
+      "sha256": "31ea663d02d229edc3371360785d5e8b5a3018165355ec093351e283682443f7"
+    },
+    {
+      "bytes": 2485,
+      "path": "verify_projection_patch.py",
+      "sha256": "f10fc756d95c8de30bc22b34eda13deb528e8cf10bb33aadbd44e02655fe7305"
+    }
+  ],
+  "files_count": 138,
+  "format": "iteration41-g5-send-entry-r2-candidate.v1",
+  "generated_at_utc": "2026-09-27T02:55:27+00:00",
+  "known_sdk_candidate_failures": [
+    {
+      "cause": "legacy tests assert schema version 5 after the frozen candidate adds schema version 6",
+      "count": 3,
+      "test_names": [
+        "test_v4_execution_store_migrates_to_command_outbox_v5",
+        "test_v2_execution_store_adds_nullable_cumulative_commission_column",
+        "test_v3_execution_store_adds_ctp_order_identity_reservations"
+      ]
+    },
+    {
+      "cause": "legacy direct CANCEL fixture omits the exact typed target projection required by schema 6",
+      "count": 1,
+      "test_name": "test_cancel_command_binds_orderref_exchange_system_order_and_session_ids"
+    }
+  ],
+  "limitations": [
+    "No trusted native target-projection producer/readback; the default verifier rejects.",
+    "No trusted time authority or reviewed/pinned SDK send entry exists; the code-owned port always rejects before native entry.",
+    "Prepared/session binding does not supply current connection_generation or OS process_generation proof.",
+    "Caller-supplied seed assertions remain non-authorizing; there is no trusted MaxOrderActionRef watermark/cutover.",
+    "The candidate ActionRef allocator must not be mixed with V21's separate allocator starting at 1.",
+    "The Backtrader caller bridge/main patch remains on R1 sender-taking API and is not integrated; mismatch fails closed.",
+    "No real SDK, network, account, order, cancel, session, or live route was exercised or authorized."
+  ],
+  "status": "R2_FAIL_CLOSED / G5 NOT ACCEPTED",
+  "verification": {
+    "frozen_sdk_baseline_source": "57 passed / 0 failed",
+    "frozen_sdk_candidate_source": "53 passed / 4 failed",
+    "native_sdk_calls": 0,
+    "py_compile": "passed",
+    "r1_expected_red_regressions_preserved": 3,
+    "r1_regression_evidence_copy_hashes_match": true,
+    "r2_implementation_focus": "18 passed",
+    "r2_patch_replay": "git apply --check and apply passed; modified file SHA-256 matches exact",
+    "ruff_select_E4_E7_E9_F_I": "passed"
+  }
+}

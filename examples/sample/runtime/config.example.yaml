@@ -1,0 +1,10 @@
+# LOCAL_REPLAY_ONLY: copy to config.yaml in this registered directory.
+# This migration profile never reads params_01.json or connects to CTP.
+config_schema_version: 4
+strategy:
+  id: example.sample.ctp_legacy
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_action

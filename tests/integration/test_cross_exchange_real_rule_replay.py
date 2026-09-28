@@ -49,11 +49,16 @@ def _install_formula_only_candidate_binding(monkeypatch, runner):
     This helper does not alter it and cannot open a Store or an approval path.
     """
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    # The root manifest remains the frozen demo trust root.  This fixture
+    # exercises only the local, hash-bound formula replay candidate, so it
+    # must read the manifest colocated with that runner.
+    canonical_path = Path(runner.MANIFEST_PATH).resolve()
+    manifest = json.loads(canonical_path.read_text(encoding="utf-8"))
     candidate = next(
         row for row in manifest["candidates"] if row["strategy_id"] == runner.STRATEGY_ID
     )
-    canonical_path = Path(runner.MANIFEST_PATH).resolve()
+
+    assert canonical_path != MANIFEST.resolve()
 
     def load_test_candidate(path=runner.MANIFEST_PATH):
         assert Path(path).resolve() == canonical_path

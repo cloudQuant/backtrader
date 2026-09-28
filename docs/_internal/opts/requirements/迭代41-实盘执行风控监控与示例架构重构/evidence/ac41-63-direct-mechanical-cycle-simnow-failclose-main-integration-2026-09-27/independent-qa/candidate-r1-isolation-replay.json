@@ -1,0 +1,34 @@
+{
+  "apply_stderr": "",
+  "apply_stdout": "",
+  "copied_top_level_trees": [
+    "backtrader",
+    "backtrader_runtime",
+    "examples",
+    "tests"
+  ],
+  "dotenv_files_copied": 0,
+  "isolated_root": "D:\\temp\\ac41-63-direct-dispatch-qa-20260927\\isolated-candidate-r1",
+  "manifest_sha256": "bf1e3fb4c248076ed9c515df1ecf1bc6155b7ae418ac283f4dba99083f5b089b",
+  "only_manifest_changed_files": [
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+    "examples/ctp_options_simnow_live_runner.py",
+    "tests/unit/test_ctp_options_simnow_live_runner.py",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py"
+  ],
+  "patch_sha256": "cc755c12522397c9980968f07655df0bbf90375ca03647d9f5b7e24d79bab0dc",
+  "preimage_mismatches": [],
+  "preimage_sha256_verified": 5,
+  "private_runtime_dirs_traversed": false,
+  "source_file_sha256_verified": 20,
+  "strict_apply": "PASS",
+  "strict_apply_check": "PASS",
+  "target_sha256": {
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py": "573882b80db8f47f8b7c8cca8ae2c9c790469eb741c81bb523fc104e7d6c0c33",
+    "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py": "38696e2c08439c5d471327f22377c65d589ef3be043a2924f751cbae9c8bc5ee",
+    "examples/ctp_options_simnow_live_runner.py": "36b3056b0196d99cb8e24f02d251d96203b9a30df6193525b50821c46a66384c",
+    "tests/unit/test_ctp_options_simnow_live_runner.py": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4"
+  }
+}

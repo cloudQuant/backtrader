@@ -1,0 +1,12 @@
+test_stale_account_and_epoch_intents_reject_before_actor_or_fake_sink (test_store_boundary_harness.ActorReceiptBindingTests.test_stale_account_and_epoch_intents_reject_before_actor_or_fake_sink) ... ok
+test_stale_epoch_wrong_account_or_wrong_session_intent_reject_before_actor (test_store_boundary_harness.ActorReceiptBindingTests.test_stale_epoch_wrong_account_or_wrong_session_intent_reject_before_actor) ... ok
+test_invalid_receipts_never_reach_downstream_fake_sink (test_store_boundary_harness.ActorReceiptBindingTests.test_invalid_receipts_never_reach_downstream_fake_sink) ... ok
+test_duplicate_intent_is_claimed_once_before_actor_call (test_store_boundary_harness.ActorReceiptBindingTests.test_duplicate_intent_is_claimed_once_before_actor_call) ... ok
+test_receipt_wrong_operation_is_rejected_without_local_fallback (test_store_boundary_harness.ActorReceiptBindingTests.test_receipt_wrong_operation_is_rejected_without_local_fallback) ... ok
+test_receipt_wrong_digest_and_untyped_receipt_are_rejected (test_store_boundary_harness.ActorReceiptBindingTests.test_receipt_wrong_digest_and_untyped_receipt_are_rejected) ... ok
+test_receipt_failure_consumes_fake_local_replay_slot (test_store_boundary_harness.ActorReceiptBindingTests.test_receipt_failure_consumes_fake_local_replay_slot) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.003s
+
+OK

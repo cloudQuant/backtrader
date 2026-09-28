@@ -1,0 +1,13 @@
+COMMAND: D:\source_code\backtrader\.venv\Scripts\python.exe -B -m pytest tests/unit/stores/test_managed_ctp_store_adapter.py tests/unit/stores/test_managed_execution_store_adapter.py tests/unit/runtime/test_runtime_live_dispatch_guard.py -q --tb=short
+CWD: D:\source_code\backtrader
+EXIT: 0
+
+..............................                                           [100%]
+============================== warnings summary ===============================
+C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394
+  C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+30 passed, 1 warning in 5.09s

@@ -30,7 +30,20 @@ setup(
     # Keep the tracked, credential-free account configuration template available
     # to installed consumers.  The real account_config.yaml is intentionally
     # ignored and is never included in a distribution.
-    package_data={"backtrader": ["configs/account_config_example.yaml"]},
+    package_data={
+        "backtrader": ["configs/account_config_example.yaml"],
+        # Immutable, credential-free data belongs only to the packaged
+        # Iteration 41 acceptance fixtures: two fake-provider L2 configs plus
+        # one local-backtest config and its tiny historical CSV.  They are not
+        # operator config and do not relax the ignored config.yaml rule for
+        # examples or live runtimes.
+        "backtrader_runtime": [
+            "_iteration41_l2_fixture/runtimes/managed_013_3/config.yaml",
+            "_iteration41_l2_fixture/runtimes/mechanical_p1b/config.yaml",
+            "_iteration41_backtest_fixture/data/bars.csv",
+            "_iteration41_backtest_fixture/runtimes/local_backtest/config.yaml",
+        ],
+    },
     author="cloudQuant",  # Author name (retained from master)
     author_email="yunjinqi@qq.com",  # Author email
     description="Python Algorithmic Trading Backtesting Framework",  # Project description
@@ -51,15 +64,19 @@ setup(
         "matplotlib>=3.3.0",
         "scipy>=1.5.0",
         "statsmodels>=0.12.0",
+        # schema-v4 config.yaml is a required runtime contract for the
+        # configuration-first launcher, so its safe YAML parser is not a dev-only
+        # dependency.
+        "PyYAML>=5.4",
     ],
     extras_require={
         "dev": [
-            "pytest",
+            "pytest>=8.2,<9",
             "pytest-cov",
             "pytest-xdist",
             "pytest-html",
             "pytest-timeout",
-            "pytest-asyncio",
+            "pytest-asyncio>=0.24,<1",
             "ruff",
             "black",
             "isort",
@@ -88,8 +105,16 @@ setup(
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
         "live": ["cryptography>=3.4"],
+        # Public OKX shadow observation was verified with this isolated
+        # CCXT/aiohttp pair on CPython 3.11; it grants no account or write route.
+        "okx-public-shadow": ["ccxt==4.5.83", "aiohttp==3.14.3"],
     },  # List of project dependencies
     python_requires=">=3.8",
+    entry_points={
+        "console_scripts": [
+            "bt-runtime=backtrader_runtime.cli:main",
+        ],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",

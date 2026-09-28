@@ -1,0 +1,12 @@
+{
+  "package_key": "risk",
+  "distribution": "bt_api_risk",
+  "version": "0.1.0",
+  "source_root": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src",
+  "project_file": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\pyproject.toml",
+  "project_sha256": "db1eb4feeced90358f2367ced58720c8c367663d8183fae45f0362ba040feaab",
+  "source_file_count": 16,
+  "source_tree_sha256": "80e441cfa72ba8936bf8db0a557c3fc16497b538ef6e9a6806e09caa3cdf1373",
+  "metadata_sha256": "4181cf9efcadca470b3524e8e93e3461c050bc412b2e14120d538ac88a710d13",
+  "classification": "SOURCE-ONLY metadata; no wheel built or installed"
+}

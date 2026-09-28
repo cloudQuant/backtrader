@@ -279,8 +279,28 @@ def test_transport_error_keeps_only_unexpired_last_good_snapshot():
         store.stop()
 
 
-def test_typed_transport_unavailable_retains_only_an_unexpired_last_good_snapshot():
-    api = FundingSdk([_funding(), _transport_unavailable(), _transport_unavailable()])
+def test_typed_transport_unavailable_retains_only_an_unexpired_last_good_snapshot(monkeypatch):
+    # This test exercises the Store's configured TTL boundary.  Do not use a
+    # 200 ms wall-clock window here: a loaded parallel test worker can be
+    # descheduled between the first successful read and the typed transport
+    # failure, which correctly makes the last-good snapshot unavailable.
+    wall_time = [1_800_000_000.0]
+    monotonic_time = [500.0]
+    good_snapshot = _funding(seconds=3600)
+    good_snapshot["freshness"]["observed_at"] = dt.datetime.fromtimestamp(
+        wall_time[0], dt.timezone.utc
+    )
+    good_snapshot["next_funding_time"] = dt.datetime.fromtimestamp(
+        wall_time[0] + 3600, dt.timezone.utc
+    )
+    transport_failures = [_transport_unavailable(), _transport_unavailable()]
+    for transport_failure in transport_failures:
+        transport_failure["freshness"]["observed_at"] = dt.datetime.fromtimestamp(
+            wall_time[0], dt.timezone.utc
+        )
+    monkeypatch.setattr(store_module.time, "time", lambda: wall_time[0])
+    monkeypatch.setattr(store_module.time, "monotonic", lambda: monotonic_time[0])
+    api = FundingSdk([good_snapshot, *transport_failures])
     store = _store(api, funding_max_age_seconds=0.2)
     store.start()
     try:
@@ -298,7 +318,8 @@ def test_typed_transport_unavailable_retains_only_an_unexpired_last_good_snapsho
         assert health["failed"] == 1
         assert health["transport_errors"] == 1
 
-        time.sleep(0.25)
+        wall_time[0] += 0.25
+        monotonic_time[0] += 0.25
         store.request_funding_refresh(SYMBOL, force=True)
         assert store.wait_for_funding_refreshes(1)
         expired = store.get_cached_funding_snapshot(
@@ -513,6 +534,16 @@ def test_restart_fences_late_refresh_completion_from_previous_generation():
     api.block_funding = False
     api.release_funding.set()
     assert store.wait_for_funding_refreshes(1)
+    # ``stop(timeout=0.01)`` independently fences the SDK command lane.  A
+    # quiet command worker has no provider call to finish, but under a loaded
+    # Windows scheduler it can still be between the shutdown notification and
+    # thread exit after the funding worker has completed.  Do not retry
+    # ``start`` through that safety fence: wait for the separately stopped
+    # worker, just as a real caller must before reusing the Store session.
+    deadline = time.monotonic() + 1
+    while store.get_command_health()["worker_alive"] and time.monotonic() < deadline:
+        time.sleep(0.001)
+    assert store.get_command_health()["worker_alive"] is False
     store.start()
     second_generation = store.get_funding_refresh_health()["generation"]
     store.request_funding_refresh(SYMBOL)

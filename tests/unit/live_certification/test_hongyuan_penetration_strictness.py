@@ -139,22 +139,45 @@ def test_make_seed_bar_shape():
     assert bar["volume"] == 1.0
 
 
-def test_admission_helper_short_circuits_on_fresh_evidence():
+def test_admission_helper_refreshes_snapshot_to_arm_on_fresh_evidence():
     runtime = load_suite_module("runtime")
 
     class FreshStore:
         queries = 0
+        arms = 0
 
         def get_ctp_query_health(self):
             return {"evidence_complete": True}
 
         def get_ctp_preflight_snapshot(self, *_args, **_kwargs):
             self.queries += 1
-            return {}
+            return {"snapshot_sha256": "a" * 64}
+
+        def arm_registered_sim_execution(self, _instrument_id, _exchange_id="", **kwargs):
+            self.arms += 1
+            assert kwargs["preflight_sha256"] == "a" * 64
 
     store = FreshStore()
     runtime.ensure_ctp_trading_admission(store, "rb2701")
-    assert store.queries == 0
+    assert store.queries == 1
+    assert store.arms == 1
+
+
+def test_admission_helper_rejects_missing_typed_interfaces():
+    runtime = load_suite_module("runtime")
+
+    with pytest.raises(RuntimeError, match="preflight capability unavailable"):
+        runtime.ensure_ctp_trading_admission(object(), "rb2701")
+
+    class MissingArm:
+        def get_ctp_query_health(self):
+            return {"evidence_complete": True}
+
+        def get_ctp_preflight_snapshot(self, *_args, **_kwargs):
+            return {"snapshot_sha256": "a" * 64}
+
+    with pytest.raises(RuntimeError, match="execution admission capability unavailable"):
+        runtime.ensure_ctp_trading_admission(MissingArm(), "rb2701")
 
 
 def test_admission_helper_queries_and_raises_when_incomplete():

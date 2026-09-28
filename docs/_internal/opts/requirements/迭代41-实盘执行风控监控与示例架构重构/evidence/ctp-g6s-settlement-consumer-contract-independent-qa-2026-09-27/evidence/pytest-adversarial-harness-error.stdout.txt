@@ -1,0 +1,345 @@
+EEEEEEEEEEEEEEEEEEEE.                                                    [100%]
+=================================== ERRORS ====================================
+_ ERROR at setup of test_missing_attestor_and_missing_filter_readback_are_fail_closed _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[sdk_wheel_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[sdk_source_manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[sdk_pin_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[request_filter_readback-value3-settlement_request_filter_readback_missing_or_mismatched] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[explicit_request_filters-value4-settlement_request_filter_readback_missing_or_mismatched] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[callback_source-OnRspQrySettlementInfoConfirmAction-settlement_callback_source_missing_or_mismatched] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[query_source_seal_sha256--settlement_attestation_digest_missing_or_invalid] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[query_source_history_sha256--settlement_attestation_digest_missing_or_invalid] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[terminal_callback_history_sha256--settlement_attestation_digest_missing_or_invalid] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[selected_pair_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_selected_pair_or_account_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[current_account_fingerprint_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_selected_pair_or_account_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[query_trading_day-20260925-settlement_current_trading_day_or_generation_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[current_trading_day-20260925-settlement_current_trading_day_or_generation_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[query_connection_generation-2-settlement_current_trading_day_or_generation_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[current_connection_generation-2-settlement_current_trading_day_or_generation_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_requested_binding_tampering_rejects[confirm_date-20260925-settlement_confirmation_row_scope_mismatch] _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_confirmdate_without_row_tradingday_is_only_shape_success _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_boolean_generation_is_currently_accepted_for_generation_one _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+_ ERROR at setup of test_boolean_native_error_code_is_currently_accepted_as_zero _
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py:24: in expected_scope
+    return base.expected_scope.__wrapped__(tmp_path)
+D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\candidate-copy\tests\test_ctp_simnow_settlement_consumer.py:49: in expected_scope
+    selection = _selection(tmp_path)
+tests\unit\runtime\test_ctp_simnow_native_readiness.py:120: in _selection
+    effective = validate_runtime_config(runtime_dir, registry)
+backtrader_runtime\registry.py:1551: in validate_runtime_config
+    config = load_runtime_config(strategy_dir, registry=registry)
+backtrader_runtime\config.py:1650: in load_runtime_config
+    source_path, text = _read_config_text(
+backtrader_runtime\config.py:533: in _read_config_text
+    _require_private_config_security(
+backtrader_runtime\config.py:707: in _require_private_config_security
+    raise _private_config_security_error(
+E   backtrader_runtime.errors.RuntimeConfigError: PRESET_POLICY_VIOLATION: config.yaml permissions do not protect private CTP credentials field=config.yaml reason=private_config_windows_acl_invalid
+- generated xml file: D:\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\evidence\pytest-adversarial.junit.xml -
+=========================== short test summary info ===========================
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_missing_attestor_and_missing_filter_readback_are_fail_closed
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[sdk_wheel_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[sdk_source_manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[sdk_pin_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_sdk_pin_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[request_filter_readback-value3-settlement_request_filter_readback_missing_or_mismatched]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[explicit_request_filters-value4-settlement_request_filter_readback_missing_or_mismatched]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[callback_source-OnRspQrySettlementInfoConfirmAction-settlement_callback_source_missing_or_mismatched]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[query_source_seal_sha256--settlement_attestation_digest_missing_or_invalid]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[query_source_history_sha256--settlement_attestation_digest_missing_or_invalid]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[terminal_callback_history_sha256--settlement_attestation_digest_missing_or_invalid]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[selected_pair_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_selected_pair_or_account_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[current_account_fingerprint_sha256-0000000000000000000000000000000000000000000000000000000000000000-settlement_selected_pair_or_account_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[query_trading_day-20260925-settlement_current_trading_day_or_generation_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[current_trading_day-20260925-settlement_current_trading_day_or_generation_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[query_connection_generation-2-settlement_current_trading_day_or_generation_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[current_connection_generation-2-settlement_current_trading_day_or_generation_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_requested_binding_tampering_rejects[confirm_date-20260925-settlement_confirmation_row_scope_mismatch]
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_confirmdate_without_row_tradingday_is_only_shape_success
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_boolean_generation_is_currently_accepted_for_generation_one
+ERROR ..\..\temp\iteration41-g6s-settlement-consumer-independent-qa-20260927\adversarial\test_independent_adversarial.py::test_boolean_native_error_code_is_currently_accepted_as_zero
+1 passed, 20 errors in 2.21s

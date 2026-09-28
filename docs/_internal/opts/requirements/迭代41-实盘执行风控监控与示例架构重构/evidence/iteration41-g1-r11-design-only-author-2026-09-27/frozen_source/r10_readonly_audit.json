@@ -1,0 +1,31 @@
+{
+  "classification": "READ_ONLY_AUTHOR_EVIDENCE_ONLY_G1_CLOSED",
+  "final_failed_checks": [],
+  "initial_failed_checks": [
+    "P05_async_submit_returns_before_D_with_pending_IO_reaper_owned_UNKNOWN"
+  ],
+  "no_process_or_provider_access": true,
+  "p05": {
+    "budget_ms": 1200,
+    "completion_error": 995,
+    "deadline_tick_ms": 225406450,
+    "pending_io_at_unknown": true,
+    "submit_elapsed_us": 0.1,
+    "submit_return_before_D": true,
+    "unknown_lateness_ms": 3,
+    "unknown_tick_ms": 225406453
+  },
+  "payload_hashes_verified": 23,
+  "sha256": {
+    "r10_manifest.json": "da1252e1e25c20530a9cce358c35a1a90f0729dc7f60da85fe2600dd8790f6c3",
+    "r10_receipt.json": "deb34cbe0584710fa41f6623f0febcec0a2a2a71c5ff15e0c54f2fbf39c877c7",
+    "r10_trials.json": "ba4ab18e585ff66a3af956b17fc84426ec055d4f5f6ae4916ed40fe2651894d5",
+    "r10_trials_initial.json": "32bca66edba15ae73a7cf8777ecafcaabcd346df4326e69c39c49a44ae781040"
+  },
+  "unproven": {
+    "OS_hard_scheduling_guarantee": "NOT_PROVEN",
+    "P14_terminate_query_close": "NOT_TESTED",
+    "SCM": "NOT_TESTED",
+    "true_CreateProcessW_hang": "NOT_TESTED; Popen wrapper-only"
+  }
+}

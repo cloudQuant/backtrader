@@ -1,0 +1,85 @@
+{
+  "canonical_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\iteration41-fake-offline-main-integration-qa-2026-09-27",
+  "copied_package_files": [
+    {
+      "bytes": 33791,
+      "path": "QA-EVIDENCE.zip",
+      "sha256": "2e942c5ebdb806fef2ca841d36f4de232b4386a41e862471ee149ed051aec7af"
+    },
+    {
+      "bytes": 3944,
+      "path": "qa-receipt.md",
+      "sha256": "92e569e978db75288a45a7a26d6bd824b18b9e332fb14989f4607f1525656d5c"
+    },
+    {
+      "bytes": 5464,
+      "path": "payload-manifest.json",
+      "sha256": "a8efa4c9fffcdbe2c124f63189aad008fbb5684022a4d763bf86364a55c825c9"
+    },
+    {
+      "bytes": 393,
+      "path": "QA-PACKAGE.SHA256.txt",
+      "sha256": "40b5983118bb1887c66c9fa5b692ac8f81ef082258d10e408746fbe7d0b75ada"
+    },
+    {
+      "bytes": 6030,
+      "path": "source-hashes.json",
+      "sha256": "913b20cb10c5f62e672757c68c985adbdb9302f9c2cde0e0af75e9e9e323106d"
+    },
+    {
+      "bytes": 2701,
+      "path": "integration-inventory.json",
+      "sha256": "1c3c672f9dc1c4cc2da49dfed15a9aa00843d3f794cfb99deb20589d2ee79222"
+    },
+    {
+      "bytes": 4763,
+      "path": "commands-and-results.txt",
+      "sha256": "bb411307210ac623e1232434bac1eae4b94bd6590939cbf04de6c14d8ad86e61"
+    },
+    {
+      "bytes": 981,
+      "path": "README.md",
+      "sha256": "eb8bd6b2ab3e7ad591f77a6b648f0d4ff1a70a57563bf91094fef4a867885df9"
+    }
+  ],
+  "copied_zip_sha256": "2e942c5ebdb806fef2ca841d36f4de232b4386a41e862471ee149ed051aec7af",
+  "original_zip_sha256": "2e942c5ebdb806fef2ca841d36f4de232b4386a41e862471ee149ed051aec7af",
+  "payload_count_expected": 34,
+  "payload_count_hash_verified": 34,
+  "relative_links": [
+    {
+      "exists": true,
+      "target": "qa-receipt.md"
+    },
+    {
+      "exists": true,
+      "target": "QA-EVIDENCE.zip"
+    },
+    {
+      "exists": true,
+      "target": "payload-manifest.json"
+    },
+    {
+      "exists": true,
+      "target": "source-hashes.json"
+    },
+    {
+      "exists": true,
+      "target": "integration-inventory.json"
+    },
+    {
+      "exists": true,
+      "target": "commands-and-results.txt"
+    },
+    {
+      "exists": true,
+      "target": "QA-PACKAGE.SHA256.txt"
+    }
+  ],
+  "scope": "canonical copy and archive validation only; no source/test execution during copy",
+  "source_directory": "D:\\temp\\iteration41-integration-regression-qa-20260927",
+  "standalone_manifest_sha256": "a8efa4c9fffcdbe2c124f63189aad008fbb5684022a4d763bf86364a55c825c9",
+  "standalone_receipt_sha256": "92e569e978db75288a45a7a26d6bd824b18b9e332fb14989f4607f1525656d5c",
+  "zip_member_count": 35,
+  "zip_testzip": null
+}

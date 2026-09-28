@@ -1,0 +1,40 @@
+{
+  "schema": "iteration41.g6s.pyd-loader-boundary-copy-receipt.v1",
+  "source_manifest_sha256": "16fb9b7df3073e93cf6da39705d5399ff6c9b7459a1f3c2978ba21ef50df2dec",
+  "destination_manifest_sha256": "16fb9b7df3073e93cf6da39705d5399ff6c9b7459a1f3c2978ba21ef50df2dec",
+  "source_readme_sha256_at_copy_start": "4da0edd4b6f93a75100452745818de966fdbdc8d36c42da9f0357695eefdc38b",
+  "readme_hash_is_snapshot_only": true,
+  "payload_file_count": 6,
+  "payload_files": [
+    {
+      "path": "custody-test-command.txt",
+      "size": 488,
+      "sha256": "786dd6da86fe635c0a0d00ea863cce39d4c183d316e1b812767d85e185204ff6"
+    },
+    {
+      "path": "custody-test.stdout.txt",
+      "size": 540,
+      "sha256": "a47b1dc6ece0d272cf791577b3c78fc858c918df8b72f44425469cfcc34e07eb"
+    },
+    {
+      "path": "probe_extension_loader.py",
+      "size": 1099,
+      "sha256": "be9b3c85b5525cc5363dc156629733a08d0285edf1e6f187cb8ca6e7786d6f47"
+    },
+    {
+      "path": "probe_extension_loader.stdout.txt",
+      "size": 305,
+      "sha256": "ae4bb23d9056411be5348c6c0b7795d8fe0ae3a8267f8a12206b4be5f2a1f818"
+    },
+    {
+      "path": "receipt.json",
+      "size": 3067,
+      "sha256": "2b9e03f56e28b796d1412c6397e1859184a42d20e83bcdf69217760796ae854c"
+    },
+    {
+      "path": "report.md",
+      "size": 7462,
+      "sha256": "61699f3d0323c21108e1d5fb723ce99aa37d16ac70be47dff1ff64b29b640cfa"
+    }
+  ]
+}

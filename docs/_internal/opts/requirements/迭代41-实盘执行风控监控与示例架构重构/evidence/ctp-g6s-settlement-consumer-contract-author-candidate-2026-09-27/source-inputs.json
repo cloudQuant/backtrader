@@ -1,0 +1,77 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.source_inputs.v1",
+  "captured_utc": "2026-09-27",
+  "source_refs": [
+    {
+      "role": "main native readiness source",
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_native_readiness.py",
+      "sha256": "A0959B3A6170C83E79ABADE031D88590BD06A8CAC9E0A4DEA014CACB5FC5DF94",
+      "lines": "333, 607-615",
+      "note": "Startup returns TD/MD readiness; no settlement attestation."
+    },
+    {
+      "role": "main managed runtime source",
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_managed_runtime.py",
+      "sha256": "46E5D5E887CC4472E0388E5F36E0A66343FA23B57F9FDECFFD701140A7DA7958",
+      "lines": "232-275, 398-497, 644",
+      "note": "Native readiness is TD/MD-only; optional promoted result check lacks direct settlement helper consumer."
+    },
+    {
+      "role": "main generic query evidence",
+      "path": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simulation_query_evidence.py",
+      "sha256": "17A5711A598C17052AC9A4496127EBA406E0D2DC365111885EA4787733FB590B",
+      "lines": "",
+      "note": "Existing query evidence adapter; candidate does not extend its query kinds."
+    },
+    {
+      "role": "clean G4-r2 settlement source manifest",
+      "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\settlement-source-manifest.json",
+      "sha256": "DA9D20D35D0B5680267F1A95C5B7FFF54F25E9F57F0DFDA270B55EB7F251EBE9",
+      "lines": "",
+      "note": "Clean source-a, differs from dirty checkout d3674e19."
+    },
+    {
+      "role": "clean G4-r2 client.py",
+      "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\ctp\\client.py",
+      "sha256": "C217BE3E064272327535DA7EDF4B4ED4D587845F03AA11C4669699417C14E6FF",
+      "lines": "4019, 7491-7547, 8021-8051",
+      "note": "Settlement request passes intent-filter arguments; native getter filters read back before submit."
+    },
+    {
+      "role": "clean G4-r2 settlement evidence helper",
+      "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\containers\\ctp\\ctp_native_query_certificate.py",
+      "sha256": "53333798198177DD675F96478D8D7D2D0445E2E41459E54D4F021BDD32FA3282",
+      "lines": "511-589, 612-645, 761",
+      "note": "Terminal source-sealed evidence with digests, ConfirmDate, and session TradingDay; no callback source or SDK pin exposed."
+    },
+    {
+      "role": "clean G4-r2 SDK export",
+      "path": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\__init__.py",
+      "sha256": "246F5963130219D87C7773637C840B2B6FF5B99CE97DD2C0C1CEF670197DE505",
+      "lines": "",
+      "note": "Frozen helper export input."
+    },
+    {
+      "role": "unified wheelhouse manifest",
+      "path": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\\wheelhouse-manifest.json",
+      "sha256": "1B89CC1096E4D52145FAA404DA8A47A56E2779ED1B6B54D59E01F27980CB9FDC",
+      "lines": "",
+      "note": "52-wheel disposable candidate inventory."
+    },
+    {
+      "role": "unified requirements hashes",
+      "path": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\\requirements-hashes.txt",
+      "sha256": "856971D73BEC6B6951FA3C5BB88EE6FEFE1E716AB21D3B9712ED251D2E2C1BCD",
+      "lines": "8",
+      "note": "Disposable exact probe pin and wheel hash."
+    },
+    {
+      "role": "settlement wheel",
+      "path": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\\build-evidence\\ctp-build\\a\\wheel-a.whl",
+      "sha256": "857B06C914CFC4F58BC04A77F11B77AD5DC3C47DC2BE4D9D18B8E2FC805B264D",
+      "lines": "",
+      "note": "SHA matches requirements lock; probe-only, not accepted."
+    }
+  ],
+  "copied_snapshots": "input-snapshots/ contains byte-for-byte main and clean-G4 source copies plus both immutable manifests/lock inputs."
+}

@@ -1,0 +1,81 @@
+"""Fake-only tests for direct CTP/gateway/forwarding sdk_api denial."""
+
+from types import SimpleNamespace
+
+import pytest
+
+from backtrader.stores.btapistore import BtApiStore
+
+
+class FakeApi:
+    def __init__(self):
+        self.exchange_kwargs = {"CTP___FUTURE": {}}
+        self.write_calls = []
+        self.query_calls = []
+        self.connected = False
+
+    def connect(self):
+        self.connected = True
+
+    def disconnect(self):
+        self.connected = False
+
+    def get_balance(self):
+        return {"cash": 100.0, "value": 100.0}
+
+    def get_ctp_session_state(self):
+        return {}
+
+    def get_instrument_spec(self, *args):
+        self.query_calls.append(tuple(args))
+        symbol = args[-1]
+        return {"symbol": symbol, "multiplier": 10, "price_tick": 0.2}
+
+    def submit_order(self, *_args, **_kwargs):
+        self.write_calls.append("submit")
+
+    def cancel_order(self, *_args, **_kwargs):
+        self.write_calls.append("cancel")
+
+
+@pytest.mark.parametrize(
+    "store_options",
+    [
+        {"provider": "ctp"},
+        {"provider": "btapi", "exchange_kwargs": {"CTP___FUTURE": {}}},
+        {"provider": "ctp_gateway", "backend": "gateway", "api_kwargs": {"exchange_type": "CTP"}},
+        {"provider": "okx", "backend": "gateway"},
+        {"provider": "btapi", "backend": "forwarding", "config": {"exchange": "CTP"}},
+        {"provider": "btapi", "backend": "forwarding", "config": {"exchange": "BINANCE"}},
+    ],
+    ids=["direct-ctp", "direct-ctp-sdk", "ctp-gateway", "nonctp-gateway", "ctp-forwarding", "nonctp-forwarding"],
+)
+def test_ctp_gateway_and_forwarding_sdk_api_are_none(store_options):
+    api = FakeApi()
+    store = BtApiStore(**store_options, api=api)
+    assert store.sdk_api is None
+
+
+def test_ctp_route_without_created_api_remains_none():
+    store = BtApiStore(provider="btapi", exchange_kwargs={"CTP___FUTURE": {}})
+    assert store.sdk_api is None
+    assert store._api is None
+
+
+def test_non_ctp_direct_sdk_handle_remains_compatible():
+    api = SimpleNamespace(submit_order=lambda payload: payload)
+    assert BtApiStore(provider="okx", api=api).sdk_api is api
+
+
+def test_read_only_ctp_store_query_uses_internal_client_not_sdk_api():
+    api = FakeApi()
+    store = BtApiStore(provider="ctp", api=api)
+
+    assert store.sdk_api is None
+    metadata = store.get_symbol_info("IF2506")
+
+    assert metadata["symbol"] == "IF2506"
+    assert metadata["multiplier"] == 10
+    assert api.query_calls == [("IF2506",)]
+    assert api.connected is True
+    assert api.write_calls == []

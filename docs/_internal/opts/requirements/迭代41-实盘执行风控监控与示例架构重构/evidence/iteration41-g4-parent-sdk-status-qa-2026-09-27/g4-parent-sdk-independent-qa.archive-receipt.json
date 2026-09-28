@@ -1,0 +1,12 @@
+{
+  "schema": "iteration41-g4-parent-sdk-independent-qa-archive-receipt-v1",
+  "archive_path": "D:\\temp\\iteration41-g4-parent-sdk-status-qa-20260927\\g4-parent-sdk-independent-qa.zip",
+  "archive_sha256": "cfd48c7ee40633d2315b6cd4f46db9378892144fc0d942865cfc1d29c338a02c",
+  "archive_size_bytes": 40706,
+  "archive_index_sha256": "0d83890bead500d8282237549d643e77671f8f3df540a0f8acfd20ba8bf00837",
+  "archive_index_member_count": 40,
+  "zip_testzip": null,
+  "all_member_hashes_match": true,
+  "sha256_sums_sha256": "c54ae7292c23a3e33c75ddd459986aa006ff40f09179cc366bb7944a16122ee1",
+  "disposition": "DISPOSABLE_PARENT_WHEEL_VERIFIED / THREE_PACKAGE_PIN_NOT_AVAILABLE / G4_CLOSED"
+}

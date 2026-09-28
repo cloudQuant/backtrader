@@ -1,0 +1,279 @@
+{
+  "schema": "iteration41-i22-shared-session-readport-r2d-copy-receipt-v1",
+  "author_source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence",
+  "independent_qa_source": "D:\\temp\\iteration41-r2d-independent-audit-20260927",
+  "archive_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\iteration41-i22-shared-session-readonly-port-r2d-independent-qa-2026-09-27",
+  "copied_artifacts": [
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-author-final.zip",
+      "archive_path": "author/r2d-author-final.zip",
+      "source_sha256": "0160b69c0c91a046d2b47d5a55ddcfc2cdd6c979db5b0a023e69892d18f84a9b",
+      "archive_sha256": "0160b69c0c91a046d2b47d5a55ddcfc2cdd6c979db5b0a023e69892d18f84a9b",
+      "source_bytes": 498835,
+      "archive_bytes": 498835,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-author-final-receipt.json",
+      "archive_path": "author/r2d-author-final-receipt.json",
+      "source_sha256": "8aa6e81fd08ecd72b4b6617c463f5a4e29da97ef44ca1f542399423fda8e4af4",
+      "archive_sha256": "8aa6e81fd08ecd72b4b6617c463f5a4e29da97ef44ca1f542399423fda8e4af4",
+      "source_bytes": 415,
+      "archive_bytes": 415,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-author-bundle-final\\manifest.json",
+      "archive_path": "author/manifest.json",
+      "source_sha256": "3e4b386ec95f52bb27d268a857aa4d5223d28ba2daf1952e2b6caf95eaf9f199",
+      "archive_sha256": "3e4b386ec95f52bb27d268a857aa4d5223d28ba2daf1952e2b6caf95eaf9f199",
+      "source_bytes": 8435,
+      "archive_bytes": 8435,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-artifact-hashes.json",
+      "archive_path": "author/r2d-artifact-hashes.json",
+      "source_sha256": "ba5b4ff8a98dce029ccebfb75b7266ccca1e7c1d4cfc87e224e514f859a41fee",
+      "archive_sha256": "ba5b4ff8a98dce029ccebfb75b7266ccca1e7c1d4cfc87e224e514f859a41fee",
+      "source_bytes": 2657,
+      "archive_bytes": 2657,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-shared-session-readonly-port.patch",
+      "archive_path": "author/r2d-shared-session-readonly-port.patch",
+      "source_sha256": "423111adfbfb47eb56e5303e917815c4f4594760c203d18930c44cf6b800094c",
+      "archive_sha256": "423111adfbfb47eb56e5303e917815c4f4594760c203d18930c44cf6b800094c",
+      "source_bytes": 27340,
+      "archive_bytes": 27340,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\report.md",
+      "archive_path": "author/report.md",
+      "source_sha256": "4ae04b9ce4cc0db9b6c612e98407cb953340bab10d5d9a906daf610db9157459",
+      "archive_sha256": "4ae04b9ce4cc0db9b6c612e98407cb953340bab10d5d9a906daf610db9157459",
+      "source_bytes": 5495,
+      "archive_bytes": 5495,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\candidate-focused.junit.xml",
+      "archive_path": "author/candidate-focused.junit.xml",
+      "source_sha256": "8825a44a334d4c0c58766b6ccea87e1e0c915ffeae7f384d5f29600b47deff25",
+      "archive_sha256": "8825a44a334d4c0c58766b6ccea87e1e0c915ffeae7f384d5f29600b47deff25",
+      "source_bytes": 1302,
+      "archive_bytes": 1302,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\focused-guard-report.json",
+      "archive_path": "author/focused-guard-report.json",
+      "source_sha256": "cb2fd4273dc2e2f76b09f4aef5acec89f8397cf2715c48e569d4497969c1cee5",
+      "archive_sha256": "cb2fd4273dc2e2f76b09f4aef5acec89f8397cf2715c48e569d4497969c1cee5",
+      "source_bytes": 874,
+      "archive_bytes": 874,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\guarded-focus.log",
+      "archive_path": "author/guarded-focus.log",
+      "source_sha256": "1517f981b22d3b7eaaffefa9c2096a2a79220e73ff99c716ae717f5e07560db0",
+      "archive_sha256": "1517f981b22d3b7eaaffefa9c2096a2a79220e73ff99c716ae717f5e07560db0",
+      "source_bytes": 1392,
+      "archive_bytes": 1392,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\patch-replay.log",
+      "archive_path": "author/patch-replay.log",
+      "source_sha256": "7fd392dcd5a595c398ea5b72374f703c7a01dd27f333f0be5bf51c37a7916fba",
+      "archive_sha256": "7fd392dcd5a595c398ea5b72374f703c7a01dd27f333f0be5bf51c37a7916fba",
+      "source_bytes": 1928,
+      "archive_bytes": 1928,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\py-compile.log",
+      "archive_path": "author/py-compile.log",
+      "source_sha256": "58cf8b8f6ef25f670a079ae49a554ac939de2d533009d954a0f846012c24f6db",
+      "archive_sha256": "58cf8b8f6ef25f670a079ae49a554ac939de2d533009d954a0f846012c24f6db",
+      "source_bytes": 74,
+      "archive_bytes": 74,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\ruff-check.log",
+      "archive_path": "author/ruff-check.log",
+      "source_sha256": "e783ab0d9638dc40a8972e02bf2b5f68682edf44a4c0f7d5e26a8b5a98cd0bbb",
+      "archive_sha256": "e783ab0d9638dc40a8972e02bf2b5f68682edf44a4c0f7d5e26a8b5a98cd0bbb",
+      "source_bytes": 84,
+      "archive_bytes": 84,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-shared-session-readonly-port-20260927\\evidence\\r2d-nodeid-baseline-candidate.json",
+      "archive_path": "author/r2d-nodeid-baseline-candidate.json",
+      "source_sha256": "030f065c35d1def1c6b9b7d161d16df261feed84aff148744fe2ed5c19078279",
+      "archive_sha256": "030f065c35d1def1c6b9b7d161d16df261feed84aff148744fe2ed5c19078279",
+      "source_bytes": 23876,
+      "archive_bytes": 23876,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\final-independent-qa-receipt.md",
+      "archive_path": "qa/final-independent-qa-receipt.md",
+      "source_sha256": "c315d20a2a900bf6c4ce5eac83cec9a210bfaaf5edbd3481464766e9d6872924",
+      "archive_sha256": "c315d20a2a900bf6c4ce5eac83cec9a210bfaaf5edbd3481464766e9d6872924",
+      "source_bytes": 1547,
+      "archive_bytes": 1547,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\candidate-focused.junit.xml",
+      "archive_path": "qa/candidate-focused.junit.xml",
+      "source_sha256": "be79a14a302d59a5b761b2f76a0e9c9ad7d654ebfa5c654074ab3c74bcc9c47d",
+      "archive_sha256": "be79a14a302d59a5b761b2f76a0e9c9ad7d654ebfa5c654074ab3c74bcc9c47d",
+      "source_bytes": 1302,
+      "archive_bytes": 1302,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\verify_final_frozen.py",
+      "archive_path": "qa/verify_final_frozen.py",
+      "source_sha256": "f942e3dafe9bb771d75cbf3874a65fe8ec7e655abda65af40252e5ffcefd2665",
+      "archive_sha256": "f942e3dafe9bb771d75cbf3874a65fe8ec7e655abda65af40252e5ffcefd2665",
+      "source_bytes": 5043,
+      "archive_bytes": 5043,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\compare_replay.py",
+      "archive_path": "qa/compare_replay.py",
+      "source_sha256": "9be4df5f6ee9fbe276c6a82f71952886dcac714bf9787861358088ff1ec3f891",
+      "archive_sha256": "9be4df5f6ee9fbe276c6a82f71952886dcac714bf9787861358088ff1ec3f891",
+      "source_bytes": 911,
+      "archive_bytes": 911,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\run_guarded.py",
+      "archive_path": "qa/run_guarded.py",
+      "source_sha256": "18998236dac6868c626596a0e9670d15bf1cdb725e57951232e4f5d3fcc06533",
+      "archive_sha256": "18998236dac6868c626596a0e9670d15bf1cdb725e57951232e4f5d3fcc06533",
+      "source_bytes": 3199,
+      "archive_bytes": 3199,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\new-file-state.json",
+      "archive_path": "qa/replay-final/new-file-state.json",
+      "source_sha256": "430b4293a040c5a909190f11c472adb19d35e17186c285ca718dff7bdf07cacf",
+      "archive_sha256": "430b4293a040c5a909190f11c472adb19d35e17186c285ca718dff7bdf07cacf",
+      "source_bytes": 120,
+      "archive_bytes": 120,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\backtrader\\stores\\btapistore.py",
+      "archive_path": "qa/replay-final/backtrader/stores/btapistore.py",
+      "source_sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "archive_sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "source_bytes": 814230,
+      "archive_bytes": 814230,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\backtrader\\stores\\ctp_account_actor_port.py",
+      "archive_path": "qa/replay-final/backtrader/stores/ctp_account_actor_port.py",
+      "source_sha256": "abcbc2f770cfc58e6f3124ac15b762e5e647dfbe93e8857d50c78f8b43146d1a",
+      "archive_sha256": "abcbc2f770cfc58e6f3124ac15b762e5e647dfbe93e8857d50c78f8b43146d1a",
+      "source_bytes": 37235,
+      "archive_bytes": 37235,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+      "archive_path": "qa/replay-final/tests/unit/stores/test_btapistore_iteration22.py",
+      "source_sha256": "399db743a4303ce407d556d2cc2a472b1445ce463a9eb48e930bb851f996e5ba",
+      "archive_sha256": "399db743a4303ce407d556d2cc2a472b1445ce463a9eb48e930bb851f996e5ba",
+      "source_bytes": 175695,
+      "archive_bytes": 175695,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-final\\tests\\unit\\stores\\test_ctp_shared_session_read_port.py",
+      "archive_path": "qa/replay-final/tests/unit/stores/test_ctp_shared_session_read_port.py",
+      "source_sha256": "bc5267fa5e9b8b0dd5d8efcf5010a88c9e56c872bbcc09a1dffe8644d98b6ac7",
+      "archive_sha256": "bc5267fa5e9b8b0dd5d8efcf5010a88c9e56c872bbcc09a1dffe8644d98b6ac7",
+      "source_bytes": 7176,
+      "archive_bytes": 7176,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-preimage\\new-file-state.json",
+      "archive_path": "qa/replay-preimage/new-file-state.json",
+      "source_sha256": "430b4293a040c5a909190f11c472adb19d35e17186c285ca718dff7bdf07cacf",
+      "archive_sha256": "430b4293a040c5a909190f11c472adb19d35e17186c285ca718dff7bdf07cacf",
+      "source_bytes": 120,
+      "archive_bytes": 120,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-preimage\\backtrader\\stores\\btapistore.py",
+      "archive_path": "qa/replay-preimage/backtrader/stores/btapistore.py",
+      "source_sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "archive_sha256": "f3e0a04a8f264a4ea42e38ce3e781c6e7ef44270803ef85120224d659ddf4231",
+      "source_bytes": 814230,
+      "archive_bytes": 814230,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-preimage\\backtrader\\stores\\ctp_account_actor_port.py",
+      "archive_path": "qa/replay-preimage/backtrader/stores/ctp_account_actor_port.py",
+      "source_sha256": "abed4ecd7b1d58949683a8446cbea1bc38104ec1b307c381dcdb6bf863b55ec0",
+      "archive_sha256": "abed4ecd7b1d58949683a8446cbea1bc38104ec1b307c381dcdb6bf863b55ec0",
+      "source_bytes": 37653,
+      "archive_bytes": 37653,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-preimage\\tests\\unit\\stores\\test_btapistore_iteration22.py",
+      "archive_path": "qa/replay-preimage/tests/unit/stores/test_btapistore_iteration22.py",
+      "source_sha256": "399db743a4303ce407d556d2cc2a472b1445ce463a9eb48e930bb851f996e5ba",
+      "archive_sha256": "399db743a4303ce407d556d2cc2a472b1445ce463a9eb48e930bb851f996e5ba",
+      "source_bytes": 175695,
+      "archive_bytes": 175695,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-r2d-independent-audit-20260927\\patch-replay-preimage\\tests\\unit\\stores\\test_ctp_shared_session_read_port.py",
+      "archive_path": "qa/replay-preimage/tests/unit/stores/test_ctp_shared_session_read_port.py",
+      "source_sha256": "89902d19d8c41fc19520f66fee2d6844720c2b1407e4f7e455ba3672151b0990",
+      "archive_sha256": "89902d19d8c41fc19520f66fee2d6844720c2b1407e4f7e455ba3672151b0990",
+      "source_bytes": 6563,
+      "archive_bytes": 6563,
+      "match": true
+    }
+  ],
+  "author_zip_validation": {
+    "sha256": "0160b69c0c91a046d2b47d5a55ddcfc2cdd6c979db5b0a023e69892d18f84a9b",
+    "members": 36,
+    "manifest_payloads": 35,
+    "manifest_sha256": "3e4b386ec95f52bb27d268a857aa4d5223d28ba2daf1952e2b6caf95eaf9f199",
+    "all_payloads_match": true,
+    "crc_bad_member": null,
+    "validation_path": "author-zip-validation.json"
+  },
+  "independent_receipt": {
+    "path": "qa/final-independent-qa-receipt.md",
+    "sha256": "c315d20a2a900bf6c4ce5eac83cec9a210bfaaf5edbd3481464766e9d6872924"
+  },
+  "notes": [
+    "All copied files matched source SHA-256 and byte count.",
+    "Raw author ZIP CRC and all 35 embedded manifest payloads were independently checked.",
+    "QA patch-replay final and preimage snapshots are included.",
+    "Evidence-only operation; main source and route were not modified."
+  ]
+}

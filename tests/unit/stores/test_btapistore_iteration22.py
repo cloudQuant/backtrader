@@ -9,6 +9,7 @@ import json
 import sys
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -2775,9 +2776,10 @@ def test_concurrent_direct_recovery_completion_reaches_sdk_once(monkeypatch):
     assert "not completable" in str(errors[0])
 
 
-@pytest.mark.parametrize("dispatch_outcome", ["rejected", "exception"])
-def test_recovery_exit_dispatch_failure_strictly_aborts_before_native_write(
-    monkeypatch, dispatch_outcome
+@pytest.mark.parametrize("market_data_only", [True, False])
+@pytest.mark.parametrize("managed_adapter", [False, True])
+def test_recovery_exit_generic_ctp_enqueue_rejects_and_aborts_before_native_write(
+    monkeypatch, market_data_only, managed_adapter
 ):
     client, store, proof, _grant, _configured = _authorized_store()
     client.recovery_report = _recovery_report()
@@ -2786,24 +2788,26 @@ def test_recovery_exit_dispatch_failure_strictly_aborts_before_native_write(
         proof,
         recovery_token_sha256=plan["recovery_token_sha256"],
     )
+    store._sdk_execution_config["market_data_only"] = market_data_only
+    if managed_adapter:
+        store._managed_execution_adapter = object()
     order = type("RecoveryOrder", (), {"info": {"execution_role": "recovery_exit"}})()
+    queue_calls = []
 
-    if dispatch_outcome == "exception":
+    def unexpected_enqueue(_order):
+        queue_calls.append(_order)
+        raise AssertionError("generic CTP queue must not be reached")
 
-        def fail_enqueue(_order):
-            raise RuntimeError("queue unavailable")
+    monkeypatch.setattr(store, "_enqueue_order_command", unexpected_enqueue)
+    error_message = (
+        "managed CTP orders must pass through the typed runtime adapter"
+        if managed_adapter
+        else "direct CTP SDK order enqueue is disabled"
+    )
+    with pytest.raises(BtApiStoreError, match=error_message):
+        store.enqueue_order(order)
 
-        monkeypatch.setattr(store, "_enqueue_order_command", fail_enqueue)
-        with pytest.raises(RuntimeError, match="queue unavailable"):
-            store.enqueue_order(order)
-    else:
-        monkeypatch.setattr(
-            store,
-            "_enqueue_order_command",
-            lambda _order: {"queued": False, "status": "rejected"},
-        )
-        assert store.enqueue_order(order) == {"queued": False, "status": "rejected"}
-
+    assert queue_calls == []
     assert client.request_counts["order_insert"] == 0
     assert client.submitted_orders == []
     assert client.armed is False
@@ -2968,7 +2972,7 @@ def test_recovery_cancel_token_is_claimed_atomically_before_dispatch(monkeypatch
     assert queued == [("client-1", None)]
 
 
-def test_managed_order_request_carries_strategy_cycle_and_recovery_role(monkeypatch):
+def test_legacy_ctp_order_request_preserves_cycle_and_runtime_binding(monkeypatch):
     class Request:
         def __init__(self, **kwargs):
             vars(self).update(kwargs)
@@ -2990,13 +2994,25 @@ def test_managed_order_request_carries_strategy_cycle_and_recovery_role(monkeypa
         "Side": lambda value: value,
     }
     monkeypatch.setattr(store, "_sdk_account_id", lambda _venue: "account-1")
+    client.get_runtime_order_bindings = lambda _venue, unresolved_only=False: []
+    framework_order = SimpleNamespace(info={})
+
+    def reserve(_venue, **kwargs):
+        assert framework_order.info["runtime_order_id"] == kwargs["runtime_order_id"]
+        return {
+            "runtime_order_id": kwargs["runtime_order_id"],
+            "client_order_id": "000000000123",
+            "ctp_order_ref": "000000000123",
+            "connection_generation": 4,
+        }
+
+    client.new_runtime_order_binding = reserve
 
     request = store._sdk_order_request(
         "CTP___FUTURE",
         {
             "symbol": "SA609",
             "bt_order_ref": 41,
-            "client_order_id": "recovery-client-1",
             "side": "sell",
             "order_type": "limit",
             "size": 1,
@@ -3011,6 +3027,7 @@ def test_managed_order_request_carries_strategy_cycle_and_recovery_role(monkeypa
             "execution_cycle_id": "sdk-cycle-1",
             "execution_role": "recovery_exit",
         },
+        framework_order=framework_order,
     )
 
     assert request.strategy_identity_sha256 == "8" * 64
@@ -3018,6 +3035,219 @@ def test_managed_order_request_carries_strategy_cycle_and_recovery_role(monkeypa
     assert request.execution_role == "recovery_exit"
     assert request.quantity_unit == "contracts"
     assert request.offset == "close"
+    assert request.client_order_id == "000000000123"
+    runtime_order_id = framework_order.info["runtime_order_id"]
+    assert runtime_order_id
+    assert runtime_order_id != "41"
+    binding = store._sdk_runtime_refs[("CTP___FUTURE", runtime_order_id)]
+    assert binding["runtime_order_id"] == runtime_order_id
+    assert binding["client_order_id"] == request.client_order_id
+    assert store._sdk_client_refs[("CTP___FUTURE", request.client_order_id)] is binding
+    assert framework_order.info["client_order_id"] == request.client_order_id
+
+
+def test_managed_ctp_request_requires_stable_runtime_identity(monkeypatch):
+    class Request:
+        def __init__(self, **kwargs):
+            vars(self).update(kwargs)
+
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+        execution_config={"market_data_only": True},
+    )
+    store._managed_execution_adapter = object()
+    store._sdk_command_types = {
+        "OrderRequest": Request,
+        "OrderType": lambda value: value,
+        "Side": lambda value: value,
+    }
+    monkeypatch.setattr(store, "_sdk_account_id", lambda _venue: "account-1")
+    lookups = []
+    reservations = []
+    client.get_runtime_order_bindings = lambda *args, **kwargs: lookups.append(
+        (args, kwargs)
+    ) or []
+    client.new_runtime_order_binding = lambda *args, **kwargs: reservations.append(
+        (args, kwargs)
+    )
+    framework_order = SimpleNamespace(info={})
+
+    with pytest.raises(BtApiStoreError, match="explicit stable runtime_order_id"):
+        store._sdk_order_request(
+            "CTP___FUTURE",
+            {
+                "symbol": "SA609",
+                "bt_order_ref": 41,
+                "side": "buy",
+                "order_type": "limit",
+                "size": 1,
+                "price": 1500,
+                "managed_intent_id": "intent.iter41",
+                "hedge_flag": "2",
+            },
+            framework_order=framework_order,
+        )
+
+    assert lookups == []
+    assert reservations == []
+    assert framework_order.info == {}
+
+
+def test_managed_ctp_request_rejects_a_second_orderref_authority(monkeypatch):
+    class Request:
+        def __init__(self, **kwargs):
+            vars(self).update(kwargs)
+
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+        execution_config={
+            "market_data_only": True,
+            "strategy_id": "iter41.ctp.strategy",
+        },
+    )
+    store._managed_execution_adapter = SimpleNamespace(
+        runtime=SimpleNamespace(
+            scope=SimpleNamespace(
+                provider="ctp",
+                environment="production",
+                account_ref="account-1",
+                strategy_id="iter41.ctp.strategy",
+            )
+        )
+    )
+    store._sdk_command_types = {
+        "OrderRequest": Request,
+        "OrderType": lambda value: value,
+        "Side": lambda value: value,
+    }
+    monkeypatch.setattr(store, "_sdk_account_id", lambda _venue: "account-1")
+    monkeypatch.setattr(
+        store,
+        "_validated_sdk_identity",
+        lambda _venue: {
+            "provider": "CTP",
+            "environment": "production",
+            "account_id": "account-1",
+            "account_alias": "account-1",
+            "strategy_id": "iter41.ctp.strategy",
+        },
+    )
+    lookups = []
+    client.get_runtime_order_bindings = lambda *args, **kwargs: lookups.append(
+        (args, kwargs)
+    ) or []
+    runtime_order_id = "bt-managed-v1:" + "a" * 64
+    framework_order = SimpleNamespace(info={})
+    reserved = []
+
+    def reserve(_venue, **kwargs):
+        reserved.append(kwargs["runtime_order_id"])
+        return {
+            "runtime_order_id": kwargs["runtime_order_id"],
+            "client_order_id": "000000000124",
+            "ctp_order_ref": "000000000124",
+            "connection_generation": 4,
+        }
+
+    client.new_runtime_order_binding = reserve
+
+    with pytest.raises(BtApiStoreError, match="single execution outbox"):
+        store._sdk_order_request(
+            "CTP___FUTURE",
+            {
+                "symbol": "SA609",
+                "bt_order_ref": 41,
+                "side": "buy",
+                "order_type": "limit",
+                "size": 1,
+                "price": 1500,
+                "runtime_order_id": runtime_order_id,
+                "managed_intent_id": "intent.iter41.bridge",
+                "hedge_flag": "2",
+            },
+            framework_order=framework_order,
+        )
+
+    assert reserved == []
+    assert lookups == []
+    assert framework_order.info == {}
+
+
+def test_managed_ctp_request_rejects_scope_outside_authenticated_account(monkeypatch):
+    class Request:
+        def __init__(self, **kwargs):
+            vars(self).update(kwargs)
+
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+        execution_config={
+            "market_data_only": True,
+            "strategy_id": "iter41.ctp.strategy",
+        },
+    )
+    store._managed_execution_adapter = SimpleNamespace(
+        runtime=SimpleNamespace(
+            scope=SimpleNamespace(
+                provider="ctp",
+                environment="production",
+                account_ref="another-account",
+                strategy_id="iter41.ctp.strategy",
+            )
+        )
+    )
+    store._sdk_command_types = {
+        "OrderRequest": Request,
+        "OrderType": lambda value: value,
+        "Side": lambda value: value,
+    }
+    monkeypatch.setattr(store, "_sdk_account_id", lambda _venue: "account-1")
+    monkeypatch.setattr(
+        store,
+        "_validated_sdk_identity",
+        lambda _venue: {
+            "provider": "CTP",
+            "environment": "production",
+            "account_id": "account-1",
+            "account_alias": "account-1",
+            "strategy_id": "iter41.ctp.strategy",
+        },
+    )
+    lookup_calls = []
+    reserve_calls = []
+    client.get_runtime_order_bindings = lambda *args, **kwargs: lookup_calls.append(
+        (args, kwargs)
+    ) or []
+    client.new_runtime_order_binding = lambda *args, **kwargs: reserve_calls.append(
+        (args, kwargs)
+    )
+
+    with pytest.raises(BtApiStoreError, match="account scope differs"):
+        store._sdk_order_request(
+            "CTP___FUTURE",
+            {
+                "symbol": "SA609",
+                "bt_order_ref": 41,
+                "side": "buy",
+                "order_type": "limit",
+                "size": 1,
+                "price": 1500,
+                "runtime_order_id": "bt-managed-v1:" + "b" * 64,
+                "managed_intent_id": "intent.iter41.scope",
+                "hedge_flag": "2",
+            },
+        )
+
+    assert lookup_calls == []
+    assert reserve_calls == []
 
 
 @pytest.mark.parametrize(

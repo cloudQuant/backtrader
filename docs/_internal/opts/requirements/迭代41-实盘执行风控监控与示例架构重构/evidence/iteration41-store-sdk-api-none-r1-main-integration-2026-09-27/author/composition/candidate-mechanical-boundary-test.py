@@ -1,0 +1,153 @@
+from types import SimpleNamespace
+
+import pytest
+
+import examples.ctp_options_simnow_mechanical_operator as mechanical
+
+
+class _ReachedApprovedSettlementBoundary(Exception):
+    """Sentinel stopping the fake flow before any API or write operation."""
+
+
+def _config():
+    return mechanical.MechanicalConfiguration(
+        environment="second_7x24",
+        product_id="SA",
+        exchange_id="CZCE",
+        future_instrument_id="SA701",
+        call_instrument_id="SA701C1500",
+        put_instrument_id="SA701P1500",
+    )
+
+
+def _replace_prior_admission_with_fake_stubs(monkeypatch, tmp_path):
+    """Skip disabled approval setup without reading files or credentials."""
+    monkeypatch.setattr(mechanical, "MECHANICAL_EXECUTION_ENABLED", True)
+    monkeypatch.setattr(
+        mechanical,
+        "_require_external_receipt_path",
+        lambda path, reason: tmp_path / "synthetic-receipt.json",
+    )
+    monkeypatch.setattr(mechanical, "_require_pinned_trust_root", lambda *args: None)
+    monkeypatch.setattr(
+        mechanical,
+        "_load_external_entry_approval",
+        lambda *args, **kwargs: {"payload": {"issuer_key_id": "fake-issuer"}},
+    )
+    monkeypatch.setattr(mechanical, "_calendar_receipt_sha256", lambda *args: "a" * 64)
+    monkeypatch.setattr(mechanical, "_read_json_mapping", lambda *args: {})
+    monkeypatch.setattr(mechanical, "_contains_private_key_material", lambda value: False)
+    monkeypatch.setattr(mechanical, "resolve_credentials", lambda env: {"synthetic": "only"})
+    monkeypatch.setattr(mechanical, "resolve_fronts", lambda env, environment: {"synthetic": "only"})
+
+
+class _ApiMissingStore:
+    def __init__(self):
+        self.private_ready_calls = 0
+
+    @property
+    def sdk_api(self):
+        return None
+
+    def _ensure_api_ready(self):
+        self.private_ready_calls += 1
+        raise AssertionError("private lazy-connect fallback must not run")
+
+
+def test_sdk_api_none_fails_before_private_ensure_api_ready(monkeypatch, tmp_path):
+    _replace_prior_admission_with_fake_stubs(monkeypatch, tmp_path)
+    store = _ApiMissingStore()
+
+    with pytest.raises(mechanical.MechanicalBlocked, match="STORE_SDK_API_NOT_READY"):
+        mechanical.run_mechanical_cycle(
+            _config(), {}, state_directory=tmp_path, store=store
+        )
+
+    assert store.private_ready_calls == 0
+
+
+def test_supplied_public_sdk_api_is_preserved_without_private_fallback(monkeypatch, tmp_path):
+    _replace_prior_admission_with_fake_stubs(monkeypatch, tmp_path)
+    api = object()
+
+    class _ApiPresentStore:
+        def __init__(self):
+            self.api_reads = 0
+            self.private_ready_calls = 0
+            self.preflight_calls = []
+
+        @property
+        def sdk_api(self):
+            self.api_reads += 1
+            return api
+
+        def _ensure_api_ready(self):
+            self.private_ready_calls += 1
+            raise AssertionError("public API path must not invoke private lazy-connect")
+
+        def get_ctp_preflight_snapshot(self, *args, **kwargs):
+            self.preflight_calls.append((args, kwargs))
+            return {"snapshot_sha256": "c" * 64}
+
+        def get_ctp_bundle_preflight_snapshot(self, *args, **kwargs):
+            return {"snapshot_sha256": "c" * 64}
+
+    store = _ApiPresentStore()
+    future = SimpleNamespace(
+        exchange_id="CZCE", instrument_id="SA701", tick_size=1.0, multiplier=10.0
+    )
+    call = SimpleNamespace(
+        exchange_id="CZCE", instrument_id="SA701C1500", tick_size=1.0, multiplier=10.0
+    )
+    put = SimpleNamespace(
+        exchange_id="CZCE", instrument_id="SA701P1500", tick_size=1.0, multiplier=10.0
+    )
+    bundle = SimpleNamespace(exchange_id="CZCE", future=future, call=call, put=put)
+    snapshot = {"snapshot_sha256": "d" * 64}
+    evidence = {
+        "bundle": bundle,
+        "execution_reference": dict(snapshot),
+        "stage_a": dict(snapshot),
+        "stage_b": dict(snapshot),
+        "bundle_preflight": dict(snapshot),
+        "reconciliation_rounds": [dict(snapshot), dict(snapshot)],
+    }
+    monkeypatch.setattr(mechanical, "collect_three_leg_evidence", lambda *args: evidence)
+    monkeypatch.setattr(
+        mechanical,
+        "_runtime_hashes",
+        lambda: {
+            "backtrader": "1" * 64,
+            "bt_api_py": "2" * 64,
+            "bt_api_ctp": "3" * 64,
+            "runtime_executable": "4" * 64,
+        },
+    )
+    monkeypatch.setattr(mechanical, "_sha256_file", lambda *args: "5" * 64)
+    monkeypatch.setattr(mechanical, "derive_bundle_preflight", lambda *args: {})
+    monkeypatch.setattr(mechanical, "runtime_environment_profile", lambda store_arg: "simnow_demo")
+    monkeypatch.setattr(mechanical, "_mechanical_gate_binding", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        mechanical,
+        "verify_external_mechanical_gate_receipt",
+        lambda *args, **kwargs: {
+            "receipt_sha256": "6" * 64,
+            "gate_statuses": {"G1": "PASS", "G2": "PASS", "G3": "PASS"},
+        },
+    )
+
+    def stop_before_settlement_write(store_arg, api_arg, *args, **kwargs):
+        assert store_arg is store
+        assert api_arg is api
+        raise _ReachedApprovedSettlementBoundary()
+
+    monkeypatch.setattr(mechanical, "_confirm_settlement_with_approval", stop_before_settlement_write)
+
+    with pytest.raises(_ReachedApprovedSettlementBoundary):
+        mechanical.run_mechanical_cycle(
+            _config(), {}, state_directory=tmp_path, store=store
+        )
+
+    assert store.api_reads == 1
+    assert store.private_ready_calls == 0
+    assert len(store.preflight_calls) >= 1

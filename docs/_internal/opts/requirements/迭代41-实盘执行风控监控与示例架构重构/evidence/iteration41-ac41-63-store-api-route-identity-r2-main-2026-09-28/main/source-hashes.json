@@ -1,0 +1,54 @@
+{
+  "current_dispositions": {
+    "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json",
+    "sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426"
+  },
+  "current_inventory": {
+    "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-inventory-candidates.json",
+    "sha256": "0874A81AC23BA4F659ACAAC833A976ECEC44FA892A3A97778EA3D9779DB67A67"
+  },
+  "guarded_store_harness": [
+    {
+      "path": "main/store-guard/harness/run_store.py",
+      "sha256": "EFABC33371E6C4409B7FED66C34E30DF0C06BC990C0A803C964E8554736E1B57"
+    },
+    {
+      "path": "main/store-guard/final/guard/sitecustomize.py",
+      "sha256": "E9C96E4196A8AFF2D21377F7B557777C07066F6D16AC6E09672C07AA108DBFD9"
+    },
+    {
+      "path": "main/store-guard/harness/probe_guard.py",
+      "sha256": "E708E92A4E8F409DBC787EF9AD9E89E3160F495464B28F338CF84F8ACD8FA528"
+    },
+    {
+      "path": "main/store-guard/harness/run_guarded_main_broad.py",
+      "sha256": "9309BEC20DF58CEE72C1B29238381B7C4F3763E7097639739B8D9B1501AFF55C"
+    }
+  ],
+  "main_identity_test": {
+    "path": "tests/unit/stores/test_btapistore_api_route_identity.py",
+    "sha256": "4AD2A69E10B918708D01113C0D2748A692167F96EF481C17A1ED31F57B73C45A"
+  },
+  "main_store": {
+    "path": "backtrader/stores/btapistore.py",
+    "sha256": "CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA"
+  },
+  "scanner_sources": [
+    {
+      "path": "scripts/verify_iteration41_writer_dispositions.py",
+      "sha256": "8508BF4E394BFB77EA369710B3A37AA1F6FA987DF4484BFEA413CA4ACC97CA53"
+    },
+    {
+      "path": "tests/unit/scripts/test_collect_iteration41_writer_inventory.py",
+      "sha256": "C133E3DF976E572EBE2D1017497D10549A0DF7398A88F1B0FFD25E8E80C5ED6E"
+    },
+    {
+      "path": "tests/unit/scripts/test_collect_iteration41_writer_indirect_dispatch.py",
+      "sha256": "BE777538AC686463EDF07C96D3848715B714D368126A160E42888C4331931DB6"
+    },
+    {
+      "path": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py",
+      "sha256": "4CE31FE03CF0671FD573157E27DBF3E8D35266B6FBACE96A830CF8F0F8A73824"
+    }
+  ]
+}

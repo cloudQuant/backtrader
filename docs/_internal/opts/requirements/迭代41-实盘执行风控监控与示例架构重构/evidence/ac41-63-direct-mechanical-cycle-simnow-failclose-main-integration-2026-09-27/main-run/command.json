@@ -1,0 +1,36 @@
+{
+  "schema": "ac41-63.direct-dispatch-main-rerun.v1",
+  "cwd": "D:\\source_code\\backtrader",
+  "interpreter": "C:\\anaconda3\\python.exe",
+  "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.26100-SP0",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "BT_API_TEST_SOURCE_ROOTS": "unset"
+  },
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-p",
+    "no:asyncio",
+    "tests/unit/test_ctp_options_simnow_mechanical_cycle.py",
+    "tests/unit/test_ctp_options_simnow_live_runner.py",
+    "tests/integration/test_iteration41_ctp_mechanical_managed_replay_l2.py",
+    "-q",
+    "--tb=short",
+    "-rs",
+    "--junitxml=<archive>/main-run/pytest.junit.xml"
+  ],
+  "result": {
+    "tests": 53,
+    "passed": 52,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 1,
+    "exit_code": 0
+  },
+  "skip_reason": "Optional Iteration 41 source module bt_api_execution unavailable; integration child did not launch."
+}

@@ -1,0 +1,10 @@
+# Copy to config.yaml in this directory. The entrypoint never searches the CWD.
+# It runs only the local synthetic replay and cannot select SimNow or live execution.
+config_schema_version: 4
+strategy:
+  id: example.013_3.sa_midfreq_simnow
+runtime:
+  mode: simulation
+  preset: replay
+parameters:
+  scenario: no_signal

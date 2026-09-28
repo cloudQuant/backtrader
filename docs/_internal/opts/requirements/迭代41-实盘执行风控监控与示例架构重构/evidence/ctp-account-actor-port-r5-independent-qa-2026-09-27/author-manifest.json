@@ -1,0 +1,88 @@
+{
+  "base_manifest_sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8",
+  "candidate": "ctp-account-actor-port-r5-local-fake",
+  "files": [
+    {
+      "path": "patch/r5.patch",
+      "sha256": "5646bcd7959d2be35f0eb38299b26f4d3cffea5c8cd4a6ab5add902e3b3e8d6c",
+      "size_bytes": 31903
+    },
+    {
+      "path": "source/account_actor_port.py",
+      "sha256": "59aaa45c0c1383b339e631d850196d635b9e8f4e6867fcfd58e5c9d31e827492",
+      "size_bytes": 30975
+    },
+    {
+      "path": "source/INTEGRATION_CONTRACT.md",
+      "sha256": "7cd77a60718015eb28f36763c34b81e791b756d2fff7a9e3f26508b0bbd1471d",
+      "size_bytes": 6369
+    },
+    {
+      "path": "source/MAIN_SOURCE_INVENTORY.md",
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2",
+      "size_bytes": 2730
+    },
+    {
+      "path": "source/README.md",
+      "sha256": "79426fa218d8694543a53516ef44034c75b20e4fc17a6a5b5b337a336dc44116",
+      "size_bytes": 1572
+    },
+    {
+      "path": "source/store_boundary_harness.py",
+      "sha256": "d6068b0ede8f281fcc9e33e869949be38e2791d1c42c18446eab7bbd2936bfce",
+      "size_bytes": 6020
+    },
+    {
+      "path": "source/store_boundary_harness_testonly.py",
+      "sha256": "7ebbce66cdc13c0513361948c5899da16d3cf4aa1f401163c138680328d7eb05",
+      "size_bytes": 1970
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "sha256": "b63de6a5f2ea5aa75e5216198e0ef9da4b471763837462fbcc7899dcfdd9fb54",
+      "size_bytes": 37568
+    },
+    {
+      "path": "JUnit/r5-results.xml",
+      "sha256": "5b0c0477cca008a3637d47cd823043748bb09b328cc42ff5b2ab653ed72fb284",
+      "size_bytes": 6562
+    },
+    {
+      "path": "evidence/compile-results.txt",
+      "sha256": "430f256e3c70a1736feded8c8e4123831128dee2c7b9220ab2f8f272f09920b5",
+      "size_bytes": 222
+    },
+    {
+      "path": "evidence/patch-application-check.txt",
+      "sha256": "3270f1d5991dc76226e8b7e94d338b814bba5409f6d69bb1ef9e686d3902d146",
+      "size_bytes": 326
+    },
+    {
+      "path": "evidence/pytest-junit.log",
+      "sha256": "94a18286c0eddb16f625a79148b5e05ebc0ffabe3b9c660de715c9487992c66e",
+      "size_bytes": 202
+    },
+    {
+      "path": "evidence/R4-INPUT-VERIFICATION.md",
+      "sha256": "795ef7b964502b77023804f01dcad334ff43cc16863470a7ade7a67592f058a7",
+      "size_bytes": 798
+    },
+    {
+      "path": "evidence/REPORT.md",
+      "sha256": "63cee3f42d935f9ae83bb2a0ce69524e7d956375bdcca58d234b8970de9f4aea",
+      "size_bytes": 3159
+    },
+    {
+      "path": "evidence/ruff-results.txt",
+      "sha256": "295ef634a11d0a4ea18fc21f80bbba9ecda3a62d0cce79872cc16bc47199936d",
+      "size_bytes": 200
+    },
+    {
+      "path": "evidence/unittest.log",
+      "sha256": "950774a192deb7fd2c9d2d4864ab9cdf37653ae634f715b2e873fee14fe4c104",
+      "size_bytes": 7242
+    }
+  ],
+  "result": "LOCAL_FAKE_CONTRACT_PASS",
+  "schema": "iteration41-account-actor-port-r5-freeze.v1"
+}

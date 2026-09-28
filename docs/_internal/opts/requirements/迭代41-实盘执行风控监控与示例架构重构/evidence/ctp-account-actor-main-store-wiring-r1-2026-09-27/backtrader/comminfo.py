@@ -1,0 +1,676 @@
+#!/usr/bin/env python
+"""
+Refactored CommInfo system (Day 44)
+
+Migrated CommInfo system from MetaParams to new ParameterizedBase system.
+Maintains fully backward compatible API interface.
+"""
+
+import inspect
+
+from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase, _BoolValidator
+
+
+class _StockLikeDescriptor(ParameterDescriptor):
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+
+        try:
+            return object.__getattribute__(obj, "_stocklike")
+        except AttributeError:
+            return super().__get__(obj, objtype)
+
+
+class CommInfoBase(ParameterizedBase):
+    """Base Class for the Commission Schemes.
+
+    Migrated from MetaParams to ParameterizedBase system for better
+    parameter management and validation.
+
+    Params:
+      - commission (def: 0.0): base commission value in percentage or monetary units
+      - mult (def 1.0): multiplier applied to the asset for value/profit
+      - margin (def: None): amount of monetary units needed to open/hold an operation
+      - automargin (def: False): Used by get_margin to automatically calculate margin
+      - commtype (def: None): Commission type (COMM_PERC/COMM_FIXED)
+      - stocklike (def: False): Indicates if the instrument is Stock-like or Futures-like
+      - percabs (def: False): whether commission is XX% or 0.XX when commtype is COMM_PERC
+      - interest (def: 0.0): yearly interest charged for holding short selling position
+      - interest_long (def: False): whether to charge interest on long positions
+      - leverage (def: 1.0): amount of leverage for the asset
+    """
+
+    # Commission type constants
+    COMM_PERC, COMM_FIXED = 0, 1
+
+    # Parameter descriptor definitions
+    commission = ParameterDescriptor(
+        default=0.0,
+        type_=float,
+        validator=Float(min_val=0.0),  # Non-negative validation
+        doc="Base commission, percentage or monetary units",
+    )
+
+    maker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional maker commission override, percentage or monetary units",
+    )
+
+    taker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional taker commission override, percentage or monetary units",
+    )
+
+    open_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional opening commission override, percentage or monetary units",
+    )
+
+    close_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional closing commission override, percentage or monetary units",
+    )
+
+    close_today_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional close-today commission override, percentage or monetary units",
+    )
+
+    close_yesterday_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional close-yesterday commission override, percentage or monetary units",
+    )
+
+    mult = ParameterDescriptor(
+        default=1.0,
+        type_=float,
+        validator=Float(min_val=0.001),
+        doc="Asset multiplier",  # Must be positive
+    )
+
+    margin = ParameterDescriptor(default=None, doc="Margin amount")
+
+    commtype = ParameterDescriptor(
+        default=None, type_=(int, type(None)), doc="Commission type (COMM_PERC/COMM_FIXED)"
+    )
+
+    stocklike = _StockLikeDescriptor(
+        default=False, type_=bool, validator=_BoolValidator(), doc="Whether stock type"
+    )
+
+    percabs = BoolParam(default=False, doc="Whether percentage is absolute value")
+
+    interest = ParameterDescriptor(
+        default=0.0,
+        type_=float,
+        validator=Float(min_val=0.0),
+        doc="Annual interest rate",  # Non-negative validation
+    )
+
+    interest_long = BoolParam(default=False, doc="Whether to charge interest on long positions")
+
+    leverage = ParameterDescriptor(
+        default=1.0,
+        type_=float,
+        validator=Float(min_val=0.001),
+        doc="Leverage level",  # Must be positive
+    )
+
+    automargin = ParameterDescriptor(
+        default=False, type_=(bool, float), doc="Automatic margin calculation"
+    )
+
+    def __init__(self, **kwargs):
+        """Initialize CommInfo object"""
+        super().__init__()
+
+        # Special handling for margin parameter None value validation
+        if "margin" in kwargs:
+            margin_value = kwargs["margin"]
+            if margin_value is not None and margin_value < 0.0:
+                raise ValueError(f"margin must be non-negative, got {margin_value}")
+
+        # Set passed parameters
+        for name, value in kwargs.items():
+            if name in self._param_manager._descriptors:
+                # Skip margin standard validation, already handled above
+                if name == "margin":
+                    self._param_manager.set(name, value, skip_validation=True)
+                else:
+                    self.set_param(name, value)
+
+        # Execute parameter post-processing and compatibility settings
+        self._post_init_setup()
+
+    def _post_init_setup(self):
+        """Parameter post-processing and internal state setup"""
+        # Get initial values from parameters
+        self._stocklike = self.get_param("stocklike")
+        self._commtype = self.get_param("commtype")
+
+        # Compatibility logic: if commtype is None, set type based on margin (consistent with original implementation)
+        if self._commtype is None:
+            if self.get_param("margin"):
+                self._stocklike = False
+                self._commtype = self.COMM_FIXED
+            else:
+                self._stocklike = True
+                self._commtype = self.COMM_PERC
+
+        # PERFORMANCE OPTIMIZATION: Cache mult parameter (called 1.55M+ times)
+        self._mult = self.get_param("mult")
+
+        # Parameter post-processing (consistent with original implementation)
+        if not self._stocklike and not self.get_param("margin"):
+            # Directly modify value in parameter manager to avoid validation issues
+            self._param_manager.set("margin", 1.0, skip_validation=True)
+
+        # Handle percentage commission conversion (important! consistent with original implementation)
+        if self._commtype == self.COMM_PERC and not self.get_param("percabs"):
+            current_commission = self.get_param("commission")
+            # Directly modify parameter value to avoid duplicate conversion
+            self._param_manager.set("commission", current_commission / 100.0, skip_validation=True)
+            for name in (
+                "maker_commission",
+                "taker_commission",
+                "open_commission",
+                "close_commission",
+                "close_today_commission",
+                "close_yesterday_commission",
+            ):
+                value = self.get_param(name)
+                if value is not None:
+                    self._param_manager.set(name, value / 100.0, skip_validation=True)
+
+        # Calculate interest rate (guard against None interest)
+        interest = self.get_param("interest")
+        self._creditrate = (interest or 0.0) / 365.0
+        self._margin = self.get_param("margin")
+        self._automargin = self.get_param("automargin")
+        self._leverage_param = self.get_param("leverage")
+        self._interest_long = self.get_param("interest_long")
+
+    __getattribute__ = object.__getattribute__
+
+    def set_param(self, name, value, validate=True):
+        """Set a parameter and refresh the cached commission attributes.
+
+        Keeps the fast-path caches (``_margin``, ``_automargin``,
+        ``_leverage_param``, ``_interest_long``) in step with the parameter
+        store so hot-path lookups can bypass ``get_param``.
+
+        Args:
+            name: Parameter name.
+            value: New value.
+            validate: Whether the descriptor should validate ``value``.
+        """
+        super().set_param(name, value, validate=validate)
+        if name == "margin":
+            self._margin = value
+        elif name == "automargin":
+            self._automargin = value
+        elif name == "leverage":
+            self._leverage_param = value
+        elif name == "interest_long":
+            self._interest_long = value
+        elif name == "interest":
+            self._creditrate = (value or 0.0) / 365.0
+        elif name == "mult":
+            self._mult = value
+        elif name == "stocklike":
+            self._stocklike = value
+        elif name == "commtype":
+            self._commtype = value
+
+    def get_margin(self, price):
+        """Returns the actual margin/guarantees needed for a single item of the
+        asset at the given price. The default implementation has this policy:
+
+          - Use param ``margin`` if param ``automargin`` evaluates to ``False``
+          - Use param ``mult`` * ``price`` if ``automargin < 0``
+          - Use param ``automargin`` * ``price`` if ``automargin > 0``
+        """
+        automargin = self._automargin
+        if not automargin:
+            return self._margin
+        if automargin < 0:
+            return price * self._mult
+        return price * automargin
+
+    def get_leverage(self):
+        """Returns the level of leverage allowed for this commission scheme"""
+        return self._leverage_param
+
+    def getsize(self, price, cash):
+        """Returns the needed size to meet a cash operation at a given price"""
+        if not price:
+            return 0
+        leverage = self._leverage_param
+        if not self._stocklike:
+            margin = self.get_margin(price)
+            if not margin:
+                return 0
+            return leverage * (cash // margin)
+        return leverage * (cash // price)
+
+    def getoperationcost(self, size, price):
+        """Returns the needed amount of cash an operation would cost"""
+        if not self._stocklike:
+            return abs(size) * self.get_margin(price)
+        return abs(size) * price
+
+    def getvaluesize(self, size, price):
+        """Returns the value of size for given a price. For future-like
+        objects it is fixed at size * margin"""
+        if not self._stocklike:
+            return abs(size) * self.get_margin(price)
+        return size * price
+
+    def getvalue(self, position, price):
+        """Returns the value of a position given a price. For future-like
+        objects it is fixed at size * margin"""
+        if not self._stocklike:
+            return abs(position.size) * self.get_margin(price)
+
+        size = position.size
+        if size >= 0:
+            return size * price
+
+        # With stocks, a short position is worth more as the price goes down
+        value = position.price * size  # original value
+        value += (position.price - price) * size  # increased value
+        return value
+
+    def _resolve_commission_rate(self, role=None):
+        """Return the commission rate for the requested fill role."""
+        role_text = str(role or "").strip().lower()
+        if role_text in {"open", "opened"}:
+            open_commission = self.get_param("open_commission")
+            if open_commission is not None:
+                return open_commission
+
+        if role_text in {"close_today", "closetoday"}:
+            close_today_commission = self.get_param("close_today_commission")
+            if close_today_commission is not None:
+                return close_today_commission
+            close_commission = self.get_param("close_commission")
+            if close_commission is not None:
+                return close_commission
+
+        if role_text in {"close_yesterday", "closeyesterday"}:
+            close_yesterday_commission = self.get_param("close_yesterday_commission")
+            if close_yesterday_commission is not None:
+                return close_yesterday_commission
+            close_commission = self.get_param("close_commission")
+            if close_commission is not None:
+                return close_commission
+
+        if role_text in {"close", "closed"}:
+            close_commission = self.get_param("close_commission")
+            if close_commission is not None:
+                return close_commission
+
+        if role == "maker":
+            maker_commission = self.get_param("maker_commission")
+            if maker_commission is not None:
+                return maker_commission
+
+        if role == "taker":
+            taker_commission = self.get_param("taker_commission")
+            if taker_commission is not None:
+                return taker_commission
+
+        return self.get_param("commission")
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        """Calculates the commission of an operation at a given price
+
+        pseudoexec: if True the operation has not yet been executed
+        """
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
+        if self._commtype == self.COMM_PERC:
+            return abs(size) * commission * price
+        return abs(size) * commission
+
+    def _call_getcommission(self, size, price, pseudoexec, role=None):
+        """Call custom _getcommission overrides with backwards compatibility."""
+        accepts_role = getattr(self, "_getcommission_accepts_role", None)
+        if accepts_role is None:
+            try:
+                parameters = inspect.signature(self._getcommission).parameters
+                accepts_role = "role" in parameters or any(
+                    param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()
+                )
+            except (TypeError, ValueError):
+                accepts_role = True
+            self._getcommission_accepts_role = accepts_role
+
+        if accepts_role:
+            return self._getcommission(size, price, pseudoexec=pseudoexec, role=role)
+        return self._getcommission(size, price, pseudoexec)
+
+    def getcommission(self, size, price, role=None):
+        """Calculates the commission of an operation at a given price."""
+        return self._call_getcommission(size, price, pseudoexec=True, role=role)
+
+    def confirmexec(self, size, price, role=None):
+        """Confirms execution and returns commission."""
+        return self._call_getcommission(size, price, pseudoexec=False, role=role)
+
+    def profitandloss(self, size, price, newprice):
+        """Return actual profit and loss a position has"""
+        # PERFORMANCE OPTIMIZATION: Use cached _mult
+        return size * (newprice - price) * self._mult
+
+    def cashadjust(self, size, price, newprice):
+        """Calculates cash adjustment for a given price difference"""
+        if not self._stocklike:
+            # PERFORMANCE OPTIMIZATION: Use cached _mult
+            return size * (newprice - price) * self._mult
+        return 0.0
+
+    def get_credit_interest(self, data, pos, dt):
+        """Calculates the credit due for short selling or product specific"""
+        size, price = pos.size, pos.price
+
+        if size > 0 and not self._interest_long:
+            return 0.0  # long positions not charged
+
+        dt0 = dt.date()
+        dt1 = pos.datetime.date()
+
+        if dt0 <= dt1:
+            return 0.0
+
+        return self._get_credit_interest(data, size, price, (dt0 - dt1).days, dt0, dt1)
+
+    def _get_credit_interest(self, data, size, price, days, dt0, dt1):
+        """
+        This method returns the cost in terms of credit interest charged by
+        the broker.
+
+        The formula: ``days * price * abs(size) * (interest / 365)``
+        """
+        return days * self._creditrate * abs(size) * price
+
+
+class CommissionInfo(CommInfoBase):
+    """Base Class for the actual Commission Schemes.
+
+    CommInfoBase was created to keep support for the original, incomplete,
+    support provided by *backtrader*. New commission schemes derive from this
+    class which subclasses ``CommInfoBase``.
+
+    The default value of ``percabs`` is also changed to ``True``
+    """
+
+    percabs = BoolParam(default=True, doc="Whether percentage is absolute value")
+
+
+class ComminfoDC(CommInfoBase):
+    """Digital currency commission class"""
+
+    stocklike = ParameterDescriptor(default=False, type_=bool)
+    commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
+    percabs = ParameterDescriptor(default=True, type_=bool)
+    interest = ParameterDescriptor(default=3.0, type_=float)
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
+        mult = self.get_param("mult")
+        return abs(size) * price * mult * commission
+
+    def get_margin(self, price):
+        """Calculate the margin required for digital currency trading.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
+        mult = self.get_param("mult")
+        margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
+        return price * mult * margin
+
+    def get_credit_interest(self, data, pos, dt):
+        """Simplified implementation for digital currency interest calculation"""
+        size, price = pos.size, pos.price
+        dt0 = dt
+        dt1 = pos.datetime
+        gap_seconds = (dt0 - dt1).total_seconds()
+        days = gap_seconds / (24.0 * 60.0 * 60.0)
+
+        mult = self.get_param("mult")
+        position_value = size * price * mult
+
+        # Simplified interest calculation logic
+        total_value = self.broker.getvalue() if hasattr(self, "broker") else abs(position_value)
+        if size > 0 and position_value > total_value:
+            return days * self._creditrate * (position_value - total_value)
+        if size > 0 and position_value <= total_value:
+            return 0
+        if size < 0:
+            return days * self._creditrate * position_value
+        return 0
+
+
+class ComminfoFuturesPercent(CommInfoBase):
+    """Futures percentage commission class"""
+
+    commission = ParameterDescriptor(default=0.0, type_=float)
+    mult = ParameterDescriptor(default=1.0, type_=float)
+    margin = ParameterDescriptor(default=None)
+    margin_amount = ParameterDescriptor(default=None)
+    stocklike = ParameterDescriptor(default=False, type_=bool)
+    commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
+    percabs = ParameterDescriptor(default=True, type_=bool)
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
+        mult = self.get_param("mult")
+        return abs(size) * price * mult * commission
+
+    def get_margin(self, price):
+        """Calculate the margin required for futures percentage commission.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
+        margin_amount = self.get_param("margin_amount")
+        if margin_amount is not None and margin_amount > 0:
+            return margin_amount
+        mult = self.get_param("mult")
+        margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
+        return price * mult * margin
+
+
+class ComminfoFuturesMixed(ComminfoFuturesPercent):
+    """Futures commission with both percentage and fixed per-lot components."""
+
+    commission_amount = ParameterDescriptor(default=0.0, type_=float)
+    open_commission_amount = ParameterDescriptor(default=None)
+    close_commission_amount = ParameterDescriptor(default=None)
+    close_today_commission_amount = ParameterDescriptor(default=None)
+    close_yesterday_commission_amount = ParameterDescriptor(default=None)
+
+    def _resolve_commission_amount(self, role=None):
+        role_text = str(role or "").strip().lower()
+        if role_text in {"open", "opened"}:
+            open_amount = self.get_param("open_commission_amount")
+            if open_amount is not None:
+                return open_amount
+
+        if role_text in {"close_today", "closetoday"}:
+            close_today_amount = self.get_param("close_today_commission_amount")
+            if close_today_amount is not None:
+                return close_today_amount
+            close_amount = self.get_param("close_commission_amount")
+            if close_amount is not None:
+                return close_amount
+
+        if role_text in {"close_yesterday", "closeyesterday"}:
+            close_yesterday_amount = self.get_param("close_yesterday_commission_amount")
+            if close_yesterday_amount is not None:
+                return close_yesterday_amount
+            close_amount = self.get_param("close_commission_amount")
+            if close_amount is not None:
+                return close_amount
+
+        if role_text in {"close", "closed"}:
+            close_amount = self.get_param("close_commission_amount")
+            if close_amount is not None:
+                return close_amount
+
+        return self.get_param("commission_amount")
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        percent_commission = self._resolve_commission_rate(role)
+        fixed_commission = self._resolve_commission_amount(role)
+        mult = self.get_param("mult")
+        return abs(size) * price * mult * percent_commission + abs(size) * fixed_commission
+
+
+class ComminfoFuturesInverse(ComminfoFuturesMixed):
+    """Inverse futures commission and PnL using fixed contract notional.
+
+    Crypto inverse contracts quote PnL and fees from a fixed contract value,
+    for example BTC-USD-SWAP with a 100 USD contract value.  Their quote-value
+    PnL changes with the price ratio rather than a linear ``price * mult``
+    notional.
+    """
+
+    def _contract_notional(self, size):
+        return abs(size) * self.get_param("mult")
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = price, pseudoexec
+        percent_commission = self._resolve_commission_rate(role)
+        fixed_commission = self._resolve_commission_amount(role)
+        return self._contract_notional(size) * percent_commission + abs(size) * fixed_commission
+
+    def get_margin(self, price):
+        """Return per-contract margin from fixed contract notional."""
+        _ = price
+        margin_amount = self.get_param("margin_amount")
+        if margin_amount is not None and margin_amount > 0:
+            return margin_amount
+        margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
+        return self.get_param("mult") * margin
+
+    def profitandloss(self, size, price, newprice):
+        """Return quote-equivalent inverse-contract PnL."""
+        if not price or not newprice:
+            return 0.0
+        return size * self.get_param("mult") * ((newprice / price) - 1.0)
+
+    def cashadjust(self, size, price, newprice):
+        """Mark inverse futures with the same quote-equivalent PnL rule."""
+        return self.profitandloss(size, price, newprice)
+
+
+class ComminfoFuturesFixed(CommInfoBase):
+    """Futures fixed commission class"""
+
+    commission = ParameterDescriptor(default=0.0, type_=float)
+    mult = ParameterDescriptor(default=1.0, type_=float)
+    margin = ParameterDescriptor(default=None)
+    margin_amount = ParameterDescriptor(default=None)
+    stocklike = ParameterDescriptor(default=False, type_=bool)
+    commtype = ParameterDescriptor(default=CommInfoBase.COMM_FIXED, type_=int)
+    percabs = ParameterDescriptor(default=True, type_=bool)
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
+        return abs(size) * commission
+
+    def get_margin(self, price):
+        """Calculate the margin required for futures fixed commission.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
+        margin_amount = self.get_param("margin_amount")
+        if margin_amount is not None and margin_amount > 0:
+            return margin_amount
+        mult = self.get_param("mult")
+        margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
+        return price * mult * margin
+
+
+class ComminfoFundingRate(CommInfoBase):
+    """Funding rate class"""
+
+    commission = ParameterDescriptor(default=0.0, type_=float)
+    mult = ParameterDescriptor(default=1.0, type_=float)
+    margin = ParameterDescriptor(default=None)
+    stocklike = ParameterDescriptor(default=False, type_=bool)
+    commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
+    percabs = ParameterDescriptor(default=True, type_=bool)
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
+        mult = self.get_param("mult")
+        total_commission = abs(size) * price * mult * commission
+        return total_commission
+
+    def get_margin(self, price):
+        """Calculate the margin required for funding rate trading.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
+        mult = self.get_param("mult")
+        margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
+        return price * mult * margin
+
+    def get_credit_interest(self, data, pos, dt):
+        """Calculate funding rate for Binance futures"""
+        size, price = pos.size, pos.price
+
+        # Calculate current position value
+        try:
+            current_price = data.mark_price_open[1]
+        except (IndexError, AttributeError):
+            try:
+                current_price = data.mark_price_close[0]
+            except (IndexError, AttributeError):
+                current_price = price
+
+        mult = self.get_param("mult")
+        position_value = size * current_price * mult
+
+        # Get current funding rate
+        try:
+            funding_rate = data.current_funding_rate[1]
+        except (IndexError, AttributeError):
+            funding_rate = 0.0
+
+        total_funding_rate = funding_rate * position_value
+        return total_funding_rate

@@ -1,0 +1,68 @@
+{
+  "artifact_path": "D:\\temp\\ac41-63-writer-review-a-20260927-224624106\\writer-review-a.json",
+  "artifact_sha256": "134EAD5F01D73F99BC705E356562AA3607A84DDF3F2B2901981E3A884A21B2E5",
+  "inventory_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\live-execution-inventory-candidates.json",
+  "inventory_sha256": "03658257D97E31C2D8F8BFD48685441533552B32674F5D63810141E3038AB456",
+  "candidate_count": 121,
+  "candidate_range": [
+    0,
+    120
+  ],
+  "inventory_writer_order_matches": 121,
+  "candidate_source_hashes_match": 30,
+  "candidate_locator_text_matches": 121,
+  "all_official_dispositions_review_required_not_available": true,
+  "store_wrapper_source_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+  "wrapper_probe": {
+    "blocked_with_default_guard": [
+      "submit_order",
+      "create_order",
+      "cancel_order"
+    ],
+    "constructor_sets_direct_writes_disabled": true,
+    "ctp_store_marker_supplied": true,
+    "extracted_methods": [
+      "__init__",
+      "_client",
+      "_ensure_direct_writes_allowed",
+      "_is_supported_non_ctp_exchange",
+      "cancel_order",
+      "create_order",
+      "submit_order"
+    ],
+    "fake_sink_calls_after_mutating_guard": [
+      "submit_order",
+      "submit_order",
+      "cancel_order"
+    ],
+    "framework_or_provider_modules_loaded": false,
+    "gateway_client_lazy_on_ctp_construction": true,
+    "network_or_native_operations": false,
+    "scope": "Conditional source control flow only; no Store, framework, SDK, provider, native, network, credentials, or private runtime configuration was used.",
+    "selected_methods_have_import_nodes": false,
+    "source_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+  },
+  "high_risk_indices_19_21": {
+    "mutable_direct_ctp_gate": true,
+    "default_gateway_constructor_passes_ctp_marker": true,
+    "public_sdk_api_hides_gateway_raw_api": true,
+    "private_store_api_still_exists": true,
+    "store_direct_ctp_submit_and_cancel_guards_present": true,
+    "interpretation": "A same-process caller who obtains the private raw wrapper and mutates its ordinary instance flag can reach a fake sink; this is conditional same-process mutation and does not establish default registered route reachability or real provider behavior."
+  },
+  "registered_route_boundary": {
+    "013_3_private_binding_is_read_only_registration": true,
+    "013_3_managed_replay_is_explicitly_offline": true,
+    "local_fake_provider_and_socket_denial_documented": true,
+    "shared_ctp_managed_runtime_in_default_inventory": false
+  },
+  "tail_115_120": {
+    "all_candidate_methods_close": true,
+    "line_calls_are_not_order_or_cancel": true,
+    "shared_and_simnow_roots_are_unregistered": true,
+    "underlying_composition_can_own_managed_execution_session_when_explicitly_injected": true,
+    "interpretation": "Cleanup rows belong to a potentially execution-capable but unregistered, explicitly injected composition. They are not evidence that the path is read-only and do not represent order/cancel dispatch at these locators."
+  },
+  "route_authorization": "none; all rows remain REVIEW_REQUIRED / NOT_AVAILABLE; NO_WRITE / LIVE_NO_GO",
+  "checks": "source-only metadata/hash/locator checks plus AST-extracted in-memory fake sink; no provider, native, network, credentials, private runtime config, or execution route used"
+}

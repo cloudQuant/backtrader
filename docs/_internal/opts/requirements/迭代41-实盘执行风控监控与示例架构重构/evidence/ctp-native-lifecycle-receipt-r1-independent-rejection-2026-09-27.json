@@ -1,0 +1,58 @@
+{
+  "schema": "iteration41.g4.native_lifecycle_receipt.independent_qa.v1",
+  "status": "INDEPENDENT_QA_REJECTED",
+  "disposition": "Reject frozen r1 for stale Trader native provenance metadata; require a new r2 freeze and independent rerun.",
+  "candidate_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_candidate_20260927",
+  "independent_qa_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_independent_qa_20260927",
+  "snapshot_root": "D:\\temp\\iteration41_g4_native_lifecycle_receipt_independent_qa_20260927\\snapshot",
+  "freeze_manifest_sha256": "6571328EBBF41E7D168577BE392B04F9FBF23F2A476DD73DF2C6854CE0D82385",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "base_worktree_clean": true,
+  "not_e75_source": true,
+  "candidate_files": [
+    {"path":"src/bt_api_ctp/ctp/client.py","sha256":"AA166BAF87B391EECED45A503EFF3B8772D4F17D1BD7E6BA8430A67ED39F80E3","base_sha256":"BF915128C41DA83EFDFF517E3EA711C43D7555406BD831A0DFCD775B64840D1C","independent_copy_match":true},
+    {"path":"tests/test_ctp_native_lifecycle_receipt.py","sha256":"B604849B6146D10E1133C58FC2C0E835B04546CD8DB94CDE9D948593A52B3247","independent_copy_match":true}
+  ],
+  "guard": {"path":"D:\\temp\\g5-r3-test-guard\\sitecustomize.py","sha256":"57A5F39297F24CAFFD689B89BC3E06F4C8E8FB580FC684A789B2BBD4FE01AB5D","native_extension_blocked":true},
+  "focused_tests": {
+    "scope":"tests/test_ctp_native_lifecycle_receipt.py tests/test_ctp_shutdown.py tests/test_md_startup_locking.py",
+    "first_run":"64 passed, 1 failed; failure test_stop_during_first_register_spi_blocks_all_later_startup_calls[trader]",
+    "full_unfiltered_rerun":"65 passed, 2 warnings, exit 0",
+    "baseline_race_history":"Freeze manifest reports this as an intermittent baseline-observed race; independent first candidate run reproduced the same test failure once, and full unfiltered rerun passed. No skip or test edit was used.",
+    "warnings":["pytest asyncio_default_fixture_loop_scope config option unknown with plugin autoload disabled","native _ctp import blocked by fake-only guard"]
+  },
+  "static_checks": {"ruff_check":"passed","ruff_format_check":"passed","py_compile":"passed","git_diff_check":"passed"},
+  "adversarial_probe": {
+    "probe_sha256":"C70EF582F5BC260151B577556CE374DE731D5B5E47D3AB26896F92C642B80E0C",
+    "result":"1 failed, 1 passed; exact API object lookup positive/negative test passed; public blocked-Init test failed provenance consistency after completing fake cleanup.",
+    "init_entered_state":"init_state=entered; clean=false while Init blocked",
+    "object_identity":"receipt API/SPI object IDs match exact current API/SPI; session_generation matches client lifecycle generation",
+    "native_api_generation":{"receipt":0,"client":1,"spi":1},
+    "native_client_epoch":{"receipt":null,"client_and_spi":"non-empty current epoch"},
+    "native_api_source_id":{"receipt":null,"client_and_spi":"non-empty current source ID"},
+    "native_spi_source_id":"receipt equals exact SPI source ID",
+    "final_fake_teardown":"detach and Join returned; Release attempted exactly once and returned; final clean=true despite stale generation/epoch/API source fields"
+  },
+  "root_cause":"Trader start binds lifecycle receipt state before assigning self._api. The _api setter increments native generation and creates client epoch/API source ID after the receipt captured them; subsequent SPI tags receive the new values, leaving the immutable lifecycle state stale. clean does not validate metadata consistency.",
+  "real_world_scope":"Fake-only source QA. No native CTP, provider, credentials, network, wheel build/install, or native supervisor test. No evidence of Windows native lifecycle clean-close.",
+  "authorization_boundary":"G4 native clean-close not accepted; G5 and real SimNow/production trading remain closed.",
+  "archive": {
+    "file":"ctp-native-lifecycle-receipt-r1-independent-rejection-2026-09-27.raw.zip",
+    "sha256":"f1fea616dda19e0829340675fdf4c6c9223f70139a983db87f0388e09ecfedd9",
+    "entries":22,
+    "testzip":null,
+    "index_sha256":"bcd01bf3f7607d6d2d25928e5695e315a3764c70852985a5618f0debd9e04ff1"
+  },
+  "evidence_files": {
+    "first_focus_log_sha256":"2517f36c855ee98343630b430fb8254bbb56e94f36941a7867b873405b70de98",
+    "focus_rerun_log_sha256":"9e751b7de671a5bce1fc0a153e600c02ced5077be7f1928f7ce48ac17c9c7d5f",
+    "qa_controlled_log_sha256":"EDACB303C5DB116B5877BA425CFF8224CFC0A55F485953DCEFA710DE0F563659",
+    "qa_controlled_junit_sha256":"49B448CF63D19D14083407F63BA820DDEC2669568EF961D35E9579BD9439F8CC",
+    "qa_verbose_log_sha256":"975EC53DD48A447E8AF53B8CF66354D3BE91A08761F5FB82767C00DD0BBC680F",
+    "qa_verbose_junit_sha256":"D13EB7F5B612487C9F92EBBA8F84238778EC5FE73E7586E61DCAF2A1D2E94052"
+  }
+}
+
+
+
+

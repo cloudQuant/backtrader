@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-27",
+  "cwd": "D:\\source_code\\backtrader",
+  "command": "python -m pytest -p no:asyncio tests/unit/stores tests/unit/runtime -q --tb=short --junitxml=D:\\temp\\iteration41-main-broad-after-mechanical-20260927\\stores-runtime.junit.xml",
+  "phase": "after the MechanicalCycle and 013_1/013_2 support main patches, before Store r5",
+  "pytest_summary": {
+    "passed": 2641,
+    "skipped": 43,
+    "xfailed": 2,
+    "failed": 0,
+    "warnings": 1,
+    "duration_seconds": 112.27,
+    "exit_code": 0
+  },
+  "junit_summary": {
+    "tests": 2686,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 45,
+    "duration_seconds": 111.846
+  },
+  "warning": "One existing PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option.",
+  "interpretation": "Broad Store/Runtime regression only; it does not attribute all passing tests to the MechanicalCycle patch or establish CTP/provider/native/write acceptance.",
+  "malformed_attempt": "Not included; only the corrected successful invocation and its sidecars are retained."
+}

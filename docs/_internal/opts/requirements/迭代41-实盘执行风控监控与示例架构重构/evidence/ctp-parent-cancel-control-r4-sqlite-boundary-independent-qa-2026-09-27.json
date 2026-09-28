@@ -1,0 +1,40 @@
+{
+  "schema": "iteration41_cancel_control_r4_independent_qa.v1",
+  "candidate_manifest_sha256": "60b020202ed89169e24afca30b1b1b16680151a11c6f52c518d0f5bbfa7fab0d",
+  "candidate_manifest_entries_verified": 154,
+  "independent_copy_entries_verified": 154,
+  "r3_manifest_sha256": "65af6f048a1148182b35a18b8998f738a306d83b5d33352bd469c809c3a8d28f",
+  "r3_entries_verified": 154,
+  "r3_to_r4_changed_payload_files": [
+    "bt_api_py/runtime_plugins/cancellation_control.py",
+    "tests/test_cancellation_dispatch_resolution_control.py"
+  ],
+  "focused_pytest_passed": 20,
+  "targeted_ctp_labeled_fake_scope_test_passed": 1,
+  "ruff": {
+    "version": "0.16.2",
+    "r3_diagnostics": 18,
+    "r4_diagnostics": 23,
+    "added_diagnostics": 5,
+    "same_selection_and_author_r4_json_match": true,
+    "added_by_rule": {"BLE001": 2, "RUF100": 1, "S110": 2},
+    "overall_clean_claim": false
+  },
+  "ordinary_cross_process_delete_blocked_during_guard_and_after_commit": true,
+  "same_user_postcommit_drop_trigger_delete_succeeded": true,
+  "readback_connection_closed_normal_and_exception": true,
+  "windows_monitor_open_files_after_readback_and_close": 0,
+  "windows_state_directory_cleanup_normal_and_exception": true,
+  "process_death_cut_after_risk_latch_commit_before_monitor_commit": {
+    "worker_terminated_at_requested_marker": true,
+    "released_audit_after_reopen": true,
+    "both_risk_causes_inactive_after_reopen": true,
+    "monitor_event_present_after_reopen": true,
+    "both_immutability_triggers_present_after_reopen": true,
+    "risk_and_monitor_quick_check_ok": true
+  },
+  "real_ctp_sdk_or_native_module_loaded": false,
+  "provider_api_or_network_calls": 0,
+  "production_g4_f14_acceptance": false,
+  "classification": "LOCAL_FAKE_GUARD_BOUNDED_PASS / SAME_USER_DDL_BYPASS_CONFIRMED / NOT_PRODUCTION_ACCEPTANCE"
+}

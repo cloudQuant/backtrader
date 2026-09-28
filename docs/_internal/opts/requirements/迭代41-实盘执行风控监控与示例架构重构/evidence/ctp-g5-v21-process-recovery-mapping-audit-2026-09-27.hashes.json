@@ -1,0 +1,69 @@
+{
+  "date": "2026-09-27",
+  "g5_r1_manifest_sha256": "f6f3afa6454150e92be116f499d088be6e68789d832f70c26f525eb98c58d971",
+  "report": "G5 r1 to V21 frozen execution source mapping audit",
+  "scope": "Read-only static mapping; no source changes, tests, credentials, provider, native SDK, or network access.",
+  "v21_source_manifest_sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+  "verified_files": {
+    "g5_r1_manifest": {
+      "path": "D:\\temp\\iteration41-g5-recovery-qa-receipts-20260927\\r1-candidate\\manifest.json",
+      "sha256": "f6f3afa6454150e92be116f499d088be6e68789d832f70c26f525eb98c58d971",
+      "size_bytes": 943
+    },
+    "g5_r1_model": {
+      "path": "D:\\temp\\iteration41-g5-recovery-qa-receipts-20260927\\r1-candidate\\recovery_contract.py",
+      "sha256": "b5f207fc58ab0c3b8b1831652782bb0b4dd52352134d70020f9414e6be2b5d79",
+      "size_bytes": 16152
+    },
+    "g5_r1_tests": {
+      "path": "D:\\temp\\iteration41-g5-recovery-qa-receipts-20260927\\r1-candidate\\test_recovery_contract.py",
+      "sha256": "6d83aacdd2d16d1d6f2fa3f8a6cb00c56249f4b5d5771097f277b8444ff566b4",
+      "size_bytes": 8053
+    },
+    "v21_callback_ledger_adapter": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\src\\bt_api_execution\\ctp_callback_ledger_adapter.py",
+      "sha256": "a13d86f19122b1c5e55a06cd49019769e0effb7b8fa2fdbdabdcb51732c05e32",
+      "size_bytes": 11424
+    },
+    "v21_callback_session": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\src\\bt_api_execution\\ctp_callback_session.py",
+      "sha256": "1e348a6f1be695f1042645a49094bbc253b143eed72668cd89a4763d89510d69",
+      "size_bytes": 18592
+    },
+    "v21_dispatch_tests": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\tests\\test_ctp_dispatch_commands.py",
+      "sha256": "a4bc0e5d3ef3245cb86f6195b76921662901ec64a17d25157aa077f44b741ffc",
+      "size_bytes": 174491
+    },
+    "v21_family_owner_tests": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\tests\\test_ctp_account_family_owner.py",
+      "sha256": "a59f2d0e7f36c8d9953893494b0bf708e27c251fc36c909105b7a39f489370b3",
+      "size_bytes": 9718
+    },
+    "v21_handoff_tests": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\tests\\test_ctp_account_owner_handoff.py",
+      "sha256": "3ae9076992c6485bc6f85b13c5a593f33f73e634aff68c69bac9261752a89d59",
+      "size_bytes": 16550
+    },
+    "v21_manifest": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\SOURCE-MANIFEST.json",
+      "sha256": "b3a614d62b2a4cf1b0dbdfefee463015157dee38bf4c9c5119c64ef2d71d6d24",
+      "size_bytes": 5299
+    },
+    "v21_session_owner_tests": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\tests\\test_ctp_callback_session_owner.py",
+      "sha256": "ee1852afd45ed9b618df3ff890178b2d92abe0999bc8e19beeeb5871266ea433",
+      "size_bytes": 19208
+    },
+    "v21_single_worker_candidate": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\src\\bt_api_execution\\ctp_single_worker_candidate.py",
+      "sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3",
+      "size_bytes": 29089
+    },
+    "v21_store": {
+      "path": "D:\\temp\\iteration41_v21_ctp_account_handoff_freeze_r3_20260927\\src\\bt_api_execution\\store.py",
+      "sha256": "1f01eda8466873b90359c25aad2b61cb378d7a9feb477fa8ec77a97fb2478e6a",
+      "size_bytes": 752557
+    }
+  }
+}

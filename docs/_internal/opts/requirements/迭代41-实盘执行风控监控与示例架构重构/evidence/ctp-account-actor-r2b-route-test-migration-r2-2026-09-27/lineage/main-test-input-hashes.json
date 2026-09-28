@@ -1,0 +1,18 @@
+[
+  {
+    "path": "tests/unit/stores/test_btapistore.py",
+    "sha256": "E7E7B985130F010DEED84B920FD0F91712BFE54AC24B5EF8BF1C8FC687BCA6B1"
+  },
+  {
+    "path": "tests/unit/stores/test_btapistore_normalized.py",
+    "sha256": "84C570A2EA1DDC03A3AE3560E30177CD695B5720BC05225256BC7F6D1016D397"
+  },
+  {
+    "path": "tests/fixtures/fake_btapi.py",
+    "sha256": "6599B7FF7DDBB50D6D238C5BAC5752A4AF9FE2FF842CE692A8259D3DF21A016A"
+  },
+  {
+    "path": "tests/test_utils/optional_sdk.py",
+    "sha256": "708BFD9AE284DE3ECC986F0E1E4F4E0523BE64018AA3167C93B097093F0B19C1"
+  }
+]

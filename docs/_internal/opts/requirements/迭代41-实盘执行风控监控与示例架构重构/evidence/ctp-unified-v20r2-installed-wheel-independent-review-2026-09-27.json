@@ -1,0 +1,227 @@
+{
+  "schema": "iteration41.unified_installed_consumer.root_archive.v1",
+  "status": "ACCEPTED_ORDINARY_INSTALLED_WHEEL_CONSUMER_ONLY",
+  "version_label": "v20r2",
+  "author_receipt_sha256": "d52d8c8f72695f34a24d56b0bc47f020ecf48a46a3af93c37ebf6a7708d39eb3",
+  "independent_receipt_sha256": "226ab75e07f9a0af8a48fac97d00cce9baef7564ba1951454b55b455f73d33b4",
+  "execution_wheel_sha256": "22dc63c10336b4e76d787d8ed5d45e96391fecb9b20791cdc61b7df577e3bf73",
+  "direct_app_wheels_verified": 6,
+  "installed_distributions": 51,
+  "installed_record_hashed_rows": 9077,
+  "limitations": [
+    "Normal venv only; not protected deployment or sealed G1 capsule",
+    "No CTP native extension/provider/private config",
+    "R2 and R3r2 execution wheels have the same package version 0.2.0 but distinct hashes; final deployment needs a unique version/pin"
+  ],
+  "archive": {
+    "file": "ctp-unified-v20r2-installed-wheel-independent-review-2026-09-27.raw.zip",
+    "sha256": "a1a89f5ef96e1229eb4b98206c2ca1ced8c4ac17598642b118c159c6b23a4f81",
+    "entries": 34
+  },
+  "files": [
+    {
+      "path": "author-evidence/00-parent-wheel-76d5e0e-receipt.txt",
+      "source": "D:\\q\\logs\\parent-wheel-76d5e0e-receipt.txt",
+      "sha256": "73c5c11e4b1bc5e414b927c5b337a9840c384aeffaa5767803e1cfe6298756dd",
+      "bytes": 2367
+    },
+    {
+      "path": "author-evidence/01-verify-unified-consumer.py",
+      "source": "D:\\q\\verify-unified-consumer.py",
+      "sha256": "cc87adebe53bac132f6b0da0bc9037ed1ecda7c3560d8ec301e2e9625251889f",
+      "bytes": 9038
+    },
+    {
+      "path": "author-evidence/02-manifest.json",
+      "source": "D:\\temp\\iteration41-capability-artifacts-20260926\\manifest.json",
+      "sha256": "b3ddfc47944b05671cbbd14b9a88a104ae66ea4843728ad06b8ac762d415b34b",
+      "bytes": 183614
+    },
+    {
+      "path": "author-evidence/03-risk-version-fix-receipt.json",
+      "source": "D:\\temp\\iteration41-capability-risk-version-fix-20260926\\risk-version-fix-receipt.json",
+      "sha256": "e09f9371d6b928ca4a5b8518d44d83a46bea31346798ae18c3f8314f7761590f",
+      "bytes": 20617
+    },
+    {
+      "path": "author-evidence/04-consumer-install.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\consumer-install.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "author-evidence/05-consumer-install.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\consumer-install.log",
+      "sha256": "0b2e2caba178c346a4babf533d196f7e08f0f7ef68627a16d7de5e1a95b15d9f",
+      "bytes": 9031
+    },
+    {
+      "path": "author-evidence/06-execution-v20-source-staging.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\execution-v20-source-staging.json",
+      "sha256": "ae44271828df1d770f44465311286be7c5b240d38e039f28964caa868d044946",
+      "bytes": 5097
+    },
+    {
+      "path": "author-evidence/07-execution-v20-wheel-build.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\execution-v20-wheel-build.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "author-evidence/08-execution-v20-wheel-build.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\execution-v20-wheel-build.log",
+      "sha256": "24a73c1d25421a469e640172d953d8d68e14ea7241402e213cfda27353393f93",
+      "bytes": 742
+    },
+    {
+      "path": "author-evidence/09-installed-origin-record-verification.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\installed-origin-record-verification.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "author-evidence/10-installed-origin-record-verification.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\installed-origin-record-verification.log",
+      "sha256": "1fb2eae6ef9838df08d931a0763257604c1e22ef5709612b8ec0bd6382d9ed0e",
+      "bytes": 33970
+    },
+    {
+      "path": "author-evidence/11-pip-check.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\pip-check.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "author-evidence/12-pip-check.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\pip-check.log",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "bytes": 31
+    },
+    {
+      "path": "author-evidence/13-pip-list-normalized.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\pip-list-normalized.json",
+      "sha256": "e13ac1152a888afdf90c6784ffe98a967be394a65d1445c1fea5dba6ea7a8db0",
+      "bytes": 3158
+    },
+    {
+      "path": "author-evidence/14-pip-list.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\pip-list.json",
+      "sha256": "5d2cdf51898537c1d4861af4c128dc1815473a634be2fb61a9c9f592ef747507",
+      "bytes": 2412
+    },
+    {
+      "path": "author-evidence/15-receipt.json",
+      "source": "D:\\temp\\iteration41_g1_e75_evidence_20260927\\receipt.json",
+      "sha256": "7985d13caccfe040b019133cc3224fa9ca99e12581aab38ac798730faeef1852",
+      "bytes": 11067
+    },
+    {
+      "path": "author-evidence/16-manifest.json",
+      "source": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r2_20260927a\\manifest.json",
+      "sha256": "15c37a6cc5503127c63d6987b9de0fd71a48181fc33dff5a4e52f57a8fc5d129",
+      "bytes": 5288
+    },
+    {
+      "path": "author/receipt.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-consumer-20260927\\receipt.json",
+      "sha256": "d52d8c8f72695f34a24d56b0bc47f020ecf48a46a3af93c37ebf6a7708d39eb3",
+      "bytes": 50406
+    },
+    {
+      "path": "direct-wheels/bt_api_base/bt_api_base-0.15.4-py3-none-any.whl",
+      "source": "D:\\temp\\iteration41-capability-artifacts-20260926\\wheels\\base-a\\bt_api_base-0.15.4-py3-none-any.whl",
+      "sha256": "cfe3507e1324f675454c41c37cd09ff72c8947c5254e9496e97c373cb8f3b369",
+      "bytes": 149476
+    },
+    {
+      "path": "direct-wheels/bt_api_ctp/bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+      "source": "D:\\q\\lazy-ctp-build-e\\wheelhouse-e\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+      "sha256": "f08e231dd65599438c1467eb3d65f1205dd9a458ea147e1f996a8d12a40ba7ab",
+      "bytes": 5430183
+    },
+    {
+      "path": "direct-wheels/bt_api_execution/bt_api_execution-0.2.0-py3-none-any.whl",
+      "source": "D:\\q\\unified-v20r2-wheelhouse-20260927\\bt_api_execution-0.2.0-py3-none-any.whl",
+      "sha256": "22dc63c10336b4e76d787d8ed5d45e96391fecb9b20791cdc61b7df577e3bf73",
+      "bytes": 154961
+    },
+    {
+      "path": "direct-wheels/bt_api_monitor/bt_api_monitor-0.1.0-py3-none-any.whl",
+      "source": "D:\\temp\\iteration41-capability-artifacts-20260926\\wheels\\monitor-a\\bt_api_monitor-0.1.0-py3-none-any.whl",
+      "sha256": "0277663855356b22a7946da07ed4c6d33cebac11d93cbdc152531c287040ae8e",
+      "bytes": 47018
+    },
+    {
+      "path": "direct-wheels/bt_api_py/bt_api_py-0.15.5-py3-none-any.whl",
+      "source": "D:\\q\\pwa\\bt_api_py-0.15.5-py3-none-any.whl",
+      "sha256": "3d4ccf8560f28dc6f0279860ca6257e4980b7c6efb0f9932fe66c98b681a660d",
+      "bytes": 924278
+    },
+    {
+      "path": "direct-wheels/bt_api_risk/bt_api_risk-0.1.0-py3-none-any.whl",
+      "source": "D:\\temp\\iteration41-capability-risk-version-fix-20260926\\wheels\\risk-a\\bt_api_risk-0.1.0-py3-none-any.whl",
+      "sha256": "d7e7bb28cfd049be3aa0b50f1e9deb7a83e97f24da3bc9bce51dc6f599a5202f",
+      "bytes": 92587
+    },
+    {
+      "path": "independent-evidence/00-origin-record-verification.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\origin-record-verification.log",
+      "sha256": "1fb2eae6ef9838df08d931a0763257604c1e22ef5709612b8ec0bd6382d9ed0e",
+      "bytes": 33970
+    },
+    {
+      "path": "independent-evidence/01-origin-record-verification.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\origin-record-verification.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "independent-evidence/02-pip-check.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\pip-check.log",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "bytes": 31
+    },
+    {
+      "path": "independent-evidence/03-pip-check.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\pip-check.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "independent-evidence/04-direct-origin-check.log",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\direct-origin-check.log",
+      "sha256": "1bca02a5fde8fe98f0f3e9133e9b7e8b330f768efb3b6c67e8662affa4771366",
+      "bytes": 1081
+    },
+    {
+      "path": "independent-evidence/05-direct-origin-check.exit",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\direct-origin-check.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "independent-evidence/06-pyvenv.cfg",
+      "source": "D:\\q\\unified-v20r2-consumer-20260927\\pyvenv.cfg",
+      "sha256": "1b3c6ddf720845efd48ffaf1bbcc971d98731b292f17863bd7d99eaa31307e3a",
+      "bytes": 195
+    },
+    {
+      "path": "independent-history/v1.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\independent-qa-receipt.json",
+      "sha256": "8f6c9c95ab6b9ba1125d8379ae0e2f121ce75b10d7dce16d0ba46076b6a5b333",
+      "bytes": 5372
+    },
+    {
+      "path": "independent-history/v2.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\independent-qa-receipt-v2.json",
+      "sha256": "9da5e40eb01ac3f08696646a5c387b1ace091814c2caf43233ba0ccd398ad696",
+      "bytes": 5561
+    },
+    {
+      "path": "independent/receipt.json",
+      "source": "D:\\temp\\iteration41-unified-v20r2-independent-qa-20260927\\independent-qa-receipt-v3.json",
+      "sha256": "226ab75e07f9a0af8a48fac97d00cce9baef7564ba1951454b55b455f73d33b4",
+      "bytes": 6858
+    }
+  ]
+}

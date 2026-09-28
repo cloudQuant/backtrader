@@ -1,0 +1,256 @@
+{
+  "schema_version": "iteration41-ac41-63-writer-review-460-archive.v1",
+  "status": "PASS_STATIC_COVERAGE_ONLY",
+  "authorization": "No write authority, live route, or writer closure is claimed. Active official entries remain REVIEW_REQUIRED / NOT_AVAILABLE.",
+  "inventory_sha256": "03658257D97E31C2D8F8BFD48685441533552B32674F5D63810141E3038AB456",
+  "official_disposition_sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426",
+  "official_candidate_id_order_digest": "9f1a15399fe380693bd5bd3ef1def13a77aeb688b6d9f00e156021ce2717099b",
+  "partition_counts": {
+    "A": 121,
+    "B": 120,
+    "C": 219,
+    "total": 460
+  },
+  "partition_disjointness_and_completeness": "Verified against stable domain:index positions; 460 unique, zero overlap, zero missing, zero extra.",
+  "official_dispositions": {
+    "entries": 460,
+    "unique_ids": 460,
+    "REVIEW_REQUIRED": 460,
+    "NOT_AVAILABLE": 460,
+    "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE": 460,
+    "historical_tombstones": 6,
+    "closure_status": "NOT_CLOSED_STATIC_REVIEW_REQUIRED",
+    "line_or_column_drift_count": 31
+  },
+  "artifact_payloads": [
+    {
+      "path": "partition-a/candidates.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-20260927-224624106\\writer-review-a.json",
+      "sha256": "134EAD5F01D73F99BC705E356562AA3607A84DDF3F2B2901981E3A884A21B2E5",
+      "size_bytes": 115583,
+      "purpose": "A per-candidate review for writer indices 0–120."
+    },
+    {
+      "path": "partition-a/report.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-20260927-224624106\\report.md",
+      "sha256": "BF5ACCF7FAB6E3DD3B4B6052FE01687312BAC05B96E5885E45198F5E9D887471",
+      "size_bytes": 6815,
+      "purpose": "A static route review and bounded probe interpretation."
+    },
+    {
+      "path": "partition-a/source-fake-sink-probe.py",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-20260927-224624106\\source_fake_sink_probe.py",
+      "sha256": "04209F8A3C96C84F3F9E931ADCA41214D6793BE9021793AF40A1F1D3618617DB",
+      "size_bytes": 3109,
+      "purpose": "AST-extracted inert fake-sink probe; no project import or provider execution."
+    },
+    {
+      "path": "partition-a/source-fake-sink-probe-result.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-20260927-224624106\\source_fake_sink_probe-result.json",
+      "sha256": "1F9DF783089D6629F379B7DD5BC0945935F731AF9F22BD535A092A6C77508882",
+      "size_bytes": 993,
+      "purpose": "A fake-sink probe result."
+    },
+    {
+      "path": "partition-a/qa-report.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-independent-qa-20260927-225500\\QA-REPORT.md",
+      "sha256": "8AB0B01B133D37D240E1FD6F161B67469A71EC0F3BED48BD5956C71034CE3237",
+      "size_bytes": 3098,
+      "purpose": "Independent A review receipt."
+    },
+    {
+      "path": "partition-a/qa-result.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-independent-qa-20260927-225500\\qa-result.json",
+      "sha256": "725F908DFD2CB8AD87C2520E4DE8B523A11EE6360A2BCA35D75C1B65A0DBEE94",
+      "size_bytes": 3542,
+      "purpose": "Machine-readable A QA result."
+    },
+    {
+      "path": "partition-a/qa-sha256-receipt.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-independent-qa-20260927-225500\\SHA256-RECEIPT.json",
+      "sha256": "9B0F6EC4F46CCB655F39532CBC392EBF2A929C458D79C2F3DCAE09BDED35D294",
+      "size_bytes": 1306,
+      "purpose": "A QA artifact/source hash binding."
+    },
+    {
+      "path": "partition-a/qa-sha256-receipt.sha256",
+      "source_path": "D:\\temp\\ac41-63-writer-review-a-independent-qa-20260927-225500\\SHA256-RECEIPT.json.sha256",
+      "sha256": "16E4C66D22DF4284002BCD488A56A202646AAA2B1D25E8C4090C1F287B3A92C4",
+      "size_bytes": 87,
+      "purpose": "A receipt checksum sidecar."
+    },
+    {
+      "path": "partition-b/candidates-121-240.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-b-20260927-4149da78b9484fbba078f6446943ca8f\\writer-candidates-121-240.json",
+      "sha256": "D75D7826297871FFEB28F183B0F12699229348A269A3301454811F834DA4EDB8",
+      "size_bytes": 145915,
+      "purpose": "Corrected B per-candidate review for writer indices 121–240."
+    },
+    {
+      "path": "partition-b/report.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-b-20260927-4149da78b9484fbba078f6446943ca8f\\review-report.md",
+      "sha256": "0677165870A04EE2EAC4CC9EE677C8B06362A43F6F0203C1B9461D0B727F6BE4",
+      "size_bytes": 8064,
+      "purpose": "Corrected B route review and correction history."
+    },
+    {
+      "path": "partition-b/qa-receipt.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-b-independent-qa-20260927-f4a71e9a7bf74486a0771215d303260a\\QA-RECEIPT.md",
+      "sha256": "B7F62153242ACE7532BA01BF3B68AE6661D3D2EAC27C363282ED6F84CE9A0B48",
+      "size_bytes": 5079,
+      "purpose": "Independent B QA receipt, including the broker-helper correction."
+    },
+    {
+      "path": "partition-c/findings-v2.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72\\review-findings-v2.json",
+      "sha256": "92BFF46C4073694ACE40A9C39E082DAE6093E39D018BDAC387830F48378B8AF3",
+      "size_bytes": 212482,
+      "purpose": "Corrected C per-candidate writer/dynamic findings."
+    },
+    {
+      "path": "partition-c/report-v2.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72\\high-priority-report-v2.md",
+      "sha256": "81A9BDC32CD04995FE9F730C08EC129228AFFD1CEA241C2F55A1036A0F89E1F4",
+      "size_bytes": 9305,
+      "purpose": "Corrected C route review and registry-trust correction history."
+    },
+    {
+      "path": "partition-c/report-v1.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72\\high-priority-report.md",
+      "sha256": "D3A48ED71F8F76B1237380D60753F1109C756FFCAFFBDC9659E14EF23AC829F9",
+      "size_bytes": 7748,
+      "purpose": "Superseded C report retained for correction provenance."
+    },
+    {
+      "path": "partition-c/qa-v1-receipt.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-independent-qa-20260927-0c37545ce5b14fe4ba2221e51f8030df\\qa-receipt.json",
+      "sha256": "4DAC380775603EB10DD51CF734BD751BFAF71DD3564C6EDDCC63FC5DFDF9C4C4",
+      "size_bytes": 5997,
+      "purpose": "Original C QA receipt that identified registry trust wording needing correction."
+    },
+    {
+      "path": "partition-c/qa-v2-addendum.md",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-independent-qa-addendum-20260927-5b45cb15e28442ebb8702edbb6187925\\QA-ADDENDUM.md",
+      "sha256": "826B0735716FDFE53B94A219C6099EB3D9BA5CD3B5438CCDE2AACCE4B1E85207",
+      "size_bytes": 1518,
+      "purpose": "Final C QA addendum bound to v2 findings/report."
+    },
+    {
+      "path": "partition-c/qa-v2-addendum.json",
+      "source_path": "D:\\temp\\ac41-63-writer-review-c-independent-qa-addendum-20260927-5b45cb15e28442ebb8702edbb6187925\\qa-addendum.json",
+      "sha256": "F4C72CF9BF88189FA318A10849D36CD886F48389D7A03FD1F8987525271AA5D4",
+      "size_bytes": 3050,
+      "purpose": "Machine-readable C v2 QA addendum."
+    },
+    {
+      "path": "coverage-verification.json",
+      "source_path": "generated from frozen inventory, checklist, and partition artifacts",
+      "sha256": "C6F8A1E4C966E9DF855ECBAB9EEF6ADC6E77E0AFFF48A3C0F9BA40F1117592CB",
+      "size_bytes": 275989,
+      "purpose": "Recomputed partition coverage, stable-ID crosswalk, official dispositions, line drift, and correction delta."
+    }
+  ],
+  "correction_history": {
+    "B_broker_helper": {
+      "initial_json_sha256": "BDBAB25532E0DD711CF5CE0AB9A5A8A83A5024463C3BA5A8B68EC0223B1B9773",
+      "initial_report_sha256": "02D4FDEB7B3C7EB309B104919AE5EA046869F5AEA415577EFBF2E36BDDA4BCCE",
+      "corrected_json_sha256": "D75D7826297871FFEB28F183B0F12699229348A269A3301454811F834DA4EDB8",
+      "corrected_report_sha256": "0677165870A04EE2EAC4CC9EE677C8B06362A43F6F0203C1B9461D0B727F6BE4",
+      "qa_receipt_sha256": "B7F62153242ACE7532BA01BF3B68AE6661D3D2EAC27C363282ED6F84CE9A0B48",
+      "summary": "Corrected claim: create_live_store fails closed, but create_live_broker accepts a caller-supplied Store and constructs BtApiBroker; this is an out-of-registry custom composition, not proof of successful provider write."
+    },
+    "C_registry_trust": {
+      "v1_findings_sha256": "79DC0BB1CC190F7D0BEC8E5467804957B16A4C4F0B68953202D0A193932C1186",
+      "v1_report_sha256": "D3A48ED71F8F76B1237380D60753F1109C756FFCAFFBDC9659E14EF23AC829F9",
+      "v1_qa_receipt_sha256": "4DAC380775603EB10DD51CF734BD751BFAF71DD3564C6EDDCC63FC5DFDF9C4C4",
+      "v2_findings_sha256": "92BFF46C4073694ACE40A9C39E082DAE6093E39D018BDAC387830F48378B8AF3",
+      "v2_report_sha256": "81A9BDC32CD04995FE9F730C08EC129228AFFD1CEA241C2F55A1036A0F89E1F4",
+      "v2_qa_addendum_sha256": "826B0735716FDFE53B94A219C6099EB3D9BA5CD3B5438CCDE2AACCE4B1E85207",
+      "v1_to_v2_changed_candidate_ids": [
+        "dynamic:056",
+        "dynamic:057",
+        "dynamic:058",
+        "dynamic:059",
+        "dynamic:060",
+        "dynamic:061",
+        "dynamic:062"
+      ],
+      "v1_to_v2_changed_fields": [
+        "reason"
+      ],
+      "summary": "v2 clarifies RuntimeRegistry(trusted=True) defaults to true and is not a code-enforced review credential. The default CLI uses the code-owned registry and live dispatch is rejected before runner import; custom non-live injected registries can execute in-process. The v2 QA addendum inherits the original 219-row source checks and verifies v2 hashes, ID order, and reason-only corrections.",
+      "per_candidate_delta": [
+        {
+          "candidate_id": "dynamic:056",
+          "changed_fields": {
+            "reason": {
+              "v1": "Runner dynamically imports/execs selected module. Default CLI uses code-owned inventory, fixed shipped source root, sealed effective config, and rejects live before import. Non-inventory custom registrations fall back to importlib.import_module. Private loader checks path identity but not expected source-content SHA-256.",
+              "v2": "In the fixed shipped runner loader, non-bound imports delegate to normal importlib. A Python caller can pass a custom registry to cli.main or dispatch_registered_runtime; the code does not enforce the docstring's reviewed-caller expectation. RuntimeRegistry(trusted=True) is the default, but that flag is not review evidence. A custom non-live registration can import custom code through the normal fallback. Live dispatch remains rejected before runner import."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:057",
+          "changed_fields": {
+            "reason": {
+              "v1": "Runner dynamically imports/execs selected module. Default CLI uses code-owned inventory, fixed shipped source root, sealed effective config, and rejects live before import. Non-inventory custom registrations fall back to importlib.import_module. Private loader checks path identity but not expected source-content SHA-256.",
+              "v2": "This proxy forwards other importlib attributes without authorization semantics. Default shipped modules use the bound private loader for their registered runner imports. A caller-supplied registry is not checked for review status (RuntimeRegistry defaults trusted=True); custom non-live registrations can reach the normal import fallback, while live dispatch remains rejected before import."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:058",
+          "changed_fields": {
+            "reason": {
+              "v1": "Runner dynamically imports/execs selected module. Default CLI uses code-owned inventory, fixed shipped source root, sealed effective config, and rejects live before import. Non-inventory custom registrations fall back to importlib.import_module. Private loader checks path identity but not expected source-content SHA-256.",
+              "v2": "Executes source for the exact shipped inventory binding after fixed-root and regular-file/no-reparse identity checks; no expected source-content digest is compared. This finding applies to shipped inventory entries. A different programmatic custom registration is not shown as reviewed by the trusted flag and ordinarily uses the normal import fallback at D59; live dispatch is still rejected."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:059",
+          "changed_fields": {
+            "reason": {
+              "v1": "Runner dynamically imports/execs selected module. Default CLI uses code-owned inventory, fixed shipped source root, sealed effective config, and rejects live before import. Non-inventory custom registrations fall back to importlib.import_module. Private loader checks path identity but not expected source-content SHA-256.",
+              "v2": "When source_root is absent, this path calls ordinary importlib.import_module(module_name). Python callers can pass a custom RuntimeRegistry to cli.main or dispatch_registered_runtime; RuntimeRegistry(trusted=True) defaults true, and no code verifies that injected registration was reviewed. Thus custom replay/simulation registrations can import and execute their runner in-process. The live runner boundary still rejects live mode before import."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:060",
+          "changed_fields": {
+            "reason": {
+              "v1": "Invokes resolved runner callable. Default resolves fixed inventory and rejects live; custom programmatic registry can supply runner outside that trust boundary.",
+              "v2": "Invokes the runner selected from the resolved registry. Default installed CLI uses code-owned inventory, but cli.main accepts an injected registry and RuntimeRegistry(trusted=True) is only a permissive/default flag, not review enforcement. A custom non-live registration can select an in-process runner; live mode is rejected before runner import."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:061",
+          "changed_fields": {
+            "reason": {
+              "v1": "Invokes resolved runner callable. Default resolves fixed inventory and rejects live; custom programmatic registry can supply runner outside that trust boundary.",
+              "v2": "Invokes the runner selected from the resolved registry. Default installed CLI uses code-owned inventory, but cli.main accepts an injected registry and RuntimeRegistry(trusted=True) does not prove code review. Custom non-live registrations can execute their selected runner in-process; live mode remains blocked before import."
+            }
+          }
+        },
+        {
+          "candidate_id": "dynamic:062",
+          "changed_fields": {
+            "reason": {
+              "v1": "Invokes resolved runner callable. Default resolves fixed inventory and rejects live; custom programmatic registry can supply runner outside that trust boundary.",
+              "v2": "Invokes the runner selected from the resolved registry. Default installed CLI uses code-owned inventory, but callers can inject a custom registry without an enforced review check; RuntimeRegistry(trusted=True) is not review evidence. A custom non-live runner can execute in-process, while live mode remains blocked before import."
+            }
+          }
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Partition findings are static source traces and conditional local fake evidence only.",
+    "Custom broker/client/API composition and same-process object reflection remain outside default-registry enforcement.",
+    "The archive does not prove real provider behavior, successful external writes, full writer closure, or route authorization.",
+    "No private config, credential, account, native CTP SDK, provider, or network access was used for these reviews."
+  ],
+  "checksum_policy": "SHA256SUMS.txt hashes every file in this archive except itself; ARTIFACT-MANIFEST.json indexes all copied payloads and coverage-verification.json."
+}

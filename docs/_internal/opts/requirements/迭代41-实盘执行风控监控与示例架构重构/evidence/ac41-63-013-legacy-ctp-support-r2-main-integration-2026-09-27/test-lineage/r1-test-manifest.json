@@ -1,0 +1,62 @@
+{
+  "schema": "ac41-63-partition4-inert-support-regression-candidate-r1.v1",
+  "verdict": "TEST_ONLY_CANDIDATE / NO_WRITE / LIVE_NO_GO / REVIEW_REQUIRED / NOT_AVAILABLE",
+  "base_r0_test_sha256": "4CCF85AD3CED5A1F98CFECE9A42C1B655C0349D6DB0656ED1FEB2A9612B135E4",
+  "test_path": "tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+  "test_sha256": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+  "test_only_patch_path": "D:\\temp\\ac41-63-writer-partition4-regression-test-r1-20260927\\partition4-inert-support-regression-test-r1.patch",
+  "test_only_patch_sha256": "0DC301015EE9EA0DABAB45140C6F64178FDD12D48DF8DF3ACFA8594D66983B69",
+  "base_support_source_sha256": {
+    "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "E9BFE8EDD8854CEF1184082407BFE5EA2A81268923CBC7A27EB6EAC8F779BE50",
+    "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "37706DCA228382509581CD76C4D6B938C40E58A5BF6A5F3D44E843C7BBEAECB7"
+  },
+  "source_match_confirmed": true,
+  "source_root_binding": "The test derives REPO from its own tests/unit path and prepends REPO directly. No environment variable can redirect project source or support module paths.",
+  "main_tree_modified": false,
+  "non_actions": [
+    "No private config/credential read",
+    "No dotenv load",
+    "No SDK/native import",
+    "No network/provider call",
+    "No order/cancel"
+  ],
+  "coverage": [
+    "Imports both real ctp_example_support.py modules from the test-repository paths.",
+    "Fake dotenv module trips on import/load_dotenv; wrappers trip on .env reads via builtins.open, io.open, and os.open.",
+    "CTP SDK/native imports and network socket operations are blocked and counted.",
+    "Both create_live_store/create_live_broker pairs receive Bomb arguments and Bomb constructors; each must raise the real error reason legacy_direct_execution_not_supported."
+  ],
+  "compatibility": [
+    "Test-only patch.",
+    "All implementation changes are excluded from patch."
+  ],
+  "verification": {
+    "patch_replay": {
+      "directory": "D:\\temp\\ac41-63-writer-partition4-regression-test-r1-apply-20260927",
+      "commands": [
+        "git apply --check partition4-inert-support-regression-test-r1.patch",
+        "git apply partition4-inert-support-regression-test-r1.patch"
+      ],
+      "result": "PASS; patch contains only the new pytest file.",
+      "patched_test_sha256": "900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575",
+      "support_source_hashes": {
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "E9BFE8EDD8854CEF1184082407BFE5EA2A81268923CBC7A27EB6EAC8F779BE50",
+        "examples/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "37706DCA228382509581CD76C4D6B938C40E58A5BF6A5F3D44E843C7BBEAECB7"
+      }
+    },
+    "focused_pytest": {
+      "command": "python -B -m pytest -q <isolated-test-path>",
+      "environment_overrides": "BT_WRITER_AUDIT_SOURCE_ROOT and PYTHONPATH unset; current project cwd supplied imports.",
+      "exit_code": 0,
+      "summary": "1 passed, 1 existing deprecation warning in 4.76s",
+      "output_sha256": "885640707AD2717A0B8E93C4236061A489C2BDA56ECA45A8334E6645F5040492"
+    },
+    "ruff": {
+      "command": "python -B -m ruff check tests/unit/test_iteration41_legacy_ctp_support_inert_import.py",
+      "exit_code": 0,
+      "result": "All checks passed!",
+      "output_sha256": "A4443AFDCFB6D7363ADB285762515CCF7CF50473B1A05C20C1A50F6BED4D26B0"
+    },
+    "main_tree_modified": false
+  }
+}

@@ -1,0 +1,30 @@
+# Schema-v4 is accepted by the implemented `bt-runtime` CLI.
+# This is a generic template for a future reviewed live registry binding, not a registered runtime or trading admission.
+# CTP uses the protected examples/013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml and canonical top-level ctp: block for both SimNow and future production.
+# For CTP, see examples/013_3_sa_midfreq_simnow/runtime-ctp-private/README.md and config.ctp.example.yaml; do not use this generic template as a second CTP config.
+# Future production edits that same protected CTP file only after a production runner/write admission is implemented and accepted; this template cannot enable CTP trading.
+# The default registry has 16 registrations: 11 source replay paths, 1 CTP SimNow sandbox private-read path (no runner/capabilities),
+# 2 source managed-L2 replay paths, one public OKX shadow path, and one package-owned backtest/local_backtest fixture. None accepts this live pair.
+# Every Iter41 runtime requires <registered-runtime-dir>/config.yaml. Missing => CONFIG_REQUIRED, zero I/O.
+# Keep the existing tracked example/config.yaml strategy parameters unchanged.
+# Bootstrap atomically creates runtime/config.yaml once; it must never overwrite an existing file.
+# Runtime .gitignore must contain explicit /config.yaml and /secrets.yaml entries; it may also ignore unrelated runtime artifacts such as /reports/.
+# Registry resolves provider/environment, order_route, account_access and plugin requirements.
+# These resolved safety fields are read-only: do not put plugins, route, access or capability overrides here.
+# CLI run selects only the registered runtime directory; it cannot override mode/preset or turn a current replay runner live.
+config_schema_version: 4
+strategy:
+  id: "example.strategy-id"
+runtime:
+  mode: "live"
+  preset: "managed_live_direct"
+# Alternative: managed_live_gateway, only after gateway+transport/capability acceptance.
+# Both live presets require managed execution+risk+monitor, independent production approval,
+# candidate/account/provider admission, a fresh config seal and explicit confirmation of that exact contract.
+# --confirm-live confirms an already configured/approved contract; it never selects or upgrades a mode.
+# There is no live legacy_direct preset. Copying this template never enables a blocked candidate.
+parameters: {}
+secrets_ref: "os_secret_store:approved-live-runtime"
+# This is a schema-valid opaque placeholder; a future reviewed registration must explicitly allow its real reference.
+# The reference is optional in the general schema, but a selected live profile may require it.
+# It cannot change provider/environment; supervisor/gateway credentials remain with the unique server writer.

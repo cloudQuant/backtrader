@@ -1,0 +1,20 @@
+Candidate manifest SHA256: d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486
+Candidate ZIP SHA256: 9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb
+
+Artifact verification:
+  C:\anaconda3\python.exe candidate-copy\verify_candidate_archive.py
+  Result: all_checks_passed=true; 24 payload entries; 26 ZIP members; ZIP CRC ok; source snapshots 9/9; source references 10/10.
+
+Frozen focused target (run from candidate-copy):
+  $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+  $env:PYTHONDONTWRITEBYTECODE='1'
+  $env:PYTHONPATH='<independent-qa>\import-guard'
+  & 'D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe' -m pytest -q -p no:cacheprovider tests\test_ctp_simnow_settlement_consumer.py --tb=short --junitxml '<independent-qa>\evidence\pytest-focus.junit.xml'
+  Result: 35 passed in 1.69s.
+
+QA-only adversarial target:
+  Same environment as above.
+  & 'D:\temp\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\consumer-venv\Scripts\python.exe' -m pytest -q -p no:cacheprovider '<independent-qa>\adversarial\test_independent_adversarial.py' --tb=short --junitxml '<independent-qa>\evidence\pytest-adversarial.junit.xml'
+  Result: 21 passed in 1.08s. Two tests deliberately demonstrate accepted bool-as-int inputs; they pass as reproducible observations, not as claims that those inputs are valid.
+
+The candidate tests use a temporary configuration generated under pytest tmp_path. The QA harness applies the same private-config-security monkeypatch only in the independent synthetic fixture. No protected config was read. A first QA-harness attempt bypassed the original autouse fixture and produced 20 setup errors on synthetic ACL checks; that raw run is retained as harness-debug evidence and is not counted as a candidate test failure.

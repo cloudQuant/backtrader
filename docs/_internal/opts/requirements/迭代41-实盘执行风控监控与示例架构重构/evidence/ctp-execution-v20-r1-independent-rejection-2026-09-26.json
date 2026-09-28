@@ -1,0 +1,820 @@
+{
+  "schema": "iteration41.v20_r1.root_rejection_archive.v1",
+  "status": "REJECTED_SINGLE_ACCOUNT_BINDING_GAP",
+  "root_verified_manifest_payloads": {
+    "independent": 68,
+    "source": 29
+  },
+  "independent_review": {
+    "schema": "iteration41.v20.independent-review-receipt.v1",
+    "snapshot": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r1_20260926",
+    "snapshot_manifest_sha256": "3b66dee3a29400ec7ee6231873bd9f7e8682c14966384b8aa1e88e0c51e6354a",
+    "store_source_sha256": "4067c3fb010a1285c4ca07d7aa26b9e0375a415a278833bde9918e9c78e5e608",
+    "factory_test_sha256": "006923e2bf3ad2a09b9cfde6f3c60a1de72c8a1be95c42464641dfe076645155",
+    "independent_focus": "39 passed; three-file factory/family-owner/store focus",
+    "acceptance": "BLOCKED: same-Store cross-account family-owner/lease/session/claim succeeds after factory binding to account A",
+    "files": [
+      {
+        "path": "account_scope_binding_probe.py",
+        "size": 4486,
+        "sha256": "cd73bf1cab2dc7005fd1f98b09c4ff4ef7dd5de33dba5e57847a221f123d8c07"
+      },
+      {
+        "path": "build_review_manifest.py",
+        "size": 1509,
+        "sha256": "197b4e20c74969b156ac5b5f5a3935261055106eaf1151e334f153904052a81a"
+      },
+      {
+        "path": "legacy_layout_probe.py",
+        "size": 4684,
+        "sha256": "387b00edea7d084aa8c3ae8c526369f20ae683c4cb0b914d45af743345a86292"
+      },
+      {
+        "path": "r0-calibration/baseline.sqlite3",
+        "size": 471040,
+        "sha256": "cbd60f5acf9933ec4cfb3f858c7594c829e30c116abbc9c47a2e3eb0d6605aa1"
+      },
+      {
+        "path": "r0-calibration/baseline.sqlite3-shm",
+        "size": 32768,
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+      },
+      {
+        "path": "r0-calibration/baseline.sqlite3-wal",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "r0-calibration/empty_legacy_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+      },
+      {
+        "path": "r0-calibration/result.json",
+        "size": 476852,
+        "sha256": "005fa05652d29b4cb56973a966c13be0f30efda76c6721886ccd7a1c7745eeb5"
+      },
+      {
+        "path": "r0-calibration/same_name_wrong_index.sqlite3",
+        "size": 471040,
+        "sha256": "4e597677950844eaa9e16e3199836afbbd3aced7be3d31c6ce2acc8156dc4b10"
+      },
+      {
+        "path": "r0-calibration/same_name_wrong_trigger.sqlite3",
+        "size": 471040,
+        "sha256": "6ddd27782e75ee8323da1573f91b0ced863b1a2ab816a1a4fbc4265bc775028e"
+      },
+      {
+        "path": "r0-calibration/wrong_identity_columns.sqlite3",
+        "size": 471040,
+        "sha256": "2bffb778703a96957c8c80ed4cbf8d7e354a35f8fa1ad2040bd062f9c3242eb9"
+      },
+      {
+        "path": "r0-calibration-v2/baseline.sqlite3",
+        "size": 471040,
+        "sha256": "b8d15bb0ccb183e45eefba7b6f235a6a2e0ba0314e1babc05e9e70a2dc4fedd5"
+      },
+      {
+        "path": "r0-calibration-v2/baseline.sqlite3-shm",
+        "size": 32768,
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+      },
+      {
+        "path": "r0-calibration-v2/baseline.sqlite3-wal",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "r0-calibration-v2/empty_legacy_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+      },
+      {
+        "path": "r0-calibration-v2/result.json",
+        "size": 3656,
+        "sha256": "2dd5697f0319918c10d787687314daed6de96840553859e3c0ecd9f64044d886"
+      },
+      {
+        "path": "r0-calibration-v2/same_name_wrong_index.sqlite3",
+        "size": 471040,
+        "sha256": "4318ea7767b1818b5f0f9b725299c2826d604ea68ba58de67173cd175c71366c"
+      },
+      {
+        "path": "r0-calibration-v2/same_name_wrong_trigger.sqlite3",
+        "size": 471040,
+        "sha256": "bb7868673bcbb2b14399041c0a4dd7aa0820b8e0a707c4e2ef0fd6a37e9154ec"
+      },
+      {
+        "path": "r0-calibration-v2/wrong_identity_columns.sqlite3",
+        "size": 471040,
+        "sha256": "c4d661a3ff7d36fa69a68694449b756504d2d48d3b87c358ef67ac4e544136af"
+      },
+      {
+        "path": "r1-adversarial/baseline.sqlite3",
+        "size": 471040,
+        "sha256": "97baf21f21798897e4eba85a8fc9ff2f6fd0edf7741787ad58bb44aa7edb0554"
+      },
+      {
+        "path": "r1-adversarial/baseline.sqlite3-shm",
+        "size": 32768,
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+      },
+      {
+        "path": "r1-adversarial/baseline.sqlite3-wal",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "r1-adversarial/empty_legacy_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+      },
+      {
+        "path": "r1-adversarial/result.json",
+        "size": 4051,
+        "sha256": "416fabb8b85000ca5ff0fdf3bcb94c925847524124352412de8f175d5cabd9b2"
+      },
+      {
+        "path": "r1-adversarial/same_name_wrong_index.sqlite3",
+        "size": 471040,
+        "sha256": "f2b444ceebfd43def828d8d92bf6d8e19d76342e062ac56f8074fee5af168352"
+      },
+      {
+        "path": "r1-adversarial/same_name_wrong_trigger.sqlite3",
+        "size": 471040,
+        "sha256": "a8b8b85174bc701a9c70313f3d32237f4beb252310187be1f68bd91abd3ff64d"
+      },
+      {
+        "path": "r1-adversarial/wrong_identity_columns.sqlite3",
+        "size": 471040,
+        "sha256": "aa3c58f11919681300abde238716cc62c835bd9f63c22d8313c10b8c500d7b3e"
+      },
+      {
+        "path": "r1-adversarial-final/baseline.sqlite3",
+        "size": 471040,
+        "sha256": "08215e807f9e6bd46bb74ac9860b5ee2686d1cd50752c14cabd1d2d237328b06"
+      },
+      {
+        "path": "r1-adversarial-final/baseline.sqlite3-shm",
+        "size": 32768,
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+      },
+      {
+        "path": "r1-adversarial-final/baseline.sqlite3-wal",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "r1-adversarial-final/empty_legacy_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+      },
+      {
+        "path": "r1-adversarial-final/result.json",
+        "size": 4057,
+        "sha256": "1591f2168cd83a81fe69d9c894d2ee62dd6c13a416b736c02081d1b494b09a4b"
+      },
+      {
+        "path": "r1-adversarial-final/same_name_wrong_index.sqlite3",
+        "size": 471040,
+        "sha256": "11240bd49c84d12d8eeafb560ce0f784d99b452214bd84d39c39701dd1d0e08a"
+      },
+      {
+        "path": "r1-adversarial-final/same_name_wrong_trigger.sqlite3",
+        "size": 471040,
+        "sha256": "3ba1e96a3ca1b5b268154ae427ae1f36f31e09f2c1bdbe1239c8e44d6fbe22b6"
+      },
+      {
+        "path": "r1-adversarial-final/wrong_identity_columns.sqlite3",
+        "size": 471040,
+        "sha256": "d87d704899ca0a252a4674f82f2cfbbcb5ba3b62a775b76a6e13a251aceb2169"
+      },
+      {
+        "path": "r1-focused-pytest.log",
+        "size": 101,
+        "sha256": "86a98575a650eee1bc2cb26d04966731c7c4e9b2b201ce6d52ae25d3fb0f33eb"
+      },
+      {
+        "path": "r1-legacy-layout-probe.log",
+        "size": 4362,
+        "sha256": "fffd06f973afcf19b2a3306a76c555ac7a63986af042592f68c20ac70f0a90e2"
+      },
+      {
+        "path": "r1-legacy-layouts/exact_empty_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "8d2227361c09368dfa492fb812d6a54156eb90116b78ee6d542dea9a3ddc2701"
+      },
+      {
+        "path": "r1-legacy-layouts/extra_view_on_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "cc4e697f2a2fb4f2bd02c3a12aab3b77b21438b28f05864a679d56608f4eb8a4"
+      },
+      {
+        "path": "r1-legacy-layouts/malformed_orders_only_extra_column.sqlite3",
+        "size": 16384,
+        "sha256": "a8a6a24fac78f7a7f795eacc2243c404b716def2c6bffb7334e12ae9e8d21e58"
+      },
+      {
+        "path": "r1-legacy-layouts/malformed_orders_only_populated.sqlite3",
+        "size": 16384,
+        "sha256": "096c59eb05bd3cb4735cf251b105de8f0f094fa1d71238d4a71d1432f0fbbd40"
+      },
+      {
+        "path": "r1-legacy-layouts/malformed_orders_only_short_columns.sqlite3",
+        "size": 12288,
+        "sha256": "b6a9a90c938d6f60a57436446d15f8d196d2c1a95c8f3643d0d006f684a8370b"
+      },
+      {
+        "path": "r1-legacy-layouts/partial_metadata_only.sqlite3",
+        "size": 8192,
+        "sha256": "8c2080b30983e3d879254f953289698ecd59ac87749736cf6cbdaa35021c6cfb"
+      },
+      {
+        "path": "r1-legacy-layouts/result.json",
+        "size": 4356,
+        "sha256": "4e85f2ea28ed6bb6f40b0e0e838f109c471ddfb9dfdd018e18f8f83e655cdebe"
+      },
+      {
+        "path": "r1-legacy-layouts-final/exact_empty_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "8d2227361c09368dfa492fb812d6a54156eb90116b78ee6d542dea9a3ddc2701"
+      },
+      {
+        "path": "r1-legacy-layouts-final/extra_view_on_orders_only.sqlite3",
+        "size": 16384,
+        "sha256": "cc4e697f2a2fb4f2bd02c3a12aab3b77b21438b28f05864a679d56608f4eb8a4"
+      },
+      {
+        "path": "r1-legacy-layouts-final/malformed_orders_only_extra_column.sqlite3",
+        "size": 16384,
+        "sha256": "a8a6a24fac78f7a7f795eacc2243c404b716def2c6bffb7334e12ae9e8d21e58"
+      },
+      {
+        "path": "r1-legacy-layouts-final/malformed_orders_only_populated.sqlite3",
+        "size": 16384,
+        "sha256": "096c59eb05bd3cb4735cf251b105de8f0f094fa1d71238d4a71d1432f0fbbd40"
+      },
+      {
+        "path": "r1-legacy-layouts-final/malformed_orders_only_short_columns.sqlite3",
+        "size": 12288,
+        "sha256": "b6a9a90c938d6f60a57436446d15f8d196d2c1a95c8f3643d0d006f684a8370b"
+      },
+      {
+        "path": "r1-legacy-layouts-final/partial_metadata_only.sqlite3",
+        "size": 8192,
+        "sha256": "8c2080b30983e3d879254f953289698ecd59ac87749736cf6cbdaa35021c6cfb"
+      },
+      {
+        "path": "r1-legacy-layouts-final/result.json",
+        "size": 4362,
+        "sha256": "fffd06f973afcf19b2a3306a76c555ac7a63986af042592f68c20ac70f0a90e2"
+      },
+      {
+        "path": "r1-same-store-cross-account/factory-account-a-then-public-scope-b.sqlite3",
+        "size": 471040,
+        "sha256": "766b3a4e27a03c5af9329ccb2988b9f59660f43d38375c296a053cb40c83e3b1"
+      },
+      {
+        "path": "r1-same-store-cross-account/result.json",
+        "size": 1711,
+        "sha256": "a4d1ad9862793e3b5278d21ceca2fdf0b361e1d0f601d671d2448e6f4c1fc6f0"
+      },
+      {
+        "path": "r1-same-store-cross-account.log",
+        "size": 1711,
+        "sha256": "a4d1ad9862793e3b5278d21ceca2fdf0b361e1d0f601d671d2448e6f4c1fc6f0"
+      },
+      {
+        "path": "r1-schema-shape-probe.log",
+        "size": 4057,
+        "sha256": "1591f2168cd83a81fe69d9c894d2ee62dd6c13a416b736c02081d1b494b09a4b"
+      },
+      {
+        "path": "r1-v18-preflight/actual_v18_store.sqlite3",
+        "size": 442368,
+        "sha256": "c31cbd8f37d1e5fd6c8ab350de3191571336a656504109125f98d528e3eaa371"
+      },
+      {
+        "path": "r1-v18-preflight/result.json",
+        "size": 4524,
+        "sha256": "ca77aa5d3fed58d9be7ac4e304f0fc479d590e92fb980826f37ec3df4990e3f3"
+      },
+      {
+        "path": "r1-v18-preflight-final/actual_v18_store.sqlite3",
+        "size": 442368,
+        "sha256": "44d5a40b2b17e57224f5bb538127a227cbc414f5d91589c76ba0b32959218770"
+      },
+      {
+        "path": "r1-v18-preflight-final/result.json",
+        "size": 4536,
+        "sha256": "ec52e82240ba0608b4381eb1ebaa5693e85e52a51327c46f686f50d815d63252"
+      },
+      {
+        "path": "r1-v18-preflight-probe.log",
+        "size": 4536,
+        "sha256": "ec52e82240ba0608b4381eb1ebaa5693e85e52a51327c46f686f50d815d63252"
+      },
+      {
+        "path": "review.md",
+        "size": 4219,
+        "sha256": "6cfdc4895fde51d812e0846efaab02bd6a9fb594b44edc7fc3dfd22ef7e5acf2"
+      },
+      {
+        "path": "schema_shape_probe.py",
+        "size": 6656,
+        "sha256": "aabfd12bb562f453e2fdfb4a433917fd965edd02e9eced2fb092adf47d2b2aa2"
+      },
+      {
+        "path": "source-evidence/r0-same-name-trigger-probe.py",
+        "size": 2283,
+        "sha256": "87bd060f2a99be3a4cec7f297ef67d24989f8a9467c34cb502f9d4b770fdc495"
+      },
+      {
+        "path": "source-evidence/r0-same-name-trigger-result.json",
+        "size": 1176,
+        "sha256": "c81f0d8c9e3b27418813458827cf26eef2b79912e95ad94b07beec734a1a793f"
+      },
+      {
+        "path": "source-evidence/r1-same-name-trigger-probe.py",
+        "size": 2414,
+        "sha256": "5c2f1da70851673ee06c007b2a1cfc75e8d8889d80b7f9217b1075838791e66b"
+      },
+      {
+        "path": "source-evidence/r1-same-name-trigger-result.json",
+        "size": 979,
+        "sha256": "a8f95ebe9df2d557baa8d8b07056f4d99432557c87ba2c0bf68ce8b349278688"
+      },
+      {
+        "path": "source-evidence/v20-r1-manifest.json",
+        "size": 5724,
+        "sha256": "3b66dee3a29400ec7ee6231873bd9f7e8682c14966384b8aa1e88e0c51e6354a"
+      },
+      {
+        "path": "v18_schema_probe.py",
+        "size": 4741,
+        "sha256": "3102c5cfdd2984f7116147b5e0519c481e27f4ffc8e1bd9cb442f6753b2edc26"
+      }
+    ]
+  },
+  "cross_account_probe": {
+    "source": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r1_20260926\\src\\bt_api_execution\\store.py",
+    "store_sha256": "4067c3fb010a1285c4ca07d7aa26b9e0375a415a278833bde9918e9c78e5e608",
+    "manifest_expected": "3b66dee3a29400ec7ee6231873bd9f7e8682c14966384b8aa1e88e0c51e6354a",
+    "scope_a_account_ref": "ctp-account-ref.v1:2771b337b4fe183f5b15275dbc21eb9e85f12288bde9ed9e1b37b98b94c6e2c2",
+    "scope_b_account_ref": "ctp-account-ref.v1:3c16e3d182fda426d50d58b1b4b1679d1594bbd964d2dc66b05893eff874cd1d",
+    "identity_a_read": "ctp-account-ref.v1:2771b337b4fe183f5b15275dbc21eb9e85f12288bde9ed9e1b37b98b94c6e2c2",
+    "identity_b_read_error": "DurableStoreError: CTP execution store account identity does not match",
+    "scope_b_owner": {
+      "family_key": "ctp-account-family.v1:166efaaad1515b6feb88c9cc71e265aad048f19bf798ba549329d06a425cbfe9",
+      "account_key": "account:039a2851507884ca7d6d3b626867cc792080c2291499ca9f98885629383233c2",
+      "owner_intent_id": "a4861e73d28e4c919b937f46db17f152"
+    },
+    "scope_b_lease": {
+      "scope_key": "account:039a2851507884ca7d6d3b626867cc792080c2291499ca9f98885629383233c2",
+      "fencing_token": 1,
+      "family_key": "ctp-account-family.v1:166efaaad1515b6feb88c9cc71e265aad048f19bf798ba549329d06a425cbfe9",
+      "family_owner_intent_id": "a4861e73d28e4c919b937f46db17f152"
+    },
+    "scope_b_callback_session_owner": "3a8f83a482cc4a608b753bb0aaedbee7",
+    "scope_b_claim": {
+      "claimed": true,
+      "record_state": "DISPATCHING",
+      "intent_id": "synthetic-b-submit"
+    },
+    "identity_a_still_readable": "ctp-account-ref.v1:2771b337b4fe183f5b15275dbc21eb9e85f12288bde9ed9e1b37b98b94c6e2c2",
+    "provider_calls": [],
+    "native_calls": 0
+  },
+  "root_same_name_trigger_green": {
+    "schema": "iteration41.v20.root_schema_green.v1",
+    "source_origin": "D:\\temp\\iteration41_v20_ctp_account_store_freeze_r1_20260926\\src\\bt_api_execution\\store.py",
+    "source_sha256": "4067c3fb010a1285c4ca07d7aa26b9e0375a415a278833bde9918e9c78e5e608",
+    "db_sha256_before": "b49a5807768f7b808e7dc0b1ed0141a87e8d66ae0378b8cc53f42b8b80e57181",
+    "db_sha256_after": "b49a5807768f7b808e7dc0b1ed0141a87e8d66ae0378b8cc53f42b8b80e57181",
+    "results": [
+      {
+        "api": "inspect_ctp_account_store_file",
+        "rejected": true,
+        "error": "existing CTP execution store schema definitions do not match code"
+      },
+      {
+        "api": "open_ctp_account_store",
+        "rejected": true,
+        "error": "existing CTP execution store schema definitions do not match code"
+      }
+    ],
+    "native_calls": 0,
+    "scope": "Single root same-name wrong-trigger regression on previously generated r0 temporary DB. Full V20/main runtime acceptance remains separate."
+  },
+  "archive": {
+    "file": "ctp-execution-v20-r1-independent-rejection-2026-09-26.raw.zip",
+    "sha256": "43bc25d47c4611876597fed9c0b8f72c042743e2e96f58b1b6519addaf125ff5",
+    "entries": 101
+  },
+  "files": [
+    {
+      "path": "independent/account_scope_binding_probe.py",
+      "sha256": "cd73bf1cab2dc7005fd1f98b09c4ff4ef7dd5de33dba5e57847a221f123d8c07"
+    },
+    {
+      "path": "independent/build_review_manifest.py",
+      "sha256": "197b4e20c74969b156ac5b5f5a3935261055106eaf1151e334f153904052a81a"
+    },
+    {
+      "path": "independent/legacy_layout_probe.py",
+      "sha256": "387b00edea7d084aa8c3ae8c526369f20ae683c4cb0b914d45af743345a86292"
+    },
+    {
+      "path": "independent/r0-calibration-v2/baseline.sqlite3",
+      "sha256": "b8d15bb0ccb183e45eefba7b6f235a6a2e0ba0314e1babc05e9e70a2dc4fedd5"
+    },
+    {
+      "path": "independent/r0-calibration-v2/baseline.sqlite3-shm",
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    {
+      "path": "independent/r0-calibration-v2/baseline.sqlite3-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent/r0-calibration-v2/empty_legacy_orders_only.sqlite3",
+      "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+    },
+    {
+      "path": "independent/r0-calibration-v2/result.json",
+      "sha256": "2dd5697f0319918c10d787687314daed6de96840553859e3c0ecd9f64044d886"
+    },
+    {
+      "path": "independent/r0-calibration-v2/same_name_wrong_index.sqlite3",
+      "sha256": "4318ea7767b1818b5f0f9b725299c2826d604ea68ba58de67173cd175c71366c"
+    },
+    {
+      "path": "independent/r0-calibration-v2/same_name_wrong_trigger.sqlite3",
+      "sha256": "bb7868673bcbb2b14399041c0a4dd7aa0820b8e0a707c4e2ef0fd6a37e9154ec"
+    },
+    {
+      "path": "independent/r0-calibration-v2/wrong_identity_columns.sqlite3",
+      "sha256": "c4d661a3ff7d36fa69a68694449b756504d2d48d3b87c358ef67ac4e544136af"
+    },
+    {
+      "path": "independent/r0-calibration/baseline.sqlite3",
+      "sha256": "cbd60f5acf9933ec4cfb3f858c7594c829e30c116abbc9c47a2e3eb0d6605aa1"
+    },
+    {
+      "path": "independent/r0-calibration/baseline.sqlite3-shm",
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    {
+      "path": "independent/r0-calibration/baseline.sqlite3-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent/r0-calibration/empty_legacy_orders_only.sqlite3",
+      "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+    },
+    {
+      "path": "independent/r0-calibration/result.json",
+      "sha256": "005fa05652d29b4cb56973a966c13be0f30efda76c6721886ccd7a1c7745eeb5"
+    },
+    {
+      "path": "independent/r0-calibration/same_name_wrong_index.sqlite3",
+      "sha256": "4e597677950844eaa9e16e3199836afbbd3aced7be3d31c6ce2acc8156dc4b10"
+    },
+    {
+      "path": "independent/r0-calibration/same_name_wrong_trigger.sqlite3",
+      "sha256": "6ddd27782e75ee8323da1573f91b0ced863b1a2ab816a1a4fbc4265bc775028e"
+    },
+    {
+      "path": "independent/r0-calibration/wrong_identity_columns.sqlite3",
+      "sha256": "2bffb778703a96957c8c80ed4cbf8d7e354a35f8fa1ad2040bd062f9c3242eb9"
+    },
+    {
+      "path": "independent/r1-adversarial-final/baseline.sqlite3",
+      "sha256": "08215e807f9e6bd46bb74ac9860b5ee2686d1cd50752c14cabd1d2d237328b06"
+    },
+    {
+      "path": "independent/r1-adversarial-final/baseline.sqlite3-shm",
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    {
+      "path": "independent/r1-adversarial-final/baseline.sqlite3-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent/r1-adversarial-final/empty_legacy_orders_only.sqlite3",
+      "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+    },
+    {
+      "path": "independent/r1-adversarial-final/result.json",
+      "sha256": "1591f2168cd83a81fe69d9c894d2ee62dd6c13a416b736c02081d1b494b09a4b"
+    },
+    {
+      "path": "independent/r1-adversarial-final/same_name_wrong_index.sqlite3",
+      "sha256": "11240bd49c84d12d8eeafb560ce0f784d99b452214bd84d39c39701dd1d0e08a"
+    },
+    {
+      "path": "independent/r1-adversarial-final/same_name_wrong_trigger.sqlite3",
+      "sha256": "3ba1e96a3ca1b5b268154ae427ae1f36f31e09f2c1bdbe1239c8e44d6fbe22b6"
+    },
+    {
+      "path": "independent/r1-adversarial-final/wrong_identity_columns.sqlite3",
+      "sha256": "d87d704899ca0a252a4674f82f2cfbbcb5ba3b62a775b76a6e13a251aceb2169"
+    },
+    {
+      "path": "independent/r1-adversarial/baseline.sqlite3",
+      "sha256": "97baf21f21798897e4eba85a8fc9ff2f6fd0edf7741787ad58bb44aa7edb0554"
+    },
+    {
+      "path": "independent/r1-adversarial/baseline.sqlite3-shm",
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+    },
+    {
+      "path": "independent/r1-adversarial/baseline.sqlite3-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent/r1-adversarial/empty_legacy_orders_only.sqlite3",
+      "sha256": "a8eed9460753cc7c040a13f3685553e44140f3bcca31f1e73433a3a0b85f19d2"
+    },
+    {
+      "path": "independent/r1-adversarial/result.json",
+      "sha256": "416fabb8b85000ca5ff0fdf3bcb94c925847524124352412de8f175d5cabd9b2"
+    },
+    {
+      "path": "independent/r1-adversarial/same_name_wrong_index.sqlite3",
+      "sha256": "f2b444ceebfd43def828d8d92bf6d8e19d76342e062ac56f8074fee5af168352"
+    },
+    {
+      "path": "independent/r1-adversarial/same_name_wrong_trigger.sqlite3",
+      "sha256": "a8b8b85174bc701a9c70313f3d32237f4beb252310187be1f68bd91abd3ff64d"
+    },
+    {
+      "path": "independent/r1-adversarial/wrong_identity_columns.sqlite3",
+      "sha256": "aa3c58f11919681300abde238716cc62c835bd9f63c22d8313c10b8c500d7b3e"
+    },
+    {
+      "path": "independent/r1-focused-pytest.log",
+      "sha256": "86a98575a650eee1bc2cb26d04966731c7c4e9b2b201ce6d52ae25d3fb0f33eb"
+    },
+    {
+      "path": "independent/r1-legacy-layout-probe.log",
+      "sha256": "fffd06f973afcf19b2a3306a76c555ac7a63986af042592f68c20ac70f0a90e2"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/exact_empty_orders_only.sqlite3",
+      "sha256": "8d2227361c09368dfa492fb812d6a54156eb90116b78ee6d542dea9a3ddc2701"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/extra_view_on_orders_only.sqlite3",
+      "sha256": "cc4e697f2a2fb4f2bd02c3a12aab3b77b21438b28f05864a679d56608f4eb8a4"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/malformed_orders_only_extra_column.sqlite3",
+      "sha256": "a8a6a24fac78f7a7f795eacc2243c404b716def2c6bffb7334e12ae9e8d21e58"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/malformed_orders_only_populated.sqlite3",
+      "sha256": "096c59eb05bd3cb4735cf251b105de8f0f094fa1d71238d4a71d1432f0fbbd40"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/malformed_orders_only_short_columns.sqlite3",
+      "sha256": "b6a9a90c938d6f60a57436446d15f8d196d2c1a95c8f3643d0d006f684a8370b"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/partial_metadata_only.sqlite3",
+      "sha256": "8c2080b30983e3d879254f953289698ecd59ac87749736cf6cbdaa35021c6cfb"
+    },
+    {
+      "path": "independent/r1-legacy-layouts-final/result.json",
+      "sha256": "fffd06f973afcf19b2a3306a76c555ac7a63986af042592f68c20ac70f0a90e2"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/exact_empty_orders_only.sqlite3",
+      "sha256": "8d2227361c09368dfa492fb812d6a54156eb90116b78ee6d542dea9a3ddc2701"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/extra_view_on_orders_only.sqlite3",
+      "sha256": "cc4e697f2a2fb4f2bd02c3a12aab3b77b21438b28f05864a679d56608f4eb8a4"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/malformed_orders_only_extra_column.sqlite3",
+      "sha256": "a8a6a24fac78f7a7f795eacc2243c404b716def2c6bffb7334e12ae9e8d21e58"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/malformed_orders_only_populated.sqlite3",
+      "sha256": "096c59eb05bd3cb4735cf251b105de8f0f094fa1d71238d4a71d1432f0fbbd40"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/malformed_orders_only_short_columns.sqlite3",
+      "sha256": "b6a9a90c938d6f60a57436446d15f8d196d2c1a95c8f3643d0d006f684a8370b"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/partial_metadata_only.sqlite3",
+      "sha256": "8c2080b30983e3d879254f953289698ecd59ac87749736cf6cbdaa35021c6cfb"
+    },
+    {
+      "path": "independent/r1-legacy-layouts/result.json",
+      "sha256": "4e85f2ea28ed6bb6f40b0e0e838f109c471ddfb9dfdd018e18f8f83e655cdebe"
+    },
+    {
+      "path": "independent/r1-same-store-cross-account.log",
+      "sha256": "a4d1ad9862793e3b5278d21ceca2fdf0b361e1d0f601d671d2448e6f4c1fc6f0"
+    },
+    {
+      "path": "independent/r1-same-store-cross-account/factory-account-a-then-public-scope-b.sqlite3",
+      "sha256": "766b3a4e27a03c5af9329ccb2988b9f59660f43d38375c296a053cb40c83e3b1"
+    },
+    {
+      "path": "independent/r1-same-store-cross-account/result.json",
+      "sha256": "a4d1ad9862793e3b5278d21ceca2fdf0b361e1d0f601d671d2448e6f4c1fc6f0"
+    },
+    {
+      "path": "independent/r1-schema-shape-probe.log",
+      "sha256": "1591f2168cd83a81fe69d9c894d2ee62dd6c13a416b736c02081d1b494b09a4b"
+    },
+    {
+      "path": "independent/r1-v18-preflight-final/actual_v18_store.sqlite3",
+      "sha256": "44d5a40b2b17e57224f5bb538127a227cbc414f5d91589c76ba0b32959218770"
+    },
+    {
+      "path": "independent/r1-v18-preflight-final/result.json",
+      "sha256": "ec52e82240ba0608b4381eb1ebaa5693e85e52a51327c46f686f50d815d63252"
+    },
+    {
+      "path": "independent/r1-v18-preflight-probe.log",
+      "sha256": "ec52e82240ba0608b4381eb1ebaa5693e85e52a51327c46f686f50d815d63252"
+    },
+    {
+      "path": "independent/r1-v18-preflight/actual_v18_store.sqlite3",
+      "sha256": "c31cbd8f37d1e5fd6c8ab350de3191571336a656504109125f98d528e3eaa371"
+    },
+    {
+      "path": "independent/r1-v18-preflight/result.json",
+      "sha256": "ca77aa5d3fed58d9be7ac4e304f0fc479d590e92fb980826f37ec3df4990e3f3"
+    },
+    {
+      "path": "independent/review.md",
+      "sha256": "6cfdc4895fde51d812e0846efaab02bd6a9fb594b44edc7fc3dfd22ef7e5acf2"
+    },
+    {
+      "path": "independent/review_manifest.json",
+      "sha256": "9ef17e68d66e01d93bbf5c30618730a47b6036730a3a757b1662ecb35fafec1d"
+    },
+    {
+      "path": "independent/schema_shape_probe.py",
+      "sha256": "aabfd12bb562f453e2fdfb4a433917fd965edd02e9eced2fb092adf47d2b2aa2"
+    },
+    {
+      "path": "independent/source-evidence/r0-same-name-trigger-probe.py",
+      "sha256": "87bd060f2a99be3a4cec7f297ef67d24989f8a9467c34cb502f9d4b770fdc495"
+    },
+    {
+      "path": "independent/source-evidence/r0-same-name-trigger-result.json",
+      "sha256": "c81f0d8c9e3b27418813458827cf26eef2b79912e95ad94b07beec734a1a793f"
+    },
+    {
+      "path": "independent/source-evidence/r1-same-name-trigger-probe.py",
+      "sha256": "5c2f1da70851673ee06c007b2a1cfc75e8d8889d80b7f9217b1075838791e66b"
+    },
+    {
+      "path": "independent/source-evidence/r1-same-name-trigger-result.json",
+      "sha256": "a8f95ebe9df2d557baa8d8b07056f4d99432557c87ba2c0bf68ce8b349278688"
+    },
+    {
+      "path": "independent/source-evidence/v20-r1-manifest.json",
+      "sha256": "3b66dee3a29400ec7ee6231873bd9f7e8682c14966384b8aa1e88e0c51e6354a"
+    },
+    {
+      "path": "independent/v18_schema_probe.py",
+      "sha256": "3102c5cfdd2984f7116147b5e0519c481e27f4ffc8e1bd9cb442f6753b2edc26"
+    },
+    {
+      "path": "root-schema-green/iteration41_v20_root_schema_green_r1_20260926.json",
+      "sha256": "a8f95ebe9df2d557baa8d8b07056f4d99432557c87ba2c0bf68ce8b349278688"
+    },
+    {
+      "path": "root-schema-green/iteration41_v20_root_schema_green_r1_20260926.py",
+      "sha256": "d854defbc79937d871c17fc9479f51dc989c9e8e806c0ba5a25694dddc78d528"
+    },
+    {
+      "path": "source/manifest.json",
+      "sha256": "3b66dee3a29400ec7ee6231873bd9f7e8682c14966384b8aa1e88e0c51e6354a"
+    },
+    {
+      "path": "source/pyproject.toml",
+      "sha256": "a83f75e04cebe9d46b221bc6e46c39db2edab0fc15deceaa31ff2f15703eb3c1"
+    },
+    {
+      "path": "source/src/bt_api_execution/__init__.py",
+      "sha256": "d6e4bcba6752f823fb36f49121720bee89363ae46a8c0e7e8da9592ada8830aa"
+    },
+    {
+      "path": "source/src/bt_api_execution/admission.py",
+      "sha256": "59a76820b1d3eeaa58bfa28de9b38750d9f0400a62e43b7e16f58eeb4bf12171"
+    },
+    {
+      "path": "source/src/bt_api_execution/cancellation.py",
+      "sha256": "ef1f8e1e8d4ce85409c78d8496baf7b974e06df874414b76b705d3cf5805ef4b"
+    },
+    {
+      "path": "source/src/bt_api_execution/contracts.py",
+      "sha256": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_ledger_adapter.py",
+      "sha256": "a13d86f19122b1c5e55a06cd49019769e0effb7b8fa2fdbdabdcb51732c05e32"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_session.py",
+      "sha256": "1e348a6f1be695f1042645a49094bbc253b143eed72668cd89a4763d89510d69"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_callback_source_bridge.py",
+      "sha256": "b733aaf286a118ff5dad94818c008bab6ea2d81ee1a0d0b81ebafc1d2ff4f10f"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_native_callbacks.py",
+      "sha256": "d44c980649b03f861caec2bcc0d8278bd2ee41f42009a83ae235563137d65861"
+    },
+    {
+      "path": "source/src/bt_api_execution/ctp_single_worker_candidate.py",
+      "sha256": "5e378ee77ad5c6e640ad2eca0dacf154849e6fcfe0d04d73e9da6eb2554087b3"
+    },
+    {
+      "path": "source/src/bt_api_execution/errors.py",
+      "sha256": "45d5e8c414b5a80926ad6e85a0058acebc5c947c0bb7b199c5e9190d3317c784"
+    },
+    {
+      "path": "source/src/bt_api_execution/facade.py",
+      "sha256": "5b0f4086d2e900823b93abb4e7887ea2ca2523dc62591846ea53ee4458ba438a"
+    },
+    {
+      "path": "source/src/bt_api_execution/ports.py",
+      "sha256": "bf84c0424e962fb6d0ad2a9fc2112fbaa72d281e2bac9d2fa58fc959c1ee40b9"
+    },
+    {
+      "path": "source/src/bt_api_execution/py.typed",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "source/src/bt_api_execution/store.py",
+      "sha256": "4067c3fb010a1285c4ca07d7aa26b9e0375a415a278833bde9918e9c78e5e608"
+    },
+    {
+      "path": "source/tests/test_admission_adapter.py",
+      "sha256": "325f098494f6b39c89ffb38362a3094049e1cfdfb4073bcdd96917e6268795e0"
+    },
+    {
+      "path": "source/tests/test_cancellation.py",
+      "sha256": "054e3dc90cc5576cc777added5081bc5476093a7d58374e414ada47ee6fb893f"
+    },
+    {
+      "path": "source/tests/test_contracts.py",
+      "sha256": "ab5fc077ed936877bbaed5c73bc2ab42a0cc893f37772f27be15913ad2f93b2e"
+    },
+    {
+      "path": "source/tests/test_ctp_account_family_owner.py",
+      "sha256": "88453cef1ca9b7701acefa4fcf1690aab8c3673f7989cd5b419af7d720e6e846"
+    },
+    {
+      "path": "source/tests/test_ctp_account_store_factory.py",
+      "sha256": "006923e2bf3ad2a09b9cfde6f3c60a1de72c8a1be95c42464641dfe076645155"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_owner.py",
+      "sha256": "ee1852afd45ed9b618df3ff890178b2d92abe0999bc8e19beeeb5871266ea433"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_session_router.py",
+      "sha256": "870af2df644d5d15b59f57b35bf89069f113e05817e19ae8267900ab29dab5c4"
+    },
+    {
+      "path": "source/tests/test_ctp_callback_source_bridge.py",
+      "sha256": "5eb100454e11d9a973ef00b659e3c545ee9d259a892478c15877771aca71fc6a"
+    },
+    {
+      "path": "source/tests/test_ctp_dispatch_commands.py",
+      "sha256": "817db60b225021578f7d937d5b2e807dd1d61c537abe64eb12f307053d97c999"
+    },
+    {
+      "path": "source/tests/test_ctp_native_callbacks.py",
+      "sha256": "de0d0d998720d898cba57addac6cbdf5ff744fe40797fb1441ee5bc7628fac69"
+    },
+    {
+      "path": "source/tests/test_economic_fact_wire.py",
+      "sha256": "7b854b862e0a9db7819c9c134a4c47e40a905cacd31696ce5c20e1333a2e864b"
+    },
+    {
+      "path": "source/tests/test_execution_facade.py",
+      "sha256": "ebcbf409d1337075264df0b9cd531c6e84fe5629868b2d00babd9bad5b146aad"
+    },
+    {
+      "path": "source/tests/test_execution_store.py",
+      "sha256": "68e329c9c07396db0a2c0892a5689713e9e11c7338a4fd068383aa5a7d020915"
+    },
+    {
+      "path": "source/tests/test_outbox_economic_snapshots.py",
+      "sha256": "ba4e2bb2060a51a5d8be41385a5357c0b2a380fcc2269ae83834893ac7fd1253"
+    }
+  ]
+}

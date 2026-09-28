@@ -1,0 +1,14 @@
+{
+  "status": "COPY_AND_ARCHIVE_VERIFIED",
+  "source_qa_root": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-r2a-independent-qa-20260927",
+  "canonical_evidence_root": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ctp-account-actor-main-store-wiring-r2a-independent-qa-2026-09-27",
+  "candidate_manifest_sha256": "5ad9cce0851fbebd9ac07d520919b7a02f793ab99a133cf96e91f58cede405fb",
+  "parent_r2_manifest_sha256": "5b68f9ed2a457e51941bbd60052a100d2e045907b9b2e3bb454482304badd27a",
+  "payload_count": 41,
+  "archive_member_count": 42,
+  "archive_index_sha256": "a3c66bbbea223a8b09b9d3e52cfa9af4c840ef1fd4a39d30c1f8be50bb6918c8",
+  "raw_zip_sha256": "f30551fd2d6f089d313d379b07eebcd836734c9f1e5e85f9c092f5df60cf1b40",
+  "raw_zip_size_bytes": 571349,
+  "zip_testzip": null,
+  "all_indexed_archive_payloads_match": true
+}

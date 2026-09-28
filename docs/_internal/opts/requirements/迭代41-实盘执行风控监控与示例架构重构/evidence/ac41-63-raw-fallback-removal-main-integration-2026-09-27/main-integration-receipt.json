@@ -1,0 +1,87 @@
+{
+  "schema": "ac41-63-main-integration-result-v1",
+  "status": "RAW_FALLBACK_REMOVAL_LOCAL_ACCEPTED / NO_WRITE / LIVE_NO_GO",
+  "author_review": "SAFE_TO_APPLY_RAW_FALLBACK_REMOVAL_ONLY",
+  "tests": {
+    "focused": {
+      "scope": "tests/unit/stores/test_btapistore.py",
+      "passed": 138,
+      "failed": 0,
+      "skipped": 0,
+      "junit_attributes": {
+        "tests": 138,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "time_seconds": 5.135
+      },
+      "junit": "main/junit/main-focused.junit.xml",
+      "junit_sha256": "43bff2ff790cd521596fa562bf2c208ba5b5a1a0aee6ba7448392cf873dcf9a0"
+    },
+    "full_store_runtime": {
+      "passed": 2641,
+      "skipped": 43,
+      "xfail": 2,
+      "failed": 0,
+      "warnings": 1,
+      "console_summary_source": "root-reported; original pytest stdout not retained",
+      "junit_attributes": {
+        "tests": 2686,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 45,
+        "time_seconds": 112.766
+      },
+      "junit_skip_semantics": "45 JUnit skipped entries include 43 skips plus 2 xfails from the console summary",
+      "junit": "main/junit/main-full-stores-runtime.junit.xml",
+      "junit_sha256": "f3f7fa7616dce2da4cfb95c056886e7afb9bffb95720fbbe517e0db7f4cd9d62"
+    }
+  },
+  "quality_checks": {
+    "ruff": {
+      "reported_exit": 0,
+      "reported_by": "root coordinator",
+      "log": "main/checks/main-ruff.log",
+      "observed": "All checks passed!"
+    },
+    "py_compile": {
+      "reported_exit": 0,
+      "reported_by": "root coordinator",
+      "log": "main/checks/main-pycompile.log",
+      "observed": "empty log"
+    },
+    "diffcheck": {
+      "reported_exit": 0,
+      "reported_by": "root coordinator",
+      "log": "main/checks/main-diffcheck.log",
+      "observed": "only Git LF-to-CRLF warnings for AGENTS.md and backtrader/stores/btapistore.py"
+    },
+    "stdout_retained": false,
+    "exit_sidecars_retained": false
+  },
+  "main_tree": {
+    "store_path": "backtrader/stores/btapistore.py",
+    "store_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+    "test_path": "tests/unit/stores/test_btapistore.py",
+    "test_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+    "source_patch_sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+    "test_migration_patch_sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b",
+    "patch_order": [
+      "PATCH-GIT.diff",
+      "TEST-MIGRATION.diff"
+    ]
+  },
+  "independent_qa": {
+    "verdict": "SAFE_TO_APPLY_RAW_FALLBACK_REMOVAL_ONLY",
+    "zip_sha256": "679c066fc424937fa3b61189f91fe6c28aec1f2a6695c15f50be7ff070c63fa9",
+    "manifest_sha256": "27af73ad60b2b49f475ea273f40b5c4e2243197009d0f24fc3adfdebe74f5d36",
+    "receipt_sha256": "4a5c318c71da32d70699a7f0c5a4c48a71cedef518df2164602b21239eb1636a"
+  },
+  "limitations": [
+    "Scope is raw ReqOrderInsert / ReqOrderAction fallback removal only; this does not authorize CTP writes.",
+    "_execution_gate_capability remains mutable same-process Python state; an external trusted actor/admission authority is not established.",
+    "The main Store/Runtime regression run used ordinary local pytest with -p no:asyncio; it was not SDK/native/network guarded and is not zero-I/O proof.",
+    "No real provider acceptance, account operation, native SDK call, network access, or live order was accepted by this evidence.",
+    "Exact main-run stdout and exit-code sidecars were not retained; summary counts and tool exit codes are root-reported while the raw JUnit XML and logs are preserved."
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "artifact": "G5/V21 worker-handoff read-only pre-review",
+  "classification": "LOCAL_FAKE_OFFLINE_ONLY",
+  "production_route_changed": false,
+  "candidate_modified": false,
+  "test_matrix_included": "independent-pre-review.md",
+  "files": [
+    {
+      "path": "independent-pre-review.md",
+      "bytes": 8130,
+      "sha256": "8C961F01E015B815D6342100952B9E2BF05B7E386125577BC9CD14287DBAFC1C"
+    },
+    {
+      "path": "probe_v21_worker_signature.py",
+      "bytes": 959,
+      "sha256": "73019F38B93D13BF939C595FE028E4695F2253AF37E0C3F0C30963A3AE8516B0"
+    },
+    {
+      "path": "probe_v21_worker_signature.log",
+      "bytes": 491,
+      "sha256": "DD346C33BDA5703685181EF7A515B7492647796CECD7723BC6B8B03539D648C5"
+    }
+  ]
+}

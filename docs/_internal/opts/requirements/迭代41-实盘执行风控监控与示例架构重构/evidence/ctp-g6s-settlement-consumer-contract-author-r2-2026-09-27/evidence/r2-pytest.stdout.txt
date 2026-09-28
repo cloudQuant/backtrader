@@ -1,0 +1,3 @@
+.......................................                                  [100%]
+- generated xml file: D:\temp\iteration41-g6s-settlement-consumer-contract-candidate-20260927-r2\evidence\r2-pytest.junit.xml -
+39 passed in 1.86s

@@ -1,0 +1,291 @@
+{
+  "schema": "ac41-63-raw-fallback-removal-main-integration-evidence-v1",
+  "verdict": "RAW_FALLBACK_REMOVAL_LOCAL_ACCEPTED / NO_WRITE / LIVE_NO_GO",
+  "author_zip_sha256": "c9a2456d6fff2a1d5743f2402d423eb783720dff90cbe02164e83d27216e3e0b",
+  "author_manifest_sha256": "ad48e4dd52404bcb97180aa7fd49f7312bc39dce1cabf3194d0288f39658226a",
+  "source_patch_sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+  "test_migration_patch_sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b",
+  "qa_zip_sha256": "679c066fc424937fa3b61189f91fe6c28aec1f2a6695c15f50be7ff070c63fa9",
+  "qa_manifest_sha256": "27af73ad60b2b49f475ea273f40b5c4e2243197009d0f24fc3adfdebe74f5d36",
+  "qa_receipt_sha256": "4a5c318c71da32d70699a7f0c5a4c48a71cedef518df2164602b21239eb1636a",
+  "main_store_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+  "main_test_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+  "focused_junit_sha256": "43bff2ff790cd521596fa562bf2c208ba5b5a1a0aee6ba7448392cf873dcf9a0",
+  "full_junit_sha256": "f3f7fa7616dce2da4cfb95c056886e7afb9bffb95720fbbe517e0db7f4cd9d62",
+  "copy_receipt_sha256": "2e5b2f21807aa907603f79f80f3bab3073c9f8606a62572795f3a46fb2e831d8",
+  "files": [
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\R2-REV2-PACKAGE.zip",
+      "archive_path": "author/R2-REV2-PACKAGE.zip",
+      "source_sha256": "c9a2456d6fff2a1d5743f2402d423eb783720dff90cbe02164e83d27216e3e0b",
+      "archive_sha256": "c9a2456d6fff2a1d5743f2402d423eb783720dff90cbe02164e83d27216e3e0b",
+      "source_bytes": 383317,
+      "archive_bytes": 383317,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\R2-REV2-PACKAGE-SHA256.txt",
+      "archive_path": "author/R2-REV2-PACKAGE-SHA256.txt",
+      "source_sha256": "ea2490833211e5d2e7a3d408ec30cf43c92c7988dd42b961a82ba47d9840d230",
+      "archive_sha256": "ea2490833211e5d2e7a3d408ec30cf43c92c7988dd42b961a82ba47d9840d230",
+      "source_bytes": 87,
+      "archive_bytes": 87,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\R2-REV2-PACKAGE-MANIFEST.json",
+      "archive_path": "author/R2-REV2-PACKAGE-MANIFEST.json",
+      "source_sha256": "ad48e4dd52404bcb97180aa7fd49f7312bc39dce1cabf3194d0288f39658226a",
+      "archive_sha256": "ad48e4dd52404bcb97180aa7fd49f7312bc39dce1cabf3194d0288f39658226a",
+      "source_bytes": 10820,
+      "archive_bytes": 10820,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\R2-REV2-REPORT.md",
+      "archive_path": "author/R2-REV2-REPORT.md",
+      "source_sha256": "accd4d4ca212506c82c23a53997fb68853e60a4c25fff8b1006e21f9f5f0363e",
+      "archive_sha256": "accd4d4ca212506c82c23a53997fb68853e60a4c25fff8b1006e21f9f5f0363e",
+      "source_bytes": 5187,
+      "archive_bytes": 5187,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\R2-REV2-RESULTS.json",
+      "archive_path": "author/R2-REV2-RESULTS.json",
+      "source_sha256": "7ba356c6795ca35a2772d44f93f93c2d0f0c53dad2161b0c7e005a0ab962cd5e",
+      "archive_sha256": "7ba356c6795ca35a2772d44f93f93c2d0f0c53dad2161b0c7e005a0ab962cd5e",
+      "source_bytes": 5683,
+      "archive_bytes": 5683,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\R2-REV2-METADATA.json",
+      "archive_path": "author/R2-REV2-METADATA.json",
+      "source_sha256": "65437af650b2da41284ea7e7b65f06904a0aa08209488902de69796cf8a98108",
+      "archive_sha256": "65437af650b2da41284ea7e7b65f06904a0aa08209488902de69796cf8a98108",
+      "source_bytes": 3696,
+      "archive_bytes": 3696,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\README.md",
+      "archive_path": "author/README.md",
+      "source_sha256": "f0b7114e4fdfeae3997b4efaa52b474e1655dcb53c06970788c8f2e9cc5db6a9",
+      "archive_sha256": "f0b7114e4fdfeae3997b4efaa52b474e1655dcb53c06970788c8f2e9cc5db6a9",
+      "source_bytes": 1801,
+      "archive_bytes": 1801,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\R2-REV2-SHA256SUMS.txt",
+      "archive_path": "author/R2-REV2-SHA256SUMS.txt",
+      "source_sha256": "89d68f3f230becb56a184703261263b7bae27d8f359c9e24971a7b9665ffb3b9",
+      "archive_sha256": "89d68f3f230becb56a184703261263b7bae27d8f359c9e24971a7b9665ffb3b9",
+      "source_bytes": 4420,
+      "archive_bytes": 4420,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\PATCH-GIT.diff",
+      "archive_path": "author/patches/PATCH-GIT.diff",
+      "source_sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+      "archive_sha256": "2182f12a729afc39dfa6ba4c23bb4accd557f4dcda3138ef238cb039e52de291",
+      "source_bytes": 2730,
+      "archive_bytes": 2730,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\TEST-MIGRATION.diff",
+      "archive_path": "author/patches/TEST-MIGRATION.diff",
+      "source_sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b",
+      "archive_sha256": "43217ec36a412d68e91133ff9c2b640a47dc0ae49c1eac64abc0cb0b3bc39d7b",
+      "source_bytes": 6240,
+      "archive_bytes": 6240,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\BYTE-REPLACEMENTS.json",
+      "archive_path": "author/patches/BYTE-REPLACEMENTS.json",
+      "source_sha256": "e4ac5024dee4642ba74970126a8411fbcc7b927f3beac1486874521cd93c0a37",
+      "archive_sha256": "e4ac5024dee4642ba74970126a8411fbcc7b927f3beac1486874521cd93c0a37",
+      "source_bytes": 6155,
+      "archive_bytes": 6155,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\PATCH-GIT-main-check.log",
+      "archive_path": "author/checks/PATCH-GIT-main-check.log",
+      "source_sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "archive_sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "source_bytes": 2,
+      "archive_bytes": 2,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\PATCH-GIT-main-check.exit",
+      "archive_path": "author/checks/PATCH-GIT-main-check.exit",
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "archive_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source_bytes": 3,
+      "archive_bytes": 3,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\TEST-MIGRATION-main-check.log",
+      "archive_path": "author/checks/TEST-MIGRATION-main-check.log",
+      "source_sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "archive_sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "source_bytes": 2,
+      "archive_bytes": 2,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\TEST-MIGRATION-main-check.exit",
+      "archive_path": "author/checks/TEST-MIGRATION-main-check.exit",
+      "source_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "archive_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "source_bytes": 3,
+      "archive_bytes": 3,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\source\\btapistore.base.py",
+      "archive_path": "author/snapshots/btapistore.base.py",
+      "source_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "archive_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "source_bytes": 780123,
+      "archive_bytes": 780123,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\source\\btapistore.target.py",
+      "archive_path": "author/snapshots/btapistore.target.py",
+      "source_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+      "archive_sha256": "05268b4953a20fa0699639f7e05ee354a4bcafc4b47915dd4ba352b26276e0d9",
+      "source_bytes": 780464,
+      "archive_bytes": 780464,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\tests\\test_btapistore.original.py",
+      "archive_path": "author/snapshots/test_btapistore.original.py",
+      "source_sha256": "23b6b6f901ec5b6b5989cf40700d7a3061df78c894c0c711d406972fe08dfe4e",
+      "archive_sha256": "23b6b6f901ec5b6b5989cf40700d7a3061df78c894c0c711d406972fe08dfe4e",
+      "source_bytes": 129921,
+      "archive_bytes": 129921,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\package-content\\tests\\test_btapistore.migrated.py",
+      "archive_path": "author/snapshots/test_btapistore.migrated.py",
+      "source_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+      "archive_sha256": "649137b29e68f231451c61144ffdc01a0ef80176f7005b0cb9c45e3b72b7a3a1",
+      "source_bytes": 137738,
+      "archive_bytes": 137738,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-independent-qa-20260927\\qa-package\\QA-PACKAGE.zip",
+      "archive_path": "qa/QA-PACKAGE.zip",
+      "source_sha256": "679c066fc424937fa3b61189f91fe6c28aec1f2a6695c15f50be7ff070c63fa9",
+      "archive_sha256": "679c066fc424937fa3b61189f91fe6c28aec1f2a6695c15f50be7ff070c63fa9",
+      "source_bytes": 391883,
+      "archive_bytes": 391883,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-independent-qa-20260927\\qa-package\\QA-PACKAGE.SHA256.txt",
+      "archive_path": "qa/QA-PACKAGE.SHA256.txt",
+      "source_sha256": "d082e4d7f75b184ad94f136b72dcb39bc1867e41caae098be5804cb8d4e8d305",
+      "archive_sha256": "d082e4d7f75b184ad94f136b72dcb39bc1867e41caae098be5804cb8d4e8d305",
+      "source_bytes": 82,
+      "archive_bytes": 82,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-independent-qa-20260927\\qa-package\\content\\QA-PACKAGE-MANIFEST.json",
+      "archive_path": "qa/QA-PACKAGE-MANIFEST.json",
+      "source_sha256": "27af73ad60b2b49f475ea273f40b5c4e2243197009d0f24fc3adfdebe74f5d36",
+      "archive_sha256": "27af73ad60b2b49f475ea273f40b5c4e2243197009d0f24fc3adfdebe74f5d36",
+      "source_bytes": 8884,
+      "archive_bytes": 8884,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-independent-qa-20260927\\qa-package\\content\\qa\\QA-RECEIPT.md",
+      "archive_path": "qa/QA-RECEIPT.md",
+      "source_sha256": "4a5c318c71da32d70699a7f0c5a4c48a71cedef518df2164602b21239eb1636a",
+      "archive_sha256": "4a5c318c71da32d70699a7f0c5a4c48a71cedef518df2164602b21239eb1636a",
+      "source_bytes": 7234,
+      "archive_bytes": 7234,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\main-focused.junit.xml",
+      "archive_path": "main/junit/main-focused.junit.xml",
+      "source_sha256": "43bff2ff790cd521596fa562bf2c208ba5b5a1a0aee6ba7448392cf873dcf9a0",
+      "archive_sha256": "43bff2ff790cd521596fa562bf2c208ba5b5a1a0aee6ba7448392cf873dcf9a0",
+      "source_bytes": 21136,
+      "archive_bytes": 21136,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-writer-slice2-r2-rev2-20260927\\main-full-stores-runtime.junit.xml",
+      "archive_path": "main/junit/main-full-stores-runtime.junit.xml",
+      "source_sha256": "f3f7fa7616dce2da4cfb95c056886e7afb9bffb95720fbbe517e0db7f4cd9d62",
+      "archive_sha256": "f3f7fa7616dce2da4cfb95c056886e7afb9bffb95720fbbe517e0db7f4cd9d62",
+      "source_bytes": 470449,
+      "archive_bytes": 470449,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-raw-fallback-main-integration-20260927\\main-ruff.log",
+      "archive_path": "main/checks/main-ruff.log",
+      "source_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "archive_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "source_bytes": 20,
+      "archive_bytes": 20,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-raw-fallback-main-integration-20260927\\main-pycompile.log",
+      "archive_path": "main/checks/main-pycompile.log",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_bytes": 0,
+      "archive_bytes": 0,
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\ac41-63-raw-fallback-main-integration-20260927\\main-diffcheck.log",
+      "archive_path": "main/checks/main-diffcheck.log",
+      "source_sha256": "042493dd3302f9ea18be116164000632ee5182e9f7eb0abb2f775c608edc2bd5",
+      "archive_sha256": "042493dd3302f9ea18be116164000632ee5182e9f7eb0abb2f775c608edc2bd5",
+      "source_bytes": 228,
+      "archive_bytes": 228,
+      "match": true
+    }
+  ],
+  "zip_checks": [
+    {
+      "members": 46,
+      "output": "members=46 bad=None",
+      "testzip": "clean",
+      "archive_path": "author/R2-REV2-PACKAGE.zip"
+    },
+    {
+      "members": 49,
+      "output": "members=49 bad=None",
+      "testzip": "clean",
+      "archive_path": "qa/QA-PACKAGE.zip"
+    }
+  ],
+  "limits": [
+    "This is local regression evidence for raw fallback removal only; it is not CTP write authorization.",
+    "The independent QA verdict is SAFE_TO_APPLY_RAW_FALLBACK_REMOVAL_ONLY; mutable same-process _execution_gate_capability does not establish trusted authority.",
+    "No real provider acceptance, native SDK call, network operation, account action, or order was exercised by this main regression run.",
+    "The main run used local pytest with -p no:asyncio and was not SDK/native/network guarded; do not use it as a zero-I/O proof.",
+    "The main pytest console stdout was not retained. Counts are root-reported; raw JUnit XML is retained."
+  ]
+}

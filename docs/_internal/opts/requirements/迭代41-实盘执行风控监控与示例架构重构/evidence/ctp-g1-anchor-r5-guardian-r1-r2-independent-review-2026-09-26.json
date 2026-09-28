@@ -1,0 +1,385 @@
+{
+  "schema": "iteration41.g1.anchor_guardian.root_archive.v1",
+  "status": "G1_NOT_PASSED",
+  "date": "2026-09-26",
+  "root_rehashed_manifest_entries": 44,
+  "independent_junit_counts": {
+    "anchor_r5_independent": {
+      "tests": 68,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "guardian_r1_independent": {
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "guardian_r2_independent": {
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "archive": {
+    "file": "ctp-g1-anchor-r5-guardian-r1-r2-independent-review-2026-09-26.raw.zip",
+    "sha256": "b092e01596cebc9ffcf4b4fd607328796ac761c85b5c9e2ca439bf7e6bbd8fef",
+    "entries": 63
+  },
+  "archive_entries": [
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/independent/exit.txt",
+      "sha256": "e004e96241b76ae23f7b816168dc334dc18a6d1bb5d10535fa7963dbd09d1b69"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/independent/pytest.log",
+      "sha256": "150c0bd1b26de4d03a751089657fa27054bf1c17fb016ddc6f153f8d5b5a348e"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/independent/pytest.xml",
+      "sha256": "524236ec5865364134d0485700e2a3f38fd865e14a161fa32c82afcd6af9cbd8"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/manifest.json",
+      "sha256": "b4bd5b20fe90d8d6c01edd29c5d7379679f16d9c246579b7e037a88c57e070a4"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/pytest.log",
+      "sha256": "5593be54b0b83c3f8a3002acd18eed6f652b941fe25cf2eee5f9836821b88669"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/pytest.xml",
+      "sha256": "f01544b2ebce7dc079b7a3d2a50ef5138554127b6b410e1980d92bdee8266dd0"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/ruff-format.log",
+      "sha256": "97d85b4b6c185a05396e2d09a3c304ff0f7cc77f8b7b7bb7989ec6cd875b3898"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/run-manifest.txt",
+      "sha256": "d9008c86815734df005906af783bb94b31bd69e0252219b4623a8056abf9e5b9"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/sha256.txt",
+      "sha256": "b0ba9ac9a7e9361683f2ea43c6e16f3eba801f27d044bef49a57da37e9ec94aa"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/source/ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "19fc85e9bc0d82a991efd0f7bfa15cc5bb3388a22c0931b4f2b857a7d4fc9db4"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/anchor-r5/tests/test_ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "a5526a31a319649cb4cdd1ad3261c4cb17f04860fc561f4f5ef798cb8a8c0917"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/copied-file-hashes.json",
+      "sha256": "4cdb9dc6ec93a89354ce5503d22933320200a8572ff5ac7f121354cb526fb912"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/context-captured-after-freeze/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/context-captured-after-freeze/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "05b14052f96147b7f22e99f82a166929e4d8175cf321bc14b4668259445bc98e"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/evidence-manifest.json",
+      "sha256": "337684d01d9d070426bdc46b7f5035aa7fb6fc398ff82c8df336e249899d5d61"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/independent-layout-run/evidence/exit.txt",
+      "sha256": "e004e96241b76ae23f7b816168dc334dc18a6d1bb5d10535fa7963dbd09d1b69"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/independent-layout-run/evidence/pytest.log",
+      "sha256": "025c219cf0c08e47ab9358e52e627ffde019f3274901888d840a42e91dd64c06"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/independent-layout-run/evidence/pytest.xml",
+      "sha256": "17639fc79039fbd0fa200cb70c7901dcbf1b8b7876f1b92f1921d0e3ab6513d8"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/independent-layout-run/source/tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "82cb185686042ee7b3f129d809af7bc0e22db550f312160b9f91987d67d74863"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/junit.xml",
+      "sha256": "d4f713f50883aff5eb8f1ca3c2c78ddec9d5f611fb74e6500c38e81cc4238f3f"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/pytest.log",
+      "sha256": "b1cd8b163a659b30820c5bdee32c68d37dc6d64c16c50f0f4f5809ac90350909"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/source/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "20ff688f657000017833dfdb12f11fd3b1feabb25e019ae581f20503ad5c7561"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/guardian-r1/tests/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "82cb185686042ee7b3f129d809af7bc0e22db550f312160b9f91987d67d74863"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/receipt-hashes.txt",
+      "sha256": "04676f7f7240bf772d769dcef94b88f6038877856317eb1b36762d89eda0c883"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/review-receipt.json",
+      "sha256": "80c6846f8db3d4946fd1d2628dca44989848ac3241a43f18eb82279b4403cc6f"
+    },
+    {
+      "path": "anchor-r5-guardian-r1-review/review-receipt.md",
+      "sha256": "332cbf9ce30a17b345259aa993a91780062ead1f5565445088900753433f99d5"
+    },
+    {
+      "path": "guardian-r1-independent-layout/evidence/exit.txt",
+      "sha256": "e004e96241b76ae23f7b816168dc334dc18a6d1bb5d10535fa7963dbd09d1b69"
+    },
+    {
+      "path": "guardian-r1-independent-layout/evidence/pytest.log",
+      "sha256": "025c219cf0c08e47ab9358e52e627ffde019f3274901888d840a42e91dd64c06"
+    },
+    {
+      "path": "guardian-r1-independent-layout/evidence/pytest.xml",
+      "sha256": "17639fc79039fbd0fa200cb70c7901dcbf1b8b7876f1b92f1921d0e3ab6513d8"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/__init__.py",
+      "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "19fc85e9bc0d82a991efd0f7bfa15cc5bb3388a22c0931b4f2b857a7d4fc9db4"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_parent_launcher.py",
+      "sha256": "27483d1501caf988126a300552712c87779f7a29bf61c142bbb185bdd4013782"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_readonly_preflight_worker.py",
+      "sha256": "f3368648c05cfd9234e02d0d8d6f78d15993c4e7108a8e6e5f8dfed4102bc282"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_runtime_closure.py",
+      "sha256": "e60351b6c000a28b5f80a22cfa930a7a5c31384e08100537ba4e566e13323707"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_sealed_import.py",
+      "sha256": "8376e2cde464eddf5c06bdd13f32c9b79fc1531ffbe5ac8818cb019e3714dafe"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "20ff688f657000017833dfdb12f11fd3b1feabb25e019ae581f20503ad5c7561"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/scripts/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "05b14052f96147b7f22e99f82a166929e4d8175cf321bc14b4668259445bc98e"
+    },
+    {
+      "path": "guardian-r1-independent-layout/source/tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "82cb185686042ee7b3f129d809af7bc0e22db550f312160b9f91987d67d74863"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/__init__.py",
+      "sha256": "fc4fa253c49a6d8148d2f24aae77d0e3b8cf3596380cd4a81fae9233c9643fdb"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_guardian_deployment_anchor.py",
+      "sha256": "19fc85e9bc0d82a991efd0f7bfa15cc5bb3388a22c0931b4f2b857a7d4fc9db4"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_outer_watchdog.py",
+      "sha256": "6ca140d413fd368b1be604313da1a61db4b62f76b0d6239ab60f5701ba6c2719"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_parent_launcher.py",
+      "sha256": "27483d1501caf988126a300552712c87779f7a29bf61c142bbb185bdd4013782"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_readonly_preflight_worker.py",
+      "sha256": "f3368648c05cfd9234e02d0d8d6f78d15993c4e7108a8e6e5f8dfed4102bc282"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_runtime_closure.py",
+      "sha256": "e60351b6c000a28b5f80a22cfa930a7a5c31384e08100537ba4e566e13323707"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_sealed_import.py",
+      "sha256": "8376e2cde464eddf5c06bdd13f32c9b79fc1531ffbe5ac8818cb019e3714dafe"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_windows_guardian.py",
+      "sha256": "70faa6da08b6ceaa0d2b618acecdd5b62e72e77133ba0b61e19558db79150641"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "0307c26a0f88819ff18c5dd82bc26146bb7868318b89691ac643865473d5fdf4"
+    },
+    {
+      "path": "guardian-r2-review/context-used-by-independent-layout-run/ctp_i13_i15_windows_job_backend.py",
+      "sha256": "05b14052f96147b7f22e99f82a166929e4d8175cf321bc14b4668259445bc98e"
+    },
+    {
+      "path": "guardian-r2-review/copied-file-hashes.json",
+      "sha256": "58b7f03145b511bd27a45075aa9d23dfdc22caeab1c104705f4f7e716a0892ac"
+    },
+    {
+      "path": "guardian-r2-review/evidence-manifest.json",
+      "sha256": "c244eb131d4613fc33add4312f11a0761ecec4ab585f89a981340635d8cf0108"
+    },
+    {
+      "path": "guardian-r2-review/frozen-source/ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "0307c26a0f88819ff18c5dd82bc26146bb7868318b89691ac643865473d5fdf4"
+    },
+    {
+      "path": "guardian-r2-review/frozen-tests/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "73250a7ff6a5e97c3a81492b557848a50f4065dfa40994988d536fd3adf5346b"
+    },
+    {
+      "path": "guardian-r2-review/independent-layout-run/exit.txt",
+      "sha256": "e004e96241b76ae23f7b816168dc334dc18a6d1bb5d10535fa7963dbd09d1b69"
+    },
+    {
+      "path": "guardian-r2-review/independent-layout-run/pytest.log",
+      "sha256": "51c542cdc553ca469fdbfd66d063f49af031d0ccaff91e7895a8df291cff86ac"
+    },
+    {
+      "path": "guardian-r2-review/independent-layout-run/pytest.xml",
+      "sha256": "f7027dd1c229c2bca66251f40a1df50aba4c098897ffc1abebcbe64ebcd3758b"
+    },
+    {
+      "path": "guardian-r2-review/independent-layout-run/test_ctp_i13_i15_windows_guardian_service.py",
+      "sha256": "73250a7ff6a5e97c3a81492b557848a50f4065dfa40994988d536fd3adf5346b"
+    },
+    {
+      "path": "guardian-r2-review/junit.xml",
+      "sha256": "0c7e91f2dd1112b2543e3d73039a3a2b250b4cc16a52286320921d42e6179e0b"
+    },
+    {
+      "path": "guardian-r2-review/pytest.log",
+      "sha256": "d44f030f1e36ff9555d803c77ff088090748ed5c91d4e5d9c18b9f71a6d766a3"
+    },
+    {
+      "path": "guardian-r2-review/review-receipt.json",
+      "sha256": "a8753851fe27a9567e89b96dbaef3f0d6eeb4d24690fe9f2ad8a3d2153f8b123"
+    },
+    {
+      "path": "guardian-r2-review/review-receipt.md",
+      "sha256": "97ae0a54df92d14189e7b50b0550ba737ba62bafcef3471c3cd5b773167e0eea"
+    }
+  ],
+  "anchor_guardian_r1_review": {
+    "receipt_schema": "receipt_security_qa.guardian_anchor_review.v1",
+    "created_date": "2026-09-26",
+    "receipt_root": "D:\\temp\\rqa-iteration41-anchor-guardian-review-20260926",
+    "anchor_r5": {
+      "snapshot": "D:\\temp\\iteration41-anchor-pycache-prefix-20260926-r5",
+      "manifest": "anchor-r5\\manifest.json",
+      "source_sha256": "19fc85e9bc0d82a991efd0f7bfa15cc5bb3388a22c0931b4f2b857a7d4fc9db4",
+      "test_sha256": "a5526a31a319649cb4cdd1ad3261c4cb17f04860fc561f4f5ef798cb8a8c0917",
+      "independent_result": "68 passed in 0.58s; one existing pytest_asyncio configuration warning",
+      "independent_command": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe -B -m pytest -p no:cacheprovider -q D:\\temp\\iteration41-anchor-pycache-prefix-20260926-r5\\source\\tests\\unit\\scripts\\test_ctp_i13_i15_guardian_deployment_anchor.py --junitxml=D:\\temp\\rqa-anchor-r5-20260926\\pytest.xml",
+      "ruff": "ruff check and format --check passed on the two frozen files",
+      "findings": [
+        {
+          "status": "no blocker found in this frozen anchor slice",
+          "evidence": "Test imports the exact frozen anchor path derived from its own snapshot layout at test lines 18-26. Anchor pycache_prefix is derived from runtime_base_root and fixed disabled-bytecode-cache component (anchor lines 1507-1513), rejects after close/lease close; direct unit test at test lines 244-251. Actual Windows retained-handle enumeration smoke observes absent leaf and a newly-created leaf (test lines 646-673); ACL check is deliberately stubbed and no ACL is changed."
+        },
+        {
+          "limitation": "Runtime closure integration/deployment not accepted by this slice",
+          "evidence": "Frozen anchor module constants leave descriptor/dependency/runtime pins zero and module docstring says it rejects before protected runtime access until pins are supplied (anchor lines 1-34). R5 proves fixed-path derivation and enumeration mechanics, not parser-to-worker execution or production ACLs."
+        }
+      ]
+    },
+    "guardian_r1": {
+      "snapshot": "D:\\temp\\iteration41-readonly-os-route-freeze-20260926-r1",
+      "source_sha256": "20ff688f657000017833dfdb12f11fd3b1feabb25e019ae581f20503ad5c7561",
+      "test_sha256": "82cb185686042ee7b3f129d809af7bc0e22db550f312160b9f91987d67d74863",
+      "focused_result": "38 passed, 0 failures/errors/skips, one existing unknown asyncio config warning; frozen author junit/log copied",
+      "finding_1": {
+        "severity": "deployment blocker",
+        "title": "CreateProcessAsUserW cross-session stdio handle inheritance",
+        "evidence": "Frozen service captures actual pipe-client primary token via DuplicateTokenEx, service lines 1723-1800; passes token and inherited stdio handles to backend at service lines 3038-3043. Context backend captured after freeze sets inherit_handles=True when stdio list exists, backend lines 840-875, then calls CreateProcessAsUserW with that flag, lines 904-919.",
+        "trigger": "Typical SCM service caller is Session 0; interactive owner client token retains nonzero TokenSessionId. CreateProcessAsUserW creates worker in the client token session. The implementation neither reads nor changes token session and requires inherited handles for stdout/NUL.",
+        "source": "Microsoft Learn CreateProcessAsUserW API: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw — Terminal Services note says handles cannot be inherited across sessions and bInheritHandles=TRUE requires same session as caller.",
+        "minimal_fix": "Use a bounded named-pipe output channel opened by the worker with no cross-session inherited handles, or fail closed on a verified session mismatch. Do not mutate TokenSessionId without a separately reviewed privilege and identity contract.",
+        "test_gap": "Fake composition does not model Session 0 versus interactive TokenSessionId nor actual cross-session CreateProcessAsUserW handle behavior."
+      },
+      "finding_2": {
+        "severity": "security cleanup blocker",
+        "title": "RevertToSelf failure is swallowed before privileged follow-up",
+        "evidence": "Token capture raises pipe_client_revert_failed when RevertToSelf fails, service lines 1805-1814. _serve_one_readonly_os_request catches it broadly and continues, lines 3102-3110, then calls close_execution and create_receipt and attempts response, lines 3128-3198, on that same thread.",
+        "trigger": "If RevertToSelf fails, the thread may remain impersonating the client. Current handler performs anchor/receipt/response work and returns control to the service caller with that thread identity still changed.",
+        "minimal_fix": "Terminate the service process immediately on RevertToSelf failure; do not merely retire a thread and do not run receipt/response/other privileged follow-up on that process. Add an integration negative proving no follow-up after failure.",
+        "test_gap": "Low-level unit test only asserts pipe_client_revert_failed; no handler test proves thread retirement or follow-up is skipped."
+      },
+      "known_limit": "Service anchor/setup and receipt I/O occur outside caller IPC timeout and the new endpoint is not a whole-command hard-deadline/G1 acceptance.",
+      "official_reference": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw",
+      "independent_result": "38 passed in 26.30s; one existing pytest_asyncio configuration warning; exact r1 service/test bytes in temporary source/scripts and source/tests/unit/scripts layout.",
+      "independent_command": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe -B -m pytest -p no:cacheprovider -q --tb=short --junitxml=<temp evidence>\\pytest.xml <temp source>\\tests\\unit\\scripts\\test_ctp_i13_i15_windows_guardian_service.py"
+    },
+    "artifact_hashes": "copied-file-hashes.json"
+  },
+  "guardian_r2_review": {
+    "schema": "receipt_security_qa.guardian_r2_review.v1",
+    "created_date": "2026-09-26",
+    "snapshot": "D:\\temp\\iteration41-readonly-os-route-failstop-20260926-r2",
+    "snapshot_manifest_sha256": "c244eb131d4613fc33add4312f11a0761ecec4ab585f89a981340635d8cf0108",
+    "source_sha256": "0307c26a0f88819ff18c5dd82bc26146bb7868318b89691ac643865473d5fdf4",
+    "test_sha256": "73250a7ff6a5e97c3a81492b557848a50f4065dfa40994988d536fd3adf5346b",
+    "test_results": {
+      "author_snapshot": "39 passed, 0 failures/errors/skips; one existing asyncio configuration warning",
+      "independent_snapshot_flat": "Initial flat-file invocation failed 7 tests because test uses Path(__file__).resolve().parents[3]; this is a fixture layout issue, not a source test failure.",
+      "independent_project_layout": "Exact frozen r2 service/test bytes placed in a temporary source/scripts and source/tests/unit/scripts layout; 39 passed in 26.40s, one existing asyncio configuration warning.",
+      "independent_command": "python.exe -B -m pytest -p no:cacheprovider -q --tb=short --junitxml=<temp evidence> <temp source>/tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "production_termination_api_not_executed": true
+    },
+    "findings": [
+      {
+        "status": "fixed in r2 OS-token route",
+        "title": "RevertToSelf failure now terminates service process",
+        "evidence": "The primary-token capture path raises GuardianServiceThreadFatalError after a failed RevertToSelf (service lines 1838-1864); route catches it and calls process-fatal exit before normal finally/receipt work (lines 3137-3142). TerminateProcess is attempted; os._exit is fallback (lines 616-640). Integration negative asserts no close_execution, receipt creation, receipt-lease close or response after fatal boundary (test lines 2480-2518)."
+      },
+      {
+        "status": "residual blocker in r2",
+        "title": "Legacy _impersonated_pipe_client_sid still returns after revert failure",
+        "evidence": "The helper still raises ordinary GuardianServiceError on RevertToSelf false (service lines 1667-1685). It is called by legacy endpoint paths at lines 2568 and 2759; serve_one_inert_request catches GuardianServiceError and returns at lines 2759-2761. Therefore module-wide impersonation cleanup is not fail-stop closed while that exported legacy route remains callable.",
+        "minimal_fix": "Apply same process-fatal handling on any RevertToSelf failure in the helper/its callers, or explicitly remove/disable that callable legacy server path under service execution. Add fake sink tests; never run os._exit inside pytest."
+      },
+      {
+        "status": "remaining deployment blocker",
+        "title": "Cross-session stdio HANDLE_LIST cannot be inherited",
+        "evidence": "r2 service still passes client primary token plus inherited stdin/stdout/stderr handles to backend at lines 3073-3087. Backend sets bInheritHandles from stdio list at lines 840-875 and calls CreateProcessAsUserW at lines 904-919 in contextual copy. No TokenSessionId is read or adjusted.",
+        "source": "Microsoft Learn CreateProcessAsUserW: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw",
+        "minimalFix": "Use bounded named-pipe output with no inherited cross-session handles, or fail closed on verified session mismatch. Do not mutate TokenSessionId without separately reviewed privilege/identity contract."
+      }
+    ],
+    "limitations": [
+      "No service install, provider/native, private config, or actual cross-session CreateProcessAsUserW test was performed.",
+      "Service anchor/setup and receipt I/O remain outside an independent external watchdog; G1 is not passed."
+    ],
+    "artifacts": "copied-file-hashes.json"
+  },
+  "root_notes": [
+    "Independent reviewer executed tests; root rehashed recorded copies and inspected JUnit counts and frozen source.",
+    "Guardian tests require project layout; initial flat-layout failures were harness errors, not accepted runs.",
+    "Context modules are separately copied inputs, not a claim of a unified fully frozen runtime/deployment bundle.",
+    "R2 primary-token capture closes token handles before raising its fatal marker; the handler then terminates before business cleanup/receipt/response.",
+    "R2 legacy SID helper still permits callers to swallow failed RevertToSelf; module-wide closure not accepted.",
+    "Cross-session inherited handles and whole-command supervision remain blocking; no real service or provider ran."
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "all_payloads_match": true,
+  "crc_bad_member": null,
+  "manifest_payloads": 35,
+  "manifest_sha256": "3e4b386ec95f52bb27d268a857aa4d5223d28ba2daf1952e2b6caf95eaf9f199",
+  "mismatches": [],
+  "missing": [],
+  "zip_members": 36
+}

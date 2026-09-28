@@ -1,0 +1,32 @@
+{
+  "baseline": {
+    "errors": 0,
+    "failing_nodes": [
+      {
+        "classname": "tests.unit.stores.test_btapistore",
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "name": "test_placeholder_provider_raises[futu]"
+      },
+      {
+        "classname": "tests.unit.stores.test_btapistore",
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "name": "test_placeholder_provider_raises[oanda]"
+      },
+      {
+        "classname": "tests.unit.stores.test_btapistore",
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "name": "test_placeholder_provider_raises[vc]"
+      }
+    ],
+    "failures": 3,
+    "skipped": 0,
+    "tests": 6
+  },
+  "candidate": {
+    "errors": 0,
+    "failing_nodes": [],
+    "failures": 0,
+    "skipped": 0,
+    "tests": 6
+  }
+}

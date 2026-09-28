@@ -1,0 +1,648 @@
+{
+  "build": {
+    "exe_exists": true,
+    "exe_sha256": "41a6a599d720f48ffe9e1e89294279d35045078fdc7ddd081b6643a9a66595ff",
+    "exit_code": 0,
+    "output": "r9_custodian.cpp\r\n"
+  },
+  "candidate": "R9 prestarted Windows inert supervisor/broker/sacrificial worker prototype",
+  "checks": [
+    {
+      "evidence": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb",
+      "name": "r8_baseline_manifest_sha_matches_frozen",
+      "pass": true
+    },
+    {
+      "evidence": "4c412a14af1cb5fe5ea5f6ff39f23d7952187e5f60bc2015f70d0098af6cf58a",
+      "name": "r8_baseline_trials_sha_matches_frozen",
+      "pass": true
+    },
+    {
+      "evidence": {
+        "broker_alive_after_caller_death_or_return": true,
+        "broker_exact_exit_and_job_empty": true,
+        "broker_exit": 0,
+        "broker_job_active_after": 0,
+        "caller_api_return_by_D": false,
+        "caller_api_return_tick_ms": 223497781,
+        "caller_api_returned": true,
+        "caller_blocked_before_kill": false,
+        "caller_dead_seen_by_broker": true,
+        "caller_exact_exit_and_job_empty": true,
+        "caller_exit": 0,
+        "caller_job_active_after": 0,
+        "caller_killed": false,
+        "caller_terminal_event": "api-return",
+        "cancel_error": 0,
+        "cancel_issued": true,
+        "deadline_tick_ms": 223497778,
+        "decision_tick_ms": 223497781,
+        "mode": "p05",
+        "pending_context_preowned_before_ready": true,
+        "reaper_process_separate_from_caller": true,
+        "request_budget_ms": 1200,
+        "request_start_tick_ms": 223496578,
+        "status": "CALLER_RETURN_LATE_OR_MISSING",
+        "supervisor_decision_observed_tick_ms": 223497781,
+        "worker_exact_exit_and_job_empty": true,
+        "worker_exit": 0,
+        "worker_job_active_after": 0,
+        "writer_completion_consume_hold_ms": 100,
+        "writer_completion_tick_ms": 223497984,
+        "writer_done": true,
+        "writer_error": 995,
+        "writer_event_observed": true,
+        "writer_pending_after_api_return": true,
+        "writer_pending_at_caller_terminal_event": true,
+        "writer_submitted": true
+      },
+      "name": "P05_caller_returns_UNKNOWN_by_D_with_pending_broker_IO",
+      "pass": false
+    },
+    {
+      "evidence": {
+        "broker_alive_after_caller_death_or_return": true,
+        "broker_exact_exit_and_job_empty": true,
+        "broker_exit": 0,
+        "broker_job_active_after": 0,
+        "caller_api_return_by_D": false,
+        "caller_api_return_tick_ms": 0,
+        "caller_api_returned": false,
+        "caller_blocked_before_kill": true,
+        "caller_dead_seen_by_broker": true,
+        "caller_exact_exit_and_job_empty": true,
+        "caller_exit": 3909091329,
+        "caller_job_active_after": 0,
+        "caller_killed": true,
+        "caller_terminal_event": "process-death",
+        "cancel_error": 0,
+        "cancel_issued": true,
+        "deadline_tick_ms": 223499653,
+        "decision_tick_ms": 223499656,
+        "mode": "caller-death",
+        "pending_context_preowned_before_ready": true,
+        "reaper_process_separate_from_caller": true,
+        "request_budget_ms": 1200,
+        "request_start_tick_ms": 223498453,
+        "status": "CALLER_RETURN_LATE_OR_MISSING",
+        "supervisor_decision_observed_tick_ms": 223499656,
+        "worker_exact_exit_and_job_empty": true,
+        "worker_exit": 0,
+        "worker_job_active_after": 0,
+        "writer_completion_consume_hold_ms": 100,
+        "writer_completion_tick_ms": 223499781,
+        "writer_done": true,
+        "writer_error": 995,
+        "writer_event_observed": true,
+        "writer_pending_after_api_return": true,
+        "writer_pending_at_caller_terminal_event": true,
+        "writer_submitted": true
+      },
+      "name": "caller_death_does_not_destroy_pending_IO_owner",
+      "pass": true
+    },
+    {
+      "evidence": {
+        "caller_api_return_tick_ms": 223501421,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223501421,
+        "deadline_tick_ms": 223501418,
+        "helper_stage": 1,
+        "mode": "popen-before",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 1,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      },
+      "name": "Popen_block_before_child_is_fenced_inside_prestarted_worker_Job",
+      "pass": false
+    },
+    {
+      "evidence": {
+        "caller_api_return_tick_ms": 223503015,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223503015,
+        "deadline_tick_ms": 223503012,
+        "helper_stage": 3,
+        "mode": "popen-after",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 2,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      },
+      "name": "Popen_child_created_before_outer_call_returns_is_fenced_by_Job",
+      "pass": false
+    },
+    {
+      "evidence": {
+        "go_set_elapsed_ns": 32000000,
+        "launcher_exit_code": 3925803010,
+        "mode": "outer-job",
+        "outer_job_active_after": 0,
+        "outer_job_active_before": 5,
+        "outer_job_query_error_after": 0,
+        "outer_job_query_error_before": 0,
+        "outer_marker": {
+          "external_job_handle": 672,
+          "launcher_pid": 28812,
+          "marker": "R9_OUTER_JOB_CONTROL_READY"
+        },
+        "pending_marker": {
+          "broker_pid": 15188,
+          "caller_pid": 43332,
+          "marker": "R9_PENDING_IO",
+          "pending": 1
+        },
+        "popen_elapsed_ns_pre_request": 47000000,
+        "process_identities": {
+          "broker": {
+            "creation_time_100ns": 134349365111246447,
+            "pid": 15188
+          },
+          "caller": {
+            "creation_time_100ns": 134349365110733662,
+            "pid": 43332
+          },
+          "launcher": {
+            "creation_time_100ns": 134349365107877664,
+            "pid": 28812
+          },
+          "supervisor": {
+            "creation_time_100ns": 134349365108411329,
+            "pid": 20372
+          },
+          "worker": {
+            "creation_time_100ns": 134349365108951775,
+            "pid": 45760
+          }
+        },
+        "process_wait_results": {
+          "broker": 0,
+          "caller": 0,
+          "launcher": 0,
+          "supervisor": 0,
+          "worker": 0
+        },
+        "ready": {
+          "broker_io_context_preowned": 1,
+          "broker_job_active": 1,
+          "broker_pid": 15188,
+          "caller_job_active": 1,
+          "caller_job_preowned": 1,
+          "caller_pid": 43332,
+          "marker": "R9_READY",
+          "named_pipe_connected": 1,
+          "supervisor_pid": 20372,
+          "worker_job_active": 1,
+          "worker_job_preowned": 1,
+          "worker_pid": 45760
+        },
+        "ready_wait_ns_pre_request": 359000000,
+        "request_barrier": {
+          "broker_pid": 15188,
+          "budget_ms": 1200,
+          "caller_pid": 43332,
+          "deadline_tick_ms": 223504621,
+          "marker": "R9_REQUEST_BARRIER",
+          "mode": "outer-job",
+          "request_start_tick_ms": 223503421,
+          "worker_pid": 45760
+        },
+        "tail_output": "",
+        "terminate_and_empty_elapsed_ns": 16000000,
+        "terminate_error": 0,
+        "terminate_returned": true,
+        "wait_object_0": 0
+      },
+      "name": "outer_Job_kills_all_prestarted_processes",
+      "pass": true
+    }
+  ],
+  "decision": "R9 demonstrates a narrower prewarmed local topology only; G1 remains closed.",
+  "failed_checks": [
+    {
+      "evidence": {
+        "broker_alive_after_caller_death_or_return": true,
+        "broker_exact_exit_and_job_empty": true,
+        "broker_exit": 0,
+        "broker_job_active_after": 0,
+        "caller_api_return_by_D": false,
+        "caller_api_return_tick_ms": 223497781,
+        "caller_api_returned": true,
+        "caller_blocked_before_kill": false,
+        "caller_dead_seen_by_broker": true,
+        "caller_exact_exit_and_job_empty": true,
+        "caller_exit": 0,
+        "caller_job_active_after": 0,
+        "caller_killed": false,
+        "caller_terminal_event": "api-return",
+        "cancel_error": 0,
+        "cancel_issued": true,
+        "deadline_tick_ms": 223497778,
+        "decision_tick_ms": 223497781,
+        "mode": "p05",
+        "pending_context_preowned_before_ready": true,
+        "reaper_process_separate_from_caller": true,
+        "request_budget_ms": 1200,
+        "request_start_tick_ms": 223496578,
+        "status": "CALLER_RETURN_LATE_OR_MISSING",
+        "supervisor_decision_observed_tick_ms": 223497781,
+        "worker_exact_exit_and_job_empty": true,
+        "worker_exit": 0,
+        "worker_job_active_after": 0,
+        "writer_completion_consume_hold_ms": 100,
+        "writer_completion_tick_ms": 223497984,
+        "writer_done": true,
+        "writer_error": 995,
+        "writer_event_observed": true,
+        "writer_pending_after_api_return": true,
+        "writer_pending_at_caller_terminal_event": true,
+        "writer_submitted": true
+      },
+      "name": "P05_caller_returns_UNKNOWN_by_D_with_pending_broker_IO",
+      "pass": false
+    },
+    {
+      "evidence": {
+        "caller_api_return_tick_ms": 223501421,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223501421,
+        "deadline_tick_ms": 223501418,
+        "helper_stage": 1,
+        "mode": "popen-before",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 1,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      },
+      "name": "Popen_block_before_child_is_fenced_inside_prestarted_worker_Job",
+      "pass": false
+    },
+    {
+      "evidence": {
+        "caller_api_return_tick_ms": 223503015,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223503015,
+        "deadline_tick_ms": 223503012,
+        "helper_stage": 3,
+        "mode": "popen-after",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 2,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      },
+      "name": "Popen_child_created_before_outer_call_returns_is_fenced_by_Job",
+      "pass": false
+    }
+  ],
+  "platform": {
+    "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "system": "Windows-10-10.0.26100-SP0",
+    "windows_version": [
+      10,
+      0,
+      26200,
+      2,
+      ""
+    ]
+  },
+  "r8_baseline_manifest_sha256": "f1ce63cf08ec620c7a4ca09fac55bc26a7553f88796cfb3e2a768f7bb008cdeb",
+  "r8_baseline_trials_sha256": "4c412a14af1cb5fe5ea5f6ff39f23d7952187e5f60bc2015f70d0098af6cf58a",
+  "scenarios": [
+    {
+      "exit_code": 0,
+      "mode": "p05",
+      "outer_job_active_after_process_exit": 0,
+      "outer_job_query_error_after": 0,
+      "outer_marker": {
+        "external_job_handle": 228,
+        "launcher_pid": 29644,
+        "marker": "R9_OUTER_JOB_CONTROL_READY"
+      },
+      "popen_elapsed_ns_pre_request": 1218000000,
+      "raw_output": "R9_OUTER_JOB_CONTROL_READY launcher_pid=29644 external_job_handle=228\nR9_OUTER_JOB_READY child_pid=24980 external_job_handle=228\nR9_READY supervisor_pid=24980 caller_pid=37136 broker_pid=45640 worker_pid=21132 caller_job_active=1 broker_job_active=1 worker_job_active=1 named_pipe_connected=1 broker_io_context_preowned=1 worker_job_preowned=1 caller_job_preowned=1\nR9_REQUEST_BARRIER mode=p05 request_start_tick_ms=223496578 deadline_tick_ms=223497778 budget_ms=1200 caller_pid=37136 broker_pid=45640 worker_pid=21132\n{\"mode\":\"p05\",\"status\":\"CALLER_RETURN_LATE_OR_MISSING\",\"request_budget_ms\":1200,\"request_start_tick_ms\":223496578,\"deadline_tick_ms\":223497778,\"decision_tick_ms\":223497781,\"supervisor_decision_observed_tick_ms\":223497781,\"caller_api_returned\":true,\"caller_api_return_tick_ms\":223497781,\"caller_api_return_by_D\":false,\"caller_killed\":false,\"caller_blocked_before_kill\":false,\"caller_terminal_event\":\"api-return\",\"writer_pending_at_caller_terminal_event\":true,\"writer_pending_after_api_return\":true,\"writer_submitted\":true,\"writer_done\":true,\"writer_error\":995,\"cancel_issued\":true,\"cancel_error\":0,\"writer_event_observed\":true,\"writer_completion_consume_hold_ms\":100,\"writer_completion_tick_ms\":223497984,\"caller_dead_seen_by_broker\":true,\"broker_alive_after_caller_death_or_return\":true,\"caller_exit\":0,\"caller_job_active_after\":0,\"caller_exact_exit_and_job_empty\":true,\"broker_exit\":0,\"broker_job_active_after\":0,\"broker_exact_exit_and_job_empty\":true,\"worker_exit\":0,\"worker_job_active_after\":0,\"worker_exact_exit_and_job_empty\":true,\"pending_context_preowned_before_ready\":true,\"reaper_process_separate_from_caller\":true}\n",
+      "ready": true,
+      "ready_marker": {
+        "broker_io_context_preowned": 1,
+        "broker_job_active": 1,
+        "broker_pid": 45640,
+        "caller_job_active": 1,
+        "caller_job_preowned": 1,
+        "caller_pid": 37136,
+        "marker": "R9_READY",
+        "named_pipe_connected": 1,
+        "supervisor_pid": 24980,
+        "worker_job_active": 1,
+        "worker_job_preowned": 1,
+        "worker_pid": 21132
+      },
+      "ready_wait_ns_pre_request": 360000000,
+      "runner_timeout": false,
+      "scenario": {
+        "broker_alive_after_caller_death_or_return": true,
+        "broker_exact_exit_and_job_empty": true,
+        "broker_exit": 0,
+        "broker_job_active_after": 0,
+        "caller_api_return_by_D": false,
+        "caller_api_return_tick_ms": 223497781,
+        "caller_api_returned": true,
+        "caller_blocked_before_kill": false,
+        "caller_dead_seen_by_broker": true,
+        "caller_exact_exit_and_job_empty": true,
+        "caller_exit": 0,
+        "caller_job_active_after": 0,
+        "caller_killed": false,
+        "caller_terminal_event": "api-return",
+        "cancel_error": 0,
+        "cancel_issued": true,
+        "deadline_tick_ms": 223497778,
+        "decision_tick_ms": 223497781,
+        "mode": "p05",
+        "pending_context_preowned_before_ready": true,
+        "reaper_process_separate_from_caller": true,
+        "request_budget_ms": 1200,
+        "request_start_tick_ms": 223496578,
+        "status": "CALLER_RETURN_LATE_OR_MISSING",
+        "supervisor_decision_observed_tick_ms": 223497781,
+        "worker_exact_exit_and_job_empty": true,
+        "worker_exit": 0,
+        "worker_job_active_after": 0,
+        "writer_completion_consume_hold_ms": 100,
+        "writer_completion_tick_ms": 223497984,
+        "writer_done": true,
+        "writer_error": 995,
+        "writer_event_observed": true,
+        "writer_pending_after_api_return": true,
+        "writer_pending_at_caller_terminal_event": true,
+        "writer_submitted": true
+      }
+    },
+    {
+      "exit_code": 0,
+      "mode": "caller-death",
+      "outer_job_active_after_process_exit": 0,
+      "outer_job_query_error_after": 0,
+      "outer_marker": {
+        "external_job_handle": 460,
+        "launcher_pid": 6688,
+        "marker": "R9_OUTER_JOB_CONTROL_READY"
+      },
+      "popen_elapsed_ns_pre_request": 47000000,
+      "raw_output": "R9_OUTER_JOB_CONTROL_READY launcher_pid=6688 external_job_handle=460\nR9_OUTER_JOB_READY child_pid=27508 external_job_handle=460\nR9_READY supervisor_pid=27508 caller_pid=40724 broker_pid=37248 worker_pid=39216 caller_job_active=1 broker_job_active=1 worker_job_active=1 named_pipe_connected=1 broker_io_context_preowned=1 worker_job_preowned=1 caller_job_preowned=1\nR9_REQUEST_BARRIER mode=caller-death request_start_tick_ms=223498453 deadline_tick_ms=223499653 budget_ms=1200 caller_pid=40724 broker_pid=37248 worker_pid=39216\n{\"mode\":\"caller-death\",\"status\":\"CALLER_RETURN_LATE_OR_MISSING\",\"request_budget_ms\":1200,\"request_start_tick_ms\":223498453,\"deadline_tick_ms\":223499653,\"decision_tick_ms\":223499656,\"supervisor_decision_observed_tick_ms\":223499656,\"caller_api_returned\":false,\"caller_api_return_tick_ms\":0,\"caller_api_return_by_D\":false,\"caller_killed\":true,\"caller_blocked_before_kill\":true,\"caller_terminal_event\":\"process-death\",\"writer_pending_at_caller_terminal_event\":true,\"writer_pending_after_api_return\":true,\"writer_submitted\":true,\"writer_done\":true,\"writer_error\":995,\"cancel_issued\":true,\"cancel_error\":0,\"writer_event_observed\":true,\"writer_completion_consume_hold_ms\":100,\"writer_completion_tick_ms\":223499781,\"caller_dead_seen_by_broker\":true,\"broker_alive_after_caller_death_or_return\":true,\"caller_exit\":3909091329,\"caller_job_active_after\":0,\"caller_exact_exit_and_job_empty\":true,\"broker_exit\":0,\"broker_job_active_after\":0,\"broker_exact_exit_and_job_empty\":true,\"worker_exit\":0,\"worker_job_active_after\":0,\"worker_exact_exit_and_job_empty\":true,\"pending_context_preowned_before_ready\":true,\"reaper_process_separate_from_caller\":true}\n",
+      "ready": true,
+      "ready_marker": {
+        "broker_io_context_preowned": 1,
+        "broker_job_active": 1,
+        "broker_pid": 37248,
+        "caller_job_active": 1,
+        "caller_job_preowned": 1,
+        "caller_pid": 40724,
+        "marker": "R9_READY",
+        "named_pipe_connected": 1,
+        "supervisor_pid": 27508,
+        "worker_job_active": 1,
+        "worker_job_preowned": 1,
+        "worker_pid": 39216
+      },
+      "ready_wait_ns_pre_request": 375000000,
+      "runner_timeout": false,
+      "scenario": {
+        "broker_alive_after_caller_death_or_return": true,
+        "broker_exact_exit_and_job_empty": true,
+        "broker_exit": 0,
+        "broker_job_active_after": 0,
+        "caller_api_return_by_D": false,
+        "caller_api_return_tick_ms": 0,
+        "caller_api_returned": false,
+        "caller_blocked_before_kill": true,
+        "caller_dead_seen_by_broker": true,
+        "caller_exact_exit_and_job_empty": true,
+        "caller_exit": 3909091329,
+        "caller_job_active_after": 0,
+        "caller_killed": true,
+        "caller_terminal_event": "process-death",
+        "cancel_error": 0,
+        "cancel_issued": true,
+        "deadline_tick_ms": 223499653,
+        "decision_tick_ms": 223499656,
+        "mode": "caller-death",
+        "pending_context_preowned_before_ready": true,
+        "reaper_process_separate_from_caller": true,
+        "request_budget_ms": 1200,
+        "request_start_tick_ms": 223498453,
+        "status": "CALLER_RETURN_LATE_OR_MISSING",
+        "supervisor_decision_observed_tick_ms": 223499656,
+        "worker_exact_exit_and_job_empty": true,
+        "worker_exit": 0,
+        "worker_job_active_after": 0,
+        "writer_completion_consume_hold_ms": 100,
+        "writer_completion_tick_ms": 223499781,
+        "writer_done": true,
+        "writer_error": 995,
+        "writer_event_observed": true,
+        "writer_pending_after_api_return": true,
+        "writer_pending_at_caller_terminal_event": true,
+        "writer_submitted": true
+      }
+    },
+    {
+      "exit_code": 0,
+      "mode": "popen-before",
+      "outer_job_active_after_process_exit": 0,
+      "outer_job_query_error_after": 0,
+      "outer_marker": {
+        "external_job_handle": 460,
+        "launcher_pid": 26452,
+        "marker": "R9_OUTER_JOB_CONTROL_READY"
+      },
+      "popen_elapsed_ns_pre_request": 47000000,
+      "raw_output": "R9_OUTER_JOB_CONTROL_READY launcher_pid=26452 external_job_handle=460\nR9_OUTER_JOB_READY child_pid=44504 external_job_handle=460\nR9_READY supervisor_pid=44504 caller_pid=13588 broker_pid=9024 worker_pid=32160 caller_job_active=1 broker_job_active=1 worker_job_active=1 named_pipe_connected=1 broker_io_context_preowned=1 worker_job_preowned=1 caller_job_preowned=1\nR9_REQUEST_BARRIER mode=popen-before request_start_tick_ms=223500218 deadline_tick_ms=223501418 budget_ms=1200 caller_pid=13588 broker_pid=9024 worker_pid=32160\n{\"mode\":\"popen-before\",\"status\":\"UNKNOWN\",\"request_budget_ms\":1200,\"caller_api_returned\":true,\"caller_api_return_tick_ms\":223501421,\"caller_decision_observed_tick_ms\":223501421,\"deadline_tick_ms\":223501418,\"helper_stage\":1,\"worker_job_active_before_kill\":1,\"worker_job_terminated\":true,\"worker_job_active_after\":0,\"worker_job_empty\":true,\"worker_exit\":3909091330,\"worker_controls_preowned\":true}\n",
+      "ready": true,
+      "ready_marker": {
+        "broker_io_context_preowned": 1,
+        "broker_job_active": 1,
+        "broker_pid": 9024,
+        "caller_job_active": 1,
+        "caller_job_preowned": 1,
+        "caller_pid": 13588,
+        "marker": "R9_READY",
+        "named_pipe_connected": 1,
+        "supervisor_pid": 44504,
+        "worker_job_active": 1,
+        "worker_job_preowned": 1,
+        "worker_pid": 32160
+      },
+      "ready_wait_ns_pre_request": 343000000,
+      "runner_timeout": false,
+      "scenario": {
+        "caller_api_return_tick_ms": 223501421,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223501421,
+        "deadline_tick_ms": 223501418,
+        "helper_stage": 1,
+        "mode": "popen-before",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 1,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      }
+    },
+    {
+      "exit_code": 0,
+      "mode": "popen-after",
+      "outer_job_active_after_process_exit": 0,
+      "outer_job_query_error_after": 0,
+      "outer_marker": {
+        "external_job_handle": 660,
+        "launcher_pid": 34708,
+        "marker": "R9_OUTER_JOB_CONTROL_READY"
+      },
+      "popen_elapsed_ns_pre_request": 31000000,
+      "raw_output": "R9_OUTER_JOB_CONTROL_READY launcher_pid=34708 external_job_handle=660\nR9_OUTER_JOB_READY child_pid=38132 external_job_handle=660\nR9_READY supervisor_pid=38132 caller_pid=26060 broker_pid=41004 worker_pid=45864 caller_job_active=1 broker_job_active=1 worker_job_active=1 named_pipe_connected=1 broker_io_context_preowned=1 worker_job_preowned=1 caller_job_preowned=1\nR9_REQUEST_BARRIER mode=popen-after request_start_tick_ms=223501812 deadline_tick_ms=223503012 budget_ms=1200 caller_pid=26060 broker_pid=41004 worker_pid=45864\n{\"mode\":\"popen-after\",\"status\":\"UNKNOWN\",\"request_budget_ms\":1200,\"caller_api_returned\":true,\"caller_api_return_tick_ms\":223503015,\"caller_decision_observed_tick_ms\":223503015,\"deadline_tick_ms\":223503012,\"helper_stage\":3,\"worker_job_active_before_kill\":2,\"worker_job_terminated\":true,\"worker_job_active_after\":0,\"worker_job_empty\":true,\"worker_exit\":3909091330,\"worker_controls_preowned\":true}\n",
+      "ready": true,
+      "ready_marker": {
+        "broker_io_context_preowned": 1,
+        "broker_job_active": 1,
+        "broker_pid": 41004,
+        "caller_job_active": 1,
+        "caller_job_preowned": 1,
+        "caller_pid": 26060,
+        "marker": "R9_READY",
+        "named_pipe_connected": 1,
+        "supervisor_pid": 38132,
+        "worker_job_active": 1,
+        "worker_job_preowned": 1,
+        "worker_pid": 45864
+      },
+      "ready_wait_ns_pre_request": 344000000,
+      "runner_timeout": false,
+      "scenario": {
+        "caller_api_return_tick_ms": 223503015,
+        "caller_api_returned": true,
+        "caller_decision_observed_tick_ms": 223503015,
+        "deadline_tick_ms": 223503012,
+        "helper_stage": 3,
+        "mode": "popen-after",
+        "request_budget_ms": 1200,
+        "status": "UNKNOWN",
+        "worker_controls_preowned": true,
+        "worker_exit": 3909091330,
+        "worker_job_active_after": 0,
+        "worker_job_active_before_kill": 2,
+        "worker_job_empty": true,
+        "worker_job_terminated": true
+      }
+    },
+    {
+      "go_set_elapsed_ns": 32000000,
+      "launcher_exit_code": 3925803010,
+      "mode": "outer-job",
+      "outer_job_active_after": 0,
+      "outer_job_active_before": 5,
+      "outer_job_query_error_after": 0,
+      "outer_job_query_error_before": 0,
+      "outer_marker": {
+        "external_job_handle": 672,
+        "launcher_pid": 28812,
+        "marker": "R9_OUTER_JOB_CONTROL_READY"
+      },
+      "pending_marker": {
+        "broker_pid": 15188,
+        "caller_pid": 43332,
+        "marker": "R9_PENDING_IO",
+        "pending": 1
+      },
+      "popen_elapsed_ns_pre_request": 47000000,
+      "process_identities": {
+        "broker": {
+          "creation_time_100ns": 134349365111246447,
+          "pid": 15188
+        },
+        "caller": {
+          "creation_time_100ns": 134349365110733662,
+          "pid": 43332
+        },
+        "launcher": {
+          "creation_time_100ns": 134349365107877664,
+          "pid": 28812
+        },
+        "supervisor": {
+          "creation_time_100ns": 134349365108411329,
+          "pid": 20372
+        },
+        "worker": {
+          "creation_time_100ns": 134349365108951775,
+          "pid": 45760
+        }
+      },
+      "process_wait_results": {
+        "broker": 0,
+        "caller": 0,
+        "launcher": 0,
+        "supervisor": 0,
+        "worker": 0
+      },
+      "ready": {
+        "broker_io_context_preowned": 1,
+        "broker_job_active": 1,
+        "broker_pid": 15188,
+        "caller_job_active": 1,
+        "caller_job_preowned": 1,
+        "caller_pid": 43332,
+        "marker": "R9_READY",
+        "named_pipe_connected": 1,
+        "supervisor_pid": 20372,
+        "worker_job_active": 1,
+        "worker_job_preowned": 1,
+        "worker_pid": 45760
+      },
+      "ready_wait_ns_pre_request": 359000000,
+      "request_barrier": {
+        "broker_pid": 15188,
+        "budget_ms": 1200,
+        "caller_pid": 43332,
+        "deadline_tick_ms": 223504621,
+        "marker": "R9_REQUEST_BARRIER",
+        "mode": "outer-job",
+        "request_start_tick_ms": 223503421,
+        "worker_pid": 45760
+      },
+      "tail_output": "",
+      "terminate_and_empty_elapsed_ns": 16000000,
+      "terminate_error": 0,
+      "terminate_returned": true,
+      "wait_object_0": 0
+    }
+  ],
+  "scope": [
+    "Local inert Windows processes and local named-pipe IPC only; no SCM service was installed.",
+    "Popen/CreateProcess at launcher startup remains prewarm/outside the request budget; no request-time service startup is attempted.",
+    "The sacrificial Python helper is prestarted and Job-contained. popen-before blocks before child creation; popen-after creates a real inert child then blocks before the outer Popen call returns. These are deterministic wrappers around Popen, not injected hangs inside the Windows CreateProcess syscall.",
+    "The 2 MiB pipe WriteFile is issued overlapped by a prestarted broker process, not by the caller. Caller API stack only publishes a fixed-size shared-memory request and polls one absolute D.",
+    "Pending-I/O reaper is a separate process from the request caller and survives caller Job termination. It owns the pipe handle, OVERLAPPED, event, and buffer until final GetOverlappedResult. A 100 ms post-event completion-consumption hold is instrumented; this is not a kernel-level delayed-completion injection.",
+    "No synchronous CreateProcessW, WriteFile, QueryInformationJobObject, TerminateJobObject, CancelIoEx, SetEvent, or CloseHandle hang was injected. A synchronous Win32 call that blocks in the custodian/reaper remains a top-level limit.",
+    "Runner subprocess.Popen used to start the local supervisor is synchronous and occurs before the request D; before it returns, the external Python runner has not yet received the duplicated outer Job handle. Its 10-second harness watchdog is not D.",
+    "No CTP/native/provider/credentials/private config/network/SCM/default preflight or repository runtime route was used."
+  ],
+  "status": "INERT_PROTOTYPE_ONLY_G1_CLOSED"
+}

@@ -1,0 +1,65 @@
+{
+  "candidate": "G1 whole-command deadline feasibility probe r1",
+  "status": "FEASIBILITY_ONLY; G1 CLOSED",
+  "scope": "Local inert Win32 event wait and disposable Job Object only; no CTP/native SDK/provider, credentials, private config, network, SCM, or production changes.",
+  "command": "python .\\probe.py --run-all",
+  "exit_code": 0,
+  "trial_summary": [
+    {
+      "mode": "api_wait",
+      "deadline_ms": 700,
+      "classification_return_delta_ms": 2.3113,
+      "api_call_begin_seen": true,
+      "api_return_seen_before_cleanup": false,
+      "job_active_at_deadline": 2,
+      "post_deadline_job_active": 0
+    },
+    {
+      "mode": "wrapper_sleep",
+      "deadline_ms": 700,
+      "classification_return_delta_ms": 9.5085,
+      "wrapper_sleep_begin_seen": true,
+      "api_call_begin_seen": false,
+      "job_active_at_deadline": 2,
+      "post_deadline_job_active": 0
+    }
+  ],
+  "limitations": [
+    "Top-level Python process startup is outside per-trial T0.",
+    "The intentional WaitForSingleObject(INFINITE) is a controlled wait, not an arbitrary kernel/driver/API failure.",
+    "No proof of on-time caller return and Job-empty together; neither run returned at or before D.",
+    "No true kernel hang, P14/SCM, native Join/Release, or whole-command hard deadline acceptance."
+  ],
+  "files": [
+    {
+      "path": "DESIGN.md",
+      "size_bytes": 4909,
+      "source_sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e",
+      "sha256": "a80531c392b0b8db660be7bb0e3d7295068f48d5ef65ac56383f32f5f1cd6c2e"
+    },
+    {
+      "path": "probe.py",
+      "size_bytes": 14622,
+      "source_sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139",
+      "sha256": "20cfcb77abe2e65bf05a0f5006bf97a2f9f05d42d546e856a5fe5ada8c3d7139"
+    },
+    {
+      "path": "results.json",
+      "size_bytes": 4210,
+      "source_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40",
+      "sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40"
+    },
+    {
+      "path": "run.stdout.txt",
+      "size_bytes": 4210,
+      "source_sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40",
+      "sha256": "60b54184ff2e991102e93b74a87e2c31fd4cd2e502c602cf59fbe05a87492c40"
+    },
+    {
+      "path": "run.exit.txt",
+      "size_bytes": 1,
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    }
+  ]
+}

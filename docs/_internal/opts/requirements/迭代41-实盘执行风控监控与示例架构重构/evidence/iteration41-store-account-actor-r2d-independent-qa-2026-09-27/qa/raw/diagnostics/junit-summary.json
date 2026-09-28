@@ -1,0 +1,44 @@
+{
+  "baseline": {
+    "errors": 0,
+    "failing_nodes": [
+      {
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "nodeid": "tests.unit.stores.test_btapistore.test_placeholder_provider_raises[futu]",
+        "text": [
+          "self = <[AttributeError(\"'BtApiStore' object has no attribute 'provider'\") raised in repr()] BtApiStore object at 0x29f7040c190>",
+          "provider = 'futu', api = None, api_cls = None, config = None, api_kwargs = None",
+          "cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0"
+        ]
+      },
+      {
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "nodeid": "tests.unit.stores.test_btapistore.test_placeholder_provider_raises[oanda]",
+        "text": [
+          "self = <[AttributeError(\"'BtApiStore' object has no attribute 'provider'\") raised in repr()] BtApiStore object at 0x29f5a447450>",
+          "provider = 'oanda', api = None, api_cls = None, config = None, api_kwargs = None",
+          "cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0"
+        ]
+      },
+      {
+        "message": "backtrader.stores.btapistore.BtApiStoreError: store provider unsupported",
+        "nodeid": "tests.unit.stores.test_btapistore.test_placeholder_provider_raises[vc]",
+        "text": [
+          "self = <[AttributeError(\"'BtApiStore' object has no attribute 'provider'\") raised in repr()] BtApiStore object at 0x29f5a41ee50>",
+          "provider = 'vc', api = None, api_cls = None, config = None, api_kwargs = None",
+          "cash = 0.0, value = None, account_cache_ttl = 0.0, positions_cache_ttl = 0.0"
+        ]
+      }
+    ],
+    "failures": 0,
+    "skipped": 0,
+    "tests": 0
+  },
+  "candidate": {
+    "errors": 0,
+    "failing_nodes": [],
+    "failures": 0,
+    "skipped": 0,
+    "tests": 0
+  }
+}

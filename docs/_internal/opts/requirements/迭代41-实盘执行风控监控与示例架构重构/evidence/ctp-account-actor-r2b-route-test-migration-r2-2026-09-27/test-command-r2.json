@@ -1,0 +1,22 @@
+[
+  "C:\\anaconda3\\python.exe",
+  "-B",
+  "-m",
+  "pytest",
+  "-q",
+  "--tb=short",
+  "-p",
+  "no:cacheprovider",
+  "--junitxml",
+  "D:\\temp\\iteration41-r2b-route-test-migration-qa-20260927\\focused-route-migration-r2.junit.xml",
+  "tests/unit/stores/test_btapistore.py::test_store_getdata_binds_store_provider_and_store_alias_for_custom_data_cls",
+  "tests/unit/stores/test_btapistore.py::test_store_getdata_preserves_explicit_store_and_provider_arguments",
+  "tests/unit/stores/test_btapistore.py::test_store_getbroker_binds_store_and_provider_for_custom_broker_cls",
+  "tests/unit/stores/test_btapistore.py::test_placeholder_provider_raises",
+  "tests/unit/stores/test_btapistore_normalized.py::test_venue_account_cache_uses_completion_time_and_force_reads",
+  "tests/unit/stores/test_btapistore_normalized.py::test_public_source_stop_callback_hook_does_not_expose_the_private_client",
+  "tests/unit/stores/test_btapistore_normalized.py::test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it",
+  "tests/unit/stores/test_btapistore_normalized.py::test_explicit_ctp_route_hidden_in_sdk_configuration_is_rejected_before_store_use",
+  "tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+  "tests/unit/stores/test_ctp_non_authorizing_contracts.py"
+]

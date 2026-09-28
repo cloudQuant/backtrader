@@ -9,6 +9,7 @@ handling, which is what the acceptance case requires.
 import json
 import os
 import stat
+import subprocess
 
 import pytest
 
@@ -26,6 +27,27 @@ def _clawbot(*, context_token=None, transport=None, **options):
         config["context_token"] = context_token
     bt.configure_notifications([config], transport=transport, **options)
     return transport
+
+
+def _assert_windows_owner_only_acl(path, grant):
+    """Check the Windows ACL rather than POSIX mode bits.
+
+    Windows ``stat`` mode bits only describe the read-only attribute.  Anchor
+    credential protection is therefore validated through the native ACL that
+    ``persist_anchor`` installs.
+    """
+
+    result = subprocess.run(
+        ["icacls", str(path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    entries = [line.strip() for line in result.stdout.splitlines() if ":(" in line]
+    assert len(entries) == 1, result.stdout
+    assert os.environ["USERNAME"].casefold() in entries[0].casefold()
+    assert grant in entries[0].replace(" ", "")
 
 
 def test_clawbot_unbound_reports_not_bound_without_network():
@@ -134,12 +156,16 @@ def test_clawbot_poll_classifies_transport_failure():
 
 
 def test_anchor_persistence_uses_owner_only_permissions(tmp_path):
-    """Anchor files are written with mode 0600 under a 0700 directory."""
+    """Anchor files have an owner-only POSIX mode or Windows ACL."""
     path = tmp_path / "nested" / "wechat_clawbot.json"
     notify_session.persist_anchor(str(path), {"bot_token": "t", "to_user_id": "u"})
     assert path.exists()
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    if os.name == "nt":
+        _assert_windows_owner_only_acl(path, "(R,W)")
+        _assert_windows_owner_only_acl(path.parent, "(OI)(CI)(F)")
+    else:
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
     assert notify_session.load_anchor(str(path))["bot_token"] == "t"
 
 

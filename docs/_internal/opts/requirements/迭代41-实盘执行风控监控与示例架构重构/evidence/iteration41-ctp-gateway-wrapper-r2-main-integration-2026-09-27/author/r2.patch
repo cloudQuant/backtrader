@@ -1,0 +1,118 @@
+diff --git a/source-preimage/backtrader/stores/btapistore.py b/candidate/backtrader/stores/btapistore.py
+index 56b511e..8f07231 100644
+--- a/source-preimage/backtrader/stores/btapistore.py
++++ b/candidate/backtrader/stores/btapistore.py
+@@ -3040,12 +3040,6 @@ def _create_ctp_wrapper_class():
+ 
+ 
+ def _create_ctp_gateway_wrapper_class():
+-    try:
+-        from bt_api_py.gateway.client import GatewayClient
+-    except ImportError as exc:
+-        _safe_log("error", "btapistore:2866 re-raising ImportError")
+-        raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
+-
+     class CtpGatewayClientWrapper:
+         """Gateway-based wrapper for CTP trading via bt_api_py.
+ 
+@@ -3065,9 +3059,50 @@ def _create_ctp_gateway_wrapper_class():
+                 **kwargs: Gateway configuration parameters passed to GatewayClient.
+             """
+             self._kwargs = dict(kwargs)
++            store_ctp = self._kwargs.pop("_btapistore_ctp_session_provider", False) is True
++            raw_provider = self._kwargs.get("provider")
++            self._store_ctp_session_provider = store_ctp or (
++                isinstance(raw_provider, str)
++                and raw_provider.strip().lower() in {"ctp", "ctp_gateway"}
++            )
+             self._kwargs.setdefault("exchange_type", "CTP")
+             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
+-            self._client = GatewayClient(**self._kwargs)
++            self._direct_ctp_writes_disabled = (
++                self._store_ctp_session_provider or not self._is_supported_non_ctp_exchange()
++            )
++            self._gateway_client = None
++            if not self._direct_ctp_writes_disabled:
++                self._gateway_client = self._load_gateway_client()(**self._kwargs)
++
++        def _is_supported_non_ctp_exchange(self):
++            exchange = self._kwargs.get("exchange_type")
++            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
++                exchange = self._kwargs.get("provider_exchange")
++            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
++                exchange = "CTP"
++            if not isinstance(exchange, str):
++                return False
++            normalized = exchange.strip().upper()
++            venue_prefix = normalized.split("___", 1)[0].strip()
++            if venue_prefix == "CTP":
++                return False
++            return normalized in {"BINANCE", "IB_WEB", "OKX", "MT5"}
++
++        def _load_gateway_client(self):
++            try:
++                from bt_api_py.gateway.client import GatewayClient
++            except ImportError as exc:
++                _safe_log("error", "btapistore:2866 re-raising ImportError")
++                raise BtApiMissingDependencyError(
++                    "bt_api_py gateway support is not available"
++                ) from exc
++            return GatewayClient
++
++        @property
++        def _client(self):
++            if self._gateway_client is None:
++                self._gateway_client = self._load_gateway_client()(**self._kwargs)
++            return self._gateway_client
+ 
+         def connect(self):
+             """Connect to the CTP gateway."""
+@@ -3283,6 +3318,13 @@ def _create_ctp_gateway_wrapper_class():
+                 None (bars not supported in this wrapper).
+             """
+ 
++        def _ensure_direct_writes_allowed(self, operation):
++            if self._direct_ctp_writes_disabled:
++                raise BtApiStoreError(
++                    "Direct gateway order writes are disabled for this exchange "
++                    f"({operation})."
++                )
++
+         def submit_order(self, payload):
+             """Submit an order to the gateway.
+ 
+@@ -3292,6 +3334,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._ensure_direct_writes_allowed("submit_order")
+             response = self._client.submit_order(payload)
+             if "data_name" in payload and "data_name" not in response:
+                 response["data_name"] = payload["data_name"]
+@@ -3306,6 +3349,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from submit_order.
+             """
++            self._ensure_direct_writes_allowed("create_order")
+             return self.submit_order(kwargs)
+ 
+         def cancel_order(self, order_ref, dataname=None):
+@@ -3318,6 +3362,7 @@ def _create_ctp_gateway_wrapper_class():
+             Returns:
+                 Response from the gateway client.
+             """
++            self._ensure_direct_writes_allowed("cancel_order")
+             return self._client.cancel_order(order_ref, dataname=dataname)
+ 
+         def poll_broker_update(self):
+@@ -16405,6 +16450,10 @@ class BtApiStore(LiveStoreBase):
+                     api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
+                 kwargs = dict(self._config)
+                 kwargs.update(self._api_kwargs)
++                if self.backend == "gateway" and self._api_cls is None:
++                    kwargs["_btapistore_ctp_session_provider"] = (
++                        self._is_ctp_session_provider()
++                    )
+                 self._api = api_cls(**kwargs)
+ 
+         if (

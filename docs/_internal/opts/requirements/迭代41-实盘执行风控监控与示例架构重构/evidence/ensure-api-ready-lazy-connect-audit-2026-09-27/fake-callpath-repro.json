@@ -1,0 +1,206 @@
+{
+  "source_preimage": {
+    "repository_relative_path": "backtrader/stores/btapistore.py",
+    "sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "loaded_module_path": "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py"
+  },
+  "direct_get_balance_force": {
+    "result": {
+      "cash": 101.0,
+      "value": 102.0
+    },
+    "provider": "ctp",
+    "backend": "direct",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": false,
+    "ctp_session_provider": true,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      "connect",
+      "get_session_state",
+      "get_balance",
+      "get_balance"
+    ],
+    "write_calls": []
+  },
+  "direct_get_symbol_info": {
+    "result": {
+      "symbol": "CZCE.SA701",
+      "multiplier": 10,
+      "tick_size": 1
+    },
+    "provider": "ctp",
+    "backend": "direct",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": false,
+    "ctp_session_provider": true,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      "connect",
+      "get_session_state",
+      "get_balance",
+      [
+        "get_symbol_info",
+        "CZCE.SA701"
+      ]
+    ],
+    "write_calls": []
+  },
+  "direct_start": {
+    "provider": "ctp",
+    "backend": "direct",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": false,
+    "ctp_session_provider": true,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      "connect",
+      "get_session_state",
+      "get_balance"
+    ],
+    "write_calls": []
+  },
+  "ctp_gateway_start": {
+    "provider": "ctp_gateway",
+    "backend": "gateway",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": false,
+    "ctp_session_provider": true,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      "connect",
+      "get_session_state",
+      "get_balance"
+    ],
+    "write_calls": []
+  },
+  "ctp_forwarding_start": {
+    "provider": "btapi",
+    "backend": "forwarding",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": false,
+    "ctp_session_provider": false,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      "connect",
+      "get_balance"
+    ],
+    "write_calls": []
+  },
+  "example_style_managed_ctp_fake": {
+    "route_facts": {
+      "provider": "btapi",
+      "backend": "direct",
+      "sdk_mode": true,
+      "ctp_session_provider": true,
+      "sdk_owned_api": false
+    },
+    "balance": {
+      "cash": 101.0,
+      "value": 102.0
+    },
+    "symbol_info": {
+      "exchange_name": "CTP___FUTURE",
+      "symbol": "CTP___FUTURE:SA701",
+      "contract_value": 1,
+      "contract_multiplier": 10,
+      "price_tick": 1,
+      "quantity_step": 1,
+      "min_quantity": 1,
+      "quantity_unit": "lot",
+      "quote_currency": "CNY",
+      "multiplier": "10",
+      "tick_size": 1,
+      "lot_size": 1,
+      "min_size": 1,
+      "settlement_currency": "CNY"
+    },
+    "provider": "btapi",
+    "backend": "direct",
+    "public_sdk_api_is_none": true,
+    "_ensure_api_ready_calls": [
+      "_ensure_api_ready",
+      "_ensure_api_ready",
+      "_ensure_api_ready",
+      "_ensure_api_ready",
+      "_ensure_api_ready",
+      "_ensure_api_ready"
+    ],
+    "sdk_mode": true,
+    "ctp_session_provider": true,
+    "ctp_write_provider": true,
+    "connected": true,
+    "calls": [
+      [
+        "configure_execution",
+        {
+          "market_data_only": true
+        }
+      ],
+      "connect",
+      [
+        "get_ctp_session_state",
+        "CTP___FUTURE"
+      ],
+      [
+        "get_all_balances",
+        true
+      ],
+      [
+        "get_portfolio_balance",
+        {
+          "CTP___FUTURE": {
+            "cash": 101.0,
+            "value": 102.0
+          }
+        }
+      ],
+      [
+        "get_all_balances",
+        true
+      ],
+      [
+        "get_portfolio_balance",
+        {
+          "CTP___FUTURE": {
+            "cash": 101.0,
+            "value": 102.0
+          }
+        }
+      ],
+      [
+        "get_instrument_spec",
+        "CTP___FUTURE",
+        "CTP___FUTURE:SA701"
+      ]
+    ],
+    "write_calls": []
+  },
+  "optional_import_guard": [],
+  "network_guard": []
+}

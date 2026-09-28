@@ -1,0 +1,52 @@
+{
+  "schema_version": "ac41-63-writer-partition-independent-qa-addendum.v1",
+  "generated_at_utc": "2026-09-27T15:08:31Z",
+  "verdict": "PASS_WITH_SCOPE_LIMITS",
+  "supersedes_original_qualification": true,
+  "prior_qa_receipt": {
+    "path": "D:\\temp\\ac41-63-writer-review-c-independent-qa-20260927-0c37545ce5b14fe4ba2221e51f8030df\\qa-receipt.json",
+    "sha256": "4dac380775603eb10dd51cf734bd751bfaf71dd3564c6eddcc63fc5dfdf9c4c4",
+    "original_full_checks": "All 219 findings: indices, inventory row identity, source hashes/lines, status; 83 source files. See original receipt."
+  },
+  "corrected_author_artifacts": {
+    "report_path": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72\\high-priority-report-v2.md",
+    "report_sha256": "81a9bdc32cd04995fe9f730c08ec129228affd1cea241c2f55a1036a0f89e1f4",
+    "findings_path": "D:\\temp\\ac41-63-writer-review-c-20260927-03658257-971e6cb600414af0bd6e2c7ecea4db72\\review-findings-v2.json",
+    "findings_sha256": "92bff46c4073694ace40a9c39e082dae6093e39d018bdac387830f48378b8af3",
+    "inventory_sha256": "03658257d97e31c2d8f8bfd48685441533552b32674f5d63810141e3038ab456"
+  },
+  "v2_delta_checks": {
+    "finding_count_v1": 219,
+    "finding_count_v2": 219,
+    "candidate_id_order_unchanged": true,
+    "only_changed_fields": "reason on dynamic:056 through dynamic:062",
+    "changed_finding_ids": [
+      "dynamic:056",
+      "dynamic:057",
+      "dynamic:058",
+      "dynamic:059",
+      "dynamic:060",
+      "dynamic:061",
+      "dynamic:062"
+    ],
+    "unexpected_finding_diffs": 0,
+    "affected_source_sha256_current": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd",
+    "affected_source_sha256_v2": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd",
+    "affected_row_status_violations": 0,
+    "all_v2_row_status_violations": 0,
+    "inventory_sha256_unchanged": true,
+    "live_rejection_explicit_before_import": true,
+    "correction_history_present": true
+  },
+  "corrected_finding": {
+    "statement": "RuntimeRegistry(trusted=True) is the constructor default, but the flag is not evidence of review and the code does not enforce reviewed status on an injected registry. cli.main accepts a registry; custom non-live runners can execute in-process. The installed default CLI selects the code-owned inventory.",
+    "live_boundary": "dispatch_registered_runtime continues to reject live mode before runner import.",
+    "official_status": "All 219 partition rows remain REVIEW_REQUIRED / NOT_AVAILABLE; v2 status violations: 0."
+  },
+  "verification_limit": "No 219-row source check was rerun for this addendum; it inherits the original receipt. This addendum verified v2 hashes, unchanged inventory/source binding, JSON delta limited to seven affected reason fields, statuses, and explicit live-block wording.",
+  "actions": {
+    "repository_edits": 0,
+    "project_imports_or_execution": 0,
+    "provider_sdk_native_network_or_credentials_access": 0
+  }
+}

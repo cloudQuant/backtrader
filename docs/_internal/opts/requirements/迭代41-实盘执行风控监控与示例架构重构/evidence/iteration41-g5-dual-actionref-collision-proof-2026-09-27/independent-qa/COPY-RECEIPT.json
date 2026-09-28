@@ -1,0 +1,36 @@
+{
+  "schema": "iteration41-g5-dual-actionref-independent-qa-copy.v1",
+  "source_root": "D:\\temp\\iteration41-g5-dual-actionref-independent-qa-20260927",
+  "files": [
+    {
+      "path": "README.md",
+      "size": 1310,
+      "sha256": "fc528230df14ae8690eb4fed7aaecb7aeaaf668ed0c7597b191a8a3e69b42ce2"
+    },
+    {
+      "path": "REPORT.md",
+      "size": 7881,
+      "sha256": "7ef2fe1099567431fbee07b1858a2b8f887c7f55298bf078020b6ecbb236c2cb"
+    },
+    {
+      "path": "independent-qa-result.json",
+      "size": 3899,
+      "sha256": "f38da0a2364ba0967bdbc94e4381d7d499b009ea68ee18f86a1f27db2c337be5"
+    },
+    {
+      "path": "repro_actionref_collision.py",
+      "size": 7595,
+      "sha256": "41adf7a4a0bef5c2e0d36ec425399beddf32872b127badca2d22fabdacdb52f1"
+    },
+    {
+      "path": "qa-run-output-1.json",
+      "size": 4333,
+      "sha256": "3398221e80066083124d57ea86af38e2d2b606da24f2330564d2232727808ac7"
+    },
+    {
+      "path": "qa-run-output-2.json",
+      "size": 4333,
+      "sha256": "3398221e80066083124d57ea86af38e2d2b606da24f2330564d2232727808ac7"
+    }
+  ]
+}

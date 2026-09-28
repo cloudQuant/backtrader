@@ -1,0 +1,61 @@
+{
+  "build_inputs_sha256": "95600bb30e84e31ae472213eefb99eb7064340d7cfa4d3bd585c1749ca2e9975",
+  "byte_identical_builds": true,
+  "packages": {
+    "bt_api_execution": {
+      "build-a": {
+        "filename": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+        "member_count": 18,
+        "metadata_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/METADATA",
+        "metadata_version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\execution\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+        "record_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/RECORD",
+        "record_rows_verified": 18,
+        "record_sha256": "9f6e5c34a1e3234fcd9a4441b7a3ae8ed89e178ff4c0d3709ea3484874d518fe",
+        "size_bytes": 177675,
+        "wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+      },
+      "build-b": {
+        "filename": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+        "member_count": 18,
+        "metadata_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/METADATA",
+        "metadata_version": "0.2.4.dev0+v23r3r3.f94b924e1e20",
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\execution\\bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20-py3-none-any.whl",
+        "record_path": "bt_api_execution-0.2.4.dev0+v23r3r3.f94b924e1e20.dist-info/RECORD",
+        "record_rows_verified": 18,
+        "record_sha256": "9f6e5c34a1e3234fcd9a4441b7a3ae8ed89e178ff4c0d3709ea3484874d518fe",
+        "size_bytes": 177675,
+        "wheel_sha256": "b2a74d5ec4bce72db66ed5698709a8f986de02b54d72fb5e08a181c2983b6217"
+      }
+    },
+    "bt_api_py": {
+      "build-a": {
+        "filename": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+        "member_count": 144,
+        "metadata_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/METADATA",
+        "metadata_version": "0.15.7.dev0+r4r3r3.67e54513",
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-a-wheels\\parent\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+        "record_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/RECORD",
+        "record_rows_verified": 144,
+        "record_sha256": "5ae8306e16193a5bcd438104b62369bc57151b6f4f4fd7088499dd0b09b22728",
+        "size_bytes": 534260,
+        "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+      },
+      "build-b": {
+        "filename": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+        "member_count": 144,
+        "metadata_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/METADATA",
+        "metadata_version": "0.15.7.dev0+r4r3r3.67e54513",
+        "path": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\wheel-build-logs-v4\\build-b-wheels\\parent\\bt_api_py-0.15.7.dev0+r4r3r3.67e54513-py3-none-any.whl",
+        "record_path": "bt_api_py-0.15.7.dev0+r4r3r3.67e54513.dist-info/RECORD",
+        "record_rows_verified": 144,
+        "record_sha256": "5ae8306e16193a5bcd438104b62369bc57151b6f4f4fd7088499dd0b09b22728",
+        "size_bytes": 534260,
+        "wheel_sha256": "5e6e846d26b5038c0916fa15d3ce3f7a1c1334fd0aa160cd263d2d0397c07b0f"
+      }
+    }
+  },
+  "schema": "iteration41-coordinated-wheel-dual-build-verification-v1",
+  "source_date_epoch": "1790467200",
+  "source_manifest_sha256": "70c22b02a741084ca12d20fb19cbc98ca20606ee921a4cd5f8ff058e09eec4df"
+}

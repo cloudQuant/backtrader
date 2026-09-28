@@ -1,0 +1,114 @@
+{
+  "schema": "iteration41_inert_guardian_qa_summary.v1",
+  "created_at_local": "2026-09-26",
+  "workspace": "D:\\source_code\\backtrader",
+  "result": {
+    "independent_runner": "native_contract",
+    "python": "3.11.5",
+    "pytest": "8.2.2",
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "cwd": "D:\\source_code\\backtrader"
+    },
+    "command": [
+      "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-pytest-asyncio-compat-20260926\\Scripts\\python.exe",
+      "-m", "pytest",
+      "--basetemp", "D:\\temp\\iteration41-inert-chain-final-qa-20260926-03\\basetemp",
+      "--junitxml", "D:\\temp\\iteration41-inert-chain-final-qa-20260926-03\\junit.xml",
+      "-q", "--color=no",
+      "tests/unit/scripts/test_ctp_i13_i15_parent_launcher.py",
+      "tests/unit/scripts/test_ctp_i13_i15_sealed_import.py",
+      "tests/unit/scripts/test_ctp_i13_i15_outer_watchdog.py",
+      "tests/unit/scripts/test_ctp_i13_i15_windows_guardian.py",
+      "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py",
+      "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py",
+      "tests/unit/scripts/test_ctp_i13_i15_inert_deadline_supervisor.py"
+    ],
+    "junit": {
+      "tests": 95,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "time_seconds": 57.084,
+      "sha256": "568987168767772353EDE67CEAD6A30C6779971DB716BBBCC89EFA3E95B9E7E3"
+    },
+    "pytest_stdout": "95 passed, 1 warning in 57.09s",
+    "warning": "Existing pytest config warning: unknown asyncio_default_fixture_loop_scope option.",
+    "stdout_stderr_path": "D:\\temp\\iteration41-inert-chain-final-qa-20260926-03\\stdout-stderr.txt",
+    "stdout_stderr_sha256": "4730BE75420067D2287C5EE4AFA3AA2D53BF07675FA1FFBE4385D7B8E0AB3BDB"
+  },
+  "frozen_files": [
+    {"path": "scripts/ctp_i13_i15_inert_deadline_supervisor.py", "role": "production candidate", "sha256": "0810739298DF61C62FDABAF3AA3A0387D87B8EFC78FE4751BBDDF4F1BBF05109"},
+    {"path": "scripts/ctp_i13_i15_inert_parent.py", "role": "production candidate", "sha256": "FD0A0E35EA34A2C3BE9FC26902AEA49593A470E3025C1AA9DD8798B3ED025117"},
+    {"path": "tests/unit/scripts/test_ctp_i13_i15_inert_deadline_supervisor.py", "role": "changed test", "sha256": "806B004572CAA5B64CB6407989D54D8963CE4EF95A450265B69B40BEA22FD90A"},
+    {"path": "tests/unit/scripts/test_ctp_i13_i15_windows_job_backend.py", "role": "changed test", "sha256": "8BFAF0F7EDA9D23BC175809E4C669F10F01BF1B61144C3C3B335D36EDA6498D9"},
+    {"path": "tests/unit/scripts/test_ctp_i13_i15_windows_guardian_service.py", "role": "changed diagnostic test", "sha256": "6B8C2EF4F9B4D4D9350AB87E203CEB8816FB7ACB10C4B9035D51023E32E2EF66"}
+  ],
+  "latest_basetemp_phase_files": [
+    {"path": "basetemp/test_prestarted_service_surviv0/owner-phases.jsonl", "sha256": "EE749090D593636630B974B2F702BC02AD0FB0ACBEAFAC078070E19FBE189C9D"},
+    {"path": "basetemp/test_prestarted_service_surviv0/service-phases.jsonl", "sha256": "10148D98E146F006FB4C44FA04EF806C77D976B347B58F8022659099125DD9EC"},
+    {"path": "basetemp/test_prestarted_service_surviv1/owner-phases.jsonl", "sha256": "4260EA43F8408F9B906BA96BAE147CD021A81E994ACF413FB87F947E56217BDB"},
+    {"path": "basetemp/test_prestarted_service_surviv1/service-phases.jsonl", "sha256": "573D0515CE4C0B0A8E9004A1D0312C64C335952F62327A26E90799EB7DF0418B"},
+    {"path": "basetemp/test_prestarted_service_surviv2/owner-phases.jsonl", "sha256": "A003CB466FF59887042A8639B30826C87EA136175607C31813CA46F7E9E0FD3F"},
+    {"path": "basetemp/test_prestarted_service_surviv2/service-phases.jsonl", "sha256": "279D473B22C5DA7228BC903F6D7BAFA7DBD27A3E2F61478DC4D85B7E1D0C0049"},
+    {"path": "basetemp/test_prestarted_service_surviv3/owner-phases.jsonl", "sha256": "16D30F1CD7864A60946E7B0F34FF291B56F8048523F62FEDB2B64922F6AC7830"},
+    {"path": "basetemp/test_prestarted_service_surviv3/service-phases.jsonl", "sha256": "862522FB01DB730DCBD29908B85EACB4013D10A618B1C610CBC5681392C05995"},
+    {"path": "basetemp/test_service_deadline_does_not0/owner-phases.jsonl", "sha256": "59D158FBD5CD13A6028E9EE17A30171A51226216DF74B28606D1267B9B31700B"},
+    {"path": "basetemp/test_service_deadline_does_not0/service-phases.jsonl", "sha256": "CBFA25F4E663CD603C02943AFF6A2F7DAE0D0E59F013E99D4B5E0B2D96AE0098"}
+  ],
+  "prior_failures": [
+    {
+      "run": "independent rev2, 93 passed / 2 failed",
+      "basetemp": "D:\\temp\\iteration41-inert-chain-final-qa-20260926-02",
+      "failures": [
+        "test_prestarted_service_survives_owner_death_during_ipc[identity-False]: owner result and service status absent after the existing wait; processes still alive until fixture cleanup.",
+        "test_service_deadline_does_not_interrupt_blocked_backend_but_process_death_closes_job: child-active marker absent while service remained alive until cleanup."
+      ],
+      "available_artifacts": [
+        {"path": "test_prestarted_service_surviv3/owner-pid.txt", "sha256": "DE0472D2DD790E06454CCDC164F63BB2199DB1CEB97ACB53A2417106689227E3"},
+        {"path": "test_prestarted_service_surviv3/service-ready.json", "sha256": "C45D010662AD61C804632E5CC384AE32257D629BEDDD8674D8A3915006EAFA26"},
+        {"path": "test_service_deadline_does_not0/service-ready.json", "sha256": "FBFCFA84B71FB3E4FBAC61E49EB928575249A1EF3EBA6A8B6F8731FCCF78814C"}
+      ],
+      "missing_at_failure": ["owner-result.json", "service-status.txt", "inert-child-active.json"],
+      "diagnosis": "Cause was not determined from this pre-instrumentation run; isolated rerun passed, so it is not classified as host noise."
+    },
+    {
+      "run": "earlier 94 passed / 1 failed marker-read race",
+      "basetemp": "D:\\temp\\iteration41-inert-chain-final-qa-20260926-01",
+      "failure": "test_supervisor_kills_blocked_inert_service_after_owner_death raised JSONDecodeError after file-existence-only visibility; the marker was valid JSON after failure.",
+      "artifacts": [
+        {"path": "test_supervisor_kills_blocked_0/nested-inert-child.json", "sha256": "BB4CD45AA6C61837C73AD215F5A77E148590E8F31E30C65CD4E4871A349020A9"},
+        {"path": "test_supervisor_kills_blocked_0/supervisor-output/guardian-supervisor-receipt.json", "sha256": "7E3FFCE93A15AB2DA1D3F647C78DF2256E6E0280E09DDF2C688A3E3A47DE8440"}
+      ],
+      "fix": "Changed that reader to bounded valid-JSON polling; no supervisor source change."
+    },
+    {
+      "run": "earlier receipt-fail branch evidence",
+      "artifact": "D:\\temp\\iteration41-inert-receipt-stress-05\\test_inert_parent_setup_worker0\\inert-parent-output\\guardian-supervisor-receipt.json",
+      "sha256": "5CF934056D7DC58BB3D8F1D88AB838C8CF0CC4A77D60AA8B48AF52403872016B",
+      "finding": "Fail-closed cleanup state/reason descendant_or_job_state_unconfirmed, termination succeeded, later Job-empty/control-release evidence confirmed; parent receipt sentinel preserved."
+    }
+  ],
+  "static_checks": {
+    "ruff_check": "passed",
+    "ruff_format": "4 of 5 selected files formatted; windows_job_backend test file retains existing formatter drift, not reformatted to avoid unrelated edits."
+  },
+  "next_increment": {
+    "code_side": "After a real external trust anchor is provisioned, add one fixed read-only-preflight operation to the existing outer-supervisor topology. It must take no caller command/path, run the ordinary bounded preflight wholly as the Job child tree under one absolute deadline, and return UNKNOWN unless exit and cleanup are observed. Keep ordinary CLI admission closed until that operation is independently accepted.",
+    "external_operator_inputs": [
+      "Provision and identify the deployment trust anchor for service/source/interpreter/descriptor; the current caller-constructed ExternallyPinnedDescriptor and test HMAC are not that anchor.",
+      "Provision the service identity, protected descriptor/receipt directories, named-pipe DACL and restart/owner policy; confirm the exact supported Windows build and Job nesting/kill policy.",
+      "Explicitly authorize a later one-shot read-only sandbox CTP preflight against the sealed private config/front pair; this will read private config and start native/provider work, so it remains outside this acceptance run.",
+      "Define operator handling for UNKNOWN after deadline and what receipt evidence is sufficient to close an attempt."
+    ],
+    "limits": [
+      "Current outer supervisor covers only inert sleep/setup/worker/close, not ordinary CTP preflight.",
+      "A synchronous Win32 call that blocks inside the outer supervisor, OS scheduling stall, or machine suspension is outside the proven deadline guarantee.",
+      "No external service/deployment trust root or real trusted source receipt is present."
+    ]
+  },
+  "verdict": {
+    "G1": "NOT_PASSED",
+    "scope": "95 passing tests cover the inert-only process chain and its seven focused modules; they do not establish ordinary preflight or deployment trust."
+  }
+}

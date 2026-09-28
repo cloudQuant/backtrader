@@ -1,0 +1,14 @@
+{
+  "binary_sha256": "829d7956c1acd2c70184d549bfcff39d4f107881189f256b83becebaa26368aa",
+  "checks": 15,
+  "decision": "R10-r1 closes two local prototype gaps only; it is not whole-command G1 acceptance.",
+  "failed_checks": 0,
+  "findings_sha256": "be4e73ce2331246f9cb87bfbe79dbcea17eded3d742b064b9e1e6564a4349ef8",
+  "manifest": "r10_r1_manifest.json",
+  "manifest_sha256": "88ec781edc1e6c1155ff993cd4fbb7260791386a133080a674aab9330ebf341e",
+  "no_production_or_default_route_changes": true,
+  "no_provider_or_credentials": true,
+  "source_sha256": "dfbe509e030906eebfdd4345cafda453f9ebfee817bfd32df32e10d607a57186",
+  "status": "AUTHOR_INERT_WINDOWS_PROTOTYPE_G1_CLOSED",
+  "trials_sha256": "4461d54bf0d938e6d7d2b0c5e40272b04f230d1085d2c9cfb710fe122e16f920"
+}

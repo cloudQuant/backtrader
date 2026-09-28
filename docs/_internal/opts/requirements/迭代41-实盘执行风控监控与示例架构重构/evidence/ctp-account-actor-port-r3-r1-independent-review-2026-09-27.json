@@ -1,0 +1,60 @@
+{
+  "format": "iteration41-account-actor-port-independent-review-v1",
+  "date": "2026-09-27",
+  "candidate": "ctp-account-actor-port-r3-r1",
+  "verdict": {
+    "isolated_route_classifier_and_fake_harness": "PASS",
+    "receipt_account_epoch_replay_authority": "BLOCKED",
+    "actual_main_store_integration": "BLOCKED",
+    "g6_p": "UNCHANGED",
+    "live_no_go": "UNCHANGED"
+  },
+  "frozen_candidate": {
+    "path": "D:\\temp\\iteration41-ctp-account-actor-port-freeze-20260927-r3-r1",
+    "manifest_sha256": "417ebef0fc2a85b4e37ee22122024b0118211c161795abb79dac438840b960a1",
+    "manifest_entries": 9,
+    "source_copy_mismatches": 0
+  },
+  "independent_qa": {
+    "packet_path": "D:\\temp\\iteration41-ctp-account-actor-port-r3-r1-qa-independent-20260927",
+    "packet_manifest_sha256": "4E2B47493BC6368AFF9A98A302EC651BEA8AFCFF9C0DC70DA36FB382D838CBCE",
+    "test_command": "python -B -m unittest discover -s tests -v",
+    "passed": 24,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "probes": [
+    "Unknown custom provider with api_cls: AMBIGUOUS, no factory call.",
+    "Nested symbol_routes CTP: CTP, no gateway factory call.",
+    "Nested exchange_kwargs[OKX].routing.exchange_type=CTP: CTP, no API factory call.",
+    "Injected API exchange_kwargs trap: AMBIGUOUS, property reads 0.",
+    "Explicit CTP remains CTP with OKX environment; tested non-CTP selector set classifies NON_CTP.",
+    "Stale actor epoch 1 accepted; mismatched account accepted; repeated same intent accepted twice.",
+    "Wrong command ID rejected; absent actor rejected before credential resolver."
+  ],
+  "main_source": {
+    "btapistore_sha256": "DBA2989252DB76FE010FBEE7CAACDCDBA34A9B951E3702724156482B67FAE826",
+    "stores_init_sha256": "076BB64AE832E189B28B313E0028E24005D507DD6B46D0336FE3295AF579B246",
+    "actor_gate_found": false,
+    "no_adapter_legacy_paths_statically_reachable": true,
+    "actual_main_store_ctp_send": false
+  },
+  "superseded_r3": {
+    "manifest_sha256": "a4d336e159aa2c64342f0311710e1b20c55b4b7768f8b23dc03a5525b42f8f9f",
+    "qa_directory": "D:\\temp\\iteration41-ctp-account-actor-port-r3-qa-independent-20260927",
+    "reason": "did not cover deeper nested exchange_kwargs CTP route; superseded by r3-r1"
+  },
+  "raw_archive": {
+    "filename": "ctp-account-actor-port-r3-r1-independent-review-2026-09-27.raw.zip",
+    "sha256": "524B7B306178F5CAD0AFFEADF3522F108B0D3813F55783C3DF2C1F1D85781CE6",
+    "packet_manifest_sha256": "4E2B47493BC6368AFF9A98A302EC651BEA8AFCFF9C0DC70DA36FB382D838CBCE"
+  },
+  "review_page_sha256": "48FB106DBC3F2BBA79CCDC2DD96E17A568A6F6876F444E8EF5F22DB2A19B4DEA",
+  "limits": [
+    "No production actor or authenticated external identity.",
+    "No expected actor epoch or replay ledger.",
+    "No main Store instantiation or send.",
+    "No SDK/native/provider/network/credentials/protected config.",
+    "No deployment or live authorization."
+  ]
+}

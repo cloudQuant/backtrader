@@ -1,0 +1,184 @@
+{
+  "schema": "ac41-63-writer-slice3-independent-archive-v1",
+  "verdict": "PASS_STATIC_AUDIT_SCOPE_ONLY",
+  "scope": "43 of 389 statically reviewed; 346 residual; all official dispositions remain REVIEW_REQUIRED / NOT_AVAILABLE; NO_WRITE / LIVE_NO_GO; no source/default-route changes.",
+  "artifact_count": 12,
+  "artifacts": [
+    {
+      "name": "author_zip",
+      "path": "author/slice3-r2-author.zip",
+      "bytes": 105515,
+      "sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000",
+      "source_sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "qa_zip",
+      "path": "qa-package/independent-qa.zip",
+      "bytes": 113876,
+      "sha256": "a3a569254040d4a8d195f80762cad55d67d143edd5edd46be68e0ee0ec76f14a",
+      "source_sha256": "a3a569254040d4a8d195f80762cad55d67d143edd5edd46be68e0ee0ec76f14a",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "receipt",
+      "path": "qa/QA-RECEIPT.md",
+      "bytes": 3877,
+      "sha256": "0684063397ffb1cac4dd4a8d91b0bcd6cb2390c97930285ac5a2ad2fa3301442",
+      "source_sha256": "0684063397ffb1cac4dd4a8d91b0bcd6cb2390c97930285ac5a2ad2fa3301442",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "verification",
+      "path": "qa/verification.json",
+      "bytes": 1247,
+      "sha256": "4d24208f057a54dd2fda6c0e4ebef8ef9f1013afd7204626b98cb83ae2cf6601",
+      "source_sha256": "4d24208f057a54dd2fda6c0e4ebef8ef9f1013afd7204626b98cb83ae2cf6601",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "verify_script",
+      "path": "qa/verify-slice3.py",
+      "bytes": 7806,
+      "sha256": "7844bf9b73cba7c00873eb7973513d0a1179917cde7f12274399bc4e6ad7f059",
+      "source_sha256": "7844bf9b73cba7c00873eb7973513d0a1179917cde7f12274399bc4e6ad7f059",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "verify_log",
+      "path": "qa/verify-slice3.log",
+      "bytes": 1131,
+      "sha256": "74dffdc2e9b2039f9930fd13d9df80607c1f663c5cb873bcb7ceb63d00f8ed2e",
+      "source_sha256": "74dffdc2e9b2039f9930fd13d9df80607c1f663c5cb873bcb7ceb63d00f8ed2e",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "verify_exit",
+      "path": "qa/verify-slice3.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "build_script",
+      "path": "qa/build-qa-package.py",
+      "bytes": 1714,
+      "sha256": "181d7faac68f49571c9248266484819d9f17771b1d90b9e521334b1f33b10048",
+      "source_sha256": "181d7faac68f49571c9248266484819d9f17771b1d90b9e521334b1f33b10048",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "build_log",
+      "path": "qa/build-qa-package.log",
+      "bytes": 410,
+      "sha256": "136ec97315ee6f8d1505f7e0096fcab61af4a0ce51cf6947373130e8f75126b7",
+      "source_sha256": "136ec97315ee6f8d1505f7e0096fcab61af4a0ce51cf6947373130e8f75126b7",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "build_exit",
+      "path": "qa/build-qa-package.exit",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "source_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "qa_sha256",
+      "path": "qa-package/QA-PACKAGE.SHA256.txt",
+      "bytes": 82,
+      "sha256": "f995fbc219084d78b65bc1fc766b357d2cbea012c7e89ace66ca0be6308681b7",
+      "source_sha256": "f995fbc219084d78b65bc1fc766b357d2cbea012c7e89ace66ca0be6308681b7",
+      "byte_identical_to_source": true
+    },
+    {
+      "name": "qa_manifest",
+      "path": "qa-package/QA-PACKAGE-MANIFEST.json",
+      "bytes": 1389,
+      "sha256": "dcf0527ecfb17244ba79c07bb74d3517530944b1f94c848f4130c875277155fc",
+      "source_sha256": "dcf0527ecfb17244ba79c07bb74d3517530944b1f94c848f4130c875277155fc",
+      "byte_identical_to_source": true
+    }
+  ],
+  "zip_checks": [
+    {
+      "artifact": "author_zip",
+      "copy": "source",
+      "path": "D:\\temp\\ac41-63-writer-slice3-20260927-r2.zip",
+      "sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000",
+      "crc": "clean",
+      "members": 11,
+      "member_names": [
+        "coverage-ledger.json",
+        "FREEZE-MANIFEST.json",
+        "inputs/frozen-source-manifest.json",
+        "inputs/live-execution-inventory-candidates.json",
+        "inputs/live-execution-writer-dispositions.json",
+        "inputs/predecessor-slice2-selected-candidates.json",
+        "REPORT.md",
+        "sdk-source-extracts.txt",
+        "selected-candidates.json",
+        "source-extracts.txt",
+        "source-hashes.json"
+      ]
+    },
+    {
+      "artifact": "author_zip",
+      "copy": "archived",
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ac41-63-writer-slice3-independent-static-review-2026-09-27\\author\\slice3-r2-author.zip",
+      "sha256": "4d90d2e1abda09c44dfeb4845526b7a07b12d617bab9952de60d360832b37000",
+      "crc": "clean",
+      "members": 11,
+      "member_names": [
+        "coverage-ledger.json",
+        "FREEZE-MANIFEST.json",
+        "inputs/frozen-source-manifest.json",
+        "inputs/live-execution-inventory-candidates.json",
+        "inputs/live-execution-writer-dispositions.json",
+        "inputs/predecessor-slice2-selected-candidates.json",
+        "REPORT.md",
+        "sdk-source-extracts.txt",
+        "selected-candidates.json",
+        "source-extracts.txt",
+        "source-hashes.json"
+      ]
+    },
+    {
+      "artifact": "qa_zip",
+      "copy": "source",
+      "path": "D:\\temp\\ac41-63-writer-slice3-r2-independent-qa-20260927\\qa-package\\QA-PACKAGE.zip",
+      "sha256": "a3a569254040d4a8d195f80762cad55d67d143edd5edd46be68e0ee0ec76f14a",
+      "crc": "clean",
+      "members": 8,
+      "member_names": [
+        "author-input/slice3-r2.zip",
+        "build-qa-package.py",
+        "QA-PACKAGE-MANIFEST.json",
+        "QA-RECEIPT.md",
+        "verification.json",
+        "verify-slice3.exit",
+        "verify-slice3.log",
+        "verify-slice3.py"
+      ]
+    },
+    {
+      "artifact": "qa_zip",
+      "copy": "archived",
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\ac41-63-writer-slice3-independent-static-review-2026-09-27\\qa-package\\independent-qa.zip",
+      "sha256": "a3a569254040d4a8d195f80762cad55d67d143edd5edd46be68e0ee0ec76f14a",
+      "crc": "clean",
+      "members": 8,
+      "member_names": [
+        "author-input/slice3-r2.zip",
+        "build-qa-package.py",
+        "QA-PACKAGE-MANIFEST.json",
+        "QA-RECEIPT.md",
+        "verification.json",
+        "verify-slice3.exit",
+        "verify-slice3.log",
+        "verify-slice3.py"
+      ]
+    }
+  ]
+}

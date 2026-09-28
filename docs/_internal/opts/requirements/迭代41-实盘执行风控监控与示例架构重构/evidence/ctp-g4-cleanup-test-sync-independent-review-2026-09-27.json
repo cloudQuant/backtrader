@@ -1,0 +1,66 @@
+{
+  "schema": "iteration41.g4_cleanup_test_sync.root_review.v1",
+  "status": "ACCEPTED_FAKE_TEST_DETERMINISM_ONLY_G4_STILL_BLOCKED",
+  "snapshot_manifest_sha256": "dfc0477cc05656ef2b0ea26f2e7e1374695d541590fe924565ba0b726fc32214",
+  "manifested_payloads_verified": 267,
+  "author": "40+5 repeated target passes; frozen 56 passed",
+  "root_independent": "56 passed, 2 warnings; exact snapshot SDK client origin and main ctp_native_shutdown origin",
+  "initial_root_rerun": "55 passed, 1 failed solely because main backtrader_runtime was absent from PYTHONPATH; corrected origin-explicit rerun 56 passed",
+  "limitations": [
+    "Test synchronization only; e75 production SDK source unchanged",
+    "No native extension, provider session or G4 clean-close evidence",
+    "Earlier 62/1 failure evidence retained unchanged"
+  ],
+  "archive": {
+    "file": "ctp-g4-cleanup-test-sync-independent-review-2026-09-27.raw.zip",
+    "sha256": "9e4be4d28fa623c86b735df89de9b6c58f51b3b65dd135b738fd4e9de34ac58b",
+    "entries": 9
+  },
+  "files": [
+    {
+      "path": "source/manifest.json",
+      "sha256": "dfc0477cc05656ef2b0ea26f2e7e1374695d541590fe924565ba0b726fc32214",
+      "bytes": 51075
+    },
+    {
+      "path": "source/src/bt_api_ctp/ctp/client.py",
+      "sha256": "2d31bf75b801847d185db5cbcbf284752736e96b4874449fb34bdab0dc5cbf09",
+      "bytes": 351481
+    },
+    {
+      "path": "source/tests/test_ctp_shutdown.py",
+      "sha256": "2daaf88f642fb01da37830262e8bbff639148a05c3644a667071b9a5d4f25c30",
+      "bytes": 44285
+    },
+    {
+      "path": "source/tests/test_md_client_identity.py",
+      "sha256": "60c384bedbf0e23a2e8af6fdf0596fdb84a2031b6368cd5ae732b8f3556d0744",
+      "bytes": 10745
+    },
+    {
+      "path": "author/target-repeat-original-tree.log",
+      "sha256": "10dcddb680c6f9374d7cfeb42b46c89c931ecca9f973c8e95dcf90f37fc2fbe2",
+      "bytes": 49631
+    },
+    {
+      "path": "author/target-repeat-snapshot.log",
+      "sha256": "cbca5842d5d18ae0598a1f843c42c8a994f2fc3ebf6cfe2ab9f1ebdc5e30f9e0",
+      "bytes": 6515
+    },
+    {
+      "path": "author/snapshot-shutdown-and-md.log",
+      "sha256": "f8b3e88dca3fa9d714ee8243dae3ff9c36e873da75bd7084f61bc1bad95bcb94",
+      "bytes": 1297
+    },
+    {
+      "path": "independent/root-focus.log",
+      "sha256": "073684aff26d278f7fa63d4fa2707f73764831362c405374577f064d0d6621f9",
+      "bytes": 1297
+    },
+    {
+      "path": "independent/origins.log",
+      "sha256": "f00dfd59af5d20c66fd8ca0fd5e3f5b9da198efb158de48745130a59cc8e9e8b",
+      "bytes": 859
+    }
+  ]
+}

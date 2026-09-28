@@ -1,0 +1,22 @@
+{
+  "status": "INDEPENDENT_QA_COMPLETE",
+  "verdict": "SAFE_TO_MERGE_FAIL_CLOSED",
+  "scope": "Store-level route mutation checks and constructor-time CTP fail-closed only; not external Actor, G1/G5, same-process isolation, provider/native, default route, or live acceptance.",
+  "source_manifest_sha256": "ecfdf31484133fdbab34b755941f95617e7055dd705dd4238d4daf71eaf2a619",
+  "source_payload_count": 724,
+  "report_sha256": "3e2a23997c57bfd354dfee261963c7b6df0301c17944da84809f0c83e85fd24e",
+  "environment_manifest_sha256": "9b87a03fbce42f215f1244317693c0867e461bfdb40939da31f051d866159738",
+  "archive": {
+    "zip_path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784\\evidence\\ctp-account-actor-main-store-wiring-r2b-independent-qa-2026-09-27\\r2b-independent-qa.raw.zip",
+    "zip_sha256": "71980d10e70102e6fed895d96c813521346133fd829c79448e811cf897efc648",
+    "zip_testzip": "clean",
+    "zip_member_count": 790,
+    "indexed_payload_count": 789,
+    "index_sha256": "6ca8740586922b9569fb33cf4303b69bc89d9a1ccc9fe042a5a68f80ec005f9d",
+    "source_payload_count": 724,
+    "source_payloads_hash_verified_before_packaging": true,
+    "private_config_or_credentials_included": false,
+    "note": "archive-index.json lists every ZIP member except itself; its SHA-256 is recorded here."
+  },
+  "archive_index_payload_count": 789
+}

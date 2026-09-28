@@ -1,0 +1,78 @@
+--- provenance/test_cancel_dispatch_resolution_proof.py
++++ candidate/tests/test_cancel_dispatch_resolution_proof.py
+@@ -20,16 +20,25 @@
+ from bt_api_execution import contracts as _execution_contracts  # noqa: E402
+ from bt_api_execution import store as _execution_store_types  # noqa: E402
+ 
+-_ROOT = Path(__file__).parents[1]
++_ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(_ROOT))
++from bt_api_py.runtime_plugins.contracts import (  # noqa: E402
++    CAPABILITY_EXECUTION,
++    CAPABILITY_MONITOR,
++    CAPABILITY_RISK,
++    RuntimeCapabilityContract,
++)
++
+ _SPEC = spec_from_file_location(
+-    "cancel_proof_authority_under_test", _ROOT / "src" / "fake_dispatch_authority.py"
++    "cancel_proof_authority_under_test",
++    _ROOT / "bt_api_py" / "runtime_plugins" / "fake_dispatch_authority.py",
+ )
+ assert _SPEC is not None and _SPEC.loader is not None
+ authority_module = module_from_spec(_SPEC)
+ sys.modules[_SPEC.name] = authority_module
+ _SPEC.loader.exec_module(authority_module)
+ FakeDispatchJournalError = authority_module.FakeDispatchJournalError
+-ManagedFakeProviderJournalAuthority = authority_module.ManagedFakeProviderJournalAuthority
++
+ 
+ _V2_SPEC = spec_from_file_location(
+     "cancel_proof_authority_v2_fixture", _ROOT / "tests" / "fixtures" / "fake_dispatch_authority_v2.py"
+@@ -79,6 +88,10 @@
+     key: str
+     provider: str = "fake"
+     environment: str = "offline"
++
++    @property
++    def account_id(self) -> str:
++        return self.key
+ 
+ 
+ @dataclass(frozen=True)
+@@ -555,10 +568,33 @@
+         return self.claim if permit_id == self.claim.permit_id else None
+ 
+ 
++_REGISTERED_STRATEGY = "example.013_3.sa_midfreq_simnow"
++_REGISTERED_PROVIDER = "iteration41_managed_replay_fake_provider"
++_REGISTERED_ACCOUNT = "iteration41_managed_replay_fake_account"
++_REGISTERED_POLICY = "iteration41.managed_replay.l2"
+ _EXECUTION_SCOPE = _execution_contracts.ExecutionScope(
+-    provider="fake", environment="offline", account_ref="acct-17", strategy_id="strategy-17"
++    provider=_REGISTERED_PROVIDER,
++    environment="offline",
++    account_ref=_REGISTERED_ACCOUNT,
++    strategy_id=_REGISTERED_STRATEGY,
+ )
+-_RISK_SCOPE = _Scope("risk-scope-17", provider="fake", environment="offline")
++_RISK_SCOPE = _Scope(_REGISTERED_ACCOUNT, provider="fake", environment="offline")
++_FAKE_CONTRACT = RuntimeCapabilityContract(
++    strategy_id=_REGISTERED_STRATEGY,
++    mode="simulation",
++    preset="replay",
++    environment="offline",
++    order_route="managed_execution",
++    required_capabilities=(CAPABILITY_EXECUTION, CAPABILITY_RISK, CAPABILITY_MONITOR),
++    effective_digest="b" * 64,
++)
++_R4ManagedFakeProviderJournalAuthority = authority_module.ManagedFakeProviderJournalAuthority
++
++
++def ManagedFakeProviderJournalAuthority(**kwargs):
++    kwargs.setdefault("contract", _FAKE_CONTRACT)
++    kwargs.setdefault("policy_id", _REGISTERED_POLICY)
++    return _R4ManagedFakeProviderJournalAuthority(**kwargs)
+ 
+ 
+ def _setup(tmp_path: Path, state: str):

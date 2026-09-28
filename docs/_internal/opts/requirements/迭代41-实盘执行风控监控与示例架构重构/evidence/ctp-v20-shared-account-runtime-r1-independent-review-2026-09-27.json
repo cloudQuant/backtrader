@@ -1,0 +1,625 @@
+{
+  "schema": "iteration41.v20_main_shared_account_r1.root_review.v1",
+  "status": "ACCEPTED_UNREGISTERED_SOURCE_BUNDLE_ONLY",
+  "source_manifest_sha256": "c4a01df5f796d718deb8bd6672ea281421223eea2bf14ec014415ac7ae52fa9c",
+  "independent_manifest_sha256": "f2712bdb518a25da5014fa65864bc4e4a6562028857a62340f2a15e8f906975f",
+  "independent_receipt_sha256": "9f434c05d1d56f7625b89074531c3978388c597cf74c1fc2773e57a7eba07b26",
+  "source_files_verified": 105,
+  "independent_focus": "84 passed, 2 expected xfailed, 0 failed",
+  "xfail_nodes": [
+    "tests.unit.runtime.test_ctp_simulation_execution::test_profile_config_change_after_final_check_blocks_native_dispatch[submit]",
+    "tests.unit.runtime.test_ctp_simulation_execution::test_profile_config_change_after_final_check_blocks_native_dispatch[cancel]"
+  ],
+  "archive": {
+    "file": "ctp-v20-shared-account-runtime-r1-independent-review-2026-09-27.raw.zip",
+    "sha256": "c96e0a10da5339c6ddf03fae712e1cf74481e4079d1f74408d7fd70a763a69e4",
+    "entries": 121
+  },
+  "files": [
+    {
+      "path": "author/manifest.json",
+      "sha256": "c4a01df5f796d718deb8bd6672ea281421223eea2bf14ec014415ac7ae52fa9c",
+      "bytes": 22660
+    },
+    {
+      "path": "author/process-result.json",
+      "sha256": "d5d9beef70a7ef91a3292ed12be4a9cd56b591c94576e02db669b3642bcb6a91",
+      "bytes": 298
+    },
+    {
+      "path": "author/pytest.stderr.log",
+      "sha256": "d8e520b1435912147465fce40fad885b4a9acbd25308694aa14acfe7cda65459",
+      "bytes": 656
+    },
+    {
+      "path": "author/pytest.stdout.log",
+      "sha256": "970a7081a0c04528ebd25e004e0857cbe4307e81c2c9e5bc227f9ecdbba6ca21",
+      "bytes": 1026
+    },
+    {
+      "path": "independent/artifact-manifest.json",
+      "sha256": "f2712bdb518a25da5014fa65864bc4e4a6562028857a62340f2a15e8f906975f",
+      "bytes": 1642
+    },
+    {
+      "path": "independent/build_receipt.py",
+      "sha256": "4cc42ebb417ae515188b8c1e98950b91ea60e3ebca6b58c30a44438738f24949",
+      "bytes": 9351
+    },
+    {
+      "path": "independent/independent_run.py",
+      "sha256": "19cb92172477ab3761823c83d3ccd78682bd9a55a4b8f91e383befb0b2f9eb83",
+      "bytes": 6486
+    },
+    {
+      "path": "independent/qa-receipt.json",
+      "sha256": "9f434c05d1d56f7625b89074531c3978388c597cf74c1fc2773e57a7eba07b26",
+      "bytes": 5991
+    },
+    {
+      "path": "independent/rerun/independent.junit.xml",
+      "sha256": "82465eeb2ed381d5b496b1ca2fa5fa90d574e6f653c0db0f993e6c3e67c0356c",
+      "bytes": 15757
+    },
+    {
+      "path": "independent/rerun/independent.stderr.log",
+      "sha256": "0aa96fd2cbf292bfe8131c3810498428a1767f56ed255bdf2be485f52d117029",
+      "bytes": 1256
+    },
+    {
+      "path": "independent/rerun/independent.stdout.log",
+      "sha256": "a8d17667c8130cb042845d5d696f3f506ef51b432743bc0f6b20d02ada92de24",
+      "bytes": 17804
+    },
+    {
+      "path": "independent/rerun/process-result.json",
+      "sha256": "066cab086386e591bd8117af08277a9069e8a73ea64eed33d5a6d0e9cffca5cb",
+      "bytes": 383
+    },
+    {
+      "path": "independent/results/spawn_runner_diagnostic/independent.junit.xml",
+      "sha256": "eb4cde641fff60adb062fab96399bd9cb75bcfd71e76c02e0f22b831a53bd51a",
+      "bytes": 18670
+    },
+    {
+      "path": "independent/results/spawn_runner_diagnostic/independent.stderr.log",
+      "sha256": "0aa96fd2cbf292bfe8131c3810498428a1767f56ed255bdf2be485f52d117029",
+      "bytes": 1256
+    },
+    {
+      "path": "independent/results/spawn_runner_diagnostic/independent.stdout.log",
+      "sha256": "139a2ab007f2c69722ab238de3584fac912ccd2a181a9d68e79e67481db30da4",
+      "bytes": 26851
+    },
+    {
+      "path": "independent/run_independent.ps1",
+      "sha256": "0fa8398a02d9ed1e3ac271e8fd41c022b3146002fc0da2148946777114211aca",
+      "bytes": 1817
+    },
+    {
+      "path": "source/backtrader_runtime/__init__.py",
+      "sha256": "3f071f55a089f8bf54e0338139b7401988a5421607345ffad808ec4ecebcebfb",
+      "bytes": 8656
+    },
+    {
+      "path": "source/backtrader_runtime/__main__.py",
+      "sha256": "36053545f4682a69c27b05cb17c38872e7c4a2f5933f7d38abbbdcde14b57dd0",
+      "bytes": 113
+    },
+    {
+      "path": "source/backtrader_runtime/_ctp_credential_binding.py",
+      "sha256": "769d5a4ae3588035fe71569f923da11ed22f83f32e5ed58b2852110aeb8f8549",
+      "bytes": 32403
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_backtest_fixture/__init__.py",
+      "sha256": "5c6e093cda9dbb0b4108135337304d9c4979b4012c76adc5af0c3b506c7a925e",
+      "bytes": 296
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_backtest_fixture/run.py",
+      "sha256": "b274305ad4998f4dfded31ed6525b7a83bd406cfd8b2bc6cf0777bed22c1a20f",
+      "bytes": 7062
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_l2_fixture/__init__.py",
+      "sha256": "d305892f4a20e3427d2dfd5e2fbf80a11dd9f01c2413bb75ac861fc6af4cb5ec",
+      "bytes": 259
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+      "sha256": "62b518900d132f83d3abf402485ddfbc78178519c98ee8b0ee5fe03068287b26",
+      "bytes": 24157
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py",
+      "sha256": "562ce16464c4ac09c76ea057a319f5499a4bc3d077cb9c313d7916c4184cca5a",
+      "bytes": 21240
+    },
+    {
+      "path": "source/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+      "sha256": "c24ede60544af5ad054dde7d91efe4e4e94034277df8322d18a5059b27707685",
+      "bytes": 38070
+    },
+    {
+      "path": "source/backtrader_runtime/capability_imports.py",
+      "sha256": "6bbf61cb72c2df588d4934b5cb8b811c0a3c9076a9daa9e5b802aed672881d54",
+      "bytes": 33973
+    },
+    {
+      "path": "source/backtrader_runtime/cli.py",
+      "sha256": "bca2632e261fe2b663008e8b0758c2c932df917f9376e9b90230848b41ef5ef4",
+      "bytes": 66230
+    },
+    {
+      "path": "source/backtrader_runtime/config.py",
+      "sha256": "684f908b501be688717344f6e9458944929cef1fc666740c3c8ad77d9e3d16c2",
+      "bytes": 64814
+    },
+    {
+      "path": "source/backtrader_runtime/credential_resolver.py",
+      "sha256": "90c0dfff8f2499a2641cc8d31f20cdbdfcaffa3656982eeb100048283def59c2",
+      "bytes": 68801
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_artifact_provenance.py",
+      "sha256": "78f7b385db4c33f522a645e160b23076d7b600cf539cf6a121897483c49b3c75",
+      "bytes": 47141
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_config_action_linearization.py",
+      "sha256": "b6d367a0d2b44b2b342c62b8e477082cc9ffbdc4a369aaf8da162d35a8fac23f",
+      "bytes": 16236
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_configured_front_check.py",
+      "sha256": "31c0d348fe44656b8fc1ceec2c71dcc67b87119246b8ab7e555712d5940eca50",
+      "bytes": 14826
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_dispatch_read_model.py",
+      "sha256": "9d576dd980b37150c4aac9fc4a2a66c80fa6069817cf21469ceb0fab7e4f9a1b",
+      "bytes": 16733
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_f14_external_admission.py",
+      "sha256": "7ba54c6c658ef269f1049fab1a6d2c14d85d0a7b777767479081ce3f53b7016b",
+      "bytes": 14044
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_f14_signed_receipt_contract.py",
+      "sha256": "f16b3c9b02b19dcfd1e8f06f4c7cadc9553e80c290cbbed17e437a8376e1ec86",
+      "bytes": 31238
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_front_pair_probe.py",
+      "sha256": "473fde83c1acb18f1cfa4908623b0104238fdfe7431c0af61341101992a544bf",
+      "bytes": 23652
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i10_attempt_latch.py",
+      "sha256": "1cbfb3d0b5de6a0c2977cd449d36d434bdc2b4c28281d877df851bfff1f5be8e",
+      "bytes": 2808
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i10_oneshot_md_diagnostic.py",
+      "sha256": "25f184dc2f3fddab333d191e64492f819421184f796d99e3b95fcbd96a6194c3",
+      "bytes": 33556
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i10_oneshot_md_readonly.py",
+      "sha256": "fb47a661ba08d623204a628717f6b0621b427f3d6406a5f40233b7f450ffd6b2",
+      "bytes": 26532
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i11_attempt_latch.py",
+      "sha256": "02957f12412d27dd8eb0aa85abe42bbcb8d3c77166fa983374c945900578e50f",
+      "bytes": 4677
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i11_oneshot_md_diagnostic.py",
+      "sha256": "aec09859adba4ebe14896480042ecdd7084759f95fc1df1b1c9eb3dd50c742f4",
+      "bytes": 57929
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i12_td_only_latch.py",
+      "sha256": "7503aeddd7529663faeabefa4b27b591018d51a71a17e36c48972d7456353d5f",
+      "bytes": 3611
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i12_td_only_readonly.py",
+      "sha256": "7e69220354489140808f2828436c7e82f992bf83a30d5dea316130cad977a825",
+      "bytes": 62296
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i13_md_observability.py",
+      "sha256": "8e935f2d907854ee6bf0d6efa93c5f3e208317d208577856cb76ae3d2370f463",
+      "bytes": 30815
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i13_md_oneshot_supervisor.py",
+      "sha256": "b3c8ab930cbf5b2dd1257018ae5444d9b8116350ead0f1f8f4fa15d18f2ca1d4",
+      "bytes": 91088
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i13_source_identity.py",
+      "sha256": "70908411e3a582a136efeb40d52db1ce8843e8697dead21896940904b5a7747d",
+      "bytes": 32477
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i13_source_identity_pin.py",
+      "sha256": "1b2ed8511bf7b183cd027caa26a093ec82a439fabb8b3805f5489f4639c03800",
+      "bytes": 201
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i13_worker_dependency_seal.py",
+      "sha256": "8f37263c5fbdf7743d34511131a4ab1abc5fc239b2e742726a0626291c668b4b",
+      "bytes": 39682
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i15_source_identity.py",
+      "sha256": "f29aee330a1205c60fa8fb7b88fcc1390bab110b99e7d1cc7282fa5b8e68259c",
+      "bytes": 27833
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i15_source_identity_pin.py",
+      "sha256": "782cfdb0a9c5fedbb74a305eb3ad850a1c5aa655d92565190e215e726a756324",
+      "bytes": 321
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i15_td_only_readonly.py",
+      "sha256": "b6ddb73ce89a8de1280c28013e7845253e3341e8e7e97a9f1844d329e1dac809",
+      "bytes": 47519
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i3_oneshot_md_diagnostic.py",
+      "sha256": "ca93ad9a6c26a39b970285e0a21120883a9b3d41966647326d0745edb48589aa",
+      "bytes": 11289
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i3_oneshot_md_readonly.py",
+      "sha256": "f515e726a82a1e09b45f588b7d57549f90d9568524e9e7b1c0096ee83f4abae0",
+      "bytes": 28563
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i4_oneshot_md_diagnostic.py",
+      "sha256": "bb5bd656ed9e36e7632d6c097cf15755a6032b896a6ce80500ea8110604d9a5e",
+      "bytes": 13368
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i4_oneshot_md_readonly.py",
+      "sha256": "39ffd3fc7b8d60781a49d500a8f323325502a140b0deef7fc573f39eec80db8f",
+      "bytes": 842
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i5_oneshot_md_diagnostic.py",
+      "sha256": "fee4c201457c8c3be549d8071b877cd6f2b2c1d13a2c97592406176a8037d827",
+      "bytes": 19216
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i6_oneshot_md_diagnostic.py",
+      "sha256": "d3faa5eed326fb0bdc49064c6cfb1e31003caf33aa5f45a6ee4eb17c940e2c07",
+      "bytes": 20930
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i7_oneshot_md_diagnostic.py",
+      "sha256": "d1b9367186daacd2da20569f499b71dda68c6d4c4ed1f93132df4ab32baf7b87",
+      "bytes": 22197
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i8_oneshot_md_diagnostic.py",
+      "sha256": "5c1094551160197fd5ab29903a47c0c5728ed84fdc02c2be964c4a9b5d02e5bb",
+      "bytes": 47721
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i8_oneshot_md_readonly.py",
+      "sha256": "9295ab41e1dfd7c5f13448afe59ff7d9c202e28211c407e601c22b3d504b26eb",
+      "bytes": 26473
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i9_account_session_candidate.py",
+      "sha256": "e80e23200acfb2f3148d914ef5d6076ddd077f39240644df53f4780147d4f2b6",
+      "bytes": 45968
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i9_artifact_candidate.py",
+      "sha256": "a0ccd5a5d4d4227f34481761bdb45af916f2e9e29cd5ac918b219243ac868622",
+      "bytes": 2048
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_i9_candidate_artifact_set.py",
+      "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a",
+      "bytes": 21033
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+      "sha256": "765655cfbe1b4e92959d35b02d0c5d5c203e205816cbafc50891238952d258da",
+      "bytes": 31570
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_action_authority.py",
+      "sha256": "7caed2a83447173ff93755c5561713c2e2f8f410d21ae78e4a07cccd3f681c66",
+      "bytes": 48077
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_action_scope_resolver.py",
+      "sha256": "73a02e3e7a41128e95069ccc49dcc35501719a2714b6b4d1e369aeacfa8fd461",
+      "bytes": 23058
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_cancel_binding.py",
+      "sha256": "d358489d123aa69a762760f4f8620afa4fdf52eaed7986ff5d2e026a656f44ca",
+      "bytes": 5809
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_handoff.py",
+      "sha256": "c3bc250d7d6c0a3e3cf2d651fed84a2e8f3df72392160f8316ff3988608a5aa7",
+      "bytes": 17303
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_managed_reconciliation.py",
+      "sha256": "7e5a35b55ad371c6e60244b747fec858b8280fc474a80e69b3b1d3fbd468691f",
+      "bytes": 12889
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_mode_scope.py",
+      "sha256": "9f9d6d7c3baaedbf8f96967274720f4ba0774123eb2af3498a01a8add02ce93d",
+      "bytes": 18133
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_native_shutdown.py",
+      "sha256": "4bf25ecbc5771b31642068db8e6e81befad2aff0bfc85414730ea5c2f3c18822",
+      "bytes": 3548
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_preflight.py",
+      "sha256": "3effc1d05763a6eb685c322f8ca5514893adf2e2b60513512d78a83a7ddf7386",
+      "bytes": 39532
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_private_config_setup.py",
+      "sha256": "2a1f8d461fcf065f7d1193d23e0a0010dac8659b26e8a62c4ddd9dee04067528",
+      "bytes": 63369
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_action_binding.py",
+      "sha256": "84aa5a50c0231701e386324a38928438c9b2fdff68531903352118f2108f074a",
+      "bytes": 32551
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_approval_binding.py",
+      "sha256": "a776d5e13993d65589b4417ab48a531fc094313058910fa6567a8db6dfbcf978",
+      "bytes": 14927
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_artifact_provenance.py",
+      "sha256": "a7f4a868ead6a5c228a9d6f3104f05d33b0bee3bfda9550b76d3d127fa2d968d",
+      "bytes": 1543
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_capability_binding.py",
+      "sha256": "b4ce32e5202aeb737154237cb6c045ad639ffab1fcbf317e3419ee85de178e9d",
+      "bytes": 11949
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_config_setup.py",
+      "sha256": "e75bda55a48f1e2577da84094d46ed338e964dab1e57ca6a4a02d0ebd3a1fc49",
+      "bytes": 1664
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_credentials.py",
+      "sha256": "0536b19c8d494c761ebe0fb2f942fdf734dff32a936d1ee95ce8c2f18c41d799",
+      "bytes": 13812
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_execution_admission.py",
+      "sha256": "cc639f1b5d362a3b21c5406db25b067eb88cea51cb04e65a412ad776c16cd3d9",
+      "bytes": 35146
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_managed_composition.py",
+      "sha256": "d77db1a245604a0078986759595fd7731feeb8d782cf3b6dc4594282adb287e4",
+      "bytes": 11123
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_readonly_admission.py",
+      "sha256": "b9a2c0d0619a1308f39576a9cc4a62fa724c2fcf2de85dfc1694acad90d725aa",
+      "bytes": 18011
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_readonly_runtime.py",
+      "sha256": "4a92c790adfd5d7df1dcdf560bc0589d0841733ce6cdac654dbf7ff9a279ee58",
+      "bytes": 29926
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_production_sdk_readonly.py",
+      "sha256": "5a0a784aa77c059c067393908e9dcdd2f3e94afe8eb2b20410ef59ed1deba2d9",
+      "bytes": 40210
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_readonly_job_supervisor.py",
+      "sha256": "0f6df9d3a9b4b3f3f62e89e8dfd1ba82f61d0496838004d8143da5652ed11b75",
+      "bytes": 63905
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_sandbox_readonly_admission.py",
+      "sha256": "8de0737ae19bd1789772f83c24632f50f2def407025aa7eeb62338823a8786d9",
+      "bytes": 39471
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_sdk_market_readonly.py",
+      "sha256": "ffb1233b313feb89ce1d1f2f6d526f68b79cf54eff86f897347aef6f1f67c368",
+      "bytes": 52286
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_sdk_readonly.py",
+      "sha256": "5b42ecd25c91d5b76894fc9bd68c1950a053cc2e69dd55cbee3fcb207d779c7a",
+      "bytes": 35924
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_shared_managed_runner.py",
+      "sha256": "cdaf82fb6532443373203b7c820d8d381d3e36d52e02bbbc28c61dc6336c3f31",
+      "bytes": 39363
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_shared_managed_runtime.py",
+      "sha256": "499a1f90e084e611bc4f08f896457a950650943bceb1680d4a01ecf7cc81c0ee",
+      "bytes": 15923
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_managed_composition.py",
+      "sha256": "f8a3a51df5fbd10e84658d27d3e80311209372bc9a926592bf70fad8e012ad08",
+      "bytes": 9998
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_managed_operator.py",
+      "sha256": "fea3699c1d274a7aad2d86f0d190b2137036ac85615776d5c8ee88220e54c875",
+      "bytes": 22153
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_managed_runtime.py",
+      "sha256": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958",
+      "bytes": 30573
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_md_diagnostic.py",
+      "sha256": "0eb185fe7606861eae2bcea6699e3ed8046a790a8b13defe9cccc40dacbf5290",
+      "bytes": 16426
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_native_readiness.py",
+      "sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94",
+      "bytes": 27966
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_operational_window.py",
+      "sha256": "cf2f8e543b4e52be6386059ba082ba4408487f749d8b1d8d27fb92ab7e876875",
+      "bytes": 22196
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_operator.py",
+      "sha256": "9112a8411a8f13045a1e2c3b040517bb06c4db1f8c959a2650a4f2ab3afcc6db",
+      "bytes": 22971
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_readonly_runtime.py",
+      "sha256": "778be3b5efb64ee4dd4c6a735f0c6b5bff329fc455f9e460338a6ea298e30bc5",
+      "bytes": 29089
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_signed_review.py",
+      "sha256": "4c35e8087685db8c2e798db3bbf81c9219f4564468bba13aed10383ec799fc9e",
+      "bytes": 51979
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simnow_td_trading_readiness.py",
+      "sha256": "f016783a6817d858a03cda6e3f78abeb43e769c0626d55757ee2debb7502d09d",
+      "bytes": 19104
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simulation_execution.py",
+      "sha256": "7618c31d119ba906d49090585623adf91952a67d78c0b81ee38a629651ffb9ec",
+      "bytes": 115265
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_simulation_query_evidence.py",
+      "sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "bytes": 50546
+    },
+    {
+      "path": "source/backtrader_runtime/ctp_trader_client_port.py",
+      "sha256": "db34b11a36e201af01fcabb83c1ae6e03ade820035855f38fee5a2ac8ca4b6e4",
+      "bytes": 66622
+    },
+    {
+      "path": "source/backtrader_runtime/economic_fact_projection.py",
+      "sha256": "b6ec6009b04fa131a3d5099b0c935a50968e6ca3444b8c5ded11a5a2dca7942c",
+      "bytes": 11569
+    },
+    {
+      "path": "source/backtrader_runtime/errors.py",
+      "sha256": "07a6a77cfddd1c9f59602a77a4ecb317bc6b21e7e0435860423a2c4fd05921be",
+      "bytes": 2606
+    },
+    {
+      "path": "source/backtrader_runtime/evidence_bundle.py",
+      "sha256": "4fc9835d290fed193020b82687c1041fb3b6f753d71bf26ccad58c8a03c0977a",
+      "bytes": 12271
+    },
+    {
+      "path": "source/backtrader_runtime/framework_projection.py",
+      "sha256": "b3fbeaeea8665fea84bcb3ad46366b3a12285fcf6f5f6f7c37470aaefe85bbb0",
+      "bytes": 50088
+    },
+    {
+      "path": "source/backtrader_runtime/inventory.py",
+      "sha256": "0ebc77efd22e21b299e794e09c8cb879899b5dc4efd3302e86d2d9c626b0f6cb",
+      "bytes": 16457
+    },
+    {
+      "path": "source/backtrader_runtime/legacy.py",
+      "sha256": "ac5dfa8cc770f1c30f38cf96bb55048236bc2040647382f42a4d2086aaa9b47c",
+      "bytes": 2887
+    },
+    {
+      "path": "source/backtrader_runtime/managed_execution.py",
+      "sha256": "f36c379cec5b39ff86f72ab4e11a38cbc0fdd8e49899c74197f635103d2d9361",
+      "bytes": 151160
+    },
+    {
+      "path": "source/backtrader_runtime/policy.py",
+      "sha256": "631b326ed570e076cb9199ff73755d1ad8ec268197d0964008725b0c58983074",
+      "bytes": 5299
+    },
+    {
+      "path": "source/backtrader_runtime/provider_deployment.py",
+      "sha256": "571c4b2ca179ee1be8268330e5db6c6f240d13164d2be89ccbc9a492021cd0eb",
+      "bytes": 33478
+    },
+    {
+      "path": "source/backtrader_runtime/provider_preflight.py",
+      "sha256": "32e2567ab56e6cf5edd147725a1e5849f580be6d4ec5ed39ce5f0bffde86d99f",
+      "bytes": 16931
+    },
+    {
+      "path": "source/backtrader_runtime/registry.py",
+      "sha256": "f359e0d0576662bc8d5f966ef2345fe723c8802cd504ad383323e59959fe5a01",
+      "bytes": 86819
+    },
+    {
+      "path": "source/backtrader_runtime/review_evidence.py",
+      "sha256": "b6cf1ea6ee3cf040c8ab59f5a3b33f721daa4ff6c3ef3eba8047d0b1c22a7649",
+      "bytes": 18855
+    },
+    {
+      "path": "source/backtrader_runtime/runner.py",
+      "sha256": "f80c4de5c8e981f73b2c05930bb5f772f631099ce3a8291af94e7bac0dcb6afd",
+      "bytes": 55150
+    },
+    {
+      "path": "source/backtrader_runtime/test_execution_profile.py",
+      "sha256": "c44ea4c38db24d7e00a4b9446611429cfcb9c95b56da5b5d41a792f242dba913",
+      "bytes": 32293
+    },
+    {
+      "path": "source/run_focus.ps1",
+      "sha256": "458899a536123b5faf5a27362fcd9c32628cb8e142aec31a50b4a2b2ceb50a12",
+      "bytes": 1674
+    },
+    {
+      "path": "source/tests/integration/test_iteration41_ctp_managed_account_runtime_candidate.py",
+      "sha256": "78cb381bd0bc8d3167681a92d4302e50814bf921cf41ab7c0dad6936bf01a2e8",
+      "bytes": 22100
+    },
+    {
+      "path": "source/tests/unit/runtime/test_ctp_simulation_execution.py",
+      "sha256": "c524b59e2182fb4cc9a9dd36835ec3e550d548cb3dcecb3251c6cae5984fa98a",
+      "bytes": 107821
+    },
+    {
+      "path": "source/verify_origins_and_run.py",
+      "sha256": "c05148b9f97396d6340b662a45065a003121497fbe455781edca523f7d8983f7",
+      "bytes": 1638
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schema": "iteration41.g4.r2.disposable_wheel_independent_qa_receipt.v1",
+  "classification": "WHEEL_SOURCE_FAKE_INSTALLATION_PASS / G4_NATIVE_CLOSE_CLOSED / DEFAULT_PIN_CLOSED",
+  "probe_root": "D:\\temp\\iteration41-g4-lifecycle-r2-repro-probe-20260927",
+  "qa_root": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927",
+  "base_head": "29f8ff171f61a71038328a7067e0909bf44774b2",
+  "candidate_freeze_manifest_sha256": "e55d077572ee7f071d3d0ad0fd74522618e1e338a6e38e9963ed6ef76d2f15ee",
+  "source_copy_verdict": {
+    "tracked_files_per_copy": 266,
+    "content_mismatches_per_copy": 0,
+    "eol_only_path": "tests/test_ctp_callback_ingress_client.py",
+    "base_raw_sha256": "2950f29a32b8fff49f293554fc3765d8c0a8e566eea0207a7444380fd9251bcd",
+    "source_a_raw_sha256": "08f37df3b48a378e4fcb3c4980dc2e3812ce4deb446b45a7fbd29d8a6a64e4e9",
+    "source_b_raw_sha256": "08f37df3b48a378e4fcb3c4980dc2e3812ce4deb446b45a7fbd29d8a6a64e4e9",
+    "normalized_head_blob_sha1": "158514df5a02184af081a373092a59c7d856aea7",
+    "overlays_match_manifest": true,
+    "generated_extras": {
+      "a": 103,
+      "b": 95
+    }
+  },
+  "wheel": {
+    "version": "2.0.4+g4r2.probe.20260927",
+    "bytes": 5433813,
+    "sha256": "00e0c0c56574f60013115ee6010e531f72a8c811780f27dfcba3249cdafb5384",
+    "member_count": 90,
+    "member_hashes_equal": true,
+    "record_rows": 90,
+    "record_hashed_payloads": 89
+  },
+  "unique_version_scan": {
+    "inventory_items_including_probe_wheels": 28,
+    "probe_wheels_excluded_for_collision_result": 2,
+    "preexisting_local_wheels_scanned": 26,
+    "collision_count": 0
+  },
+  "consumer": {
+    "system_site_packages": false,
+    "installed_record_rows": 174,
+    "installed_hashed_rows_checked": 92,
+    "installed_unhashed_rows": 82,
+    "payload_bytes_equal": true,
+    "pip_check_exit": 0,
+    "pip_check": "No broken requirements found.",
+    "fake_passed": 66,
+    "fake_failures": 0,
+    "fake_skipped": 0,
+    "native_loaded": false
+  },
+  "warnings": [
+    "pytest config warning: asyncio_default_fixture_loop_scope unknown",
+    "RuntimeWarning from deliberate _ctp import guard",
+    "cl /Bv probe exit 2 due missing source file argument"
+  ],
+  "reproducibility_caveat": {
+    "ctp_wrap.obj": {
+      "a": "455693844163f197f4c4e5b688f09449c301bd72db8931faf8d01631f9fe2123",
+      "b": "c6a7ed3b51092314ea96ff2be62457a41ea425f5dd5e2b548c091dec2e84959f"
+    }
+  },
+  "runtime_limit": "Packaged DLL file bytes match wheel, but _ctp was guarded before load; no DLL mapped/loaded evidence.",
+  "archive": {
+    "path": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927\\ctp-g4-r2-disposable-wheel-independent-review-2026-09-27.raw.zip",
+    "sha256": "0d1d5fff0c398ca30290ed4c3929d4edc22ccbf4042c645b07ac0eef941bb4ec",
+    "member_count": 50,
+    "sha256_index_rows": 49,
+    "testzip": "OK"
+  },
+  "artifacts": {
+    "ctp-g4-r2-disposable-wheel-independent-review-2026-09-27.md": {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927\\ctp-g4-r2-disposable-wheel-independent-review-2026-09-27.md",
+      "sha256": "e721ec5569ed25f151dc224a51f2e8f14e7f14d5aec356341368d00074a63f62"
+    },
+    "independent-qa-summary.json": {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927\\independent-qa-summary.json",
+      "sha256": "c251dfa321f09544adcf6385f2f083d06d9eefd38e7b82e704b8aaa04f2c363e"
+    },
+    "independent-audit.log": {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927\\independent-audit.log",
+      "sha256": "f37b36afed6f269c1c2224104b7e91c5314d033feb0947436d72323623b65634"
+    },
+    "initial-comparator-correction-note.md": {
+      "path": "D:\\temp\\iteration41-g4-lifecycle-r2-independent-qa-20260927\\initial-comparator-correction-note.md",
+      "sha256": "2fdb342f89bc824267c37ace321b56d8954b1cd695c95da05dd553df5cdd678d"
+    }
+  }
+}

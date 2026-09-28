@@ -1,0 +1,269 @@
+{
+  "schema_version": "iteration41-ac41-63-ctp-generic-queue-failclose-r4-archive.v1",
+  "status": "MAIN_INTEGRATED_AND_BROAD_TESTED; NO_WRITE / LIVE_NO_GO",
+  "authorization": "No writer closure, CTP/SimNow/production authorization, or write admission is claimed. Active official dispositions remain REVIEW_REQUIRED / NOT_AVAILABLE.",
+  "candidate": {
+    "packet_manifest_sha256": "6EBB6B381D371E429C54FBAF1D884E1FBABF254FDCECE7A0E6F035A1AB462FB6",
+    "packet_sums_sha256": "27B5C8232AD7A330B214616AD40AD53B2B20229F6F3A5E1BC0D62DBF68D36701",
+    "patch_sha256": "37EA74FA86D600A5FFC47CBC9511C2215B10765EC791FA9DD6F65036EB867B00",
+    "base_store_sha256": "A028A68DF87ABE84A1D38F4020D81AF56E0DFB860DED43D36C3830933106696D",
+    "target_store_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE",
+    "changed_file_targets": [
+      {
+        "path": "backtrader/stores/btapistore.py",
+        "target_sha256": "A0393FC4F0B7212C6EE4B4F32DE2AA9E6E9A0ECFC5FE976F72160E2EC11F6ABE"
+      },
+      {
+        "path": "tests/unit/stores/test_btapistore_iteration22.py",
+        "target_sha256": "64C1DDBC2A54322CEC9A0732C78760E684BA7A1E81DE14E4FF2D5AB5AC6833B3"
+      },
+      {
+        "path": "tests/unit/stores/test_btapistore_entry_approval_arm.py",
+        "target_sha256": "7A77E0D9FE81230D44DB05F004D1299D997FA65B124ACA7CB228B3A024F2CE44"
+      },
+      {
+        "path": "tests/test_ctp_generic_sdk_queue_failclose.py",
+        "target_sha256": "75342D9D710BB52C7492C9C2BC71B1094984A27F976D38196D6433B6D182CD74"
+      }
+    ]
+  },
+  "independent_qa": {
+    "verdict": "PASS_NARROW_ISOLATED_FAKE_ONLY_QA",
+    "report_sha256": "E0FBE9C3CB5A20C7F406B9DC138B35E4ECC1789C5057E820029934B502BA1E52",
+    "manifest_sha256": "BBCB0EF25B8F9FB1DDEB369EE8905F890406FE8116311A24D37EEE51A3D1455B",
+    "sums_sha256": "88459C653D578FCE97E8BB90493417ABDD3902F904F34A1D74E66DE4CF790E21",
+    "scope": "Narrow isolated fake-only contract, compatibility, py_compile, Ruff, strict replay, and hash checks; not an independent broad-suite rerun.",
+    "focused_tests": [
+      {
+        "scope": "R4 self-contained queue contract",
+        "passed": 12,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "scope": "Recovery exit four-way parameterization",
+        "passed": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "scope": "Budget passthrough and CTP writer lookup",
+        "passed": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "scope": "Original r3 generic contract",
+        "passed": 11,
+        "deselected": 1,
+        "failed": 0
+      },
+      {
+        "scope": "Managed cancel and forwarding compatibility",
+        "passed": 10,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
+  "main_broad_run": {
+    "reported_by": "root",
+    "result": "2740 passed / 43 skipped / 2 xfailed / 0 failed; 115.52s; one existing pytest configuration warning.",
+    "raw_artifacts": [
+      "main-broad/pytest.log",
+      "main-broad/junit.xml",
+      "main-broad/exit.txt"
+    ],
+    "independently_replayed": false
+  },
+  "static_writer_inventory": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+    "sha256": "03658257D97E31C2D8F8BFD48685441533552B32674F5D63810141E3038AB456",
+    "result": "460 candidates across 355 scanned files; 363 writer / 97 dynamic; 0 parse errors; verifier 460/460; 6 tombstones; 15 scanner tests pass.",
+    "official_dispositions": "All active entries remain REVIEW_REQUIRED / NOT_AVAILABLE."
+  },
+  "limitations": [
+    "Routing metadata snapshots, including SDK exchange metadata sourced from injected API exchange_kwargs, are hints, not authorization.",
+    "A stale non-CTP Store snapshot paired with a CTP-capable injected API remains a conditional generic sink residual.",
+    "The new generic sink guard covers _invoke_sdk_command fallback only; an earlier typed managed _execute_sdk_command branch is not globally closed.",
+    "No real SDK/native import, provider I/O, non-loopback network, private config, credentials, account, order, or cancel was used."
+  ],
+  "payloads": [
+    {
+      "path": "packet/patch.diff",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\patch.diff",
+      "sha256": "37EA74FA86D600A5FFC47CBC9511C2215B10765EC791FA9DD6F65036EB867B00",
+      "size_bytes": 22428,
+      "purpose": "Exact-base four-file patch."
+    },
+    {
+      "path": "packet/manifest.json",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\manifest.json",
+      "sha256": "6EBB6B381D371E429C54FBAF1D884E1FBABF254FDCECE7A0E6F035A1AB462FB6",
+      "size_bytes": 6947,
+      "purpose": "Frozen candidate manifest and exact source/test preimage/target hashes."
+    },
+    {
+      "path": "packet/author-report.md",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\author-report.md",
+      "sha256": "D5085E0D3C248BFF678C9AB06BDE3942C5B27CF86DC5BA6BC5003A7E25F9278D",
+      "size_bytes": 4121,
+      "purpose": "Author scope, behavior, results, and limitations."
+    },
+    {
+      "path": "packet/replay.md",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\replay.md",
+      "sha256": "E2B957E543D1877ADD820E6424C57D553D87CC3031F0C281879A528DEB902A32",
+      "size_bytes": 1715,
+      "purpose": "Strict replay and candidate test instructions."
+    },
+    {
+      "path": "packet/test_ctp_generic_sdk_queue_failclose.py",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\test_ctp_generic_sdk_queue_failclose.py",
+      "sha256": "75342D9D710BB52C7492C9C2BC71B1094984A27F976D38196D6433B6D182CD74",
+      "size_bytes": 8464,
+      "purpose": "Persistent 12-case fake-only contract test added by r4."
+    },
+    {
+      "path": "packet/focused-junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\focused-junit.xml",
+      "sha256": "506E64BB5867F744153678D902C8BF5C8C80032BBC62BD1093CE8EC392E6F78D",
+      "size_bytes": 65486,
+      "purpose": "Author affected-module suite raw JUnit."
+    },
+    {
+      "path": "packet/focused-pytest.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\focused-pytest.log",
+      "sha256": "DD77E86B26F0AA185BB20AB733D628C9F45DA9C31E00B9E7104F5B03475A5E8D",
+      "size_bytes": 1280,
+      "purpose": "Author affected-module suite raw log."
+    },
+    {
+      "path": "packet/contract-test.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-compat-20260927\\contract-test.log",
+      "sha256": "7B99BC7755D45D1B3E084B7DA0489288893C4B25DBBCF485E87EFDC1B8EC5C30",
+      "size_bytes": 224,
+      "purpose": "Author standalone contract test output."
+    },
+    {
+      "path": "independent-qa/qa-report.md",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\qa-report.md",
+      "sha256": "E0FBE9C3CB5A20C7F406B9DC138B35E4ECC1789C5057E820029934B502BA1E52",
+      "size_bytes": 5046,
+      "purpose": "Independent p3 fake-only QA report."
+    },
+    {
+      "path": "independent-qa/qa-manifest.json",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\qa-manifest.json",
+      "sha256": "BBCB0EF25B8F9FB1DDEB369EE8905F890406FE8116311A24D37EEE51A3D1455B",
+      "size_bytes": 9918,
+      "purpose": "Independent QA receipt manifest."
+    },
+    {
+      "path": "independent-qa/SHA256SUMS.txt",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\SHA256SUMS.txt",
+      "sha256": "88459C653D578FCE97E8BB90493417ABDD3902F904F34A1D74E66DE4CF790E21",
+      "size_bytes": 4326,
+      "purpose": "Original p3 QA packet checksum index."
+    },
+    {
+      "path": "independent-qa/static-checks.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\static-checks.log",
+      "sha256": "75DE4F77FB6CEF68BACD3F39FE4C85089939B0EE64E2A1411BCF39F5E5325106",
+      "size_bytes": 717,
+      "purpose": "Independent py_compile, Ruff, replay, and packet-sum checks."
+    },
+    {
+      "path": "independent-qa/r4-contract-final.junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\r4-contract-final.junit.xml",
+      "sha256": "AAC454085BF8D16C3178BF0E34312F0F46812C61A5766EC562A45C691D423581",
+      "size_bytes": 2015,
+      "purpose": "Independent final generic queue contract JUnit."
+    },
+    {
+      "path": "independent-qa/r4-contract-final.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\r4-contract-final.log",
+      "sha256": "FAB5F1B8038FE660E8E0FE7E3F597C3F337A152D5CA471A304DD50F7B956C503",
+      "size_bytes": 364,
+      "purpose": "Independent final generic queue contract log."
+    },
+    {
+      "path": "independent-qa/recovery.junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\recovery.junit.xml",
+      "sha256": "6EB30B0190F2EE237214B49BEC695D54D202CFFB814711B6879EAFC516C8974A",
+      "size_bytes": 861,
+      "purpose": "Independent four-way recovery-exit JUnit."
+    },
+    {
+      "path": "independent-qa/recovery.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\recovery.log",
+      "sha256": "070D7C74A0CBFAC8650A365677E16FE5444E871E12CA09D5FC3BC6686184CAAB",
+      "size_bytes": 1032,
+      "purpose": "Independent four-way recovery-exit log."
+    },
+    {
+      "path": "independent-qa/budget.junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\budget.junit.xml",
+      "sha256": "3B6077811581BCC23910F2CB06094461BE199984D6CABEF9CE34FC795F531AE4",
+      "size_bytes": 653,
+      "purpose": "Independent budget/sink-lookup JUnit."
+    },
+    {
+      "path": "independent-qa/budget.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\budget.log",
+      "sha256": "04F58212CEDD64511D6DEB17A1820EB1D1C0EC23AA1E477305E0739A9E75D7E2",
+      "size_bytes": 1030,
+      "purpose": "Independent budget/sink-lookup log."
+    },
+    {
+      "path": "independent-qa/r3-compat.junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\r3-compat.junit.xml",
+      "sha256": "028CEEDFF5EDD6D71F40B13155372F1CA31FBA60F6C6E62369CBD794E3E25597",
+      "size_bytes": 1900,
+      "purpose": "Independent compatibility JUnit for original generic contract; one superseded case deselected."
+    },
+    {
+      "path": "independent-qa/r3-compat.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\r3-compat.log",
+      "sha256": "3FAA3BCE1D2D6BD8407AB54931A024843632C7673906D4B5B1D34E99D9898AA3",
+      "size_bytes": 370,
+      "purpose": "Independent original generic contract compatibility log."
+    },
+    {
+      "path": "independent-qa/managed-cancel.junit.xml",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\managed-cancel.junit.xml",
+      "sha256": "B625F2369B49520FECE26D8C35EC5EF8A36CA38580512F3E60247C2B5E70E17E",
+      "size_bytes": 1708,
+      "purpose": "Independent managed-cancel/forwarding compatibility JUnit."
+    },
+    {
+      "path": "independent-qa/managed-cancel.log",
+      "source_path": "D:\\temp\\ac41-63-store-generic-queue-failclose-r4-p3-independent-qa-20260927\\managed-cancel.log",
+      "sha256": "F2B17AE96DAC1DC006CC53C9120DA99564946E53CB021FAA00ED53AAFCCE9221",
+      "size_bytes": 361,
+      "purpose": "Independent managed-cancel/forwarding compatibility log."
+    },
+    {
+      "path": "main-broad/pytest.log",
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r4-main-broad-20260927\\pytest.log",
+      "sha256": "C23A52D5FB7C1554BD67154FF7ABEE82BEFF24B2ECD5DBC0D8583A749B3624A9",
+      "size_bytes": 3764,
+      "purpose": "Parent-run current-main broad Store/Runtime pytest output."
+    },
+    {
+      "path": "main-broad/junit.xml",
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r4-main-broad-20260927\\junit.xml",
+      "sha256": "36864D1A904055491E29C9D06D3CFFE4A5C66157E0A5B1216D31E9D36A52C41B",
+      "size_bytes": 488907,
+      "purpose": "Parent-run current-main broad Store/Runtime JUnit."
+    },
+    {
+      "path": "main-broad/exit.txt",
+      "source_path": "D:\\temp\\iteration41-store-generic-queue-r4-main-broad-20260927\\exit.txt",
+      "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354",
+      "size_bytes": 3,
+      "purpose": "Parent-run current-main broad suite exit code."
+    }
+  ],
+  "checksum_policy": "SHA256SUMS.txt hashes every archive file except itself; ARTIFACT-MANIFEST.json indexes the payload artifacts listed above."
+}

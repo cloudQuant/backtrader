@@ -1,0 +1,46 @@
+AC41-63 007 broker-factory independent QA receipt
+Date: 2026-09-28 (local task date)
+Status: guarded fake-only regression pass; patch replay byte-hash discrepancy under Git autocrlf=true
+QA root: D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6
+Frozen bundle: D:\temp\ac41-live-broker-boundary-20260928
+Main checkout and frozen candidate bundle were read-only throughout this QA.
+
+Frozen patch and preimage verification
+- candidate.patch SHA-256: 69E53657C4883E20A2D7B114FB477C55A6B9513157936FABD6FE80A59EAC659D
+- examples/007_ctp/ctp_example_support.py preimage: C5D7F2DDD51465C4187CBFECF77C02D4FC4C80742D8E0D0B809F0FB830F33DBC
+- tests/unit/test_ctp_example_support.py: 8C20311918406A1635EC53FFF3E41C17F07C5DCA8B35B4657AC88205987F1D57
+- tests/unit/test_iteration41_legacy_ctp_support_inert_import.py: 900E5D663F7B829C2AC788655CB78B617583920265B72D9F87A6FC0E19E53575
+- backtrader_runtime/legacy.py: AC5DFA8CC770F1C30F38CF96BB55048236BC2040647382F42A4D2086AAA9B47C
+- backtrader_runtime/errors.py: 07A6A77CFDDD1C9F59602A77A4ECB317BC6B21E7E0435860423A2C4FD05921BE
+- backtrader/brokers/btapibroker.py: 538F7DDEB2D1C2AB52F43EC6FFE20981488F901B1B92BDDC05F47D5CB75A159C
+- backtrader/feeds/btapifeed.py: D34EFE275B3EB8E53C09B09EBF7FEE807BF672702EA8405C541AAEDCBC2DE803
+- backtrader/stores/btapistore.py: CE04ECBADDD3D3EA01C707313EA9B144650C47E322D0BDFC915000C0110094CA
+The candidate bundle baseline contains the candidate-added test file already. It was excluded only from this QA copy before exact patch replay so Git could add it. Frozen preimage source hashes otherwise matched; the baseline bundle omits the three backtrader package files, so those were copied from the checkout after their manifest hashes matched. QA copies of all three still match.
+
+Patch replay
+From the QA root, both commands succeeded with exit 0:
+  git -c core.autocrlf=true apply --check candidate.patch
+  git -c core.autocrlf=true apply candidate.patch
+An initialized temporary Git repository configured with core.autocrlf=true reproduced the same source result.
+- Git-applied support file SHA-256: E53E90D6939F9EA03749A9BEA887B02F28A55865C0F83A428C3A2E461B0C11AE
+- Git-applied new test SHA-256: 7A5B29774F42C791A4CBA56E3A68C2A92330E64021718673BCEFF5DCA1C0496A
+- Frozen candidate support artifact SHA-256: 784CC5F83FE7B69FB3236CE0EB97EEAEBA790BEF8EE5A1C5BE475936EC13C6FE
+- Frozen candidate new-test artifact SHA-256: EAD36518AE6A7CB2EC946D2B913B37ED1619E98BC69372B5344B46C404B8F0E5
+- The applied support file is 762 CRLF / 0 LF; the candidate artifact is 756 CRLF / 6 LF. The new test has the same normalized text as its candidate artifact. After normalizing CRLF to LF for comparison, both applied files are text-identical to candidate artifacts. The required 784CC5... postimage hash is not reproduced by Git apply with core.autocrlf=true because Git normalizes the mixed-EOL candidate artifact to CRLF.
+
+Guarded tests
+Command (Python 3.11.5, pytest 8.0.0):
+  python -m pytest -c qa_pytest.ini -p no:rerunfailures -p no:hypothesispytest -p qa_offline_guard tests/unit/test_iteration41_007_live_broker_failclose.py tests/unit/test_ctp_example_support.py tests/unit/test_iteration41_legacy_ctp_support_inert_import.py -q
+Result: exit 0; 5 passed, 1 existing Quandl deprecation warning, 3.20s.
+- pytest-rerunfailures was disabled per the candidate note because it opens a localhost listener.
+- Hypothesis pytest plugin was disabled after the strict process-wide os.getenv guard caught its own session-summary read of HYPOTHESIS_INTERNAL_COVERAGE; it is unrelated to these unit tests.
+- The optional TA-Lib import was made unavailable in the QA-only guard so backtrader's optional wrapper would not import Polars, which otherwise performs an unrelated import-time environment lookup.
+- Guard rejected CTP provider/native import prefixes, .env reads through builtins/io/os open, all os.getenv calls, and socket DNS/connect/send/receive/bind/listen/accept/shutdown methods. Final guard summary recorded zero attempts and zero preloaded CTP provider/native modules. No provider, native, network, .env, environment, or credential access occurred in the final run.
+Raw pytest log: D:\temp\ac41-live-broker-boundary-qa-20260928-6b9093e6\pytest-guarded.raw.log
+Raw pytest log SHA-256: 88689F817B5A881885A441A325D171B7D4A8DAD3B1E3119F88A3664D8C3599D8
+
+Independent source review
+- create_live_broker at examples/007_ctp/ctp_example_support.py:707 imports the redacted legacy error helper, deletes local parameter names without attribute access, then raises. It does not read Store/config attributes or invoke the monkeypatched BtApiBroker constructor. The two new StoreBomb/ConfigBomb/constructor contracts passed.
+- BtApiBroker is still imported at module scope by this support module; the new boundary is at function invocation and does not prevent that ordinary Python import.
+- add_live_feeds remains live: it reads feed/symbol config, constructs BtApiFeed with the caller Store, and adds each feed to Cerebro. BtApiFeed.start calls store.start(data=self) and register(self), optionally fetch_history when backfill_start is set, then claims a tick consumer and calls subscribe. BtApiStore.start reaches _ensure_api_ready. This can start a provider session and perform market-data history/subscription work; the broker-factory patch does not fence that feed/session path.
+- Direct Store/Broker composition elsewhere, arbitrary same-process writers, and the generic run_cerebro_with_timeout path remain outside scope. No writer-closure or live-route acceptance is established. Keep NO_WRITE / LIVE_NO_GO.

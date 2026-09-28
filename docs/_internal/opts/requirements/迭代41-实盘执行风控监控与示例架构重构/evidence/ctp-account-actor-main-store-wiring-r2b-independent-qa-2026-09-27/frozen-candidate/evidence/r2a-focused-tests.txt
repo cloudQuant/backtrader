@@ -1,0 +1,9 @@
+.........................                                                [100%]
+============================== warnings summary ===============================
+backtrader\feeds\__init__.py:69
+  D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2a\backtrader\feeds\__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\temp\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r2a\evidence\r2a-focused-tests.junit.xml -
+25 passed, 1 warning in 4.05s

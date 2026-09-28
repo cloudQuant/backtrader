@@ -1,0 +1,12 @@
+{
+  "package_key": "base",
+  "distribution": "bt_api_base",
+  "version": "0.15.4",
+  "source_root": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+  "project_file": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\pyproject.toml",
+  "project_sha256": "258b641c4d9674ffcfae0bc6f0c7d7712854e23650110ff0fd734b9c431c27c5",
+  "source_file_count": 104,
+  "source_tree_sha256": "82af8bcb7b43247a1e7b5e051fd18618e57c0294541c1a926bea408ccf6708f2",
+  "metadata_sha256": "2a6596b0f23dea2978e2d8e2b2d3a7ec406a0fc51704597596cb954e0f1b1add",
+  "classification": "SOURCE-ONLY metadata; no wheel built or installed"
+}

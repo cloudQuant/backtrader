@@ -1,0 +1,2710 @@
+diff --git a/src/bt_api_execution/store.py b/src/bt_api_execution/store.py
+index 81cfd4d..57cafe8 100644
+--- a/src/bt_api_execution/store.py
++++ b/src/bt_api_execution/store.py
+@@ -305,6 +305,63 @@ class CtpAccountFamilyOwnerHandle:
+             raise ContractValidationError("invalid CTP account family scope key")
+ 
+ 
++@dataclass(frozen=True, slots=True)
++class CtpNativeActionRefFloorSnapshot:
++    """Typed claim returned by a future authenticated account authority.
++
++    This value is not self-authenticating and is not accepted from ordinary
++    callers. A real implementation must bind it to a trusted native
++    MaxOrderActionRef observation, the offline G5/V21 history-reconciliation
++    receipt, and an exclusive account-wide writer epoch. No such implementation
++    is registered; the base Store rejects ActionRef allocation. Test subclasses
++    may synthesize this value only for local fake tests.
++    """
++
++    account_key: str
++    max_native_action_ref: int
++    account_writer_epoch: str
++    reconciliation_receipt_sha256: str
++    source_digest_sha256: str
++    verifier_id: str
++    observed_at_ns: int
++    expires_at_ns: int
++
++    def __post_init__(self) -> None:
++        if (
++            not _is_prefixed_digest(self.account_key, "account:")
++            or type(self.max_native_action_ref) is not int
++            or not 0 <= self.max_native_action_ref <= 2_147_483_647
++            or type(self.account_writer_epoch) is not str
++            or not self.account_writer_epoch
++            or len(self.account_writer_epoch) > 128
++            or type(self.reconciliation_receipt_sha256) is not str
++            or not _is_sha256(self.reconciliation_receipt_sha256)
++            or type(self.source_digest_sha256) is not str
++            or not _is_sha256(self.source_digest_sha256)
++            or type(self.verifier_id) is not str
++            or not self.verifier_id
++            or len(self.verifier_id) > 128
++            or type(self.observed_at_ns) is not int
++            or self.observed_at_ns <= 0
++            or type(self.expires_at_ns) is not int
++            or self.expires_at_ns <= self.observed_at_ns
++            or self.expires_at_ns - self.observed_at_ns > 5_000_000_000
++        ):
++            raise ContractValidationError("invalid CTP native ActionRef floor snapshot")
++
++
++class CtpNativeActionRefFloorSource(Protocol):
++    """External authority seam; no production implementation is accepted here.
++
++    Implementations must authenticate a separately issued native-floor proof
++    and prove that the source digest covers reconciled G5/V21 history while an
++    exclusive account-wide writer epoch is held. A same-process flag, local
++    counter, or caller-supplied integer does not satisfy this contract.
++    """
++
++    def verified_floor(
++        self, scope: ExecutionScope, *, now_ns: int
++    ) -> CtpNativeActionRefFloorSnapshot: ...
+ 
+ 
+ @dataclass(frozen=True, slots=True)
+@@ -9238,6 +9295,60 @@ class SqliteExecutionStore:
+             )
+             return self._ctp_order_identity_from_row(result)
+ 
++    def _verified_ctp_native_action_ref_floor(
++        self, scope: ExecutionScope, *, now_ns: int
++    ) -> CtpNativeActionRefFloorSnapshot:
++        """Fail closed until a separate authenticated account authority exists."""
++
++        raise ContractValidationError(
++            "trusted external CTP native ActionRef floor authority is unavailable"
++        )
++
++    @staticmethod
++    def _validate_ctp_native_action_ref_floor(
++        snapshot: Any, *, account_key: str, now_ns: int
++    ) -> CtpNativeActionRefFloorSnapshot:
++        if (
++            type(snapshot) is not CtpNativeActionRefFloorSnapshot
++            or snapshot.account_key != account_key
++            or now_ns < snapshot.observed_at_ns
++            or now_ns >= snapshot.expires_at_ns
++            or now_ns - snapshot.observed_at_ns > 5_000_000_000
++        ):
++            raise ContractValidationError(
++                "CTP native ActionRef floor is missing, stale, or bound to another account"
++            )
++        return snapshot
++
++    @staticmethod
++    def _require_ctp_native_action_ref_floor_current(
++        cursor: sqlite3.Cursor,
++        *,
++        account_key: str,
++        native_floor: int,
++    ) -> None:
++        counter = cursor.execute(
++            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (account_key,),
++        ).fetchone()
++        allocated = cursor.execute(
++            "SELECT MAX(native_action_ref) FROM ctp_native_action_ref_allocations "
++            "WHERE account_key = ?",
++            (account_key,),
++        ).fetchone()
++        allocated_max = None if allocated is None or allocated[0] is None else int(allocated[0])
++        if counter is None or (
++            allocated_max is not None and int(counter["last_action_ref"]) < allocated_max
++        ):
++            raise DurableStoreError(
++                "CTP native ActionRef history is incomplete; offline reconciliation is required"
++            )
++        if int(counter["last_action_ref"]) < native_floor:
++            raise DurableStoreError(
++                "CTP local ActionRef counter is below the verified native floor; "
++                "offline reconciliation is required"
++            )
++
+     @staticmethod
+     def _allocate_ctp_native_action_ref(
+         cursor: sqlite3.Cursor,
+@@ -9246,10 +9357,17 @@ class SqliteExecutionStore:
+         scope_key: str,
+         command_id: str,
+         managed_action_id: str,
++        native_floor: int,
+         allocated_at_ns: int,
+     ) -> int:
+-        """Allocate one durable account-lifetime CTP int32 OrderActionRef."""
++        """Allocate one durable account-lifetime CTP int32 OrderActionRef.
++
++        The Store's durable account counter remains the allocator. The base
++        Store has no floor issuer and therefore cannot allocate.
++        """
+ 
++        if type(native_floor) is not int or not 0 <= native_floor <= 2_147_483_647:
++            raise ContractValidationError("invalid verified native ActionRef floor")
+         existing = cursor.execute(
+             """
+             SELECT native_action_ref FROM ctp_native_action_ref_allocations
+@@ -9263,8 +9381,21 @@ class SqliteExecutionStore:
+             "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
+             (account_key,),
+         ).fetchone()
++        allocated = cursor.execute(
++            "SELECT MAX(native_action_ref) FROM ctp_native_action_ref_allocations "
++            "WHERE account_key = ?",
++            (account_key,),
++        ).fetchone()
++        allocated_max = None if allocated is None or allocated[0] is None else int(allocated[0])
+         if counter is None:
+-            next_value = 1
++            if allocated_max is not None:
++                raise DurableStoreError(
++                    "CTP native ActionRef counter is missing with allocation history; "
++                    "offline reconciliation is required"
++                )
++            if native_floor >= 2_147_483_647:
++                raise DurableStoreError("CTP native ActionRef int32 sequence is exhausted")
++            next_value = native_floor + 1
+             cursor.execute(
+                 """
+                 INSERT INTO ctp_native_action_ref_counters(
+@@ -9275,6 +9406,16 @@ class SqliteExecutionStore:
+             )
+         else:
+             previous = int(counter["last_action_ref"])
++            if allocated_max is not None and previous < allocated_max:
++                raise DurableStoreError(
++                    "CTP native ActionRef counter is below allocation history; "
++                    "offline reconciliation is required"
++                )
++            if previous < native_floor:
++                raise DurableStoreError(
++                    "CTP local ActionRef counter is below the verified native floor; "
++                    "offline reconciliation is required"
++                )
+             if previous >= 2_147_483_647:
+                 raise DurableStoreError("CTP native ActionRef int32 sequence is exhausted")
+             next_value = previous + 1
+@@ -9786,9 +9927,23 @@ class SqliteExecutionStore:
+                 raise ContractValidationError("invalid typed CTP cancel target projection")
+             target_projection = cancel_target_projection.projection
+ 
++        native_action_ref_floor = None
++        if operation == "CANCEL":
++            floor_sampled_at_ns = time.time_ns()
++            native_action_ref_floor = self._validate_ctp_native_action_ref_floor(
++                self._verified_ctp_native_action_ref_floor(scope, now_ns=floor_sampled_at_ns),
++                account_key=account_key,
++                now_ns=floor_sampled_at_ns,
++            )
++
+         with self._transaction() as cursor:
+             target_check_now_ns = time.monotonic_ns()
+             now_ns = time.time_ns()
++            if operation == "CANCEL":
++                assert native_action_ref_floor is not None
++                self._validate_ctp_native_action_ref_floor(
++                    native_action_ref_floor, account_key=account_key, now_ns=now_ns
++                )
+             self._assert_active_writer_lease(cursor, scope, writer_lease)
+             if cursor.execute(
+                 "SELECT 1 FROM ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+@@ -9891,6 +10046,7 @@ class SqliteExecutionStore:
+             if existing is not None and int(existing["correlation_version"]) != 2:
+                 raise IntentConflictError("legacy CTP command cannot be restaged for native dispatch")
+             if operation == "CANCEL":
++                assert native_action_ref_floor is not None
+                 if existing is None:
+                     native_action_ref = self._allocate_ctp_native_action_ref(
+                         cursor,
+@@ -9898,9 +10054,15 @@ class SqliteExecutionStore:
+                         scope_key=scope_key,
+                         command_id=command_id,
+                         managed_action_id=str(managed_action_id),
++                        native_floor=native_action_ref_floor.max_native_action_ref,
+                         allocated_at_ns=now_ns,
+                     )
+                 else:
++                    self._require_ctp_native_action_ref_floor_current(
++                        cursor,
++                        account_key=account_key,
++                        native_floor=native_action_ref_floor.max_native_action_ref,
++                    )
+                     native_action_ref = int(existing["native_action_ref_int"])
+             else:
+                 native_action_ref = None
+diff --git a/tests/_fake_native_action_ref_floor.py b/tests/_fake_native_action_ref_floor.py
+new file mode 100644
+index 0000000..7fdb5d5
+--- /dev/null
++++ b/tests/_fake_native_action_ref_floor.py
+@@ -0,0 +1,41 @@
++"""Isolated fake-only account ActionRef floor test composition root.
++
++This helper patches a test Store instance with a synthetic snapshot. The
++snapshot is not native evidence, a trusted floor, an account-wide writer
++fence, or permission to dispatch.
++"""
++
++from __future__ import annotations
++
++from hashlib import sha256
++from types import MethodType
++
++from bt_api_execution import SqliteExecutionStore
++from bt_api_execution.store import CtpNativeActionRefFloorSnapshot
++
++
++def create_fake_action_ref_store(
++    *args, fake_native_action_ref_floor: int = 0, **kwargs
++) -> SqliteExecutionStore:
++    """Construct the exact Store type and add one test-only floor seam."""
++
++    store = SqliteExecutionStore(*args, **kwargs)
++    store._test_fake_native_action_ref_floor = fake_native_action_ref_floor
++    store._test_fake_floor_overrides = {}
++
++    def fake_floor(self, scope, *, now_ns):
++        fields = {
++            "account_key": scope.account_key,
++            "max_native_action_ref": self._test_fake_native_action_ref_floor,
++            "account_writer_epoch": "fake-only-account-writer-epoch",
++            "reconciliation_receipt_sha256": sha256(b"synthetic legacy reconciliation").hexdigest(),
++            "source_digest_sha256": sha256(b"synthetic native MaxOrderActionRef").hexdigest(),
++            "verifier_id": "fake-only-no-authority",
++            "observed_at_ns": now_ns,
++            "expires_at_ns": now_ns + 1_000_000_000,
++        }
++        fields.update(self._test_fake_floor_overrides)
++        return CtpNativeActionRefFloorSnapshot(**fields)
++
++    store._verified_ctp_native_action_ref_floor = MethodType(fake_floor, store)
++    return store
+diff --git a/tests/test_ctp_callback_session_router.py b/tests/test_ctp_callback_session_router.py
+index d9cdd88..2666fa6 100644
+--- a/tests/test_ctp_callback_session_router.py
++++ b/tests/test_ctp_callback_session_router.py
+@@ -6,6 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
+ from dataclasses import dataclass, replace
+ 
+ import pytest
++from _fake_native_action_ref_floor import (
++    create_fake_action_ref_store as SqliteExecutionStore,  # noqa: N812
++)
+ 
+ from bt_api_execution import (
+     ContractValidationError,
+@@ -20,7 +23,6 @@ from bt_api_execution import (
+     CtpVerifiedTradeFactEvidence,
+     ExecutionScope,
+     InvalidStateTransition,
+-    SqliteExecutionStore,
+     payload_sha256,
+ )
+ 
+diff --git a/tests/test_ctp_callback_source_bridge.py b/tests/test_ctp_callback_source_bridge.py
+index 206ba89..b625c28 100644
+--- a/tests/test_ctp_callback_source_bridge.py
++++ b/tests/test_ctp_callback_source_bridge.py
+@@ -12,6 +12,9 @@ from types import SimpleNamespace
+ from typing import Any, cast
+ 
+ import pytest
++from _fake_native_action_ref_floor import (
++    create_fake_action_ref_store as SqliteExecutionStore,  # noqa: N812
++)
+ 
+ from bt_api_execution import (
+     ContractValidationError,
+@@ -25,34 +28,36 @@ from bt_api_execution import (
+     CtpVerifiedCallbackEvidence,
+     CtpVerifiedOrderTargetProjection,
+     DurableStoreError,
+-    ExecutionScope,
+-    InvalidStateTransition,
+-    SqliteExecutionStore,
++    ExecutionScope,
++    InvalidStateTransition,
+     ctp_native_callback_source_facts,
+     ctp_native_session_generation_id,
+     payload_sha256,
+ )
++from bt_api_execution import (
++    SqliteExecutionStore as _BaseSqliteExecutionStore,
++)
++
++
++def _sha(value: bytes) -> str:
++    return hashlib.sha256(value).hexdigest()
+ 
+ 
+-def _sha(value: bytes) -> str:
+-    return hashlib.sha256(value).hexdigest()
+-
+-
+-def _ctp_account_ref(label: bytes) -> str:
+-    return "ctp-account-ref.v1:" + _sha(label)
+-
+-
+-def _lease(store, scope, owner: str):
+-    handle = getattr(store, "_test_ctp_account_family_owner", None)
+-    if handle is None:
+-        handle = store.acquire_ctp_account_family_owner(scope)
+-        store._test_ctp_account_family_owner = handle
+-    return store.acquire_or_renew_lease(
+-        scope,
+-        owner,
+-        ttl_ns=30_000_000_000,
+-        ctp_account_family_owner=handle,
+-    )
++def _ctp_account_ref(label: bytes) -> str:
++    return "ctp-account-ref.v1:" + _sha(label)
++
++
++def _lease(store, scope, owner: str):
++    handle = getattr(store, "_test_ctp_account_family_owner", None)
++    if handle is None:
++        handle = store.acquire_ctp_account_family_owner(scope)
++        store._test_ctp_account_family_owner = handle
++    return store.acquire_or_renew_lease(
++        scope,
++        owner,
++        ttl_ns=30_000_000_000,
++        ctp_account_family_owner=handle,
++    )
+ 
+ 
+ class _FakeTraderClient:
+@@ -275,7 +280,7 @@ class _FakeCallbackLedgerVerifier:
+ 
+ @dataclass
+ class _BoundDispatch:
+-    store: SqliteExecutionStore
++    store: _BaseSqliteExecutionStore
+     scope: ExecutionScope
+     lease: object
+     command_id: str
+@@ -303,21 +308,21 @@ def _stage_dispatched_command(
+         source_facts["login_front_id"],
+         source_facts["login_session_id"],
+     )
+-    scope = ExecutionScope(
+-        "ctp",
+-        "simulation",
+-        _ctp_account_ref(b"source-bridge-account"),
+-        "source-bridge",
+-        "20260925",
+-    )
+-    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    lease = _lease(store, scope, "source-bridge-test")
++    scope = ExecutionScope(
++        "ctp",
++        "simulation",
++        _ctp_account_ref(b"source-bridge-account"),
++        "source-bridge",
++        "20260925",
++    )
++    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++    lease = _lease(store, scope, "source-bridge-test")
+     source_digests = (
+         ("backtrader_prototype", _sha(b"source bridge legacy prototype fixture")),
+         ("sdk_jsonl", _sha(b"source bridge empty SDK ledger fixture")),
+     )
+-    legacy_scope = ExecutionScope(
+-        "ctp", "simulation", scope.account_ref, "source-bridge-legacy", "20260924"
++    legacy_scope = ExecutionScope(
++        "ctp", "simulation", scope.account_ref, "source-bridge-legacy", "20260924"
+     )
+     legacy_mapping = CtpOrderRefLegacyMapping(
+         source_name="backtrader_prototype",
+@@ -510,25 +515,25 @@ def _stage_followup_ready_command(bound, store, *, writer_lease=None):
+     )
+ 
+ 
+-def _write_legacy_v11_resolved_guard(bound, *, correlation_digest=None):
+-    command = bound.store.read_ctp_dispatch_command(bound.scope, bound.command_id)
+-    assert command is not None and command.correlation_key is not None
+-    guard_id = "f" * 32
+-    correlation_digest = (
+-        payload_sha256(command.correlation_key.to_payload())
+-        if correlation_digest is None
+-        else correlation_digest
+-    )
+-    # Recreate the guard-only schema-11 candidate shape. The final Store will
+-    # create projection tables after it snapshots these preexisting tables.
+-    bound.store._connection.execute(
+-        "DROP TABLE ctp_order_target_projection_consumptions"
+-    )
+-    bound.store._connection.execute("DROP TABLE ctp_order_target_projections")
+-    bound.store._connection.execute(
+-        "DROP TABLE ctp_dispatch_callback_source_lifecycle_fences"
+-    )
+-    bound.store._connection.executescript(
++def _write_legacy_v11_resolved_guard(bound, *, correlation_digest=None):
++    command = bound.store.read_ctp_dispatch_command(bound.scope, bound.command_id)
++    assert command is not None and command.correlation_key is not None
++    guard_id = "f" * 32
++    correlation_digest = (
++        payload_sha256(command.correlation_key.to_payload())
++        if correlation_digest is None
++        else correlation_digest
++    )
++    # Recreate the guard-only schema-11 candidate shape. The final Store will
++    # create projection tables after it snapshots these preexisting tables.
++    bound.store._connection.execute(
++        "DROP TABLE ctp_order_target_projection_consumptions"
++    )
++    bound.store._connection.execute("DROP TABLE ctp_order_target_projections")
++    bound.store._connection.execute(
++        "DROP TABLE ctp_dispatch_callback_source_lifecycle_fences"
++    )
++    bound.store._connection.executescript(
+         """
+         CREATE TABLE ctp_dispatch_callback_ingestion_guards (
+             account_key TEXT NOT NULL,
+@@ -624,7 +629,7 @@ def _source_event(
+             "UserID": client._bound_user_id,
+             "InstrumentID": "rb2710",
+             "RequestID": 17,
+-            "OrderActionRef": 1,
++            "OrderActionRef": 1,
+             "OrderRef": "000000000013",
+             "ExchangeID": "SHFE",
+             "OrderSysID": "sys-order-17",
+@@ -726,7 +731,7 @@ def test_bridge_derives_context_and_maps_source_queue_event_with_exact_lifecycle
+         )
+         payload = result.to_payload()
+         assert payload["envelope_type"] == "ctp_lifecycle_bound_native_callback_envelope.v1"
+-        assert payload["callback_envelope"]["envelope_type"] == "ctp_native_callback_envelope.v2"
++        assert payload["callback_envelope"]["envelope_type"] == "ctp_native_callback_envelope.v2"
+         source = payload["lifecycle_binding"]["source_facts"]
+         assert source == bound.source_facts
+         assert source["native_api_source_id"] == bound.client._native_api_source_id
+@@ -1142,7 +1147,7 @@ def test_bridge_maps_terminal_order_action_source_event(tmp_path):
+         assert result is not None
+         assert result.callback_envelope.source_callback == "OnRspOrderAction"
+         assert result.callback_envelope.response_is_last is True
+-        assert result.callback_key.native_action_ref == 1
++        assert result.callback_key.native_action_ref == 1
+         assert result.to_payload()["callback_envelope"]["response_error_id"] == 0
+     finally:
+         bound.store.close()
+@@ -1443,10 +1448,10 @@ def test_source_lifecycle_fence_blocks_new_claim_after_queued_receipt_and_restar
+         assert reopened.read_ctp_dispatch_command(bound.scope, bound.command_id).status == (
+             "COMPLETED"
+         )
+-        with pytest.raises(
+-            ContractValidationError, match="permanent callback lifecycle fence"
+-        ):
+-            _stage_followup_ready_command(bound, reopened)
++        with pytest.raises(
++            ContractValidationError, match="permanent callback lifecycle fence"
++        ):
++            _stage_followup_ready_command(bound, reopened)
+         assert reopened._connection.execute(
+             "SELECT COUNT(*) FROM ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+             (bound.scope.account_key,),
+@@ -1530,10 +1535,10 @@ def test_source_lifecycle_fence_covers_event_queued_between_polls_and_restart(tm
+         bound.store.close()
+ 
+         reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-        with pytest.raises(
+-            ContractValidationError, match="permanent callback lifecycle fence"
+-        ):
+-            _stage_followup_ready_command(bound, reopened)
++        with pytest.raises(
++            ContractValidationError, match="permanent callback lifecycle fence"
++        ):
++            _stage_followup_ready_command(bound, reopened)
+         assert reopened._connection.execute(
+             "SELECT COUNT(*) FROM ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+             (bound.scope.account_key,),
+@@ -1567,7 +1572,7 @@ def test_v11_resolved_guard_migrates_to_permanent_fence_and_stays_after_reopen(t
+         version = migrated._connection.execute(
+             "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+         ).fetchone()["value"]
+-        assert version == "21"
++        assert version == "21"
+         assert migrated.read_ctp_dispatch_command(bound.scope, bound.command_id).status == (
+             "COMPLETED"
+         )
+@@ -1585,24 +1590,24 @@ def test_v11_resolved_guard_migrates_to_permanent_fence_and_stays_after_reopen(t
+             command.correlation_key.to_payload()
+         )
+ 
+-        with pytest.raises(
+-            InvalidStateTransition, match="unmapped legacy execution history"
+-        ):
+-            _stage_followup_ready_command(bound, migrated)
++        with pytest.raises(
++            InvalidStateTransition, match="unmapped legacy execution history"
++        ):
++            _stage_followup_ready_command(bound, migrated)
+         migrated.close()
+         migrated = None
+ 
+-        # The combined v19 upgrade is idempotent and the old resolved bit never removes
++        # The combined v19 upgrade is idempotent and the old resolved bit never removes
+         # the newly migrated account source-lifecycle fence.
+         reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+         assert reopened._connection.execute(
+             "SELECT COUNT(*) FROM ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+             (bound.scope.account_key,),
+         ).fetchone()[0] == 1
+-        with pytest.raises(
+-            InvalidStateTransition, match="unmapped legacy execution history"
+-        ):
+-            _stage_followup_ready_command(bound, reopened)
++        with pytest.raises(
++            InvalidStateTransition, match="unmapped legacy execution history"
++        ):
++            _stage_followup_ready_command(bound, reopened)
+     finally:
+         if migrated is not None:
+             migrated.close()
+@@ -1612,7 +1617,7 @@ def test_v11_resolved_guard_migrates_to_permanent_fence_and_stays_after_reopen(t
+ 
+ 
+ @pytest.mark.unit
+-def test_v11_unmappable_resolved_guard_refuses_store_upgrade(tmp_path):
++def test_v11_unmappable_resolved_guard_refuses_store_upgrade(tmp_path):
+     bound = _stage_dispatched_command(tmp_path)
+     try:
+         _write_legacy_v11_resolved_guard(bound, correlation_digest="0" * 64)
+@@ -1621,77 +1626,77 @@ def test_v11_unmappable_resolved_guard_refuses_store_upgrade(tmp_path):
+             DurableStoreError, match="legacy CTP callback lifecycle fence binding is inconsistent"
+         ):
+             SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    finally:
+-        bound.store.close()
+-
+-
+-@pytest.mark.unit
+-def test_v12_permanent_fence_and_projectionless_cancel_migrate_to_v19(tmp_path):
+-    bound = _stage_dispatched_command(tmp_path, operation="CANCEL")
+-    migrated = None
+-    reopened = None
+-    try:
+-        fence_id = bound.store.create_ctp_callback_source_lifecycle_fence(
+-            bound.scope, bound.command_id, writer_lease=bound.lease
+-        )
+-        bound.store.close()
+-
+-        # A real v12 callback-fence candidate predates target projections. Keep
+-        # its dispatched CANCEL command and permanent callback fence while
+-        # removing only the later v13 projection structures.
+-        connection = sqlite3.connect(tmp_path / "execution.sqlite3")
+-        try:
+-            connection.execute("DROP TABLE ctp_order_target_projection_consumptions")
+-            connection.execute("DROP TABLE ctp_order_target_projections")
+-            connection.execute("UPDATE execution_meta SET value = '12' WHERE key = 'schema_version'")
+-            connection.commit()
+-        finally:
+-            connection.close()
+-
+-        migrated = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-        assert migrated._connection.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "21"
+-        command = migrated.read_ctp_dispatch_command(bound.scope, bound.command_id)
+-        assert command is not None
+-        assert command.status == "UNKNOWN"
+-        assert command.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
+-        assert migrated._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_order_target_projections"
+-        ).fetchone()[0] == 0
+-        persisted_fence = migrated._connection.execute(
+-            "SELECT source_lifecycle_fence_id FROM ctp_dispatch_callback_source_lifecycle_fences "
+-            "WHERE account_key = ?",
+-            (bound.scope.account_key,),
+-        ).fetchone()
+-        assert persisted_fence is not None
+-        assert persisted_fence[0] == fence_id
+-
+-        with pytest.raises(
+-            InvalidStateTransition, match="unmapped legacy execution history"
+-        ):
+-            _stage_followup_ready_command(bound, migrated)
+-        migrated.close()
+-        migrated = None
+-
+-        reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-        assert reopened.read_ctp_dispatch_command(bound.scope, bound.command_id).status == (
+-            "UNKNOWN"
+-        )
+-        assert reopened._connection.execute(
+-            "SELECT source_lifecycle_fence_id FROM ctp_dispatch_callback_source_lifecycle_fences "
+-            "WHERE account_key = ?",
+-            (bound.scope.account_key,),
+-        ).fetchone()[0] == fence_id
+-        assert reopened._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_order_target_projections"
+-        ).fetchone()[0] == 0
+-    finally:
+-        if migrated is not None:
+-            migrated.close()
+-        if reopened is not None:
+-            reopened.close()
+-        bound.store.close()
++    finally:
++        bound.store.close()
++
++
++@pytest.mark.unit
++def test_v12_permanent_fence_and_projectionless_cancel_migrate_to_v19(tmp_path):
++    bound = _stage_dispatched_command(tmp_path, operation="CANCEL")
++    migrated = None
++    reopened = None
++    try:
++        fence_id = bound.store.create_ctp_callback_source_lifecycle_fence(
++            bound.scope, bound.command_id, writer_lease=bound.lease
++        )
++        bound.store.close()
++
++        # A real v12 callback-fence candidate predates target projections. Keep
++        # its dispatched CANCEL command and permanent callback fence while
++        # removing only the later v13 projection structures.
++        connection = sqlite3.connect(tmp_path / "execution.sqlite3")
++        try:
++            connection.execute("DROP TABLE ctp_order_target_projection_consumptions")
++            connection.execute("DROP TABLE ctp_order_target_projections")
++            connection.execute("UPDATE execution_meta SET value = '12' WHERE key = 'schema_version'")
++            connection.commit()
++        finally:
++            connection.close()
++
++        migrated = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++        assert migrated._connection.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "21"
++        command = migrated.read_ctp_dispatch_command(bound.scope, bound.command_id)
++        assert command is not None
++        assert command.status == "UNKNOWN"
++        assert command.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
++        assert migrated._connection.execute(
++            "SELECT COUNT(*) FROM ctp_order_target_projections"
++        ).fetchone()[0] == 0
++        persisted_fence = migrated._connection.execute(
++            "SELECT source_lifecycle_fence_id FROM ctp_dispatch_callback_source_lifecycle_fences "
++            "WHERE account_key = ?",
++            (bound.scope.account_key,),
++        ).fetchone()
++        assert persisted_fence is not None
++        assert persisted_fence[0] == fence_id
++
++        with pytest.raises(
++            InvalidStateTransition, match="unmapped legacy execution history"
++        ):
++            _stage_followup_ready_command(bound, migrated)
++        migrated.close()
++        migrated = None
++
++        reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++        assert reopened.read_ctp_dispatch_command(bound.scope, bound.command_id).status == (
++            "UNKNOWN"
++        )
++        assert reopened._connection.execute(
++            "SELECT source_lifecycle_fence_id FROM ctp_dispatch_callback_source_lifecycle_fences "
++            "WHERE account_key = ?",
++            (bound.scope.account_key,),
++        ).fetchone()[0] == fence_id
++        assert reopened._connection.execute(
++            "SELECT COUNT(*) FROM ctp_order_target_projections"
++        ).fetchone()[0] == 0
++    finally:
++        if migrated is not None:
++            migrated.close()
++        if reopened is not None:
++            reopened.close()
++        bound.store.close()
+ 
+ 
+ @pytest.mark.unit
+@@ -1781,11 +1786,11 @@ def test_callback_commit_lease_loss_leaves_durable_ingestion_fence(tmp_path):
+         adapter = None
+         bound.store.close()
+ 
+-        reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-        with pytest.raises(
+-            InvalidStateTransition, match="already has a persistent owner"
+-        ):
+-            reopened.acquire_ctp_account_family_owner(bound.scope)
++        reopened = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++        with pytest.raises(
++            InvalidStateTransition, match="already has a persistent owner"
++        ):
++            reopened.acquire_ctp_account_family_owner(bound.scope)
+     finally:
+         if adapter is not None:
+             adapter.close()
+@@ -1892,12 +1897,12 @@ def test_callback_ledger_adapter_poison_closes_on_target_or_source_mismatch(
+ def test_callback_ledger_adapter_rejects_wrong_durable_scope_before_queue_claim(tmp_path):
+     bound = _stage_dispatched_command(tmp_path)
+     try:
+-        wrong_scope = ExecutionScope(
+-            "ctp",
+-            "simulation",
+-            _ctp_account_ref(b"different-account"),
+-            "source-bridge",
+-            "20260925",
++        wrong_scope = ExecutionScope(
++            "ctp",
++            "simulation",
++            _ctp_account_ref(b"different-account"),
++            "source-bridge",
++            "20260925",
+         )
+         with pytest.raises(ContractValidationError, match="command is missing"):
+             CtpNativeCallbackLedgerAdapter.bind_after_login(
+diff --git a/tests/test_ctp_dispatch_commands.py b/tests/test_ctp_dispatch_commands.py
+index a81f6aa..5b53d39 100644
+--- a/tests/test_ctp_dispatch_commands.py
++++ b/tests/test_ctp_dispatch_commands.py
+@@ -12,6 +12,9 @@ from decimal import Decimal
+ from hashlib import sha256
+ 
+ import pytest
++from _fake_native_action_ref_floor import (
++    create_fake_action_ref_store as SqliteExecutionStore,  # noqa: N812
++)
+ 
+ import bt_api_execution.store as execution_store_module
+ from bt_api_execution import (
+@@ -34,7 +37,6 @@ from bt_api_execution import (
+     InvalidStateTransition,
+     OrderIntent,
+     Side,
+-    SqliteExecutionStore,
+     WriterLeaseUnavailable,
+     ctp_native_session_epoch,
+     ctp_native_session_generation_id,
+@@ -42,6 +44,9 @@ from bt_api_execution import (
+     payload_sha256,
+     require_ctp_dispatch_callback_match,
+ )
++from bt_api_execution import (
++    SqliteExecutionStore as _BaseSqliteExecutionStore,
++)
+ from bt_api_execution.ctp_single_worker_candidate import (
+     CtpManagedPreparedDispatch,
+     CtpManagedSingleWorkerCandidate,
+@@ -50,12 +55,12 @@ from bt_api_execution.ctp_single_worker_candidate import (
+ )
+ 
+ 
+-def _ctp_account_ref(label: str = "acct-outbox") -> str:
+-    return "ctp-account-ref.v1:" + sha256(label.encode("ascii")).hexdigest()
+-
+-
+-def _scope() -> ExecutionScope:
+-    return ExecutionScope("ctp", "simulation", _ctp_account_ref(), "strategy.outbox", "20260925")
++def _ctp_account_ref(label: str = "acct-outbox") -> str:
++    return "ctp-account-ref.v1:" + sha256(label.encode("ascii")).hexdigest()
++
++
++def _scope() -> ExecutionScope:
++    return ExecutionScope("ctp", "simulation", _ctp_account_ref(), "strategy.outbox", "20260925")
+ 
+ 
+ def _runtime_id(value: str) -> str:
+@@ -75,14 +80,14 @@ def _session_binding(generation="test-session-generation", front_id=4, session_i
+     }
+ 
+ 
+-def _proof(
++def _proof(
+     scope: ExecutionScope | None = None,
+     *,
+     session_generation_id: str = "test-session-generation",
+ ) -> CtpOrderRefSeedProof:
+-    active_scope = scope or _scope()
+-    legacy_scope = ExecutionScope(
+-        "ctp", "simulation", active_scope.account_ref, "strategy.legacy", "20260924"
++    active_scope = scope or _scope()
++    legacy_scope = ExecutionScope(
++        "ctp", "simulation", active_scope.account_ref, "strategy.legacy", "20260924"
+     )
+     source_digests = (
+         ("backtrader_prototype", sha256(b"backtrader prototype fixture").hexdigest()),
+@@ -115,21 +120,21 @@ def _proof(
+     )
+ 
+ 
+-def _lease(store: SqliteExecutionStore, scope: ExecutionScope, owner: str = "outbox-owner"):
+-    handle = getattr(store, "_test_ctp_account_family_owner", None)
+-    if handle is None:
+-        handle = store.acquire_ctp_account_family_owner(scope)
+-        store._test_ctp_account_family_owner = handle
+-    return store.acquire_or_renew_lease(
+-        scope,
+-        owner,
+-        ttl_ns=30_000_000_000,
+-        ctp_account_family_owner=handle,
+-    )
++def _lease(store: _BaseSqliteExecutionStore, scope: ExecutionScope, owner: str = "outbox-owner"):
++    handle = getattr(store, "_test_ctp_account_family_owner", None)
++    if handle is None:
++        handle = store.acquire_ctp_account_family_owner(scope)
++        store._test_ctp_account_family_owner = handle
++    return store.acquire_or_renew_lease(
++        scope,
++        owner,
++        ttl_ns=30_000_000_000,
++        ctp_account_family_owner=handle,
++    )
+ 
+ 
+ def _reserve_seeded(
+-    store: SqliteExecutionStore,
++    store: _BaseSqliteExecutionStore,
+     scope: ExecutionScope,
+     lease,
+     intent_id: str = "intent-1",
+@@ -146,7 +151,7 @@ def _reserve_seeded(
+ 
+ 
+ def _insert_preseed_identity(
+-    store: SqliteExecutionStore,
++    store: _BaseSqliteExecutionStore,
+     scope: ExecutionScope,
+     intent_id: str,
+     runtime_id: str,
+@@ -233,7 +238,7 @@ def _callback(command, *, event_id="event-1", **overrides):
+     key = command.correlation_key
+     assert key is not None
+     values = {
+-        "version": key.version,
++        "version": key.version,
+         "correlation_key": key,
+         "callback_family": "ORDER" if command.operation == "SUBMIT" else "CANCEL_ACTION",
+         "stream_id": "fake-td-callback-stream",
+@@ -253,17 +258,17 @@ def _callback(command, *, event_id="event-1", **overrides):
+     return CtpDispatchCallbackKey(**values)
+ 
+ 
+-def _stage_cancel(store, scope, lease, reservation, command_id="cancel-command-1"):
+-    target = CtpCancelTarget(
+-        order_ref=reservation.order_ref,
+-        exchange_id="SHFE",
+-        order_sys_id="sys-order-17",
+-        front_id=4,
+-        session_id=91,
+-    )
+-    return store.stage_ctp_dispatch_command(
+-        scope,
+-        command_id,
++def _stage_cancel(store, scope, lease, reservation, command_id="cancel-command-1"):
++    target = CtpCancelTarget(
++        order_ref=reservation.order_ref,
++        exchange_id="SHFE",
++        order_sys_id="sys-order-17",
++        front_id=4,
++        session_id=91,
++    )
++    return store.stage_ctp_dispatch_command(
++        scope,
++        command_id,
+         "CANCEL",
+         {
+             "InstrumentID": "rb2710",
+@@ -284,8 +289,8 @@ def _stage_cancel(store, scope, lease, reservation, command_id="cancel-command-1
+         dispatch_front_id=4,
+         dispatch_session_id=91,
+         native_request_id=_native_request_id(command_id),
+-        cancel_target_projection=_issue_target_projection(store, scope, reservation),
+-    )
++        cancel_target_projection=_issue_target_projection(store, scope, reservation),
++    )
+ 
+ 
+ class _FakeOrderTargetProjectionVerifier:
+@@ -338,72 +343,72 @@ class _FakeOrderTargetProjectionVerifier:
+         return CtpVerifiedOrderTargetProjection(**values)
+ 
+ 
+-def _issue_target_projection(
+-    store, scope, reservation, *, verifier=None, evidence=None
+-):
++def _issue_target_projection(
++    store, scope, reservation, *, verifier=None, evidence=None
++):
+     authority = verifier or _FakeOrderTargetProjectionVerifier()
+     return store.issue_ctp_order_target_projection(
+         scope,
+         reservation.managed_intent_id,
+         {"fake_only": True} if evidence is None else evidence,
+-        verifier=authority,
+-    )
+-
+-
+-def _prepare_v17_cancel(store, scope, lease, suffix, *, session_generation_id):
+-    reservation = _reserve_seeded(
+-        store,
+-        scope,
+-        lease,
+-        "v17-intent-" + suffix,
+-        session_generation_id=session_generation_id,
+-    )
+-    target = CtpCancelTarget(
+-        order_ref=reservation.order_ref,
+-        exchange_id="SHFE",
+-        order_sys_id="v17-sys-" + suffix,
+-        front_id=4,
+-        session_id=91,
+-    )
+-    request_payload = {
+-        "InstrumentID": "rb2710",
+-        "OrderRef": target.order_ref,
+-        "ExchangeID": target.exchange_id,
+-        "OrderSysID": target.order_sys_id,
+-        "FrontID": target.front_id,
+-        "SessionID": target.session_id,
+-        "ActionFlag": "0",
+-    }
+-    projection = _issue_target_projection(
+-        store,
+-        scope,
+-        reservation,
+-        verifier=_FakeOrderTargetProjectionVerifier(
+-            overrides={
+-                "session_generation_id": session_generation_id,
+-                "order_sys_id": target.order_sys_id,
+-            }
+-        ),
+-    )
+-    command_id = "v17-cancel-command-" + suffix
+-    arguments = {
+-        "scope": scope,
+-        "command_id": command_id,
+-        "operation": "CANCEL",
+-        "request_payload": request_payload,
+-        "approval_use_id": "v17-approval-use-" + suffix,
+-        "approval_digest": sha256(("v17-approval-" + suffix).encode("ascii")).hexdigest(),
+-        "session_binding": _session_binding(session_generation_id),
+-        "writer_lease": lease,
+-        "cancel_target": target,
+-        "managed_action_id": "v17-managed-action-" + suffix,
+-        "session_generation_id": session_generation_id,
+-        "dispatch_front_id": 4,
+-        "dispatch_session_id": 91,
+-        "native_request_id": _native_request_id("v17-request-" + suffix),
+-        "cancel_target_projection": projection,
+-    }
+-    return reservation, arguments
++        verifier=authority,
++    )
++
++
++def _prepare_v17_cancel(store, scope, lease, suffix, *, session_generation_id):
++    reservation = _reserve_seeded(
++        store,
++        scope,
++        lease,
++        "v17-intent-" + suffix,
++        session_generation_id=session_generation_id,
++    )
++    target = CtpCancelTarget(
++        order_ref=reservation.order_ref,
++        exchange_id="SHFE",
++        order_sys_id="v17-sys-" + suffix,
++        front_id=4,
++        session_id=91,
++    )
++    request_payload = {
++        "InstrumentID": "rb2710",
++        "OrderRef": target.order_ref,
++        "ExchangeID": target.exchange_id,
++        "OrderSysID": target.order_sys_id,
++        "FrontID": target.front_id,
++        "SessionID": target.session_id,
++        "ActionFlag": "0",
++    }
++    projection = _issue_target_projection(
++        store,
++        scope,
++        reservation,
++        verifier=_FakeOrderTargetProjectionVerifier(
++            overrides={
++                "session_generation_id": session_generation_id,
++                "order_sys_id": target.order_sys_id,
++            }
++        ),
++    )
++    command_id = "v17-cancel-command-" + suffix
++    arguments = {
++        "scope": scope,
++        "command_id": command_id,
++        "operation": "CANCEL",
++        "request_payload": request_payload,
++        "approval_use_id": "v17-approval-use-" + suffix,
++        "approval_digest": sha256(("v17-approval-" + suffix).encode("ascii")).hexdigest(),
++        "session_binding": _session_binding(session_generation_id),
++        "writer_lease": lease,
++        "cancel_target": target,
++        "managed_action_id": "v17-managed-action-" + suffix,
++        "session_generation_id": session_generation_id,
++        "dispatch_front_id": 4,
++        "dispatch_session_id": 91,
++        "native_request_id": _native_request_id("v17-request-" + suffix),
++        "cancel_target_projection": projection,
++    }
++    return reservation, arguments
+ 
+ 
+ class _FakeCtpDispatchAuthorityVerifier:
+@@ -631,7 +636,7 @@ def test_v4_execution_store_migrates_to_verified_callback_ledger_v8(tmp_path):
+                 "SELECT name FROM sqlite_master WHERE type = 'table'"
+             ).fetchall()
+         }
+-        assert version == "21"
++        assert version == "21"
+         assert "ctp_dispatch_commands" in tables
+         assert "ctp_order_ref_watermarks" in tables
+         assert "ctp_dispatch_authority_uses" in tables
+@@ -685,7 +690,7 @@ def test_v5_execution_store_migrates_one_use_authority_table(tmp_path):
+                 "SELECT name FROM sqlite_master WHERE type = 'table'"
+             ).fetchall()
+         }
+-        assert version == "21"
++        assert version == "21"
+         assert "ctp_dispatch_authority_uses" in tables
+     finally:
+         migrated.close()
+@@ -703,15 +708,15 @@ def test_v6_staged_command_without_typed_keys_migrates_to_unknown(tmp_path):
+ 
+     connection = sqlite3.connect(path)
+     try:
+-        connection.execute("DROP INDEX ctp_dispatch_session_request_unique")
+-        connection.execute("DROP INDEX ctp_dispatch_managed_action_unique")
+-        connection.execute("DROP INDEX ctp_dispatch_native_action_ref_unique")
++        connection.execute("DROP INDEX ctp_dispatch_session_request_unique")
++        connection.execute("DROP INDEX ctp_dispatch_managed_action_unique")
++        connection.execute("DROP INDEX ctp_dispatch_native_action_ref_unique")
+         connection.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
+-        for column in (
+-            "native_request_payload_sha256",
+-            "native_request_payload_json",
+-            "native_action_ref_int",
+-            "native_action_ref",
++        for column in (
++            "native_request_payload_sha256",
++            "native_request_payload_json",
++            "native_action_ref_int",
++            "native_action_ref",
+             "native_request_id",
+             "dispatch_session_id",
+             "dispatch_front_id",
+@@ -732,12 +737,12 @@ def test_v6_staged_command_without_typed_keys_migrates_to_unknown(tmp_path):
+         assert row is not None
+         assert row.status == "UNKNOWN"
+         assert row.correlation_key is None
+-        assert row.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            migrated.acquire_ctp_account_family_owner(scope)
+-        assert migrated._connection.execute(
+-            "SELECT reason_code FROM ctp_account_family_legacy_fences"
+-        ).fetchone()[0] == "unmapped_legacy_execution_history"
++        assert row.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            migrated.acquire_ctp_account_family_owner(scope)
++        assert migrated._connection.execute(
++            "SELECT reason_code FROM ctp_account_family_legacy_fences"
++        ).fetchone()[0] == "unmapped_legacy_execution_history"
+         assert migrated.read_ctp_dispatch_command(scope, staged.command_id).status == "UNKNOWN"
+     finally:
+         migrated.close()
+@@ -783,7 +788,7 @@ def test_v7_typed_command_migrates_to_callback_ledger_without_reopening_dispatch
+             migrated._connection.execute(
+                 "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+             ).fetchone()[0]
+-            == "21"
++            == "21"
+         )
+         assert (
+             migrated._connection.execute(
+@@ -825,11 +830,11 @@ def test_v8_store_migrates_orderref_cutover_state_fail_closed(tmp_path):
+         version = migrated._connection.execute(
+             "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+         ).fetchone()["value"]
+-        assert version == "21"
++        assert version == "21"
+         command = migrated.read_ctp_dispatch_command(scope, staged.command_id)
+         assert command is not None
+         assert command.status == "UNKNOWN"
+-        assert command.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
++        assert command.unknown_reason == "schema_upgrade_requires_ctp_v2_dispatch_cutover"
+         watermark = migrated._connection.execute(
+             """
+             SELECT watermark_order_ref, cutover_established, last_trading_day,
+@@ -845,11 +850,11 @@ def test_v8_store_migrates_orderref_cutover_state_fail_closed(tmp_path):
+             ).fetchone()[0]
+             == 0
+         )
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            migrated.acquire_ctp_account_family_owner(scope)
+-        assert migrated._connection.execute(
+-            "SELECT reason_code FROM ctp_account_family_legacy_fences"
+-        ).fetchone()[0] == "unmapped_legacy_execution_history"
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            migrated.acquire_ctp_account_family_owner(scope)
++        assert migrated._connection.execute(
++            "SELECT reason_code FROM ctp_account_family_legacy_fences"
++        ).fetchone()[0] == "unmapped_legacy_execution_history"
+         assert migrated.read_ctp_dispatch_command(scope, staged.command_id).status == "UNKNOWN"
+     finally:
+         migrated.close()
+@@ -1002,9 +1007,9 @@ def _prepared_managed_dispatch(reservation, *, operation="submit", receipt_id="a
+             SessionID=91,
+             ActionFlag="0",
+         )
+-        kwargs = {
+-            "managed_cancel_intent_id": managed_cancel_id,
+-            "cancel_target_exchange_id": "SHFE",
++        kwargs = {
++            "managed_cancel_intent_id": managed_cancel_id,
++            "cancel_target_exchange_id": "SHFE",
+             "cancel_target_order_sys_id": "fake-sys-order",
+             "cancel_target_front_id": 4,
+             "cancel_target_session_id": 91,
+@@ -1376,7 +1381,7 @@ async def test_single_worker_sender_rejection_without_trusted_proof_is_unknown_a
+ 
+ 
+ @pytest.mark.unit
+-def test_cutover_watermark_survives_restart_but_family_owner_blocks_reopen(tmp_path):
++def test_cutover_watermark_survives_restart_but_family_owner_blocks_reopen(tmp_path):
+     path = tmp_path / "execution.sqlite3"
+     scope = _scope()
+     store = SqliteExecutionStore(path)
+@@ -1387,16 +1392,16 @@ def test_cutover_watermark_survives_restart_but_family_owner_blocks_reopen(tmp_p
+     finally:
+         store.close()
+ 
+-    reopened = SqliteExecutionStore(path)
+-    try:
+-        row = reopened._connection.execute(
+-            "SELECT watermark_order_ref, cutover_established "
+-            "FROM ctp_order_ref_account_watermarks WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()
+-        assert tuple(row) == ("000000000013", 1)
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            reopened.acquire_ctp_account_family_owner(scope)
++    reopened = SqliteExecutionStore(path)
++    try:
++        row = reopened._connection.execute(
++            "SELECT watermark_order_ref, cutover_established "
++            "FROM ctp_order_ref_account_watermarks WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()
++        assert tuple(row) == ("000000000013", 1)
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            reopened.acquire_ctp_account_family_owner(scope)
+         assert (
+             reopened._connection.execute(
+                 "SELECT COUNT(*) FROM ctp_order_ref_legacy_imports"
+@@ -1651,8 +1656,8 @@ def test_account_orderref_active_trading_day_never_moves_backwards(tmp_path):
+     first_scope = _scope()
+     first_lease = _lease(store, first_scope)
+     first_proof = _proof(first_scope)
+-    second_scope = ExecutionScope(
+-        "ctp", "simulation", first_scope.account_ref, "strategy.next-day", "20260926"
++    second_scope = ExecutionScope(
++        "ctp", "simulation", first_scope.account_ref, "strategy.next-day", "20260926"
+     )
+     try:
+         first = store.seed_ctp_order_ref_and_reserve_identity(
+@@ -1963,7 +1968,7 @@ def test_cancel_correlation_keeps_action_separate_from_exact_order_target(tmp_pa
+             dispatch_front_id=4,
+             dispatch_session_id=91,
+             native_request_id=_native_request_id(command_id),
+-            cancel_target_projection=_issue_target_projection(store, scope, reservation),
++            cancel_target_projection=_issue_target_projection(store, scope, reservation),
+         )
+         key = command.correlation_key
+         assert key is not None
+@@ -1981,7 +1986,7 @@ def test_cancel_correlation_keeps_action_separate_from_exact_order_target(tmp_pa
+             _callback(command, target_session_id=callback.target_session_id + 1)
+         with pytest.raises(ContractValidationError, match="ActionRef"):
+             require_ctp_dispatch_callback_match(
+-                command, replace(callback, native_action_ref=callback.native_action_ref + 1)
++                command, replace(callback, native_action_ref=callback.native_action_ref + 1)
+             )
+         assert store.read_ctp_dispatch_command(scope, command_id).status == "READY"
+     finally:
+@@ -2131,10 +2136,10 @@ def test_verified_submit_callback_is_durable_idempotent_and_restart_safe(tmp_pat
+     finally:
+         store.close()
+ 
+-    reopened = SqliteExecutionStore(path)
+-    try:
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            reopened.acquire_ctp_account_family_owner(scope)
++    reopened = SqliteExecutionStore(path)
++    try:
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            reopened.acquire_ctp_account_family_owner(scope)
+         assert (
+             reopened._connection.execute(
+                 "SELECT COUNT(*) FROM ctp_dispatch_callback_ledger"
+@@ -2465,7 +2470,7 @@ def test_unknown_callback_stays_fenced_until_fresh_terminal_reconciliation(tmp_p
+             writer_lease=lease,
+             reconciliation_verifier=_FakeCtpDispatchReconciliationVerifier("FILLED"),
+         )
+-        assert not resolved.account_fence_open
++        assert not resolved.account_fence_open
+         assert not resolved.duplicate
+         assert (
+             store.read_ctp_dispatch_command(scope, unknown_command.command_id).status == "UNKNOWN"
+@@ -2581,25 +2586,25 @@ def test_unknown_cancel_resolution_requires_terminal_action_and_target(tmp_path)
+         )
+         store._connection.execute("DROP TRIGGER fail_ctp_cancel_projection")
+ 
+-        resolved = store.resolve_unknown_ctp_dispatch_command(
+-            scope,
+-            cancel.command_id,
+-            writer_lease=lease,
+-            reconciliation_verifier=_FakeCtpDispatchReconciliationVerifier("CANCELLED", "TERMINAL"),
+-        )
+-        assert resolved.account_fence_open
+-        pending_obligation = store._connection.execute(
+-            "SELECT identity_state FROM ctp_dispatch_cancel_postconditions "
+-            "WHERE cancel_command_id = ?",
+-            (cancel.command_id,),
+-        ).fetchone()
+-        assert pending_obligation is not None
+-        assert pending_obligation[0] == "UNMAPPABLE"
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_dispatch_cancel_postcondition_resolutions "
+-            "WHERE cancel_command_id = ?",
+-            (cancel.command_id,),
+-        ).fetchone()[0] == 0
++        resolved = store.resolve_unknown_ctp_dispatch_command(
++            scope,
++            cancel.command_id,
++            writer_lease=lease,
++            reconciliation_verifier=_FakeCtpDispatchReconciliationVerifier("CANCELLED", "TERMINAL"),
++        )
++        assert resolved.account_fence_open
++        pending_obligation = store._connection.execute(
++            "SELECT identity_state FROM ctp_dispatch_cancel_postconditions "
++            "WHERE cancel_command_id = ?",
++            (cancel.command_id,),
++        ).fetchone()
++        assert pending_obligation is not None
++        assert pending_obligation[0] == "UNMAPPABLE"
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_dispatch_cancel_postcondition_resolutions "
++            "WHERE cancel_command_id = ?",
++            (cancel.command_id,),
++        ).fetchone()[0] == 0
+         assert resolved.order_terminal_state == "CANCELLED"
+         assert resolved.cancel_action_terminal_state == "TERMINAL"
+         order_projection = store._connection.execute(
+@@ -2884,7 +2889,7 @@ def test_authority_verifier_failure_leaves_command_and_use_ledger_untouched(tmp_
+ 
+ 
+ @pytest.mark.unit
+-def test_authority_verification_is_outside_transaction_and_claim_is_durable(tmp_path):
++def test_authority_verification_is_outside_transaction_and_claim_is_durable(tmp_path):
+     store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+     scope = _scope()
+     lease = _lease(store, scope)
+@@ -2909,7 +2914,7 @@ def test_authority_verification_is_outside_transaction_and_claim_is_durable(tmp_
+                 authority_verifier=failed_verifier,
+             )
+         assert len(failed_verifier.calls) == 1
+-        assert failed_verifier.in_transaction is False
++        assert failed_verifier.in_transaction is False
+         assert store.read_ctp_dispatch_command(scope, staged.command_id).status == "READY"
+         assert (
+             store._connection.execute(
+@@ -2927,7 +2932,7 @@ def test_authority_verification_is_outside_transaction_and_claim_is_durable(tmp_
+             authority_verifier=verifier,
+         )
+         assert claimed is not None and claimed.status == "CLAIMED"
+-        assert verifier.in_transaction is False
++        assert verifier.in_transaction is False
+         use = store._connection.execute(
+             "SELECT * FROM ctp_dispatch_authority_uses WHERE account_key = ?",
+             (staged.account_key,),
+@@ -2956,7 +2961,7 @@ def test_authority_verification_is_outside_transaction_and_claim_is_durable(tmp_
+ 
+ 
+ @pytest.mark.unit
+-def test_receipt_requires_exact_typed_echo_and_is_idempotently_stored(tmp_path):
++def test_receipt_requires_exact_typed_echo_and_is_idempotently_stored(tmp_path):
+     store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+     scope = _scope()
+     lease = _lease(store, scope)
+@@ -3000,567 +3005,649 @@ def test_receipt_requires_exact_typed_echo_and_is_idempotently_stored(tmp_path):
+             ).fetchone()[0]
+             == 1
+         )
+-    finally:
+-        store.close()
+-
+-
+-@pytest.mark.unit
+-def test_schema_v15_to_v19_preserves_unknown_command_and_permanent_owner_fence(tmp_path):
+-    database = tmp_path / "schema-v15-to-v18-owner.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease)
+-        staged = _stage_submit(store, scope, lease, reservation)
+-        owner = store.create_ctp_callback_session_owner(scope, writer_lease=lease)
+-        store._connection.execute(
+-            """
+-            UPDATE ctp_dispatch_commands
+-            SET status = 'UNKNOWN', unknown_at_ns = updated_at_ns,
+-                unknown_reason = 'preserved-v15-unknown'
+-            WHERE account_key = ? AND command_id = ?
+-            """,
+-            (scope.account_key, staged.command_id),
+-        )
+-        # Model the exact v15 schema by removing only the v16 trade/cumulative
+-        # tables and lowering the persisted version. Existing owner and UNKNOWN
+-        # facts remain in the database across the upgrade.
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '15' WHERE key = 'schema_version'"
+-        )
+-        fence_id = store.create_ctp_callback_source_lifecycle_fence(
+-            scope, staged.command_id, writer_lease=lease
+-        )
+-        store.poison_ctp_callback_session_owner(owner, "owner_stop")
+-        fence_before = store._connection.execute(
+-            "SELECT account_key, scope_key, command_id, source_lifecycle_fence_id, "
+-            "correlation_key_sha256, session_binding_sha256 FROM "
+-            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()
+-        store._connection.execute("DROP TABLE ctp_dispatch_order_cumulative_ledger")
+-        store._connection.execute("DROP TABLE ctp_dispatch_trade_fact_ledger")
+-    finally:
+-        store.close()
+-
+-    migrated = SqliteExecutionStore(database)
+-    try:
+-        assert migrated._connection.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "21"
+-        command = migrated.read_ctp_dispatch_command(scope, staged.command_id)
+-        assert command.status == "UNKNOWN"
+-        assert command.unknown_reason == "preserved-v15-unknown"
+-        owner_row = migrated._connection.execute(
+-            "SELECT owner_state, poison_code FROM ctp_dispatch_callback_session_owners "
+-            "WHERE owner_intent_id = ?",
+-            (owner.owner_intent_id,),
+-        ).fetchone()
+-        assert tuple(owner_row) == ("POISONED", "owner_stop")
+-        assert migrated._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_dispatch_trade_fact_ledger"
+-        ).fetchone()[0] == 0
+-        assert migrated._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_dispatch_order_cumulative_ledger"
+-        ).fetchone()[0] == 0
+-        fence_after = migrated._connection.execute(
+-            "SELECT account_key, scope_key, command_id, source_lifecycle_fence_id, "
+-            "correlation_key_sha256, session_binding_sha256 FROM "
+-            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()
+-        assert tuple(fence_after) == tuple(fence_before)
+-        assert fence_after["source_lifecycle_fence_id"] == fence_id
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            migrated.acquire_ctp_account_family_owner(scope)
+-        assert migrated._connection.execute(
+-            "SELECT reason_code FROM ctp_account_family_legacy_fences"
+-        ).fetchone()[0] == "unmapped_legacy_execution_history"
+-    finally:
+-        migrated.close()
+-
+-    reopened = SqliteExecutionStore(database)
+-    try:
+-        assert reopened._connection.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "21"
+-        assert reopened.read_ctp_dispatch_command(scope, staged.command_id).status == "UNKNOWN"
+-        owner_row = reopened._connection.execute(
+-            "SELECT owner_state, poison_code FROM ctp_dispatch_callback_session_owners "
+-            "WHERE owner_intent_id = ?",
+-            (owner.owner_intent_id,),
+-        ).fetchone()
+-        assert tuple(owner_row) == ("POISONED", "owner_stop")
+-    finally:
+-        reopened.close()
+-
+-
+-@pytest.mark.unit
+-def test_schema_v16_to_v19_migrates_valid_completed_submit(tmp_path):
+-    database = tmp_path / "schema-v16-valid-submit.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease, "valid-submit-migration")
+-        staged = _stage_submit(
+-            store, scope, lease, reservation, "valid-submit-migration-command"
+-        )
+-        completed = _dispatch_fake(store, scope, lease, staged)
+-        assert completed.status == "COMPLETED"
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
+-        )
+-    finally:
+-        store.close()
+-
+-    migrated = SqliteExecutionStore(database)
+-    try:
+-        assert migrated._connection.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "21"
+-        command = migrated.read_ctp_dispatch_command(scope, staged.command_id)
+-        assert command is not None and command.status == "COMPLETED"
+-        assert command.correlation_key is not None
+-        assert command.correlation_key.native_action_ref is None
+-    finally:
+-        migrated.close()
+-
+-
+-@pytest.mark.unit
+-@pytest.mark.parametrize("malformed_account_key", ["", "   "])
+-def test_schema_v16_to_v19_rejects_malformed_identity_on_terminal_submit(
+-    tmp_path, malformed_account_key
+-):
+-    database = tmp_path / "schema-v16-malformed-terminal-submit.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease, "malformed-submit-migration")
+-        staged = _stage_submit(
+-            store, scope, lease, reservation, "malformed-submit-migration-command"
+-        )
+-        completed = _dispatch_fake(store, scope, lease, staged)
+-        assert completed.status == "COMPLETED"
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
+-        )
+-    finally:
+-        store.close()
+-
+-    corrupt = sqlite3.connect(database)
+-    try:
+-        corrupt.execute("PRAGMA foreign_keys = OFF")
+-        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
+-        corrupt.execute(
+-            "UPDATE ctp_dispatch_commands SET account_key = ? WHERE command_id = ?",
+-            (malformed_account_key, staged.command_id),
+-        )
+-        corrupt.commit()
+-    finally:
+-        corrupt.close()
+-
+-    with pytest.raises(
+-        DurableStoreError, match="historical CTP dispatch account identity is unreadable"
+-    ):
+-        SqliteExecutionStore(database)
+-
+-    check = sqlite3.connect(database)
+-    try:
+-        assert check.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "16"
+-        row = check.execute(
+-            "SELECT account_key, status FROM ctp_dispatch_commands WHERE command_id = ?",
+-            (staged.command_id,),
+-        ).fetchone()
+-        assert row == (malformed_account_key, "COMPLETED")
+-    finally:
+-        check.close()
+-
+-
+-@pytest.mark.unit
+-def test_schema_v16_to_v19_rejects_dispatch_foreign_key_mismatch(tmp_path):
+-    database = tmp_path / "schema-v16-dispatch-foreign-key-mismatch.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease, "fk-mismatch-migration")
+-        staged = _stage_submit(store, scope, lease, reservation, "fk-mismatch-command")
+-        completed = _dispatch_fake(store, scope, lease, staged)
+-        assert completed.status == "COMPLETED"
+-        assert store._connection.execute("PRAGMA foreign_key_check").fetchall() == []
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
+-        )
+-    finally:
+-        store.close()
+-
+-    replacement_account_key = "account:" + sha256(b"unrelated account").hexdigest()
+-    corrupt = sqlite3.connect(database)
+-    try:
+-        corrupt.execute("PRAGMA foreign_keys = OFF")
+-        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
+-        corrupt.execute(
+-            "UPDATE ctp_dispatch_commands SET account_key = ? WHERE command_id = ?",
+-            (replacement_account_key, staged.command_id),
+-        )
+-        corrupt.commit()
+-        assert corrupt.execute("PRAGMA foreign_key_check").fetchall()
+-    finally:
+-        corrupt.close()
+-
+-    with pytest.raises(
+-        DurableStoreError, match="historical CTP foreign key integrity is inconsistent"
+-    ):
+-        SqliteExecutionStore(database)
+-
+-    check = sqlite3.connect(database)
+-    try:
+-        assert check.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "16"
+-        row = check.execute(
+-            "SELECT account_key, status FROM ctp_dispatch_commands WHERE command_id = ?",
+-            (staged.command_id,),
+-        ).fetchone()
+-        assert row == (replacement_account_key, "COMPLETED")
+-    finally:
+-        check.close()
+-
+-
+-@pytest.mark.unit
+-def test_schema_v16_to_v19_rejects_cross_account_legacy_cancel_graph(tmp_path):
+-    database = tmp_path / "schema-v16-legacy-cancel-cross-account.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease, "legacy-cancel-fk-mismatch")
+-        staged = _stage_cancel(
+-            store,
+-            scope,
+-            lease,
+-            reservation,
+-            "legacy-cancel-fk-mismatch-command",
+-        )
+-        completed = _dispatch_fake(store, scope, lease, staged)
+-        assert completed.status == "COMPLETED"
+-        assert store._connection.execute("PRAGMA foreign_key_check").fetchall() == []
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
+-        )
+-    finally:
+-        store.close()
+-
+-    replacement_account_key = "account:" + sha256(b"unrelated cancel account").hexdigest()
+-    corrupt = sqlite3.connect(database)
+-    try:
+-        corrupt.execute("PRAGMA foreign_keys = OFF")
+-        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
+-        corrupt.execute(
+-            "UPDATE ctp_dispatch_commands SET account_key = ?, correlation_version = 0 "
+-            "WHERE command_id = ?",
+-            (replacement_account_key, staged.command_id),
+-        )
+-        corrupt.commit()
+-        assert corrupt.execute("PRAGMA foreign_key_check").fetchall()
+-    finally:
+-        corrupt.close()
+-
+-    with pytest.raises(
+-        DurableStoreError, match="historical CTP foreign key integrity is inconsistent"
+-    ):
+-        SqliteExecutionStore(database)
+-
+-    check = sqlite3.connect(database)
+-    try:
+-        assert check.execute(
+-            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
+-        ).fetchone()[0] == "16"
+-        row = check.execute(
+-            "SELECT account_key, correlation_version, status FROM ctp_dispatch_commands "
+-            "WHERE command_id = ?",
+-            (staged.command_id,),
+-        ).fetchone()
+-        assert row == (replacement_account_key, 0, "COMPLETED")
+-    finally:
+-        check.close()
+-
+-
+-@pytest.mark.unit
+-def test_v17_cancel_action_ref_is_store_allocated_and_native_payload_is_separate(tmp_path):
+-    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    scope = _scope()
+-    lease = _lease(store, scope)
+-    try:
+-        reservation = _reserve_seeded(store, scope, lease)
+-        command = _stage_cancel(store, scope, lease, reservation, "v17-payload-cancel")
+-
+-        assert command.correlation_key is not None
+-        action_ref = command.correlation_key.native_action_ref
+-        assert type(action_ref) is int and action_ref == 1
+-        assert "OrderActionRef" not in command.request_payload
+-        assert command.native_request_payload is not None
+-        assert dict(command.native_request_payload) == {
+-            **dict(command.request_payload),
+-            "OrderActionRef": action_ref,
+-        }
+-        assert command.native_request_payload_sha256 == payload_sha256(
+-            dict(command.native_request_payload)
+-        )
+-        assert command.native_request_payload_sha256 != command.request_payload_sha256
+-        assert command.correlation_key.native_request_payload_sha256 == (
+-            command.native_request_payload_sha256
+-        )
+-
+-        submit = _stage_submit(store, scope, lease, reservation, "v17-payload-submit")
+-        assert submit.native_request_payload is not None
+-        assert dict(submit.native_request_payload) == dict(submit.request_payload)
+-        assert submit.native_request_payload_sha256 == submit.request_payload_sha256
+-        assert submit.correlation_key is not None
+-        assert submit.correlation_key.native_action_ref is None
+-    finally:
+-        store.close()
+-
+-
+-@pytest.mark.unit
+-def test_v17_action_ref_is_account_monotonic_across_scope_day_restart_and_duplicate_stage(
+-    tmp_path,
+-):
+-    path = tmp_path / "execution.sqlite3"
+-    first_scope = _scope()
+-    store = SqliteExecutionStore(path)
+-    first_lease = _lease(store, first_scope)
+-    try:
+-        _first_reservation, first_args = _prepare_v17_cancel(
+-            store,
+-            first_scope,
+-            first_lease,
+-            "first",
+-            session_generation_id="session-generation-first",
+-        )
+-        first = store.stage_ctp_dispatch_command(**first_args)
+-        repeated = store.stage_ctp_dispatch_command(**first_args)
+-        assert first.correlation_key is not None and repeated.correlation_key is not None
+-        assert first.correlation_key.native_action_ref == repeated.correlation_key.native_action_ref == 1
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
+-            (first_scope.account_key,),
+-        ).fetchone()[0] == 1
+-        unknown = _dispatch_fake(store, first_scope, first_lease, first, outcome="UNKNOWN")
+-        assert unknown.status == "UNKNOWN"
+-        second_scope = ExecutionScope(
+-            "ctp", "simulation", _ctp_account_ref(), "strategy.other", "20260926"
+-        )
+-        second_lease = _lease(store, second_scope)
+-        _second_reservation, second_args = _prepare_v17_cancel(
+-            store,
+-            second_scope,
+-            second_lease,
+-            "second",
+-            session_generation_id="session-generation-second",
+-        )
+-        second = store.stage_ctp_dispatch_command(**second_args)
+-        assert second_scope.account_key == first_scope.account_key
+-        assert second.correlation_key is not None
+-        assert second.correlation_key.native_action_ref == 2
+-
+-        third_scope = ExecutionScope(
+-            "ctp", "simulation", _ctp_account_ref(), "strategy.third", "20260927"
+-        )
+-        third_lease = _lease(store, third_scope)
+-        _third_reservation, third_args = _prepare_v17_cancel(
+-            store,
+-            third_scope,
+-            third_lease,
+-            "third",
+-            session_generation_id="session-generation-third",
+-        )
+-        third = store.stage_ctp_dispatch_command(**third_args)
+-        assert third_scope.account_key == first_scope.account_key
+-        assert third.correlation_key is not None
+-        assert third.correlation_key.native_action_ref == 3
+-        counter = store._connection.execute(
+-            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
+-            (first_scope.account_key,),
+-        ).fetchone()
+-        assert counter is not None and counter[0] == 3
+-    finally:
+-        store.close()
+-
+-    reopened = SqliteExecutionStore(path)
+-    try:
+-        counter = reopened._connection.execute(
+-            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
+-            (first_scope.account_key,),
+-        ).fetchone()
+-        assert counter is not None and counter[0] == 3
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            reopened.acquire_ctp_account_family_owner(first_scope)
+-    finally:
+-        reopened.close()
+-
+-
+-@pytest.mark.unit
+-def test_v17_action_ref_allocation_rolls_back_with_failed_cancel_stage(tmp_path, monkeypatch):
+-    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    scope = _scope()
+-    lease = _lease(store, scope)
+-    try:
+-        _reservation, arguments = _prepare_v17_cancel(
+-            store, scope, lease, "rollback", session_generation_id="test-session-generation"
+-        )
+-        original_consume = store._record_ctp_order_target_projection_consumption
+-
+-        def fail_after_command_and_action_ref(*args, **kwargs):
+-            raise RuntimeError("injected cancel projection consumption failure")
+-
+-        monkeypatch.setattr(
+-            store,
+-            "_record_ctp_order_target_projection_consumption",
+-            fail_after_command_and_action_ref,
+-        )
+-        with pytest.raises(RuntimeError, match="injected cancel projection"):
+-            store.stage_ctp_dispatch_command(**arguments)
+-        monkeypatch.setattr(
+-            store, "_record_ctp_order_target_projection_consumption", original_consume
+-        )
+-
+-        assert store.read_ctp_dispatch_command(scope, arguments["command_id"]) is None
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_native_action_ref_counters WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()[0] == 0
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()[0] == 0
+-
+-        staged = store.stage_ctp_dispatch_command(**arguments)
+-        assert staged.correlation_key is not None
+-        assert staged.correlation_key.native_action_ref == 1
+-    finally:
+-        store.close()
+-
+-
+-@pytest.mark.unit
+-def test_v17_action_ref_allocator_fails_closed_at_int32_max(tmp_path):
+-    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    scope = _scope()
+-    lease = _lease(store, scope)
+-    try:
+-        _reservation, arguments = _prepare_v17_cancel(
+-            store, scope, lease, "exhausted", session_generation_id="test-session-generation"
+-        )
+-        store._connection.execute(
+-            "INSERT INTO ctp_native_action_ref_counters(account_key,last_action_ref,updated_at_ns) "
+-            "VALUES (?,2147483647,?)",
+-            (scope.account_key, time.time_ns()),
+-        )
+-        with pytest.raises(DurableStoreError, match="ActionRef int32 sequence is exhausted"):
+-            store.stage_ctp_dispatch_command(**arguments)
+-        assert store.read_ctp_dispatch_command(scope, arguments["command_id"]) is None
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()[0] == 0
+-    finally:
+-        store.close()
+-
+-
+-@pytest.mark.unit
+-def test_v17_prepared_cancel_cannot_choose_native_action_ref(tmp_path):
+-    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
+-    scope = _scope()
+-    lease = _lease(store, scope)
+-    try:
+-        _reservation, arguments = _prepare_v17_cancel(
+-            store, scope, lease, "caller-ref", session_generation_id="test-session-generation"
+-        )
+-        with pytest.raises(ContractValidationError, match="allocated by the execution Store"):
+-            store.stage_ctp_dispatch_command(**arguments, native_action_ref=91)
+-        altered = dict(arguments)
+-        altered["request_payload"] = {
+-            **dict(arguments["request_payload"]),
+-            "OrderActionRef": 91,
+-        }
+-        with pytest.raises(ContractValidationError, match="cannot supply native OrderActionRef"):
+-            store.stage_ctp_dispatch_command(**altered)
+-        assert store._connection.execute(
+-            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()[0] == 0
+-    finally:
+-        store.close()
+-
+-
+-@pytest.mark.unit
+-def test_schema_v15_source_lifecycle_fence_survives_and_blocks_stage_after_upgrade(tmp_path):
+-    database = tmp_path / "schema-v15-source-fence.sqlite3"
+-    scope = _scope()
+-    store = SqliteExecutionStore(database)
+-    lease = _lease(store, scope)
+-    try:
+-        first_reservation = _reserve_seeded(store, scope, lease, "fenced-command-intent")
+-        first = _stage_submit(
+-            store,
+-            scope,
+-            lease,
+-            first_reservation,
+-            command_id="fenced-command",
+-            approval_use_id="fenced-command-approval",
+-        )
+-        claimed = store.claim_ctp_dispatch_command(
+-            scope,
+-            first.command_id,
+-            writer_lease=lease,
+-            authority_verifier=_authority_verifier(),
+-        )
+-        assert claimed is not None
+-        store.complete_ctp_dispatch_command(
+-            scope, _receipt(claimed), writer_lease=lease
+-        )
+-        second_reservation = _reserve_seeded(store, scope, lease, "blocked-command-intent")
+-        second = _stage_submit(
+-            store,
+-            scope,
+-            lease,
+-            second_reservation,
+-            command_id="blocked-command",
+-            approval_use_id="blocked-command-approval",
+-        )
+-        fence_id = store.create_ctp_callback_source_lifecycle_fence(
+-            scope, first.command_id, writer_lease=lease
+-        )
+-        store._connection.execute(
+-            "UPDATE execution_meta SET value = '15' WHERE key = 'schema_version'"
+-        )
+-        store._connection.execute("DROP TABLE ctp_dispatch_order_cumulative_ledger")
+-        store._connection.execute("DROP TABLE ctp_dispatch_trade_fact_ledger")
+-    finally:
+-        store.close()
+-
+-    migrated = SqliteExecutionStore(database)
+-    try:
+-        fence = migrated._connection.execute(
+-            "SELECT source_lifecycle_fence_id FROM "
+-            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
+-            (scope.account_key,),
+-        ).fetchone()
+-        assert fence is not None and fence["source_lifecycle_fence_id"] == fence_id
+-        migrated_second = migrated.read_ctp_dispatch_command(scope, second.command_id)
+-        assert migrated_second is not None and migrated_second.status == "UNKNOWN"
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            migrated.acquire_ctp_account_family_owner(scope)
+-        assert migrated._connection.execute(
+-            "SELECT reason_code FROM ctp_account_family_legacy_fences"
+-        ).fetchone()[0] == "unmapped_legacy_execution_history"
+-    finally:
+-        migrated.close()
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_schema_v15_to_v19_preserves_unknown_command_and_permanent_owner_fence(tmp_path):
++    database = tmp_path / "schema-v15-to-v18-owner.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease)
++        staged = _stage_submit(store, scope, lease, reservation)
++        owner = store.create_ctp_callback_session_owner(scope, writer_lease=lease)
++        store._connection.execute(
++            """
++            UPDATE ctp_dispatch_commands
++            SET status = 'UNKNOWN', unknown_at_ns = updated_at_ns,
++                unknown_reason = 'preserved-v15-unknown'
++            WHERE account_key = ? AND command_id = ?
++            """,
++            (scope.account_key, staged.command_id),
++        )
++        # Model the exact v15 schema by removing only the v16 trade/cumulative
++        # tables and lowering the persisted version. Existing owner and UNKNOWN
++        # facts remain in the database across the upgrade.
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '15' WHERE key = 'schema_version'"
++        )
++        fence_id = store.create_ctp_callback_source_lifecycle_fence(
++            scope, staged.command_id, writer_lease=lease
++        )
++        store.poison_ctp_callback_session_owner(owner, "owner_stop")
++        fence_before = store._connection.execute(
++            "SELECT account_key, scope_key, command_id, source_lifecycle_fence_id, "
++            "correlation_key_sha256, session_binding_sha256 FROM "
++            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()
++        store._connection.execute("DROP TABLE ctp_dispatch_order_cumulative_ledger")
++        store._connection.execute("DROP TABLE ctp_dispatch_trade_fact_ledger")
++    finally:
++        store.close()
++
++    migrated = SqliteExecutionStore(database)
++    try:
++        assert migrated._connection.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "21"
++        command = migrated.read_ctp_dispatch_command(scope, staged.command_id)
++        assert command.status == "UNKNOWN"
++        assert command.unknown_reason == "preserved-v15-unknown"
++        owner_row = migrated._connection.execute(
++            "SELECT owner_state, poison_code FROM ctp_dispatch_callback_session_owners "
++            "WHERE owner_intent_id = ?",
++            (owner.owner_intent_id,),
++        ).fetchone()
++        assert tuple(owner_row) == ("POISONED", "owner_stop")
++        assert migrated._connection.execute(
++            "SELECT COUNT(*) FROM ctp_dispatch_trade_fact_ledger"
++        ).fetchone()[0] == 0
++        assert migrated._connection.execute(
++            "SELECT COUNT(*) FROM ctp_dispatch_order_cumulative_ledger"
++        ).fetchone()[0] == 0
++        fence_after = migrated._connection.execute(
++            "SELECT account_key, scope_key, command_id, source_lifecycle_fence_id, "
++            "correlation_key_sha256, session_binding_sha256 FROM "
++            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()
++        assert tuple(fence_after) == tuple(fence_before)
++        assert fence_after["source_lifecycle_fence_id"] == fence_id
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            migrated.acquire_ctp_account_family_owner(scope)
++        assert migrated._connection.execute(
++            "SELECT reason_code FROM ctp_account_family_legacy_fences"
++        ).fetchone()[0] == "unmapped_legacy_execution_history"
++    finally:
++        migrated.close()
++
++    reopened = SqliteExecutionStore(database)
++    try:
++        assert reopened._connection.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "21"
++        assert reopened.read_ctp_dispatch_command(scope, staged.command_id).status == "UNKNOWN"
++        owner_row = reopened._connection.execute(
++            "SELECT owner_state, poison_code FROM ctp_dispatch_callback_session_owners "
++            "WHERE owner_intent_id = ?",
++            (owner.owner_intent_id,),
++        ).fetchone()
++        assert tuple(owner_row) == ("POISONED", "owner_stop")
++    finally:
++        reopened.close()
++
++
++@pytest.mark.unit
++def test_schema_v16_to_v19_migrates_valid_completed_submit(tmp_path):
++    database = tmp_path / "schema-v16-valid-submit.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease, "valid-submit-migration")
++        staged = _stage_submit(
++            store, scope, lease, reservation, "valid-submit-migration-command"
++        )
++        completed = _dispatch_fake(store, scope, lease, staged)
++        assert completed.status == "COMPLETED"
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
++        )
++    finally:
++        store.close()
++
++    migrated = SqliteExecutionStore(database)
++    try:
++        assert migrated._connection.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "21"
++        command = migrated.read_ctp_dispatch_command(scope, staged.command_id)
++        assert command is not None and command.status == "COMPLETED"
++        assert command.correlation_key is not None
++        assert command.correlation_key.native_action_ref is None
++    finally:
++        migrated.close()
++
++
++@pytest.mark.unit
++@pytest.mark.parametrize("malformed_account_key", ["", "   "])
++def test_schema_v16_to_v19_rejects_malformed_identity_on_terminal_submit(
++    tmp_path, malformed_account_key
++):
++    database = tmp_path / "schema-v16-malformed-terminal-submit.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease, "malformed-submit-migration")
++        staged = _stage_submit(
++            store, scope, lease, reservation, "malformed-submit-migration-command"
++        )
++        completed = _dispatch_fake(store, scope, lease, staged)
++        assert completed.status == "COMPLETED"
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
++        )
++    finally:
++        store.close()
++
++    corrupt = sqlite3.connect(database)
++    try:
++        corrupt.execute("PRAGMA foreign_keys = OFF")
++        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
++        corrupt.execute(
++            "UPDATE ctp_dispatch_commands SET account_key = ? WHERE command_id = ?",
++            (malformed_account_key, staged.command_id),
++        )
++        corrupt.commit()
++    finally:
++        corrupt.close()
++
++    with pytest.raises(
++        DurableStoreError, match="historical CTP dispatch account identity is unreadable"
++    ):
++        SqliteExecutionStore(database)
++
++    check = sqlite3.connect(database)
++    try:
++        assert check.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "16"
++        row = check.execute(
++            "SELECT account_key, status FROM ctp_dispatch_commands WHERE command_id = ?",
++            (staged.command_id,),
++        ).fetchone()
++        assert row == (malformed_account_key, "COMPLETED")
++    finally:
++        check.close()
++
++
++@pytest.mark.unit
++def test_schema_v16_to_v19_rejects_dispatch_foreign_key_mismatch(tmp_path):
++    database = tmp_path / "schema-v16-dispatch-foreign-key-mismatch.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease, "fk-mismatch-migration")
++        staged = _stage_submit(store, scope, lease, reservation, "fk-mismatch-command")
++        completed = _dispatch_fake(store, scope, lease, staged)
++        assert completed.status == "COMPLETED"
++        assert store._connection.execute("PRAGMA foreign_key_check").fetchall() == []
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
++        )
++    finally:
++        store.close()
++
++    replacement_account_key = "account:" + sha256(b"unrelated account").hexdigest()
++    corrupt = sqlite3.connect(database)
++    try:
++        corrupt.execute("PRAGMA foreign_keys = OFF")
++        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
++        corrupt.execute(
++            "UPDATE ctp_dispatch_commands SET account_key = ? WHERE command_id = ?",
++            (replacement_account_key, staged.command_id),
++        )
++        corrupt.commit()
++        assert corrupt.execute("PRAGMA foreign_key_check").fetchall()
++    finally:
++        corrupt.close()
++
++    with pytest.raises(
++        DurableStoreError, match="historical CTP foreign key integrity is inconsistent"
++    ):
++        SqliteExecutionStore(database)
++
++    check = sqlite3.connect(database)
++    try:
++        assert check.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "16"
++        row = check.execute(
++            "SELECT account_key, status FROM ctp_dispatch_commands WHERE command_id = ?",
++            (staged.command_id,),
++        ).fetchone()
++        assert row == (replacement_account_key, "COMPLETED")
++    finally:
++        check.close()
++
++
++@pytest.mark.unit
++def test_schema_v16_to_v19_rejects_cross_account_legacy_cancel_graph(tmp_path):
++    database = tmp_path / "schema-v16-legacy-cancel-cross-account.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease, "legacy-cancel-fk-mismatch")
++        staged = _stage_cancel(
++            store,
++            scope,
++            lease,
++            reservation,
++            "legacy-cancel-fk-mismatch-command",
++        )
++        completed = _dispatch_fake(store, scope, lease, staged)
++        assert completed.status == "COMPLETED"
++        assert store._connection.execute("PRAGMA foreign_key_check").fetchall() == []
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '16' WHERE key = 'schema_version'"
++        )
++    finally:
++        store.close()
++
++    replacement_account_key = "account:" + sha256(b"unrelated cancel account").hexdigest()
++    corrupt = sqlite3.connect(database)
++    try:
++        corrupt.execute("PRAGMA foreign_keys = OFF")
++        corrupt.execute("DROP TRIGGER ctp_dispatch_commands_immutable")
++        corrupt.execute(
++            "UPDATE ctp_dispatch_commands SET account_key = ?, correlation_version = 0 "
++            "WHERE command_id = ?",
++            (replacement_account_key, staged.command_id),
++        )
++        corrupt.commit()
++        assert corrupt.execute("PRAGMA foreign_key_check").fetchall()
++    finally:
++        corrupt.close()
++
++    with pytest.raises(
++        DurableStoreError, match="historical CTP foreign key integrity is inconsistent"
++    ):
++        SqliteExecutionStore(database)
++
++    check = sqlite3.connect(database)
++    try:
++        assert check.execute(
++            "SELECT value FROM execution_meta WHERE key = 'schema_version'"
++        ).fetchone()[0] == "16"
++        row = check.execute(
++            "SELECT account_key, correlation_version, status FROM ctp_dispatch_commands "
++            "WHERE command_id = ?",
++            (staged.command_id,),
++        ).fetchone()
++        assert row == (replacement_account_key, 0, "COMPLETED")
++    finally:
++        check.close()
++
++
++@pytest.mark.unit
++def test_v21_cancel_allocation_fails_closed_without_external_floor_authority(tmp_path):
++    store = _BaseSqliteExecutionStore(tmp_path / "no-native-floor.sqlite3")
++    scope = _scope()
++    lease = _lease(store, scope)
++    try:
++        _reservation, arguments = _prepare_v17_cancel(
++            store, scope, lease, "no-floor", session_generation_id="test-session-generation"
++        )
++        with pytest.raises(
++            ContractValidationError, match="trusted external CTP native ActionRef floor authority"
++        ):
++            store.stage_ctp_dispatch_command(**arguments)
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++        assert store.read_ctp_dispatch_command(scope, arguments["command_id"]) is None
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_v21_verified_floor_seeds_account_sequence_replay_and_stale_local_counter_fences(
++    tmp_path,
++):
++    store = SqliteExecutionStore(
++        tmp_path / "fake-floor-account-sequence.sqlite3", fake_native_action_ref_floor=37
++    )
++    first_scope = _scope()
++    first_lease = _lease(store, first_scope)
++    try:
++        _first_reservation, first_args = _prepare_v17_cancel(
++            store, first_scope, first_lease, "floor-first",
++            session_generation_id="test-session-generation-first",
++        )
++        first = store.stage_ctp_dispatch_command(**first_args)
++        replay = store.stage_ctp_dispatch_command(**first_args)
++        assert first.correlation_key is not None and replay.correlation_key is not None
++        assert first.correlation_key.native_action_ref == replay.correlation_key.native_action_ref == 38
++
++        second_scope = ExecutionScope(
++            "ctp", "simulation", _ctp_account_ref(), "strategy.floor.other", "20260926"
++        )
++        second_lease = _lease(store, second_scope)
++        _second_reservation, second_args = _prepare_v17_cancel(
++            store, second_scope, second_lease, "floor-second",
++            session_generation_id="test-session-generation-second",
++        )
++        second = store.stage_ctp_dispatch_command(**second_args)
++        assert second_scope.account_key == first_scope.account_key
++        assert second.correlation_key is not None and second.correlation_key.native_action_ref == 39
++
++        store._test_fake_native_action_ref_floor = 40
++        third_scope = ExecutionScope(
++            "ctp", "simulation", _ctp_account_ref(), "strategy.floor.third", "20260927"
++        )
++        third_lease = _lease(store, third_scope)
++        _third_reservation, third_args = _prepare_v17_cancel(
++            store, third_scope, third_lease, "floor-third",
++            session_generation_id="test-session-generation-third",
++        )
++        with pytest.raises(DurableStoreError, match="below the verified native floor"):
++            store.stage_ctp_dispatch_command(**third_args)
++        counter = store._connection.execute(
++            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (first_scope.account_key,),
++        ).fetchone()
++        assert counter is not None and counter[0] == 39
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (first_scope.account_key,),
++        ).fetchone()[0] == 2
++        assert store.read_ctp_dispatch_command(third_scope, third_args["command_id"]) is None
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_v17_cancel_action_ref_is_store_allocated_and_native_payload_is_separate(tmp_path):
++    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++    scope = _scope()
++    lease = _lease(store, scope)
++    try:
++        reservation = _reserve_seeded(store, scope, lease)
++        command = _stage_cancel(store, scope, lease, reservation, "v17-payload-cancel")
++
++        assert command.correlation_key is not None
++        action_ref = command.correlation_key.native_action_ref
++        assert type(action_ref) is int and action_ref == 1
++        assert "OrderActionRef" not in command.request_payload
++        assert command.native_request_payload is not None
++        assert dict(command.native_request_payload) == {
++            **dict(command.request_payload),
++            "OrderActionRef": action_ref,
++        }
++        assert command.native_request_payload_sha256 == payload_sha256(
++            dict(command.native_request_payload)
++        )
++        assert command.native_request_payload_sha256 != command.request_payload_sha256
++        assert command.correlation_key.native_request_payload_sha256 == (
++            command.native_request_payload_sha256
++        )
++
++        submit = _stage_submit(store, scope, lease, reservation, "v17-payload-submit")
++        assert submit.native_request_payload is not None
++        assert dict(submit.native_request_payload) == dict(submit.request_payload)
++        assert submit.native_request_payload_sha256 == submit.request_payload_sha256
++        assert submit.correlation_key is not None
++        assert submit.correlation_key.native_action_ref is None
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_v17_action_ref_is_account_monotonic_across_scope_day_restart_and_duplicate_stage(
++    tmp_path,
++):
++    path = tmp_path / "execution.sqlite3"
++    first_scope = _scope()
++    store = SqliteExecutionStore(path)
++    first_lease = _lease(store, first_scope)
++    try:
++        _first_reservation, first_args = _prepare_v17_cancel(
++            store,
++            first_scope,
++            first_lease,
++            "first",
++            session_generation_id="session-generation-first",
++        )
++        first = store.stage_ctp_dispatch_command(**first_args)
++        repeated = store.stage_ctp_dispatch_command(**first_args)
++        assert first.correlation_key is not None and repeated.correlation_key is not None
++        assert first.correlation_key.native_action_ref == repeated.correlation_key.native_action_ref == 1
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (first_scope.account_key,),
++        ).fetchone()[0] == 1
++        unknown = _dispatch_fake(store, first_scope, first_lease, first, outcome="UNKNOWN")
++        assert unknown.status == "UNKNOWN"
++        second_scope = ExecutionScope(
++            "ctp", "simulation", _ctp_account_ref(), "strategy.other", "20260926"
++        )
++        second_lease = _lease(store, second_scope)
++        _second_reservation, second_args = _prepare_v17_cancel(
++            store,
++            second_scope,
++            second_lease,
++            "second",
++            session_generation_id="session-generation-second",
++        )
++        second = store.stage_ctp_dispatch_command(**second_args)
++        assert second_scope.account_key == first_scope.account_key
++        assert second.correlation_key is not None
++        assert second.correlation_key.native_action_ref == 2
++
++        third_scope = ExecutionScope(
++            "ctp", "simulation", _ctp_account_ref(), "strategy.third", "20260927"
++        )
++        third_lease = _lease(store, third_scope)
++        _third_reservation, third_args = _prepare_v17_cancel(
++            store,
++            third_scope,
++            third_lease,
++            "third",
++            session_generation_id="session-generation-third",
++        )
++        third = store.stage_ctp_dispatch_command(**third_args)
++        assert third_scope.account_key == first_scope.account_key
++        assert third.correlation_key is not None
++        assert third.correlation_key.native_action_ref == 3
++        counter = store._connection.execute(
++            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (first_scope.account_key,),
++        ).fetchone()
++        assert counter is not None and counter[0] == 3
++    finally:
++        store.close()
++
++    reopened = SqliteExecutionStore(path)
++    try:
++        counter = reopened._connection.execute(
++            "SELECT last_action_ref FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (first_scope.account_key,),
++        ).fetchone()
++        assert counter is not None and counter[0] == 3
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            reopened.acquire_ctp_account_family_owner(first_scope)
++    finally:
++        reopened.close()
++
++
++@pytest.mark.unit
++def test_v17_action_ref_allocation_rolls_back_with_failed_cancel_stage(tmp_path, monkeypatch):
++    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++    scope = _scope()
++    lease = _lease(store, scope)
++    try:
++        _reservation, arguments = _prepare_v17_cancel(
++            store, scope, lease, "rollback", session_generation_id="test-session-generation"
++        )
++        original_consume = store._record_ctp_order_target_projection_consumption
++
++        def fail_after_command_and_action_ref(*args, **kwargs):
++            raise RuntimeError("injected cancel projection consumption failure")
++
++        monkeypatch.setattr(
++            store,
++            "_record_ctp_order_target_projection_consumption",
++            fail_after_command_and_action_ref,
++        )
++        with pytest.raises(RuntimeError, match="injected cancel projection"):
++            store.stage_ctp_dispatch_command(**arguments)
++        monkeypatch.setattr(
++            store, "_record_ctp_order_target_projection_consumption", original_consume
++        )
++
++        assert store.read_ctp_dispatch_command(scope, arguments["command_id"]) is None
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_counters WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++
++        staged = store.stage_ctp_dispatch_command(**arguments)
++        assert staged.correlation_key is not None
++        assert staged.correlation_key.native_action_ref == 1
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_v17_action_ref_allocator_fails_closed_at_int32_max(tmp_path):
++    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++    scope = _scope()
++    lease = _lease(store, scope)
++    try:
++        _reservation, arguments = _prepare_v17_cancel(
++            store, scope, lease, "exhausted", session_generation_id="test-session-generation"
++        )
++        store._connection.execute(
++            "INSERT INTO ctp_native_action_ref_counters(account_key,last_action_ref,updated_at_ns) "
++            "VALUES (?,2147483647,?)",
++            (scope.account_key, time.time_ns()),
++        )
++        with pytest.raises(DurableStoreError, match="ActionRef int32 sequence is exhausted"):
++            store.stage_ctp_dispatch_command(**arguments)
++        assert store.read_ctp_dispatch_command(scope, arguments["command_id"]) is None
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_v17_prepared_cancel_cannot_choose_native_action_ref(tmp_path):
++    store = SqliteExecutionStore(tmp_path / "execution.sqlite3")
++    scope = _scope()
++    lease = _lease(store, scope)
++    try:
++        _reservation, arguments = _prepare_v17_cancel(
++            store, scope, lease, "caller-ref", session_generation_id="test-session-generation"
++        )
++        with pytest.raises(ContractValidationError, match="allocated by the execution Store"):
++            store.stage_ctp_dispatch_command(**arguments, native_action_ref=91)
++        altered = dict(arguments)
++        altered["request_payload"] = {
++            **dict(arguments["request_payload"]),
++            "OrderActionRef": 91,
++        }
++        with pytest.raises(ContractValidationError, match="cannot supply native OrderActionRef"):
++            store.stage_ctp_dispatch_command(**altered)
++        assert store._connection.execute(
++            "SELECT COUNT(*) FROM ctp_native_action_ref_allocations WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()[0] == 0
++    finally:
++        store.close()
++
++
++@pytest.mark.unit
++def test_schema_v15_source_lifecycle_fence_survives_and_blocks_stage_after_upgrade(tmp_path):
++    database = tmp_path / "schema-v15-source-fence.sqlite3"
++    scope = _scope()
++    store = SqliteExecutionStore(database)
++    lease = _lease(store, scope)
++    try:
++        first_reservation = _reserve_seeded(store, scope, lease, "fenced-command-intent")
++        first = _stage_submit(
++            store,
++            scope,
++            lease,
++            first_reservation,
++            command_id="fenced-command",
++            approval_use_id="fenced-command-approval",
++        )
++        claimed = store.claim_ctp_dispatch_command(
++            scope,
++            first.command_id,
++            writer_lease=lease,
++            authority_verifier=_authority_verifier(),
++        )
++        assert claimed is not None
++        store.complete_ctp_dispatch_command(
++            scope, _receipt(claimed), writer_lease=lease
++        )
++        second_reservation = _reserve_seeded(store, scope, lease, "blocked-command-intent")
++        second = _stage_submit(
++            store,
++            scope,
++            lease,
++            second_reservation,
++            command_id="blocked-command",
++            approval_use_id="blocked-command-approval",
++        )
++        fence_id = store.create_ctp_callback_source_lifecycle_fence(
++            scope, first.command_id, writer_lease=lease
++        )
++        store._connection.execute(
++            "UPDATE execution_meta SET value = '15' WHERE key = 'schema_version'"
++        )
++        store._connection.execute("DROP TABLE ctp_dispatch_order_cumulative_ledger")
++        store._connection.execute("DROP TABLE ctp_dispatch_trade_fact_ledger")
++    finally:
++        store.close()
++
++    migrated = SqliteExecutionStore(database)
++    try:
++        fence = migrated._connection.execute(
++            "SELECT source_lifecycle_fence_id FROM "
++            "ctp_dispatch_callback_source_lifecycle_fences WHERE account_key = ?",
++            (scope.account_key,),
++        ).fetchone()
++        assert fence is not None and fence["source_lifecycle_fence_id"] == fence_id
++        migrated_second = migrated.read_ctp_dispatch_command(scope, second.command_id)
++        assert migrated_second is not None and migrated_second.status == "UNKNOWN"
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            migrated.acquire_ctp_account_family_owner(scope)
++        assert migrated._connection.execute(
++            "SELECT reason_code FROM ctp_account_family_legacy_fences"
++        ).fetchone()[0] == "unmapped_legacy_execution_history"
++    finally:
++        migrated.close()
+ 
+ 
+ @pytest.mark.unit
+@@ -3653,11 +3740,11 @@ def test_two_store_claim_race_has_one_local_claimant(tmp_path):
+ 
+ 
+ @pytest.mark.unit
+-def test_restart_recovery_marks_prior_claim_unknown_without_replay(tmp_path):
++def test_restart_recovery_marks_prior_claim_unknown_without_replay(tmp_path):
+     path = tmp_path / "execution.sqlite3"
+     store = SqliteExecutionStore(path)
+     scope = _scope()
+-    old_lease = _lease(store, scope, "outbox-before-crash")
++    old_lease = _lease(store, scope, "outbox-before-crash")
+     reservation = _reserve_seeded(store, scope, old_lease)
+     staged = _stage_submit(store, scope, old_lease, reservation)
+     assert store.claim_ctp_dispatch_command(
+@@ -3672,13 +3759,13 @@ def test_restart_recovery_marks_prior_claim_unknown_without_replay(tmp_path):
+     )
+     store.close()
+ 
+-    reopened = SqliteExecutionStore(path)
+-    try:
+-        assert reopened.read_ctp_dispatch_command(scope, staged.command_id).status == "CLAIMED"
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            reopened.acquire_ctp_account_family_owner(scope)
+-    finally:
+-        reopened.close()
++    reopened = SqliteExecutionStore(path)
++    try:
++        assert reopened.read_ctp_dispatch_command(scope, staged.command_id).status == "CLAIMED"
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            reopened.acquire_ctp_account_family_owner(scope)
++    finally:
++        reopened.close()
+ 
+ 
+ @pytest.mark.unit
+@@ -3783,7 +3870,7 @@ def test_cancel_command_binds_orderref_exchange_system_order_and_session_ids(tmp
+             dispatch_front_id=4,
+             dispatch_session_id=91,
+             native_request_id=_native_request_id("cancel-1"),
+-            cancel_target_projection=_issue_target_projection(store, scope, reservation),
++            cancel_target_projection=_issue_target_projection(store, scope, reservation),
+         )
+         assert cancel.cancel_target_order_ref == target.order_ref
+         assert cancel.cancel_target_exchange_id == "SHFE"
+@@ -3808,7 +3895,7 @@ def test_cancel_command_binds_orderref_exchange_system_order_and_session_ids(tmp
+                 dispatch_front_id=4,
+                 dispatch_session_id=91,
+                 native_request_id=_native_request_id("cancel-2"),
+-            )
++            )
+     finally:
+         store.close()
+ 
+@@ -3851,7 +3938,7 @@ def test_cancel_claim_authority_binds_exact_native_target(tmp_path):
+             dispatch_front_id=4,
+             dispatch_session_id=91,
+             native_request_id=_native_request_id("cancel-authority-1"),
+-            cancel_target_projection=_issue_target_projection(store, scope, reservation),
++            cancel_target_projection=_issue_target_projection(store, scope, reservation),
+         )
+         changed_target = replace(
+             staged, cancel_target_session_id=staged.cancel_target_session_id + 1
+@@ -3930,7 +4017,7 @@ def test_cancel_command_rejects_modify_action_or_fields(tmp_path, field, value,
+                 dispatch_front_id=4,
+                 dispatch_session_id=91,
+                 native_request_id=_native_request_id("cancel-invalid-" + field),
+-            )
++            )
+     finally:
+         store.close()
+ 
+@@ -4144,11 +4231,11 @@ def test_cancel_claim_rechecks_single_use_consumption_after_authority_verifier(t
+             store, scope, lease, reservation, handle, command_id="cancel-consumption-recheck"
+         )
+ 
+-        def remove_consumption_during_verification(_command, _now_ns, _authority):
+-            # Model a same-connection reentrant mutation by an injected test
+-            # verifier. Verification is outside the Store transaction; the
+-            # final claim transaction must observe the missing target fact and
+-            # reject before dispatch rather than claim against stale evidence.
++        def remove_consumption_during_verification(_command, _now_ns, _authority):
++            # Model a same-connection reentrant mutation by an injected test
++            # verifier. Verification is outside the Store transaction; the
++            # final claim transaction must observe the missing target fact and
++            # reject before dispatch rather than claim against stale evidence.
+             store._connection.execute(
+                 "DROP TRIGGER ctp_order_target_consumptions_immutable_delete"
+             )
+@@ -4172,14 +4259,14 @@ def test_cancel_claim_rechecks_single_use_consumption_after_authority_verifier(t
+             )
+         assert len(verifier.calls) == 1
+         assert store.read_ctp_dispatch_command(scope, command.command_id).status == "READY"
+-        assert (
+-            store._connection.execute(
+-                "SELECT command_id FROM ctp_order_target_projection_consumptions "
+-                "WHERE projection_id = ?",
+-                (handle.projection_id,),
+-            ).fetchone()
+-            is None
+-        )
++        assert (
++            store._connection.execute(
++                "SELECT command_id FROM ctp_order_target_projection_consumptions "
++                "WHERE projection_id = ?",
++                (handle.projection_id,),
++            ).fetchone()
++            is None
++        )
+         assert (
+             store._connection.execute(
+                 "SELECT COUNT(*) FROM ctp_dispatch_authority_uses"
+@@ -4190,7 +4277,7 @@ def test_cancel_claim_rechecks_single_use_consumption_after_authority_verifier(t
+             "SELECT 1 FROM sqlite_master WHERE type = 'trigger' "
+             "AND name = 'ctp_order_target_consumptions_immutable_delete'"
+         ).fetchone()
+-        assert trigger is None
++        assert trigger is None
+     finally:
+         store.close()
+ 
+@@ -4226,7 +4313,7 @@ def _stage_cancel_with_projection(store, scope, lease, reservation, handle, *, c
+         dispatch_front_id=4,
+         dispatch_session_id=91,
+         native_request_id=_native_request_id(command_id),
+-        cancel_target_projection=handle,
++        cancel_target_projection=handle,
+     )
+ 
+ 
+@@ -4272,7 +4359,7 @@ def test_cancel_target_projection_defaults_to_reject_and_rejects_ambiguous_stale
+                 dispatch_front_id=4,
+                 dispatch_session_id=91,
+                 native_request_id=_native_request_id("cancel-without-query"),
+-            )
++            )
+ 
+         wrong_session_projection = _issue_target_projection(
+             store,
+@@ -4341,13 +4428,13 @@ def test_cancel_target_projection_requires_new_query_after_store_restart(tmp_pat
+     )
+     store.close()
+ 
+-    reopened = SqliteExecutionStore(path)
+-    try:
+-        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
+-            reopened.acquire_ctp_account_family_owner(scope)
+-        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
+-            reopened.read_ctp_order_target_projection(scope, first)
+-        persisted = reopened.read_ctp_dispatch_command(scope, command.command_id)
+-        assert persisted is not None and persisted.status == "READY"
++    reopened = SqliteExecutionStore(path)
++    try:
++        with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
++            reopened.acquire_ctp_account_family_owner(scope)
++        with pytest.raises(ContractValidationError, match="same-store CTP target handle"):
++            reopened.read_ctp_order_target_projection(scope, first)
++        persisted = reopened.read_ctp_dispatch_command(scope, command.command_id)
++        assert persisted is not None and persisted.status == "READY"
+     finally:
+         reopened.close()

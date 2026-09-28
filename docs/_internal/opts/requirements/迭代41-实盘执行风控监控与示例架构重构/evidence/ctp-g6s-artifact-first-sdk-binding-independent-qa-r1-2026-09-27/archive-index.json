@@ -1,0 +1,83 @@
+{
+  "artifacts": {
+    "author-candidate-r1.zip": {
+      "bytes": 839417,
+      "sha256": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0"
+    },
+    "author-freeze-receipt.json": {
+      "bytes": 5973,
+      "sha256": "9e42739f3357032cd4c0c8d67b493bd52a2a114272c45b3223ce38874b331473"
+    },
+    "candidate-source-manifest.json": {
+      "bytes": 34588,
+      "sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080"
+    },
+    "default-pin-gate-probe.py": {
+      "bytes": 655,
+      "sha256": "0e5b2108d69efbab155970148ff19f64bf46e2c556f13ee69fd434c4fbd0a0e6"
+    },
+    "default-pin-gate-probe.stdout.txt": {
+      "bytes": 80,
+      "sha256": "e3731c8ba84cefb9275fbb711bd70836a6747e4ed106c91ee48ef6efae8cf5a2"
+    },
+    "extension-loader-hook-probe.py": {
+      "bytes": 3202,
+      "sha256": "202957da16748922c4bc7de4c66c6bed73d792783b5c8bc25557508261ec5152"
+    },
+    "extension-loader-hook-probe.stdout.txt": {
+      "bytes": 161,
+      "sha256": "115c341f36872947b07c446c99718ebfc25396ced35f98226cbd19be2c5cff45"
+    },
+    "g6s-artifact-first-r1-independent-qa.zip": {
+      "bytes": 95136,
+      "sha256": "1a9e10284c3152cd8607a6511216189212f4d055b27b2e419641a062f62eb402"
+    },
+    "pyd-retained-handle-probe.py": {
+      "bytes": 2353,
+      "sha256": "527009036f62aa833488e2efa418278456c6bc020152f60172e860c0d839368f"
+    },
+    "pyd-retained-handle-probe.stdout.txt": {
+      "bytes": 144,
+      "sha256": "282c5a14f1ae2ff0a7638e4a73f131bc3199b4bda84d035fd8946e3a8ddf0bca"
+    },
+    "pytest-adversarial.junit.xml": {
+      "bytes": 1543,
+      "sha256": "353d8bcee149e956783eb06e3cfa13d07576c2677644f7249ac5a36bf527f349"
+    },
+    "pytest-adversarial.stdout.txt": {
+      "bytes": 232,
+      "sha256": "577084f5626cc9dfa5581fdca02a81d62056b223cd5165f7f67ec326e3ea34f1"
+    },
+    "pytest-focus.junit.xml": {
+      "bytes": 8512,
+      "sha256": "d5a1ff80b4dd9c06d999534165884cd1bfde4f3c01e248ed74842202c0876e63"
+    },
+    "pytest-focus.stdout.txt": {
+      "bytes": 227,
+      "sha256": "a0b3467b613853c663d188e5bde5ff3b6c4fb9eac0f4b87df04eae0f25356028"
+    },
+    "qa-receipt.json": {
+      "bytes": 4884,
+      "sha256": "df38a0de0e33bdcaa1137f209e225e18e5b65c3c44da732cbfbb6d125984f6dc"
+    },
+    "qa-report.md": {
+      "bytes": 5032,
+      "sha256": "bd6db8f4c7a634d95a22586350d6a7ed525b1467a85256bb8a9bac0cae75afa4"
+    }
+  },
+  "candidate_manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "candidate_payload_count": 141,
+  "candidate_zip_sha256": "d5aa16bec66c7618f58b1039f87c7a774ec9958a848cbd29a94e7527887e84f0",
+  "qa_bundle_sha256": "1a9e10284c3152cd8607a6511216189212f4d055b27b2e419641a062f62eb402",
+  "qa_receipt_sha256": "df38a0de0e33bdcaa1137f209e225e18e5b65c3c44da732cbfbb6d125984f6dc",
+  "qa_report_sha256": "bd6db8f4c7a634d95a22586350d6a7ed525b1467a85256bb8a9bac0cae75afa4",
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.independent_qa_archive.v1",
+  "scope": {
+    "account_accessed": false,
+    "credentials_or_private_config_read": false,
+    "default_route_changed": false,
+    "provider_or_network_called": false,
+    "real_sdk_or_native_loaded": false
+  },
+  "status": "PARTIAL_CUSTODY_G4_BLOCKED_G6S_BLOCKED"
+}

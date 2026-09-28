@@ -1,0 +1,17 @@
+{
+  "provenance_schema": "g6s-settlement-attestation-provenance-r2",
+  "disposition": "AUTHOR_CANDIDATE_ONLY / NOT_ACCEPTED",
+  "captured_at_utc": "2026-09-26T22:44:50Z",
+  "r1_frozen_candidate_directory": "D:\\temp\\simnow-settlement-g6s-20260927",
+  "r1_manifest_sha256": "126ace8778f4c679a491f3a76c8bbccd6f13bc3503dffa2848445829b6a88dc1",
+  "r1_candidate_files_preserved_byte_for_byte": true,
+  "r1_reviewed_input_validation_note": "Root archive preflight reported 10/11 reviewed inputs valid; the ctp-current-acceptance-matrix.md reference was unusable due to a mojibake path in that validation path. R1 is preserved unchanged. This R2 entry captures the current matrix at a canonical UTF-8 path and does not claim historical equality with the r1 matrix digest.",
+  "corrected_current_matrix": {
+    "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/ctp-current-acceptance-matrix.md",
+    "sha256": "73901647326beb1ec67ff470ba3c22153b28162942dec83b54f357c474075f4c",
+    "byte_length": 54497,
+    "last_write_utc": "2026-09-26T22:43:48.0167153Z",
+    "capture_relation": "Current bytes at archive creation; not a reconstruction of r1 historical matrix bytes."
+  },
+  "acceptance": "No G6-S or G7-S acceptance. This archive is an author candidate only."
+}

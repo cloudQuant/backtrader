@@ -1,0 +1,5060 @@
+{
+  "files": [
+    {
+      "path": "baseline/backtrader/__init__.py",
+      "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+      "size": 5961
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/__init__.py",
+      "sha256": "1e3024baad05c60ca93e7751d77aa479d899ded8c527823f91114590855469d3",
+      "size": 198
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/channel.py",
+      "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8",
+      "size": 15863
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/execution.py",
+      "sha256": "18d436df1eeb91dbe7485930dc92125293ce232554d897c9fb7187e101839ac4",
+      "size": 16481
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/lifecycle.py",
+      "sha256": "c01885fe660565e38d0189e5736efd0711634346e76090d0191d1bcddde7e32a",
+      "size": 6038
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/notifications.py",
+      "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6",
+      "size": 6255
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/presentation.py",
+      "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288",
+      "size": 8539
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/registry.py",
+      "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179",
+      "size": 22499
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/runnext.py",
+      "sha256": "cf6fc27165dfd3e68d6ddc4ba483dbd980f52445bef45b1f6eebcf70069d0b4b",
+      "size": 26335
+    },
+    {
+      "path": "baseline/backtrader/_cerebro/runonce.py",
+      "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905",
+      "size": 5406
+    },
+    {
+      "path": "baseline/backtrader/analyzer.py",
+      "sha256": "b7ba2d72fcbecc60ff5eceed94264a1047800fd3e6e128f7c8056ef54b70697d",
+      "size": 21947
+    },
+    {
+      "path": "baseline/backtrader/analyzers/__init__.py",
+      "sha256": "fb04c82045299dadd9d22a66c9d83c29d404e71bd35a2a06bc98f39013c932c5",
+      "size": 1632
+    },
+    {
+      "path": "baseline/backtrader/analyzers/annualreturn.py",
+      "sha256": "7605e5afbff10f70665103a945998750a12e2a520557de4d3f2c1a5c80749dd0",
+      "size": 7910
+    },
+    {
+      "path": "baseline/backtrader/analyzers/calmar.py",
+      "sha256": "41d28e0b5075c18dc994eca0f52470a13685681ee4dc28c2ae47715a14b12274",
+      "size": 5829
+    },
+    {
+      "path": "baseline/backtrader/analyzers/drawdown.py",
+      "sha256": "79ab27136258ebc1de036fb061100c20990cb40c85630aabb039673e5aa8dc52",
+      "size": 9818
+    },
+    {
+      "path": "baseline/backtrader/analyzers/leverage.py",
+      "sha256": "cf336d07124b15d151bd7fee521549410719173583de59e8f96bbb0d25ba29d2",
+      "size": 3620
+    },
+    {
+      "path": "baseline/backtrader/analyzers/logreturnsrolling.py",
+      "sha256": "5fd210963826c6c85d99ed8472cee9df2dc3987ee1817fad70650311afdb4094",
+      "size": 7013
+    },
+    {
+      "path": "baseline/backtrader/analyzers/periodstats.py",
+      "sha256": "850ee332f83e82d9f0f5b96206cd9c8fce074f17c4ef675bb6224e5e9b66462b",
+      "size": 4975
+    },
+    {
+      "path": "baseline/backtrader/analyzers/positions.py",
+      "sha256": "b42636a1c385504a1a58b980019ecc40acc88e39d09552ace73dfad3301e64d2",
+      "size": 3847
+    },
+    {
+      "path": "baseline/backtrader/analyzers/pyfolio.py",
+      "sha256": "7b3b22020f695f90af483b9e880e777b0dc0651a0750e4aaed611dd56605f1fe",
+      "size": 20261
+    },
+    {
+      "path": "baseline/backtrader/analyzers/returns.py",
+      "sha256": "9c2e9baeaaac1ef443dded70ead22af8bf097d3b28ea79fc6b6c761d1fbc13e3",
+      "size": 6248
+    },
+    {
+      "path": "baseline/backtrader/analyzers/sharpe.py",
+      "sha256": "312b7ccae78db2fc0069ca642eae8e9e84319d91f062ba37e6016f705b2b546f",
+      "size": 12285
+    },
+    {
+      "path": "baseline/backtrader/analyzers/sharpe_ratio_stats.py",
+      "sha256": "2411719817d8cec34c466768c10f100f4d7c8696ac6b46e0429bfa4ac1d6d3f0",
+      "size": 18990
+    },
+    {
+      "path": "baseline/backtrader/analyzers/sqn.py",
+      "sha256": "1bfae6c5f53b5c2e68d1115688c0f55ea6f098304da38d681150c980e690da72",
+      "size": 3446
+    },
+    {
+      "path": "baseline/backtrader/analyzers/timereturn.py",
+      "sha256": "1796e094eb27c1ccfd0c8b51b7eed0b3f43a4c14c72ba5e2d45458ed2851da97",
+      "size": 6956
+    },
+    {
+      "path": "baseline/backtrader/analyzers/total_value.py",
+      "sha256": "cea8594558e534550cbabea7182b23e1d813b5c54025eefb8968931ec185e8a4",
+      "size": 2121
+    },
+    {
+      "path": "baseline/backtrader/analyzers/tradeanalyzer.py",
+      "sha256": "38a16db1f77228c14f6af67d37b3acc53f3f07bcac979f3ea0f41ae92d7a1dbe",
+      "size": 10191
+    },
+    {
+      "path": "baseline/backtrader/analyzers/transactions.py",
+      "sha256": "18166888092fe56c248847e4d8842b9c3411c3ea9930c5d2534ebe304e0174fd",
+      "size": 4904
+    },
+    {
+      "path": "baseline/backtrader/analyzers/vwr.py",
+      "sha256": "63f8c8e1f15a0f9b3d33016488a501832da2bb84149ad213d105a5979c7a2405",
+      "size": 8091
+    },
+    {
+      "path": "baseline/backtrader/bokeh/__init__.py",
+      "sha256": "c12f81929e97a5c191c631f677cf1d32bcbf270eb1da4993c21606bd272e6d92",
+      "size": 4385
+    },
+    {
+      "path": "baseline/backtrader/bokeh/analyzers/__init__.py",
+      "sha256": "32256089787af5edc261cc307b1ea48dc82481f3ef73e8228bff733edd7d2fd3",
+      "size": 316
+    },
+    {
+      "path": "baseline/backtrader/bokeh/analyzers/plot.py",
+      "sha256": "21050f3076b70767d2d932a9f2012435549d4efab5ff638b1cb31b6dc47ec903",
+      "size": 5528
+    },
+    {
+      "path": "baseline/backtrader/bokeh/analyzers/recorder.py",
+      "sha256": "bd0c60ecc886e00ec236076cfe949bf41ffc28cf81949e9688f93f6d2ea7f9c5",
+      "size": 5960
+    },
+    {
+      "path": "baseline/backtrader/bokeh/app.py",
+      "sha256": "7e4fd37a93f037ba6b55d9cfcf2f768584bef44e9ff244060d61308b755d78ed",
+      "size": 34384
+    },
+    {
+      "path": "baseline/backtrader/bokeh/live/__init__.py",
+      "sha256": "fc4aba02260e0b7bbc2802cc70ccb56e341ba8122fa2b89a23db965c7ceea1fe",
+      "size": 259
+    },
+    {
+      "path": "baseline/backtrader/bokeh/live/client.py",
+      "sha256": "a5d4cebea08190da46a68ac4c7358349487ab20d611afe5207d0d7f7751b9c94",
+      "size": 10723
+    },
+    {
+      "path": "baseline/backtrader/bokeh/live/datahandler.py",
+      "sha256": "aadb9ab38c799c0cb50ae7c409dd414752a3d4fcf1e79194422b66275d5727c9",
+      "size": 11320
+    },
+    {
+      "path": "baseline/backtrader/bokeh/plot_adapter.py",
+      "sha256": "1275d9ce4b0bc83e665e9c5bb84c5697499552e110b86a23d009a739bd9de92c",
+      "size": 6879
+    },
+    {
+      "path": "baseline/backtrader/bokeh/schemes/__init__.py",
+      "sha256": "069d79d943fb542d6e09954767ea05dbdebd6e0f31f9be43ec292fb55a1e7a96",
+      "size": 280
+    },
+    {
+      "path": "baseline/backtrader/bokeh/schemes/blackly.py",
+      "sha256": "e37aa8805ee75dbcb95891ebc06c08b232e9fdc3240ef44121998ec3236e3609",
+      "size": 2609
+    },
+    {
+      "path": "baseline/backtrader/bokeh/schemes/scheme.py",
+      "sha256": "bee915a24c21753fc65f0bd1610af9638b5c11fd73b60f7d18782a773ebd7d2c",
+      "size": 6028
+    },
+    {
+      "path": "baseline/backtrader/bokeh/schemes/tradimo.py",
+      "sha256": "2445155e46ed563ed62645a27c40d6a6b1fa969f15e8fd968c5663bbbffeb661",
+      "size": 2741
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tab.py",
+      "sha256": "b02e97a732c48e9558bc9f13303af7cda4cbf59b95d8975347f8f6e144159b99",
+      "size": 3326
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/__init__.py",
+      "sha256": "94d8b89483831e08b36954b58fc93918cd1bd5d7479e23451bc4f2bfb240963d",
+      "size": 679
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/analyzer.py",
+      "sha256": "7132195dcf7269e1ddb698bf1ef7159fb98face568eb9922a7aeec9a66923a43",
+      "size": 3503
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/config.py",
+      "sha256": "6231e02aea42e3df1ac5c65be03247f97c88d8cfdefe9a7f5eca2519be7b72b9",
+      "size": 5102
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/live.py",
+      "sha256": "2c056f0d13dc16875246ab15603c653ceb01e30f900a063f7938ef75b20484e7",
+      "size": 3372
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/log.py",
+      "sha256": "7c8343aa728da53334f65b64a108908acb85ddc4c3006e22522097026ac5cbd8",
+      "size": 5028
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/metadata.py",
+      "sha256": "3697897b0884b6d847a1a60ad8c5acc625ceb72c10379272e5f44aa7a996a90d",
+      "size": 5957
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/performance.py",
+      "sha256": "a9a96196fcdb0476b081dd6df25efda4b3b7bb66a936f3e74d8399339c9b978f",
+      "size": 13652
+    },
+    {
+      "path": "baseline/backtrader/bokeh/tabs/source.py",
+      "sha256": "27c29a70bd6c93d8eb7291f0aa66725f47f98e6fab98cd4b489f1100a32fec04",
+      "size": 1645
+    },
+    {
+      "path": "baseline/backtrader/bokeh/utils/__init__.py",
+      "sha256": "18a3daeb5a9d9d6f5b90006c9b9c50879b01953360010c45a053fbee608c6559",
+      "size": 217
+    },
+    {
+      "path": "baseline/backtrader/bokeh/utils/helpers.py",
+      "sha256": "df29ec467cb524e89266c0112a0899d0ba1acec1ad476ba29e658276e1689531",
+      "size": 3862
+    },
+    {
+      "path": "baseline/backtrader/bokeh/webapp.py",
+      "sha256": "9376df87c0ccf7afea2a684f4c7ab41ac6f2b5072ed35ef607f0aee909cc0ce7",
+      "size": 4607
+    },
+    {
+      "path": "baseline/backtrader/broker.py",
+      "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab",
+      "size": 15149
+    },
+    {
+      "path": "baseline/backtrader/brokers/__init__.py",
+      "sha256": "a05e1ab6f5a6b3b7957f437fa8136afaf33fa0e762f331b262e16a6be470fa91",
+      "size": 1235
+    },
+    {
+      "path": "baseline/backtrader/brokers/bbroker.py",
+      "sha256": "5a0e5bcc93bf2e6f3d86507bd9c892d5908662f89c1f3bc8f60f37392c5d698d",
+      "size": 104144
+    },
+    {
+      "path": "baseline/backtrader/brokers/btapibroker.py",
+      "sha256": "538f7ddeb2d1c2ab52f43ec6ffe20981488f901b1b92bddc05f47d5cb75a159c",
+      "size": 386859
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/__init__.py",
+      "sha256": "79c1eab2c7a148fba7b4083fbb849565288630bf39001554ef54a288682fac8e",
+      "size": 2806
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/binance_bbo.py",
+      "sha256": "84fde12b4270c203a35daf3ff894cad2dfbf0ef795368f8da79995aedf82c4e7",
+      "size": 23908
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/binance_bbo_compare.py",
+      "sha256": "35454e545cd48127db81f12f0e7928dca12973ccfeda232f9cb549df6ce736b1",
+      "size": 52999
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/examples.py",
+      "sha256": "c5cccbc922b825c87ffd3001767eb8b9931b4b7518a473381338f202419fbc81",
+      "size": 49170
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/exchange.py",
+      "sha256": "bf66c460c8dc03a043b86077eeb0e678ee7c5975f0c7c38380d28d0988614ed9",
+      "size": 16017
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/latency.py",
+      "sha256": "b036af33f4cfad3626a5038e9133d548f01adab8e187bdbeb7ffa0123a52c109",
+      "size": 12287
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/matching_core.py",
+      "sha256": "ee26024bbbafb21e1c2e2ed1fbef1aec501f4d73cd0a973909cfb76f0182cd6d",
+      "size": 24483
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/queue.py",
+      "sha256": "2738203251bd8a27a488913034effec8940d42e2d5047cc34e2eee4932c36c25",
+      "size": 10775
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/recorder.py",
+      "sha256": "936b010257b6b6bd65a676351d414b2ca99fd9d886ce1600fa6fd4dbb934ed46",
+      "size": 3718
+    },
+    {
+      "path": "baseline/backtrader/brokers/hft/state.py",
+      "sha256": "88b88a1a5d4323466e580c2229d383f62c8a9d4430e9a1b44584e364e937f76e",
+      "size": 5392
+    },
+    {
+      "path": "baseline/backtrader/brokers/impact_models.py",
+      "sha256": "a569a6a24f3a69fcc8cd903497ef6b7be17c3a30da09a49cc0ae60966729df3b",
+      "size": 3825
+    },
+    {
+      "path": "baseline/backtrader/brokers/mixbroker.py",
+      "sha256": "1b3219866edbb7e0a74b699245a1f87b70fff5604bb7ab997e2974fed48a5222",
+      "size": 36440
+    },
+    {
+      "path": "baseline/backtrader/brokers/tickbroker.py",
+      "sha256": "06e38e271947384c91e5bdb2aeeb25307114652cb5991b823ee2cff37a37b62c",
+      "size": 88817
+    },
+    {
+      "path": "baseline/backtrader/btrun/__init__.py",
+      "sha256": "656fc6de93350c62e78595b84a0c01e6dcb58f24bf0982d7485c5365297d0e3a",
+      "size": 353
+    },
+    {
+      "path": "baseline/backtrader/btrun/btrun.py",
+      "sha256": "e9d6eee0dbe57aabf15379f2daf7207f122c6a631e7fdc205fbd9d80a8802d7d",
+      "size": 39387
+    },
+    {
+      "path": "baseline/backtrader/cerebro.py",
+      "sha256": "8175073447380b0e11f3713e0970c1aaa0f55626a973507e5fc50cad1bfc0f69",
+      "size": 34568
+    },
+    {
+      "path": "baseline/backtrader/channel.py",
+      "sha256": "a9a0ec61172f3a067e130bfa13dccd83033e5f3f19df33c8c41bec65afda5579",
+      "size": 23418
+    },
+    {
+      "path": "baseline/backtrader/channels/__init__.py",
+      "sha256": "b22b926ae93a2877d5f19fdff985763e5e2e93cc5788cc149ba041289a5cdc0c",
+      "size": 673
+    },
+    {
+      "path": "baseline/backtrader/channels/bridge.py",
+      "sha256": "5aa5e21ef797d77df15d788320892f16f6b4bc4f53baf566d735f53993417e32",
+      "size": 6086
+    },
+    {
+      "path": "baseline/backtrader/channels/funding.py",
+      "sha256": "69c94f150b51edbff48ab1f8f2968a84e08e489b0e4546e050b385593fa5c1be",
+      "size": 9363
+    },
+    {
+      "path": "baseline/backtrader/channels/live_queue.py",
+      "sha256": "58d247c96b500bb9dd796c034747253aa58bb8f33ca98aa478a8e0ab29780b6e",
+      "size": 6777
+    },
+    {
+      "path": "baseline/backtrader/channels/live_validator.py",
+      "sha256": "77512a3a27f7bc9374637ca9b53627ab01c0dd60944b417ed178653e23ab82a6",
+      "size": 10657
+    },
+    {
+      "path": "baseline/backtrader/channels/orderbook.py",
+      "sha256": "9fd10bfbe62f0f6a1f26f0d93544a7d25f30020d821e47de5b46f1a93c8df8f7",
+      "size": 9085
+    },
+    {
+      "path": "baseline/backtrader/channels/tick.py",
+      "sha256": "38106b408ed6002d316b8c2be64f77b1d2aa0f3d039f99039cdd820735074f38",
+      "size": 7156
+    },
+    {
+      "path": "baseline/backtrader/comminfo.py",
+      "sha256": "b29ed6f2ea3a3be0a9cfe8c89137888e3b0957fcaf0391522a6ff8634fce3f8e",
+      "size": 26822
+    },
+    {
+      "path": "baseline/backtrader/commissions/__init__.py",
+      "sha256": "cfad8d170c606c661946cda54023391bec98220fce04dd00150c0a1ed10a9a2a",
+      "size": 2997
+    },
+    {
+      "path": "baseline/backtrader/commissions/ctpoption.py",
+      "sha256": "547e76be319cab650a7a5e6b46d1e820d1970cdafb29ac7d93fd23f978348d96",
+      "size": 42615
+    },
+    {
+      "path": "baseline/backtrader/configs/account_config_example.yaml",
+      "sha256": "18062abe20a7745defdccc3fac27b530a6322aefe73b84b1f0eb5bd3daeaa324",
+      "size": 128
+    },
+    {
+      "path": "baseline/backtrader/dataseries.py",
+      "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967",
+      "size": 12227
+    },
+    {
+      "path": "baseline/backtrader/errors.py",
+      "sha256": "29a3aefde5af62bca5371713b60de74d8ba172e42d76b7db578471876fa455f3",
+      "size": 3670
+    },
+    {
+      "path": "baseline/backtrader/events.py",
+      "sha256": "fa7e1c9c152b66bc375fced3908fc7eb7ffa70b3606a331351c0bc02224ef4aa",
+      "size": 33624
+    },
+    {
+      "path": "baseline/backtrader/feed.py",
+      "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503",
+      "size": 57844
+    },
+    {
+      "path": "baseline/backtrader/feeds/__init__.py",
+      "sha256": "6297a3a372bf140f9ba0bf98f5a13564d95d2aba527c0cedd9982e50418c2619",
+      "size": 2903
+    },
+    {
+      "path": "baseline/backtrader/feeds/barrier.py",
+      "sha256": "6e4aecb2b6face5d541bb10f608f2800206cf068b24e630a672299526f53079e",
+      "size": 97372
+    },
+    {
+      "path": "baseline/backtrader/feeds/blaze.py",
+      "sha256": "aa5897916711cce1217003c30e3149f53e714555a3fff7b34d3a26168d258306",
+      "size": 3556
+    },
+    {
+      "path": "baseline/backtrader/feeds/btapifeed.py",
+      "sha256": "d34efe275b3eb8e53c09b09ebf7fee807bf672702ea8405c541aaedcbc2de803",
+      "size": 68216
+    },
+    {
+      "path": "baseline/backtrader/feeds/btcsv.py",
+      "sha256": "f87797a6b36c1d590d9a7da542cf9d8c99c14af04294366e42d3fcc33ce1e5e0",
+      "size": 6748
+    },
+    {
+      "path": "baseline/backtrader/feeds/chainer.py",
+      "sha256": "baba4e5aaa0fbd7d707983a359ac49ae4774577aaf05f337c92297e9c5eeecf8",
+      "size": 3604
+    },
+    {
+      "path": "baseline/backtrader/feeds/cryptohftdata.py",
+      "sha256": "6afc6cd4fa558442b8ef9aa0c9627bb8b0086735362facc2451e4875e01cacea",
+      "size": 6275
+    },
+    {
+      "path": "baseline/backtrader/feeds/csvgeneric.py",
+      "sha256": "6f0a63cdc89ccfe2f496203aa28cbdf10100e6fb2bdac1f3730156f53bf3017c",
+      "size": 48051
+    },
+    {
+      "path": "baseline/backtrader/feeds/ctpcohort.py",
+      "sha256": "096f5b25d8ed1e86130c93a8b761987b65924d402a2488f88d8e77a38bea8878",
+      "size": 46875
+    },
+    {
+      "path": "baseline/backtrader/feeds/influxfeed.py",
+      "sha256": "3025e469a1709be27a40e7d06e5b2c9f7a4d8c09a305994613cb6a9ea6a5a61e",
+      "size": 5078
+    },
+    {
+      "path": "baseline/backtrader/feeds/livefeed.py",
+      "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725",
+      "size": 2365
+    },
+    {
+      "path": "baseline/backtrader/feeds/mixed_channel.py",
+      "sha256": "6ac6386227c1933b4b70ac92f6af11453e23ff8dd39f05cc4e0a4e1d0bf06409",
+      "size": 3947
+    },
+    {
+      "path": "baseline/backtrader/feeds/mt4csv.py",
+      "sha256": "d8bffcf9639e077e03803599c02f7a3023ede6782d39579fa3d00b7ae949e9d5",
+      "size": 1085
+    },
+    {
+      "path": "baseline/backtrader/feeds/pandafeed.py",
+      "sha256": "0e735e70ac409d68e0d273f30ad337440d5f54e53749b5b8c56ecf78150f0fb9",
+      "size": 13793
+    },
+    {
+      "path": "baseline/backtrader/feeds/quandl.py",
+      "sha256": "633994bb9189efb7f7cdb664eaea50260a2b18978d1ea5797da3805c514c62df",
+      "size": 7294
+    },
+    {
+      "path": "baseline/backtrader/feeds/rollover.py",
+      "sha256": "b157286cf16348216abb7f1ac0fe3263ca7d459d292186eb435b80ee528fc6d9",
+      "size": 8342
+    },
+    {
+      "path": "baseline/backtrader/feeds/sierrachart.py",
+      "sha256": "f4c5117b3e8aefea488a2a84d4272c598278c37c3dde459630209cbc08356324",
+      "size": 835
+    },
+    {
+      "path": "baseline/backtrader/feeds/vchart.py",
+      "sha256": "a5794794aba6582a09a20e15341274489e0a69d7af7e4443f2cf703e816b2905",
+      "size": 4642
+    },
+    {
+      "path": "baseline/backtrader/feeds/vchartcsv.py",
+      "sha256": "26b69f496e5239c246df3e1b4bf0dde4aa34a00ea9e7a34079cf6aadc95ab0c8",
+      "size": 2346
+    },
+    {
+      "path": "baseline/backtrader/feeds/vchartfile.py",
+      "sha256": "1a5eaaea194f67efbefff67c99b27fdb011960eae1981dfbea28883dce385b28",
+      "size": 4718
+    },
+    {
+      "path": "baseline/backtrader/feeds/yahoo.py",
+      "sha256": "2be27b3ce3777004c6dca5e5b9841e8b929b8caf7d0a637413c740fde87b38c0",
+      "size": 12996
+    },
+    {
+      "path": "baseline/backtrader/fillers.py",
+      "sha256": "bd13c9644a8b9c6b3faf13ba02ac8af8325c3d728b90c036ecf5f68905d21c82",
+      "size": 5346
+    },
+    {
+      "path": "baseline/backtrader/filters/__init__.py",
+      "sha256": "8f1bc399ced3f6d34f926a51c85759ddbaf05db104d9fc8b00a36e16ef4b55aa",
+      "size": 1215
+    },
+    {
+      "path": "baseline/backtrader/filters/bsplitter.py",
+      "sha256": "23d736c1053e3ee0aaa439fbada4bf2fdcf6373f6c0abeb81538292e441a9d66",
+      "size": 4276
+    },
+    {
+      "path": "baseline/backtrader/filters/calendardays.py",
+      "sha256": "3724bce2d4c223e15e07e5c59977ab0bc7d7a8289ee2f45400503a5514d030a6",
+      "size": 3629
+    },
+    {
+      "path": "baseline/backtrader/filters/datafiller.py",
+      "sha256": "96498f8b6b76f705107b874e29afb8648856767d49ad5600a6fc5a47f176bf35",
+      "size": 6742
+    },
+    {
+      "path": "baseline/backtrader/filters/datafilter.py",
+      "sha256": "1e48b906d8c74a58c75b43bfc34ad2b2cc406cc042e710a291b1c141c36980d9",
+      "size": 2573
+    },
+    {
+      "path": "baseline/backtrader/filters/daysteps.py",
+      "sha256": "36255151d2b26797a1cae5d8f709faf95464c41f3658d5b5c7b08fab530bf313",
+      "size": 3344
+    },
+    {
+      "path": "baseline/backtrader/filters/heikinashi.py",
+      "sha256": "e8cae5986ea4a65e3059d5faa3080b29dac66f1e20b2e8c38910e41184a2320a",
+      "size": 2030
+    },
+    {
+      "path": "baseline/backtrader/filters/renko.py",
+      "sha256": "5a0803098163a665cde3bd5e0a21a59705151ca0ac2446a2c17ada2836a262cc",
+      "size": 5517
+    },
+    {
+      "path": "baseline/backtrader/filters/session.py",
+      "sha256": "9e3ff6cd42fa68d853221eaf064c1d6c0be3f605224da4258e475f7c0572c27a",
+      "size": 9978
+    },
+    {
+      "path": "baseline/backtrader/flt.py",
+      "sha256": "4830c0d889df14078e51b7cabfae40e19f16bb64f19832357a14b5601c8334b2",
+      "size": 2240
+    },
+    {
+      "path": "baseline/backtrader/functions.py",
+      "sha256": "b6fb22a8f33ddefd0d08cc919d561b94e4773553909c30d58e50ec2e2699ba8f",
+      "size": 33710
+    },
+    {
+      "path": "baseline/backtrader/indicator.py",
+      "sha256": "13f5b7660ede9f9095abcbe5e0ba1bce1e6bb218feda1d77d4155b0a888d6dbf",
+      "size": 18677
+    },
+    {
+      "path": "baseline/backtrader/indicators/__init__.py",
+      "sha256": "6cc7dd429630ca8ff6d1c7bd654b7adc3d3dc3dc3431f7fc99ca25f271dc3be3",
+      "size": 5023
+    },
+    {
+      "path": "baseline/backtrader/indicators/accdecoscillator.py",
+      "sha256": "e3c2fbfea29e82c9014d734b3229323430723480ea6eb778e6d97a23609476d9",
+      "size": 3284
+    },
+    {
+      "path": "baseline/backtrader/indicators/aroon.py",
+      "sha256": "a610a61135a6a394327ce937fd5953d234c7aec87ec9c5b61891d99b39525273",
+      "size": 9362
+    },
+    {
+      "path": "baseline/backtrader/indicators/atr.py",
+      "sha256": "1e95b0bef2d66ce687dbee71284a4c97f3c215efc4df54b59642b728804ca7a9",
+      "size": 10598
+    },
+    {
+      "path": "baseline/backtrader/indicators/awesomeoscillator.py",
+      "sha256": "f253e3508db9a27b460022af21b52e48cab6125b11885c0fd667dcd003a1d2e7",
+      "size": 3624
+    },
+    {
+      "path": "baseline/backtrader/indicators/basicops.py",
+      "sha256": "ee62cafd7e722d7d314c28c5ae89c0461de818bef7c9acf98204b3e1e008ce35",
+      "size": 26263
+    },
+    {
+      "path": "baseline/backtrader/indicators/bollinger.py",
+      "sha256": "09bf0d28f255ba410caf4ade465c8eebd571185f834c87912cb5c5c7a8d4b50d",
+      "size": 6820
+    },
+    {
+      "path": "baseline/backtrader/indicators/cci.py",
+      "sha256": "3f8886d4fa33506a3f506db2fc06f56461420f9a3474f2d2a2975c247303925a",
+      "size": 2854
+    },
+    {
+      "path": "baseline/backtrader/indicators/channels_ext.py",
+      "sha256": "8abf3a175ec1b488f5a77529cf560d10c6760f79a44a4796a56c16d4d7e71d81",
+      "size": 2915
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/__init__.py",
+      "sha256": "d6b6a7a9f6fa36c5f0c1c60dde31be34c0f1d6d80328fcdcfcf1196e53de8355",
+      "size": 6713
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/absolutely_no_lag_lwma.py",
+      "sha256": "c1aa81f90f0a2215568d23f27e851fec1a5098213675794d2a51abc0219780ad",
+      "size": 799
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/absolutely_no_lag_lwma_color.py",
+      "sha256": "d11bfe8bab76bc92b210dde3f8b9ab623c08a5646de05c6404caee5eee61d98c",
+      "size": 1594
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/accumulation_distribution_line.py",
+      "sha256": "90e86cb2819a1306d244ab64a256f5481265b445ab9e394071d7e537a3de907f",
+      "size": 2994
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/adx_cross_hull_style_indicator.py",
+      "sha256": "fc2904c54733f6821520e9b83cebdd0d5ef67fc9c8f3d4161f937062dcd745b2",
+      "size": 9878
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/adxdmi.py",
+      "sha256": "98f584f57773d739704eea66680c8dbd13c8683e3765a12035e4dcaad9c59004",
+      "size": 1055
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ai_acceleration_deceleration_oscillator.py",
+      "sha256": "10d3e00b38785295f4cbc5bcd698e3c73cdbe85ac1c705a188c9ebbba3165a24",
+      "size": 975
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/altr_trend_signal_v22.py",
+      "sha256": "e83c73d6eef64ca3bdf1416ccbb5555c34d781f1551abfed704b7e83aa84a88d",
+      "size": 2580
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/anchored_momentum_line.py",
+      "sha256": "299bc77bd9b5bf81cd1638e4f0f930073037f366b2c6fb41dad0c11dcc2fb1af",
+      "size": 3786
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/any_range_cld_tail_indicator.py",
+      "sha256": "bb4479e718403148215a01d8bf83facbb3f8711baa245fc2be62b58ac3ae4662",
+      "size": 3169
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/aroon_horn_sign_indicator.py",
+      "sha256": "92e5786be59f5fd157e361eaba6130e7ccafa1729812bdff96e8faa5784f0108",
+      "size": 3125
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/aroon_oscillator_sign_alert.py",
+      "sha256": "6c105352db17cc30c63b5a2ccba8ddb5dadd26a64b2111506131dce58c86e640",
+      "size": 1817
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/arrows_curves_indicator.py",
+      "sha256": "ee51bb671bae938469b305b37eb20a9554eea4a887cd8d04d688d3e806e4b29f",
+      "size": 3860
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/as_ctrend_indicator.py",
+      "sha256": "5a139626a01757421f895cb3806cf0db80fdef306ded3a5f61aad023e09a41df",
+      "size": 4851
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/asimmetric_stoch_nr_indicator.py",
+      "sha256": "c85b81e3ba342079543d24f3b928e03774cc9180fc2da1dc5fb5c660fff278f2",
+      "size": 7571
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/atr_normalize_histogram.py",
+      "sha256": "4ffa7e572a3bda026ca48def58e999142c054e160efdeb15574ef2f8c45b04cf",
+      "size": 4131
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/average_change_candle.py",
+      "sha256": "bc24b97c4773e40d690484c3b0fa9d36de734640ee5730cb93482aa35a1ff103",
+      "size": 5511
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bb_squeeze_indicator.py",
+      "sha256": "eb2c79e2fe25ceb4411cceacbba89e63dd587ec74f139d831b21284689df0058",
+      "size": 1916
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bezier_st_dev_indicator.py",
+      "sha256": "27c6cf3f5e4186e4347c038d5f177b20e6eb706e92a681b027d96b5832551ac6",
+      "size": 4035
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/binary_wave_indicator.py",
+      "sha256": "92538b697c1a9b52397757cc2779ef8d76ca7fe2e631c0ed8fe556f2c8aee2e4",
+      "size": 8355
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_c_momentum_indicator.py",
+      "sha256": "7c6d532bf691cd50183eab1bd9ae0e0361f7eeade70b567e34e8c8ef7157cdac",
+      "size": 3909
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_cmi_indicator.py",
+      "sha256": "ab3d48c6f82afa53df0e9f3ba161240bb299ea15bbe20daa7c05ec927ff3af35",
+      "size": 4639
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_csi.py",
+      "sha256": "d3c596e930231a31408dca2fb189bcfc7ac90bbbb34ed374b6119f8b72e77c26",
+      "size": 2532
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_ergodic.py",
+      "sha256": "f5ca912f87b3701571131f47bf52cc37c999fe7fb247616475f70db476648fb7",
+      "size": 1734
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_t_stoch_i.py",
+      "sha256": "a7ee16fa3f5105b0a39019a58fc981335e5a01534f66e13326bfddb29aebfa0e",
+      "size": 2378
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_ts_stochastic.py",
+      "sha256": "0df9d9fc25a12a532a235d580baad37a68bd250daa6256a6682be1078c0c6ec0",
+      "size": 2890
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/blau_tvi.py",
+      "sha256": "a0f233da518ddd2cd56e047c7136b9bd96b3aad655fa233ae9cac9c49170d9ee",
+      "size": 1957
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/brain_trend2_indicator.py",
+      "sha256": "31be418c56a617a72ac4c68ffc8aff784a87eb63ca0df00598092d63e84690c2",
+      "size": 4684
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/brain_trend_signal_proxy.py",
+      "sha256": "285fd30c33e5bb65be4d273dfade4a669569c59eb0e6c3702599343e80f5bdc7",
+      "size": 1560
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/brake_parb_indicator.py",
+      "sha256": "55d1e77b3e534338d69853872a04bd111bcbabf4fabe5779fe80d44ddfe58b24",
+      "size": 3384
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/breakout_bars_trend_v2.py",
+      "sha256": "e544b4d6f67dd40346c7c1cab9074e300cfa70b578316d42ce711999789283d0",
+      "size": 4359
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bsi_indicator.py",
+      "sha256": "98c2afad016f50f5f4b56bac515dc348519065dce281f51c82b50fb24e2fb728",
+      "size": 3296
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bulls_bears_eyes.py",
+      "sha256": "c3fc9790d8ed2d84811aee642c8f1f5b63229a2db058521a0ffbc8aa248171b7",
+      "size": 1930
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bulls_power.py",
+      "sha256": "967225d66a0458c04fca22ad9c0421aa405d9c61798348c08e64ab5866a41b4f",
+      "size": 1515
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bw_wise_man1_signal.py",
+      "sha256": "78ff30e49ad9d398c8af6fa6ffb8cfaef946f04ad1cdb03f7938fe0c8147a951",
+      "size": 3537
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/bykov_trend_indicator.py",
+      "sha256": "d90085f770cc0b624c7d031f2b19143ecb91e37d6a03003138877ec60c7fc770",
+      "size": 2614
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/candle_stop_color.py",
+      "sha256": "0f298216e5ce5e18053ba12fe777ecd4d54032c279ed584a0968095558515379",
+      "size": 1676
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/candles_x_smoothed_indicator.py",
+      "sha256": "bd817239ee33f2d57e5edb8f67d11825fcd12c63d587e7f37c64c3827a20f0e0",
+      "size": 2047
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/candlesticks_bw.py",
+      "sha256": "04be48ecb4cac65b342f6db26e22b6f623d4da941e80975af7fcc7287f7a272a",
+      "size": 1312
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/caudate_x_period_candle_color.py",
+      "sha256": "58af5910d0221e8fc44b951b4114f23478b002471460ea68548a09a7502f420d",
+      "size": 2132
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/cci_histogram_indicator.py",
+      "sha256": "9ab3a77b39f6a8ea9d70b8614cf14564b869b959111b371563812ee4e9d3d296",
+      "size": 1601
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/cci_woodies_indicator.py",
+      "sha256": "9f9e13843e39e7946dd9e98f567d60a4e1ced7bf4af83a0e9626369c1e0afd47",
+      "size": 2585
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/center_of_gravity_candle_indicator.py",
+      "sha256": "8e19f5a9fe78c496b7a532d23ef7e2e0d1954da6013b6bb8eae15bf1420a6581",
+      "size": 3022
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/center_of_gravity_indicator.py",
+      "sha256": "8ecb4e45f10d9ad8258ab10dd8528ec0077cdb74fb08589ff97bc52106ad898c",
+      "size": 2353
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/cg_oscillator.py",
+      "sha256": "d9f3f5e8eac86ae2d5760e50d39f4a550c611a0cc869b326a0751fefb6eee59f",
+      "size": 1385
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/close_line_cci.py",
+      "sha256": "84d98418a474a026c5b86e7649bc008fd31a0c1914e53aba1c0dec7abe5ac86c",
+      "size": 987
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/close_price_fractals.py",
+      "sha256": "b5cd62ae09a1c85b626232990a350aad7da4ae118a9010ecb15bb7b9cafeb671",
+      "size": 1603
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color3rd_gen_xma_indicator.py",
+      "sha256": "6d569b4f0e7ad81fca9e3a2d982863c942384bfbe4374d54dc81e8e2d8084503",
+      "size": 4239
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_bb_candles_indicator.py",
+      "sha256": "c21fdd99c3c778da4b4d4c7d0fdac329783e3c37db00e6e3b6b255a828c5c04a",
+      "size": 3560
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_coppock_indicator.py",
+      "sha256": "ce3d74d1d04761d75308749c80ef6409c0f88a812291bfa715f0930eb1515f86",
+      "size": 4905
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_hma.py",
+      "sha256": "1d1fdf88603a842d99ce22a325945cf30e3bce4adf46a46300342987cf4451cc",
+      "size": 2415
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_j_variation_indicator.py",
+      "sha256": "af57f2e3b15d6f85fe85f45bdbd8e9ad16ba7874710414415058c9175a19dc51",
+      "size": 1604
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_metro_de_marker_indicator.py",
+      "sha256": "8d58ce9250c198805f043e12068dfd86ff75eea8f7875ae93126c3db57fd14ba",
+      "size": 2712
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_metro_stochastic_indicator.py",
+      "sha256": "c72513e6f498ba47afd00f2688d95ec41129b455d77d2af24d17247efae52eb5",
+      "size": 3140
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_metro_wpr_indicator.py",
+      "sha256": "6dc821bc5d3cc6a7360cd27b62b30bbd2a0386129efc3ac8eece6822e517c015",
+      "size": 2891
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_schaff_de_marker_trend_cycle.py",
+      "sha256": "dbd0ba3ef47ee1682ae182da8bc7bd5dbf0a03bc975951450e98ec42659c2ec0",
+      "size": 3376
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_schaff_trend_cycle_indicator.py",
+      "sha256": "505ca65ba9683f6d0fd14a12b23826a36457ec876a06df648a38b189f280c983",
+      "size": 7215
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_step_xccx_indicator.py",
+      "sha256": "61445bc3bfcad67cbeb2d428a33ace3c4d990c50118af5866e4b168a19ed23db",
+      "size": 6607
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_x2_ma.py",
+      "sha256": "b94da0559a4cd97ee8018152e1c1791a5c6461e437498bdf51aaa75fb8b02d6d",
+      "size": 1371
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_x_derivative.py",
+      "sha256": "e9883d7cebfaffe6aca7cfe96f62763270eb8bbecb98c1f41430863ebc3bc96d",
+      "size": 2198
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/color_zerolag_de_marker.py",
+      "sha256": "c08d1973aa03bae06d7bcf01b191761aa7066a5bf5779f968f2e956e2dc6d8f3",
+      "size": 3058
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/corrected_average_indicator.py",
+      "sha256": "6fb4ea22758d3fa10670f4d125cd6b146e0cc8596fc5355ebb85299855ab62c4",
+      "size": 4257
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/darvas_boxes_system.py",
+      "sha256": "e542bb66a01c7e167e82a910f4901a4f4c25ff2c29059fb78685dca9b302e98e",
+      "size": 2470
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/dema_range_channel_color.py",
+      "sha256": "fe68887eed2ab9777ac0036b5bab58cd1e0bada923dd2d613cd8859b8103b732",
+      "size": 1465
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/derivative_indicator.py",
+      "sha256": "f188c50f14e8c57ff658dbcad42beae94bcfcba8a55d169f09e4f0e390bae733",
+      "size": 2768
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/digital_ft01_indicator.py",
+      "sha256": "bfac7134be9807e8c723abe56f209a69f489cb25c22f37a82956751dca783d7f",
+      "size": 3700
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/digital_macd.py",
+      "sha256": "78429c318164871f5b6f5fa76dc295dd1f1702b8d8fadcb128ea0170b495460a",
+      "size": 5361
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/donchian_channels_system.py",
+      "sha256": "c8a84e3e1861174e924cdf58e235bca2c30f1133ebcd4f061446e523b968b371",
+      "size": 1517
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/dots_indicator.py",
+      "sha256": "2bf661266c444e738191c5d5101b7cb69d0096acd68e33ed0ca298cd30043f31",
+      "size": 3093
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ef_distance_indicator.py",
+      "sha256": "12142c7dbdfef02b31a917f6a8b5e9cdf96a52f3e9d52156a4d86c1cc65a30ca",
+      "size": 3008
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ema_rsi_va.py",
+      "sha256": "e6bf2571537a8d336042caec4c75f7f7a8e697433605c58be1659561f8aef594",
+      "size": 2748
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/envelopes_jp_alonso.py",
+      "sha256": "4e49ed5b8f1d79474aa01330b66746e24f1209b3480b9059f353a2e1e0aeabd7",
+      "size": 946
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/f2a_ao_indicator.py",
+      "sha256": "17d1b8197c10f3fcd9902e9424b34f5abb2443f9b64b469796ee3fecb546b212",
+      "size": 4934
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fatl_filter.py",
+      "sha256": "8124d41b3d89203a0889718ccd2768b15f1bf0eeae0db384d2aa276a2d9ac674",
+      "size": 6215
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fibo_candles_indicator.py",
+      "sha256": "3b26a7a0e66e2052e0d0d86583529ed28aecfb2faac23d1b5a0662416d6958ba",
+      "size": 2424
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fine_tuning_ma.py",
+      "sha256": "2def5807afba48d8c736dc8dd231c3b1eb6cc6a4677eae4444eb37f244964b52",
+      "size": 3504
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fisher_org_v1.py",
+      "sha256": "3bdca70ac34cf6c99f76eae50e0108cf9c5d38d7d78c13cf9ff962c57aded441",
+      "size": 2968
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fisher_org_v1_sign.py",
+      "sha256": "47d63d67d6158f6dd2ae0b2a74a9eb1544e346f3289f25e54b003335e6318d47",
+      "size": 3739
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/force_index_ema.py",
+      "sha256": "c35e3018e385ac3810b851f27af740bf027de3a45ebcf968727d744c95393219",
+      "size": 3365
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/force_index_ema_2.py",
+      "sha256": "0995eb4b2b2904a1f81cc5f482ddd5ea043759f17882269d4d0295d02dc0f856",
+      "size": 773
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/forecast_oscilator.py",
+      "sha256": "924cbeee8789776e1896b41ab3f0c3fab80a0e3ad92385bc37ce00922655f27e",
+      "size": 5332
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/fractal_amambk.py",
+      "sha256": "e1a94a8721fa4a9532507f4d5a97963ac982513068d6c140afcadd75f4b1aabb",
+      "size": 2722
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/frama_series.py",
+      "sha256": "83c3e0c4f9d9042aa7659e64becf0986ef23dd6ecdde49d5dac889909d479ccc",
+      "size": 2988
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/frasm_av2_indicator.py",
+      "sha256": "783e6f709d238bc8a2aeea164ed2e32330a9c25f0bc946614707dcd8e3703a77",
+      "size": 3450
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/go_indicator.py",
+      "sha256": "dde05ef06d978910916f52d940f2def6eb53905c6dff28f409b3ac27e956914b",
+      "size": 2885
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/hlr_indicator.py",
+      "sha256": "0f45e041a560f9f4ae0c21d9141d6cd28070908f14050719cc321e0341113ccd",
+      "size": 3384
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/hma.py",
+      "sha256": "3fc2a39d6231508f5db058eeba436600f53ec2b61ac176fff7ee45b94b083d2d",
+      "size": 1602
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i4_drfv2.py",
+      "sha256": "d7aa3bdad4f93403867bf5a24c6ec0d110fc0e9b7be7401b3027552930ff9492",
+      "size": 1047
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i4_drfv3.py",
+      "sha256": "528bb684bb90a084d5952149ed0d90a5354a7a1a76f691640cc30c7b562f543d",
+      "size": 1238
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i_anch_mom_indicator.py",
+      "sha256": "0560782181444eaf258b530f78d09c79a7c5d26eae941c4c438d852c7e837a25",
+      "size": 2562
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i_de_marker_sign_indicator.py",
+      "sha256": "7585a53ee5db530a03dffb469a3fead5922e28ea8bf60ce3b8984f666596fdf9",
+      "size": 2309
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i_gap_indicator.py",
+      "sha256": "5614e9b3ee6d7e3c55a1283aba756c5818e7692409fde004104bf2c4454edead",
+      "size": 1590
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i_stoch_komposter_indicator.py",
+      "sha256": "ebbfa236a34a3908033fcab72c554b15f843dc5c2c1ff2f8164589efa99016bd",
+      "size": 2654
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/i_trend_indicator.py",
+      "sha256": "c3aa5affcbb74fac05c6ecfeb8a1e6da4e5425b3917576626519f449551464b4",
+      "size": 4440
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/iamma_indicator.py",
+      "sha256": "b76adb4a2963f336137dbb73b499598f262a653cca78833a3849219ca40ea8bc",
+      "size": 1177
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/indexed_moving_average.py",
+      "sha256": "b0a5c13258a5cb838fcfedebebf11fe4630751c02f8e7553171dfc67eb643b63",
+      "size": 1007
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/instantaneous_trend_filter_indicator.py",
+      "sha256": "11d3935e04be790c1763e1e03d521ab0c57600017999e96c6f6188f518eb90a2",
+      "size": 1619
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/inverse_reaction_indicator.py",
+      "sha256": "8fdc48b1e442edd00d8ce9f33040ceb7d76f717c5cd022961a3c7d27195565bf",
+      "size": 1435
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/irsi_sign_indicator.py",
+      "sha256": "561bad5cd67c74ce49a6f87c1ed97febc4c3a9a567121a76c777d26ae7f8b151",
+      "size": 3114
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/iwpr_sign_indicator.py",
+      "sha256": "19d9435b47ff280b0eed2ce7eb229a52230dbdbf34dd4b24e7235c98dfb556eb",
+      "size": 1990
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/j_brain_trend1_sig_indicator.py",
+      "sha256": "ef923b2f34a02086b2f6b42b896bbe339da4a222349b79a3bbad1218febd666e",
+      "size": 7988
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/j_tpo_proxy.py",
+      "sha256": "85b8cf257fcb854c0913628bf2386e8ccd977db920c3f861d83f14b8bde303bc",
+      "size": 937
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/jma_slope_indicator.py",
+      "sha256": "00235c534526bb4c738789f0be3ac79693d4612e6cd42d991f7a719d1b109bd4",
+      "size": 2572
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kalman_filter_indicator.py",
+      "sha256": "a7898252ca7569f10de6c5b560a5db5d535698b6351cffe2b201895341433ca1",
+      "size": 3656
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kalman_filter_line.py",
+      "sha256": "2d10c805129a13015f2e83abf510b69dda54825439bc7d8442fa6b4389be303b",
+      "size": 4328
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kama_indicator.py",
+      "sha256": "651f56cabb3fbcdf1528d6f8641e7421d376bb747e353570ccbe7d63467ea7c6",
+      "size": 5419
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/karacatica_indicator.py",
+      "sha256": "3daf6e21c5848521d3c8746cb5d5b4249f268341c026350d1748d71328b46351",
+      "size": 3654
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kdj_indicator.py",
+      "sha256": "caf10965853b22358080456880f9bd2990e683037e3eda6e133606ef4b909f12",
+      "size": 2015
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kwan_ccc_indicator.py",
+      "sha256": "e2eaf19ba53b1b4682f69308c2636aeb1e0f77b5b03635096c9e26861f539a1a",
+      "size": 6795
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kwan_nrp_indicator.py",
+      "sha256": "d64a647ccd6136f92ff721fa3a3d5a6c6eec4672e0f404468084f30abd4a81fa",
+      "size": 3220
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/kwan_rdp_indicator.py",
+      "sha256": "26ee661021d2d22fc9760864446b39b5ec620112c75984d8d000c2eb0d46aa43",
+      "size": 6838
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/laguerre_adx_indicator.py",
+      "sha256": "83bd41ad02317b91204edf9d54cc482522a35f1fe5cdfde314ca3a71f640ca20",
+      "size": 2779
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/laguerre_filter_indicator.py",
+      "sha256": "b289e7cd977ee7f79aac211b97e884959fa9dc1f4d32ef83f6441bac325f8b51",
+      "size": 2068
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/laguerre_plus_di_proxy.py",
+      "sha256": "9d00ef9506102d6a8ec381c466b352f8cf2c8255fab4416fa856ea4de2ac86ee",
+      "size": 2047
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/laguerre_roc_indicator.py",
+      "sha256": "ccaa9512a2bc4f053e6a3325cad4c991566da5cc5e986b91c7da22ea4d710c40",
+      "size": 2642
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/le_man_signal_indicator.py",
+      "sha256": "59fbd30b1f000959ed5f4ea6ffd58c98aadd299c0f79de754ad2157334a0a202",
+      "size": 2440
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/linear_reg_slope_v2_indicator.py",
+      "sha256": "2dfe2b3e3e1e9ba87b54399e1f42a6bd71bd4302f1d37e07fd63ab2c3336a317",
+      "size": 4990
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/loco_indicator.py",
+      "sha256": "a6fab6100e4c687893ee4383ce39ffff13571d5af5461e358310f1cbdc25da27",
+      "size": 3087
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/lrma_indicator.py",
+      "sha256": "6d7d0bf69f0c8113269adcdaed974d103a24d15abc569b73867c7a9eb11fbfae",
+      "size": 6485
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/lsma_angle_indicator.py",
+      "sha256": "1dad5d536f3dd558e43ab57ed3b16e44cb37bae423cf661b0157b5fd78271675",
+      "size": 3863
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ma_rounding_channel_indicator.py",
+      "sha256": "91eac9d123d9943fe92bf248a55d7bd7c2607e139f470d59f62d3fe7fd02f692",
+      "size": 5242
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/macd2_indicator.py",
+      "sha256": "c416bedf81f9172dc22c067775dfc630b730603f660f055f891708db5abeb9c5",
+      "size": 1840
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/macd_candle_indicator.py",
+      "sha256": "7899f6a4e2a2c975e18ae10eccbf8f164b1c8b7574902fcf464074f49e6334a7",
+      "size": 2677
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/malr_indicator.py",
+      "sha256": "b37f52a745c03a4ede8736f80f1341ed066c604e9415ad3c2d817a8326ed0dd3",
+      "size": 2671
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/momentum_candle_sign_indicator.py",
+      "sha256": "310900aa8b27ee1b98885ae0250c544a3111dce66e397f44a230e9a3a0c3041f",
+      "size": 1954
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/moving_average_fn_indicator.py",
+      "sha256": "f45dedddbf17c4e2e4692be503aec01c03f4474d4cede7920f0713773d8633ff",
+      "size": 4969
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/mt5_stochastic_close_close.py",
+      "sha256": "89ab77e295d15a410983ec3f377ae3aff23f2375d9579debc359b575e79a9b6c",
+      "size": 1912
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/muv_nor_diff_cloud_indicator.py",
+      "sha256": "b8dff7c64f0f0e84537bea9254b2bc21bf2691c14cd446cc788af7db0fda1044",
+      "size": 4226
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/non_lag_dot_indicator.py",
+      "sha256": "bfaba9dddd6e1cc634ac5175018c12d9ed40f841eb9413c3daa016c44e682a7b",
+      "size": 3687
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/nrtr_extr_indicator.py",
+      "sha256": "57e0ece981e3dc461309bf9eab8af30b7de9c1ec16e0ab7fb80325c16f8f4b46",
+      "size": 3211
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/nrtr_indicator.py",
+      "sha256": "9d4c0a765cac52659c4bd1f76b348d51025d65db8827f9f4db30dddb3c40031d",
+      "size": 3156
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/p_channel_system.py",
+      "sha256": "1f9cc789c9bcd5506316b03475c6f547ae71a445192130eadf0ab1d41e9ee045",
+      "size": 1313
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/percent_envelope.py",
+      "sha256": "aac535165d3b7915dfad5e6fb76d6f1b18b66dbd64201e9740da3fa0b6bf394b",
+      "size": 1030
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/percentage_crossover_channel.py",
+      "sha256": "5ce4396c34c3ddd54de9ce15576cdecc309af5ca428f499cb4619a892425805d",
+      "size": 1676
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/pivot_zig_zag_proxy.py",
+      "sha256": "5bf1a81ed9ab094e94f7954fdaa0963a466056cddf483ddf8dc97d9a89bff9e3",
+      "size": 1879
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/price_channel_stop_indicator.py",
+      "sha256": "22175c0621b829466390aeb79bffca60ea10d6b602c7060d38c4b0401d80df3b",
+      "size": 3286
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/price_extreme_channel.py",
+      "sha256": "580922d68b19db1217007c09619d3f7411fa7777e9851b01c28600a87f09f848",
+      "size": 998
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/qqe_cloud_indicator.py",
+      "sha256": "c23ffdced77f40f787fd375e27ce4f1cd74d3d4717ad4ba5093bd9f8385f0385",
+      "size": 4268
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ravi_indicator.py",
+      "sha256": "a7376f58a19dbba118fcc60e8ec8796e322e6b9aa51137f161b2281c5348abb4",
+      "size": 1225
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/raw_close_close_stochastic.py",
+      "sha256": "e831b74d3b161f5adedfd32be0ff9e82247965a72c9f746f91d2f2a7acd73118",
+      "size": 2517
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rd_trend_trigger_indicator.py",
+      "sha256": "67e380d60ad95fce1a4b2adaf40ade5481a02bcf8271ffabaa8472917bde1072",
+      "size": 1990
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/renko_level.py",
+      "sha256": "832f0af855cf7a552d2f54042b193a8d1791d97b8fcac4e028d3a1b3bb3c384a",
+      "size": 2924
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/renko_line_break.py",
+      "sha256": "af257772e46e63b6cb8a55efd0e39457b6a1193bd8f2a890995cdb8d9d2a0512",
+      "size": 2881
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rftl_indicator.py",
+      "sha256": "607649efd30c3954ab132058cd3d91e283f033999be28bcc40384aeb4bcd90e0",
+      "size": 1026
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rkd_indicator.py",
+      "sha256": "ba02e0eae61224bf5a1a4fb2fb88da74ee2e4371f5bda85afba8b42541cea4bf",
+      "size": 1620
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/roc2_vg_indicator.py",
+      "sha256": "b210d65906f231587500eda4fc6c90cc5df4a24d7c9d62fb8461838b301bb644",
+      "size": 2042
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rsi_histogram_indicator.py",
+      "sha256": "bdc3582a711df50a21cbbac248a5024f7c2c1c93abf947baa0b7020b5b447d75",
+      "size": 1231
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rsi_slowdown.py",
+      "sha256": "f3adbd692b9b7a2c2a05d686354af543f297c8e9b17ec448dbf0122831e0ab57",
+      "size": 1917
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rsioma_v2.py",
+      "sha256": "4f803101e794853c04aa64f3df4c10fe944036d8bfb9d49562afe84b2f38f03c",
+      "size": 1316
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/rvi_histogram_indicator.py",
+      "sha256": "ee46bdd35d719a3f60287071f95ac3ed22ef4e3cec17ff86f41ecde93bfb6336",
+      "size": 3497
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/safe_adx.py",
+      "sha256": "eaf6c8a6154e3cb1102aae3423b8f7e9250ac8d059a89b0c3cd23676b8e6111b",
+      "size": 3154
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/shared_strategy_indicators.py",
+      "sha256": "c0803a58b8ba5eb01f1acf8d18ad1ce1216879db188417ff0f27f4a90c8f2da4",
+      "size": 60618
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/sidus_indicator.py",
+      "sha256": "e7de23625a8351409410b1f5d0b4122a76d228a3d6032899b6730a1b17e33e67",
+      "size": 3772
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/silver_trend_indicator.py",
+      "sha256": "796aff7dd0aa82c9c669f9ead5ee291fd6e575c5366b0442e705fb60f5557e7d",
+      "size": 2503
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/sliding_range_color.py",
+      "sha256": "689762af1088e895f1a6f8752f267cb53bb8e15c3d9a6785aca574c9c6f25917",
+      "size": 2050
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/slow_stoch.py",
+      "sha256": "2109e9737671969bdec129137cdfdadf596206fbc87e25393253416fbfdd3329",
+      "size": 1212
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/smoothed_adx_indicator.py",
+      "sha256": "b1d8d1de5f37149207ad2c59b5880cfa9b6d46fe2608fdea5c31fed6a8f27132",
+      "size": 2828
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/smoothed_rsi.py",
+      "sha256": "b70eb91dc2ef3e0c13e1b23a61b203496b16260af424a23675136e563c0e4c30",
+      "size": 780
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/spearman_rank_correlation_histogram.py",
+      "sha256": "68de8c99605b622e52d73c34e91b8af778b9ad1574d42dd13735bd2fbabc56de",
+      "size": 1983
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/stalin_indicator.py",
+      "sha256": "7791361b5c95a4d48f146164efd234310823e9c97b9acb8ad025df5d6dc733c7",
+      "size": 5499
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/starter_laguerre_filter.py",
+      "sha256": "243c6ea46f9997b7696c184d082735f99b0b6e28c5b05aa15d01c90bbcb4978e",
+      "size": 2076
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/step_manrtr_indicator.py",
+      "sha256": "910b587f26cf7517fdc9caa3960fdcdb437f1e51916491bc7f22a0e4cbfc898c",
+      "size": 4354
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/stochastic_histogram_indicator.py",
+      "sha256": "0b5e143be5673374e800b5682d63cf03d1868155b996d41d3af25316a6ef9d70",
+      "size": 6005
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/t3_alarm_indicator.py",
+      "sha256": "03d29e9b7e67a39b786bc6af458fbf74232d11e66c5f0e753934e44baa86ed4b",
+      "size": 4530
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/t3_average.py",
+      "sha256": "c428f45f01cebf3d7ff1448d7c01985d9b96517df30c1d14c0a5e6f09ab62dc3",
+      "size": 2541
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/t3_indicator.py",
+      "sha256": "15eef49e3d6b63d1e221e722339b45bb5c4cdb008ea48f870f5edfdeb3db7dcb",
+      "size": 1157
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/the20s_v020_signal.py",
+      "sha256": "0c50e19db8f0ec0cc9b9d8e40fb4f2ef532a56d2a691f4077903af400bed7c81",
+      "size": 3548
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/three_candles_indicator.py",
+      "sha256": "318d6009673ed1bc808d0567e39a1b53562ab6bc03489f7e1acce98741a40038",
+      "size": 2583
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/three_line_break_indicator.py",
+      "sha256": "921d454ce32c8cef9fddaeb7d3e216958cde1dcbb79179327b55032c25cf4e72",
+      "size": 2240
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/time_line.py",
+      "sha256": "80fce88c34569cd7f247e5a048241bcde8ab53edcbd4c54a5dbf852d18ebed15",
+      "size": 2044
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trading_channel_index_proxy.py",
+      "sha256": "206f4f6d0578831b6f500b8879f3a00d83cd7c2fd625e4822fe86612950de459",
+      "size": 1534
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trend_arrows_indicator.py",
+      "sha256": "7d9ed5dc6b76857f407711ca0aab5cd946ffd49b687a205f35b6444162647b0c",
+      "size": 3673
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trend_continuation_indicator.py",
+      "sha256": "cdc044a88a74b7a2c9eb0cb07ce4a8d808881334d36bb1975ccecb7040956910",
+      "size": 4233
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trend_intensity_index_proxy.py",
+      "sha256": "7fdbc562a17f8108f1cf05c744bd7a3d16e5e58a00294e3df599223c2ab529a9",
+      "size": 1697
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trend_manager_indicator.py",
+      "sha256": "66882005480063222406797f957af0bc4a08e80a3f969ea164c794d314a34fa8",
+      "size": 1213
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/tri_x_candle_indicator.py",
+      "sha256": "036196e81299d71a6b5a3a00ed05b9a74eb01f8098673fa984cd7ccfb4440a6a",
+      "size": 1608
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trigger_line.py",
+      "sha256": "80e499be1767e1868a261fb14b8f0a78225260943bbd1943ac1aa74c24f874b5",
+      "size": 2268
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/triple_ema_rate.py",
+      "sha256": "5b4fdd083624b665aca5f04a255cde4723e9dd2be4560a8ee1ce70b5684ee2ad",
+      "size": 1041
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/trvi_indicator.py",
+      "sha256": "2486be2f2f5556211bac43e9f493c0e1335b1bcdb3613af9ce767433b0306c64",
+      "size": 5990
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/two_pb_ideal_xosma_indicator.py",
+      "sha256": "1c434264abaeaca92b8ef2968c2cac03a2b4edea717f4fd9c87f365856499126",
+      "size": 4699
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ultra_absolutely_no_lag_lwma_color.py",
+      "sha256": "28a79c72aa8e738e73ae8d63141205da95a8ffbd3d37a6dbcc5b60dd3a51bc4e",
+      "size": 3185
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/ultra_wpr_indicator.py",
+      "sha256": "22da18d78647c808c04786d73aef0260e5be6fa0358bd555618bdfd5d7085a47",
+      "size": 6357
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/up_down_candle_strength.py",
+      "sha256": "8855cad16f46974e64cf47dfd5d180e7df8d16f180ea23063a9df41089769b0f",
+      "size": 2270
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/vinin_i_trend_indicator.py",
+      "sha256": "67b3358221af49f16999c80ec1298c6cdd50af0ca612d59b4de7038a78be3c41",
+      "size": 4619
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/volume_weighted_ma_indicator.py",
+      "sha256": "60e90b26190e6be781d992258fa999c1c6bd1e37d0116c7fc677ad1083f630db",
+      "size": 2347
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/volume_weighted_ma_st_dev_indicator.py",
+      "sha256": "a00d6ac0f60ac16750ffe404191ecd7c47d918cec4669ad12b1caaa3e17826b3",
+      "size": 3647
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/vwap_close_indicator.py",
+      "sha256": "5d9ff227a926bca36806fff0f45eede3caf50e102c8ab278191d6d11a5abb3a3",
+      "size": 1882
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/vwma_candle.py",
+      "sha256": "9dc678b3d31578a3cbf79abfc1b75d27c3fefa7c82674a2fe2752fc0b32872ac",
+      "size": 1742
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/vwma_digit_system.py",
+      "sha256": "f979dd6954673d03498043130fe73708d6ecc1f6aa33e58bce033bc8ac1d30ed",
+      "size": 2365
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/wami.py",
+      "sha256": "486d26071ff49e7b76cfed4b54f5e6c6234d95bd344cf854860794e63f7149e4",
+      "size": 1375
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/wprsi_signal_indicator.py",
+      "sha256": "e676d238331718b5478c69f8f80faad6a7d444cd269e42af76b856ab516cd3df",
+      "size": 3589
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/x_de_marker_histogram_vol_direct_indicator.py",
+      "sha256": "63c23dd95f40d50be05fc17b5a2908b4b742fd5bf3b78c98599fbf27b76e76fa",
+      "size": 5393
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/x_fisher_indicator.py",
+      "sha256": "4c8e520c03a5a02c699b5a64824b890e7f2b8f4908770b5d74655d3314b4b2f4",
+      "size": 2046
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xcci_histogram_vol_direct_indicator.py",
+      "sha256": "7bd3b86d701a7dbc46f27c97c411aacad58148e12418593f5515c68633e7222d",
+      "size": 2035
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xcci_histogram_vol_indicator.py",
+      "sha256": "68b3cf3d15549ad6fb44ea83e20a97f93436dd899b59bbe473caa95fdd7ef8df",
+      "size": 3051
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xma_ichimoku.py",
+      "sha256": "87d301df7506c459309fd1d868c62c679c83c00c0cf4522b58a8d1871401d75b",
+      "size": 5244
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xma_ishimoku_channel_indicator.py",
+      "sha256": "a3fcd4951170fdef0e20cc3db76d970d913ab8cc908f6172f817fc86716462b3",
+      "size": 1952
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xma_ishimoku_line.py",
+      "sha256": "7911ffe2715c46d8eeaa3debfc6cd60bb810df5cd9cb1f060c12705dd17cb3ae",
+      "size": 2043
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xma_range_bands_indicator.py",
+      "sha256": "e9d5dcafd1fda00b0e755325e9a847cb54fc8b9ce3882d0dd8b52eff84c87fec",
+      "size": 3759
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xmacd_indicator.py",
+      "sha256": "26cfa693d5cfc005693e13699f2fc6171875e5ea2850b02f63760810896ea0d3",
+      "size": 2475
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xrsi_de_marker_histogram.py",
+      "sha256": "85daed3965fc51dbc602f082e84b40de7e10e7b91ff2e7eb0342607753ca9d70",
+      "size": 2207
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xrsi_histogram_vol_direct_indicator.py",
+      "sha256": "cc3b65252e4a34136aa1d5dc0ce5740de5f53eb1e85ad4dc7bd69a9d2dabdd93",
+      "size": 1916
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xrsi_histogram_vol_indicator.py",
+      "sha256": "a6ec4c29923f364ba11a8ba07bae36a68aa06aafa5624e4b2b0df1f140af3e6e",
+      "size": 2966
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/xrvi_indicator.py",
+      "sha256": "10b8b00026359a227c627acc31ca701a9f76e2b44e6b5cb078d02d31eb5548af",
+      "size": 5108
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/zero_lag_macd.py",
+      "sha256": "ba82bc43d5084de7874e661f0b102f4ff503c9c33475c5bad4222d2208d4fc6a",
+      "size": 1171
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/zig_zag_recent_pivot_signal.py",
+      "sha256": "58e54a10d5d06d84e7f91a9e637e20a76b2e8d39ef90173892870282c7e9ae42",
+      "size": 3427
+    },
+    {
+      "path": "baseline/backtrader/indicators/contrib/zpf_indicator.py",
+      "sha256": "df86b8b6444eb02bb82a88dcdc20f96c7b64dd16dd791a406b38c7ce71b41f5b",
+      "size": 4011
+    },
+    {
+      "path": "baseline/backtrader/indicators/crossover.py",
+      "sha256": "f302ea1f80c5d38dc733f6b3d3d5b3be2bdb434d9b424dd0caae1fdd9c75ee49",
+      "size": 13640
+    },
+    {
+      "path": "baseline/backtrader/indicators/dema.py",
+      "sha256": "1e9fed3d33d27f6c651a45b7f2702a99d1748add81839d059efe807991ccdd12",
+      "size": 5767
+    },
+    {
+      "path": "baseline/backtrader/indicators/demarker.py",
+      "sha256": "8304755bb34bafbabafd4a286aee5d4de34994d50aa0f37503269f599909e19c",
+      "size": 10536
+    },
+    {
+      "path": "baseline/backtrader/indicators/deviation.py",
+      "sha256": "09cf00f27115800f6ac44fc4a40568aea77720428d45c1daf99a41e3acc0d8be",
+      "size": 9362
+    },
+    {
+      "path": "baseline/backtrader/indicators/directionalmove.py",
+      "sha256": "c3c32adbb0d966d2e74909dbcbf93b3efd2a60e39d7ce0ebcbde562af97bd54f",
+      "size": 38372
+    },
+    {
+      "path": "baseline/backtrader/indicators/dma.py",
+      "sha256": "700b2af0ec1187656760653e9f52b5e640186dc19551c913e1684f75c953cf74",
+      "size": 3576
+    },
+    {
+      "path": "baseline/backtrader/indicators/dpo.py",
+      "sha256": "9a8ccb9b65a2d4321147dd87e2ca7d64b451807df814a97322089f5b48d2373e",
+      "size": 2911
+    },
+    {
+      "path": "baseline/backtrader/indicators/dv2.py",
+      "sha256": "bd60f80849590ceac4d463a4735bf6844cfaf1d4e91f3f0a23dbda70b80fdf1a",
+      "size": 1450
+    },
+    {
+      "path": "baseline/backtrader/indicators/ema.py",
+      "sha256": "239fc1664849552f8d9aff6b4a64b6191af67dab67019830f38f9edd6ea77602",
+      "size": 4669
+    },
+    {
+      "path": "baseline/backtrader/indicators/envelope.py",
+      "sha256": "9a8395ea0dd768b8f4e181963cf254f6fa7e4fb342af90d39028b6ea95141fbd",
+      "size": 14987
+    },
+    {
+      "path": "baseline/backtrader/indicators/hadelta.py",
+      "sha256": "8e7a71e76fae1e6b4333c1dc74740b036796dad5027d51da76dd8a9d9d420dbd",
+      "size": 6335
+    },
+    {
+      "path": "baseline/backtrader/indicators/heikinashi.py",
+      "sha256": "5b7bc328e583a1484dd90173e63e300d688b8a1916cb2b46ab9265b8ca53a2a5",
+      "size": 5133
+    },
+    {
+      "path": "baseline/backtrader/indicators/hma.py",
+      "sha256": "45db5342184ad0bdca365d2c1ab3eb4aa79bc5904a353d8e4897342639c6294f",
+      "size": 5326
+    },
+    {
+      "path": "baseline/backtrader/indicators/hurst.py",
+      "sha256": "706aeea3345ae0cb72af880f05bc8bf824705abf837c2fd7c812f7570c032303",
+      "size": 5420
+    },
+    {
+      "path": "baseline/backtrader/indicators/ichimoku.py",
+      "sha256": "66e4a87045910f3f01abfa5e62929ea86c70f1eb4079d8174a52759a828dff4e",
+      "size": 10501
+    },
+    {
+      "path": "baseline/backtrader/indicators/kama.py",
+      "sha256": "1c69fa29545ce47fcb441bad56a1e3034148b01decaf63c923ac95cac0bb0a03",
+      "size": 6037
+    },
+    {
+      "path": "baseline/backtrader/indicators/kst.py",
+      "sha256": "461d49782ee7a60847dd7e5cbf6ab4625bf742a4ae86c6742d2800e2d8f62ede",
+      "size": 5518
+    },
+    {
+      "path": "baseline/backtrader/indicators/lrsi.py",
+      "sha256": "24e262f4dfcd8212df55770a87658fdc631446671d5cd82d2ec5cba426801907",
+      "size": 3762
+    },
+    {
+      "path": "baseline/backtrader/indicators/mabase.py",
+      "sha256": "d12e5cf40f492c94873b08cb3ccb1f9d451da9674ca7dcdfc8b5b7fc145b0d64",
+      "size": 5482
+    },
+    {
+      "path": "baseline/backtrader/indicators/macd.py",
+      "sha256": "c114a4d1a591389334b7a6d9091ba3f800b7f0df7a2679b319f921763b4ba997",
+      "size": 10862
+    },
+    {
+      "path": "baseline/backtrader/indicators/momentum.py",
+      "sha256": "b61a2f7821c6d8fd61ee1700f40d6969c01420202b558040cb0c197bd0105553",
+      "size": 7664
+    },
+    {
+      "path": "baseline/backtrader/indicators/moneyflow.py",
+      "sha256": "46cf8f3d5593485323e898ebb4e81ddf461421baa6a35b350ab63d86d2c51dca",
+      "size": 9139
+    },
+    {
+      "path": "baseline/backtrader/indicators/mt5atr.py",
+      "sha256": "1637bc6b43a6e90724a9b46901de227609e173fbb5c39014c35002e422d456b5",
+      "size": 4457
+    },
+    {
+      "path": "baseline/backtrader/indicators/myind.py",
+      "sha256": "1e1f956ebb149d96882bf78ebb14e8662138506543d2c6e1f89bd4fd743c47bc",
+      "size": 5955
+    },
+    {
+      "path": "baseline/backtrader/indicators/obv.py",
+      "sha256": "dbff67fdb719ab6119cd68fdf7ffe27de8eda5fb3e567b95740a45c4ebb2e8e3",
+      "size": 2733
+    },
+    {
+      "path": "baseline/backtrader/indicators/ols.py",
+      "sha256": "0032254b1f976c72703f2c15b1b2285fc4ae7807cdc3b5b232281deaea5d3a36",
+      "size": 8812
+    },
+    {
+      "path": "baseline/backtrader/indicators/oscillator.py",
+      "sha256": "ee4a0f1726ee9ba51194a158b787500712172148ecc7003c5f45f26e4cabbfa7",
+      "size": 5229
+    },
+    {
+      "path": "baseline/backtrader/indicators/percentchange.py",
+      "sha256": "4df63a7795ac7c63b6115c2558d47bd3be32f21c57bfdb3e86d6daeb4bf14d56",
+      "size": 2451
+    },
+    {
+      "path": "baseline/backtrader/indicators/percentrank.py",
+      "sha256": "6dbd1881c55a974aa3e19c035b2ad1aa7ce173ae48e974693b349ce4106135c2",
+      "size": 1218
+    },
+    {
+      "path": "baseline/backtrader/indicators/pivotpoint.py",
+      "sha256": "cb7bb9c42072dc2334da022d862b4dce9f716f32a4d5f9c6c63e83533bb35670",
+      "size": 15807
+    },
+    {
+      "path": "baseline/backtrader/indicators/prettygoodoscillator.py",
+      "sha256": "1da9c95afedf21052cd2ef12c365dbe26c7ae789c2206cbdf52d63640e7dd559",
+      "size": 3663
+    },
+    {
+      "path": "baseline/backtrader/indicators/priceops_ext.py",
+      "sha256": "d2cdc8758dbecb7d0150de90fc5a28a87964adb45c846d199a479eda6f760713",
+      "size": 4014
+    },
+    {
+      "path": "baseline/backtrader/indicators/priceoscillator.py",
+      "sha256": "2ede6059492c0e95a492914834366bfb94e7bc4f205de12cfa85f2629396186c",
+      "size": 8238
+    },
+    {
+      "path": "baseline/backtrader/indicators/psar.py",
+      "sha256": "583f28c61414605307d4e147126b38bfda1b503b6d4686df9fec365e4ff8dc77",
+      "size": 7420
+    },
+    {
+      "path": "baseline/backtrader/indicators/rmi.py",
+      "sha256": "17534e06438a9fd97cc69573f29db694e10c528644a71c212538ee2056598771",
+      "size": 2213
+    },
+    {
+      "path": "baseline/backtrader/indicators/rsi.py",
+      "sha256": "212cac9db6cf4e00b63fe5e30756f6431218f052400003d834fd851a883c9cd0",
+      "size": 12715
+    },
+    {
+      "path": "baseline/backtrader/indicators/sma.py",
+      "sha256": "e37cd2dd5baef41f2d8f4ec84e8742828a54d1ec5dff63051f55e6e56e3f4ec9",
+      "size": 4999
+    },
+    {
+      "path": "baseline/backtrader/indicators/smma.py",
+      "sha256": "63f3a627d843716be4170caa9d530cfeeed7b05aa36875b38404755493aad589",
+      "size": 3789
+    },
+    {
+      "path": "baseline/backtrader/indicators/spread.py",
+      "sha256": "cadc970888ff6c7bb1bc262b2b6976dc07d02ea6e9ed7bb5a917284960b96201",
+      "size": 1927
+    },
+    {
+      "path": "baseline/backtrader/indicators/stochastic.py",
+      "sha256": "a15f94d38922bb6092ad17194e2b34d66cdde02b6f4f493346999b612af22aff",
+      "size": 7936
+    },
+    {
+      "path": "baseline/backtrader/indicators/supertrend.py",
+      "sha256": "0455ef14e35ff8cbfe852c2791051e9b6137d04b4a9c82d03a7a9a61cc56f143",
+      "size": 17621
+    },
+    {
+      "path": "baseline/backtrader/indicators/trend_ext.py",
+      "sha256": "5c864f0b917345f0968665c48890cd57653f551ee674709659f54fe9592b3c21",
+      "size": 3890
+    },
+    {
+      "path": "baseline/backtrader/indicators/trix.py",
+      "sha256": "6836341b4c2c029a4ed8870bc9677d5eb2b78f35b68f06afd8b80b60a6223d14",
+      "size": 6542
+    },
+    {
+      "path": "baseline/backtrader/indicators/tsi.py",
+      "sha256": "2cacf1f5888bc4e0b34083c9a6bb43a886df25e56fcc12e083471d3d3efdd5c0",
+      "size": 5024
+    },
+    {
+      "path": "baseline/backtrader/indicators/ultimateoscillator.py",
+      "sha256": "3c1a6a3f8668ce17da95f0ae0c541073e7d4bcf48de1dda5962a06640fc54911",
+      "size": 5370
+    },
+    {
+      "path": "baseline/backtrader/indicators/vortex.py",
+      "sha256": "f4e737573bb7ea562690b4d394246e21d05c547800072d56a901fdeb4f1bdc43",
+      "size": 1788
+    },
+    {
+      "path": "baseline/backtrader/indicators/williams.py",
+      "sha256": "1be41cab900c2d295df730401b5b527788f68588e92c82ff957933804f8c4923",
+      "size": 6195
+    },
+    {
+      "path": "baseline/backtrader/indicators/wma.py",
+      "sha256": "3063bf4cecc14d163a191118eec8d4e990e405b042e98b3d7e0d6abc34e4ea7d",
+      "size": 3409
+    },
+    {
+      "path": "baseline/backtrader/indicators/zlema.py",
+      "sha256": "53b5c95d168fd24a8be38804981c819e0d7c0a665c6167358353514b876b6cf7",
+      "size": 4321
+    },
+    {
+      "path": "baseline/backtrader/indicators/zlind.py",
+      "sha256": "88775a62997e8f6331e23674e0bace32572eab971ebc0643be8528803ee1b507",
+      "size": 3364
+    },
+    {
+      "path": "baseline/backtrader/linebuffer.py",
+      "sha256": "9f15cba935326ec5323f35ce7401f01f3d4f348e029fb0c1ffb3548d1a7ae87a",
+      "size": 129363
+    },
+    {
+      "path": "baseline/backtrader/lineiterator.py",
+      "sha256": "6d458609f7463955a935b24edfbc76509f586922db1e9e34713cb0f1435662a9",
+      "size": 117069
+    },
+    {
+      "path": "baseline/backtrader/lineroot.py",
+      "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64",
+      "size": 43995
+    },
+    {
+      "path": "baseline/backtrader/lineseries.py",
+      "sha256": "822c6ea78f9b545b2b03bb4022c458ac10f5c47652c5aef5cdc8242954c05d9a",
+      "size": 96178
+    },
+    {
+      "path": "baseline/backtrader/live_trading/__init__.py",
+      "sha256": "f92021cb9a58dde19499a2af322771ad756051aff0f16b2958bd56a7535d46cb",
+      "size": 530
+    },
+    {
+      "path": "baseline/backtrader/live_trading/interface.py",
+      "sha256": "a8fdaa36ecf9d5f4ff8886e8089fc1fc94c7f241927017c95d8a66ea9d2f7ba5",
+      "size": 13490
+    },
+    {
+      "path": "baseline/backtrader/mathsupport.py",
+      "sha256": "5b2429d194c89281e14d936d3eb9226bf531de12da24975b34ddbe8173674f13",
+      "size": 3213
+    },
+    {
+      "path": "baseline/backtrader/metabase.py",
+      "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847",
+      "size": 77687
+    },
+    {
+      "path": "baseline/backtrader/mixins/__init__.py",
+      "sha256": "e42a45ded9880ab6216ab4e04669ef52e95b4304dcdd41e7dd58180dfc940433",
+      "size": 500
+    },
+    {
+      "path": "baseline/backtrader/mixins/singleton.py",
+      "sha256": "95ce18fa14da90296585457fb16ebafeda577847a89781adf6f0bd4ef4c4d741",
+      "size": 3956
+    },
+    {
+      "path": "baseline/backtrader/notifications/__init__.py",
+      "sha256": "38d33774784113b0f85169ba0826d87cf06a503c2b1d825f743cb112f597b622",
+      "size": 6349
+    },
+    {
+      "path": "baseline/backtrader/notifications/adapters.py",
+      "sha256": "d9327aa9aa52ad1e16ef06a183e3431dd3a05d94a0f2e5ee277bb6f58af3c5f0",
+      "size": 16202
+    },
+    {
+      "path": "baseline/backtrader/notifications/channels.py",
+      "sha256": "84fca1067ce3e7dcb9b51494d15ab5a934180c2087e1c2657122f47b145f7a71",
+      "size": 32651
+    },
+    {
+      "path": "baseline/backtrader/notifications/config.py",
+      "sha256": "e9989ab11ee86bc028f947594feeb37daed73492af69f6656d02abfc7b8368fd",
+      "size": 22142
+    },
+    {
+      "path": "baseline/backtrader/notifications/core.py",
+      "sha256": "0984a19ad3e76882aed12d0e514e55ba800853fe8227040df0e7634074daf174",
+      "size": 31276
+    },
+    {
+      "path": "baseline/backtrader/notifications/security.py",
+      "sha256": "f3e46d037a09293f4d5500de1f4eec26e9b2bee3f7f4a6d61dd52224612d53a5",
+      "size": 2444
+    },
+    {
+      "path": "baseline/backtrader/notifications/session.py",
+      "sha256": "6cc85824c3e85a69da2a7407c48f0c06e1255ce5ef5e4648e9ed2b92fda10406",
+      "size": 26881
+    },
+    {
+      "path": "baseline/backtrader/notifications/signatures.py",
+      "sha256": "0858d28ee6ee0bf7b9b9e8a8b21cf7c99c0427c5f084f52ad387a1b9c02e3d2a",
+      "size": 3173
+    },
+    {
+      "path": "baseline/backtrader/notifications/transport.py",
+      "sha256": "cce0fb6a9ff68be2b5555271f60e40761a83f95cf0e443ddd4719827d9784dd9",
+      "size": 10572
+    },
+    {
+      "path": "baseline/backtrader/observer.py",
+      "sha256": "bf7697b94ab1f787b6dc48eb0e86afe36d8b66500e5bec75d18acf30276e3fbd",
+      "size": 3779
+    },
+    {
+      "path": "baseline/backtrader/observers/__init__.py",
+      "sha256": "0a0c3d0b68f69205192a2b670aa9a1ffb8a1aa0cbaa5a24847e24500805113cd",
+      "size": 1521
+    },
+    {
+      "path": "baseline/backtrader/observers/benchmark.py",
+      "sha256": "063aa60523d3db42effbfaebe20ef75396bc5c7337090237974bea1c0bc7321f",
+      "size": 4254
+    },
+    {
+      "path": "baseline/backtrader/observers/broker.py",
+      "sha256": "1d7302688b583406e8e997af12d49f99aafaa6536b0cfbd4f71330043a898f90",
+      "size": 4713
+    },
+    {
+      "path": "baseline/backtrader/observers/buysell.py",
+      "sha256": "8c1a21c64207a29e20dc4de21b9883a6d0f880f3a2ce7c6bcc7082260bd622ed",
+      "size": 4701
+    },
+    {
+      "path": "baseline/backtrader/observers/drawdown.py",
+      "sha256": "c4d023e86133ef5a8447488ed525a34ce2f0cbe2cc969415aa2539fae8e940da",
+      "size": 4222
+    },
+    {
+      "path": "baseline/backtrader/observers/logreturns.py",
+      "sha256": "ff7fcc7c1054d89dbf436f597ff7c62caf500c09c4d4cc79a75b01b4d3016f20",
+      "size": 3348
+    },
+    {
+      "path": "baseline/backtrader/observers/timereturn.py",
+      "sha256": "b6d60ea35675554ff0f35cbb91414a3fe93c079436833b9ad0775e5e802a38a7",
+      "size": 2779
+    },
+    {
+      "path": "baseline/backtrader/observers/trade_logger.py",
+      "sha256": "47e410240a0f5c4270ac2751dca4e8cd4d524f32124093bc5082b0b0b47a2ca7",
+      "size": 122669
+    },
+    {
+      "path": "baseline/backtrader/observers/tradelogger.py",
+      "sha256": "b4b37f17397cc3b87ec7cb731dc4765c4c667fda0a7ed57c55bd204c94efa0a8",
+      "size": 165
+    },
+    {
+      "path": "baseline/backtrader/observers/trades.py",
+      "sha256": "a1ea396d1d6335748f3dae0bcf5ea655d448cdb715c2d4bbf26bf359ef8d186d",
+      "size": 7536
+    },
+    {
+      "path": "baseline/backtrader/order.py",
+      "sha256": "8114920ae483779f17fb731c941c7a4fbd8a5d17e317e0b67566be9dea6b39d6",
+      "size": 39183
+    },
+    {
+      "path": "baseline/backtrader/parameters.py",
+      "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618",
+      "size": 89810
+    },
+    {
+      "path": "baseline/backtrader/plot/__init__.py",
+      "sha256": "66d26341a4d727adfcda106136b6d67d5fa8ee283d6ed5bcae953a00cab44750",
+      "size": 1590
+    },
+    {
+      "path": "baseline/backtrader/plot/finance.py",
+      "sha256": "87ce9500004a9150e7e0954ef0ca4e99b81cf00273d086543bfb5a3da7bc98c4",
+      "size": 35730
+    },
+    {
+      "path": "baseline/backtrader/plot/formatters.py",
+      "sha256": "81b8f167c2f4cec05d5724d1dd485256a3eccb2620b6bc6bab1029d81f48c235",
+      "size": 6921
+    },
+    {
+      "path": "baseline/backtrader/plot/locator.py",
+      "sha256": "20a515ec539416eaf0b655ff3f246ae97118ac0d35602ddf824f9c88750a034f",
+      "size": 12469
+    },
+    {
+      "path": "baseline/backtrader/plot/multicursor.py",
+      "sha256": "b652e6d950bd1e351fc18b2eda7830e49d7f2fd9017ce1f354007624351efa9a",
+      "size": 18844
+    },
+    {
+      "path": "baseline/backtrader/plot/plot.py",
+      "sha256": "e347f77664d7f624da79f2205e26a84eefb5269299e113fb24034d52937d70ae",
+      "size": 102311
+    },
+    {
+      "path": "baseline/backtrader/plot/plot_plotly.py",
+      "sha256": "76b43b3c891f08a12f423a90ef3ac4ace901c6b5af5c9bf5d9f9a619022e3865",
+      "size": 47813
+    },
+    {
+      "path": "baseline/backtrader/plot/scheme.py",
+      "sha256": "f7288d57e64a5a61d291846ac5a869d2ea5168c719e53ffb9c752a13ffac51c5",
+      "size": 9283
+    },
+    {
+      "path": "baseline/backtrader/plot/utils.py",
+      "sha256": "2b0d901ca2082f3e56227b102808f0869cec64e0d07e4bb679799cde2c7504b3",
+      "size": 2819
+    },
+    {
+      "path": "baseline/backtrader/position.py",
+      "sha256": "4dfd6228942f7e74d02c8376ec540b732bc6fa789857f626c0240b69838f8e9d",
+      "size": 11873
+    },
+    {
+      "path": "baseline/backtrader/position_modes.py",
+      "sha256": "39dc286282a1a210399847211700a8a5d69f0a5e8fc2dcbfab7cc33b771db844",
+      "size": 4567
+    },
+    {
+      "path": "baseline/backtrader/profiles.py",
+      "sha256": "0cd9ee5bd0b89892380a0be24ff30bdfb9e04242e4caad93d0b26101437a1921",
+      "size": 11153
+    },
+    {
+      "path": "baseline/backtrader/reports/__init__.py",
+      "sha256": "e4629f13210b5ebdd0416dabe0ef9110517dbf4fd69fa6543fe39fa5c70a2582",
+      "size": 1066
+    },
+    {
+      "path": "baseline/backtrader/reports/charts.py",
+      "sha256": "de21693283f773c090c297efd337313bb0590e69ed978a637f3a694e6e999318",
+      "size": 12004
+    },
+    {
+      "path": "baseline/backtrader/reports/performance.py",
+      "sha256": "c404a19ebc1c50ed579d7f17c7c38956c72a345ec27ee1755dafe8af0aff9969",
+      "size": 22973
+    },
+    {
+      "path": "baseline/backtrader/reports/reporter.py",
+      "sha256": "e83b26b1e78f308c319a064b1ef59f15ec07b9582d8b4a56d2c46fedd28ce0aa",
+      "size": 22812
+    },
+    {
+      "path": "baseline/backtrader/resamplerfilter.py",
+      "sha256": "63eecf77764bd873354b6a273f670b66af3cb195b7f9560efe7d44b156370fa8",
+      "size": 38733
+    },
+    {
+      "path": "baseline/backtrader/runtime/__init__.py",
+      "sha256": "7d1f092e7237043b255bf0a53e613c300a6b95d7b1cd84588c0af0e223353050",
+      "size": 258
+    },
+    {
+      "path": "baseline/backtrader/runtime/__main__.py",
+      "sha256": "9082c7592e58572bd749f8cd928b42f20fe3cbbde7aafef1e40dd90adcf6cd36",
+      "size": 150
+    },
+    {
+      "path": "baseline/backtrader/runtime/cli.py",
+      "sha256": "dcff694e1f522e83c2633788f289fdb5bdc40a2bdc0f3f18a376489429764436",
+      "size": 121
+    },
+    {
+      "path": "baseline/backtrader/runtime/config.py",
+      "sha256": "ad5c5d636b0b6af5178ffa5a2a40ca66d21e11d9a24228b035dceb9192ff9abb",
+      "size": 127
+    },
+    {
+      "path": "baseline/backtrader/runtime/errors.py",
+      "sha256": "71e576fc649b425cb9bed612eb52e43751e97f6d813b58be9c23383a5903d28a",
+      "size": 336
+    },
+    {
+      "path": "baseline/backtrader/runtime/policy.py",
+      "sha256": "de04951edad075df060d943fabae7014b19cff3598d96d7cc03a5fa9e03e0657",
+      "size": 127
+    },
+    {
+      "path": "baseline/backtrader/runtime/registry.py",
+      "sha256": "deee9e7ae1a71505a592aee92631c5ad201aa412f13586242de9d47394e5bd13",
+      "size": 131
+    },
+    {
+      "path": "baseline/backtrader/signal.py",
+      "sha256": "7b408efb53cb6f4300afda5fabf9b42d2ec4a48b2540e7c97fe9474ca5581f57",
+      "size": 3674
+    },
+    {
+      "path": "baseline/backtrader/signals/__init__.py",
+      "sha256": "7e12d90e47849a4c641f0de8fa7c9ff77d845cb0ebd3fe8a9de01de0460ba231",
+      "size": 617
+    },
+    {
+      "path": "baseline/backtrader/sizer.py",
+      "sha256": "c35e4a5ea11be849b0e8257a97e750b46b24e45f4a7c65f69fb70c9f58fc0cf8",
+      "size": 4074
+    },
+    {
+      "path": "baseline/backtrader/sizers/__init__.py",
+      "sha256": "cc18fc41cf4e365ca3b63fdf4d27a34aa3f711cd7d23182a3b0200ec154df0a1",
+      "size": 1010
+    },
+    {
+      "path": "baseline/backtrader/sizers/allocation_sizer.py",
+      "sha256": "7a3e93eced08f9ddc374d994c41ba417d3e6f7276745a890f15204f3311c1cd9",
+      "size": 3256
+    },
+    {
+      "path": "baseline/backtrader/sizers/fixedsize.py",
+      "sha256": "5b362bb8854147e3bb05579cf65a91ce7d439341586459542fc2f4d0ebbc36f4",
+      "size": 5658
+    },
+    {
+      "path": "baseline/backtrader/sizers/percents_sizer.py",
+      "sha256": "45556578da4707c71b4fde5b56c426e90dfd54808e7bd3306c8225309b0659eb",
+      "size": 3816
+    },
+    {
+      "path": "baseline/backtrader/store.py",
+      "sha256": "4e26537ba8909aa321e65c000eb3453a451db8ea17a608b95a5e338fd06c09cd",
+      "size": 7989
+    },
+    {
+      "path": "baseline/backtrader/stores/__init__.py",
+      "sha256": "076bb64ae832e189b28b313e0028e24005d507dd6b46d0336fe3295af579b246",
+      "size": 1275
+    },
+    {
+      "path": "baseline/backtrader/stores/btapistore.py",
+      "sha256": "53cd937a7202990df883fa071c210d31573f11df83937c05880abb3cbc50e90b",
+      "size": 796537
+    },
+    {
+      "path": "baseline/backtrader/stores/ctp_account_actor_port.py",
+      "sha256": "efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846",
+      "size": 26006
+    },
+    {
+      "path": "baseline/backtrader/stores/ctp_i9_managed_dispatch.py",
+      "sha256": "454c039e85b7559b7f37291bc7eb77f7e7a845cadf48faa9262cb7042636c6ad",
+      "size": 43222
+    },
+    {
+      "path": "baseline/backtrader/stores/ctp_i9_parent_request_builder.py",
+      "sha256": "4ef2264441adb020e92ad1eef3a52e58d870c66b406bd2dd795d737a6f0711e8",
+      "size": 38539
+    },
+    {
+      "path": "baseline/backtrader/stores/ctp_managed_projection_bridge.py",
+      "sha256": "bb1c81335505b8f59edaedced6424a4bdd7671bdeb59ba9f34c16ffc56feebd4",
+      "size": 16764
+    },
+    {
+      "path": "baseline/backtrader/stores/livestore.py",
+      "sha256": "86884ae44f4dcf2fb92a9c004d21253ee9e21662ad37936120b45c98d278fa25",
+      "size": 4625
+    },
+    {
+      "path": "baseline/backtrader/stores/managed_execution.py",
+      "sha256": "1c31f89412e8e1177eb2e27389c62b50e074361ef808098846c06704f18440c5",
+      "size": 36603
+    },
+    {
+      "path": "baseline/backtrader/stores/vchartfile.py",
+      "sha256": "03361da43b98566015b35f2c15030011f74b67fab3c135d52956e99a30100e52",
+      "size": 2687
+    },
+    {
+      "path": "baseline/backtrader/strategy.py",
+      "sha256": "c68dfd717ea62e56b74a56a8a7c1ec2a553b03002bd5b87a3a756f6a4998e5ca",
+      "size": 150874
+    },
+    {
+      "path": "baseline/backtrader/talib.py",
+      "sha256": "5ad886cf43a362b79ece013e9e9717c3b8f095a402802849c88c97ce9b969ea9",
+      "size": 11658
+    },
+    {
+      "path": "baseline/backtrader/test_helpers.py",
+      "sha256": "f0351378c509b628a87daf880c943095d053e11a147264ab9f45c3355a5dc95d",
+      "size": 3387
+    },
+    {
+      "path": "baseline/backtrader/timer.py",
+      "sha256": "258eeae71a1f32d733a482791d7113ca6155a665f03e29918782c2525cc80607",
+      "size": 16517
+    },
+    {
+      "path": "baseline/backtrader/trade.py",
+      "sha256": "f6da2947c90e980a3ae12047bc06e25b182b453c3f4e32db5d64648db8381437",
+      "size": 17719
+    },
+    {
+      "path": "baseline/backtrader/tradingcal.py",
+      "sha256": "21949101dbf30291e7b73aff65c450823f81c600d12db592a805916007d61afa",
+      "size": 14257
+    },
+    {
+      "path": "baseline/backtrader/utils/__init__.py",
+      "sha256": "9a842999364bd670979592a56e34470ab8a56e030dc4ce7913eabc120a8b4b5c",
+      "size": 2326
+    },
+    {
+      "path": "baseline/backtrader/utils/autodict.py",
+      "sha256": "895861968a404c11f651c786dbf89d1c8e0e778a2156882f9cea471e70086a32",
+      "size": 8097
+    },
+    {
+      "path": "baseline/backtrader/utils/date.py",
+      "sha256": "a2af56b29ea29ec3eea2e94add76c78d5b1dd602e5174296fd81c8c40a550466",
+      "size": 1865
+    },
+    {
+      "path": "baseline/backtrader/utils/dateintern.py",
+      "sha256": "352e3ba37c8511f7f1cce4fbdd3d59ad512143b3fdf4930805ece0b82dde9bae",
+      "size": 16042
+    },
+    {
+      "path": "baseline/backtrader/utils/flushfile.py",
+      "sha256": "44a03624b9b28be300057071c3e63e7a8cfcab2ade15015da9a72bbabdc70210",
+      "size": 3149
+    },
+    {
+      "path": "baseline/backtrader/utils/fractal.py",
+      "sha256": "74ec0e11c1f37aea1f2f78bf5e5feeb2e1792613b65f59c933d7852dc8de89b7",
+      "size": 3439
+    },
+    {
+      "path": "baseline/backtrader/utils/get_metrics.py",
+      "sha256": "d823dc65cbb634deb1076f9f0da999fa7198b6b6f9e1111a33ce57070b5b1dc5",
+      "size": 3843
+    },
+    {
+      "path": "baseline/backtrader/utils/load_data.py",
+      "sha256": "9ed669d21dc59d2320a1be4f8d9f31577c64a32aaece8e09d6b0958ec4755f9d",
+      "size": 6824
+    },
+    {
+      "path": "baseline/backtrader/utils/log_message.py",
+      "sha256": "e526f8a6c8013b955ab099441b5747530c179f7bc57af982d56b609e512fbcb3",
+      "size": 42019
+    },
+    {
+      "path": "baseline/backtrader/utils/ordereddefaultdict.py",
+      "sha256": "b4212fa022d6c23d2b80f67b17710925680a41358a7aa4c9ba41b7d7eb4898eb",
+      "size": 3027
+    },
+    {
+      "path": "baseline/backtrader/utils/py3.py",
+      "sha256": "191884dfbd24a023acd491bdee691f23713abe879ae3db876d0fee0767b19a2f",
+      "size": 8569
+    },
+    {
+      "path": "baseline/backtrader/version.py",
+      "sha256": "baf442fe69cad9e0900527ac4a1f0fbad8131cb2ab96fb1dbf6e8d9f130b206c",
+      "size": 577
+    },
+    {
+      "path": "baseline/backtrader/writer.py",
+      "sha256": "70d069c7d4aa0fd9a0d84076b6606ed5fe0be2a655f3827a47f111e550934efe",
+      "size": 13427
+    },
+    {
+      "path": "baseline/tests/__init__.py",
+      "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+      "size": 30
+    },
+    {
+      "path": "baseline/tests/fixtures/__init__.py",
+      "sha256": "60303949eb432537ed90cc8a317585cbe7d3f6ded4523ef7971b4d0dad8e7366",
+      "size": 53
+    },
+    {
+      "path": "baseline/tests/fixtures/cross_exchange_rules/p2_6_public_rule_snapshot.json",
+      "sha256": "06b44e5724edfe869231f320befc132ceba6ebe77466dca56b5f95bf61cc5ceb",
+      "size": 2048
+    },
+    {
+      "path": "baseline/tests/fixtures/fake_btapi.py",
+      "sha256": "6599b7ff7ddbb50d6d238c5bac5752a4af9fe2ff842ce692a8259d3df21a016a",
+      "size": 7837
+    },
+    {
+      "path": "baseline/tests/fixtures/iter27_mf_t1/case_manifest.json",
+      "sha256": "ac7740c1e0adf9c473138f184f624ea3fcadc90b66ddebb17de6284a897dbc2c",
+      "size": 8671
+    },
+    {
+      "path": "baseline/tests/fixtures/iter27_mf_t1/frozen_oracle.py",
+      "sha256": "857df23419b05cde1f783d5b373b656d29bd8dd47b7f829fd1dc6604f2d3594b",
+      "size": 26645
+    },
+    {
+      "path": "baseline/tests/fixtures/iter27_mf_t1/product_negative_contracts.json",
+      "sha256": "364d808588b6d5738f0e4b1821387ee7d744421dbb813651ffafa1b1dddfa3f7",
+      "size": 12706
+    },
+    {
+      "path": "baseline/tests/fixtures/iter27_mf_t1/pytest_node_manifest.json",
+      "sha256": "23627516093b6dcb08a4554cfa6be2e256f326c27cd34720252d95ddfad6aef3",
+      "size": 3651
+    },
+    {
+      "path": "baseline/tests/test_utils/__init__.py",
+      "sha256": "de6055a833a131ad081ca9c9bcb6e916650cce91f4465a3577ab3f7eb86f4ae8",
+      "size": 1959
+    },
+    {
+      "path": "baseline/tests/test_utils/benchmark_metrics.py",
+      "sha256": "4483d74ee3e6f927f87cecb8350cd5a86b551b8a74f4fa639da51cb502728048",
+      "size": 34901
+    },
+    {
+      "path": "baseline/tests/test_utils/factories.py",
+      "sha256": "84e0676a76b9c190b7ac84cd96c0c9e5489642482708ebe6c8f7cfaa7d350575",
+      "size": 19024
+    },
+    {
+      "path": "baseline/tests/test_utils/hft_scenarios.py",
+      "sha256": "090f07c1c56eae6a5c2bac0ed91c6fbb29570ddc9c14b74eb4c19a85899bbcd4",
+      "size": 18494
+    },
+    {
+      "path": "baseline/tests/test_utils/iteration41_source_roots.py",
+      "sha256": "5062fac86e7b785fc60b5ff1f7224871e538a9e9d23b7faf32b7a9c758d54db5",
+      "size": 7116
+    },
+    {
+      "path": "baseline/tests/test_utils/optional_sdk.py",
+      "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1",
+      "size": 827
+    },
+    {
+      "path": "baseline/tests/unit/stores/test_btapistore.py",
+      "sha256": "694887fc723367e04e5ad339a24649fe22cff1877d4e48190bd7e7f14dc4a075",
+      "size": 130480
+    },
+    {
+      "path": "baseline/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+      "sha256": "dac659e7c252330ce03c3af87d21107b12d419facb40b9f16ad52e824140211b",
+      "size": 30777
+    },
+    {
+      "path": "candidate/backtrader/__init__.py",
+      "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+      "size": 5961
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/__init__.py",
+      "sha256": "1e3024baad05c60ca93e7751d77aa479d899ded8c527823f91114590855469d3",
+      "size": 198
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/channel.py",
+      "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8",
+      "size": 15863
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/execution.py",
+      "sha256": "18d436df1eeb91dbe7485930dc92125293ce232554d897c9fb7187e101839ac4",
+      "size": 16481
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/lifecycle.py",
+      "sha256": "c01885fe660565e38d0189e5736efd0711634346e76090d0191d1bcddde7e32a",
+      "size": 6038
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/notifications.py",
+      "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6",
+      "size": 6255
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/presentation.py",
+      "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288",
+      "size": 8539
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/registry.py",
+      "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179",
+      "size": 22499
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/runnext.py",
+      "sha256": "cf6fc27165dfd3e68d6ddc4ba483dbd980f52445bef45b1f6eebcf70069d0b4b",
+      "size": 26335
+    },
+    {
+      "path": "candidate/backtrader/_cerebro/runonce.py",
+      "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905",
+      "size": 5406
+    },
+    {
+      "path": "candidate/backtrader/analyzer.py",
+      "sha256": "b7ba2d72fcbecc60ff5eceed94264a1047800fd3e6e128f7c8056ef54b70697d",
+      "size": 21947
+    },
+    {
+      "path": "candidate/backtrader/analyzers/__init__.py",
+      "sha256": "fb04c82045299dadd9d22a66c9d83c29d404e71bd35a2a06bc98f39013c932c5",
+      "size": 1632
+    },
+    {
+      "path": "candidate/backtrader/analyzers/annualreturn.py",
+      "sha256": "7605e5afbff10f70665103a945998750a12e2a520557de4d3f2c1a5c80749dd0",
+      "size": 7910
+    },
+    {
+      "path": "candidate/backtrader/analyzers/calmar.py",
+      "sha256": "41d28e0b5075c18dc994eca0f52470a13685681ee4dc28c2ae47715a14b12274",
+      "size": 5829
+    },
+    {
+      "path": "candidate/backtrader/analyzers/drawdown.py",
+      "sha256": "79ab27136258ebc1de036fb061100c20990cb40c85630aabb039673e5aa8dc52",
+      "size": 9818
+    },
+    {
+      "path": "candidate/backtrader/analyzers/leverage.py",
+      "sha256": "cf336d07124b15d151bd7fee521549410719173583de59e8f96bbb0d25ba29d2",
+      "size": 3620
+    },
+    {
+      "path": "candidate/backtrader/analyzers/logreturnsrolling.py",
+      "sha256": "5fd210963826c6c85d99ed8472cee9df2dc3987ee1817fad70650311afdb4094",
+      "size": 7013
+    },
+    {
+      "path": "candidate/backtrader/analyzers/periodstats.py",
+      "sha256": "850ee332f83e82d9f0f5b96206cd9c8fce074f17c4ef675bb6224e5e9b66462b",
+      "size": 4975
+    },
+    {
+      "path": "candidate/backtrader/analyzers/positions.py",
+      "sha256": "b42636a1c385504a1a58b980019ecc40acc88e39d09552ace73dfad3301e64d2",
+      "size": 3847
+    },
+    {
+      "path": "candidate/backtrader/analyzers/pyfolio.py",
+      "sha256": "7b3b22020f695f90af483b9e880e777b0dc0651a0750e4aaed611dd56605f1fe",
+      "size": 20261
+    },
+    {
+      "path": "candidate/backtrader/analyzers/returns.py",
+      "sha256": "9c2e9baeaaac1ef443dded70ead22af8bf097d3b28ea79fc6b6c761d1fbc13e3",
+      "size": 6248
+    },
+    {
+      "path": "candidate/backtrader/analyzers/sharpe.py",
+      "sha256": "312b7ccae78db2fc0069ca642eae8e9e84319d91f062ba37e6016f705b2b546f",
+      "size": 12285
+    },
+    {
+      "path": "candidate/backtrader/analyzers/sharpe_ratio_stats.py",
+      "sha256": "2411719817d8cec34c466768c10f100f4d7c8696ac6b46e0429bfa4ac1d6d3f0",
+      "size": 18990
+    },
+    {
+      "path": "candidate/backtrader/analyzers/sqn.py",
+      "sha256": "1bfae6c5f53b5c2e68d1115688c0f55ea6f098304da38d681150c980e690da72",
+      "size": 3446
+    },
+    {
+      "path": "candidate/backtrader/analyzers/timereturn.py",
+      "sha256": "1796e094eb27c1ccfd0c8b51b7eed0b3f43a4c14c72ba5e2d45458ed2851da97",
+      "size": 6956
+    },
+    {
+      "path": "candidate/backtrader/analyzers/total_value.py",
+      "sha256": "cea8594558e534550cbabea7182b23e1d813b5c54025eefb8968931ec185e8a4",
+      "size": 2121
+    },
+    {
+      "path": "candidate/backtrader/analyzers/tradeanalyzer.py",
+      "sha256": "38a16db1f77228c14f6af67d37b3acc53f3f07bcac979f3ea0f41ae92d7a1dbe",
+      "size": 10191
+    },
+    {
+      "path": "candidate/backtrader/analyzers/transactions.py",
+      "sha256": "18166888092fe56c248847e4d8842b9c3411c3ea9930c5d2534ebe304e0174fd",
+      "size": 4904
+    },
+    {
+      "path": "candidate/backtrader/analyzers/vwr.py",
+      "sha256": "63f8c8e1f15a0f9b3d33016488a501832da2bb84149ad213d105a5979c7a2405",
+      "size": 8091
+    },
+    {
+      "path": "candidate/backtrader/bokeh/__init__.py",
+      "sha256": "c12f81929e97a5c191c631f677cf1d32bcbf270eb1da4993c21606bd272e6d92",
+      "size": 4385
+    },
+    {
+      "path": "candidate/backtrader/bokeh/analyzers/__init__.py",
+      "sha256": "32256089787af5edc261cc307b1ea48dc82481f3ef73e8228bff733edd7d2fd3",
+      "size": 316
+    },
+    {
+      "path": "candidate/backtrader/bokeh/analyzers/plot.py",
+      "sha256": "21050f3076b70767d2d932a9f2012435549d4efab5ff638b1cb31b6dc47ec903",
+      "size": 5528
+    },
+    {
+      "path": "candidate/backtrader/bokeh/analyzers/recorder.py",
+      "sha256": "bd0c60ecc886e00ec236076cfe949bf41ffc28cf81949e9688f93f6d2ea7f9c5",
+      "size": 5960
+    },
+    {
+      "path": "candidate/backtrader/bokeh/app.py",
+      "sha256": "7e4fd37a93f037ba6b55d9cfcf2f768584bef44e9ff244060d61308b755d78ed",
+      "size": 34384
+    },
+    {
+      "path": "candidate/backtrader/bokeh/live/__init__.py",
+      "sha256": "fc4aba02260e0b7bbc2802cc70ccb56e341ba8122fa2b89a23db965c7ceea1fe",
+      "size": 259
+    },
+    {
+      "path": "candidate/backtrader/bokeh/live/client.py",
+      "sha256": "a5d4cebea08190da46a68ac4c7358349487ab20d611afe5207d0d7f7751b9c94",
+      "size": 10723
+    },
+    {
+      "path": "candidate/backtrader/bokeh/live/datahandler.py",
+      "sha256": "aadb9ab38c799c0cb50ae7c409dd414752a3d4fcf1e79194422b66275d5727c9",
+      "size": 11320
+    },
+    {
+      "path": "candidate/backtrader/bokeh/plot_adapter.py",
+      "sha256": "1275d9ce4b0bc83e665e9c5bb84c5697499552e110b86a23d009a739bd9de92c",
+      "size": 6879
+    },
+    {
+      "path": "candidate/backtrader/bokeh/schemes/__init__.py",
+      "sha256": "069d79d943fb542d6e09954767ea05dbdebd6e0f31f9be43ec292fb55a1e7a96",
+      "size": 280
+    },
+    {
+      "path": "candidate/backtrader/bokeh/schemes/blackly.py",
+      "sha256": "e37aa8805ee75dbcb95891ebc06c08b232e9fdc3240ef44121998ec3236e3609",
+      "size": 2609
+    },
+    {
+      "path": "candidate/backtrader/bokeh/schemes/scheme.py",
+      "sha256": "bee915a24c21753fc65f0bd1610af9638b5c11fd73b60f7d18782a773ebd7d2c",
+      "size": 6028
+    },
+    {
+      "path": "candidate/backtrader/bokeh/schemes/tradimo.py",
+      "sha256": "2445155e46ed563ed62645a27c40d6a6b1fa969f15e8fd968c5663bbbffeb661",
+      "size": 2741
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tab.py",
+      "sha256": "b02e97a732c48e9558bc9f13303af7cda4cbf59b95d8975347f8f6e144159b99",
+      "size": 3326
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/__init__.py",
+      "sha256": "94d8b89483831e08b36954b58fc93918cd1bd5d7479e23451bc4f2bfb240963d",
+      "size": 679
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/analyzer.py",
+      "sha256": "7132195dcf7269e1ddb698bf1ef7159fb98face568eb9922a7aeec9a66923a43",
+      "size": 3503
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/config.py",
+      "sha256": "6231e02aea42e3df1ac5c65be03247f97c88d8cfdefe9a7f5eca2519be7b72b9",
+      "size": 5102
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/live.py",
+      "sha256": "2c056f0d13dc16875246ab15603c653ceb01e30f900a063f7938ef75b20484e7",
+      "size": 3372
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/log.py",
+      "sha256": "7c8343aa728da53334f65b64a108908acb85ddc4c3006e22522097026ac5cbd8",
+      "size": 5028
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/metadata.py",
+      "sha256": "3697897b0884b6d847a1a60ad8c5acc625ceb72c10379272e5f44aa7a996a90d",
+      "size": 5957
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/performance.py",
+      "sha256": "a9a96196fcdb0476b081dd6df25efda4b3b7bb66a936f3e74d8399339c9b978f",
+      "size": 13652
+    },
+    {
+      "path": "candidate/backtrader/bokeh/tabs/source.py",
+      "sha256": "27c29a70bd6c93d8eb7291f0aa66725f47f98e6fab98cd4b489f1100a32fec04",
+      "size": 1645
+    },
+    {
+      "path": "candidate/backtrader/bokeh/utils/__init__.py",
+      "sha256": "18a3daeb5a9d9d6f5b90006c9b9c50879b01953360010c45a053fbee608c6559",
+      "size": 217
+    },
+    {
+      "path": "candidate/backtrader/bokeh/utils/helpers.py",
+      "sha256": "df29ec467cb524e89266c0112a0899d0ba1acec1ad476ba29e658276e1689531",
+      "size": 3862
+    },
+    {
+      "path": "candidate/backtrader/bokeh/webapp.py",
+      "sha256": "9376df87c0ccf7afea2a684f4c7ab41ac6f2b5072ed35ef607f0aee909cc0ce7",
+      "size": 4607
+    },
+    {
+      "path": "candidate/backtrader/broker.py",
+      "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab",
+      "size": 15149
+    },
+    {
+      "path": "candidate/backtrader/brokers/__init__.py",
+      "sha256": "a05e1ab6f5a6b3b7957f437fa8136afaf33fa0e762f331b262e16a6be470fa91",
+      "size": 1235
+    },
+    {
+      "path": "candidate/backtrader/brokers/bbroker.py",
+      "sha256": "5a0e5bcc93bf2e6f3d86507bd9c892d5908662f89c1f3bc8f60f37392c5d698d",
+      "size": 104144
+    },
+    {
+      "path": "candidate/backtrader/brokers/btapibroker.py",
+      "sha256": "538f7ddeb2d1c2ab52f43ec6ffe20981488f901b1b92bddc05f47d5cb75a159c",
+      "size": 386859
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/__init__.py",
+      "sha256": "79c1eab2c7a148fba7b4083fbb849565288630bf39001554ef54a288682fac8e",
+      "size": 2806
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/binance_bbo.py",
+      "sha256": "84fde12b4270c203a35daf3ff894cad2dfbf0ef795368f8da79995aedf82c4e7",
+      "size": 23908
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/binance_bbo_compare.py",
+      "sha256": "35454e545cd48127db81f12f0e7928dca12973ccfeda232f9cb549df6ce736b1",
+      "size": 52999
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/examples.py",
+      "sha256": "c5cccbc922b825c87ffd3001767eb8b9931b4b7518a473381338f202419fbc81",
+      "size": 49170
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/exchange.py",
+      "sha256": "bf66c460c8dc03a043b86077eeb0e678ee7c5975f0c7c38380d28d0988614ed9",
+      "size": 16017
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/latency.py",
+      "sha256": "b036af33f4cfad3626a5038e9133d548f01adab8e187bdbeb7ffa0123a52c109",
+      "size": 12287
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/matching_core.py",
+      "sha256": "ee26024bbbafb21e1c2e2ed1fbef1aec501f4d73cd0a973909cfb76f0182cd6d",
+      "size": 24483
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/queue.py",
+      "sha256": "2738203251bd8a27a488913034effec8940d42e2d5047cc34e2eee4932c36c25",
+      "size": 10775
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/recorder.py",
+      "sha256": "936b010257b6b6bd65a676351d414b2ca99fd9d886ce1600fa6fd4dbb934ed46",
+      "size": 3718
+    },
+    {
+      "path": "candidate/backtrader/brokers/hft/state.py",
+      "sha256": "88b88a1a5d4323466e580c2229d383f62c8a9d4430e9a1b44584e364e937f76e",
+      "size": 5392
+    },
+    {
+      "path": "candidate/backtrader/brokers/impact_models.py",
+      "sha256": "a569a6a24f3a69fcc8cd903497ef6b7be17c3a30da09a49cc0ae60966729df3b",
+      "size": 3825
+    },
+    {
+      "path": "candidate/backtrader/brokers/mixbroker.py",
+      "sha256": "1b3219866edbb7e0a74b699245a1f87b70fff5604bb7ab997e2974fed48a5222",
+      "size": 36440
+    },
+    {
+      "path": "candidate/backtrader/brokers/tickbroker.py",
+      "sha256": "06e38e271947384c91e5bdb2aeeb25307114652cb5991b823ee2cff37a37b62c",
+      "size": 88817
+    },
+    {
+      "path": "candidate/backtrader/btrun/__init__.py",
+      "sha256": "656fc6de93350c62e78595b84a0c01e6dcb58f24bf0982d7485c5365297d0e3a",
+      "size": 353
+    },
+    {
+      "path": "candidate/backtrader/btrun/btrun.py",
+      "sha256": "e9d6eee0dbe57aabf15379f2daf7207f122c6a631e7fdc205fbd9d80a8802d7d",
+      "size": 39387
+    },
+    {
+      "path": "candidate/backtrader/cerebro.py",
+      "sha256": "8175073447380b0e11f3713e0970c1aaa0f55626a973507e5fc50cad1bfc0f69",
+      "size": 34568
+    },
+    {
+      "path": "candidate/backtrader/channel.py",
+      "sha256": "a9a0ec61172f3a067e130bfa13dccd83033e5f3f19df33c8c41bec65afda5579",
+      "size": 23418
+    },
+    {
+      "path": "candidate/backtrader/channels/__init__.py",
+      "sha256": "b22b926ae93a2877d5f19fdff985763e5e2e93cc5788cc149ba041289a5cdc0c",
+      "size": 673
+    },
+    {
+      "path": "candidate/backtrader/channels/bridge.py",
+      "sha256": "5aa5e21ef797d77df15d788320892f16f6b4bc4f53baf566d735f53993417e32",
+      "size": 6086
+    },
+    {
+      "path": "candidate/backtrader/channels/funding.py",
+      "sha256": "69c94f150b51edbff48ab1f8f2968a84e08e489b0e4546e050b385593fa5c1be",
+      "size": 9363
+    },
+    {
+      "path": "candidate/backtrader/channels/live_queue.py",
+      "sha256": "58d247c96b500bb9dd796c034747253aa58bb8f33ca98aa478a8e0ab29780b6e",
+      "size": 6777
+    },
+    {
+      "path": "candidate/backtrader/channels/live_validator.py",
+      "sha256": "77512a3a27f7bc9374637ca9b53627ab01c0dd60944b417ed178653e23ab82a6",
+      "size": 10657
+    },
+    {
+      "path": "candidate/backtrader/channels/orderbook.py",
+      "sha256": "9fd10bfbe62f0f6a1f26f0d93544a7d25f30020d821e47de5b46f1a93c8df8f7",
+      "size": 9085
+    },
+    {
+      "path": "candidate/backtrader/channels/tick.py",
+      "sha256": "38106b408ed6002d316b8c2be64f77b1d2aa0f3d039f99039cdd820735074f38",
+      "size": 7156
+    },
+    {
+      "path": "candidate/backtrader/comminfo.py",
+      "sha256": "b29ed6f2ea3a3be0a9cfe8c89137888e3b0957fcaf0391522a6ff8634fce3f8e",
+      "size": 26822
+    },
+    {
+      "path": "candidate/backtrader/commissions/__init__.py",
+      "sha256": "cfad8d170c606c661946cda54023391bec98220fce04dd00150c0a1ed10a9a2a",
+      "size": 2997
+    },
+    {
+      "path": "candidate/backtrader/commissions/ctpoption.py",
+      "sha256": "547e76be319cab650a7a5e6b46d1e820d1970cdafb29ac7d93fd23f978348d96",
+      "size": 42615
+    },
+    {
+      "path": "candidate/backtrader/configs/account_config_example.yaml",
+      "sha256": "18062abe20a7745defdccc3fac27b530a6322aefe73b84b1f0eb5bd3daeaa324",
+      "size": 128
+    },
+    {
+      "path": "candidate/backtrader/dataseries.py",
+      "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967",
+      "size": 12227
+    },
+    {
+      "path": "candidate/backtrader/errors.py",
+      "sha256": "29a3aefde5af62bca5371713b60de74d8ba172e42d76b7db578471876fa455f3",
+      "size": 3670
+    },
+    {
+      "path": "candidate/backtrader/events.py",
+      "sha256": "fa7e1c9c152b66bc375fced3908fc7eb7ffa70b3606a331351c0bc02224ef4aa",
+      "size": 33624
+    },
+    {
+      "path": "candidate/backtrader/feed.py",
+      "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503",
+      "size": 57844
+    },
+    {
+      "path": "candidate/backtrader/feeds/__init__.py",
+      "sha256": "6297a3a372bf140f9ba0bf98f5a13564d95d2aba527c0cedd9982e50418c2619",
+      "size": 2903
+    },
+    {
+      "path": "candidate/backtrader/feeds/barrier.py",
+      "sha256": "6e4aecb2b6face5d541bb10f608f2800206cf068b24e630a672299526f53079e",
+      "size": 97372
+    },
+    {
+      "path": "candidate/backtrader/feeds/blaze.py",
+      "sha256": "aa5897916711cce1217003c30e3149f53e714555a3fff7b34d3a26168d258306",
+      "size": 3556
+    },
+    {
+      "path": "candidate/backtrader/feeds/btapifeed.py",
+      "sha256": "d34efe275b3eb8e53c09b09ebf7fee807bf672702ea8405c541aaedcbc2de803",
+      "size": 68216
+    },
+    {
+      "path": "candidate/backtrader/feeds/btcsv.py",
+      "sha256": "f87797a6b36c1d590d9a7da542cf9d8c99c14af04294366e42d3fcc33ce1e5e0",
+      "size": 6748
+    },
+    {
+      "path": "candidate/backtrader/feeds/chainer.py",
+      "sha256": "baba4e5aaa0fbd7d707983a359ac49ae4774577aaf05f337c92297e9c5eeecf8",
+      "size": 3604
+    },
+    {
+      "path": "candidate/backtrader/feeds/cryptohftdata.py",
+      "sha256": "6afc6cd4fa558442b8ef9aa0c9627bb8b0086735362facc2451e4875e01cacea",
+      "size": 6275
+    },
+    {
+      "path": "candidate/backtrader/feeds/csvgeneric.py",
+      "sha256": "6f0a63cdc89ccfe2f496203aa28cbdf10100e6fb2bdac1f3730156f53bf3017c",
+      "size": 48051
+    },
+    {
+      "path": "candidate/backtrader/feeds/ctpcohort.py",
+      "sha256": "096f5b25d8ed1e86130c93a8b761987b65924d402a2488f88d8e77a38bea8878",
+      "size": 46875
+    },
+    {
+      "path": "candidate/backtrader/feeds/influxfeed.py",
+      "sha256": "3025e469a1709be27a40e7d06e5b2c9f7a4d8c09a305994613cb6a9ea6a5a61e",
+      "size": 5078
+    },
+    {
+      "path": "candidate/backtrader/feeds/livefeed.py",
+      "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725",
+      "size": 2365
+    },
+    {
+      "path": "candidate/backtrader/feeds/mixed_channel.py",
+      "sha256": "6ac6386227c1933b4b70ac92f6af11453e23ff8dd39f05cc4e0a4e1d0bf06409",
+      "size": 3947
+    },
+    {
+      "path": "candidate/backtrader/feeds/mt4csv.py",
+      "sha256": "d8bffcf9639e077e03803599c02f7a3023ede6782d39579fa3d00b7ae949e9d5",
+      "size": 1085
+    },
+    {
+      "path": "candidate/backtrader/feeds/pandafeed.py",
+      "sha256": "0e735e70ac409d68e0d273f30ad337440d5f54e53749b5b8c56ecf78150f0fb9",
+      "size": 13793
+    },
+    {
+      "path": "candidate/backtrader/feeds/quandl.py",
+      "sha256": "633994bb9189efb7f7cdb664eaea50260a2b18978d1ea5797da3805c514c62df",
+      "size": 7294
+    },
+    {
+      "path": "candidate/backtrader/feeds/rollover.py",
+      "sha256": "b157286cf16348216abb7f1ac0fe3263ca7d459d292186eb435b80ee528fc6d9",
+      "size": 8342
+    },
+    {
+      "path": "candidate/backtrader/feeds/sierrachart.py",
+      "sha256": "f4c5117b3e8aefea488a2a84d4272c598278c37c3dde459630209cbc08356324",
+      "size": 835
+    },
+    {
+      "path": "candidate/backtrader/feeds/vchart.py",
+      "sha256": "a5794794aba6582a09a20e15341274489e0a69d7af7e4443f2cf703e816b2905",
+      "size": 4642
+    },
+    {
+      "path": "candidate/backtrader/feeds/vchartcsv.py",
+      "sha256": "26b69f496e5239c246df3e1b4bf0dde4aa34a00ea9e7a34079cf6aadc95ab0c8",
+      "size": 2346
+    },
+    {
+      "path": "candidate/backtrader/feeds/vchartfile.py",
+      "sha256": "1a5eaaea194f67efbefff67c99b27fdb011960eae1981dfbea28883dce385b28",
+      "size": 4718
+    },
+    {
+      "path": "candidate/backtrader/feeds/yahoo.py",
+      "sha256": "2be27b3ce3777004c6dca5e5b9841e8b929b8caf7d0a637413c740fde87b38c0",
+      "size": 12996
+    },
+    {
+      "path": "candidate/backtrader/fillers.py",
+      "sha256": "bd13c9644a8b9c6b3faf13ba02ac8af8325c3d728b90c036ecf5f68905d21c82",
+      "size": 5346
+    },
+    {
+      "path": "candidate/backtrader/filters/__init__.py",
+      "sha256": "8f1bc399ced3f6d34f926a51c85759ddbaf05db104d9fc8b00a36e16ef4b55aa",
+      "size": 1215
+    },
+    {
+      "path": "candidate/backtrader/filters/bsplitter.py",
+      "sha256": "23d736c1053e3ee0aaa439fbada4bf2fdcf6373f6c0abeb81538292e441a9d66",
+      "size": 4276
+    },
+    {
+      "path": "candidate/backtrader/filters/calendardays.py",
+      "sha256": "3724bce2d4c223e15e07e5c59977ab0bc7d7a8289ee2f45400503a5514d030a6",
+      "size": 3629
+    },
+    {
+      "path": "candidate/backtrader/filters/datafiller.py",
+      "sha256": "96498f8b6b76f705107b874e29afb8648856767d49ad5600a6fc5a47f176bf35",
+      "size": 6742
+    },
+    {
+      "path": "candidate/backtrader/filters/datafilter.py",
+      "sha256": "1e48b906d8c74a58c75b43bfc34ad2b2cc406cc042e710a291b1c141c36980d9",
+      "size": 2573
+    },
+    {
+      "path": "candidate/backtrader/filters/daysteps.py",
+      "sha256": "36255151d2b26797a1cae5d8f709faf95464c41f3658d5b5c7b08fab530bf313",
+      "size": 3344
+    },
+    {
+      "path": "candidate/backtrader/filters/heikinashi.py",
+      "sha256": "e8cae5986ea4a65e3059d5faa3080b29dac66f1e20b2e8c38910e41184a2320a",
+      "size": 2030
+    },
+    {
+      "path": "candidate/backtrader/filters/renko.py",
+      "sha256": "5a0803098163a665cde3bd5e0a21a59705151ca0ac2446a2c17ada2836a262cc",
+      "size": 5517
+    },
+    {
+      "path": "candidate/backtrader/filters/session.py",
+      "sha256": "9e3ff6cd42fa68d853221eaf064c1d6c0be3f605224da4258e475f7c0572c27a",
+      "size": 9978
+    },
+    {
+      "path": "candidate/backtrader/flt.py",
+      "sha256": "4830c0d889df14078e51b7cabfae40e19f16bb64f19832357a14b5601c8334b2",
+      "size": 2240
+    },
+    {
+      "path": "candidate/backtrader/functions.py",
+      "sha256": "b6fb22a8f33ddefd0d08cc919d561b94e4773553909c30d58e50ec2e2699ba8f",
+      "size": 33710
+    },
+    {
+      "path": "candidate/backtrader/indicator.py",
+      "sha256": "13f5b7660ede9f9095abcbe5e0ba1bce1e6bb218feda1d77d4155b0a888d6dbf",
+      "size": 18677
+    },
+    {
+      "path": "candidate/backtrader/indicators/__init__.py",
+      "sha256": "6cc7dd429630ca8ff6d1c7bd654b7adc3d3dc3dc3431f7fc99ca25f271dc3be3",
+      "size": 5023
+    },
+    {
+      "path": "candidate/backtrader/indicators/accdecoscillator.py",
+      "sha256": "e3c2fbfea29e82c9014d734b3229323430723480ea6eb778e6d97a23609476d9",
+      "size": 3284
+    },
+    {
+      "path": "candidate/backtrader/indicators/aroon.py",
+      "sha256": "a610a61135a6a394327ce937fd5953d234c7aec87ec9c5b61891d99b39525273",
+      "size": 9362
+    },
+    {
+      "path": "candidate/backtrader/indicators/atr.py",
+      "sha256": "1e95b0bef2d66ce687dbee71284a4c97f3c215efc4df54b59642b728804ca7a9",
+      "size": 10598
+    },
+    {
+      "path": "candidate/backtrader/indicators/awesomeoscillator.py",
+      "sha256": "f253e3508db9a27b460022af21b52e48cab6125b11885c0fd667dcd003a1d2e7",
+      "size": 3624
+    },
+    {
+      "path": "candidate/backtrader/indicators/basicops.py",
+      "sha256": "ee62cafd7e722d7d314c28c5ae89c0461de818bef7c9acf98204b3e1e008ce35",
+      "size": 26263
+    },
+    {
+      "path": "candidate/backtrader/indicators/bollinger.py",
+      "sha256": "09bf0d28f255ba410caf4ade465c8eebd571185f834c87912cb5c5c7a8d4b50d",
+      "size": 6820
+    },
+    {
+      "path": "candidate/backtrader/indicators/cci.py",
+      "sha256": "3f8886d4fa33506a3f506db2fc06f56461420f9a3474f2d2a2975c247303925a",
+      "size": 2854
+    },
+    {
+      "path": "candidate/backtrader/indicators/channels_ext.py",
+      "sha256": "8abf3a175ec1b488f5a77529cf560d10c6760f79a44a4796a56c16d4d7e71d81",
+      "size": 2915
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/__init__.py",
+      "sha256": "d6b6a7a9f6fa36c5f0c1c60dde31be34c0f1d6d80328fcdcfcf1196e53de8355",
+      "size": 6713
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/absolutely_no_lag_lwma.py",
+      "sha256": "c1aa81f90f0a2215568d23f27e851fec1a5098213675794d2a51abc0219780ad",
+      "size": 799
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/absolutely_no_lag_lwma_color.py",
+      "sha256": "d11bfe8bab76bc92b210dde3f8b9ab623c08a5646de05c6404caee5eee61d98c",
+      "size": 1594
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/accumulation_distribution_line.py",
+      "sha256": "90e86cb2819a1306d244ab64a256f5481265b445ab9e394071d7e537a3de907f",
+      "size": 2994
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/adx_cross_hull_style_indicator.py",
+      "sha256": "fc2904c54733f6821520e9b83cebdd0d5ef67fc9c8f3d4161f937062dcd745b2",
+      "size": 9878
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/adxdmi.py",
+      "sha256": "98f584f57773d739704eea66680c8dbd13c8683e3765a12035e4dcaad9c59004",
+      "size": 1055
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ai_acceleration_deceleration_oscillator.py",
+      "sha256": "10d3e00b38785295f4cbc5bcd698e3c73cdbe85ac1c705a188c9ebbba3165a24",
+      "size": 975
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/altr_trend_signal_v22.py",
+      "sha256": "e83c73d6eef64ca3bdf1416ccbb5555c34d781f1551abfed704b7e83aa84a88d",
+      "size": 2580
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/anchored_momentum_line.py",
+      "sha256": "299bc77bd9b5bf81cd1638e4f0f930073037f366b2c6fb41dad0c11dcc2fb1af",
+      "size": 3786
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/any_range_cld_tail_indicator.py",
+      "sha256": "bb4479e718403148215a01d8bf83facbb3f8711baa245fc2be62b58ac3ae4662",
+      "size": 3169
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/aroon_horn_sign_indicator.py",
+      "sha256": "92e5786be59f5fd157e361eaba6130e7ccafa1729812bdff96e8faa5784f0108",
+      "size": 3125
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/aroon_oscillator_sign_alert.py",
+      "sha256": "6c105352db17cc30c63b5a2ccba8ddb5dadd26a64b2111506131dce58c86e640",
+      "size": 1817
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/arrows_curves_indicator.py",
+      "sha256": "ee51bb671bae938469b305b37eb20a9554eea4a887cd8d04d688d3e806e4b29f",
+      "size": 3860
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/as_ctrend_indicator.py",
+      "sha256": "5a139626a01757421f895cb3806cf0db80fdef306ded3a5f61aad023e09a41df",
+      "size": 4851
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/asimmetric_stoch_nr_indicator.py",
+      "sha256": "c85b81e3ba342079543d24f3b928e03774cc9180fc2da1dc5fb5c660fff278f2",
+      "size": 7571
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/atr_normalize_histogram.py",
+      "sha256": "4ffa7e572a3bda026ca48def58e999142c054e160efdeb15574ef2f8c45b04cf",
+      "size": 4131
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/average_change_candle.py",
+      "sha256": "bc24b97c4773e40d690484c3b0fa9d36de734640ee5730cb93482aa35a1ff103",
+      "size": 5511
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bb_squeeze_indicator.py",
+      "sha256": "eb2c79e2fe25ceb4411cceacbba89e63dd587ec74f139d831b21284689df0058",
+      "size": 1916
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bezier_st_dev_indicator.py",
+      "sha256": "27c6cf3f5e4186e4347c038d5f177b20e6eb706e92a681b027d96b5832551ac6",
+      "size": 4035
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/binary_wave_indicator.py",
+      "sha256": "92538b697c1a9b52397757cc2779ef8d76ca7fe2e631c0ed8fe556f2c8aee2e4",
+      "size": 8355
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_c_momentum_indicator.py",
+      "sha256": "7c6d532bf691cd50183eab1bd9ae0e0361f7eeade70b567e34e8c8ef7157cdac",
+      "size": 3909
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_cmi_indicator.py",
+      "sha256": "ab3d48c6f82afa53df0e9f3ba161240bb299ea15bbe20daa7c05ec927ff3af35",
+      "size": 4639
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_csi.py",
+      "sha256": "d3c596e930231a31408dca2fb189bcfc7ac90bbbb34ed374b6119f8b72e77c26",
+      "size": 2532
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_ergodic.py",
+      "sha256": "f5ca912f87b3701571131f47bf52cc37c999fe7fb247616475f70db476648fb7",
+      "size": 1734
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_t_stoch_i.py",
+      "sha256": "a7ee16fa3f5105b0a39019a58fc981335e5a01534f66e13326bfddb29aebfa0e",
+      "size": 2378
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_ts_stochastic.py",
+      "sha256": "0df9d9fc25a12a532a235d580baad37a68bd250daa6256a6682be1078c0c6ec0",
+      "size": 2890
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/blau_tvi.py",
+      "sha256": "a0f233da518ddd2cd56e047c7136b9bd96b3aad655fa233ae9cac9c49170d9ee",
+      "size": 1957
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/brain_trend2_indicator.py",
+      "sha256": "31be418c56a617a72ac4c68ffc8aff784a87eb63ca0df00598092d63e84690c2",
+      "size": 4684
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/brain_trend_signal_proxy.py",
+      "sha256": "285fd30c33e5bb65be4d273dfade4a669569c59eb0e6c3702599343e80f5bdc7",
+      "size": 1560
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/brake_parb_indicator.py",
+      "sha256": "55d1e77b3e534338d69853872a04bd111bcbabf4fabe5779fe80d44ddfe58b24",
+      "size": 3384
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/breakout_bars_trend_v2.py",
+      "sha256": "e544b4d6f67dd40346c7c1cab9074e300cfa70b578316d42ce711999789283d0",
+      "size": 4359
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bsi_indicator.py",
+      "sha256": "98c2afad016f50f5f4b56bac515dc348519065dce281f51c82b50fb24e2fb728",
+      "size": 3296
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bulls_bears_eyes.py",
+      "sha256": "c3fc9790d8ed2d84811aee642c8f1f5b63229a2db058521a0ffbc8aa248171b7",
+      "size": 1930
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bulls_power.py",
+      "sha256": "967225d66a0458c04fca22ad9c0421aa405d9c61798348c08e64ab5866a41b4f",
+      "size": 1515
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bw_wise_man1_signal.py",
+      "sha256": "78ff30e49ad9d398c8af6fa6ffb8cfaef946f04ad1cdb03f7938fe0c8147a951",
+      "size": 3537
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/bykov_trend_indicator.py",
+      "sha256": "d90085f770cc0b624c7d031f2b19143ecb91e37d6a03003138877ec60c7fc770",
+      "size": 2614
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/candle_stop_color.py",
+      "sha256": "0f298216e5ce5e18053ba12fe777ecd4d54032c279ed584a0968095558515379",
+      "size": 1676
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/candles_x_smoothed_indicator.py",
+      "sha256": "bd817239ee33f2d57e5edb8f67d11825fcd12c63d587e7f37c64c3827a20f0e0",
+      "size": 2047
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/candlesticks_bw.py",
+      "sha256": "04be48ecb4cac65b342f6db26e22b6f623d4da941e80975af7fcc7287f7a272a",
+      "size": 1312
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/caudate_x_period_candle_color.py",
+      "sha256": "58af5910d0221e8fc44b951b4114f23478b002471460ea68548a09a7502f420d",
+      "size": 2132
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/cci_histogram_indicator.py",
+      "sha256": "9ab3a77b39f6a8ea9d70b8614cf14564b869b959111b371563812ee4e9d3d296",
+      "size": 1601
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/cci_woodies_indicator.py",
+      "sha256": "9f9e13843e39e7946dd9e98f567d60a4e1ced7bf4af83a0e9626369c1e0afd47",
+      "size": 2585
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/center_of_gravity_candle_indicator.py",
+      "sha256": "8e19f5a9fe78c496b7a532d23ef7e2e0d1954da6013b6bb8eae15bf1420a6581",
+      "size": 3022
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/center_of_gravity_indicator.py",
+      "sha256": "8ecb4e45f10d9ad8258ab10dd8528ec0077cdb74fb08589ff97bc52106ad898c",
+      "size": 2353
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/cg_oscillator.py",
+      "sha256": "d9f3f5e8eac86ae2d5760e50d39f4a550c611a0cc869b326a0751fefb6eee59f",
+      "size": 1385
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/close_line_cci.py",
+      "sha256": "84d98418a474a026c5b86e7649bc008fd31a0c1914e53aba1c0dec7abe5ac86c",
+      "size": 987
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/close_price_fractals.py",
+      "sha256": "b5cd62ae09a1c85b626232990a350aad7da4ae118a9010ecb15bb7b9cafeb671",
+      "size": 1603
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color3rd_gen_xma_indicator.py",
+      "sha256": "6d569b4f0e7ad81fca9e3a2d982863c942384bfbe4374d54dc81e8e2d8084503",
+      "size": 4239
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_bb_candles_indicator.py",
+      "sha256": "c21fdd99c3c778da4b4d4c7d0fdac329783e3c37db00e6e3b6b255a828c5c04a",
+      "size": 3560
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_coppock_indicator.py",
+      "sha256": "ce3d74d1d04761d75308749c80ef6409c0f88a812291bfa715f0930eb1515f86",
+      "size": 4905
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_hma.py",
+      "sha256": "1d1fdf88603a842d99ce22a325945cf30e3bce4adf46a46300342987cf4451cc",
+      "size": 2415
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_j_variation_indicator.py",
+      "sha256": "af57f2e3b15d6f85fe85f45bdbd8e9ad16ba7874710414415058c9175a19dc51",
+      "size": 1604
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_metro_de_marker_indicator.py",
+      "sha256": "8d58ce9250c198805f043e12068dfd86ff75eea8f7875ae93126c3db57fd14ba",
+      "size": 2712
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_metro_stochastic_indicator.py",
+      "sha256": "c72513e6f498ba47afd00f2688d95ec41129b455d77d2af24d17247efae52eb5",
+      "size": 3140
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_metro_wpr_indicator.py",
+      "sha256": "6dc821bc5d3cc6a7360cd27b62b30bbd2a0386129efc3ac8eece6822e517c015",
+      "size": 2891
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_schaff_de_marker_trend_cycle.py",
+      "sha256": "dbd0ba3ef47ee1682ae182da8bc7bd5dbf0a03bc975951450e98ec42659c2ec0",
+      "size": 3376
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_schaff_trend_cycle_indicator.py",
+      "sha256": "505ca65ba9683f6d0fd14a12b23826a36457ec876a06df648a38b189f280c983",
+      "size": 7215
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_step_xccx_indicator.py",
+      "sha256": "61445bc3bfcad67cbeb2d428a33ace3c4d990c50118af5866e4b168a19ed23db",
+      "size": 6607
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_x2_ma.py",
+      "sha256": "b94da0559a4cd97ee8018152e1c1791a5c6461e437498bdf51aaa75fb8b02d6d",
+      "size": 1371
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_x_derivative.py",
+      "sha256": "e9883d7cebfaffe6aca7cfe96f62763270eb8bbecb98c1f41430863ebc3bc96d",
+      "size": 2198
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/color_zerolag_de_marker.py",
+      "sha256": "c08d1973aa03bae06d7bcf01b191761aa7066a5bf5779f968f2e956e2dc6d8f3",
+      "size": 3058
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/corrected_average_indicator.py",
+      "sha256": "6fb4ea22758d3fa10670f4d125cd6b146e0cc8596fc5355ebb85299855ab62c4",
+      "size": 4257
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/darvas_boxes_system.py",
+      "sha256": "e542bb66a01c7e167e82a910f4901a4f4c25ff2c29059fb78685dca9b302e98e",
+      "size": 2470
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/dema_range_channel_color.py",
+      "sha256": "fe68887eed2ab9777ac0036b5bab58cd1e0bada923dd2d613cd8859b8103b732",
+      "size": 1465
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/derivative_indicator.py",
+      "sha256": "f188c50f14e8c57ff658dbcad42beae94bcfcba8a55d169f09e4f0e390bae733",
+      "size": 2768
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/digital_ft01_indicator.py",
+      "sha256": "bfac7134be9807e8c723abe56f209a69f489cb25c22f37a82956751dca783d7f",
+      "size": 3700
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/digital_macd.py",
+      "sha256": "78429c318164871f5b6f5fa76dc295dd1f1702b8d8fadcb128ea0170b495460a",
+      "size": 5361
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/donchian_channels_system.py",
+      "sha256": "c8a84e3e1861174e924cdf58e235bca2c30f1133ebcd4f061446e523b968b371",
+      "size": 1517
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/dots_indicator.py",
+      "sha256": "2bf661266c444e738191c5d5101b7cb69d0096acd68e33ed0ca298cd30043f31",
+      "size": 3093
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ef_distance_indicator.py",
+      "sha256": "12142c7dbdfef02b31a917f6a8b5e9cdf96a52f3e9d52156a4d86c1cc65a30ca",
+      "size": 3008
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ema_rsi_va.py",
+      "sha256": "e6bf2571537a8d336042caec4c75f7f7a8e697433605c58be1659561f8aef594",
+      "size": 2748
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/envelopes_jp_alonso.py",
+      "sha256": "4e49ed5b8f1d79474aa01330b66746e24f1209b3480b9059f353a2e1e0aeabd7",
+      "size": 946
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/f2a_ao_indicator.py",
+      "sha256": "17d1b8197c10f3fcd9902e9424b34f5abb2443f9b64b469796ee3fecb546b212",
+      "size": 4934
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fatl_filter.py",
+      "sha256": "8124d41b3d89203a0889718ccd2768b15f1bf0eeae0db384d2aa276a2d9ac674",
+      "size": 6215
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fibo_candles_indicator.py",
+      "sha256": "3b26a7a0e66e2052e0d0d86583529ed28aecfb2faac23d1b5a0662416d6958ba",
+      "size": 2424
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fine_tuning_ma.py",
+      "sha256": "2def5807afba48d8c736dc8dd231c3b1eb6cc6a4677eae4444eb37f244964b52",
+      "size": 3504
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fisher_org_v1.py",
+      "sha256": "3bdca70ac34cf6c99f76eae50e0108cf9c5d38d7d78c13cf9ff962c57aded441",
+      "size": 2968
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fisher_org_v1_sign.py",
+      "sha256": "47d63d67d6158f6dd2ae0b2a74a9eb1544e346f3289f25e54b003335e6318d47",
+      "size": 3739
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/force_index_ema.py",
+      "sha256": "c35e3018e385ac3810b851f27af740bf027de3a45ebcf968727d744c95393219",
+      "size": 3365
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/force_index_ema_2.py",
+      "sha256": "0995eb4b2b2904a1f81cc5f482ddd5ea043759f17882269d4d0295d02dc0f856",
+      "size": 773
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/forecast_oscilator.py",
+      "sha256": "924cbeee8789776e1896b41ab3f0c3fab80a0e3ad92385bc37ce00922655f27e",
+      "size": 5332
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/fractal_amambk.py",
+      "sha256": "e1a94a8721fa4a9532507f4d5a97963ac982513068d6c140afcadd75f4b1aabb",
+      "size": 2722
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/frama_series.py",
+      "sha256": "83c3e0c4f9d9042aa7659e64becf0986ef23dd6ecdde49d5dac889909d479ccc",
+      "size": 2988
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/frasm_av2_indicator.py",
+      "sha256": "783e6f709d238bc8a2aeea164ed2e32330a9c25f0bc946614707dcd8e3703a77",
+      "size": 3450
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/go_indicator.py",
+      "sha256": "dde05ef06d978910916f52d940f2def6eb53905c6dff28f409b3ac27e956914b",
+      "size": 2885
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/hlr_indicator.py",
+      "sha256": "0f45e041a560f9f4ae0c21d9141d6cd28070908f14050719cc321e0341113ccd",
+      "size": 3384
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/hma.py",
+      "sha256": "3fc2a39d6231508f5db058eeba436600f53ec2b61ac176fff7ee45b94b083d2d",
+      "size": 1602
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i4_drfv2.py",
+      "sha256": "d7aa3bdad4f93403867bf5a24c6ec0d110fc0e9b7be7401b3027552930ff9492",
+      "size": 1047
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i4_drfv3.py",
+      "sha256": "528bb684bb90a084d5952149ed0d90a5354a7a1a76f691640cc30c7b562f543d",
+      "size": 1238
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i_anch_mom_indicator.py",
+      "sha256": "0560782181444eaf258b530f78d09c79a7c5d26eae941c4c438d852c7e837a25",
+      "size": 2562
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i_de_marker_sign_indicator.py",
+      "sha256": "7585a53ee5db530a03dffb469a3fead5922e28ea8bf60ce3b8984f666596fdf9",
+      "size": 2309
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i_gap_indicator.py",
+      "sha256": "5614e9b3ee6d7e3c55a1283aba756c5818e7692409fde004104bf2c4454edead",
+      "size": 1590
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i_stoch_komposter_indicator.py",
+      "sha256": "ebbfa236a34a3908033fcab72c554b15f843dc5c2c1ff2f8164589efa99016bd",
+      "size": 2654
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/i_trend_indicator.py",
+      "sha256": "c3aa5affcbb74fac05c6ecfeb8a1e6da4e5425b3917576626519f449551464b4",
+      "size": 4440
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/iamma_indicator.py",
+      "sha256": "b76adb4a2963f336137dbb73b499598f262a653cca78833a3849219ca40ea8bc",
+      "size": 1177
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/indexed_moving_average.py",
+      "sha256": "b0a5c13258a5cb838fcfedebebf11fe4630751c02f8e7553171dfc67eb643b63",
+      "size": 1007
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/instantaneous_trend_filter_indicator.py",
+      "sha256": "11d3935e04be790c1763e1e03d521ab0c57600017999e96c6f6188f518eb90a2",
+      "size": 1619
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/inverse_reaction_indicator.py",
+      "sha256": "8fdc48b1e442edd00d8ce9f33040ceb7d76f717c5cd022961a3c7d27195565bf",
+      "size": 1435
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/irsi_sign_indicator.py",
+      "sha256": "561bad5cd67c74ce49a6f87c1ed97febc4c3a9a567121a76c777d26ae7f8b151",
+      "size": 3114
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/iwpr_sign_indicator.py",
+      "sha256": "19d9435b47ff280b0eed2ce7eb229a52230dbdbf34dd4b24e7235c98dfb556eb",
+      "size": 1990
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/j_brain_trend1_sig_indicator.py",
+      "sha256": "ef923b2f34a02086b2f6b42b896bbe339da4a222349b79a3bbad1218febd666e",
+      "size": 7988
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/j_tpo_proxy.py",
+      "sha256": "85b8cf257fcb854c0913628bf2386e8ccd977db920c3f861d83f14b8bde303bc",
+      "size": 937
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/jma_slope_indicator.py",
+      "sha256": "00235c534526bb4c738789f0be3ac79693d4612e6cd42d991f7a719d1b109bd4",
+      "size": 2572
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kalman_filter_indicator.py",
+      "sha256": "a7898252ca7569f10de6c5b560a5db5d535698b6351cffe2b201895341433ca1",
+      "size": 3656
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kalman_filter_line.py",
+      "sha256": "2d10c805129a13015f2e83abf510b69dda54825439bc7d8442fa6b4389be303b",
+      "size": 4328
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kama_indicator.py",
+      "sha256": "651f56cabb3fbcdf1528d6f8641e7421d376bb747e353570ccbe7d63467ea7c6",
+      "size": 5419
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/karacatica_indicator.py",
+      "sha256": "3daf6e21c5848521d3c8746cb5d5b4249f268341c026350d1748d71328b46351",
+      "size": 3654
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kdj_indicator.py",
+      "sha256": "caf10965853b22358080456880f9bd2990e683037e3eda6e133606ef4b909f12",
+      "size": 2015
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kwan_ccc_indicator.py",
+      "sha256": "e2eaf19ba53b1b4682f69308c2636aeb1e0f77b5b03635096c9e26861f539a1a",
+      "size": 6795
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kwan_nrp_indicator.py",
+      "sha256": "d64a647ccd6136f92ff721fa3a3d5a6c6eec4672e0f404468084f30abd4a81fa",
+      "size": 3220
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/kwan_rdp_indicator.py",
+      "sha256": "26ee661021d2d22fc9760864446b39b5ec620112c75984d8d000c2eb0d46aa43",
+      "size": 6838
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/laguerre_adx_indicator.py",
+      "sha256": "83bd41ad02317b91204edf9d54cc482522a35f1fe5cdfde314ca3a71f640ca20",
+      "size": 2779
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/laguerre_filter_indicator.py",
+      "sha256": "b289e7cd977ee7f79aac211b97e884959fa9dc1f4d32ef83f6441bac325f8b51",
+      "size": 2068
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/laguerre_plus_di_proxy.py",
+      "sha256": "9d00ef9506102d6a8ec381c466b352f8cf2c8255fab4416fa856ea4de2ac86ee",
+      "size": 2047
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/laguerre_roc_indicator.py",
+      "sha256": "ccaa9512a2bc4f053e6a3325cad4c991566da5cc5e986b91c7da22ea4d710c40",
+      "size": 2642
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/le_man_signal_indicator.py",
+      "sha256": "59fbd30b1f000959ed5f4ea6ffd58c98aadd299c0f79de754ad2157334a0a202",
+      "size": 2440
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/linear_reg_slope_v2_indicator.py",
+      "sha256": "2dfe2b3e3e1e9ba87b54399e1f42a6bd71bd4302f1d37e07fd63ab2c3336a317",
+      "size": 4990
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/loco_indicator.py",
+      "sha256": "a6fab6100e4c687893ee4383ce39ffff13571d5af5461e358310f1cbdc25da27",
+      "size": 3087
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/lrma_indicator.py",
+      "sha256": "6d7d0bf69f0c8113269adcdaed974d103a24d15abc569b73867c7a9eb11fbfae",
+      "size": 6485
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/lsma_angle_indicator.py",
+      "sha256": "1dad5d536f3dd558e43ab57ed3b16e44cb37bae423cf661b0157b5fd78271675",
+      "size": 3863
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ma_rounding_channel_indicator.py",
+      "sha256": "91eac9d123d9943fe92bf248a55d7bd7c2607e139f470d59f62d3fe7fd02f692",
+      "size": 5242
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/macd2_indicator.py",
+      "sha256": "c416bedf81f9172dc22c067775dfc630b730603f660f055f891708db5abeb9c5",
+      "size": 1840
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/macd_candle_indicator.py",
+      "sha256": "7899f6a4e2a2c975e18ae10eccbf8f164b1c8b7574902fcf464074f49e6334a7",
+      "size": 2677
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/malr_indicator.py",
+      "sha256": "b37f52a745c03a4ede8736f80f1341ed066c604e9415ad3c2d817a8326ed0dd3",
+      "size": 2671
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/momentum_candle_sign_indicator.py",
+      "sha256": "310900aa8b27ee1b98885ae0250c544a3111dce66e397f44a230e9a3a0c3041f",
+      "size": 1954
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/moving_average_fn_indicator.py",
+      "sha256": "f45dedddbf17c4e2e4692be503aec01c03f4474d4cede7920f0713773d8633ff",
+      "size": 4969
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/mt5_stochastic_close_close.py",
+      "sha256": "89ab77e295d15a410983ec3f377ae3aff23f2375d9579debc359b575e79a9b6c",
+      "size": 1912
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/muv_nor_diff_cloud_indicator.py",
+      "sha256": "b8dff7c64f0f0e84537bea9254b2bc21bf2691c14cd446cc788af7db0fda1044",
+      "size": 4226
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/non_lag_dot_indicator.py",
+      "sha256": "bfaba9dddd6e1cc634ac5175018c12d9ed40f841eb9413c3daa016c44e682a7b",
+      "size": 3687
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/nrtr_extr_indicator.py",
+      "sha256": "57e0ece981e3dc461309bf9eab8af30b7de9c1ec16e0ab7fb80325c16f8f4b46",
+      "size": 3211
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/nrtr_indicator.py",
+      "sha256": "9d4c0a765cac52659c4bd1f76b348d51025d65db8827f9f4db30dddb3c40031d",
+      "size": 3156
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/p_channel_system.py",
+      "sha256": "1f9cc789c9bcd5506316b03475c6f547ae71a445192130eadf0ab1d41e9ee045",
+      "size": 1313
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/percent_envelope.py",
+      "sha256": "aac535165d3b7915dfad5e6fb76d6f1b18b66dbd64201e9740da3fa0b6bf394b",
+      "size": 1030
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/percentage_crossover_channel.py",
+      "sha256": "5ce4396c34c3ddd54de9ce15576cdecc309af5ca428f499cb4619a892425805d",
+      "size": 1676
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/pivot_zig_zag_proxy.py",
+      "sha256": "5bf1a81ed9ab094e94f7954fdaa0963a466056cddf483ddf8dc97d9a89bff9e3",
+      "size": 1879
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/price_channel_stop_indicator.py",
+      "sha256": "22175c0621b829466390aeb79bffca60ea10d6b602c7060d38c4b0401d80df3b",
+      "size": 3286
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/price_extreme_channel.py",
+      "sha256": "580922d68b19db1217007c09619d3f7411fa7777e9851b01c28600a87f09f848",
+      "size": 998
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/qqe_cloud_indicator.py",
+      "sha256": "c23ffdced77f40f787fd375e27ce4f1cd74d3d4717ad4ba5093bd9f8385f0385",
+      "size": 4268
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ravi_indicator.py",
+      "sha256": "a7376f58a19dbba118fcc60e8ec8796e322e6b9aa51137f161b2281c5348abb4",
+      "size": 1225
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/raw_close_close_stochastic.py",
+      "sha256": "e831b74d3b161f5adedfd32be0ff9e82247965a72c9f746f91d2f2a7acd73118",
+      "size": 2517
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rd_trend_trigger_indicator.py",
+      "sha256": "67e380d60ad95fce1a4b2adaf40ade5481a02bcf8271ffabaa8472917bde1072",
+      "size": 1990
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/renko_level.py",
+      "sha256": "832f0af855cf7a552d2f54042b193a8d1791d97b8fcac4e028d3a1b3bb3c384a",
+      "size": 2924
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/renko_line_break.py",
+      "sha256": "af257772e46e63b6cb8a55efd0e39457b6a1193bd8f2a890995cdb8d9d2a0512",
+      "size": 2881
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rftl_indicator.py",
+      "sha256": "607649efd30c3954ab132058cd3d91e283f033999be28bcc40384aeb4bcd90e0",
+      "size": 1026
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rkd_indicator.py",
+      "sha256": "ba02e0eae61224bf5a1a4fb2fb88da74ee2e4371f5bda85afba8b42541cea4bf",
+      "size": 1620
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/roc2_vg_indicator.py",
+      "sha256": "b210d65906f231587500eda4fc6c90cc5df4a24d7c9d62fb8461838b301bb644",
+      "size": 2042
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rsi_histogram_indicator.py",
+      "sha256": "bdc3582a711df50a21cbbac248a5024f7c2c1c93abf947baa0b7020b5b447d75",
+      "size": 1231
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rsi_slowdown.py",
+      "sha256": "f3adbd692b9b7a2c2a05d686354af543f297c8e9b17ec448dbf0122831e0ab57",
+      "size": 1917
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rsioma_v2.py",
+      "sha256": "4f803101e794853c04aa64f3df4c10fe944036d8bfb9d49562afe84b2f38f03c",
+      "size": 1316
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/rvi_histogram_indicator.py",
+      "sha256": "ee46bdd35d719a3f60287071f95ac3ed22ef4e3cec17ff86f41ecde93bfb6336",
+      "size": 3497
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/safe_adx.py",
+      "sha256": "eaf6c8a6154e3cb1102aae3423b8f7e9250ac8d059a89b0c3cd23676b8e6111b",
+      "size": 3154
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/shared_strategy_indicators.py",
+      "sha256": "c0803a58b8ba5eb01f1acf8d18ad1ce1216879db188417ff0f27f4a90c8f2da4",
+      "size": 60618
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/sidus_indicator.py",
+      "sha256": "e7de23625a8351409410b1f5d0b4122a76d228a3d6032899b6730a1b17e33e67",
+      "size": 3772
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/silver_trend_indicator.py",
+      "sha256": "796aff7dd0aa82c9c669f9ead5ee291fd6e575c5366b0442e705fb60f5557e7d",
+      "size": 2503
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/sliding_range_color.py",
+      "sha256": "689762af1088e895f1a6f8752f267cb53bb8e15c3d9a6785aca574c9c6f25917",
+      "size": 2050
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/slow_stoch.py",
+      "sha256": "2109e9737671969bdec129137cdfdadf596206fbc87e25393253416fbfdd3329",
+      "size": 1212
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/smoothed_adx_indicator.py",
+      "sha256": "b1d8d1de5f37149207ad2c59b5880cfa9b6d46fe2608fdea5c31fed6a8f27132",
+      "size": 2828
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/smoothed_rsi.py",
+      "sha256": "b70eb91dc2ef3e0c13e1b23a61b203496b16260af424a23675136e563c0e4c30",
+      "size": 780
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/spearman_rank_correlation_histogram.py",
+      "sha256": "68de8c99605b622e52d73c34e91b8af778b9ad1574d42dd13735bd2fbabc56de",
+      "size": 1983
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/stalin_indicator.py",
+      "sha256": "7791361b5c95a4d48f146164efd234310823e9c97b9acb8ad025df5d6dc733c7",
+      "size": 5499
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/starter_laguerre_filter.py",
+      "sha256": "243c6ea46f9997b7696c184d082735f99b0b6e28c5b05aa15d01c90bbcb4978e",
+      "size": 2076
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/step_manrtr_indicator.py",
+      "sha256": "910b587f26cf7517fdc9caa3960fdcdb437f1e51916491bc7f22a0e4cbfc898c",
+      "size": 4354
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/stochastic_histogram_indicator.py",
+      "sha256": "0b5e143be5673374e800b5682d63cf03d1868155b996d41d3af25316a6ef9d70",
+      "size": 6005
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/t3_alarm_indicator.py",
+      "sha256": "03d29e9b7e67a39b786bc6af458fbf74232d11e66c5f0e753934e44baa86ed4b",
+      "size": 4530
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/t3_average.py",
+      "sha256": "c428f45f01cebf3d7ff1448d7c01985d9b96517df30c1d14c0a5e6f09ab62dc3",
+      "size": 2541
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/t3_indicator.py",
+      "sha256": "15eef49e3d6b63d1e221e722339b45bb5c4cdb008ea48f870f5edfdeb3db7dcb",
+      "size": 1157
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/the20s_v020_signal.py",
+      "sha256": "0c50e19db8f0ec0cc9b9d8e40fb4f2ef532a56d2a691f4077903af400bed7c81",
+      "size": 3548
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/three_candles_indicator.py",
+      "sha256": "318d6009673ed1bc808d0567e39a1b53562ab6bc03489f7e1acce98741a40038",
+      "size": 2583
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/three_line_break_indicator.py",
+      "sha256": "921d454ce32c8cef9fddaeb7d3e216958cde1dcbb79179327b55032c25cf4e72",
+      "size": 2240
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/time_line.py",
+      "sha256": "80fce88c34569cd7f247e5a048241bcde8ab53edcbd4c54a5dbf852d18ebed15",
+      "size": 2044
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trading_channel_index_proxy.py",
+      "sha256": "206f4f6d0578831b6f500b8879f3a00d83cd7c2fd625e4822fe86612950de459",
+      "size": 1534
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trend_arrows_indicator.py",
+      "sha256": "7d9ed5dc6b76857f407711ca0aab5cd946ffd49b687a205f35b6444162647b0c",
+      "size": 3673
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trend_continuation_indicator.py",
+      "sha256": "cdc044a88a74b7a2c9eb0cb07ce4a8d808881334d36bb1975ccecb7040956910",
+      "size": 4233
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trend_intensity_index_proxy.py",
+      "sha256": "7fdbc562a17f8108f1cf05c744bd7a3d16e5e58a00294e3df599223c2ab529a9",
+      "size": 1697
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trend_manager_indicator.py",
+      "sha256": "66882005480063222406797f957af0bc4a08e80a3f969ea164c794d314a34fa8",
+      "size": 1213
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/tri_x_candle_indicator.py",
+      "sha256": "036196e81299d71a6b5a3a00ed05b9a74eb01f8098673fa984cd7ccfb4440a6a",
+      "size": 1608
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trigger_line.py",
+      "sha256": "80e499be1767e1868a261fb14b8f0a78225260943bbd1943ac1aa74c24f874b5",
+      "size": 2268
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/triple_ema_rate.py",
+      "sha256": "5b4fdd083624b665aca5f04a255cde4723e9dd2be4560a8ee1ce70b5684ee2ad",
+      "size": 1041
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/trvi_indicator.py",
+      "sha256": "2486be2f2f5556211bac43e9f493c0e1335b1bcdb3613af9ce767433b0306c64",
+      "size": 5990
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/two_pb_ideal_xosma_indicator.py",
+      "sha256": "1c434264abaeaca92b8ef2968c2cac03a2b4edea717f4fd9c87f365856499126",
+      "size": 4699
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ultra_absolutely_no_lag_lwma_color.py",
+      "sha256": "28a79c72aa8e738e73ae8d63141205da95a8ffbd3d37a6dbcc5b60dd3a51bc4e",
+      "size": 3185
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/ultra_wpr_indicator.py",
+      "sha256": "22da18d78647c808c04786d73aef0260e5be6fa0358bd555618bdfd5d7085a47",
+      "size": 6357
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/up_down_candle_strength.py",
+      "sha256": "8855cad16f46974e64cf47dfd5d180e7df8d16f180ea23063a9df41089769b0f",
+      "size": 2270
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/vinin_i_trend_indicator.py",
+      "sha256": "67b3358221af49f16999c80ec1298c6cdd50af0ca612d59b4de7038a78be3c41",
+      "size": 4619
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/volume_weighted_ma_indicator.py",
+      "sha256": "60e90b26190e6be781d992258fa999c1c6bd1e37d0116c7fc677ad1083f630db",
+      "size": 2347
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/volume_weighted_ma_st_dev_indicator.py",
+      "sha256": "a00d6ac0f60ac16750ffe404191ecd7c47d918cec4669ad12b1caaa3e17826b3",
+      "size": 3647
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/vwap_close_indicator.py",
+      "sha256": "5d9ff227a926bca36806fff0f45eede3caf50e102c8ab278191d6d11a5abb3a3",
+      "size": 1882
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/vwma_candle.py",
+      "sha256": "9dc678b3d31578a3cbf79abfc1b75d27c3fefa7c82674a2fe2752fc0b32872ac",
+      "size": 1742
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/vwma_digit_system.py",
+      "sha256": "f979dd6954673d03498043130fe73708d6ecc1f6aa33e58bce033bc8ac1d30ed",
+      "size": 2365
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/wami.py",
+      "sha256": "486d26071ff49e7b76cfed4b54f5e6c6234d95bd344cf854860794e63f7149e4",
+      "size": 1375
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/wprsi_signal_indicator.py",
+      "sha256": "e676d238331718b5478c69f8f80faad6a7d444cd269e42af76b856ab516cd3df",
+      "size": 3589
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/x_de_marker_histogram_vol_direct_indicator.py",
+      "sha256": "63c23dd95f40d50be05fc17b5a2908b4b742fd5bf3b78c98599fbf27b76e76fa",
+      "size": 5393
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/x_fisher_indicator.py",
+      "sha256": "4c8e520c03a5a02c699b5a64824b890e7f2b8f4908770b5d74655d3314b4b2f4",
+      "size": 2046
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xcci_histogram_vol_direct_indicator.py",
+      "sha256": "7bd3b86d701a7dbc46f27c97c411aacad58148e12418593f5515c68633e7222d",
+      "size": 2035
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xcci_histogram_vol_indicator.py",
+      "sha256": "68b3cf3d15549ad6fb44ea83e20a97f93436dd899b59bbe473caa95fdd7ef8df",
+      "size": 3051
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xma_ichimoku.py",
+      "sha256": "87d301df7506c459309fd1d868c62c679c83c00c0cf4522b58a8d1871401d75b",
+      "size": 5244
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xma_ishimoku_channel_indicator.py",
+      "sha256": "a3fcd4951170fdef0e20cc3db76d970d913ab8cc908f6172f817fc86716462b3",
+      "size": 1952
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xma_ishimoku_line.py",
+      "sha256": "7911ffe2715c46d8eeaa3debfc6cd60bb810df5cd9cb1f060c12705dd17cb3ae",
+      "size": 2043
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xma_range_bands_indicator.py",
+      "sha256": "e9d5dcafd1fda00b0e755325e9a847cb54fc8b9ce3882d0dd8b52eff84c87fec",
+      "size": 3759
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xmacd_indicator.py",
+      "sha256": "26cfa693d5cfc005693e13699f2fc6171875e5ea2850b02f63760810896ea0d3",
+      "size": 2475
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xrsi_de_marker_histogram.py",
+      "sha256": "85daed3965fc51dbc602f082e84b40de7e10e7b91ff2e7eb0342607753ca9d70",
+      "size": 2207
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xrsi_histogram_vol_direct_indicator.py",
+      "sha256": "cc3b65252e4a34136aa1d5dc0ce5740de5f53eb1e85ad4dc7bd69a9d2dabdd93",
+      "size": 1916
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xrsi_histogram_vol_indicator.py",
+      "sha256": "a6ec4c29923f364ba11a8ba07bae36a68aa06aafa5624e4b2b0df1f140af3e6e",
+      "size": 2966
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/xrvi_indicator.py",
+      "sha256": "10b8b00026359a227c627acc31ca701a9f76e2b44e6b5cb078d02d31eb5548af",
+      "size": 5108
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/zero_lag_macd.py",
+      "sha256": "ba82bc43d5084de7874e661f0b102f4ff503c9c33475c5bad4222d2208d4fc6a",
+      "size": 1171
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/zig_zag_recent_pivot_signal.py",
+      "sha256": "58e54a10d5d06d84e7f91a9e637e20a76b2e8d39ef90173892870282c7e9ae42",
+      "size": 3427
+    },
+    {
+      "path": "candidate/backtrader/indicators/contrib/zpf_indicator.py",
+      "sha256": "df86b8b6444eb02bb82a88dcdc20f96c7b64dd16dd791a406b38c7ce71b41f5b",
+      "size": 4011
+    },
+    {
+      "path": "candidate/backtrader/indicators/crossover.py",
+      "sha256": "f302ea1f80c5d38dc733f6b3d3d5b3be2bdb434d9b424dd0caae1fdd9c75ee49",
+      "size": 13640
+    },
+    {
+      "path": "candidate/backtrader/indicators/dema.py",
+      "sha256": "1e9fed3d33d27f6c651a45b7f2702a99d1748add81839d059efe807991ccdd12",
+      "size": 5767
+    },
+    {
+      "path": "candidate/backtrader/indicators/demarker.py",
+      "sha256": "8304755bb34bafbabafd4a286aee5d4de34994d50aa0f37503269f599909e19c",
+      "size": 10536
+    },
+    {
+      "path": "candidate/backtrader/indicators/deviation.py",
+      "sha256": "09cf00f27115800f6ac44fc4a40568aea77720428d45c1daf99a41e3acc0d8be",
+      "size": 9362
+    },
+    {
+      "path": "candidate/backtrader/indicators/directionalmove.py",
+      "sha256": "c3c32adbb0d966d2e74909dbcbf93b3efd2a60e39d7ce0ebcbde562af97bd54f",
+      "size": 38372
+    },
+    {
+      "path": "candidate/backtrader/indicators/dma.py",
+      "sha256": "700b2af0ec1187656760653e9f52b5e640186dc19551c913e1684f75c953cf74",
+      "size": 3576
+    },
+    {
+      "path": "candidate/backtrader/indicators/dpo.py",
+      "sha256": "9a8ccb9b65a2d4321147dd87e2ca7d64b451807df814a97322089f5b48d2373e",
+      "size": 2911
+    },
+    {
+      "path": "candidate/backtrader/indicators/dv2.py",
+      "sha256": "bd60f80849590ceac4d463a4735bf6844cfaf1d4e91f3f0a23dbda70b80fdf1a",
+      "size": 1450
+    },
+    {
+      "path": "candidate/backtrader/indicators/ema.py",
+      "sha256": "239fc1664849552f8d9aff6b4a64b6191af67dab67019830f38f9edd6ea77602",
+      "size": 4669
+    },
+    {
+      "path": "candidate/backtrader/indicators/envelope.py",
+      "sha256": "9a8395ea0dd768b8f4e181963cf254f6fa7e4fb342af90d39028b6ea95141fbd",
+      "size": 14987
+    },
+    {
+      "path": "candidate/backtrader/indicators/hadelta.py",
+      "sha256": "8e7a71e76fae1e6b4333c1dc74740b036796dad5027d51da76dd8a9d9d420dbd",
+      "size": 6335
+    },
+    {
+      "path": "candidate/backtrader/indicators/heikinashi.py",
+      "sha256": "5b7bc328e583a1484dd90173e63e300d688b8a1916cb2b46ab9265b8ca53a2a5",
+      "size": 5133
+    },
+    {
+      "path": "candidate/backtrader/indicators/hma.py",
+      "sha256": "45db5342184ad0bdca365d2c1ab3eb4aa79bc5904a353d8e4897342639c6294f",
+      "size": 5326
+    },
+    {
+      "path": "candidate/backtrader/indicators/hurst.py",
+      "sha256": "706aeea3345ae0cb72af880f05bc8bf824705abf837c2fd7c812f7570c032303",
+      "size": 5420
+    },
+    {
+      "path": "candidate/backtrader/indicators/ichimoku.py",
+      "sha256": "66e4a87045910f3f01abfa5e62929ea86c70f1eb4079d8174a52759a828dff4e",
+      "size": 10501
+    },
+    {
+      "path": "candidate/backtrader/indicators/kama.py",
+      "sha256": "1c69fa29545ce47fcb441bad56a1e3034148b01decaf63c923ac95cac0bb0a03",
+      "size": 6037
+    },
+    {
+      "path": "candidate/backtrader/indicators/kst.py",
+      "sha256": "461d49782ee7a60847dd7e5cbf6ab4625bf742a4ae86c6742d2800e2d8f62ede",
+      "size": 5518
+    },
+    {
+      "path": "candidate/backtrader/indicators/lrsi.py",
+      "sha256": "24e262f4dfcd8212df55770a87658fdc631446671d5cd82d2ec5cba426801907",
+      "size": 3762
+    },
+    {
+      "path": "candidate/backtrader/indicators/mabase.py",
+      "sha256": "d12e5cf40f492c94873b08cb3ccb1f9d451da9674ca7dcdfc8b5b7fc145b0d64",
+      "size": 5482
+    },
+    {
+      "path": "candidate/backtrader/indicators/macd.py",
+      "sha256": "c114a4d1a591389334b7a6d9091ba3f800b7f0df7a2679b319f921763b4ba997",
+      "size": 10862
+    },
+    {
+      "path": "candidate/backtrader/indicators/momentum.py",
+      "sha256": "b61a2f7821c6d8fd61ee1700f40d6969c01420202b558040cb0c197bd0105553",
+      "size": 7664
+    },
+    {
+      "path": "candidate/backtrader/indicators/moneyflow.py",
+      "sha256": "46cf8f3d5593485323e898ebb4e81ddf461421baa6a35b350ab63d86d2c51dca",
+      "size": 9139
+    },
+    {
+      "path": "candidate/backtrader/indicators/mt5atr.py",
+      "sha256": "1637bc6b43a6e90724a9b46901de227609e173fbb5c39014c35002e422d456b5",
+      "size": 4457
+    },
+    {
+      "path": "candidate/backtrader/indicators/myind.py",
+      "sha256": "1e1f956ebb149d96882bf78ebb14e8662138506543d2c6e1f89bd4fd743c47bc",
+      "size": 5955
+    },
+    {
+      "path": "candidate/backtrader/indicators/obv.py",
+      "sha256": "dbff67fdb719ab6119cd68fdf7ffe27de8eda5fb3e567b95740a45c4ebb2e8e3",
+      "size": 2733
+    },
+    {
+      "path": "candidate/backtrader/indicators/ols.py",
+      "sha256": "0032254b1f976c72703f2c15b1b2285fc4ae7807cdc3b5b232281deaea5d3a36",
+      "size": 8812
+    },
+    {
+      "path": "candidate/backtrader/indicators/oscillator.py",
+      "sha256": "ee4a0f1726ee9ba51194a158b787500712172148ecc7003c5f45f26e4cabbfa7",
+      "size": 5229
+    },
+    {
+      "path": "candidate/backtrader/indicators/percentchange.py",
+      "sha256": "4df63a7795ac7c63b6115c2558d47bd3be32f21c57bfdb3e86d6daeb4bf14d56",
+      "size": 2451
+    },
+    {
+      "path": "candidate/backtrader/indicators/percentrank.py",
+      "sha256": "6dbd1881c55a974aa3e19c035b2ad1aa7ce173ae48e974693b349ce4106135c2",
+      "size": 1218
+    },
+    {
+      "path": "candidate/backtrader/indicators/pivotpoint.py",
+      "sha256": "cb7bb9c42072dc2334da022d862b4dce9f716f32a4d5f9c6c63e83533bb35670",
+      "size": 15807
+    },
+    {
+      "path": "candidate/backtrader/indicators/prettygoodoscillator.py",
+      "sha256": "1da9c95afedf21052cd2ef12c365dbe26c7ae789c2206cbdf52d63640e7dd559",
+      "size": 3663
+    },
+    {
+      "path": "candidate/backtrader/indicators/priceops_ext.py",
+      "sha256": "d2cdc8758dbecb7d0150de90fc5a28a87964adb45c846d199a479eda6f760713",
+      "size": 4014
+    },
+    {
+      "path": "candidate/backtrader/indicators/priceoscillator.py",
+      "sha256": "2ede6059492c0e95a492914834366bfb94e7bc4f205de12cfa85f2629396186c",
+      "size": 8238
+    },
+    {
+      "path": "candidate/backtrader/indicators/psar.py",
+      "sha256": "583f28c61414605307d4e147126b38bfda1b503b6d4686df9fec365e4ff8dc77",
+      "size": 7420
+    },
+    {
+      "path": "candidate/backtrader/indicators/rmi.py",
+      "sha256": "17534e06438a9fd97cc69573f29db694e10c528644a71c212538ee2056598771",
+      "size": 2213
+    },
+    {
+      "path": "candidate/backtrader/indicators/rsi.py",
+      "sha256": "212cac9db6cf4e00b63fe5e30756f6431218f052400003d834fd851a883c9cd0",
+      "size": 12715
+    },
+    {
+      "path": "candidate/backtrader/indicators/sma.py",
+      "sha256": "e37cd2dd5baef41f2d8f4ec84e8742828a54d1ec5dff63051f55e6e56e3f4ec9",
+      "size": 4999
+    },
+    {
+      "path": "candidate/backtrader/indicators/smma.py",
+      "sha256": "63f3a627d843716be4170caa9d530cfeeed7b05aa36875b38404755493aad589",
+      "size": 3789
+    },
+    {
+      "path": "candidate/backtrader/indicators/spread.py",
+      "sha256": "cadc970888ff6c7bb1bc262b2b6976dc07d02ea6e9ed7bb5a917284960b96201",
+      "size": 1927
+    },
+    {
+      "path": "candidate/backtrader/indicators/stochastic.py",
+      "sha256": "a15f94d38922bb6092ad17194e2b34d66cdde02b6f4f493346999b612af22aff",
+      "size": 7936
+    },
+    {
+      "path": "candidate/backtrader/indicators/supertrend.py",
+      "sha256": "0455ef14e35ff8cbfe852c2791051e9b6137d04b4a9c82d03a7a9a61cc56f143",
+      "size": 17621
+    },
+    {
+      "path": "candidate/backtrader/indicators/trend_ext.py",
+      "sha256": "5c864f0b917345f0968665c48890cd57653f551ee674709659f54fe9592b3c21",
+      "size": 3890
+    },
+    {
+      "path": "candidate/backtrader/indicators/trix.py",
+      "sha256": "6836341b4c2c029a4ed8870bc9677d5eb2b78f35b68f06afd8b80b60a6223d14",
+      "size": 6542
+    },
+    {
+      "path": "candidate/backtrader/indicators/tsi.py",
+      "sha256": "2cacf1f5888bc4e0b34083c9a6bb43a886df25e56fcc12e083471d3d3efdd5c0",
+      "size": 5024
+    },
+    {
+      "path": "candidate/backtrader/indicators/ultimateoscillator.py",
+      "sha256": "3c1a6a3f8668ce17da95f0ae0c541073e7d4bcf48de1dda5962a06640fc54911",
+      "size": 5370
+    },
+    {
+      "path": "candidate/backtrader/indicators/vortex.py",
+      "sha256": "f4e737573bb7ea562690b4d394246e21d05c547800072d56a901fdeb4f1bdc43",
+      "size": 1788
+    },
+    {
+      "path": "candidate/backtrader/indicators/williams.py",
+      "sha256": "1be41cab900c2d295df730401b5b527788f68588e92c82ff957933804f8c4923",
+      "size": 6195
+    },
+    {
+      "path": "candidate/backtrader/indicators/wma.py",
+      "sha256": "3063bf4cecc14d163a191118eec8d4e990e405b042e98b3d7e0d6abc34e4ea7d",
+      "size": 3409
+    },
+    {
+      "path": "candidate/backtrader/indicators/zlema.py",
+      "sha256": "53b5c95d168fd24a8be38804981c819e0d7c0a665c6167358353514b876b6cf7",
+      "size": 4321
+    },
+    {
+      "path": "candidate/backtrader/indicators/zlind.py",
+      "sha256": "88775a62997e8f6331e23674e0bace32572eab971ebc0643be8528803ee1b507",
+      "size": 3364
+    },
+    {
+      "path": "candidate/backtrader/linebuffer.py",
+      "sha256": "9f15cba935326ec5323f35ce7401f01f3d4f348e029fb0c1ffb3548d1a7ae87a",
+      "size": 129363
+    },
+    {
+      "path": "candidate/backtrader/lineiterator.py",
+      "sha256": "6d458609f7463955a935b24edfbc76509f586922db1e9e34713cb0f1435662a9",
+      "size": 117069
+    },
+    {
+      "path": "candidate/backtrader/lineroot.py",
+      "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64",
+      "size": 43995
+    },
+    {
+      "path": "candidate/backtrader/lineseries.py",
+      "sha256": "822c6ea78f9b545b2b03bb4022c458ac10f5c47652c5aef5cdc8242954c05d9a",
+      "size": 96178
+    },
+    {
+      "path": "candidate/backtrader/live_trading/__init__.py",
+      "sha256": "f92021cb9a58dde19499a2af322771ad756051aff0f16b2958bd56a7535d46cb",
+      "size": 530
+    },
+    {
+      "path": "candidate/backtrader/live_trading/interface.py",
+      "sha256": "a8fdaa36ecf9d5f4ff8886e8089fc1fc94c7f241927017c95d8a66ea9d2f7ba5",
+      "size": 13490
+    },
+    {
+      "path": "candidate/backtrader/mathsupport.py",
+      "sha256": "5b2429d194c89281e14d936d3eb9226bf531de12da24975b34ddbe8173674f13",
+      "size": 3213
+    },
+    {
+      "path": "candidate/backtrader/metabase.py",
+      "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847",
+      "size": 77687
+    },
+    {
+      "path": "candidate/backtrader/mixins/__init__.py",
+      "sha256": "e42a45ded9880ab6216ab4e04669ef52e95b4304dcdd41e7dd58180dfc940433",
+      "size": 500
+    },
+    {
+      "path": "candidate/backtrader/mixins/singleton.py",
+      "sha256": "95ce18fa14da90296585457fb16ebafeda577847a89781adf6f0bd4ef4c4d741",
+      "size": 3956
+    },
+    {
+      "path": "candidate/backtrader/notifications/__init__.py",
+      "sha256": "38d33774784113b0f85169ba0826d87cf06a503c2b1d825f743cb112f597b622",
+      "size": 6349
+    },
+    {
+      "path": "candidate/backtrader/notifications/adapters.py",
+      "sha256": "d9327aa9aa52ad1e16ef06a183e3431dd3a05d94a0f2e5ee277bb6f58af3c5f0",
+      "size": 16202
+    },
+    {
+      "path": "candidate/backtrader/notifications/channels.py",
+      "sha256": "84fca1067ce3e7dcb9b51494d15ab5a934180c2087e1c2657122f47b145f7a71",
+      "size": 32651
+    },
+    {
+      "path": "candidate/backtrader/notifications/config.py",
+      "sha256": "e9989ab11ee86bc028f947594feeb37daed73492af69f6656d02abfc7b8368fd",
+      "size": 22142
+    },
+    {
+      "path": "candidate/backtrader/notifications/core.py",
+      "sha256": "0984a19ad3e76882aed12d0e514e55ba800853fe8227040df0e7634074daf174",
+      "size": 31276
+    },
+    {
+      "path": "candidate/backtrader/notifications/security.py",
+      "sha256": "f3e46d037a09293f4d5500de1f4eec26e9b2bee3f7f4a6d61dd52224612d53a5",
+      "size": 2444
+    },
+    {
+      "path": "candidate/backtrader/notifications/session.py",
+      "sha256": "6cc85824c3e85a69da2a7407c48f0c06e1255ce5ef5e4648e9ed2b92fda10406",
+      "size": 26881
+    },
+    {
+      "path": "candidate/backtrader/notifications/signatures.py",
+      "sha256": "0858d28ee6ee0bf7b9b9e8a8b21cf7c99c0427c5f084f52ad387a1b9c02e3d2a",
+      "size": 3173
+    },
+    {
+      "path": "candidate/backtrader/notifications/transport.py",
+      "sha256": "cce0fb6a9ff68be2b5555271f60e40761a83f95cf0e443ddd4719827d9784dd9",
+      "size": 10572
+    },
+    {
+      "path": "candidate/backtrader/observer.py",
+      "sha256": "bf7697b94ab1f787b6dc48eb0e86afe36d8b66500e5bec75d18acf30276e3fbd",
+      "size": 3779
+    },
+    {
+      "path": "candidate/backtrader/observers/__init__.py",
+      "sha256": "0a0c3d0b68f69205192a2b670aa9a1ffb8a1aa0cbaa5a24847e24500805113cd",
+      "size": 1521
+    },
+    {
+      "path": "candidate/backtrader/observers/benchmark.py",
+      "sha256": "063aa60523d3db42effbfaebe20ef75396bc5c7337090237974bea1c0bc7321f",
+      "size": 4254
+    },
+    {
+      "path": "candidate/backtrader/observers/broker.py",
+      "sha256": "1d7302688b583406e8e997af12d49f99aafaa6536b0cfbd4f71330043a898f90",
+      "size": 4713
+    },
+    {
+      "path": "candidate/backtrader/observers/buysell.py",
+      "sha256": "8c1a21c64207a29e20dc4de21b9883a6d0f880f3a2ce7c6bcc7082260bd622ed",
+      "size": 4701
+    },
+    {
+      "path": "candidate/backtrader/observers/drawdown.py",
+      "sha256": "c4d023e86133ef5a8447488ed525a34ce2f0cbe2cc969415aa2539fae8e940da",
+      "size": 4222
+    },
+    {
+      "path": "candidate/backtrader/observers/logreturns.py",
+      "sha256": "ff7fcc7c1054d89dbf436f597ff7c62caf500c09c4d4cc79a75b01b4d3016f20",
+      "size": 3348
+    },
+    {
+      "path": "candidate/backtrader/observers/timereturn.py",
+      "sha256": "b6d60ea35675554ff0f35cbb91414a3fe93c079436833b9ad0775e5e802a38a7",
+      "size": 2779
+    },
+    {
+      "path": "candidate/backtrader/observers/trade_logger.py",
+      "sha256": "47e410240a0f5c4270ac2751dca4e8cd4d524f32124093bc5082b0b0b47a2ca7",
+      "size": 122669
+    },
+    {
+      "path": "candidate/backtrader/observers/tradelogger.py",
+      "sha256": "b4b37f17397cc3b87ec7cb731dc4765c4c667fda0a7ed57c55bd204c94efa0a8",
+      "size": 165
+    },
+    {
+      "path": "candidate/backtrader/observers/trades.py",
+      "sha256": "a1ea396d1d6335748f3dae0bcf5ea655d448cdb715c2d4bbf26bf359ef8d186d",
+      "size": 7536
+    },
+    {
+      "path": "candidate/backtrader/order.py",
+      "sha256": "8114920ae483779f17fb731c941c7a4fbd8a5d17e317e0b67566be9dea6b39d6",
+      "size": 39183
+    },
+    {
+      "path": "candidate/backtrader/parameters.py",
+      "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618",
+      "size": 89810
+    },
+    {
+      "path": "candidate/backtrader/plot/__init__.py",
+      "sha256": "66d26341a4d727adfcda106136b6d67d5fa8ee283d6ed5bcae953a00cab44750",
+      "size": 1590
+    },
+    {
+      "path": "candidate/backtrader/plot/finance.py",
+      "sha256": "87ce9500004a9150e7e0954ef0ca4e99b81cf00273d086543bfb5a3da7bc98c4",
+      "size": 35730
+    },
+    {
+      "path": "candidate/backtrader/plot/formatters.py",
+      "sha256": "81b8f167c2f4cec05d5724d1dd485256a3eccb2620b6bc6bab1029d81f48c235",
+      "size": 6921
+    },
+    {
+      "path": "candidate/backtrader/plot/locator.py",
+      "sha256": "20a515ec539416eaf0b655ff3f246ae97118ac0d35602ddf824f9c88750a034f",
+      "size": 12469
+    },
+    {
+      "path": "candidate/backtrader/plot/multicursor.py",
+      "sha256": "b652e6d950bd1e351fc18b2eda7830e49d7f2fd9017ce1f354007624351efa9a",
+      "size": 18844
+    },
+    {
+      "path": "candidate/backtrader/plot/plot.py",
+      "sha256": "e347f77664d7f624da79f2205e26a84eefb5269299e113fb24034d52937d70ae",
+      "size": 102311
+    },
+    {
+      "path": "candidate/backtrader/plot/plot_plotly.py",
+      "sha256": "76b43b3c891f08a12f423a90ef3ac4ace901c6b5af5c9bf5d9f9a619022e3865",
+      "size": 47813
+    },
+    {
+      "path": "candidate/backtrader/plot/scheme.py",
+      "sha256": "f7288d57e64a5a61d291846ac5a869d2ea5168c719e53ffb9c752a13ffac51c5",
+      "size": 9283
+    },
+    {
+      "path": "candidate/backtrader/plot/utils.py",
+      "sha256": "2b0d901ca2082f3e56227b102808f0869cec64e0d07e4bb679799cde2c7504b3",
+      "size": 2819
+    },
+    {
+      "path": "candidate/backtrader/position.py",
+      "sha256": "4dfd6228942f7e74d02c8376ec540b732bc6fa789857f626c0240b69838f8e9d",
+      "size": 11873
+    },
+    {
+      "path": "candidate/backtrader/position_modes.py",
+      "sha256": "39dc286282a1a210399847211700a8a5d69f0a5e8fc2dcbfab7cc33b771db844",
+      "size": 4567
+    },
+    {
+      "path": "candidate/backtrader/profiles.py",
+      "sha256": "0cd9ee5bd0b89892380a0be24ff30bdfb9e04242e4caad93d0b26101437a1921",
+      "size": 11153
+    },
+    {
+      "path": "candidate/backtrader/reports/__init__.py",
+      "sha256": "e4629f13210b5ebdd0416dabe0ef9110517dbf4fd69fa6543fe39fa5c70a2582",
+      "size": 1066
+    },
+    {
+      "path": "candidate/backtrader/reports/charts.py",
+      "sha256": "de21693283f773c090c297efd337313bb0590e69ed978a637f3a694e6e999318",
+      "size": 12004
+    },
+    {
+      "path": "candidate/backtrader/reports/performance.py",
+      "sha256": "c404a19ebc1c50ed579d7f17c7c38956c72a345ec27ee1755dafe8af0aff9969",
+      "size": 22973
+    },
+    {
+      "path": "candidate/backtrader/reports/reporter.py",
+      "sha256": "e83b26b1e78f308c319a064b1ef59f15ec07b9582d8b4a56d2c46fedd28ce0aa",
+      "size": 22812
+    },
+    {
+      "path": "candidate/backtrader/resamplerfilter.py",
+      "sha256": "63eecf77764bd873354b6a273f670b66af3cb195b7f9560efe7d44b156370fa8",
+      "size": 38733
+    },
+    {
+      "path": "candidate/backtrader/runtime/__init__.py",
+      "sha256": "7d1f092e7237043b255bf0a53e613c300a6b95d7b1cd84588c0af0e223353050",
+      "size": 258
+    },
+    {
+      "path": "candidate/backtrader/runtime/__main__.py",
+      "sha256": "9082c7592e58572bd749f8cd928b42f20fe3cbbde7aafef1e40dd90adcf6cd36",
+      "size": 150
+    },
+    {
+      "path": "candidate/backtrader/runtime/cli.py",
+      "sha256": "dcff694e1f522e83c2633788f289fdb5bdc40a2bdc0f3f18a376489429764436",
+      "size": 121
+    },
+    {
+      "path": "candidate/backtrader/runtime/config.py",
+      "sha256": "ad5c5d636b0b6af5178ffa5a2a40ca66d21e11d9a24228b035dceb9192ff9abb",
+      "size": 127
+    },
+    {
+      "path": "candidate/backtrader/runtime/errors.py",
+      "sha256": "71e576fc649b425cb9bed612eb52e43751e97f6d813b58be9c23383a5903d28a",
+      "size": 336
+    },
+    {
+      "path": "candidate/backtrader/runtime/policy.py",
+      "sha256": "de04951edad075df060d943fabae7014b19cff3598d96d7cc03a5fa9e03e0657",
+      "size": 127
+    },
+    {
+      "path": "candidate/backtrader/runtime/registry.py",
+      "sha256": "deee9e7ae1a71505a592aee92631c5ad201aa412f13586242de9d47394e5bd13",
+      "size": 131
+    },
+    {
+      "path": "candidate/backtrader/signal.py",
+      "sha256": "7b408efb53cb6f4300afda5fabf9b42d2ec4a48b2540e7c97fe9474ca5581f57",
+      "size": 3674
+    },
+    {
+      "path": "candidate/backtrader/signals/__init__.py",
+      "sha256": "7e12d90e47849a4c641f0de8fa7c9ff77d845cb0ebd3fe8a9de01de0460ba231",
+      "size": 617
+    },
+    {
+      "path": "candidate/backtrader/sizer.py",
+      "sha256": "c35e4a5ea11be849b0e8257a97e750b46b24e45f4a7c65f69fb70c9f58fc0cf8",
+      "size": 4074
+    },
+    {
+      "path": "candidate/backtrader/sizers/__init__.py",
+      "sha256": "cc18fc41cf4e365ca3b63fdf4d27a34aa3f711cd7d23182a3b0200ec154df0a1",
+      "size": 1010
+    },
+    {
+      "path": "candidate/backtrader/sizers/allocation_sizer.py",
+      "sha256": "7a3e93eced08f9ddc374d994c41ba417d3e6f7276745a890f15204f3311c1cd9",
+      "size": 3256
+    },
+    {
+      "path": "candidate/backtrader/sizers/fixedsize.py",
+      "sha256": "5b362bb8854147e3bb05579cf65a91ce7d439341586459542fc2f4d0ebbc36f4",
+      "size": 5658
+    },
+    {
+      "path": "candidate/backtrader/sizers/percents_sizer.py",
+      "sha256": "45556578da4707c71b4fde5b56c426e90dfd54808e7bd3306c8225309b0659eb",
+      "size": 3816
+    },
+    {
+      "path": "candidate/backtrader/store.py",
+      "sha256": "4e26537ba8909aa321e65c000eb3453a451db8ea17a608b95a5e338fd06c09cd",
+      "size": 7989
+    },
+    {
+      "path": "candidate/backtrader/stores/__init__.py",
+      "sha256": "076bb64ae832e189b28b313e0028e24005d507dd6b46d0336fe3295af579b246",
+      "size": 1275
+    },
+    {
+      "path": "candidate/backtrader/stores/btapistore.py",
+      "sha256": "57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae",
+      "size": 799816
+    },
+    {
+      "path": "candidate/backtrader/stores/ctp_account_actor_port.py",
+      "sha256": "efe666f382d6d405f927562fd4f5c20583f3fa1e82aa5f21e9fee98feb8d4846",
+      "size": 26006
+    },
+    {
+      "path": "candidate/backtrader/stores/ctp_i9_managed_dispatch.py",
+      "sha256": "454c039e85b7559b7f37291bc7eb77f7e7a845cadf48faa9262cb7042636c6ad",
+      "size": 43222
+    },
+    {
+      "path": "candidate/backtrader/stores/ctp_i9_parent_request_builder.py",
+      "sha256": "4ef2264441adb020e92ad1eef3a52e58d870c66b406bd2dd795d737a6f0711e8",
+      "size": 38539
+    },
+    {
+      "path": "candidate/backtrader/stores/ctp_managed_projection_bridge.py",
+      "sha256": "bb1c81335505b8f59edaedced6424a4bdd7671bdeb59ba9f34c16ffc56feebd4",
+      "size": 16764
+    },
+    {
+      "path": "candidate/backtrader/stores/livestore.py",
+      "sha256": "86884ae44f4dcf2fb92a9c004d21253ee9e21662ad37936120b45c98d278fa25",
+      "size": 4625
+    },
+    {
+      "path": "candidate/backtrader/stores/managed_execution.py",
+      "sha256": "1c31f89412e8e1177eb2e27389c62b50e074361ef808098846c06704f18440c5",
+      "size": 36603
+    },
+    {
+      "path": "candidate/backtrader/stores/vchartfile.py",
+      "sha256": "03361da43b98566015b35f2c15030011f74b67fab3c135d52956e99a30100e52",
+      "size": 2687
+    },
+    {
+      "path": "candidate/backtrader/strategy.py",
+      "sha256": "c68dfd717ea62e56b74a56a8a7c1ec2a553b03002bd5b87a3a756f6a4998e5ca",
+      "size": 150874
+    },
+    {
+      "path": "candidate/backtrader/talib.py",
+      "sha256": "5ad886cf43a362b79ece013e9e9717c3b8f095a402802849c88c97ce9b969ea9",
+      "size": 11658
+    },
+    {
+      "path": "candidate/backtrader/test_helpers.py",
+      "sha256": "f0351378c509b628a87daf880c943095d053e11a147264ab9f45c3355a5dc95d",
+      "size": 3387
+    },
+    {
+      "path": "candidate/backtrader/timer.py",
+      "sha256": "258eeae71a1f32d733a482791d7113ca6155a665f03e29918782c2525cc80607",
+      "size": 16517
+    },
+    {
+      "path": "candidate/backtrader/trade.py",
+      "sha256": "f6da2947c90e980a3ae12047bc06e25b182b453c3f4e32db5d64648db8381437",
+      "size": 17719
+    },
+    {
+      "path": "candidate/backtrader/tradingcal.py",
+      "sha256": "21949101dbf30291e7b73aff65c450823f81c600d12db592a805916007d61afa",
+      "size": 14257
+    },
+    {
+      "path": "candidate/backtrader/utils/__init__.py",
+      "sha256": "9a842999364bd670979592a56e34470ab8a56e030dc4ce7913eabc120a8b4b5c",
+      "size": 2326
+    },
+    {
+      "path": "candidate/backtrader/utils/autodict.py",
+      "sha256": "895861968a404c11f651c786dbf89d1c8e0e778a2156882f9cea471e70086a32",
+      "size": 8097
+    },
+    {
+      "path": "candidate/backtrader/utils/date.py",
+      "sha256": "a2af56b29ea29ec3eea2e94add76c78d5b1dd602e5174296fd81c8c40a550466",
+      "size": 1865
+    },
+    {
+      "path": "candidate/backtrader/utils/dateintern.py",
+      "sha256": "352e3ba37c8511f7f1cce4fbdd3d59ad512143b3fdf4930805ece0b82dde9bae",
+      "size": 16042
+    },
+    {
+      "path": "candidate/backtrader/utils/flushfile.py",
+      "sha256": "44a03624b9b28be300057071c3e63e7a8cfcab2ade15015da9a72bbabdc70210",
+      "size": 3149
+    },
+    {
+      "path": "candidate/backtrader/utils/fractal.py",
+      "sha256": "74ec0e11c1f37aea1f2f78bf5e5feeb2e1792613b65f59c933d7852dc8de89b7",
+      "size": 3439
+    },
+    {
+      "path": "candidate/backtrader/utils/get_metrics.py",
+      "sha256": "d823dc65cbb634deb1076f9f0da999fa7198b6b6f9e1111a33ce57070b5b1dc5",
+      "size": 3843
+    },
+    {
+      "path": "candidate/backtrader/utils/load_data.py",
+      "sha256": "9ed669d21dc59d2320a1be4f8d9f31577c64a32aaece8e09d6b0958ec4755f9d",
+      "size": 6824
+    },
+    {
+      "path": "candidate/backtrader/utils/log_message.py",
+      "sha256": "e526f8a6c8013b955ab099441b5747530c179f7bc57af982d56b609e512fbcb3",
+      "size": 42019
+    },
+    {
+      "path": "candidate/backtrader/utils/ordereddefaultdict.py",
+      "sha256": "b4212fa022d6c23d2b80f67b17710925680a41358a7aa4c9ba41b7d7eb4898eb",
+      "size": 3027
+    },
+    {
+      "path": "candidate/backtrader/utils/py3.py",
+      "sha256": "191884dfbd24a023acd491bdee691f23713abe879ae3db876d0fee0767b19a2f",
+      "size": 8569
+    },
+    {
+      "path": "candidate/backtrader/version.py",
+      "sha256": "baf442fe69cad9e0900527ac4a1f0fbad8131cb2ab96fb1dbf6e8d9f130b206c",
+      "size": 577
+    },
+    {
+      "path": "candidate/backtrader/writer.py",
+      "sha256": "70d069c7d4aa0fd9a0d84076b6606ed5fe0be2a655f3827a47f111e550934efe",
+      "size": 13427
+    },
+    {
+      "path": "candidate/tests/__init__.py",
+      "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+      "size": 30
+    },
+    {
+      "path": "candidate/tests/fixtures/__init__.py",
+      "sha256": "60303949eb432537ed90cc8a317585cbe7d3f6ded4523ef7971b4d0dad8e7366",
+      "size": 53
+    },
+    {
+      "path": "candidate/tests/fixtures/cross_exchange_rules/p2_6_public_rule_snapshot.json",
+      "sha256": "06b44e5724edfe869231f320befc132ceba6ebe77466dca56b5f95bf61cc5ceb",
+      "size": 2048
+    },
+    {
+      "path": "candidate/tests/fixtures/fake_btapi.py",
+      "sha256": "6599b7ff7ddbb50d6d238c5bac5752a4af9fe2ff842ce692a8259d3df21a016a",
+      "size": 7837
+    },
+    {
+      "path": "candidate/tests/fixtures/iter27_mf_t1/case_manifest.json",
+      "sha256": "ac7740c1e0adf9c473138f184f624ea3fcadc90b66ddebb17de6284a897dbc2c",
+      "size": 8671
+    },
+    {
+      "path": "candidate/tests/fixtures/iter27_mf_t1/frozen_oracle.py",
+      "sha256": "857df23419b05cde1f783d5b373b656d29bd8dd47b7f829fd1dc6604f2d3594b",
+      "size": 26645
+    },
+    {
+      "path": "candidate/tests/fixtures/iter27_mf_t1/product_negative_contracts.json",
+      "sha256": "364d808588b6d5738f0e4b1821387ee7d744421dbb813651ffafa1b1dddfa3f7",
+      "size": 12706
+    },
+    {
+      "path": "candidate/tests/fixtures/iter27_mf_t1/pytest_node_manifest.json",
+      "sha256": "23627516093b6dcb08a4554cfa6be2e256f326c27cd34720252d95ddfad6aef3",
+      "size": 3651
+    },
+    {
+      "path": "candidate/tests/test_utils/__init__.py",
+      "sha256": "de6055a833a131ad081ca9c9bcb6e916650cce91f4465a3577ab3f7eb86f4ae8",
+      "size": 1959
+    },
+    {
+      "path": "candidate/tests/test_utils/benchmark_metrics.py",
+      "sha256": "4483d74ee3e6f927f87cecb8350cd5a86b551b8a74f4fa639da51cb502728048",
+      "size": 34901
+    },
+    {
+      "path": "candidate/tests/test_utils/factories.py",
+      "sha256": "84e0676a76b9c190b7ac84cd96c0c9e5489642482708ebe6c8f7cfaa7d350575",
+      "size": 19024
+    },
+    {
+      "path": "candidate/tests/test_utils/hft_scenarios.py",
+      "sha256": "090f07c1c56eae6a5c2bac0ed91c6fbb29570ddc9c14b74eb4c19a85899bbcd4",
+      "size": 18494
+    },
+    {
+      "path": "candidate/tests/test_utils/iteration41_source_roots.py",
+      "sha256": "5062fac86e7b785fc60b5ff1f7224871e538a9e9d23b7faf32b7a9c758d54db5",
+      "size": 7116
+    },
+    {
+      "path": "candidate/tests/test_utils/optional_sdk.py",
+      "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1",
+      "size": 827
+    },
+    {
+      "path": "candidate/tests/unit/stores/test_btapistore.py",
+      "sha256": "694887fc723367e04e5ad339a24649fe22cff1877d4e48190bd7e7f14dc4a075",
+      "size": 130480
+    },
+    {
+      "path": "candidate/tests/unit/stores/test_ctp_account_actor_store_wiring_candidate.py",
+      "sha256": "dac659e7c252330ce03c3af87d21107b12d419facb40b9f16ad52e824140211b",
+      "size": 30777
+    },
+    {
+      "path": "evidence/baseline.log",
+      "sha256": "d8e5a97c3a05d6ae090d23e63d5de7a91e113de3fe8d347b3019b5cb1399ef5a",
+      "size": 64134
+    },
+    {
+      "path": "evidence/candidate.log",
+      "sha256": "5a5b3183167e0c6168f47deded6fa88e1a6136aa1fa884a1a10e01a20638f586",
+      "size": 1045
+    },
+    {
+      "path": "evidence/input-r2c-hashes.txt",
+      "sha256": "3b0dd270b19d57209f7cc471a47f53cec2ab189157c3d32b88e7fa083279e2c8",
+      "size": 749
+    },
+    {
+      "path": "evidence/patch-replay.txt",
+      "sha256": "8b80f3a6a2077cccf3ee365efaf650e0c7dc84f91910ef81c3d6e4c60ca19777",
+      "size": 331
+    },
+    {
+      "path": "evidence/REPORT.md",
+      "sha256": "237240a7364041aabde5ee885b86773d18c75c946fbe81bb4c65d048a2d5eb67",
+      "size": 4017
+    },
+    {
+      "path": "evidence/ruff-delta.txt",
+      "sha256": "101ea822732491f40ea51599396a08eada5cfe9af80db41853f8cb700c87c926",
+      "size": 102
+    },
+    {
+      "path": "evidence/source-origin.log",
+      "sha256": "6a3b674729217878e106848b5a37efdf60a93ede89c758541ddc3fd9f838066b",
+      "size": 96
+    },
+    {
+      "path": "evidence/static-diff.txt",
+      "sha256": "a5fe3c4094f3f0363470fa8092600f4524cf944b72b7c83e40d5f5fe687a003e",
+      "size": 456
+    },
+    {
+      "path": "guard/sitecustomize.py",
+      "sha256": "507a7d1b1648249f85d4be46d94b94568eb68d5183a29bc3bd662d1a3a64229d",
+      "size": 729
+    },
+    {
+      "path": "JUnit/baseline.xml",
+      "sha256": "676c1c696013b723ac637c9d6f4d22d33efc1a7fbf953faf7635e1f7d30adba8",
+      "size": 63993
+    },
+    {
+      "path": "JUnit/candidate.xml",
+      "sha256": "878c7989e5835e6bc1ec4ae1fef953ec9981ad3ed757f988ba68b40faf4ecadf",
+      "size": 1123
+    },
+    {
+      "path": "patch/r2d.patch",
+      "sha256": "3fbcfea33b022683644c601a31a2e5ef950c0cf7e4e0c0e323be4764ae9b7e75",
+      "size": 4174
+    },
+    {
+      "path": "preimage/btapistore.py",
+      "sha256": "53cd937a7202990df883fa071c210d31573f11df83937c05880abb3cbc50e90b",
+      "size": 796537
+    },
+    {
+      "path": "source/btapistore.py",
+      "sha256": "57c9f5b45a44a89d6152c5182aee2faddf8faec078efea5acb5dac081245c4ae",
+      "size": 799816
+    }
+  ],
+  "payload_index": {
+    "path": "payload.sha256",
+    "sha256": "37ee26fca8a95fd047eeb53eb621089569346faa80fd646cf1a1cf619a09f7b9"
+  },
+  "schema": "iteration41-store-account-actor-r2d-freeze-v1",
+  "scope": "isolated offline compatibility candidate; not a production authorization"
+}

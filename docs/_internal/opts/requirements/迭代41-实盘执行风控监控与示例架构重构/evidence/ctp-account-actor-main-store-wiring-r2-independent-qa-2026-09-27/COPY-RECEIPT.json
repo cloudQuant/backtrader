@@ -1,0 +1,13 @@
+{
+  "archive_index_payload_count": 37,
+  "archive_members": 37,
+  "files": {
+    "REPORT.md": "4da45fcc7ce4b7efd1eecb1528f1998c8efb4a92a63d02b5bfd8d374849adb3e",
+    "archive-index.json": "7483d35ae669c92eebe856698055bccdc24419ea51c7a550fe14febce7f38d2d",
+    "build_qa_archive.py": "dd7d34684e700315f4ddee80857a5355619dc3e9e64e1b80f8ef26e7efb8f0c2",
+    "r2-independent-qa.raw.zip": "fba851a5ffefd336dd227c70ffdf90779c96c328a7dfbfae9c43a7c181fe238c",
+    "source-provenance.json": "5105e315c0e2d5187f7dd34feededa859ddeebd1179c8895c6607540297ee3ca"
+  },
+  "status": "COPIED_AND_VERIFIED",
+  "zip_testzip": null
+}

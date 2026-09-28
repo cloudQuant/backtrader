@@ -1,0 +1,102 @@
+{
+  "candidate_manifest_sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8",
+  "evidence_files": [
+    {
+      "path": "account_actor_port.py",
+      "sha256": "e0d3147ec7ce867ec96f29e5dc3e8c4a9343b6ef2845b03e712a7676c9c55a48",
+      "size_bytes": 25739
+    },
+    {
+      "path": "baseline-unittest.log",
+      "sha256": "9dc2927b7b199aa1cee1bdaeda5b82aa9c15d42dd30d45c3a746c1ad97725004",
+      "size_bytes": 6106
+    },
+    {
+      "path": "build_evidence.py",
+      "sha256": "16cd02f664dc93120c8f7c8d9a5238c4ba2cdf47bd9e9af3b8f99d3c03024792",
+      "size_bytes": 8574
+    },
+    {
+      "path": "candidate-original-metadata/manifest.json",
+      "sha256": "8f793cc85754f6fa447925bd0ad40570dd7f10480773f45500b56fd0933591a8",
+      "size_bytes": 1654
+    },
+    {
+      "path": "candidate-original-metadata/manifest.sha256",
+      "sha256": "f24bb9ad2a22e3f2e46a4034dd60895418761a2f0ca0ba113b139ed121d37a3b",
+      "size_bytes": 80
+    },
+    {
+      "path": "candidate-original-metadata/receipt.md",
+      "sha256": "ee5fb7d0d3362a7f4d82bbf03d846c92ae542365b6207c173f799ec498293a4f",
+      "size_bytes": 2940
+    },
+    {
+      "path": "candidate-original-metadata/receipt.sha256",
+      "sha256": "db1adab5a831b750746c51fb061a32ce63becfa4709abca32c0c681af5c31a5f",
+      "size_bytes": 77
+    },
+    {
+      "path": "compile-results.txt",
+      "sha256": "4cac00d710806727905ea0eee943ebe8c690fbeaa9507328c8a36342fc002337",
+      "size_bytes": 59
+    },
+    {
+      "path": "independent-unittest.log",
+      "sha256": "ffa3ae0e2d993ad44f55f70479bc08fdc060d83ccb61d653ac79a13e5f79d07e",
+      "size_bytes": 7423
+    },
+    {
+      "path": "INTEGRATION_CONTRACT.md",
+      "sha256": "0a68828d986a5c942c6fb76ac3b5aa1414e86f35b5a11f55cd70739bf3b8ba0b",
+      "size_bytes": 5574
+    },
+    {
+      "path": "MAIN_SOURCE_INVENTORY.md",
+      "sha256": "7e0d439f36296a5db3664863c8421de1ed4b212cd4621b5ea8019cb57c51bfc2",
+      "size_bytes": 2730
+    },
+    {
+      "path": "qa-receipt.json",
+      "sha256": "89760b36c62a7a30752af20887c111261f7f3ad1a05a9f0a95eb886627e30777",
+      "size_bytes": 3134
+    },
+    {
+      "path": "qa-review.md",
+      "sha256": "e61c1c8fab34e00a8010ba72789a2e824229a8bb0ee509e8b9ecf5e6ee207d20",
+      "size_bytes": 3132
+    },
+    {
+      "path": "README.md",
+      "sha256": "de8288865b7174d09936d3e285ee5d52da16b142c023ce10b1d157e239b638ad",
+      "size_bytes": 1232
+    },
+    {
+      "path": "ruff-results.txt",
+      "sha256": "b7a95b77a9305361ba44b2c76e61746124328622feecf010b7981ac8d869c8a4",
+      "size_bytes": 33
+    },
+    {
+      "path": "store_boundary_harness.py",
+      "sha256": "087c79b4ddc48cf10a12d08179aa4c3826aac32ede3f0467f8d2313ca6598af0",
+      "size_bytes": 5114
+    },
+    {
+      "path": "test-results.txt",
+      "sha256": "8aa1807fdc356d7b6059a330731179b5a82d4ebc09924b20a3c939c5a6804099",
+      "size_bytes": 6119
+    },
+    {
+      "path": "tests/test_independent_actor_port_qa.py",
+      "sha256": "43094bfceb0020a209f03ed8cf6f5a04cee2e47c752f2afd05386aaabd56a38c",
+      "size_bytes": 7986
+    },
+    {
+      "path": "tests/test_store_boundary_harness.py",
+      "sha256": "f4eb7519e7a4349d10c33116051cb3132bc5da55a9576794d403c6f37b426daa",
+      "size_bytes": 31213
+    }
+  ],
+  "result": "ACCEPTED_WITH_LIMITS_FOR_FAKE_LOCAL_CONTRACT_ONLY",
+  "schema": "iteration41-account-actor-port-independent-qa-evidence.v1"
+}

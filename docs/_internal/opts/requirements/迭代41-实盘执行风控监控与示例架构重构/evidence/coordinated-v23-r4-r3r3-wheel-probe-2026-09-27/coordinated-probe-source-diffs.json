@@ -1,0 +1,216 @@
+{
+  "roots": {
+    "execution-project": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\execution-project",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\execution-project",
+      "changed_count": 1,
+      "changes": [
+        {
+          "after": {
+            "sha256": "b41c04b596af118f53579b9d8d4851cb3a3bd446bfd8f930e730facc036c0d84",
+            "size_bytes": 1722
+          },
+          "before": {
+            "sha256": "ebadc0fc056191252e5c73f8745e39fa30434f1e12cad9b967ff80ce4a2176bf",
+            "size_bytes": 1739
+          },
+          "path": "pyproject.toml",
+          "status": "modified"
+        }
+      ]
+    },
+    "main-overlay": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\main-overlay",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\main-overlay",
+      "changed_count": 13,
+      "changes": [
+        {
+          "after": {
+            "sha256": "b8f99a9dea38dfee3d93c5a6ff48c622e252d281fe1b6888218da0d3ad838c5f",
+            "size_bytes": 43248
+          },
+          "before": {
+            "sha256": "4ad5f0620accf75692d970e39797b703a3d9776e6b42640f25c568256c85b2e0",
+            "size_bytes": 43265
+          },
+          "path": "backtrader/stores/ctp_i9_managed_dispatch.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "5e830d2fe5a1acb4b8f56b212eab564e977efdc4193885a8e0f95eca65fa979b",
+            "size_bytes": 38586
+          },
+          "before": {
+            "sha256": "d31aabcfc4e1c2ffd2c02e03ab262ddeddf1f9dbe6a69875b96b3d5012e42859",
+            "size_bytes": 38619
+          },
+          "path": "backtrader/stores/ctp_i9_parent_request_builder.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "fe1361a22b761942e8620789b9c4f3ebcc18f28336093af4d980f23225ebaeb8",
+            "size_bytes": 24183
+          },
+          "before": {
+            "sha256": "76884b14ccae185198d630e458b3994d35a40157361bc57016e0416f6dd9f0a2",
+            "size_bytes": 24200
+          },
+          "path": "backtrader_runtime/_iteration41_l2_fixture/managed_013_3.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "593898957b88c76574df406bb573bb17b5d4742c7cbdbd27a56df08671861008",
+            "size_bytes": 38096
+          },
+          "before": {
+            "sha256": "821bc2b7f2064e9a9fac9deaa7be453db636a969f7e6be093b6586049bcbad74",
+            "size_bytes": 38113
+          },
+          "path": "backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "87ff764cfe76cfd588f34d2c71c867ab200d86d6a4a99f1cf130b86fddf2926d",
+            "size_bytes": 45994
+          },
+          "before": {
+            "sha256": "dc268bdb6923adfcb8d7ada0c4a3aac35e2eefd8d167de2ee2e78ed1671cf552",
+            "size_bytes": 46011
+          },
+          "path": "backtrader_runtime/ctp_i9_account_session_candidate.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "301a2d32b0abcdc19a2f4a5a09d45432a1fd942e5c391b3b509a40cf9c176f22",
+            "size_bytes": 21061
+          },
+          "before": {
+            "sha256": "ad29bbecca4aca87ff349c358fb1731650af372a33298dac9a8fccb99bc7830a",
+            "size_bytes": 21033
+          },
+          "path": "backtrader_runtime/ctp_i9_candidate_artifact_set.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "5b177d912b70bc4edaaa64cdf039eb097feb5da4556fa1013499f55a1f5eea2f",
+            "size_bytes": 31596
+          },
+          "before": {
+            "sha256": "3c13eab85e4fd58afb7db866a642eac31e44dacd1f53bc0785f5e7773d24b9f9",
+            "size_bytes": 31613
+          },
+          "path": "backtrader_runtime/ctp_managed_account_runtime_candidate.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "c0ee69c282521a082ab511ad761aacf09936946799ea5193a534e63983c69d17",
+            "size_bytes": 48129
+          },
+          "before": {
+            "sha256": "16c361887fa2316b90e9ab5500131adbb1c23700c5cfe359d1821bc0cf79e3b2",
+            "size_bytes": 48163
+          },
+          "path": "backtrader_runtime/ctp_managed_action_authority.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "12fa98334553e9b1a60fc08301bd3c034074bc924f9f5c974a14fee84f84d91c",
+            "size_bytes": 23110
+          },
+          "before": {
+            "sha256": "c77355033d76aff9dcb97c52a78e11195e6c3dd616d211293e2f4cc9982b0067",
+            "size_bytes": 23144
+          },
+          "path": "backtrader_runtime/ctp_managed_action_scope_resolver.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "68222a2317b8f94950c5b4cf3dd7c26c706ef934b885f3ee3bcb8732ee838213",
+            "size_bytes": 1298
+          },
+          "before": null,
+          "path": "iteration41-coordinated-release-probe-v3.md",
+          "status": "added"
+        },
+        {
+          "after": {
+            "sha256": "695a144a0eb26d00b8cb13eeac1fbdbba076aecad4d7e80c61434e8329554d48",
+            "size_bytes": 58349
+          },
+          "before": {
+            "sha256": "806b64521467ab0559215170ed8f587e7cd1a8375f1c9a4b86ff9060be11ee4c",
+            "size_bytes": 58383
+          },
+          "path": "tests/integration/test_iteration41_managed_cancellation_composition.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "84cc2046dfad3b720ea501eb79a32cd21a599bbac2e35576964799f83007d8ec",
+            "size_bytes": 9609
+          },
+          "before": {
+            "sha256": "8e96384a24eb37c4d6e2b8d7b4aba14d39f9b4fd19436bbf5dda534d962ccd84",
+            "size_bytes": 9597
+          },
+          "path": "tests/unit/runtime/test_ctp_i9_candidate_artifact_set.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "36417686a7b1154bbe1ead74ab64c735c447332245750a9ab32bca7c18f93858",
+            "size_bytes": 5351
+          },
+          "before": {
+            "sha256": "cd89290d586233ada06b2fc302770a27c634e8de5d6218aa9be37636bccf6a9f",
+            "size_bytes": 5385
+          },
+          "path": "tests/unit/runtime/test_iteration41_l2_fixture_package.py",
+          "status": "modified"
+        }
+      ]
+    },
+    "parent-source": {
+      "baseline_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\parent-source",
+      "candidate_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1\\candidate-v3\\parent-source",
+      "changed_count": 2,
+      "changes": [
+        {
+          "after": {
+            "sha256": "3729fa3d937863b89fb3e46cd88ce0050baa1551a6053b68930fd069c8a1c86a",
+            "size_bytes": 441292
+          },
+          "before": {
+            "sha256": "5eda28bb2d79f489dc8aa80be64f28434347e54cc3f15d8bff084038ed9c2d48",
+            "size_bytes": 441326
+          },
+          "path": "bt_api_py/_execution_session.py",
+          "status": "modified"
+        },
+        {
+          "after": {
+            "sha256": "07a1ddd92e3372253bf80ea33c022c5cc236f13af921938d09db22ac5bf92002",
+            "size_bytes": 9303
+          },
+          "before": {
+            "sha256": "bead044d9f1f65cf54fec5d67b8a2a5dd113abc5040027853504bb62fdd1472a",
+            "size_bytes": 9319
+          },
+          "path": "pyproject.toml",
+          "status": "modified"
+        }
+      ]
+    }
+  },
+  "schema": "iteration41-coordinated-source-diffs-v1",
+  "source_manifest_sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6"
+}

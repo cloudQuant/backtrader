@@ -1,0 +1,2 @@
+python -m pytest -p no:asyncio tests/unit/stores tests/unit/runtime -q --tb=no --junitxml='D:\temp\iteration41-r2b-main-unit-store-runtime.xml' *> 'D:\temp\iteration41-r2b-main-unit-store-runtime.txt'
+PowerShell; cwd=D:\source_code\backtrader

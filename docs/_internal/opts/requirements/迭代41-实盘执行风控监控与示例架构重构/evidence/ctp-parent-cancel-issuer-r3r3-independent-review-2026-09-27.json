@@ -1,0 +1,354 @@
+{
+  "schema": "iteration41.parent_cancel_issuer_r3r3.root_review.v1",
+  "status": "LOCAL_FAKE_ISSUER_PASS_MAIN_CONTROL_WIRING_PENDING",
+  "issuer_manifest_sha256": "50b0d8b99afdacdaf2055246010e5766bbe630bc66d71c2aeeaca117baf3ce7a",
+  "independent_qa_receipt_sha256": "c409209c902711101a73b19417aa8c0abaef4d772414112b28eed23f49ff051c",
+  "root_reverified": {
+    "issuer_payloads": 15,
+    "synthetic_sqlite_files": 43,
+    "zip_testzip": null
+  },
+  "tests": "23 author freeze / 28 combined independent (5 new cross-package)",
+  "limits": [
+    "SIMULATION_JOURNAL fake/offline issuer only; normalized source digest is not authenticated provider evidence.",
+    "Parent control-release/main Backtrader composition and production/direct authority are not wired.",
+    "No native SDK, provider, protected config, account or trading request was used."
+  ],
+  "archive": {
+    "file": "ctp-parent-cancel-issuer-r3r3-independent-review-2026-09-27.raw.zip",
+    "sha256": "fd4956975b3ff62b3139a17c00501b2ea45785d9d9b2bb59e3e41efedd0808d6",
+    "entries": 66
+  },
+  "files": [
+    {
+      "path": "issuer/snapshot-manifest.json",
+      "sha256": "50b0d8b99afdacdaf2055246010e5766bbe630bc66d71c2aeeaca117baf3ce7a",
+      "bytes": 4964
+    },
+    {
+      "path": "issuer/src/fake_dispatch_authority.py",
+      "sha256": "d902a376cb28fd40bbab6a13542491d1080f2d8e477f695345e06bacd3349ba5",
+      "bytes": 75980
+    },
+    {
+      "path": "issuer/tests/test_cancel_dispatch_resolution_proof.py",
+      "sha256": "ab1ccc88bcbddc05812ec56f5cb9fc3bd7bf46b1a3944354cf85c8a79c639ee0",
+      "bytes": 31388
+    },
+    {
+      "path": "issuer/tests/test_cancel_dispatch_resolution_proof_store.py",
+      "sha256": "39ebc5bf0404a7d76cffbf737c83e56aba67ad904687e19a186db06bd3e135c9",
+      "bytes": 9265
+    },
+    {
+      "path": "issuer/tests/fixtures/fake_dispatch_authority_v2.py",
+      "sha256": "bf6b2db7a65463d8f3ddc3b55232961103df75edc2bdb8cc20080c6034ee0058",
+      "bytes": 43431
+    },
+    {
+      "path": "issuer/qa/parent-cancel-resolution-issuer-r3r3-review.json",
+      "sha256": "4488183afeec53e5008dbf3ddc0e91ad38b5fcdc29f94bb37efb2d399956ebf1",
+      "bytes": 6250
+    },
+    {
+      "path": "issuer/qa/parent-issuer-r3r3-review.log",
+      "sha256": "1f189206b47c1ec39a42c85b9e8df0521e053b4cc41db199916b9e4da810ca42",
+      "bytes": 202
+    },
+    {
+      "path": "issuer/qa/parent-issuer-r3r3-review.xml",
+      "sha256": "990245663ecb3a4298bfefbed9acb89cfbc8e6c6ed5841d40fe24fd5eec6d1b3",
+      "bytes": 3781
+    },
+    {
+      "path": "issuer/qa/freeze-r2-pytest.log",
+      "sha256": "08ce4fd3b3caf801e14d79bc8b5cca9b22ac70a745d42c7e38d5d99aadfd30ca",
+      "bytes": 234
+    },
+    {
+      "path": "issuer/qa/freeze-r2-junit.xml",
+      "sha256": "30d2a7b5914a753e2705d31ac2eb10df854185c981d4bf3e2d2c35e02fabb464",
+      "bytes": 3781
+    },
+    {
+      "path": "issuer/qa/freeze-r2-exit.txt",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "issuer/inputs/execution/source-manifest-r3r3.json",
+      "sha256": "7655307fb90c959dabf5dc14786d02c60edd3fcf3d1fc3cefc32f2512e34eeec",
+      "bytes": 5589
+    },
+    {
+      "path": "issuer/inputs/execution/store.py",
+      "sha256": "f5d6db87e0698832b0e76a01d857d2b3a5cb58b633d82961cc546e3dad986f6e",
+      "bytes": 705405
+    },
+    {
+      "path": "issuer/inputs/execution/contracts.py",
+      "sha256": "4cee90ae9c8b414877e7a7b917af85d518d45e6074418dc5b0f4bc713fad8219",
+      "bytes": 59990
+    },
+    {
+      "path": "issuer/inputs/risk/risk-cancel-resolution-manifest.json",
+      "sha256": "b5b066e901e656e3ce42599e0701b731df16be742121a43604b58d69e35ded5d",
+      "bytes": 1795
+    },
+    {
+      "path": "issuer/inputs/risk/admission.py",
+      "sha256": "c9491ed33ca8fd8347bd3cc9ff5962de402b202703ba78db95720d3cf3b67005",
+      "bytes": 145931
+    },
+    {
+      "path": "independent/qa/account-actor-crosspackage-review.json",
+      "sha256": "c409209c902711101a73b19417aa8c0abaef4d772414112b28eed23f49ff051c",
+      "bytes": 3619
+    },
+    {
+      "path": "independent/qa/account-actor-crosspackage-review.md",
+      "sha256": "898be54c86dc3582266040ee2c2cb6e739e8fc87f0f869bf610ae43e261f3b89",
+      "bytes": 2861
+    },
+    {
+      "path": "independent/tests/test_account_actor_crosspackage_cancel.py",
+      "sha256": "b7782e21e054210e4c3fb3cb45715d04b625b427b6f40ab44b6864672372f03e",
+      "bytes": 14183
+    },
+    {
+      "path": "independent/qa/final-pytest.log",
+      "sha256": "8787c2bdc2c0bf1d0f3b395d53ee01b2d9ebf98562fb3dd19ce05f6cfe7b546b",
+      "bytes": 207
+    },
+    {
+      "path": "independent/qa/final-junit.xml",
+      "sha256": "d033f3c9011bdf51b9b86be75230690eb7015d931ffca0c0cc2b1e6a1782b32a",
+      "bytes": 4562
+    },
+    {
+      "path": "independent/qa/final-synthetic-db-manifest.json",
+      "sha256": "71543860e42b7df4496779a778f5bcd6c402847aa3201e522a8f596462408566",
+      "bytes": 8491
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_acknowledged_cancel_is_no0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_atomic_cancel_readback_di0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancelled_action_must_hav0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_proof_guard_rechec0/fake.sqlite3",
+      "sha256": "f687f0e4bb9653aa75a2e2613dc62659cd0f66ee36aa9d357b006ca0dc1f87e4",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_proof_guard_rechec1/fake.sqlite3",
+      "sha256": "5394dc3fbf6799d0399da0acef101e5f5ba943fe727687eda779ec395e21ed53",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_proof_requires_exa0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_proof_requires_exa1/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_resolution_proof_u0/fake.sqlite3",
+      "sha256": "139708242683612190a5235ef6f52193d898900c5272493c9f1e681627d7e521",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_resolution_proof_u1/fake.sqlite3",
+      "sha256": "651c7752fa649f52e8676cfc36a2995ed65cc3e235f5a6b10c8d5be03838f257",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_cancel_resolution_rejects0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_missing_atomic_cancel_rea0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_missing_terminal_cancel_o0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_nonterminal_cancel_action0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_nonterminal_cancel_action1/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_old_proof_cannot_resolve_0/execution.sqlite3",
+      "sha256": "48d26f8e72ab8eca3d964fa5c0dcdcbcd0dcac3756f9373899ab94b15947c820",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_old_proof_cannot_resolve_0/fake.sqlite3",
+      "sha256": "66db7139f1436f23d855d50a7c7e0edfd32b76633ae58fab9fdcf4694778b385",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_old_proof_cannot_resolve_0/risk.sqlite3",
+      "sha256": "4c90ad5d191f26627a6a9769cf89fbad1cc3a3963d576056ae3456127be327b9",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_old_proof_is_stale_after_0/fake.sqlite3",
+      "sha256": "89c94ead31b57dddea923c9ba42e6e893cac95e411e6f66943a702d2ab04c8b5",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_order_only_proof_type_can0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r30/execution.sqlite3",
+      "sha256": "97cbfa10afb79e1361073f1f560d60da635d4ae954b5a9aa16d8c84058873fa0",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r30/fake.sqlite3",
+      "sha256": "735cfc8531256ab9fadcef8925a53796ab4d512b385cee30e113e596d46ca34e",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r30/risk.sqlite3",
+      "sha256": "5550d594b36a5d0094ca46345c3bab117ce74ecaa2a1b7bb799b37ec59e936a7",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r31/execution.sqlite3",
+      "sha256": "cab1e4c66370135e0e697efc2b8f48532176a192f13e2a828ca5cd2cf0cab7cc",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r31/fake.sqlite3",
+      "sha256": "239bd6352d5c56746e026f9aac4b7fb083b288a291fb68e8dedd8e8b6123c980",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_proof_issuer_uses_real_r31/risk.sqlite3",
+      "sha256": "9b29f442599a8a73ce7a586fa8a1fb8853ab562ba3fa7c8dac737e1ae8f1fef7",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_reconcile_source_uses_sam0/fake.sqlite3",
+      "sha256": "a188093ab07ceaa20f9b07b79691cdc0e522a25f2191b6b76644b1a6629202f3",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_rejected_cancel_cannot_cl0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_rejected_cancel_target_ev0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_risk_resolution_clears_on0/execution.sqlite3",
+      "sha256": "39af6c1fb5279f5aab991a75cf72518747464de7528e44f5382e7595f3303545",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_risk_resolution_clears_on0/fake.sqlite3",
+      "sha256": "6db7e08d939d96e57210a83a26e043bd23c6f95da449400b1d99589ed97d5a4a",
+      "bytes": 65536
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_risk_resolution_clears_on0/risk.sqlite3",
+      "sha256": "af5bf533b5396a67b0e4cf0b8a8e154bd5e563e49615e062a74aa26d42124a14",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_stale_writer_generation_c0/execution.sqlite3",
+      "sha256": "d362a6e1dbe8df38d0812c9dc107948409edb716c5c45730379ceba1e2552526",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_stale_writer_generation_c0/fake.sqlite3",
+      "sha256": "f815bb98a80dee5d9648fe9b320abbb641652179059fe9de8a1aa320b6908cb1",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_stale_writer_generation_c0/risk.sqlite3",
+      "sha256": "3a3343400faa19d897efea55cc05910972c847a6b0c8b7d9301b065ccee69543",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_terminal_cancel_requires_0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_unknown_cancel_cannot_iss0/execution.sqlite3",
+      "sha256": "298cdfbb72dce452f835cb6db8ca2d1eaef5a828afe4696284eeca415753740b",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_unknown_cancel_cannot_iss0/fake.sqlite3",
+      "sha256": "8f6aad1e2b5aafef8879fd69ebedd4e9fe759388b00fc637b76cb0fcef91adc9",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_unknown_cancel_cannot_iss0/risk.sqlite3",
+      "sha256": "f383fc4fdd3273b82c4549bc56db712de36d9a10986d3725a74ec957162d8765",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_v2_schema_migrates_and_ca0/fake.sqlite3",
+      "sha256": "a2056de6256fafc5bd4c32b27db057c13e4c48d8322af265bedbe70459604d40",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_wrong_account_and_scope_p0/execution.sqlite3",
+      "sha256": "2a44b59f742ec6a4bd6df41f98e6fecd0c268c7a496143056c8667ba4745fe39",
+      "bytes": 471040
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_wrong_account_and_scope_p0/fake.sqlite3",
+      "sha256": "4a912a5aa7edef79e4c28038e47ffa503a1631246b1e7bb4d0dc43759c9c7114",
+      "bytes": 57344
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_wrong_account_and_scope_p0/foreign-risk.sqlite3",
+      "sha256": "5b9de20b1f51901b1a1a5ae29666256096adeee41279409ab2073079529fb6b2",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/qa/final-basetemp/test_wrong_account_and_scope_p0/risk.sqlite3",
+      "sha256": "66970f39e0c7fd020cf124b95ca4916b36f6b245c94f7df4fad9dc5b06a0577f",
+      "bytes": 118784
+    },
+    {
+      "path": "independent/iteration41_archive_cancel_issuer_r2_20260927.py",
+      "sha256": "9eadee3e91987fd6f91e2edabb6e5b9ffe501f9833c5ee0ca13a6bf30867abfb",
+      "bytes": 6656
+    }
+  ]
+}

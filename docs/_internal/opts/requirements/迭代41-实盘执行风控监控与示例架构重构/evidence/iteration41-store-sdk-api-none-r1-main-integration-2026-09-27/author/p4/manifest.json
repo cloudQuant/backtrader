@@ -1,0 +1,38 @@
+{
+  "schema": "mechanical-sdk-api-failclose-candidate.v1",
+  "decision": "NO_WRITE / LIVE_NO_GO",
+  "status": "TEMP_ONLY_FAIL_CLOSE_CANDIDATE",
+  "source_path": "examples/ctp_options_simnow_mechanical_operator.py",
+  "source_preimage_sha256": "aa4292252d86e560a733b1030ce3c1438bc37fd99cd5b66518c853fd87ccfa19",
+  "source_candidate_sha256": "549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f",
+  "patch_path": "candidate.patch",
+  "patch_sha256": "299cd0215a8636f25c7e3b74f70cd05c30372059efc1150e9bb96a47f668b70c",
+  "patch_change": "Replace store._ensure_api_ready() fallback with MechanicalBlocked(STORE_SDK_API_NOT_READY) when public store.sdk_api is None.",
+  "default_reachability": {
+    "MECHANICAL_EXECUTION_ENABLED": false,
+    "run_mechanical_cycle_first_guard": "_require_mechanical_execution_enabled() before receipts, credentials, Store, or API access",
+    "main_first_guard": "_require_mechanical_execution_enabled() before load_operator_env",
+    "pinned_trust_roots": null,
+    "unpinned_root_effect": "_require_pinned_trust_root raises before reading root bytes, approvals, or credentials",
+    "default_live_store_builder": "rejects without explicit test-only token and injected fake Store; run_mechanical_cycle does not pass that token",
+    "fallback_reachable_without_source_or_module_override": false
+  },
+  "conditional_risk": "If gates and root pins are later enabled and an injected/unconnected Store has sdk_api=None, the old fallback calls BtApiStore._ensure_api_ready(), which can import bt_api_py.BtApi, instantiate a client, connect/start it, and query balance. Candidate now blocks instead.",
+  "verification": {
+    "fresh_replay_target_sha256": "549276111279275beb000d8104c4330a6d11b7c181ae66087079a555af26d81f",
+    "main_git_apply_check": "PASS; no apply performed",
+    "focused_command": "python -B -c 'pytest.main([...])' with patched overlay first on PYTHONPATH",
+    "focused_tests": "28 passed, 1 pre-existing deprecation warning",
+    "focused_tests_log_sha256": "c97c33d78c9dc99d49a7ca41decf18e04c1d96aa0642a38838bbd32131fd396c",
+    "fake_guard_log": "[]",
+    "fake_guard_log_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "new_fake_test_sha256": "5ff701c3ead8ec57fb4869c996b1ad30140b90d5eec909c40c1f524dcd1adc9e",
+    "ruff": "All checks passed for patched overlay source and added fake test under repository Ruff configuration"
+  },
+  "compatibility": "Default behavior remains blocked. Existing supplied non-null public sdk_api behavior is unchanged. An explicitly invoked cycle with sdk_api=None now fails closed instead of using a private lazy-connect method; this may require a future reviewed explicit Store startup contract.",
+  "limits": [
+    "No SDK/native imports, network/provider access, credentials, .env read, or real Store construction were used.",
+    "The focused fake test locally monkeypatches disabled gates and prior admission helpers only to reach the branch; every substituted value is synthetic and the Store's private fallback is a raising sentinel.",
+    "This candidate does not enable the mechanical route or change official writer disposition."
+  ]
+}

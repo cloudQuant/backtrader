@@ -1,0 +1,1919 @@
+{
+  "schema": "independent-coordinated-probe-source-adjuncts-v1",
+  "created_utc": "2026-09-27T00:51:43.943345+00:00",
+  "source_tree_claim": "External mapped helper roots copied as inert source files; not part of author 843-file candidate source manifest. Each copied file is hash-bound here. Sensitive/native/cache file filters are listed in script.",
+  "roots": [
+    {
+      "key": "base",
+      "module": "bt_api_base",
+      "source_path": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_base\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\base\\src",
+      "copied_file_count": 104,
+      "copied_bytes": 536652,
+      "files": [
+        {
+          "path": "bt_api_base/__init__.py",
+          "size_bytes": 155,
+          "sha256": "c0c14cfa1e39a79fef8126a85e82cd7b41d5662e683ff11932fcc58add8116b4"
+        },
+        {
+          "path": "bt_api_base/_compat.py",
+          "size_bytes": 744,
+          "sha256": "17a12e28c7963fc249c58ad6531421f0c9cdf7ff637dbd170a033f472034a869"
+        },
+        {
+          "path": "bt_api_base/_plugin_shims.py",
+          "size_bytes": 917,
+          "sha256": "28e724334696992db8c28e71ea80d41aa2900f7c30d07b7fa1f1f827273e54e4"
+        },
+        {
+          "path": "bt_api_base/_version.py",
+          "size_bytes": 97,
+          "sha256": "70318b9846313a97cda03bd4150def5c0497955411834ed3b542910cf9ce1a7d"
+        },
+        {
+          "path": "bt_api_base/auth_config.py",
+          "size_bytes": 6083,
+          "sha256": "52f2a2489acb10f376a8278a84c50bb50dc69fd8abcdff2aa97138fe69587c43"
+        },
+        {
+          "path": "bt_api_base/balance_utils.py",
+          "size_bytes": 3048,
+          "sha256": "afbc308263d56ff41222239f652e1a745ea4e41ab0842139841e50201ca4bca3"
+        },
+        {
+          "path": "bt_api_base/cache.py",
+          "size_bytes": 7642,
+          "sha256": "6366c0ed14291ce5785bd5612086f914956583905b824be4fc77fc09b0007fb9"
+        },
+        {
+          "path": "bt_api_base/config_loader.py",
+          "size_bytes": 9413,
+          "sha256": "c3566937b63fc330b1eb8c9d82436d7e4ef7647eb0a421310a7be14093722672"
+        },
+        {
+          "path": "bt_api_base/connection_pool.py",
+          "size_bytes": 7927,
+          "sha256": "b4bd8f519296481591fc97e699ab0446a1aee9d54f136a9ac5e550be38a8e6e5"
+        },
+        {
+          "path": "bt_api_base/containers/__init__.py",
+          "size_bytes": 1497,
+          "sha256": "3eb233cbbe4257ba4e92171ca6558881dbe1858b4ebe772b476080de67ee4810"
+        },
+        {
+          "path": "bt_api_base/containers/accounts/__init__.py",
+          "size_bytes": 134,
+          "sha256": "3ddec34dd2c2e462cfbe4a6ba9a9c488d5eae57d96a47125d2e2738a3524b627"
+        },
+        {
+          "path": "bt_api_base/containers/accounts/account.py",
+          "size_bytes": 8222,
+          "sha256": "ec0ada503098d8a0c18e1187f2b9ec5452c926569fe8e862f0871cb16ffe1675"
+        },
+        {
+          "path": "bt_api_base/containers/auto_init_mixin.py",
+          "size_bytes": 1957,
+          "sha256": "213c7ff0d03ce85749779e406ab87dae5c53e82cb0760fcbffff9f35d25af3ed"
+        },
+        {
+          "path": "bt_api_base/containers/balances/__init__.py",
+          "size_bytes": 134,
+          "sha256": "5fb712caa8f43b0827d10f58138b3aa8cf79db84f5117f129a628cb0d186dec3"
+        },
+        {
+          "path": "bt_api_base/containers/balances/balance.py",
+          "size_bytes": 5900,
+          "sha256": "fdcb1cd74edf2758fae47b6df67b796bf295071dadbf3b846080d7c94a0279c7"
+        },
+        {
+          "path": "bt_api_base/containers/bars/__init__.py",
+          "size_bytes": 122,
+          "sha256": "a84f124df852da27c3a0879306238db02e34d8ec7fd2eca16bda7a8ba224e000"
+        },
+        {
+          "path": "bt_api_base/containers/bars/bar.py",
+          "size_bytes": 3320,
+          "sha256": "831e634a612327636788596644fe6e491b69f42e844ed27d2eed79d7c3029495"
+        },
+        {
+          "path": "bt_api_base/containers/exchanges/__init__.py",
+          "size_bytes": 142,
+          "sha256": "ab012118d09169fd8b024bb2b0e8be1d5968cbfd585a0a7ebf29cae353cbbe3b"
+        },
+        {
+          "path": "bt_api_base/containers/exchanges/exchange_data.py",
+          "size_bytes": 2741,
+          "sha256": "485ed8aa25565b4a16af60eacbac04b097582fa2583aff61e1b63087ec62f059"
+        },
+        {
+          "path": "bt_api_base/containers/fundingrates/__init__.py",
+          "size_bytes": 147,
+          "sha256": "ffe57587056cd347c15d830d1565c22cfade1c452c7e8748be92fd587bba1cc7"
+        },
+        {
+          "path": "bt_api_base/containers/fundingrates/funding_rate.py",
+          "size_bytes": 5275,
+          "sha256": "6f70d8440499af69eabd66669ec6303f790d9cfa512faf0c60ea874321177968"
+        },
+        {
+          "path": "bt_api_base/containers/greeks/__init__.py",
+          "size_bytes": 131,
+          "sha256": "924a2bd4e7abeffa03db5228f9b2627a13fa2e723ff38b1b384d5f85b4df619a"
+        },
+        {
+          "path": "bt_api_base/containers/greeks/greeks.py",
+          "size_bytes": 1908,
+          "sha256": "2b8003612b13439091a07a733a97b3b290f12b24fe93be0210cf5c4d0b38006a"
+        },
+        {
+          "path": "bt_api_base/containers/incomes/__init__.py",
+          "size_bytes": 131,
+          "sha256": "f16e650e2c201724e7dd9f8a4a7417065186a3d5706d3b0beb0cd35414c96ccf"
+        },
+        {
+          "path": "bt_api_base/containers/incomes/income.py",
+          "size_bytes": 2921,
+          "sha256": "05eb00c2f0244e25156f70430a4d56da02595521f449d679062587726e7d2490"
+        },
+        {
+          "path": "bt_api_base/containers/instrument.py",
+          "size_bytes": 4804,
+          "sha256": "23a81c871eeff53e6683ae550c6f39311ed4d366bec1acc9f863a36ef7d2d027"
+        },
+        {
+          "path": "bt_api_base/containers/liquidations/__init__.py",
+          "size_bytes": 146,
+          "sha256": "3b3f3a048fb558d1e20b3197f09c3382e7f51d9d70c4f01e6c9b7696065729df"
+        },
+        {
+          "path": "bt_api_base/containers/liquidations/liquidation.py",
+          "size_bytes": 2313,
+          "sha256": "8a1954efb9d1e98c7436157ecddaed8059049caf562d79d386ce8e3ccebafdff"
+        },
+        {
+          "path": "bt_api_base/containers/markprices/__init__.py",
+          "size_bytes": 141,
+          "sha256": "e0ab8614d84fb7cc0d8e036a4ac4055bb7be106474c14c43ce1f06bc3ffe3cdb"
+        },
+        {
+          "path": "bt_api_base/containers/markprices/mark_price.py",
+          "size_bytes": 2736,
+          "sha256": "62c5b860cd75f4c4536397fcc2662c43d323890cbca0869efd0501452c76e49a"
+        },
+        {
+          "path": "bt_api_base/containers/orderbooks/__init__.py",
+          "size_bytes": 140,
+          "sha256": "08652de2e7269f1d7748e01b985f05cde77d08d4b8ee2bfdf3102a727928b5c3"
+        },
+        {
+          "path": "bt_api_base/containers/orderbooks/orderbook.py",
+          "size_bytes": 3914,
+          "sha256": "b022e7396f6e670b5a72f45d5c8ae6fee3561ed22c806b944cfb209875bc8324"
+        },
+        {
+          "path": "bt_api_base/containers/orders/__init__.py",
+          "size_bytes": 128,
+          "sha256": "b3a4fcccedcbbd7d246081691b65030da670b20e910ae677c26236cca7deb2fe"
+        },
+        {
+          "path": "bt_api_base/containers/orders/order.py",
+          "size_bytes": 10606,
+          "sha256": "9440d65f74725e0fa3237a8d08f16d7579788fa8fe17954fdcdba07e6a23469b"
+        },
+        {
+          "path": "bt_api_base/containers/positions/__init__.py",
+          "size_bytes": 137,
+          "sha256": "2c6cb89ee5d070fcdcf3e73bf1d6cab14579557450ba2c6c368de22cccf72cf0"
+        },
+        {
+          "path": "bt_api_base/containers/positions/position.py",
+          "size_bytes": 6827,
+          "sha256": "021faf8c50bb9949ff13167f5217c9b16fa58b4674266919e1de8e7e170adac9"
+        },
+        {
+          "path": "bt_api_base/containers/requestdatas/__init__.py",
+          "size_bytes": 139,
+          "sha256": "f8ef6f79baccc9cb4e7623a5df8c74dd2a8ed24bdf80e3e57cd48a1291bbbca6"
+        },
+        {
+          "path": "bt_api_base/containers/requestdatas/request_data.py",
+          "size_bytes": 4968,
+          "sha256": "2c855ef1dc27e5b9913d357ef2d81cce9d5d5fc62daae3fadcfaf9bc52354f43"
+        },
+        {
+          "path": "bt_api_base/containers/symbols/__init__.py",
+          "size_bytes": 131,
+          "sha256": "5254a4a459afc31a0e54594d75a1f3b06a10758769148434bde7a3fa64d8ed58"
+        },
+        {
+          "path": "bt_api_base/containers/symbols/symbol.py",
+          "size_bytes": 3383,
+          "sha256": "9444b8cdaaa42094bd8db1f8dffe20d5dd69763e606324204a44bd60fef30c56"
+        },
+        {
+          "path": "bt_api_base/containers/tickers/__init__.py",
+          "size_bytes": 131,
+          "sha256": "32d2fb5c1fed1fadcd67fc38eff142f7444076faeb2e401dfeeb5e301dc7ded7"
+        },
+        {
+          "path": "bt_api_base/containers/tickers/ticker.py",
+          "size_bytes": 3449,
+          "sha256": "9092e59e2e846feebdef0640d0ea4bb9bd143de1070c9410cf786706ad56ca63"
+        },
+        {
+          "path": "bt_api_base/containers/timers/__init__.py",
+          "size_bytes": 128,
+          "sha256": "d27412a2b17a26bd205e6cfea8e1190b86a1f7d0cb0fede0367483b135995116"
+        },
+        {
+          "path": "bt_api_base/containers/timers/timer.py",
+          "size_bytes": 444,
+          "sha256": "6a799546660e1508ce01f0f27174d63c459451b9c4669bb5a2457c560e0b0274"
+        },
+        {
+          "path": "bt_api_base/containers/trades/__init__.py",
+          "size_bytes": 128,
+          "sha256": "b43b4f97c557117a299b401da8459b916c9e717aca6c22e9916813644cc68545"
+        },
+        {
+          "path": "bt_api_base/containers/trades/trade.py",
+          "size_bytes": 4824,
+          "sha256": "c2d5104d33e90a77b4219d5c62015329d4ed44ad45b96de145de7b5bf9b641fb"
+        },
+        {
+          "path": "bt_api_base/core/__init__.py",
+          "size_bytes": 1023,
+          "sha256": "4fd86536356f5421c1332d0e9eded8370e38473869a015171e34dd63696e45dd"
+        },
+        {
+          "path": "bt_api_base/core/async_context.py",
+          "size_bytes": 16428,
+          "sha256": "67f1e125266c80cd28b63c42de87e7588b31d357a41cbd8301b90563cedd1d20"
+        },
+        {
+          "path": "bt_api_base/core/dependency_injection.py",
+          "size_bytes": 9415,
+          "sha256": "96c178e4c6d387212cb17252a84775652bb2fb86d4f0db5338597e90929b8993"
+        },
+        {
+          "path": "bt_api_base/core/interfaces.py",
+          "size_bytes": 9133,
+          "sha256": "3cc776e956c2766d3946d218b754372cedc312196cac510df18197f05dd2d523"
+        },
+        {
+          "path": "bt_api_base/core/services.py",
+          "size_bytes": 24021,
+          "sha256": "f384a09db545a2a293756a26efbeac8f77bcb62d8392be15813878f2880a4f05"
+        },
+        {
+          "path": "bt_api_base/error.py",
+          "size_bytes": 17787,
+          "sha256": "e72e9692456bb68f1251f898e8234505f16c3b18eae8bc70cc396ce33a664653"
+        },
+        {
+          "path": "bt_api_base/event_bus.py",
+          "size_bytes": 4631,
+          "sha256": "a812b093b75d402ccf01df3c518de68258d15f55dd0900315d42109996edf8c1"
+        },
+        {
+          "path": "bt_api_base/event_clock.py",
+          "size_bytes": 583,
+          "sha256": "8c1b192889ecde3a9b76890743695c76693c718cb2ef450d108055f915ac453c"
+        },
+        {
+          "path": "bt_api_base/exceptions.py",
+          "size_bytes": 10808,
+          "sha256": "272e9714e6ea237bbe34294d8e6ee78c7c5a3c2464fd01612e009c3aa56ba631"
+        },
+        {
+          "path": "bt_api_base/feeds/__init__.py",
+          "size_bytes": 530,
+          "sha256": "af7bc27664c005cda5b2d68d939fc41856bfeae7027632c198839a6515656fe4"
+        },
+        {
+          "path": "bt_api_base/feeds/abstract_feed.py",
+          "size_bytes": 9543,
+          "sha256": "7a9b240aca00f5036eac4d1a4e14122c8998036fa2334681cb6bac3459a73b5c"
+        },
+        {
+          "path": "bt_api_base/feeds/base_stream.py",
+          "size_bytes": 3360,
+          "sha256": "e77bedc168fafb64484e91873b51bcd6e71eacba685986747aebeac5f1461235"
+        },
+        {
+          "path": "bt_api_base/feeds/capability.py",
+          "size_bytes": 2924,
+          "sha256": "6c20a41828d283c61dc2d5778dc20cc4ce015c9d830c6270232e871053f979e4"
+        },
+        {
+          "path": "bt_api_base/feeds/connection_mixin.py",
+          "size_bytes": 1955,
+          "sha256": "31b1390c018e639bfcf88421aad0503c13731f61fcb4654010531e7bf2efadf0"
+        },
+        {
+          "path": "bt_api_base/feeds/feed.py",
+          "size_bytes": 25060,
+          "sha256": "f1d5b72970d7e4f9855248617d06d774890eedbbb6277caa1ef96701f89040a4"
+        },
+        {
+          "path": "bt_api_base/feeds/http_client.py",
+          "size_bytes": 11976,
+          "sha256": "c7314563284e1308446f48995ec2be018e7d4f8bb7b27ac975f7107ff2110b47"
+        },
+        {
+          "path": "bt_api_base/feeds/my_websocket_app.py",
+          "size_bytes": 30266,
+          "sha256": "cb6e538676723dfd3afcc10ba49aa8684e3b287676201521a4a45245ec542bf6"
+        },
+        {
+          "path": "bt_api_base/feeds/transport_safety.py",
+          "size_bytes": 6185,
+          "sha256": "ba111fec0052e3d47ddfdb4a31337de15cd6f2dce20b42a74e5b3618bd3f83ae"
+        },
+        {
+          "path": "bt_api_base/functions/__init__.py",
+          "size_bytes": 131,
+          "sha256": "7bd75e9b04b4c22b9236a7155a6d3bcaaf777e4ac06961118c4837ffa6ded960"
+        },
+        {
+          "path": "bt_api_base/functions/async_base.py",
+          "size_bytes": 7842,
+          "sha256": "637ae9cb7aed8c64b84c8b80a3334e2cb6f3b6b6d3666d84bd51697d8ef97400"
+        },
+        {
+          "path": "bt_api_base/functions/calculate_time.py",
+          "size_bytes": 3572,
+          "sha256": "1b1c65c637c880e1f4d1795ad6437dedaa6a9c61298e3ebf5f57abbe4247435c"
+        },
+        {
+          "path": "bt_api_base/functions/log_message.py",
+          "size_bytes": 4319,
+          "sha256": "46ef74efc395c9dc25c7caf5d016e52dafbfd771deee9cc011f6321e0237aac9"
+        },
+        {
+          "path": "bt_api_base/functions/rate_limiters.py",
+          "size_bytes": 807,
+          "sha256": "8159082bb93c587fa46213e4ebda3e7bfae0658bdd3521124cec115f3ddaf5c8"
+        },
+        {
+          "path": "bt_api_base/functions/signers.py",
+          "size_bytes": 672,
+          "sha256": "f6a2e057dd720c7f2549b0fddccdd983619d0b077177c23996f8f1c8d534def1"
+        },
+        {
+          "path": "bt_api_base/functions/timestamps.py",
+          "size_bytes": 657,
+          "sha256": "faa4e7613f1acbd1703967401b48643a3f022e40b6e862454cd5a48579d39740"
+        },
+        {
+          "path": "bt_api_base/functions/utils.py",
+          "size_bytes": 10664,
+          "sha256": "481ed5c55b23c7ebc08d6b285c5e466090432d0556774f5df6b8d7fb07fb9829"
+        },
+        {
+          "path": "bt_api_base/gateway/__init__.py",
+          "size_bytes": 1443,
+          "sha256": "40b5f76e8ffb72e72f2ef5e6785d77614c6577bb7ec45137a89d1cd6f90102fe"
+        },
+        {
+          "path": "bt_api_base/gateway/adapters/__init__.py",
+          "size_bytes": 1643,
+          "sha256": "2efe644785b03f3939796fc12b7758f7038def8d86dcd28cd46b6dad74ed1300"
+        },
+        {
+          "path": "bt_api_base/gateway/adapters/base.py",
+          "size_bytes": 2474,
+          "sha256": "44cf3d8e5c65ccec999b2078731a489dca29cebc763c36dd248b91e321810616"
+        },
+        {
+          "path": "bt_api_base/gateway/adapters/plugin_adapter.py",
+          "size_bytes": 3806,
+          "sha256": "c5f749199759db97c9188122084d341caf659b21711415251b16d57c5c547fe0"
+        },
+        {
+          "path": "bt_api_base/gateway/config.py",
+          "size_bytes": 14244,
+          "sha256": "cd38681697016d5909301bd66af8a0bcf4c13bcfa46a5143af10b223155f61ef"
+        },
+        {
+          "path": "bt_api_base/gateway/health.py",
+          "size_bytes": 4757,
+          "sha256": "85f0b5781e679f0a8fb9a616501046c85a462aca190d141e678f60e3f3657cd7"
+        },
+        {
+          "path": "bt_api_base/gateway/models.py",
+          "size_bytes": 3672,
+          "sha256": "6a50201863f5bf99d64d79131fa63f78604fae15d84041f72626db6f98e2ff1d"
+        },
+        {
+          "path": "bt_api_base/gateway/order_identity_map.py",
+          "size_bytes": 5049,
+          "sha256": "c2d50f9e6b4cfa5576152cb524282a51245ace4047fc2eaf278c05d025911c28"
+        },
+        {
+          "path": "bt_api_base/gateway/order_ref_allocator.py",
+          "size_bytes": 4990,
+          "sha256": "dccdd68687e46173516736631d245200fd7cf718b2a46e685a317261a3830758"
+        },
+        {
+          "path": "bt_api_base/gateway/protocol.py",
+          "size_bytes": 1205,
+          "sha256": "358c172189ff63eec4f3227fe1d015d3e191a41a8bc286c6a6bdf63f4c5a2121"
+        },
+        {
+          "path": "bt_api_base/gateway/registrar.py",
+          "size_bytes": 1318,
+          "sha256": "ca01a47bb6d07ef046bd0a41ad9b474ebe6c8cc9ff369edf9d1249db6d620202"
+        },
+        {
+          "path": "bt_api_base/gateway/runtime.py",
+          "size_bytes": 20039,
+          "sha256": "40981ca7a151d6d50a0bdd3ce75c1c16f2149a295970c68e51e33e6f110affe1"
+        },
+        {
+          "path": "bt_api_base/gateway/runtime_remote.py",
+          "size_bytes": 29708,
+          "sha256": "e10e32c45033ba90818f2dfd27e84250cb80beeaeaabe84faf5cc77ead9e3029"
+        },
+        {
+          "path": "bt_api_base/gateway/storage/__init__.py",
+          "size_bytes": 130,
+          "sha256": "601bae070451478c72c917253aab473952f04f1809342662b5ad68f2d70b2522"
+        },
+        {
+          "path": "bt_api_base/gateway/storage/tick_writer.py",
+          "size_bytes": 6497,
+          "sha256": "5b2bc4acc046cff6a2c14cb7d99bb693f9bed7a0c74fc76219bb2f3316834e95"
+        },
+        {
+          "path": "bt_api_base/gateway/subscription_manager.py",
+          "size_bytes": 3475,
+          "sha256": "8cb513012ed24502a76e208be7fed4c7a84924a9809c9ec043d2588bdb2cc971"
+        },
+        {
+          "path": "bt_api_base/instrument_manager.py",
+          "size_bytes": 4657,
+          "sha256": "2b4a78ffcbea884845196656bd86fe28278673c0be03ef26b336f428420725f0"
+        },
+        {
+          "path": "bt_api_base/logging_factory.py",
+          "size_bytes": 6173,
+          "sha256": "e62684251d7a6102b59491db3c1724abcdb5fd0518b1dee9dba6aa99e09c149d"
+        },
+        {
+          "path": "bt_api_base/plugins/__init__.py",
+          "size_bytes": 576,
+          "sha256": "16d16ab8ce5f14c66e1a1a6ecdcab97e42c2856b189a14819b81a027e749244f"
+        },
+        {
+          "path": "bt_api_base/plugins/errors.py",
+          "size_bytes": 486,
+          "sha256": "1c10fdec3aa51261861d7ef4837194af9bb3014778ab25dd0acda89793bdb151"
+        },
+        {
+          "path": "bt_api_base/plugins/loader.py",
+          "size_bytes": 11884,
+          "sha256": "bf25754bd084861dc8d22e26fa40c498f71e23ac83a22ff2fb72999792286413"
+        },
+        {
+          "path": "bt_api_base/plugins/protocol.py",
+          "size_bytes": 434,
+          "sha256": "b9dec7282c65e7789023b60e3d8b72adb47b3a1ea4913db101b3bcae666cacf7"
+        },
+        {
+          "path": "bt_api_base/rate_limiter.py",
+          "size_bytes": 10100,
+          "sha256": "0ff147b831784e168cc5a15a073d3c5228fb7af57c868a7ae6dca474057065a0"
+        },
+        {
+          "path": "bt_api_base/registry.py",
+          "size_bytes": 11360,
+          "sha256": "4f66487a7d2cdedd81303b142c329f85cba298153016d6d4aa324918a15524de"
+        },
+        {
+          "path": "bt_api_base/security.py",
+          "size_bytes": 7764,
+          "sha256": "ae6928db08d7f80add4044a91e48eb14d6080e997e361f39e8c6ea34249a3c17"
+        },
+        {
+          "path": "bt_api_base/testing/__init__.py",
+          "size_bytes": 337,
+          "sha256": "69c327f3a51d81352965a8618ef345d36e64e35ff8d83fec140c0ecae73bc16c"
+        },
+        {
+          "path": "bt_api_base/testing/fixtures.py",
+          "size_bytes": 946,
+          "sha256": "0defef577f719f0c3113e25a2805050f8e2eb5e5ce7dd3f89c05343dbd48d5b7"
+        },
+        {
+          "path": "bt_api_base/utils/__init__.py",
+          "size_bytes": 130,
+          "sha256": "d41a1dd7fe6e489fa65a61c92cf27798e7c2b611b38f80560e30bd3852b708a0"
+        },
+        {
+          "path": "bt_api_base/utils/time.py",
+          "size_bytes": 774,
+          "sha256": "5568933b28438c17a9056831247a53e3e9020104d58b7fdeef4e7f2f9a0784c4"
+        },
+        {
+          "path": "bt_api_base/websocket/__init__.py",
+          "size_bytes": 1140,
+          "sha256": "0e4b8b72f2db6eca5a2f2b2dc1de13df9fda1d83d179b1cb36e8a305bfb83532"
+        },
+        {
+          "path": "bt_api_base/websocket/exchange_adapters.py",
+          "size_bytes": 17794,
+          "sha256": "df3dd3723ea900d8f06a3b4b2dabb3ba0f52b710032bb826134518e2cd6bef0a"
+        },
+        {
+          "path": "bt_api_base/websocket_manager.py",
+          "size_bytes": 23030,
+          "sha256": "e7e3b98f8c4ac68f345893532ec7e525ae80fe034442c7b42e26a5b7f3b70a0a"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 25,
+        "extension:.pyc": 124,
+        "extension:.log": 57
+      }
+    },
+    {
+      "key": "ctp",
+      "module": "bt_api_ctp",
+      "source_path": "D:\\bt_api_ctp_i13_g5_manual_candidate_20260926\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\ctp\\src",
+      "copied_file_count": 81,
+      "copied_bytes": 2285999,
+      "files": [
+        {
+          "path": "bt_api_ctp/__init__.py",
+          "size_bytes": 1145,
+          "sha256": "ea7ea5a0e5e8c1e9b4e84ac1d4ff2af40626516ec773f998ddbf559e4f4c15c7"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__init__.py",
+          "size_bytes": 1005,
+          "sha256": "06d7dc7c1325214f7761525797b52a4060ce15247c3b3df2ea18ff6c63dd0ce4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/__main__.py",
+          "size_bytes": 202,
+          "sha256": "1254e8ad612fe88f39e9397a0c76ccf8a624f63066c24c4c41c5683ac8cfb3fa"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/cli.py",
+          "size_bytes": 7913,
+          "sha256": "08f95e224b7aae85896e9d17af29c9e7898d394184f7919bc5d7b369d5d5109a"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/config.py",
+          "size_bytes": 10079,
+          "sha256": "0c8e2f943cdc71f7521d6ff6c0728c9b76373d6cb4857c9baf326ed2d66ae551"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/contracts.py",
+          "size_bytes": 1431,
+          "sha256": "112d6c73138dd916f49d04155e232379fb63645feb79b9f6aeda5bef21a86ddd"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/__init__.py",
+          "size_bytes": 813,
+          "sha256": "3d850048d509daf018a32142e28470d13ed0f9a8669bb5346df20ce183625d47"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/aggregator.py",
+          "size_bytes": 9046,
+          "sha256": "199e043f00e6a17685d387ff1d09b0adceaa017f860dfab5ad6b92b5075ff2c2"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/build.py",
+          "size_bytes": 3780,
+          "sha256": "ccdc53618117f1dc5872e42de5352e81f5df08c85a64533abfc299cbb2570be1"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/schema.py",
+          "size_bytes": 2317,
+          "sha256": "fb8cd68d8dd2fb3a8a28395745c0dfdaf5daf762bb03ff97edbff5c479217cc5"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/kline/writer.py",
+          "size_bytes": 2261,
+          "sha256": "f4edc4b68a84baf8ff1ef06dd0111089897b01566dc3a3719a224d3a1e4f50f4"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/manifest.py",
+          "size_bytes": 5734,
+          "sha256": "96ac3989372b725de6e9b59d3fa7a466c690303d585b70d52d895cb101ad322c"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/merge.py",
+          "size_bytes": 6898,
+          "sha256": "ea5b3a2b2791f274597725377de8481f3dabc85201306ddf5626c06a2e0b8b1d"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pipeline.py",
+          "size_bytes": 13519,
+          "sha256": "12f35adeabf0f91b1d2e8cc886cf7edad5f9f91ba21ad33077177e73db194ebc"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/__init__.py",
+          "size_bytes": 1191,
+          "sha256": "a98574edfab29c948626c8a4851ba15efda9d5ed16522e8286ee01a47cf58eef"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/backend.py",
+          "size_bytes": 3799,
+          "sha256": "abfec33927e213118e54fafd7167c8bb8c89c0f470e4e1c0c4bfdeb424422e98"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/local_backend.py",
+          "size_bytes": 3542,
+          "sha256": "c0dcc575d1f62ea61288a96f7f3f4a18907c89ca38c922c3a2d02424e01e0d20"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/rsync_backend.py",
+          "size_bytes": 6358,
+          "sha256": "f399b21fae868f384eda3f82faf94cad6f2a64f3f33971e324010c3d47c6713f"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/pull/sftp_backend.py",
+          "size_bytes": 7176,
+          "sha256": "1c2db213b95cdb30327bc6bbd635030eea900b55d8e0136991635eca7945de46"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/reclaim.py",
+          "size_bytes": 3941,
+          "sha256": "1347fdc93e6f0b07550203a1fd6c424848dbfacfc0481e2f87e17dd42b7e8499"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/report.py",
+          "size_bytes": 4779,
+          "sha256": "a83f72cdec245bc0b1e84631ff6a62488faac3a98ce3a223973f0fb1e0025421"
+        },
+        {
+          "path": "bt_api_ctp/cleaner/verify.py",
+          "size_bytes": 2791,
+          "sha256": "3a35fc3fdcad2e55d441fe64bd327e50824697fcc474510e9c0e4929edf01440"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/__init__.py",
+          "size_bytes": 423,
+          "sha256": "23c6e0a420a9ba1145419c453275859fd7947794321b7eb6ac1f10ca2c2c0ba0"
+        },
+        {
+          "path": "bt_api_ctp/cleaner_ctp/symbols.py",
+          "size_bytes": 3095,
+          "sha256": "a3e8ffc0066de027041b6d56938cea57f563ce8e0d150c007efe54f214fc1ca4"
+        },
+        {
+          "path": "bt_api_ctp/collector/__init__.py",
+          "size_bytes": 1888,
+          "sha256": "edb44772fbc1be32a700808c732687b5ddf4d05d4d0422ec092958cb26d70519"
+        },
+        {
+          "path": "bt_api_ctp/collector/__main__.py",
+          "size_bytes": 206,
+          "sha256": "c747dddd23bd2b8df1cfee5737d96a86741e64d2a482651660156a9008bcef80"
+        },
+        {
+          "path": "bt_api_ctp/collector/buffer.py",
+          "size_bytes": 3398,
+          "sha256": "ce942f0fee2486fb2116bd5214cfc4c812d05729b4f77374eff5d6bd4c06d11c"
+        },
+        {
+          "path": "bt_api_ctp/collector/cli.py",
+          "size_bytes": 22031,
+          "sha256": "3ced74cbbd7fbae787b367e8c35f39497227ec16c8f5da53dfe5c4aa465c9268"
+        },
+        {
+          "path": "bt_api_ctp/collector/engine.py",
+          "size_bytes": 17405,
+          "sha256": "d81199511492586e7333b30395b93244808b40924ef03c15c89d5bff16eb6da4"
+        },
+        {
+          "path": "bt_api_ctp/collector/health.py",
+          "size_bytes": 6801,
+          "sha256": "81e863c1bcd70fed53595137fce48cfd4aeb92f1d19436e155f2e0884ff0c2b7"
+        },
+        {
+          "path": "bt_api_ctp/collector/protocols.py",
+          "size_bytes": 4401,
+          "sha256": "08577bae04c1b81c1279f43b9ec4d5f5195f835e5283727787bf69cb4372e6c2"
+        },
+        {
+          "path": "bt_api_ctp/collector/schedule.py",
+          "size_bytes": 10995,
+          "sha256": "deaec0155b0b4361574c4764b69a48a4eeb5a57a11ad774957ee9c28b79f1f53"
+        },
+        {
+          "path": "bt_api_ctp/collector/shard.py",
+          "size_bytes": 3179,
+          "sha256": "f2517da68f2f6226d78517076b5d41d2398a96bacb3a2d0a53311201b88bd41c"
+        },
+        {
+          "path": "bt_api_ctp/collector/sink.py",
+          "size_bytes": 36046,
+          "sha256": "e229afe6cc1799d0bd97efb1aa7bb5f198eb4788fc7e62bbaa64aac4b5038c6f"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/__init__.py",
+          "size_bytes": 560,
+          "sha256": "9c5a6f7040265ac82e408ad7ac806b495e5c52a3a54abc30836d627c20a9d267"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/instrument_provider.py",
+          "size_bytes": 6605,
+          "sha256": "d9cb9b968795bb5b29c9ab6647ab24f14b9551efcc798d41c71c32bb80fc69ec"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/normalizer.py",
+          "size_bytes": 3934,
+          "sha256": "ca621b6502299b7285e8adb7e24cd1db69009c8cebcb4c8ece7de7fd46eb594e"
+        },
+        {
+          "path": "bt_api_ctp/collector_ctp/subscriber.py",
+          "size_bytes": 15377,
+          "sha256": "0eb86fe6585a16b7eb039a1c155b4616755e38f276894f1126cfaa2bb0c9dc3e"
+        },
+        {
+          "path": "bt_api_ctp/containers/__init__.py",
+          "size_bytes": 36,
+          "sha256": "6c515513d8d129cccdcb81e199e816a02e8a38bfcdade8fe6a0dfb0c0203cda0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/__init__.py",
+          "size_bytes": 565,
+          "sha256": "1239a2dee52bc513414c0277654ee36170d289fe41e51d4d47134d1d7307e79e"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/_normalization.py",
+          "size_bytes": 1170,
+          "sha256": "88acf09f0249a2199aa59dbc68ba6fc313ff7b59a362290c1049f5a5b92de62a"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_account.py",
+          "size_bytes": 4124,
+          "sha256": "2864801345a402dbb612f18892d41a37e4e2e62976ef7f995a363db33caeebc0"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_bar.py",
+          "size_bytes": 4183,
+          "sha256": "5db640a0371a9b75d89554e4b13fb88a8e4374004c92333ddf036e4eca6eb525"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+          "size_bytes": 35482,
+          "sha256": "a76e4e1245e84c782ffb9a92b4a804c377fc58c7f3672fd33265e3260e059fbe"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_order.py",
+          "size_bytes": 5619,
+          "sha256": "afa09d5bdf8e5e5c14ad94193c58ce3af460ad44cf835b5e98efa109c622a2de"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position.py",
+          "size_bytes": 6474,
+          "sha256": "04d88d3c1a256ba88a6ca0cdb5ed06f1d7f7e0f9fe4d606c2ae9d61a85755575"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+          "size_bytes": 33385,
+          "sha256": "4580cfcc57bc84891eaf381262455efa7dcffb5275fb9dc18eda9494c5cc3b8b"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_ticker.py",
+          "size_bytes": 14205,
+          "sha256": "40550e641eee14252c7874111a207afc8de3deb8b11a6b10ac0848e53ac39250"
+        },
+        {
+          "path": "bt_api_ctp/containers/ctp/ctp_trade.py",
+          "size_bytes": 5435,
+          "sha256": "6f2b149640c39b5d8c3d303bb86357af78671f3198f196fcf149d83e2ecf867d"
+        },
+        {
+          "path": "bt_api_ctp/ctp/__init__.py",
+          "size_bytes": 754,
+          "sha256": "472e644f88e8c8fa5ded4a95fa036db494abe82484e7a7f8c228c99d05ab2d42"
+        },
+        {
+          "path": "bt_api_ctp/ctp/_ctp_base.py",
+          "size_bytes": 13100,
+          "sha256": "a8535ecc876d6444ceeb1087d3459ca001cc26140c92cfe74094bae86c2ead73"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_events.py",
+          "size_bytes": 7474,
+          "sha256": "01c6db47c9b56252788c8e54aeaeef57e74203e8fd38829e93bab350f92db2c1"
+        },
+        {
+          "path": "bt_api_ctp/ctp/callback_ingress.py",
+          "size_bytes": 70513,
+          "sha256": "92cc7c390c4eb552f4bc86fa5978518923271beaa1b2cc06b1778d8ed6b434df"
+        },
+        {
+          "path": "bt_api_ctp/ctp/client.py",
+          "size_bytes": 345617,
+          "sha256": "a80d060577c210c5faafc57e72b5f2435d6e7b25f6b4fad7eb5797827abe6bd6"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp.py",
+          "size_bytes": 979,
+          "sha256": "e2fe66ca79dd742dc9f85f3456f4fe453ac537672e62f42372e485e1831ccd6f"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_constants.py",
+          "size_bytes": 121992,
+          "sha256": "d51edfe35c21e42dbe18b5566ae09fad589b0a589cf646d342eb54b038e28524"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_md_api.py",
+          "size_bytes": 6064,
+          "sha256": "9eaffb0729bef2a34a97a3a16d20d185b03d380e4c6386a8905e240a7d5f05c2"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_account.py",
+          "size_bytes": 21952,
+          "sha256": "c319c19e99d84a0632254c7b3102b0a12a88d43077c9aaa75f75da1bfe0b34b8"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_common.py",
+          "size_bytes": 194479,
+          "sha256": "5b8bd5888b23e833d54b939d287505877873d6eb657d70ba2023f27a6f154e8e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_market.py",
+          "size_bytes": 55599,
+          "sha256": "195fe470821626702d46cb2a95886e95c4b0ecab00105eab42dc5fb6b9e742da"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_order.py",
+          "size_bytes": 214863,
+          "sha256": "f106acd770799ac635b9f2bd068737a551dc9ad4356fabb639fa174f269af6c7"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_position.py",
+          "size_bytes": 21696,
+          "sha256": "14150fa837aba5d56addf6d1a0eb8f831ee6bd74442bfc5b82174bbd724c81d6"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_query.py",
+          "size_bytes": 171254,
+          "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_risk.py",
+          "size_bytes": 267477,
+          "sha256": "9f5c54796253d7dd07ddd86f77fb3b28deea38f3ff5a8ec4638d816d18546adc"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_trade.py",
+          "size_bytes": 6064,
+          "sha256": "ef9fdcdf773d7cd4cf09d48ec0632b3dfe6d58ca7465d526903ee0ac51205e9e"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_structs_transfer.py",
+          "size_bytes": 165232,
+          "sha256": "de355eedffe43f8afe0a28d4eb7cbbc8c1bc36674ba327e20d8c252e5ad1ea7b"
+        },
+        {
+          "path": "bt_api_ctp/ctp/ctp_trader_api.py",
+          "size_bytes": 58931,
+          "sha256": "26a1cab3d387c5afb79fc7c041a7f0e333cafca708283b05ce65c2b2efb08610"
+        },
+        {
+          "path": "bt_api_ctp/ctp_env_selector.py",
+          "size_bytes": 20558,
+          "sha256": "90206295d274cf262fdc834b2b53da8d02bf1fa5c0c0c15f2905fe4c78a6f07c"
+        },
+        {
+          "path": "bt_api_ctp/errors/__init__.py",
+          "size_bytes": 139,
+          "sha256": "ba6534a03933bfd3e457b2de2b352153ffa29a10bba577bbf6efb64d2bc541ed"
+        },
+        {
+          "path": "bt_api_ctp/errors/ctp_translator.py",
+          "size_bytes": 190,
+          "sha256": "727f996de87f1cd9b1f719a0fc432f4a7fe4a352994361dbd41b5378a60523f9"
+        },
+        {
+          "path": "bt_api_ctp/exchange_data.py",
+          "size_bytes": 832,
+          "sha256": "fdad9316984f1ed007a3a270866ffc894e9ec9b40dfb7f69e809550b10f0fa3a"
+        },
+        {
+          "path": "bt_api_ctp/feeds/__init__.py",
+          "size_bytes": 377,
+          "sha256": "2f0c8fc417d8cb0436c6a562b60acdc881f40fd96c0896d59249aeccc5d8680d"
+        },
+        {
+          "path": "bt_api_ctp/feeds/base_stream.py",
+          "size_bytes": 2445,
+          "sha256": "93b2f327f59803103423f252aa9b03ede0f93e5360eda2439f9c10412d6ea459"
+        },
+        {
+          "path": "bt_api_ctp/feeds/live_ctp_feed.py",
+          "size_bytes": 90531,
+          "sha256": "901ab9dfbc9797058aa77d4340f4712a2fe961e2d1dd9410475da12312d30738"
+        },
+        {
+          "path": "bt_api_ctp/gateway/__init__.py",
+          "size_bytes": 131,
+          "sha256": "8e0e610de253925d53ebc12c22b509af73719bb04ac9787ed91d70a876ea10af"
+        },
+        {
+          "path": "bt_api_ctp/gateway/adapter.py",
+          "size_bytes": 43347,
+          "sha256": "02b358c7ee339ba5d2bb1cfa6e8e45cb0a874f5240ba30cee97d8da915b069bf"
+        },
+        {
+          "path": "bt_api_ctp/instrument.py",
+          "size_bytes": 16189,
+          "sha256": "5137651d992d6150fa8a12f4748e2beb7895781bb521c74be0c8cd5565343d9b"
+        },
+        {
+          "path": "bt_api_ctp/md_identity.py",
+          "size_bytes": 3893,
+          "sha256": "090a541aa77f20ebc39efbb707d88ff654deb1967970279c46ab9823cef2ca3d"
+        },
+        {
+          "path": "bt_api_ctp/order_action.py",
+          "size_bytes": 1824,
+          "sha256": "4e2921cb3d6492f39f23c0e3997b820719ff5c2f9c6b25340fcace4c00d40be5"
+        },
+        {
+          "path": "bt_api_ctp/plugin.py",
+          "size_bytes": 2766,
+          "sha256": "8d51cf8a63a29b687fdd07a294ae107ff471a1ceda76371d52bff1b9ca015d07"
+        },
+        {
+          "path": "bt_api_ctp/query.py",
+          "size_bytes": 11995,
+          "sha256": "46df8c6ff4bfe4520d01bcc47ef306713443207a3e67021f36321a3dc79e4a9f"
+        }
+      ],
+      "filtered_counts": {
+        "extension:<none>": 26,
+        "cache_or_git_dirs": 13,
+        "extension:.pyc": 81,
+        "extension:.yaml": 1,
+        "sensitive_or_native_filtered": 12,
+        "extension:.h": 22,
+        "extension:.plist": 4,
+        "extension:.dtd": 2,
+        "extension:.xml": 2,
+        "extension:.lib": 2,
+        "extension:.i": 1,
+        "extension:.bak": 1,
+        "extension:.cpp": 1
+      }
+    },
+    {
+      "key": "risk",
+      "module": "bt_api_risk",
+      "source_path": "D:\\temp\\iteration41_risk_cancel_resolution_20260927\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\risk\\src",
+      "copied_file_count": 16,
+      "copied_bytes": 439134,
+      "files": [
+        {
+          "path": "bt_api_risk/__init__.py",
+          "size_bytes": 5234,
+          "sha256": "3914399361d5956171cbbd71f728b8d5eb64b7695342ee97d19185cd1e8e21d7"
+        },
+        {
+          "path": "bt_api_risk/allocation_sizing.py",
+          "size_bytes": 6000,
+          "sha256": "b7221e14b33dc38078534b1c3d3b818e3171307e3e22b26b817e96c7495a7179"
+        },
+        {
+          "path": "bt_api_risk/containers/risk_events.py",
+          "size_bytes": 13385,
+          "sha256": "3cb7b37bc8e186a630e047858eb120666fc4837ba25045984ee11fb8ffb35b4a"
+        },
+        {
+          "path": "bt_api_risk/containers/risk_metrics.py",
+          "size_bytes": 11377,
+          "sha256": "20156a825d28b9a837cae73674b601e81220576ab4f8a03b0dbc405a39c4a0a9"
+        },
+        {
+          "path": "bt_api_risk/core/__init__.py",
+          "size_bytes": 2827,
+          "sha256": "7fa2ea3a20028da0f61312bf22176c25768f86d50f2c8e98513e4d20e04f0f97"
+        },
+        {
+          "path": "bt_api_risk/core/admission.py",
+          "size_bytes": 145931,
+          "sha256": "c9491ed33ca8fd8347bd3cc9ff5962de402b202703ba78db95720d3cf3b67005"
+        },
+        {
+          "path": "bt_api_risk/core/instrument.py",
+          "size_bytes": 37345,
+          "sha256": "5995ed4122ecac003e203b2368ba8732d2e212c95107e33c375d76f6b4b89fc7"
+        },
+        {
+          "path": "bt_api_risk/core/limits_manager.py",
+          "size_bytes": 34616,
+          "sha256": "eb1e026351478b240037b74c6d3fc721e3a2c60074e829dbabb0414da5e6921a"
+        },
+        {
+          "path": "bt_api_risk/core/policy_engine.py",
+          "size_bytes": 29113,
+          "sha256": "f85befc83ee4f82506977491a420c07b3b92e702af3a3a09f496f2937af77296"
+        },
+        {
+          "path": "bt_api_risk/core/risk_assessor.py",
+          "size_bytes": 20852,
+          "sha256": "4c22a94caebdf4658e1bfce8d9712b6bbe2fac56058395698c15bae56b4ee585"
+        },
+        {
+          "path": "bt_api_risk/core/risk_calculator.py",
+          "size_bytes": 38074,
+          "sha256": "9f077bd4688fdc92b7791b1390cb310192724246933a95fd647e70b02d8d86e5"
+        },
+        {
+          "path": "bt_api_risk/core/risk_manager.py",
+          "size_bytes": 15442,
+          "sha256": "0d9ff11d5ee36c025ff874a3a66966e625b806154b2af56a3446ee46a2699843"
+        },
+        {
+          "path": "bt_api_risk/ml_models/__init__.py",
+          "size_bytes": 297,
+          "sha256": "0001006fd9f64f72f32c487b31107dca23a7c636b9d3352a92821667adac28f3"
+        },
+        {
+          "path": "bt_api_risk/ml_models/anomaly_detector.py",
+          "size_bytes": 35316,
+          "sha256": "1fe79d5ac5748426580a0c58c0759a94c38d3b05c92fd70fc2b0acd46b69a9f0"
+        },
+        {
+          "path": "bt_api_risk/ml_models/ensemble_model.py",
+          "size_bytes": 27974,
+          "sha256": "da6a149ee7ac66e3ba29f548eeafa2ee5a104a22c5ecdb9750a6bfd1b4ff555d"
+        },
+        {
+          "path": "bt_api_risk/ml_models/ml_base.py",
+          "size_bytes": 15351,
+          "sha256": "6aa19bb0100e937feb0df22ed5a928cd0da8e992e4e9b11d629f444416a6a4c1"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 3,
+        "extension:.pyc": 6
+      }
+    },
+    {
+      "key": "monitor",
+      "module": "bt_api_monitor",
+      "source_path": "D:\\temp\\bt_api_i9_store_broker_src_20260926\\bt_api_monitor\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\monitor\\src",
+      "copied_file_count": 13,
+      "copied_bytes": 145466,
+      "files": [
+        {
+          "path": "bt_api_monitor/__init__.py",
+          "size_bytes": 4193,
+          "sha256": "c493f444c1f57c0e6df71e6213425b3d84e0ad5fa989d6cdf087c533d9317454"
+        },
+        {
+          "path": "bt_api_monitor/collector.py",
+          "size_bytes": 9825,
+          "sha256": "212dc1e50282a8930d19fece02ae844b58a7ff8d799f678e029f813682a31a06"
+        },
+        {
+          "path": "bt_api_monitor/config.py",
+          "size_bytes": 6588,
+          "sha256": "829a8dc4985443de27c92c9ffcf06c6156fc32cce4433c8325ce1d4a1844b2aa"
+        },
+        {
+          "path": "bt_api_monitor/control.py",
+          "size_bytes": 14481,
+          "sha256": "a0e7c119381ab8de2e71f130d62e32a5f697819b154d7856e0d81de8d090a1c4"
+        },
+        {
+          "path": "bt_api_monitor/decorators.py",
+          "size_bytes": 9063,
+          "sha256": "3bd7402667721f1e6f4d9de232d68effd539986e0b7f045e2c16a16d10c60867"
+        },
+        {
+          "path": "bt_api_monitor/durable.py",
+          "size_bytes": 16096,
+          "sha256": "aad913156166621d17598058195eb278a80fc41f48dab9130b46aabffb6e5374"
+        },
+        {
+          "path": "bt_api_monitor/elk.py",
+          "size_bytes": 17315,
+          "sha256": "b10288de3fc84c8e764c33d5d7145e38a2d5cb9804c1609aaa87c7cc02895747"
+        },
+        {
+          "path": "bt_api_monitor/exchange_health.py",
+          "size_bytes": 13915,
+          "sha256": "21fd184ce99d67a149ade4e421e1be09a2d1a162d5904fc227c3ea425abb7926"
+        },
+        {
+          "path": "bt_api_monitor/grafana.py",
+          "size_bytes": 20919,
+          "sha256": "81bd9d876bc78da520a01e87c0e453bf12fe241fcdafc919fb4f2bdef6ef36cd"
+        },
+        {
+          "path": "bt_api_monitor/metrics.py",
+          "size_bytes": 8068,
+          "sha256": "7a7fed4142afbac2728e42fc8289a4fa773d369c755ed81172d830692f301c11"
+        },
+        {
+          "path": "bt_api_monitor/prometheus.py",
+          "size_bytes": 10216,
+          "sha256": "b16bb01895567ac5daa639f1c01e7d3137d16f977ea200f9879239e96d2e301e"
+        },
+        {
+          "path": "bt_api_monitor/system_metrics.py",
+          "size_bytes": 13947,
+          "sha256": "37b567de340e35e2a134cd60a4bc96f87b200e174cd8de7647ea9805b550a1f9"
+        },
+        {
+          "path": "bt_api_monitoring/__init__.py",
+          "size_bytes": 840,
+          "sha256": "1d4ef6a69964c34353cb58514005a664a528b4e61e88063dab1f183c3ab694ad"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 11
+      }
+    },
+    {
+      "key": "gateway",
+      "module": "bt_api_gateway",
+      "source_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\gateway\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\gateway\\src",
+      "copied_file_count": 6,
+      "copied_bytes": 94967,
+      "files": [
+        {
+          "path": "bt_api_gateway/__init__.py",
+          "size_bytes": 1608,
+          "sha256": "de4e84817943b4120c6fe89bd16f734c262249f80e0280402c9d4514a335e889"
+        },
+        {
+          "path": "bt_api_gateway/database_identity.py",
+          "size_bytes": 2796,
+          "sha256": "a66cf0c742c08ab6b17c69d00dc8ebfa817ced209b82c76a0a42d573890d2002"
+        },
+        {
+          "path": "bt_api_gateway/event_journal.py",
+          "size_bytes": 21711,
+          "sha256": "cc8361368dc3f5de7b3febbab1a63d3975bcaef699ade1fef0ee8f01614e212b"
+        },
+        {
+          "path": "bt_api_gateway/router.py",
+          "size_bytes": 29851,
+          "sha256": "fb0c18b68331a571c1530311a084ea5fa71709a81b068b9d37d17538ea528d62"
+        },
+        {
+          "path": "bt_api_gateway/wire_mapping.py",
+          "size_bytes": 6091,
+          "sha256": "d1a9e4c057311f17a72bdcc46ec5825486aa528ca30f1f9d512a9de1753eefab"
+        },
+        {
+          "path": "bt_api_gateway/writer_authority.py",
+          "size_bytes": 32910,
+          "sha256": "4da4d95cff6f5bab987173822c636611b441aaac422771a79cac349061a0676f"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 6
+      }
+    },
+    {
+      "key": "transport_zmq",
+      "module": "bt_api_transport_zmq",
+      "source_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\transport_zmq\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\transport_zmq\\src",
+      "copied_file_count": 5,
+      "copied_bytes": 32272,
+      "files": [
+        {
+          "path": "bt_api_transport_zmq/__init__.py",
+          "size_bytes": 1306,
+          "sha256": "bd0a9854d01062f77a032d2b3af3923ac609dc61d50d88860641b92aa7426227"
+        },
+        {
+          "path": "bt_api_transport_zmq/client.py",
+          "size_bytes": 4208,
+          "sha256": "3c42842494bb5a28245aebcce0afdd500943cc6a8d7677f080c69551377ec354"
+        },
+        {
+          "path": "bt_api_transport_zmq/events.py",
+          "size_bytes": 3648,
+          "sha256": "5e8fb7c9f4481b2f1386c5f197e3b563a079acf84d47ba8f0c90c694bb56e999"
+        },
+        {
+          "path": "bt_api_transport_zmq/server.py",
+          "size_bytes": 16489,
+          "sha256": "df91cb9ce695bacf305ad05d5b92364fc6637fe52e1a509dbbd0455fe3f688d8"
+        },
+        {
+          "path": "bt_api_transport_zmq/wire.py",
+          "size_bytes": 6621,
+          "sha256": "60ef5ea0ea89ff11d1e62c65865a39256cf91c31981553a301f7687394f6372b"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 5
+      }
+    },
+    {
+      "key": "agent",
+      "module": "backtrader_agent",
+      "source_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\agent\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\agent\\src",
+      "copied_file_count": 61,
+      "copied_bytes": 1170064,
+      "files": [
+        {
+          "path": "backtrader_agent/__init__.py",
+          "size_bytes": 894,
+          "sha256": "d14e2df8e2322792e721d29eef7f30ee28b872b0da98b580dcecd5274cffb7d0"
+        },
+        {
+          "path": "backtrader_agent/__main__.py",
+          "size_bytes": 79,
+          "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+        },
+        {
+          "path": "backtrader_agent/adapters.py",
+          "size_bytes": 4357,
+          "sha256": "f003b950fa7fe4cfa16323c9e5286b213f3f1b3c6c19561ecfab77fa2abc8825"
+        },
+        {
+          "path": "backtrader_agent/archetypes.py",
+          "size_bytes": 5441,
+          "sha256": "11c2e49cec2fed74467770beb8eec13832089d207ac3ba9a5ca6145390095b4b"
+        },
+        {
+          "path": "backtrader_agent/audit.py",
+          "size_bytes": 9316,
+          "sha256": "33b0e966b4c30378a4370c000fe8c2c347f8f881485a06592e6b3d5f3a078c73"
+        },
+        {
+          "path": "backtrader_agent/backtrader_runtime.py",
+          "size_bytes": 9634,
+          "sha256": "eb2eff33d39778055ede92803444ce8391c186ec41e017c6a7692a29da5369ee"
+        },
+        {
+          "path": "backtrader_agent/caching.py",
+          "size_bytes": 2683,
+          "sha256": "d2184aa32b2e3d721085684301d9f88bfc7c48573e3a6a33d32a80f6bacd6cf6"
+        },
+        {
+          "path": "backtrader_agent/canonical.py",
+          "size_bytes": 5988,
+          "sha256": "2b23c2a82115a6970712ef046ed133215164d0082ba45b5d707a39bef66cf655"
+        },
+        {
+          "path": "backtrader_agent/catalog.py",
+          "size_bytes": 25020,
+          "sha256": "567483cfe44a9ce377387cd5c678f041fc361c5b14d7f74e1ea975ec79f4f90f"
+        },
+        {
+          "path": "backtrader_agent/changes/__init__.py",
+          "size_bytes": 5100,
+          "sha256": "c496c5ebaa4969ffbd468809a94dbd5978e77c13300af8dfceeff3140cb8f87e"
+        },
+        {
+          "path": "backtrader_agent/changes/apply.py",
+          "size_bytes": 13321,
+          "sha256": "653ad6c7f4a58880beb8e956f10acef16cde9e6743f897f39c710826a2f7abef"
+        },
+        {
+          "path": "backtrader_agent/changes/prepare.py",
+          "size_bytes": 12241,
+          "sha256": "c0df0e8628f79c842cdf7313f6361680a80053825363f1d3ddde681dbc3f013a"
+        },
+        {
+          "path": "backtrader_agent/changes/rollback.py",
+          "size_bytes": 8848,
+          "sha256": "cffcbbccadd4bb7576d482157ff5cf6d7104241addb9d43784d8b6d5dcdcc2d0"
+        },
+        {
+          "path": "backtrader_agent/cli.py",
+          "size_bytes": 36124,
+          "sha256": "d4d3baa4b980d9c686cbf8dca612c1d14a00caaf9183f573e699925383855615"
+        },
+        {
+          "path": "backtrader_agent/contracts.py",
+          "size_bytes": 15886,
+          "sha256": "d839a777db315d0a4acf8a376b1e36e5948893f98b83f09eda9442f3d537da49"
+        },
+        {
+          "path": "backtrader_agent/data.py",
+          "size_bytes": 26474,
+          "sha256": "978947a053641bfbbeaefab55cd823a4d16df87e7801f4f9f308e8198c921a0f"
+        },
+        {
+          "path": "backtrader_agent/deployment_evidence.py",
+          "size_bytes": 17311,
+          "sha256": "7065dbff616e9cbed4ff74ae7b1583b1613a10d5e69851571bd1ee045f003959"
+        },
+        {
+          "path": "backtrader_agent/doctor.py",
+          "size_bytes": 31845,
+          "sha256": "7a3e8653b27ba3db409663667f6ac74cab1945b074033e0499291a1972859516"
+        },
+        {
+          "path": "backtrader_agent/engines.py",
+          "size_bytes": 8674,
+          "sha256": "40244005438980142edbf3082ed4580df3135eeec6eaaeca0f1b946a8e3150d6"
+        },
+        {
+          "path": "backtrader_agent/errors.py",
+          "size_bytes": 872,
+          "sha256": "11c0e023897b8308e9fe1b6f212222158bbd79dafca6c386c14ca106832a92ee"
+        },
+        {
+          "path": "backtrader_agent/installer.py",
+          "size_bytes": 12530,
+          "sha256": "2204d94b0aa060ebf3c1430ebf3fc91685f711f523cd6a8abb75c84bf655c709"
+        },
+        {
+          "path": "backtrader_agent/locking.py",
+          "size_bytes": 3747,
+          "sha256": "aabc55089b94a78c68368708b99874c06b9ae122d95cd91f740dfee3735a7d89"
+        },
+        {
+          "path": "backtrader_agent/memory.py",
+          "size_bytes": 12039,
+          "sha256": "cec3748eef3ab9b763775a6a8d29ed942454da6bfa0b20795598db7e12f9578e"
+        },
+        {
+          "path": "backtrader_agent/observability.py",
+          "size_bytes": 2419,
+          "sha256": "2442ab1c3ecf99a297ac810f6d8ce2d48799e916117f1e3854e7b0f18657b1b3"
+        },
+        {
+          "path": "backtrader_agent/protected_paths.py",
+          "size_bytes": 5628,
+          "sha256": "26c679229a90ace8803c85dbbdedcc24d782305a99ec1b3498ca9e3e22da9ed3"
+        },
+        {
+          "path": "backtrader_agent/repair.py",
+          "size_bytes": 3550,
+          "sha256": "ebe3eb9dbf91dd5e5d6e1f669a5a3c573087948160a8cd90b5333a3355d973db"
+        },
+        {
+          "path": "backtrader_agent/report.py",
+          "size_bytes": 8652,
+          "sha256": "a14e3f48da82ad42af8dc033fab71473fea3870aa1d7dd421790b11715deffd6"
+        },
+        {
+          "path": "backtrader_agent/resources/actions-v1.json",
+          "size_bytes": 31487,
+          "sha256": "ea478e1f9f987dff2cf178fdaa72ad3d7c21872d7b2e557a4104d396b1445acc"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/claude-code/backtrader-agent.md",
+          "size_bytes": 955,
+          "sha256": "e5dfe801feae325a836dbfbfb178cb7e453e95f742df13cc493a1eb82b4c5240"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/codex/backtrader-agent.toml",
+          "size_bytes": 931,
+          "sha256": "e9925688081fb9d54304798cde00b0f41058f6c5269917febc4af3eaf8d3618a"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/openclaw/workspace/AGENTS.md",
+          "size_bytes": 722,
+          "sha256": "6894e3d32a9d5ac43b8fab5ecd823877fd0838d580f825ed85f7f95625314611"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/openclaw/workspace/IDENTITY.md",
+          "size_bytes": 296,
+          "sha256": "5d54b86c4fa6dc6c59a96b34594be6da8c5d4030122b9854772b2b9c5e4b6646"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/openclaw/workspace/README.md",
+          "size_bytes": 891,
+          "sha256": "4ff81570814619635312d3409a059c14080d9aecc6a015280106db5bf6e7fa76"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/openclaw/workspace/registration-manifest.template.json",
+          "size_bytes": 572,
+          "sha256": "d115111aa515dc72ef3493a3fec2890f8e21cfdfa3f0fff0c2e0dcb75c48c0ff"
+        },
+        {
+          "path": "backtrader_agent/resources/adapters/opencode/backtrader-agent.md",
+          "size_bytes": 929,
+          "sha256": "589051144cfca24a37e5b1536f5ebd426f1a60cf53ae4522e514d7bf965d42af"
+        },
+        {
+          "path": "backtrader_agent/resources/agent-payload.md",
+          "size_bytes": 22113,
+          "sha256": "bde367eeb291bf1cdeaeb26d2b9ad84ac3f0dc9d2f61cae2fbc002018c481aaf"
+        },
+        {
+          "path": "backtrader_agent/resources/catalog/corpus-manifest.json",
+          "size_bytes": 415837,
+          "sha256": "e22f2ed453813c48b8aecc3004cd91e3f0f3307a3c404d0c99b70af20727c600"
+        },
+        {
+          "path": "backtrader_agent/resources/catalog/indicator-registry-v1.json",
+          "size_bytes": 151517,
+          "sha256": "2f1ac2d7e103498d825b2cf7115f85c34a2a7f940223142b292af5b79e161808"
+        },
+        {
+          "path": "backtrader_agent/resources/catalog/snapshot-metadata.json",
+          "size_bytes": 919,
+          "sha256": "18fee589b8b7cf22c454c18894ab1e32c60bba78d04fde068a9346698a76505e"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/actions-v1.schema.json",
+          "size_bytes": 2020,
+          "sha256": "10fdf4aec2bfcb82160ca405fd2692d9387337014a20ab149a6d8574bf643d35"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/agent-session-manifest-v1.schema.json",
+          "size_bytes": 2852,
+          "sha256": "bc9c367f465c2c77145f7b9b4cd7a81ba5b82cad551cf048c0c8180466f57313"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/artifact-manifest-v1.schema.json",
+          "size_bytes": 1716,
+          "sha256": "b8e7c163d8e08e4d81ad0a8f85340ffc2e4e11947386b7adfd465161a6bd5047"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/corpus-manifest-v1.schema.json",
+          "size_bytes": 1752,
+          "sha256": "187e500b3c8f597d4443bc81e18ffb2d6b7e3eb91f058d7b5c8396fa997b4e60"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/dataset-manifest-v1.schema.json",
+          "size_bytes": 6254,
+          "sha256": "7925c8f79e5fe55226aabca2666274e5c5ae4f10c7fa0520f4388e6f90524f48"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/run-manifest-v1.schema.json",
+          "size_bytes": 1803,
+          "sha256": "2fc9b00ca60440fcab99bd3a7b56446113c0cdfd3461a8e486ca05ca2d1c235f"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/run-result-v1.schema.json",
+          "size_bytes": 3511,
+          "sha256": "1e565c87ac2046d60442f8165db7f2a30b5c614d275239791d8f75214d2aabcb"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/strategy-spec-v1.schema.json",
+          "size_bytes": 5396,
+          "sha256": "44b5949fe28f247f8c4b8a56b3be13251d60a99b389fafcfbd950d128b2ffeb6"
+        },
+        {
+          "path": "backtrader_agent/resources/contracts/validation-report-v1.schema.json",
+          "size_bytes": 1875,
+          "sha256": "035ac9a04f6cff0abfcc9156614842332327bf7b861710a9753a3b31174b7366"
+        },
+        {
+          "path": "backtrader_agent/resources/distribution-manifest.json",
+          "size_bytes": 6695,
+          "sha256": "ef02aaf7f103d7d0ecdbaad007924c8f52dccbe32987f2d1d8251ba6598cc235"
+        },
+        {
+          "path": "backtrader_agent/resources/policies/comparison-profile-v1.json",
+          "size_bytes": 1069,
+          "sha256": "877f3a768c695ee848c499defaea482373aba8e8d6d9e0107ad46943d528e970"
+        },
+        {
+          "path": "backtrader_agent/roots.py",
+          "size_bytes": 7526,
+          "sha256": "58139d5f76af9e682ffb0452e85d508cb53cb4779ac19eafffeba44f781e6a8e"
+        },
+        {
+          "path": "backtrader_agent/runner/__init__.py",
+          "size_bytes": 986,
+          "sha256": "1d2eeafcca3f25f1516f51cf3ee85aee1c5fe3dff8d54517f779408d3a25b02d"
+        },
+        {
+          "path": "backtrader_agent/runner/execute.py",
+          "size_bytes": 42194,
+          "sha256": "6b794f9c92c21b5544cdd90b38cb8e90be306ec6139d1b54b2b6dc292167a13f"
+        },
+        {
+          "path": "backtrader_agent/runner/profiles.py",
+          "size_bytes": 7984,
+          "sha256": "f54efa4c751ac709c61c11de82a87d9f4d933b335e22a9cc549f947c28b6e0a1"
+        },
+        {
+          "path": "backtrader_agent/runner/reports.py",
+          "size_bytes": 6182,
+          "sha256": "f99b224b270b0f0be41014fad5c5e51fdb414d552b845652e181db14bac08f5d"
+        },
+        {
+          "path": "backtrader_agent/runner/resume.py",
+          "size_bytes": 3386,
+          "sha256": "e8131216cbd135763120619212201937d7c79fe855708b51d045ccfa55fc20e5"
+        },
+        {
+          "path": "backtrader_agent/scaffold.py",
+          "size_bytes": 29497,
+          "sha256": "ff869a59c52196e78cb36f2f352d59dd4a67330b67bed611013dd6202b5d49eb"
+        },
+        {
+          "path": "backtrader_agent/sessions.py",
+          "size_bytes": 19628,
+          "sha256": "8a96e54bb5e1c847f5a6c2fca2a474c8f9f23d8a1e9d1d0fde0a1de415c645ec"
+        },
+        {
+          "path": "backtrader_agent/sweep.py",
+          "size_bytes": 15336,
+          "sha256": "07abe6ff5f64980e6062be2e6ef5f7e6ba61b1056868c2c4bd78266671986c81"
+        },
+        {
+          "path": "backtrader_agent/sweep_run.py",
+          "size_bytes": 50727,
+          "sha256": "fa4ad80fe47cf8f30cdb33c827123b8bc55b36dc01d3b0c7c0ec1105f1a4dacd"
+        },
+        {
+          "path": "backtrader_agent/validator.py",
+          "size_bytes": 35833,
+          "sha256": "703c078dd350a35bf501de88cd3a75d7998a9992aa678f1142ab99ad00996ea7"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 7,
+        "extension:.jsonl": 2,
+        "sensitive_or_native_filtered": 1
+      }
+    },
+    {
+      "key": "skills",
+      "module": "backtrader_skills",
+      "source_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\skills\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\skills\\src",
+      "copied_file_count": 30,
+      "copied_bytes": 295409,
+      "files": [
+        {
+          "path": "backtrader_skills/__init__.py",
+          "size_bytes": 1124,
+          "sha256": "83513173ba46f7875306cc6e83b448c596b9a8d5db386eb7747df516a30c2c5f"
+        },
+        {
+          "path": "backtrader_skills/__main__.py",
+          "size_bytes": 79,
+          "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+        },
+        {
+          "path": "backtrader_skills/acceptance.py",
+          "size_bytes": 35601,
+          "sha256": "bfa75f927499f157d0745709420c2b87a95cee41f3627d318ab1254f0e5db257"
+        },
+        {
+          "path": "backtrader_skills/backtrader_provenance.py",
+          "size_bytes": 12509,
+          "sha256": "9b25b048a3fc8fcb527c9723675ac00fcb914d359ae48d9be5410c50c2c06a89"
+        },
+        {
+          "path": "backtrader_skills/canonical.py",
+          "size_bytes": 4018,
+          "sha256": "876f38e3c378507f68def0f8afa283c6fa0477ad7e00bbc8b93ec47a637fd69c"
+        },
+        {
+          "path": "backtrader_skills/catalog.py",
+          "size_bytes": 10864,
+          "sha256": "586c0a9fb4030f9b23ef0fdf7a8a210bcb717014454815117816a001665a6125"
+        },
+        {
+          "path": "backtrader_skills/child_runner.py",
+          "size_bytes": 8406,
+          "sha256": "81e4d20273290c83ffc25441f87b97ccab76d3861eb615140aa4160996548aa7"
+        },
+        {
+          "path": "backtrader_skills/cli.py",
+          "size_bytes": 14327,
+          "sha256": "7417156ffcf7b6a74b313da50a2bad8340d1dc6296083b416884b339a1b4e554"
+        },
+        {
+          "path": "backtrader_skills/compare.py",
+          "size_bytes": 6607,
+          "sha256": "5b55c11b0c90e592a996c5fea2d1c2507a8b57d146e848d9a9cc1de2aa096ea7"
+        },
+        {
+          "path": "backtrader_skills/data.py",
+          "size_bytes": 32967,
+          "sha256": "32cc9e1e47fee3a291c871d25f107ceb06dd3d2bf4a635fea0f4ce5c47afa9a5"
+        },
+        {
+          "path": "backtrader_skills/deployment_evidence.py",
+          "size_bytes": 24208,
+          "sha256": "13dc268953a8d1cfabd139b816d553797cb60c34fc9d74ab44a8debd847831b5"
+        },
+        {
+          "path": "backtrader_skills/distribution.py",
+          "size_bytes": 2872,
+          "sha256": "47ec4ce9bda983be6c2de2bc3505662025747478365f0431ee495b5bd5ea1bff"
+        },
+        {
+          "path": "backtrader_skills/doctor.py",
+          "size_bytes": 5421,
+          "sha256": "d28acc6a3cb76cd575b04afbee581c805dc50e6894d51584fe6786249409dbe6"
+        },
+        {
+          "path": "backtrader_skills/drafts.py",
+          "size_bytes": 18834,
+          "sha256": "e3931c216e5209b391c9f0d801097e82589046ccbc9795540d7a855c9bb2f2ff"
+        },
+        {
+          "path": "backtrader_skills/errors.py",
+          "size_bytes": 1249,
+          "sha256": "5873d1f41434727938d1aba291affd7b812450545b5b6a64a72c5cd1b75803f3"
+        },
+        {
+          "path": "backtrader_skills/fixture_inspector.py",
+          "size_bytes": 1345,
+          "sha256": "052aad294fa9ee3adcf1bbb20feb34280996f03038e71a99b7f86e2fa88c03ac"
+        },
+        {
+          "path": "backtrader_skills/generation.py",
+          "size_bytes": 13028,
+          "sha256": "994a347fb228ca8a58a432bdd69c02f69efd7ae790473e09887eb48296e92d86"
+        },
+        {
+          "path": "backtrader_skills/installer.py",
+          "size_bytes": 10175,
+          "sha256": "38bf986dfe8e59be1968384140bc5b0dddbedb986869dfc0317d09c447817a6d"
+        },
+        {
+          "path": "backtrader_skills/ir.py",
+          "size_bytes": 30111,
+          "sha256": "ef036464dda54b50a30f185550574a506fbd92e25b40c737f143be8dc549fb8d"
+        },
+        {
+          "path": "backtrader_skills/isolate_entry.py",
+          "size_bytes": 353,
+          "sha256": "934387a9fc2ec360102ac82e3e0fb7df0049f002efdbcc0b14ebbbf408b5a18f"
+        },
+        {
+          "path": "backtrader_skills/protected_paths.py",
+          "size_bytes": 4442,
+          "sha256": "44280549a19e245a54e112363ba3e90999ceb281ceb27c321f7f372a5fa7c994"
+        },
+        {
+          "path": "backtrader_skills/repair.py",
+          "size_bytes": 3428,
+          "sha256": "f65d3065b1b880b39faab03ccbb4d6ab2ac2da987c1185618b035d0431921603"
+        },
+        {
+          "path": "backtrader_skills/reports.py",
+          "size_bytes": 1964,
+          "sha256": "9ab3b075adba694e352d00af2321b73624845f168686b94bf7be2d662856b705"
+        },
+        {
+          "path": "backtrader_skills/resources.py",
+          "size_bytes": 1112,
+          "sha256": "d63f1df9c36a3044277413ac40de19fb84ce8ac534a59e6f01605704c154242b"
+        },
+        {
+          "path": "backtrader_skills/runner.py",
+          "size_bytes": 17145,
+          "sha256": "9c795d76d6d8301518f6a6be297a839de77dd9eceaba797106abe525f244e091"
+        },
+        {
+          "path": "backtrader_skills/runtime.py",
+          "size_bytes": 1477,
+          "sha256": "1a199d7c8646404a09d7f350f6481e05fcbff3b2205e441f9b1de77bff8d6e9c"
+        },
+        {
+          "path": "backtrader_skills/source_checkout.py",
+          "size_bytes": 1643,
+          "sha256": "e3314f0a31df8be1ea2eca2386c98ecd87e41e5ff7766c9e4d59ba97cc6a4130"
+        },
+        {
+          "path": "backtrader_skills/state.py",
+          "size_bytes": 9422,
+          "sha256": "115b776100f457197d1aa8bcbc0058a6e5a4b0b7b30cef5e57a1bd03364fa119"
+        },
+        {
+          "path": "backtrader_skills/types.py",
+          "size_bytes": 1077,
+          "sha256": "82f1e1cb74abbe5b41192f3f0510c33785b2c70bbd5a95a61dd788f4c70ae3d6"
+        },
+        {
+          "path": "backtrader_skills/validation.py",
+          "size_bytes": 19601,
+          "sha256": "79a482a4cc89eeb33502851ba60e857a326b810ff0684c160bbb2e936de6e2a5"
+        }
+      ],
+      "filtered_counts": {
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 3
+      }
+    },
+    {
+      "key": "mcp",
+      "module": "backtrader_mcp",
+      "source_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-main-regression-preflight-20260926\\source-snapshots-v2\\mcp\\src",
+      "copied_root": "D:\\temp\\iteration41-coordinated-release-probe-independent-qa-20260927\\source-adjuncts\\mcp\\src",
+      "copied_file_count": 38,
+      "copied_bytes": 460077,
+      "files": [
+        {
+          "path": "backtrader_mcp/__init__.py",
+          "size_bytes": 77,
+          "sha256": "18d4084badf25bb345d8b43c9bfa7313a3ad1560df673dd98e315155e5f2b929"
+        },
+        {
+          "path": "backtrader_mcp/__main__.py",
+          "size_bytes": 79,
+          "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+        },
+        {
+          "path": "backtrader_mcp/audit.py",
+          "size_bytes": 2681,
+          "sha256": "f7d79a5a948e9f51bf2aea88addcd7e7f34059104b558697ad62f83c6e0b719a"
+        },
+        {
+          "path": "backtrader_mcp/backtrader_runtime.py",
+          "size_bytes": 10260,
+          "sha256": "42c8ef5b1193c376489f0499cc7ac305e4867a79abee37d8dd841099e0df0da0"
+        },
+        {
+          "path": "backtrader_mcp/catalog.py",
+          "size_bytes": 30976,
+          "sha256": "334c34be4dc74e3be41a15d973de33a41c17e7b3777e71bc8d30a4129f524c22"
+        },
+        {
+          "path": "backtrader_mcp/catalog_snapshot.json",
+          "size_bytes": 1537,
+          "sha256": "879596607e169c57c43bc2104572f304a65278890ffee5c43fc1601408f4e672"
+        },
+        {
+          "path": "backtrader_mcp/changes.py",
+          "size_bytes": 16767,
+          "sha256": "b9d0a9abf9f266cd65fa0b00d7359c3e38bb0f7a301ac79606c27bd141bddcc3"
+        },
+        {
+          "path": "backtrader_mcp/cli.py",
+          "size_bytes": 9265,
+          "sha256": "f9495fe45bae718959f9f90d2f64e5a56d52d608664594b60f5d83b55c0e03de"
+        },
+        {
+          "path": "backtrader_mcp/contracts.py",
+          "size_bytes": 19945,
+          "sha256": "9a6001df4651067e5a74d5d12180d60e0b81b1b9b844206e47dc58606e65cc76"
+        },
+        {
+          "path": "backtrader_mcp/data.py",
+          "size_bytes": 49493,
+          "sha256": "bf42e0ef600b4b6b699ff1aec8e7a7cbae782e2b1d9be4414120f0d2e9976d6b"
+        },
+        {
+          "path": "backtrader_mcp/deployment_evidence.py",
+          "size_bytes": 9287,
+          "sha256": "a377c18f354cc876e1c18d3f85faad9be5d87827dc3db5e207e54a8d97cffefb"
+        },
+        {
+          "path": "backtrader_mcp/doctor.py",
+          "size_bytes": 18020,
+          "sha256": "298d3d72346b55cb19315cb12546512eac81d5400a47b1b2bd4ce3dc859f645d"
+        },
+        {
+          "path": "backtrader_mcp/drafts.py",
+          "size_bytes": 14855,
+          "sha256": "1f862a025b1e0be1c751c58ec3780a688f83f0f957d6804969497f96a3723082"
+        },
+        {
+          "path": "backtrader_mcp/errors.py",
+          "size_bytes": 3248,
+          "sha256": "1a422d50e03be37bbac7ca6d7b508968c4c225cdfa214135d7dc99afccff1ca7"
+        },
+        {
+          "path": "backtrader_mcp/feed_runtime.py",
+          "size_bytes": 15213,
+          "sha256": "654ed858b0ea4bc6f5b632d900103aff88352e3784bd760941861b3d7af1cc9f"
+        },
+        {
+          "path": "backtrader_mcp/jobs.py",
+          "size_bytes": 43946,
+          "sha256": "9f82335748031adec88243143ee4acd71eab0271deba6f92133ec4ba8e0b53b1"
+        },
+        {
+          "path": "backtrader_mcp/locks.py",
+          "size_bytes": 1455,
+          "sha256": "52918d04ae0ce7f706b0162c18775427e8204c599311c876d9c12b1f0bfa96cb"
+        },
+        {
+          "path": "backtrader_mcp/logging_config.py",
+          "size_bytes": 2104,
+          "sha256": "9fc78b8aadb446c2e3030276052af603c6b209d7ffd06bf9f788c8da2fab4b2d"
+        },
+        {
+          "path": "backtrader_mcp/policies/comparison-profile-v1.json",
+          "size_bytes": 1069,
+          "sha256": "877f3a768c695ee848c499defaea482373aba8e8d6d9e0107ad46943d528e970"
+        },
+        {
+          "path": "backtrader_mcp/process_control.py",
+          "size_bytes": 4232,
+          "sha256": "29dd196886b79740a5fccb7074f7d760a79c31657e4182fa7e30ea74494b0c3b"
+        },
+        {
+          "path": "backtrader_mcp/protected_paths.py",
+          "size_bytes": 17984,
+          "sha256": "6d791f8802be8afe7c08d94ac72787ab3a0fc278ac58db7e86d9c37cff3c0cda"
+        },
+        {
+          "path": "backtrader_mcp/reports.py",
+          "size_bytes": 7887,
+          "sha256": "bcef07e086f3fe4c7869b61bcb32494e7c6f6fccc067f3125e46f0cf44c6c662"
+        },
+        {
+          "path": "backtrader_mcp/scaffold.py",
+          "size_bytes": 7228,
+          "sha256": "cfd08750467c723ed90bc8c7b89afce393df0da34cc79ca036238ec7465a5556"
+        },
+        {
+          "path": "backtrader_mcp/schemas/artifact-manifest.schema.json",
+          "size_bytes": 1716,
+          "sha256": "b8e7c163d8e08e4d81ad0a8f85340ffc2e4e11947386b7adfd465161a6bd5047"
+        },
+        {
+          "path": "backtrader_mcp/schemas/corpus-manifest.schema.json",
+          "size_bytes": 1752,
+          "sha256": "187e500b3c8f597d4443bc81e18ffb2d6b7e3eb91f058d7b5c8396fa997b4e60"
+        },
+        {
+          "path": "backtrader_mcp/schemas/dataset-manifest.schema.json",
+          "size_bytes": 6286,
+          "sha256": "1dee34deb71ca52b30a5d01c9b049981bf5c5a34caf038e269e4b7af871e13b3"
+        },
+        {
+          "path": "backtrader_mcp/schemas/run-manifest.schema.json",
+          "size_bytes": 1751,
+          "sha256": "849085349bdf701228ee18cdb9609c7299d6e160064f5f5f69524df1bba76f08"
+        },
+        {
+          "path": "backtrader_mcp/schemas/run-result.schema.json",
+          "size_bytes": 2626,
+          "sha256": "ab0395ecdd8d42295425eaf37dc035da8de12c9adea6b0beaaacf88c970f0821"
+        },
+        {
+          "path": "backtrader_mcp/schemas/strategy-spec.schema.json",
+          "size_bytes": 5486,
+          "sha256": "6208b70eb1d6af088b8e950e5e1a5f18e155d0754f11edc4b26bdf90e68f8ccf"
+        },
+        {
+          "path": "backtrader_mcp/schemas/validation-report.schema.json",
+          "size_bytes": 1875,
+          "sha256": "035ac9a04f6cff0abfcc9156614842332327bf7b861710a9753a3b31174b7366"
+        },
+        {
+          "path": "backtrader_mcp/security.py",
+          "size_bytes": 6451,
+          "sha256": "b1817cac369d9e343bcdff1b6f6e471c910cba9e90651079c59071337c04a3ba"
+        },
+        {
+          "path": "backtrader_mcp/server.py",
+          "size_bytes": 26390,
+          "sha256": "605f05ef88213f3ab51e8a889935a5d66cbdd4e10e842dc88423ccf687dc98e9"
+        },
+        {
+          "path": "backtrader_mcp/service.py",
+          "size_bytes": 12516,
+          "sha256": "4f0a929a71827a9a3ee49b2c4fe5cd10f5db93d331fcdeb28379ab9d7a84c963"
+        },
+        {
+          "path": "backtrader_mcp/settings.py",
+          "size_bytes": 4915,
+          "sha256": "0aa123093d8d7f203312ce2d6446da778da0ee713dbe3fe2b7768657644ee6f4"
+        },
+        {
+          "path": "backtrader_mcp/state.py",
+          "size_bytes": 15963,
+          "sha256": "16ecd3823d9f729dd3f02f4badf985e6a6bd81816b889f5c17f3238c821738d7"
+        },
+        {
+          "path": "backtrader_mcp/util.py",
+          "size_bytes": 10910,
+          "sha256": "78f31dd5dce8c1c638021729a930032a8beb3dd58fb8bb000be903585bfad79b"
+        },
+        {
+          "path": "backtrader_mcp/validation.py",
+          "size_bytes": 42367,
+          "sha256": "eedecf969e8cca327d0a519b283780c072fb1dacbb1acb54633c53f4630b6558"
+        },
+        {
+          "path": "backtrader_mcp/worker.py",
+          "size_bytes": 31465,
+          "sha256": "7e65157b6d5f1e48512d05980a9940352f370ff43c1d7245a059872f4b419d5f"
+        }
+      ],
+      "filtered_counts": {
+        "extension:<none>": 1,
+        "cache_or_git_dirs": 1,
+        "extension:.pyc": 1,
+        "extension:.jsonl": 1
+      }
+    }
+  ]
+}

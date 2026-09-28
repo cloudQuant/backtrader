@@ -1,0 +1,67 @@
+# Planning record only. No tests, package installation or admission are asserted here.
+record_schema_version: 1
+task_id: "REPLACE_WP41_TASK"
+status: "PLANNED"
+implementation_owner: null
+acceptance_owner: null
+repository:
+  identity: "REPLACE_ORG_REPOSITORY"
+  workspace_path: null               # machine mapping, never the source of trust
+  baseline_commit: null
+  target_commit: null
+  dirty_tree_digest: null
+  sdk_gitlink_pin: null
+  wheel_sha256: null                 # null with NOT_PACKAGED until an actual wheel exists
+  package_state: "NOT_VERIFIED"
+estimate:
+  person_days_min: null
+  person_days_max: null
+  available_people: null
+  planned_start: null
+  planned_finish: null
+predecessors: []
+blocking_decisions: []
+source_entrypoints: []
+consumer_entrypoints: []
+retired_writer_entrypoints: []
+runtime_dirs: []
+runtime_config:
+  schema_version: 4
+  required: true
+  mode: null                        # backtest | simulation | live
+  preset: null                      # must match the trusted registry and selected mode
+  configuration_sha256: null
+  effective_configuration_sha256: null
+  registry_version: null
+  legacy_parameter_artifact_sha256: null
+  bootstrap_result: "NOT_RUN"
+  missing_config_result: "NOT_RUN"
+  old_cli_override_result: "NOT_RUN"
+  live_contract_confirmation: null  # confirmation is not a grant of trading authority
+mode_support_matrix: []
+contracts_and_adr: []
+acceptance_ids: []
+tests:
+  - repository: "REPLACE_ORG_REPOSITORY"
+    node_id: null
+    command: null
+    platform_profile: null
+    lane: null                      # functional | slow | serial-performance | external
+    result: "NOT_RUN"
+    exit_code: null
+    junit_path: null
+    evidence_sha256: null
+    fake_provider_dispatch_count: null
+    real_provider_submit_count: null
+    real_provider_cancel_count: null
+    real_provider_close_count: null
+    real_provider_query_count: null
+    network_connection_count: null
+    sandbox_provider_write_count: null
+    production_provider_write_count: null
+setup_steps_before: null
+setup_steps_after: null
+independent_approvals_preserved: null
+rollback_record: null
+remaining_limitations: []
+acceptance_result: "NOT_RUN"

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "plan_review",
+  "generated_at": "2026-09-22T08:13:43.2721058+08:00",
+  "completed_local_date": "2026-09-22",
+  "plan_baseline": "baseline-2",
+  "configuration_contract": "schema-v4 mandatory local ignored config.yaml; tracked template; sealed mode/preset",
+  "status": "PASS",
+  "scope": "documentation_consistency_and_source_preservation_only",
+  "checks": {
+    "AC_unique_continuous": 81,
+    "FR_unique_continuous": 25,
+    "NFR_unique_continuous": 14,
+    "review_inputs_unchanged": 4,
+    "key_source_hashes_unchanged": 8,
+    "yaml_json_parse": true,
+    "v4_templates_valid": 3,
+    "markdown_files": 20,
+    "local_links_checked": 136,
+    "allocation_counterexample": [
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "tables_and_fences_valid": true
+  },
+  "issues": [],
+  "implementation_acceptance": "NOT_RUN"
+}

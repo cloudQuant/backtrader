@@ -1,0 +1,995 @@
+{
+  "schema": "iteration41.writer_inventory_refresh.v1",
+  "status": "STATIC_CANDIDATE_REFRESH_ONLY",
+  "previous_inventory_sha256": "e905cf16083c174789a0cac8024c2d975e3732b3c9abac131700338c11603478",
+  "previous_checklist_sha256": "c66d4c422bbbcc1c6bb357280ada4f1efc353ec2293e2b0779b700cf08495fee",
+  "counts": {
+    "dynamic_execution_candidates": 49,
+    "files_scanned": 287,
+    "parse_errors": 0,
+    "writer_candidates": 221
+  },
+  "preserved_disposition_records": 258,
+  "added": [
+    {
+      "candidate_id": "i41-writer-59a83b3794aa05ec146b",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_config_action_linearization.py",
+        "class_name": "ConfigPathReadLease",
+        "function_name": "__exit__",
+        "call": "self.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 303,
+        "column": 8
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-5511b23f5a77e901b6ea",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_f14_signed_receipt_contract.py",
+        "class_name": "CtpF14HostLocalSqliteObservationFence",
+        "function_name": "_initialize",
+        "call": "connection.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 493,
+        "column": 16
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-9555e6f0778bfe895416",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_f14_signed_receipt_contract.py",
+        "class_name": "CtpF14HostLocalSqliteObservationFence",
+        "function_name": "observe_once",
+        "call": "connection.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 579,
+        "column": 16
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-94f7086d49b8e66a76e2",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": null,
+        "function_name": "_protect_windows_path_acl",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 422,
+        "column": 16
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-63dcbea40ef777b9fc17",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "claim_once",
+        "call": "connection.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 675,
+        "column": 20
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-01d33c27fde0beed433f",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "claim_once",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 678,
+        "column": 24
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-1ddc944b67a326c6f0ea",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_prepare_database_file",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 699,
+        "column": 20
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-905946a4817beb781ff1",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_verify_parent_directory",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 762,
+        "column": 12
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-29503555af85e30d12e4",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_verify_windows_ancestor_directory",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 818,
+        "column": 12
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-71574d4945edb4f0973e",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_verify_windows_private_path",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 851,
+        "column": 12
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-06bbc6f3bdd7e31b10d4",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_open_windows_storage_handles",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 870,
+        "column": 12
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    },
+    {
+      "candidate_id": "i41-writer-1a3c23169094ce8a7449",
+      "candidate": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_simnow_signed_review.py",
+        "class_name": "LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard",
+        "function_name": "_verify_windows_sidecar_path",
+        "call": "os.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 948,
+        "column": 12
+      },
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "disposition": "REVIEW_REQUIRED",
+      "availability": "NOT_AVAILABLE"
+    }
+  ],
+  "removed": [
+    {
+      "availability": "NOT_AVAILABLE",
+      "candidate": {
+        "call": "self.close",
+        "class_name": "ConfigActionLease",
+        "column": 8,
+        "dynamic_reason": null,
+        "function_name": "__exit__",
+        "kind": "writer_call_candidate",
+        "line": 289,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/ctp_config_action_linearization.py"
+      },
+      "candidate_id": "i41-writer-c153ba07ef1a3d24c8df",
+      "disposition": "REVIEW_REQUIRED",
+      "evidence_ref": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/live-execution-inventory-candidates.json",
+      "owner": "runtime-maintainers",
+      "route": "UNRESOLVED_POTENTIAL_LIVE_WRITE",
+      "test_node": "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py::test_checked_in_disposition_checklist_covers_current_inventory",
+      "trace_evidence_disposition": "STATIC_AST_CANDIDATE_NO_RUNTIME_TRACE"
+    }
+  ],
+  "line_updates": [
+    {
+      "candidate_id": "i41-writer-5c76e7bbaaf9eaf8fafb",
+      "before": {
+        "call": "self.store.submit_order",
+        "class_name": "BtApiBroker",
+        "column": 23,
+        "dynamic_reason": null,
+        "function_name": "submit",
+        "kind": "writer_call_candidate",
+        "line": 2857,
+        "method": "submit_order",
+        "ordinal": 0,
+        "path": "backtrader/brokers/btapibroker.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/brokers/btapibroker.py",
+        "class_name": "BtApiBroker",
+        "function_name": "submit",
+        "call": "self.store.submit_order",
+        "method": "submit_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 2875,
+        "column": 23
+      }
+    },
+    {
+      "candidate_id": "i41-writer-6df08432c5aec510239a",
+      "before": {
+        "call": "self.store.cancel_order",
+        "class_name": "BtApiBroker",
+        "column": 23,
+        "dynamic_reason": null,
+        "function_name": "cancel",
+        "kind": "writer_call_candidate",
+        "line": 3064,
+        "method": "cancel_order",
+        "ordinal": 0,
+        "path": "backtrader/brokers/btapibroker.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/brokers/btapibroker.py",
+        "class_name": "BtApiBroker",
+        "function_name": "cancel",
+        "call": "self.store.cancel_order",
+        "method": "cancel_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 3103,
+        "column": 23
+      }
+    },
+    {
+      "candidate_id": "i41-writer-921a46a1979e1076c023",
+      "before": {
+        "call": "self.store.cancel_order_ref",
+        "class_name": "BtApiBroker",
+        "column": 19,
+        "dynamic_reason": null,
+        "function_name": "_cancel_remote_open_order",
+        "kind": "writer_call_candidate",
+        "line": 4328,
+        "method": "cancel_order_ref",
+        "ordinal": 0,
+        "path": "backtrader/brokers/btapibroker.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/brokers/btapibroker.py",
+        "class_name": "BtApiBroker",
+        "function_name": "_cancel_remote_open_order",
+        "call": "self.store.cancel_order_ref",
+        "method": "cancel_order_ref",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 4367,
+        "column": 19
+      }
+    },
+    {
+      "candidate_id": "i41-writer-459a04217b8cbe9e0632",
+      "before": {
+        "call": "getattr",
+        "class_name": "BtApiBroker",
+        "column": 16,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "_order_price_for_risk",
+        "kind": "dynamic_execution_candidate",
+        "line": 5954,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/brokers/btapibroker.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/brokers/btapibroker.py",
+        "class_name": "BtApiBroker",
+        "function_name": "_order_price_for_risk",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 5993,
+        "column": 16
+      }
+    },
+    {
+      "candidate_id": "i41-writer-bb2b7532c2a98440aa6a",
+      "before": {
+        "call": "getattr",
+        "class_name": "BtApiStore",
+        "column": 20,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "_prepare_sdk_start",
+        "kind": "dynamic_execution_candidate",
+        "line": 4658,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_prepare_sdk_start",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 4741,
+        "column": 20
+      }
+    },
+    {
+      "candidate_id": "i41-writer-1920ba9874505b73ecb2",
+      "before": {
+        "call": "getattr",
+        "class_name": "BtApiStore",
+        "column": 20,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "_prepare_funding_refresh_start",
+        "kind": "dynamic_execution_candidate",
+        "line": 4705,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_prepare_funding_refresh_start",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 4788,
+        "column": 20
+      }
+    },
+    {
+      "candidate_id": "i41-writer-7ea95eed3fdfee0a96ef",
+      "before": {
+        "call": "getattr",
+        "class_name": "BtApiStore",
+        "column": 16,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "_bounded_sdk_close",
+        "kind": "dynamic_execution_candidate",
+        "line": 5204,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_bounded_sdk_close",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 5287,
+        "column": 16
+      }
+    },
+    {
+      "candidate_id": "i41-writer-f8f51de9f2f4a3fdf72c",
+      "before": {
+        "call": "adapter.submit_order",
+        "class_name": "BtApiStore",
+        "column": 23,
+        "dynamic_reason": null,
+        "function_name": "submit_order",
+        "kind": "writer_call_candidate",
+        "line": 7640,
+        "method": "submit_order",
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "submit_order",
+        "call": "adapter.submit_order",
+        "method": "submit_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 7735,
+        "column": 23
+      }
+    },
+    {
+      "candidate_id": "i41-writer-bf56d1ec1d8f9b98d4fd",
+      "before": {
+        "call": "ctp_adapter.submit_order",
+        "class_name": "BtApiStore",
+        "column": 23,
+        "dynamic_reason": null,
+        "function_name": "_submit_ctp_managed_order",
+        "kind": "writer_call_candidate",
+        "line": 7728,
+        "method": "submit_order",
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_submit_ctp_managed_order",
+        "call": "ctp_adapter.submit_order",
+        "method": "submit_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 7823,
+        "column": 23
+      }
+    },
+    {
+      "candidate_id": "i41-writer-6b64c967597ca9a30e13",
+      "before": {
+        "call": "api.submit_order",
+        "class_name": "BtApiStore",
+        "column": 27,
+        "dynamic_reason": null,
+        "function_name": "_submit_order_legacy",
+        "kind": "writer_call_candidate",
+        "line": 7843,
+        "method": "submit_order",
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_submit_order_legacy",
+        "call": "api.submit_order",
+        "method": "submit_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 7938,
+        "column": 27
+      }
+    },
+    {
+      "candidate_id": "i41-writer-ed12303a6c97d433f979",
+      "before": {
+        "call": "api.cancel_order",
+        "class_name": "BtApiStore",
+        "column": 27,
+        "dynamic_reason": null,
+        "function_name": "_cancel_order_ref_legacy",
+        "kind": "writer_call_candidate",
+        "line": 8150,
+        "method": "cancel_order",
+        "ordinal": 0,
+        "path": "backtrader/stores/btapistore.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader/stores/btapistore.py",
+        "class_name": "BtApiStore",
+        "function_name": "_cancel_order_ref_legacy",
+        "call": "api.cancel_order",
+        "method": "cancel_order",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 8245,
+        "column": 27
+      }
+    },
+    {
+      "candidate_id": "i41-writer-4817d2f7cc8d1a6f137d",
+      "before": {
+        "call": "getattr",
+        "class_name": null,
+        "column": 20,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "require_ctp_runtime_execution_adapter",
+        "kind": "dynamic_execution_candidate",
+        "line": 709,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/managed_execution.py",
+        "class_name": null,
+        "function_name": "require_ctp_runtime_execution_adapter",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 773,
+        "column": 20
+      }
+    },
+    {
+      "candidate_id": "i41-writer-9d6b74c674a29822eabd",
+      "before": {
+        "call": "getattr",
+        "class_name": null,
+        "column": 20,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "require_ctp_runtime_execution_adapter",
+        "kind": "dynamic_execution_candidate",
+        "line": 711,
+        "method": null,
+        "ordinal": 1,
+        "path": "backtrader/stores/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/managed_execution.py",
+        "class_name": null,
+        "function_name": "require_ctp_runtime_execution_adapter",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 1,
+        "line": 775,
+        "column": 20
+      }
+    },
+    {
+      "candidate_id": "i41-writer-9272fb151289cdcd07a9",
+      "before": {
+        "call": "getattr",
+        "class_name": null,
+        "column": 20,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "require_managed_execution_adapter",
+        "kind": "dynamic_execution_candidate",
+        "line": 742,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/managed_execution.py",
+        "class_name": null,
+        "function_name": "require_managed_execution_adapter",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 806,
+        "column": 20
+      }
+    },
+    {
+      "candidate_id": "i41-writer-789fa193cd6ecb32323e",
+      "before": {
+        "call": "getattr",
+        "class_name": null,
+        "column": 13,
+        "dynamic_reason": "writer_reflection",
+        "function_name": "require_managed_cancel",
+        "kind": "dynamic_execution_candidate",
+        "line": 752,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader/stores/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader/stores/managed_execution.py",
+        "class_name": null,
+        "function_name": "require_managed_cancel",
+        "call": "getattr",
+        "method": null,
+        "dynamic_reason": "writer_reflection",
+        "ordinal": 0,
+        "line": 816,
+        "column": 13
+      }
+    },
+    {
+      "candidate_id": "i41-writer-77056c8f4ef754635b89",
+      "before": {
+        "call": "self._mode_runtime.close",
+        "class_name": "CtpSharedManagedRuntime",
+        "column": 8,
+        "dynamic_reason": null,
+        "function_name": "close",
+        "kind": "writer_call_candidate",
+        "line": 249,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py",
+        "class_name": "CtpSharedManagedRuntime",
+        "function_name": "close",
+        "call": "self._mode_runtime.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 250,
+        "column": 8
+      }
+    },
+    {
+      "candidate_id": "i41-writer-c9f8a9a70d492ec70fce",
+      "before": {
+        "call": "self.close",
+        "class_name": "CtpSharedManagedRuntime",
+        "column": 8,
+        "dynamic_reason": null,
+        "function_name": "__exit__",
+        "kind": "writer_call_candidate",
+        "line": 256,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py",
+        "class_name": "CtpSharedManagedRuntime",
+        "function_name": "__exit__",
+        "call": "self.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 257,
+        "column": 8
+      }
+    },
+    {
+      "candidate_id": "i41-writer-8a6295347bd4b6f602a3",
+      "before": {
+        "call": "mode_runtime.close",
+        "class_name": null,
+        "column": 16,
+        "dynamic_reason": null,
+        "function_name": "open_shared_ctp_managed_runtime",
+        "kind": "writer_call_candidate",
+        "line": 346,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py",
+        "class_name": null,
+        "function_name": "open_shared_ctp_managed_runtime",
+        "call": "mode_runtime.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 349,
+        "column": 16
+      }
+    },
+    {
+      "candidate_id": "i41-writer-220b1f54995cc1229eaa",
+      "before": {
+        "call": "mode_runtime.close",
+        "class_name": null,
+        "column": 16,
+        "dynamic_reason": null,
+        "function_name": "open_shared_ctp_managed_runtime",
+        "kind": "writer_call_candidate",
+        "line": 355,
+        "method": "close",
+        "ordinal": 1,
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/ctp_shared_managed_runtime.py",
+        "class_name": null,
+        "function_name": "open_shared_ctp_managed_runtime",
+        "call": "mode_runtime.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 1,
+        "line": 358,
+        "column": 16
+      }
+    },
+    {
+      "candidate_id": "i41-writer-e4350acc51b4935bc696",
+      "before": {
+        "call": "self._connection.close",
+        "class_name": "FrameworkProjectionJournal",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "close",
+        "kind": "writer_call_candidate",
+        "line": 89,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/framework_projection.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/framework_projection.py",
+        "class_name": "FrameworkProjectionJournal",
+        "function_name": "close",
+        "call": "self._connection.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 111,
+        "column": 12
+      }
+    },
+    {
+      "candidate_id": "i41-writer-ad9a015db1dd9fc327e0",
+      "before": {
+        "call": "cursor.close",
+        "class_name": "FrameworkProjectionJournal",
+        "column": 16,
+        "dynamic_reason": null,
+        "function_name": "_transaction",
+        "kind": "writer_call_candidate",
+        "line": 408,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/framework_projection.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/framework_projection.py",
+        "class_name": "FrameworkProjectionJournal",
+        "function_name": "_transaction",
+        "call": "cursor.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 961,
+        "column": 16
+      }
+    },
+    {
+      "candidate_id": "i41-writer-a766a1644e5c03db8314",
+      "before": {
+        "call": "self.close",
+        "class_name": "ManagedExecutionBridge",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "__post_init__",
+        "kind": "writer_call_candidate",
+        "line": 1248,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/managed_execution.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/managed_execution.py",
+        "class_name": "ManagedExecutionBridge",
+        "function_name": "__post_init__",
+        "call": "self.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 1283,
+        "column": 12
+      }
+    },
+    {
+      "candidate_id": "i41-writer-7bb1bad67b29bb84c601",
+      "before": {
+        "call": "journal.close",
+        "class_name": "ManagedExecutionBridge",
+        "column": 12,
+        "dynamic_reason": null,
+        "function_name": "close",
+        "kind": "writer_call_candidate",
+        "line": 1357,
+        "method": "close",
+        "ordinal": 0,
+        "path": "backtrader_runtime/managed_execution.py"
+      },
+      "after": {
+        "kind": "writer_call_candidate",
+        "path": "backtrader_runtime/managed_execution.py",
+        "class_name": "ManagedExecutionBridge",
+        "function_name": "close",
+        "call": "journal.close",
+        "method": "close",
+        "dynamic_reason": null,
+        "ordinal": 0,
+        "line": 2556,
+        "column": 12
+      }
+    },
+    {
+      "candidate_id": "i41-writer-4b56f8cf4860c5fec787",
+      "before": {
+        "call": "importlib.import_module",
+        "class_name": "ManagedExecutionBridge",
+        "column": 30,
+        "dynamic_reason": "dynamic_execution",
+        "function_name": "create_cancellation_reconciliation_control",
+        "kind": "dynamic_execution_candidate",
+        "line": 1603,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader_runtime/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader_runtime/managed_execution.py",
+        "class_name": "ManagedExecutionBridge",
+        "function_name": "create_cancellation_reconciliation_control",
+        "call": "importlib.import_module",
+        "method": null,
+        "dynamic_reason": "dynamic_execution",
+        "ordinal": 0,
+        "line": 2802,
+        "column": 30
+      }
+    },
+    {
+      "candidate_id": "i41-writer-e7d7f270d49ed8f4d8aa",
+      "before": {
+        "call": "importlib.import_module",
+        "class_name": "ManagedExecutionBridge",
+        "column": 19,
+        "dynamic_reason": "dynamic_execution",
+        "function_name": "_get_cancellation_facade",
+        "kind": "dynamic_execution_candidate",
+        "line": 1641,
+        "method": null,
+        "ordinal": 0,
+        "path": "backtrader_runtime/managed_execution.py"
+      },
+      "after": {
+        "kind": "dynamic_execution_candidate",
+        "path": "backtrader_runtime/managed_execution.py",
+        "class_name": "ManagedExecutionBridge",
+        "function_name": "_get_cancellation_facade",
+        "call": "importlib.import_module",
+        "method": null,
+        "dynamic_reason": "dynamic_execution",
+        "ordinal": 0,
+        "line": 2840,
+        "column": 19
+      }
+    }
+  ],
+  "validation": {
+    "schema_version": "iteration41.writer-disposition-checklist.v1",
+    "status": "PASS",
+    "reason_codes": [],
+    "discovered_candidate_count": 270,
+    "checklist_entry_count": 270,
+    "review_required_count": 270,
+    "live_route_count": 270,
+    "evidence_boundary": "STATIC_DISPOSITION_INTEGRITY_ONLY_NOT_LIVE_ADMISSION"
+  },
+  "limitations": [
+    "No disposition was upgraded; new entries are REVIEW_REQUIRED/NOT_AVAILABLE.",
+    "Removed entries are retained in this delta receipt.",
+    "Static AST completeness is not runtime reachability or trading admission."
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "archive_validation": {
+    "archive_sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+    "index_member": "ARCHIVE-INDEX.json",
+    "indexed_payload_count": 1015,
+    "indexed_payload_mismatches": 0,
+    "zip_members_total": 1016,
+    "zip_testzip": "clean"
+  },
+  "copied_files": [
+    {
+      "file": "coordinated-probe-final-review.md",
+      "sha256": "c6c2c11656d8b78d4365e454a4e1ac9decf0ccd03a21b0ac513cda5d51511bb4",
+      "size_bytes": 4694
+    },
+    {
+      "file": "coordinated-probe-final-receipt.json",
+      "sha256": "7f75a2a3b0ec293ec15613fd11c0b70b78471b42f759166e16bb009a04cba022",
+      "size_bytes": 77264
+    },
+    {
+      "file": "coordinated-probe-source-manifest-final.json",
+      "sha256": "01fa737d2a0f385dec8ce6187d95c4a104c13cce9dde6d693152df7dd94ef4b6",
+      "size_bytes": 181209
+    },
+    {
+      "file": "coordinated-probe-source-diffs.json",
+      "sha256": "eea5a3574ce6cc4b14121e4735a66ac8485a24d9ccc160f23f749544df6b3a24",
+      "size_bytes": 7896
+    },
+    {
+      "file": "coordinated-probe-archive-index-v2.json",
+      "sha256": "0492df7ea055116c96519b8500d00b85f081da8d96c6dd69a1d88f2c05f0e569",
+      "size_bytes": 210224
+    },
+    {
+      "file": "coordinated-probe-freeze-summary-v2.json",
+      "sha256": "354514786a9163705992b6161ef5c2e2e207866eb882a27636566b80e3799986",
+      "size_bytes": 1295
+    },
+    {
+      "file": "coordinated-probe-final-evidence-v2.zip",
+      "sha256": "9510abeffcf040bf4a7ea8b8e0524e93cfe1046a8b9498dbc7e26626adbb2c46",
+      "size_bytes": 5563019
+    },
+    {
+      "file": "freeze_coordinated_probe_evidence.py",
+      "sha256": "db57283555719c258c48dd37f46a6e9e44a0d23daf4777387a3471366d3ebab8",
+      "size_bytes": 27501
+    }
+  ],
+  "created_utc": "2026-09-27T00:39:37.953213+00:00",
+  "destination": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代41-实盘执行风控监控与示例架构重构\\evidence\\coordinated-v23-r4-r3r3-wheel-probe-2026-09-27",
+  "schema": "iteration41-canonical-evidence-copy-receipt-v1",
+  "source_root": "D:\\temp\\iteration41-coordinated-release-probe-20260927-r1"
+}

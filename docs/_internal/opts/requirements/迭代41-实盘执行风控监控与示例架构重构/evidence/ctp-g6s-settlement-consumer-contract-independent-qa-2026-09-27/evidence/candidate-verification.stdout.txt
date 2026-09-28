@@ -1,0 +1,9 @@
+{
+  "all_checks_passed": true,
+  "manifest_file_count": 24,
+  "manifest_sha256": "d39dbfa40185bd8f12704cd158c59a35d6737ef6a8d58d0a0aa165a144128486",
+  "problems": [],
+  "zip_crc_test": "ok",
+  "zip_member_count": 26,
+  "zip_sha256": "9f4e2f169384c56dd2b95e755074c4035684c0140946d7dba623114c1236e8bb"
+}

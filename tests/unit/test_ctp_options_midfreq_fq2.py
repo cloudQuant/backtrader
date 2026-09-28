@@ -7,7 +7,6 @@ from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 import importlib
-import sys
 from types import SimpleNamespace
 
 import pytest
@@ -249,18 +248,8 @@ def _short_schedule(decision_input, producer: ReplayQuoteProducer, *, gap: bool)
 
 
 def test_public_edge_replay_matches_independent_feature_oracle_shape() -> None:
-    import json
-    import subprocess
-
-    result = subprocess.run(
-        [sys.executable, str(EXAMPLE / "run.py"), "--scenario", "edge"],
-        cwd=EXAMPLE,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    report = runner.run_replay(runner.load_config(), scenario="edge")
     decision = report["ordinary_decisions"][0]
     feature = report["feature_history"][-1]
     assert decision["outcome"] == "REPLAY_WRITE_DISABLED"

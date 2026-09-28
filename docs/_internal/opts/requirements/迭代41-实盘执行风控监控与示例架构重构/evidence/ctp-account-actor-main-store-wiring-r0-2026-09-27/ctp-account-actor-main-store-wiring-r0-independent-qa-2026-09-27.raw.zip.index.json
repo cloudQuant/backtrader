@@ -1,0 +1,21 @@
+{
+  "archive": "ctp-account-actor-main-store-wiring-r0-independent-qa-2026-09-27.raw.zip",
+  "sha256": "030949b245941de258d9fa18e8ffeda5531988eb0cfb19c36510cfc4e4fd2d31",
+  "zip_testzip": null,
+  "verified_member_count": 12,
+  "verified_members": [
+    "input/candidate-manifest.json",
+    "input/shared-apply.patch",
+    "logs/broad-ordinary-store-candidate.log",
+    "logs/broad-store-forwarding-gateway-candidate.log",
+    "logs/candidate-11.log",
+    "logs/original-30-in-candidate-retry.log",
+    "logs/original-30-on-exact-base.log",
+    "receipt/r0-independent-qa-receipt.md",
+    "scripts/prepare_base_regression_copy.py",
+    "scripts/prepare_regression_copy.py",
+    "scripts/verify_worktree_base.py",
+    "verification/worktree-base-patch-verification.json"
+  ],
+  "source_archive": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-independent-qa-20260927\\ctp-account-actor-store-wiring-r0-independent-qa.zip"
+}

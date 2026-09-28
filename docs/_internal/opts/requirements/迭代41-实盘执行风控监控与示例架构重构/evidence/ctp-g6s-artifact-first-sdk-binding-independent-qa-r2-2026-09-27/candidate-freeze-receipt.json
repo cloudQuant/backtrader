@@ -1,0 +1,18 @@
+{
+  "G4_accepted": false,
+  "G6S_accepted": false,
+  "blocking_residual": "CPython ExtensionFileLoader remains path-based; no same-handle OS image-load proof, external artifact pin, or deployment trust root.",
+  "candidate_root": "D:\\temp\\iteration41-g6s-artifact-first-sdk-binding-candidate-20260927-r2",
+  "credentials_or_private_config_read": false,
+  "default_route_or_pin_changed": false,
+  "main_repository_modified": false,
+  "manifest_path": "candidate-source-manifest.json",
+  "manifest_sha256": "4ee9f0258b6b2e575fb2039fe3f31a049d918f2f86f3c5707365d3d37e48b916",
+  "native_loaded_or_called": false,
+  "payload_file_count": 191,
+  "provider_or_network_called": false,
+  "pytest_result": "52 passed, 0 skipped, exit 0",
+  "r1_manifest_sha256": "4cda34fadd2c73efb999a0411657eb625b30caa2adce5a0e56ef7527a90f8080",
+  "schema": "iteration41.g6s.artifact_first_sdk_binding.r2_freeze_receipt.v1",
+  "status": "AUTHOR_CANDIDATE / NO_G4 / NO_G6-S"
+}

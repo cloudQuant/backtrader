@@ -1,0 +1,65 @@
+# Candidate Store integration contract
+
+This is a D:\temp-only design slice. It is not wired into Backtrader and creates no external actor.
+
+The existing main BtApiStore has a public managed-adapter seam. For non-CTP routes its generic ManagedExecutionAdapter receives a legacy_dispatch callback; CTP uses a specialized managed adapter that enqueues to the local SDK command route. Both remain local execution paths. The CTP F14 authority is a Protocol that claims and rechecks an action; it does not execute through a remote account actor. None of these is a substitute for this separate transport-neutral write port.
+
+For a reviewed integration, add an optional code-owned CtpAccountActorPort to BtApiStore composition and use UnavailableCtpAccountActorPort when absent. Call the route classifier/gate from the raw requested provider/backend and explicit route config before `_resolve_provider` reads `BT_STORE_PROVIDER`, before `_apply_env_gateway_overrides`, before config credential extraction, SDK import, client construction, autostart, or connection. Environment overrides must not downgrade an explicitly requested CTP route. Known CTP routes require the actor and reject if it is unavailable; ambiguous and unsupported routes reject regardless of actor presence. Raw `api` and `api_cls` injection is rejected before any object attribute inspection. Submit/cancel must build exact typed logical intents and invoke only actor_port.submit_order/cancel_order. Do not pass `_submit_order_legacy` / `_cancel_order_ref_legacy` into the actor seam as native capabilities. Put defense-in-depth guards inside the private legacy dispatchers as well.
+
+The candidate gate treats a CTP actor route as actor-owned and never instantiates a local CTP client. A real Store also uses CTP for market data and account queries; therefore a future actor client must supply the required read-only events/snapshot feed or the Store must remain unavailable. Do not silently construct local TraderClient for data after routing writes externally.
+
+## r3 code-owned route registry
+
+The classifier accepts only selectors represented by this small, explicit
+registry. It does not infer safety from an arbitrary provider name or a
+`_gateway` suffix:
+
+| Selector | Candidate treatment |
+|---|---|
+| `ctp`, `ctp_gateway` | CTP, regardless of environment overrides |
+| `okx`, `binance` | Non-CTP direct route when backend is omitted or `direct` |
+| `btapi` | Non-CTP only with explicit complete route facts, all in `OKX`, `BINANCE`, `MT5`, `IB_WEB` |
+| `gateway` | Non-CTP only with explicit `IB_WEB` or `MT5` route facts; no selector defaults to CTP |
+| `ib_web_gateway`, `mt5_gateway` | Non-CTP only when explicit route facts exactly match the alias; no selector defaults to CTP |
+| `futu`, `oanda`, `vc` | Explicitly unsupported |
+| Any other selector, backend, or route value | Ambiguous and rejected before local construction |
+
+Any CTP selector discovered in top-level exchange fields, `exchange_kwargs`,
+or recursively nested `symbol_routes` takes precedence. Raw `api` and `api_cls`
+injections are always ambiguous for this gate. The classifier never reads
+attributes from either object. Environment provider changes do not grant a
+non-CTP route; a requested CTP provider remains CTP even if environment fields
+name `IB_WEB`, `MT5`, or another gateway.
+
+This deliberately narrows compatibility. The public main Store documents
+`provider="okx", api=...`; this candidate would reject that injected-client
+form. It preserves code-owned direct `okx`/`binance` selectors and the observed
+explicit gateway forms above. The main `BtApiStore` also accepts custom
+providers and injected SDK classes; those require a separately reviewed
+registry entry rather than implicit NON_CTP classification. These are
+candidate rules, not a claim that all historical BtApiStore paths have been
+integrated.
+
+## r4 local binding contract and authority limit
+
+`ActorCommandContextV1` carries account reference, runtime id, mode, config
+digest, session id, session generation, and expected actor epoch. The V2
+submit/cancel digest canonically binds this context, operation, command id, and
+all logical intent fields. `ActorCommandReceiptV2` must return the exact
+context, command id, and digest. The fake harness compares every field before
+returning a receipt. Context mismatch rejects before actor-port invocation;
+receipt mismatch never falls back to a local client. An explicit
+`FakeLocalActorReplayLedger` reserves each command id once before the fake
+actor call, and keeps the reservation after an exception or invalid receipt.
+
+This is process-local test enforcement only. The context and actor epoch are
+caller-supplied local expectations, the digest is unkeyed, and the replay
+ledger is in-memory. They do not authenticate the actor, prove its current
+epoch, prevent replay across processes/hosts, establish an external account
+fence, or provide a common provider snapshot. A production protocol still
+needs authenticated actor identity, authoritative account/runtime/session
+bindings, a durable server-side idempotency ledger, cross-host fencing, and a
+read/callback snapshot contract. No actor implementation or authenticated
+receipt protocol exists in this candidate.
+
+The fake actor in tests verifies only method/DTO plumbing and zero local calls. No real AccountActorPort implementation, credentials, service identity, deployment trust pin, external account fence, provider snapshot, callback feed, handoff or native API exists here. The candidate is fake-only and does not enable a default CTP route.

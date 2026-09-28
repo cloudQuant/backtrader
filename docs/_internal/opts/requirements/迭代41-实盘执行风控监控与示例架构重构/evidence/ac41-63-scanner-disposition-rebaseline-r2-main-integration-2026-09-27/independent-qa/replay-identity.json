@@ -1,0 +1,42 @@
+{
+  "manifest_sha256": "F4AAA0BF5C2A68D6B4FF35BAF131BA335A8578DF0A233CA33C997AB8B71D6E6F",
+  "patch_sha256": "D1179543CFBD0E35677C062FDA9B1246C2DB7C26D412A0E9B3D2AE9255073FCA",
+  "current_preimages": {
+    "scripts/verify_iteration41_writer_dispositions.py": {
+      "sha256": "633AD4749EAEBF54E8A6BE257A6DBBE1900326992122EEDD5C161B3485EE42E1",
+      "bytes": 16725
+    },
+    "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": {
+      "sha256": "E1E9A96A040AC510B4BB48A13195651D71199D9C4B7071083EB617B14F3B3F49",
+      "bytes": 7972
+    },
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-inventory-candidates.json": {
+      "sha256": "FACBBC93067D77A317E3A0ABDE5EF89BC77BD53E4A4EB18722B51124E3E20780",
+      "bytes": 198905
+    },
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json": {
+      "sha256": "E6ECE21E16AF6C6A6220431DD0C2669D81206A136B500DFD5214CA766818E841",
+      "bytes": 454683
+    }
+  },
+  "isolated_exact_replay_targets": {
+    "scripts/verify_iteration41_writer_dispositions.py": {
+      "sha256": "14E9F734AEC299016942BFDCE66F1D07EDF842A845EA53D998102EF6641BD8E8",
+      "bytes": 22168
+    },
+    "tests/unit/scripts/test_verify_iteration41_writer_dispositions.py": {
+      "sha256": "690C2F8B40BF2BCDB9C03AA8830DB42490A45FBDB08728AD77FE6FB3CEBEEC64",
+      "bytes": 10139
+    },
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-inventory-candidates.json": {
+      "sha256": "D81C98A73E32B8D2CFB39034FCC1DCEAD7EA5434CDF38C8ADC30AB6B47A60710",
+      "bytes": 225377
+    },
+    "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/live-execution-writer-dispositions.json": {
+      "sha256": "B55A054A8E53CEC27A7B20AD43A653CEE07082FEBE51844CCCB129C0ED365426",
+      "bytes": 517507
+    }
+  },
+  "strict_apply_check": "PASS",
+  "isolated_apply": "PASS"
+}

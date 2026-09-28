@@ -1,0 +1,70 @@
+{
+  "schema": "iteration41.g6s.settlement_consumer.source_snapshot_verification.v1",
+  "all_match": true,
+  "checked_count": 9,
+  "files": [
+    {
+      "source": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_native_readiness.py",
+      "snapshot": "input-snapshots\\main\\ctp_simnow_native_readiness.py",
+      "source_sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94",
+      "snapshot_sha256": "a0959b3a6170c83e79abade031d88590bd06a8cac9e0a4dea014cacb5fc5df94",
+      "match": true
+    },
+    {
+      "source": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simnow_managed_runtime.py",
+      "snapshot": "input-snapshots\\main\\ctp_simnow_managed_runtime.py",
+      "source_sha256": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958",
+      "snapshot_sha256": "46e5d5e887cc4472e0388e5f36e0a66343fa23b57f9fdecffd701140a7da7958",
+      "match": true
+    },
+    {
+      "source": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_simulation_query_evidence.py",
+      "snapshot": "input-snapshots\\main\\ctp_simulation_query_evidence.py",
+      "source_sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "snapshot_sha256": "17a5711a598c17052ac9a4496127eba406e0d2dc365111885ea4787733fb590b",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\settlement-source-manifest.json",
+      "snapshot": "input-snapshots\\clean-g4r2\\settlement-source-manifest.json",
+      "source_sha256": "da9d20d35d0b5680267f1a95c5b7fff54f25e9f57f0dfda270b55eb7f251ebe9",
+      "snapshot_sha256": "da9d20d35d0b5680267f1a95c5b7fff54f25e9f57f0dfda270b55eb7f251ebe9",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\ctp\\client.py",
+      "snapshot": "input-snapshots\\clean-g4r2\\bt_api_ctp\\ctp\\client.py",
+      "source_sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+      "snapshot_sha256": "c217be3e064272327535da7edf4b4ed4d587845f03aa11c4669699417c14e6ff",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\containers\\ctp\\ctp_native_query_certificate.py",
+      "snapshot": "input-snapshots\\clean-g4r2\\bt_api_ctp\\containers\\ctp\\ctp_native_query_certificate.py",
+      "source_sha256": "53333798198177dd675f96478d8d7d2d0445e2e41459e54d4f021bdd32fa3282",
+      "snapshot_sha256": "53333798198177dd675f96478d8d7d2d0445e2e41459e54d4f021bdd32fa3282",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-g4r2-settlement-query-candidate-20260927\\src\\bt_api_ctp\\__init__.py",
+      "snapshot": "input-snapshots\\clean-g4r2\\bt_api_ctp\\__init__.py",
+      "source_sha256": "246f5963130219d87c7773637c840b2b6ff5b99ce97dd2c0c1cef670197de505",
+      "snapshot_sha256": "246f5963130219d87c7773637c840b2b6ff5b99ce97dd2c0c1cef670197de505",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\\wheelhouse-manifest.json",
+      "snapshot": "input-snapshots\\wheelhouse-manifest.json",
+      "source_sha256": "1b89cc1096e4d52145faa404da8a47a56e2779ed1b6b54d59e01f27980cb9fdc",
+      "snapshot_sha256": "1b89cc1096e4d52145faa404da8a47a56e2779ed1b6b54d59e01f27980cb9fdc",
+      "match": true
+    },
+    {
+      "source": "D:\\temp\\iteration41-unified-offline-wheelhouse-settlement-20260927-r1\\requirements-hashes.txt",
+      "snapshot": "input-snapshots\\requirements-hashes.txt",
+      "source_sha256": "856971d73bec6b6951fa3c5bb88ee6fefe1e716ab21d3b9712ed251d2e2c1bcd",
+      "snapshot_sha256": "856971d73bec6b6951fa3c5bb88ee6fefe1e716ab21d3b9712ed251d2e2c1bcd",
+      "match": true
+    }
+  ]
+}

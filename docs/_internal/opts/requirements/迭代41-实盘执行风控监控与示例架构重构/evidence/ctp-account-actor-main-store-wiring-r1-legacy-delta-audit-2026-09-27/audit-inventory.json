@@ -1,0 +1,88 @@
+{
+  "audit": "btapistore-actor-r1-legacy-ctp-test-delta",
+  "base_store_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "candidate_failure_log_sha256": "a56a716b3fda59cb71d00b8e9ba8c0239c2cdd80e9288682a118a1a7c85d9b8b",
+  "candidate_manifest_sha256": "ada5018781a7417206b88e3d934d59a67a77beab0c5e09e002a0e8f89a16ade4",
+  "candidate_root": "D:\\temp\\iteration41-ctp-account-actor-main-store-wiring-candidate-20260927-r1",
+  "candidate_same_suite": "9 passed, 21 failed; all 21 stopped at constructor actor-unavailable gate",
+  "candidate_store_sha256": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8",
+  "dispositions": {
+    "EXTERNAL_ACTOR_MIGRATION": 13,
+    "FAIL_CLOSED_ASSERTION": 8,
+    "ORDINARY_NON_CTP_COMPATIBILITY_DEFECT": 0
+  },
+  "failed_nodes": 21,
+  "files": [
+    {
+      "path": "candidate_actor_port.py",
+      "sha256": "19f5935bc6aabcde178f60f62619757b01fa51b99ff5389120a8404e00e70372",
+      "size_bytes": 25500
+    },
+    {
+      "path": "candidate_btapistore.py",
+      "sha256": "a25edc57d4a4ac225b1b152a2672ff2b108b3c497cef05cd46a8fb22c1e586b8",
+      "size_bytes": 802132
+    },
+    {
+      "path": "candidate_focus_14.log",
+      "sha256": "14455dbd9c0d6ac69e0162318dd2f82d8c29ff0a23004e2fc1fde54358176ed7",
+      "size_bytes": 587
+    },
+    {
+      "path": "candidate_focus_21.log",
+      "sha256": "4eeb40979ff326822caf413cb60590318186c4570d458bf810260aab5f3756ae",
+      "size_bytes": 587
+    },
+    {
+      "path": "candidate_legacy_store_suite.log",
+      "sha256": "a56a716b3fda59cb71d00b8e9ba8c0239c2cdd80e9288682a118a1a7c85d9b8b",
+      "size_bytes": 25401
+    },
+    {
+      "path": "input_btapistore.py",
+      "sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+      "size_bytes": 780123
+    },
+    {
+      "path": "main-exact-base-regression.txt",
+      "sha256": "2990563f46564515e525768480213e650b33b67dbd9687f898304bf23b6499d1",
+      "size_bytes": 551
+    },
+    {
+      "path": "r1-test-delta-migration-review.md",
+      "sha256": "c2133a92cbc83a0a4b4c9cd3f10cccc2f7e4f7287026fddabb7bd1f6065cbd00",
+      "size_bytes": 11410
+    },
+    {
+      "path": "r1_candidate_manifest.json",
+      "sha256": "ada5018781a7417206b88e3d934d59a67a77beab0c5e09e002a0e8f89a16ade4",
+      "size_bytes": 119054
+    },
+    {
+      "path": "r1_candidate_manifest.sha256",
+      "sha256": "460cd4df3214d7fc421f7523c37a5a48adc740448d38e422898a3e47d48a22f7",
+      "size_bytes": 91
+    },
+    {
+      "path": "test_managed_ctp_store_adapter.py",
+      "sha256": "2b5f929cac960ed6a7105eb2cc0b7401961fdb7c7b97761288d279b415b15e3f",
+      "size_bytes": 38056
+    },
+    {
+      "path": "test_managed_execution_store_adapter.py",
+      "sha256": "c9262dc03c3905a54b1397c10db12b1a5dc68508874e550590039d22a482a030",
+      "size_bytes": 5139
+    },
+    {
+      "path": "test_runtime_live_dispatch_guard.py",
+      "sha256": "95ea7b68ad48430eafa1c5a7d2456a63aeb31fac2f7aabedb41917b39ed24ea5",
+      "size_bytes": 2514
+    }
+  ],
+  "main_actor_module": "missing",
+  "main_current_store_sha256": "dba2989252db76fe010fbee7caacdcdba34a9b951e3702724156482b67fae826",
+  "main_regression_log_sha256": "2990563f46564515e525768480213e650b33b67dbd9687f898304bf23b6499d1",
+  "main_same_suite": "30 passed, 1 existing pytest configuration warning",
+  "production_source_edited": false,
+  "status": "READ_ONLY_REVIEW / AUTHOR_CANDIDATE / NO_WRITE"
+}

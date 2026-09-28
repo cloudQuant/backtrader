@@ -1,0 +1,12 @@
+{
+  "all_checks_passed": true,
+  "crc": "ok",
+  "directory_members": [
+    "candidate-copy/input-snapshots/clean-g4r2/bt_api_ctp/containers",
+    "candidate-copy/lineage-r1-independent-qa/candidate-copy/input-snapshots/clean-g4r2/bt_api_ctp/containers"
+  ],
+  "errors": [],
+  "file_members": 130,
+  "payload_hashes_checked": 129,
+  "zip_sha256": "2f5976e0571384814b0892f9eb0e9f720041e46b9f61f6282379126eb9597ab5"
+}

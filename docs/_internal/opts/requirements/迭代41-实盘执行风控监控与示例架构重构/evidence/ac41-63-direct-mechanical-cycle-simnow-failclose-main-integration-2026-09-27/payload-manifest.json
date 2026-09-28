@@ -1,0 +1,182 @@
+{
+  "schema": "ac41-63-direct-dispatch-main-integration-evidence.v1",
+  "candidate_manifest_sha256": "d0fbc2c38f6bad8a8778a447fad4c8f0d5c7c7f34d9348d558da8b7791749dda",
+  "independent_qa_report_sha256": "da769ea3fbb3e64fb00e0ee08811ae57d37226b1f5ad5a636223c1e317b01a98",
+  "main_run_counts": {
+    "tests": 53,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "files": [
+    {
+      "path": "candidate-input/candidate-manifest.json",
+      "size": 7240,
+      "sha256": "d0fbc2c38f6bad8a8778a447fad4c8f0d5c7c7f34d9348d558da8b7791749dda"
+    },
+    {
+      "path": "candidate-input/candidate.patch",
+      "size": 40397,
+      "sha256": "cc755c12522397c9980968f07655df0bbf90375ca03647d9f5b7e24d79bab0dc"
+    },
+    {
+      "path": "candidate-input/REPLAY.md",
+      "size": 2504,
+      "sha256": "050b58fb61fe83a1b742713875281a063402941b0b6fcef1e9be35f205c44325"
+    },
+    {
+      "path": "independent-qa/baseline-l2-direct-debug-with-roots.log",
+      "size": 3962,
+      "sha256": "ee07f70b792158c9d4462cf6b18717a60dc24748715d59b0316b899ca7fbebfb"
+    },
+    {
+      "path": "independent-qa/baseline-l2-integration-historical-roots.log",
+      "size": 2086,
+      "sha256": "b450cec2f3edeed11c36920f1c1a4e1c2c8e62ad2c4c9f2440a52a83a99cef91"
+    },
+    {
+      "path": "independent-qa/candidate-exact-tests.log",
+      "size": 789,
+      "sha256": "411fb0619d63b9853c26eee01dd497982b93bf5d4449a0dc0caffce9c8c8960c"
+    },
+    {
+      "path": "independent-qa/candidate-l2-direct-debug.log",
+      "size": 4037,
+      "sha256": "ecb3d95ef0125a4d8830574da5caeb8dff09273a91a475f9c84f0a66db179d74"
+    },
+    {
+      "path": "independent-qa/candidate-l2-integration-historical-roots.log",
+      "size": 1830,
+      "sha256": "f8fce46d5240215b91c5196b8056dd9615ceb065a9abb187f1595465592dd7d9"
+    },
+    {
+      "path": "independent-qa/candidate-pycompile.log",
+      "size": 19,
+      "sha256": "481a332c69fd9256efc19d581fd0bb039471c4d85e0c354e90006e6069252cae"
+    },
+    {
+      "path": "independent-qa/candidate-r1-forged-descriptor-probe.log",
+      "size": 714,
+      "sha256": "92750c997779883026ab6f9e17077bfdc9799dc1a4e012b147b993bb202b4413"
+    },
+    {
+      "path": "independent-qa/candidate-r1-forged-descriptor-probe.py",
+      "size": 4374,
+      "sha256": "22a84a395e2364079c51d1fe1234d357ad26cc9ae14001e8ef9092d0483b4f2b"
+    },
+    {
+      "path": "independent-qa/candidate-r1-isolation-replay.json",
+      "size": 1700,
+      "sha256": "7539afa68bc41e0171c08c3d6a4424ee1ec00c402d03825a88465814719d3ed4"
+    },
+    {
+      "path": "independent-qa/candidate-ruff.log",
+      "size": 33,
+      "sha256": "a82bece8bdbd364649950c037de405021c0a627b1645be634ee7f5effc3314a8"
+    },
+    {
+      "path": "independent-qa/historical-source-roots.json",
+      "size": 1149,
+      "sha256": "5cf8b8f596ab5f2cd8bc89c52ed62f5421240ba93fe7b6ae7ba346496d21fa3e"
+    },
+    {
+      "path": "independent-qa/independent-qa-report.md",
+      "size": 5147,
+      "sha256": "da769ea3fbb3e64fb00e0ee08811ae57d37226b1f5ad5a636223c1e317b01a98"
+    },
+    {
+      "path": "independent-qa/independent-qa-SHA256SUMS.txt",
+      "size": 2356,
+      "sha256": "50e786520052419fc81b7202218504f96ea51e60d922f6294e779e3d4ed9ca3d"
+    },
+    {
+      "path": "main-run/command.json",
+      "size": 1143,
+      "sha256": "f7ab2e651cb7518fa7e6954117207d6834161067caacbb75999b6c132d26b49d"
+    },
+    {
+      "path": "main-run/exit-code.txt",
+      "size": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "main-run/py_compile.log",
+      "size": 47,
+      "sha256": "561e2152d928d24dc846af6740f62099411d2fd0e7e805d17c0ee0aaac21c857"
+    },
+    {
+      "path": "main-run/pytest.junit.xml",
+      "size": 9026,
+      "sha256": "67b0248b53228daacbf997a6e9f2dd5b164ccf1ddf63d848cd8be5f981b3ce02"
+    },
+    {
+      "path": "main-run/pytest.stdout-stderr.log",
+      "size": 879,
+      "sha256": "436f3bafcbc43dae36f34716559991c97760aa560176c067c05ccb9a1ece8508"
+    },
+    {
+      "path": "main-run/ruff.log",
+      "size": 20,
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "path": "main-source/backtrader_runtime/_iteration41_l2_fixture/mechanical_cycle.py",
+      "size": 21643,
+      "sha256": "573882b80db8f47f8b7c8cca8ae2c9c790469eb741c81bb523fc104e7d6c0c33"
+    },
+    {
+      "path": "main-source/backtrader_runtime/_iteration41_l2_fixture/mechanical_p1b.py",
+      "size": 41434,
+      "sha256": "38696e2c08439c5d471327f22377c65d589ef3be043a2924f751cbae9c8bc5ee"
+    },
+    {
+      "path": "main-source/examples/ctp_options_simnow_live_runner.py",
+      "size": 46736,
+      "sha256": "36b3056b0196d99cb8e24f02d251d96203b9a30df6193525b50821c46a66384c"
+    },
+    {
+      "path": "main-source/tests/unit/test_ctp_options_simnow_live_runner.py",
+      "size": 29292,
+      "sha256": "d0f1439fdad66e18422378bf6f98433105487897acf4939842cafb9f4533c774"
+    },
+    {
+      "path": "main-source/tests/unit/test_ctp_options_simnow_mechanical_cycle.py",
+      "size": 23761,
+      "sha256": "67614a96854400e175eefc69f1f291914e036160ddbbb80d448365a4af2189a4"
+    },
+    {
+      "path": "main-run/store-runtime-broad/command.json",
+      "size": 1051,
+      "sha256": "d6c5ceb2351959933a73b6e4b6b717c910a35e267aaab119631722bf7663f473"
+    },
+    {
+      "path": "main-run/store-runtime-broad/exit-code.txt",
+      "size": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    {
+      "path": "main-run/store-runtime-broad/pytest.stdout-stderr.log",
+      "size": 3692,
+      "sha256": "b9b67cfc1f57d2bbf5a25712fd503e9596ca52d1368d73c229a947be4487f4bc"
+    },
+    {
+      "path": "main-run/store-runtime-broad/stores-runtime.junit.xml",
+      "size": 470449,
+      "sha256": "8791964200a7f86dd1187700c849af4fba44a0993c598266db0d212bab02e86b"
+    }
+  ],
+  "supplemental_store_runtime_run": {
+    "command_path": "main-run/store-runtime-broad/command.json",
+    "result": "2641 passed / 43 skipped / 2 xfailed / 0 failed",
+    "warnings": 1,
+    "duration_seconds": 112.27,
+    "junit_counts": {
+      "tests": 2686,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 45
+    },
+    "phase": "after MechanicalCycle and 013_1/013_2 support main patches, before Store r5",
+    "scope_limit": "regression evidence only; not CTP/provider/native/write acceptance"
+  }
+}
