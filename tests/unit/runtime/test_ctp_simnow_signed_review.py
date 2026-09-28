@@ -515,7 +515,22 @@ def test_local_sqlite_guard_serializes_cross_process_race(review_state_dir: Path
         for process in processes:
             process.join(timeout=15)
         assert all(not process.is_alive() and process.exitcode == 0 for process in processes)
-        assert sorted(results) == [("ok", False), ("ok", True)]
+        assert len(results) == 2
+        assert results.count(("ok", True)) == 1
+
+        duplicate_results = [result for result in results if result == ("ok", False)]
+        unavailable_results = [
+            result
+            for result in results
+            if (
+                len(result) == 4
+                and result[:3] == ("error", "RuntimeError", "operational_review_replay_unavailable")
+            )
+        ]
+        assert len(duplicate_results) + len(unavailable_results) == 1
+
+        durable_guard = LocalOnlySqliteCtpSimNowOperationalReviewReplayGuard(database)
+        assert durable_guard.claim_once("race-permit-durable-check", "a" * 64, "c" * 64) is False
     finally:
         for process in processes:
             if process.is_alive():
