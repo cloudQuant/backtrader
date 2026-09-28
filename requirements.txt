@@ -27,13 +27,15 @@ tqdm>=4.50.0
 types-pytz>=2021.1
 types-python-dateutil>=2.8.0
 types-PyMySQL>=1.0.0
-pytest>=6.0.0
+# pytest-asyncio 0.24+ fixes the pytest 8 package-collector incompatibility and
+# requires pytest>=8.2; both packages support the project's Python 3.8-3.13 range.
+pytest>=8.2,<9
 pytest-benchmark>=3.4.0
 pytest-sugar>=0.9.0
 pytest-cov>=2.12.0
 pytest-picked>=0.4.0
 pytest-xdist>=2.3.0
-pytest-asyncio>=0.15.0
+pytest-asyncio>=0.24,<1
 pytest-html>=3.1.0
 pytest-ordering>=0.6.0
 pytest-mock>=3.6.0
@@ -48,3 +50,5 @@ dash>=2.0.0
 # backtrader  # Don't install self from PyPI
 # bt_api_py  # Optional external package
 statsmodels>=0.12.0
+# Required by the schema-v4 configuration-first runtime loader.
+PyYAML>=5.4
