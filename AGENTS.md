@@ -213,8 +213,9 @@ bash scripts/optimize_code.sh   # pyupgrade + isort + black + ruff + tests
 ```
 
 The `mypy backtrader` gate checks the core package. Its `pyproject.toml`
-override skips transitive analysis of the separate `backtrader_runtime` package;
-the runtime package is not yet covered by a dedicated mypy gate.
+override keeps type information from the separate `backtrader_runtime` package
+but silences that package's diagnostics; runtime is not yet covered by a
+dedicated mypy gate.
 
 ### Docs & utilities
 
