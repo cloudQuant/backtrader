@@ -12,7 +12,6 @@ import pytest
 
 from backtrader.notifications import _windows_anchor
 
-
 USER_SID = "S-1-5-21-11-22-33-1001"
 FULL = 0x001F01FF
 
@@ -174,6 +173,17 @@ def test_existing_ancestor_policy_rejects_untrusted_directory_mutation():
             USER_SID,
             USER_SID,
             ((0, 0, _windows_anchor._FILE_WRITE_ATTRIBUTES, "S-1-1-0"),),
+        )
+
+
+def test_existing_ancestor_owner_rights_maps_only_to_verified_owner():
+    owner_rights = ((0, 0x1 | 0x2, FULL, _windows_anchor._OWNER_RIGHTS_SID),)
+    _windows_anchor._validate_safe_ancestor_acl(USER_SID, USER_SID, owner_rights)
+    with pytest.raises(OSError):
+        _windows_anchor._validate_safe_ancestor_acl("S-1-1-0", USER_SID, owner_rights)
+    with pytest.raises(OSError):
+        _windows_anchor._validate_safe_ancestor_acl(
+            USER_SID, USER_SID, ((0, 0x1 | 0x2, FULL, "S-1-3-0"),)
         )
 
 

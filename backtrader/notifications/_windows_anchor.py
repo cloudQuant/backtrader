@@ -60,6 +60,7 @@ _TRUSTED_ANCESTOR_SIDS = {
     "S-1-5-32-544",  # Builtin Administrators
     "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",  # TrustedInstaller
 }
+_OWNER_RIGHTS_SID = "S-1-3-4"
 
 
 def _windows_dll(name: str, *, use_last_error: bool = False) -> Any:
@@ -198,7 +199,11 @@ def _validate_safe_ancestor_acl(
     for ace_type, _flags, mask, trustee_sid in entries:
         if ace_type != 0:  # Only simple ACCESS_ALLOWED_ACE records are understood.
             raise OSError(_ERROR)
-        if trustee_sid not in trusted and mask & _DANGEROUS_DIR_MASK:
+        # OWNER RIGHTS is a well-known placeholder for this object's owner,
+        # which was checked against trusted SIDs above. Python 3.12+ creates
+        # private temporary directories with this ACE on Windows.
+        effective_trustee = owner_sid if trustee_sid == _OWNER_RIGHTS_SID else trustee_sid
+        if effective_trustee not in trusted and mask & _DANGEROUS_DIR_MASK:
             raise OSError(_ERROR)
 
 
