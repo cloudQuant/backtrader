@@ -2538,9 +2538,7 @@ class BtApiBroker(BrokerBase):
                     )
 
                 if has_refresh_marker:
-                    return self._account_risk_snapshot_incomplete(
-                        safe_snapshot, refresh_marker
-                    )
+                    return self._account_risk_snapshot_incomplete(safe_snapshot, refresh_marker)
                 return safe_snapshot
 
         routes_method = getattr(self.store, "get_symbol_routes", None)
