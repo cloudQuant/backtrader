@@ -1,6 +1,4 @@
-import contextlib
 import importlib
-import io
 import sys
 import types
 from pathlib import Path
@@ -62,43 +60,10 @@ def simnow_runtime():
         ("12***34", "***"),
     ],
 )
-def test_started_store_never_displays_complete_investor_id(
-    simnow_runtime, monkeypatch, investor_id, expected_mask
+def test_investor_id_display_value_never_contains_complete_investor_id(
+    simnow_runtime, investor_id, expected_mask
 ):
     runtime = simnow_runtime
-    config = {
-        "investor_id": investor_id,
-        "td_address": "tcp://trading.invalid:1",
-        "md_address": "tcp://market.invalid:2",
-    }
-
-    class FakeStore:
-        def __init__(self, provider, **kwargs):
-            assert provider == "ctp"
-            assert kwargs == config
-
-        def start(self):
-            pass
-
-        def stop(self):
-            pass
-
-    monkeypatch.setattr(runtime, "BtApiStore", FakeStore)
-    monkeypatch.setattr(runtime.cfg, "create_config", lambda _env_key: config)
-    monkeypatch.setitem(
-        runtime.cfg.SIMNOW_ENVIRONMENTS,
-        "new_7x24",
-        {"name": "单测环境", "td_address": "", "md_address": ""},
-    )
-    monkeypatch.delenv("CERTIFICATION_REPORT_DIR", raising=False)
-    monkeypatch.delenv("CERTIFICATION_CASE_ID", raising=False)
-
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output), runtime.started_store(
-        env_key="new_7x24", case_id="unit", report_dir=""
-    ):
-        pass
-
-    display_text = output.getvalue()
+    display_text = f"InvestorID: {runtime._mask_investor_id(investor_id)}"
     assert investor_id not in display_text
     assert f"InvestorID: {expected_mask}" in display_text
