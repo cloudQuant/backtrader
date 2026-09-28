@@ -62,6 +62,18 @@ _TRUSTED_ANCESTOR_SIDS = {
 }
 
 
+def _windows_dll(name: str, *, use_last_error: bool = False) -> Any:
+    """Load a DLL only when the Windows persistence adapter is constructed."""
+
+    return getattr(ctypes, "WinDLL")(name, use_last_error=use_last_error)
+
+
+def _win_last_error() -> int:
+    """Read the calling thread's Win32 error through a Windows-only API."""
+
+    return int(getattr(ctypes, "get_last_error")())
+
+
 class _UnicodeString(ctypes.Structure):
     _fields_ = (
         ("Length", wintypes.USHORT),
@@ -207,9 +219,9 @@ class _WindowsAnchorApi:
     """Small ctypes boundary kept separate so policy has pure fake tests."""
 
     def __init__(self) -> None:
-        self.kernel32 = ctypes.WinDLL("Kernel32", use_last_error=True)
-        self.advapi32 = ctypes.WinDLL("Advapi32", use_last_error=True)
-        self.ntdll = ctypes.WinDLL("ntdll")
+        self.kernel32 = _windows_dll("Kernel32", use_last_error=True)
+        self.advapi32 = _windows_dll("Advapi32", use_last_error=True)
+        self.ntdll = _windows_dll("ntdll")
         self._bind()
 
     def _bind(self) -> None:
@@ -387,7 +399,7 @@ class _WindowsAnchorApi:
 
     def close(self, handle: Any) -> None:
         if handle and not self.kernel32.CloseHandle(_as_handle(handle)):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
 
     def free_security_descriptor(self, descriptor: Any) -> None:
         self.kernel32.LocalFree.argtypes = (ctypes.c_void_p,)
@@ -401,14 +413,14 @@ class _WindowsAnchorApi:
         if not self.advapi32.OpenProcessToken(
             self.kernel32.GetCurrentProcess(), 0x0008, ctypes.byref(token)
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         try:
             buffer = ctypes.create_string_buffer(64 * 1024)
             required = wintypes.DWORD()
             if not self.advapi32.GetTokenInformation(
                 token, 1, buffer, ctypes.sizeof(buffer), ctypes.byref(required)
             ):
-                raise OSError(ctypes.get_last_error(), _ERROR)
+                raise OSError(_win_last_error(), _ERROR)
             token_user = ctypes.cast(buffer, ctypes.POINTER(_TokenUser)).contents
             sid = token_user.Sid
             if not sid or not self.advapi32.IsValidSid(sid):
@@ -420,7 +432,7 @@ class _WindowsAnchorApi:
                 raise OSError(_ERROR)
             text = wintypes.LPWSTR()
             if not self.advapi32.ConvertSidToStringSidW(sid, ctypes.byref(text)) or not text:
-                raise OSError(ctypes.get_last_error(), _ERROR)
+                raise OSError(_win_last_error(), _ERROR)
             try:
                 return str(text.value)
             finally:
@@ -438,7 +450,7 @@ class _WindowsAnchorApi:
         if not self.advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(
             sddl, 1, ctypes.byref(descriptor), None
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         return descriptor
 
     def acl(self, handle: Any) -> Tuple[str, bool, Tuple[Tuple[int, int, int, str], ...]]:
@@ -458,14 +470,14 @@ class _WindowsAnchorApi:
             ctypes.byref(descriptor),
         )
         if result or not descriptor:
-            raise OSError(int(result or ctypes.get_last_error()), _ERROR)
+            raise OSError(int(result or _win_last_error()), _ERROR)
         try:
             control = wintypes.WORD()
             revision = wintypes.DWORD()
             if not self.advapi32.GetSecurityDescriptorControl(
                 descriptor, ctypes.byref(control), ctypes.byref(revision)
             ):
-                raise OSError(ctypes.get_last_error(), _ERROR)
+                raise OSError(_win_last_error(), _ERROR)
             owner_defaulted = wintypes.BOOL()
             if (
                 not self.advapi32.GetSecurityDescriptorOwner(
@@ -502,23 +514,26 @@ class _WindowsAnchorApi:
             if not self.advapi32.GetAclInformation(
                 dacl, ctypes.byref(info), ctypes.sizeof(info), 2
             ):
-                raise OSError(ctypes.get_last_error(), _ERROR)
+                raise OSError(_win_last_error(), _ERROR)
             entries = []
             for index in range(int(info.AceCount)):
                 pointer = ctypes.c_void_p()
-                if not self.advapi32.GetAce(dacl, index, ctypes.byref(pointer)) or not pointer:
-                    raise OSError(ctypes.get_last_error(), _ERROR)
+                if not self.advapi32.GetAce(dacl, index, ctypes.byref(pointer)):
+                    raise OSError(_win_last_error(), _ERROR)
+                pointer_value = pointer.value
+                if pointer_value is None:
+                    raise OSError(_ERROR)
                 header = ctypes.string_at(pointer, 4)
                 ace_type, ace_flags = header[0], header[1]
                 ace_size = int.from_bytes(header[2:4], "little")
                 if ace_size < 8 or ace_size > int(info.AclBytesInUse):
                     raise OSError(_ERROR)
-                mask = int.from_bytes(ctypes.string_at(pointer.value + 4, 4), "little")
+                mask = int.from_bytes(ctypes.string_at(pointer_value + 4, 4), "little")
                 trustee_sid = ""
                 if ace_type in (0, 1):
                     if ace_size < 12:
                         raise OSError(_ERROR)
-                    trustee = ctypes.c_void_p(pointer.value + 8)
+                    trustee = ctypes.c_void_p(pointer_value + 8)
                     if not self.advapi32.IsValidSid(trustee):
                         raise OSError(_ERROR)
                     sid_size = int(self.advapi32.GetLengthSid(trustee))
@@ -566,7 +581,7 @@ class _WindowsAnchorApi:
     def _sid_string(self, sid: ctypes.c_void_p) -> str:
         output = wintypes.LPWSTR()
         if not self.advapi32.ConvertSidToStringSidW(sid, ctypes.byref(output)) or not output:
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         try:
             return str(output.value)
         finally:
@@ -579,14 +594,14 @@ class _WindowsAnchorApi:
         if not self.kernel32.GetFileInformationByHandleEx(
             _as_handle(handle), 9, ctypes.byref(info), ctypes.sizeof(info)
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         _reject_reparse(int(info.FileAttributes))
         return int(info.FileAttributes)
 
     def identity(self, handle: Any) -> Tuple[int, int, int, int]:
         info = _ByHandleFileInformation()
         if not self.kernel32.GetFileInformationByHandle(_as_handle(handle), ctypes.byref(info)):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         return (
             int(info.VolumeSerialNumber),
             int(info.FileIndexHigh),
@@ -652,7 +667,7 @@ class _WindowsAnchorApi:
             None,
         )
         if handle == ctypes.c_void_p(-1).value:
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         try:
             self.attributes(handle)
         except BaseException:
@@ -678,7 +693,7 @@ class _WindowsAnchorApi:
             filesystem_name,
             len(filesystem_name),
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         return bool(filesystem_flags.value & _FILE_PERSISTENT_ACLS)
 
     def open_or_create_directory(
@@ -773,7 +788,7 @@ class _WindowsAnchorApi:
     def read_handle_bytes(self, handle: Any) -> bytes:
         size = ctypes.c_longlong()
         if not self.kernel32.GetFileSizeEx(_as_handle(handle), ctypes.byref(size)):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         if size.value < 0 or size.value > 1024 * 1024:
             raise OSError(_ERROR)
         buffer = ctypes.create_string_buffer(max(1, int(size.value)))
@@ -784,7 +799,7 @@ class _WindowsAnchorApi:
             )
             or read.value != size.value
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         return buffer.raw[: read.value]
 
     def create_relative_file(self, parent: Any, name: str, descriptor: Any) -> Any:
@@ -805,20 +820,20 @@ class _WindowsAnchorApi:
         if not self.kernel32.WriteFile(
             _as_handle(handle), buffer, len(payload), ctypes.byref(written), None
         ) or written.value != len(payload):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         if not self.kernel32.FlushFileBuffers(_as_handle(handle)):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
 
     def seek_start(self, handle: Any) -> None:
         if not self.kernel32.SetFilePointerEx(_as_handle(handle), 0, None, 0):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
 
     def truncate_and_write(self, handle: Any, payload: bytes) -> None:
         end = _FileEndOfFileInfo(0)
         if not self.kernel32.SetFileInformationByHandle(
             _as_handle(handle), 6, ctypes.byref(end), ctypes.sizeof(end)  # FileEndOfFileInfo
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
         self.seek_start(handle)
         self.write_and_flush(handle, payload)
 
@@ -827,7 +842,7 @@ class _WindowsAnchorApi:
         if not self.kernel32.SetFileInformationByHandle(
             _as_handle(handle), 4, ctypes.byref(info), ctypes.sizeof(info)
         ):
-            raise OSError(ctypes.get_last_error(), _ERROR)
+            raise OSError(_win_last_error(), _ERROR)
 
 
 def _absolute_parts(path: str) -> Tuple[str, Tuple[str, ...], str]:
@@ -965,7 +980,7 @@ def persist_anchor(path: str, data: Any, *, api: Optional[_WindowsAnchorApi] = N
     parent_path = ntpath.dirname(absolute)
     token_sid = api.token_user_sid()
     descriptor = api.security_descriptor(token_sid)
-    directory_handles = []
+    directory_handles: list[Any] = []
     directory_handle = None
     try:
         directory_handle, directory_handles = _open_secure_directory(
