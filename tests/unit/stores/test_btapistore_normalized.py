@@ -43,6 +43,7 @@ class FakeSdk:
         self.on_submit = None
         self.metadata = {}
         self.sequence = 100
+        self.runtime_order_bindings = {}
         self.fencing_epoch = next(self._fence_sequence)
 
     def configure_execution(self, config):
@@ -55,6 +56,44 @@ class FakeSdk:
     def new_client_order_id(self, venue):
         self.sequence += 1
         return str(self.sequence)
+
+    def get_runtime_order_bindings(self, venue, *, unresolved_only=True):
+        return [
+            dict(row)
+            for (bound_venue, _runtime_id), row in self.runtime_order_bindings.items()
+            if bound_venue == venue
+            and (not unresolved_only or row["status"] != "terminal")
+        ]
+
+    def new_runtime_order_binding(
+        self,
+        venue,
+        *,
+        symbol,
+        account_id=None,
+        runtime_order_id=None,
+        **_kwargs,
+    ):
+        if runtime_order_id is None:
+            runtime_order_id = f"runtime-{self.sequence + 1}"
+        key = (venue, runtime_order_id)
+        if key in self.runtime_order_bindings:
+            return dict(self.runtime_order_bindings[key])
+        self.sequence += 1
+        client_order_id = f"{self.sequence:012d}"
+        row = {
+            "runtime_order_id": runtime_order_id,
+            "client_order_id": client_order_id,
+            "ctp_order_ref": client_order_id,
+            "symbol": symbol,
+            "connection_generation": 4,
+            "trading_day": "20260909",
+            "status": "reserved",
+            "safe_burn": False,
+            "recovery_required": False,
+        }
+        self.runtime_order_bindings[key] = row
+        return dict(row)
 
     def get_execution_identity(self, venue):
         account_ids = (self.execution_config or {}).get("account_ids", {})
@@ -327,6 +366,30 @@ def command_response(store, receipt, *, expected_success=True):
         if completion.get("receipt_id") == receipt["receipt_id"]:
             assert completion["success"] is expected_success
             return completion["response"]
+
+
+class FakeSdkRequest:
+    """Inert public-request-shaped value used by fake-local tests."""
+
+    _OPTIONAL_FIELDS = (
+        "account_id", "client_order_id", "exchange_id", "front_id", "order_id",
+        "order_ref", "position_id", "runtime_order_id", "session_id", "symbol",
+    )
+
+    def __init__(self, **fields):
+        self.__dict__.update(dict.fromkeys(self._OPTIONAL_FIELDS))
+        self.__dict__.update(fields)
+
+
+def install_fake_sdk_request_models(store):
+    """Avoid importing optional SDK models in fake-local projection tests."""
+    store._sdk_command_types = {
+        "OrderRequest": FakeSdkRequest,
+        "CancelOrderRequest": FakeSdkRequest,
+        "QueryOrderRequest": FakeSdkRequest,
+        "OrderType": str,
+        "Side": str,
+    }
 
 
 def test_venue_account_cache_uses_completion_time_and_force_reads(monkeypatch):
@@ -940,29 +1003,44 @@ def test_order_readiness_is_a_thin_routed_sdk_call():
 def test_order_conversion_preserves_native_units_and_all_position_fields(
     venue, symbol, quantity, unit
 ):
-    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk, exchange_kwargs={venue: {}}, symbol_routes={symbol: venue})
-    result = command_response(
-        store,
-        store.submit_order(
-            order(
-                symbol,
-                quantity,
-                quantity_unit=unit,
-                position_side="short",
-                offset="close_yesterday",
-                position_id="ticket",
-                exchange_id="X",
-            )
-        ),
+    install_fake_sdk_request_models(store)
+    store._ensure_api_ready()  # FakeSdk only; prepares identity before projection.
+    local_order = order(
+        symbol,
+        quantity,
+        quantity_unit=unit,
+        position_side="short",
+        offset="close_yesterday",
+        position_id="ticket",
+        exchange_id="X",
+        client_order_id=None if venue == CTP else "client123",
     )
-    request = next(c[2] for c in sdk.calls if c[0] == "make_order")
+
+    if venue == CTP:
+        payload = store._order_to_payload(local_order)
+        request = store._sdk_order_request(venue, payload, framework_order=local_order)
+        with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+            store.submit_order(local_order)
+        result = None
+        assert not any(call[0] == "make_order" for call in sdk.calls)
+    else:
+        result = command_response(store, store.submit_order(local_order))
+        request = next(call[2] for call in sdk.calls if call[0] == "make_order")
+
     assert request.quantity == Decimal(str(quantity)) and request.quantity_unit == unit
     assert request.time_in_force == "IOC" and request.reduce_only
     assert request.position_side == "short" and request.offset == "close_yesterday"
     assert request.position_id == "ticket" and request.exchange_id == "X"
-    assert result["external_order_id"] == venue + ":123" and result["bt_order_ref"] == 42
+    binding = store._sdk_client_refs[(venue, request.client_order_id)]
+    assert binding["bt_order_ref"] == 42
+    if venue == CTP:
+        assert request.client_order_id.isascii() and request.client_order_id.isdigit()
+        assert len(request.client_order_id) == 12
+    else:
+        assert result["external_order_id"] == venue + ":123"
+        assert result["bt_order_ref"] == 42
 
 
 def test_sdk_allocated_client_id_is_bound_before_sending_and_unknown_is_unchanged():
@@ -1022,27 +1100,42 @@ def test_sdk_allocated_client_id_is_attached_before_unknown_exception():
 
 
 def test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchange_id():
-    optional_sdk()
     sdk = FakeSdk()
-    sdk.submit_result = {
-        "order_id": None,
-        "order_ref": "123",
-        "front_id": 10,
-        "session_id": 20,
-        "exchange_id": "CFFEX",
-    }
     store = store_for(sdk, exchange_kwargs={CTP: {}}, symbol_routes={"IF2609": CTP})
-    response = command_response(store, store.submit_order(order("IF2609", client_id="123")))
-    assert response["external_order_id"] is None
-    canceled = command_response(
-        store,
-        store.cancel_order_ref("42", dataname="IF2609"),
-        expected_success=False,
+    install_fake_sdk_request_models(store)
+    store._ensure_api_ready()  # FakeSdk only; prepares identity before projection.
+    local_order = order("IF2609", client_id=None)
+    payload = store._order_to_payload(local_order)
+    order_request = store._sdk_order_request(CTP, payload, framework_order=local_order)
+    client_order_id = order_request.client_order_id
+    sdk.open_orders[CTP] = [
+        {
+            "kind": "order",
+            "symbol": "IF2609",
+            "order_id": None,
+            "client_order_id": client_order_id,
+            "order_ref": client_order_id,
+            "front_id": 10,
+            "session_id": 20,
+            "exchange_id": "CFFEX",
+            "status": "accepted",
+        }
+    ]
+
+    observed = store.fetch_open_orders(force=True)[0]
+    venue, cancel_request = store._sdk_cancel_request("42", dataname="IF2609")
+
+    assert observed["external_order_id"] is None
+    assert venue == CTP
+    assert cancel_request.order_id is None and cancel_request.order_ref == client_order_id
+    assert len(cancel_request.order_ref) == 12
+    assert cancel_request.order_ref.isascii() and cancel_request.order_ref.isdigit()
+    assert (cancel_request.exchange_id, cancel_request.front_id, cancel_request.session_id) == (
+        "CFFEX", 10, 20
     )
-    request = next(c[2] for c in sdk.calls if c[0] == "cancel_order")
-    assert request.order_id is None and request.order_ref == request.client_order_id == "123"
-    assert (request.exchange_id, request.front_id, request.session_id) == ("CFFEX", 10, 20)
-    assert canceled["execution_unknown"] and not canceled["terminal_confirmed"]
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order_ref("42", dataname="IF2609")
+    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
 
 
 def test_two_venues_can_share_a_client_and_exchange_order_id_without_cross_routing():
@@ -1221,15 +1314,20 @@ def test_unrouted_nonzero_position_remains_visible_to_account_preflight():
 
 
 def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_interpretation():
-    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk, exchange_kwargs={CTP: {}}, symbol_routes={"IF2609": CTP})
-    command_response(store, store.submit_order(order("IF2609", client_id="123")))
+    install_fake_sdk_request_models(store)
+    store._ensure_api_ready()  # FakeSdk only; prepares identity before projection.
+    local_order = order("IF2609", client_id=None)
+    request = store._sdk_order_request(
+        CTP, store._order_to_payload(local_order), framework_order=local_order
+    )
+    runtime_client_id = request.client_order_id
     events = [
         {
             "kind": "order",
             "symbol": "IF2609",
-            "client_order_id": "123",
+            "client_order_id": runtime_client_id,
             "order_id": "123",
             "status": "completed",
             "filled": 2,
@@ -1241,7 +1339,7 @@ def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_inte
         {
             "kind": "trade",
             "symbol": "IF2609",
-            "client_order_id": "123",
+            "client_order_id": runtime_client_id,
             "order_id": "123",
             "trade_id": "T1",
             "size": 2,
@@ -1254,10 +1352,15 @@ def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_inte
         },
     ]
     sdk.events[CTP].extend(deepcopy(events))
+
     for expected in events:
         actual = store.poll_broker_update()
+        assert actual is not None
         assert all(actual[key] == value for key, value in expected.items())
         assert actual["bt_order_ref"] == 42
+    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+        store.submit_order(order("IF2609", client_id=None))
+    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
 
 
 def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
@@ -1323,7 +1426,6 @@ def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
 
 
 def test_open_order_identity_supports_native_cancellation_without_local_order():
-    optional_sdk()
     sdk = FakeSdk()
     sdk.open_orders[CTP] = [
         {
@@ -1339,14 +1441,19 @@ def test_open_order_identity_supports_native_cancellation_without_local_order():
         }
     ]
     store = store_for(sdk, exchange_kwargs={CTP: {}}, symbol_routes={"IF2609": CTP})
-    assert store.fetch_open_orders(force=True)[0]["external_order_id"] == CTP + ":sys1"
-    command_response(
-        store,
-        store.cancel_order_ref(CTP + ":sys1", dataname="IF2609"),
-        expected_success=False,
+    install_fake_sdk_request_models(store)
+    observed = store.fetch_open_orders(force=True)[0]
+    venue, cancel_request = store._sdk_cancel_request(CTP + ":sys1", dataname="IF2609")
+
+    assert observed["external_order_id"] == CTP + ":sys1"
+    assert venue == CTP
+    assert (cancel_request.order_id, cancel_request.order_ref) == ("sys1", "123")
+    assert (cancel_request.exchange_id, cancel_request.front_id, cancel_request.session_id) == (
+        "CFFEX", 10, 20
     )
-    request = sdk.calls[-1][2]
-    assert request.order_id == "sys1" and request.order_ref == "123" and request.front_id == 10
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order_ref(CTP + ":sys1", dataname="IF2609")
+    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
 
 
 def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it():

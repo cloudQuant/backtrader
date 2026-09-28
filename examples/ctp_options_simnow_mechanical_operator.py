@@ -965,7 +965,7 @@ def run_mechanical_cycle(
         )
     api = store.sdk_api
     if api is None:
-        api = store._ensure_api_ready()
+        raise MechanicalBlocked("STORE_SDK_API_NOT_READY")
 
     # The CTP trade-session semantics bridge (auth/generation/trading-day
     # surfaced through get_ctp_session_state) only materialises after the

@@ -3,11 +3,28 @@
 
 from __future__ import annotations
 
+# This retained Iteration 22 module remains importable for its frozen local
+# fixtures and regression tests.  Direct process execution is different: it
+# must cross the fixed Iteration 41 config-first route *before* this module
+# imports Backtrader, a Store, a provider, or parses its historical CLI.  A
+# no-argument invocation delegates only to this example's registered
+# ``runtime/`` directory; every legacy flag is rejected by the shared fence.
+if __name__ == "__main__":
+    from pathlib import Path as _ConfigGatePath
+    import sys as _config_gate_sys
+
+    _CONFIG_GATE_REPOSITORY_ROOT = _ConfigGatePath(__file__).resolve().parents[2]
+    if str(_CONFIG_GATE_REPOSITORY_ROOT) not in _config_gate_sys.path:
+        _config_gate_sys.path.insert(0, str(_CONFIG_GATE_REPOSITORY_ROOT))
+    from backtrader_runtime.legacy import run_legacy_config_first_cli as _run_config_gate
+
+    raise SystemExit(_run_config_gate(_ConfigGatePath(__file__).resolve().parent / "runtime"))
+
 import argparse
 import hashlib
 import hmac
 import importlib.metadata
-import importlib.util
+import importlib.machinery
 import inspect
 import json
 import math
@@ -26,10 +43,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-if os.name == "nt":
-    import msvcrt
-else:
-    import fcntl
+try:
+    from .account_lock import AccountLock, RunnerConfigurationError
+except ImportError:  # Direct import with the example directory on sys.path.
+    from account_lock import AccountLock, RunnerConfigurationError
 
 try:
     from zoneinfo import ZoneInfo
@@ -89,16 +106,6 @@ SDK_PROFILE_NAMES = {
     "simnow_first_group2": "set1_group2",
     "simnow_second_7x24": "set2_7x24",
 }
-SDK_REACHABLE_PROFILE_FAMILIES = {
-    "set1": frozenset({"set1_group1", "set1_group1_vpn", "set1_group2"}),
-    "set2": frozenset({"set2_7x24", "set2_7x24_4000x", "set2_7x24_vpn"}),
-}
-# The frozen Iteration 22 profile still records the historical set2 front as
-# its static configuration.  A live construction probes the named SDK route
-# below, where the 4000x pair must carry its own strict CTP profile name.
-SDK_REACHABLE_PROFILE_TARGETS = {
-    "simnow_second_7x24": "set2_7x24_4000x",
-}
 FROZEN_PROFILES = {
     "simnow_first_group1": {
         "kind": "simnow",
@@ -132,12 +139,14 @@ FROZEN_WEIGHTS = {
 }
 SOURCE_FILES = (
     "run.py",
+    "account_lock.py",
     "strategy.py",
     "features.py",
     "signal_model.py",
     "risk.py",
     "reporting.py",
 )
+
 _RECEIPT_VALIDATION_MARKER = object()
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 FIRST_SET_G3_PENDING_MANIFEST_SEAL = "PENDING_MANIFEST_SEAL"
@@ -267,10 +276,6 @@ CREDENTIAL_KEY_PARTS = (
     "private_key",
     "privatekey",
 )
-
-
-class RunnerConfigurationError(RuntimeError):
-    """Raised when configuration, environment, or admission inputs violate the frozen contract."""
 
 
 class PreflightError(RuntimeError):
@@ -678,10 +683,31 @@ def code_hash() -> str:
     return source_tree_hash(HERE / name for name in SOURCE_FILES)
 
 
-def module_identity(module_name: str, distribution_name: str | None = None) -> dict[str, Any]:
-    """Identify one installed/importable component without importing native code."""
+def _find_spec_without_importing_parents(module_name: str) -> Any:
+    """Resolve a module spec without executing any package initializer."""
 
-    spec = importlib.util.find_spec(module_name)
+    parts = module_name.split(".")
+    if not parts or any(not part for part in parts):
+        return None
+    qualified_name = parts[0]
+    spec = importlib.machinery.PathFinder.find_spec(qualified_name)
+    if spec is None:
+        return None
+    for part in parts[1:]:
+        search_path = spec.submodule_search_locations
+        if search_path is None:
+            return None
+        qualified_name = f"{qualified_name}.{part}"
+        spec = importlib.machinery.PathFinder.find_spec(qualified_name, search_path)
+        if spec is None:
+            return None
+    return spec
+
+
+def module_identity(module_name: str, distribution_name: str | None = None) -> dict[str, Any]:
+    """Identify a component without importing its module or package parents."""
+
+    spec = _find_spec_without_importing_parents(module_name)
     # Manifests are exchanged between Windows and POSIX acceptance hosts, so
     # serialize provenance paths deterministically while retaining normal Path
     # behavior for the hash and existence checks below.
@@ -716,60 +742,6 @@ def runtime_component_identities() -> dict[str, Any]:
     }
 
 
-def _sdk_profile_family(profile: str) -> str:
-    normalized = str(profile or "").strip().lower()
-    for family, profiles in SDK_REACHABLE_PROFILE_FAMILIES.items():
-        if normalized in profiles:
-            return family
-    raise RunnerConfigurationError("configured SimNow profile has no approved SDK family")
-
-
-def _select_reachable_ctp_fronts(
-    configured_profile: str,
-    *,
-    reachable_selector: Callable[..., Any] | None = None,
-) -> tuple[str, str, str]:
-    """Choose one TCP-reachable pair from the SDK's frozen profile family.
-
-    The CTP plugin owns the endpoint registry and probes TD/MD without
-    credentials. This runner never derives a route from VPN geography and
-    accepts only the named profiles recorded in ``SDK_REACHABLE_PROFILE_FAMILIES``.
-    """
-
-    family = _sdk_profile_family(configured_profile)
-    selector = reachable_selector
-    if selector is None:
-        try:
-            from bt_api_ctp.ctp_env_selector import select_reachable_ctp_environment
-        except ImportError as exc:
-            raise RunnerConfigurationError(
-                "bt_api_ctp with reachable SimNow profile selection is required"
-            ) from exc
-        selector = select_reachable_ctp_environment
-    require_exact_profile = configured_profile in SDK_REACHABLE_PROFILE_TARGETS.values()
-    selector_kwargs: dict[str, str] = {"env": family}
-    if require_exact_profile:
-        selector_kwargs.update(
-            profile=configured_profile,
-            require_profile=configured_profile,
-        )
-    else:
-        selector_kwargs["require_profile"] = family
-    selection = selector(**selector_kwargs)
-    profile = str(getattr(selection, "profile", "") or "").strip().lower()
-    td_front = str(getattr(selection, "td_front", "") or "").strip()
-    md_front = str(getattr(selection, "md_front", "") or "").strip()
-    if require_exact_profile and profile != configured_profile:
-        raise RunnerConfigurationError(
-            "reachable CTP selection did not return the required exact profile"
-        )
-    if profile not in SDK_REACHABLE_PROFILE_FAMILIES[family] or not td_front or not md_front:
-        raise RunnerConfigurationError(
-            "reachable CTP selection did not return one complete approved profile"
-        )
-    return profile, td_front, md_front
-
-
 def resolve_fronts(
     config: Mapping[str, Any],
     env: Mapping[str, str],
@@ -777,12 +749,16 @@ def resolve_fronts(
     select_reachable: bool = False,
     reachable_selector: Callable[..., Any] | None = None,
 ) -> dict[str, str]:
-    """Resolve the frozen SimNow TD/MD fronts for the configured profile.
+    """Resolve the frozen SimNow TD/MD pair without endpoint substitution.
 
     ``CTP_TD_FRONT``/``CTP_MD_FRONT`` overrides must be given together and
-    match the selected profile exactly.  With ``select_reachable`` the SDK
-    probe may substitute fronts, but only within the same approved family.
+    match the explicitly configured profile exactly.  Reachability-based
+    endpoint selection is disabled; callers must use the configured pair.
     """
+    if select_reachable:
+        raise RunnerConfigurationError(
+            "automatic CTP front selection is disabled; use the configured MD/TD pair"
+        )
     profile_name = str(config["environment"])
     profile = _mapping(config["profiles"][profile_name])
     td_override = str(
@@ -820,22 +796,7 @@ def resolve_fronts(
         "td_front": td_override or str(profile["td_front"]),
         "md_front": md_override or str(profile["md_front"]),
     }
-    if not select_reachable or td_override:
-        return resolved
-    reachable_profile = SDK_REACHABLE_PROFILE_TARGETS.get(
-        selected_profile,
-        resolved["sdk_profile"],
-    )
-    sdk_profile, td_front, md_front = _select_reachable_ctp_fronts(
-        reachable_profile,
-        reachable_selector=reachable_selector,
-    )
-    return {
-        **resolved,
-        "sdk_profile": sdk_profile,
-        "td_front": td_front,
-        "md_front": md_front,
-    }
+    return resolved
 
 
 def credentials(env: Mapping[str, str]) -> dict[str, str]:
@@ -2646,54 +2607,6 @@ raise SystemExit(0 if result.get("ready") else 3)
     return result
 
 
-class AccountLock:
-    """Exclusive non-blocking file lock so only one process owns the SimNow account."""
-
-    def __init__(self, path: Path) -> None:
-        """Store ``path``; the lock file itself is created lazily on __enter__."""
-        self.path = path
-        self.handle = None
-
-    def __enter__(self):
-        """Acquire an exclusive non-blocking lock; fail closed if it cannot be acquired."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.handle = self.path.open("a+", encoding="utf-8")
-        try:
-            if os.name == "nt":
-                # ``msvcrt.locking`` locks a byte range and requires that byte
-                # to exist.  The sentinel stays inside the private lock file.
-                self.handle.seek(0, os.SEEK_END)
-                if self.handle.tell() == 0:
-                    self.handle.write("\0")
-                    self.handle.flush()
-                self.handle.seek(0)
-                msvcrt.locking(self.handle.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError as exc:
-            self.handle.close()
-            self.handle = None
-            raise RunnerConfigurationError(
-                "could not acquire exclusive local SimNow account lock"
-            ) from exc
-        return self
-
-    def __exit__(self, *_args):
-        """Release the platform lock and close the handle on context exit."""
-        handle = self.handle
-        self.handle = None
-        if handle is None:
-            return
-        try:
-            if os.name == "nt":
-                handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        finally:
-            handle.close()
-
-
 class ReplayClock:
     """Deterministic wall/monotonic clock driven by replayed fixture ticks."""
 
@@ -2730,7 +2643,7 @@ class ReplayClock:
 
 
 class ReplayClient:
-    """Read-only local event source consumed through ``BtApiStore``."""
+    """Explicit read-only local event source for the replay-only composition."""
 
     def __init__(self, ticks, clock: ReplayClock, *, eof_event_time_watermark: float) -> None:
         """Buffer fixture ``ticks``, bind ``clock``, and record the end-of-source watermark."""
@@ -2782,6 +2695,112 @@ class ReplayClient:
         tick = self.ticks.popleft()
         self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
         return tick
+
+
+class LocalReplayStore:
+    """Minimal in-process source adapter for :class:`ReplayClient`.
+
+    This deliberately does not inherit from ``BtApiStore`` and has no provider
+    tag, SDK factory, or order methods.  The only source accepted is an
+    explicitly constructed local ``ReplayClient``; there is no default or
+    fallback client construction.
+    """
+
+    def __init__(self, client: ReplayClient, *, contract_metadata: Mapping[str, Any]) -> None:
+        if type(client) is not ReplayClient:
+            raise RunnerConfigurationError("local replay requires an explicit ReplayClient")
+        self._client = client
+        self.contract_metadata = deepcopy(dict(contract_metadata))
+        self._feeds = []
+        self._started = False
+        self.delivered_events = 0
+
+    def start(self, data=None, broker=None) -> None:
+        del broker
+        if data is not None:
+            self.register(data)
+        if not self._started:
+            self._client.connect()
+            self._started = True
+
+    def register(self, feed) -> None:
+        if feed not in self._feeds:
+            self._feeds.append(feed)
+
+    def subscribe(self, symbol) -> None:
+        self._client.subscribe(symbol)
+
+    def poll_tick(self, symbol):
+        return self._client.poll_tick(symbol)
+
+    def poll_live(self, _symbol):
+        return None
+
+    def is_source_exhausted(self, symbol) -> bool:
+        return self._client.is_source_exhausted(symbol)
+
+    def get_source_event_time_watermark(self, symbol) -> float:
+        return self._client.get_source_event_time_watermark(symbol)
+
+    def mark_strategy_delivered(self, _event) -> None:
+        self.delivered_events += 1
+
+    def get_notifications(self):
+        return []
+
+    def getdata(self, *args, **kwargs):
+        """Create the known feed with a non-CTP local replay label."""
+        from backtrader.feeds.btapifeed import BtApiFeed
+
+        if "data_cls" in kwargs:
+            raise RunnerConfigurationError("local replay feed class is fixed")
+        kwargs["store"] = self
+        kwargs["provider"] = "local_replay"
+        feed = BtApiFeed(*args, **kwargs)
+        feed._store = self
+        return feed
+
+    def stop(self) -> None:
+        if self._started:
+            self._client.disconnect()
+            self._started = False
+
+
+class LocalReplayBroker(bt.brokers.BackBroker):
+    """In-memory valuation broker with no order-entry or matching engine."""
+
+    def submit(self, order, check=True):
+        del order, check
+        raise RunnerConfigurationError("read-only local replay does not accept orders")
+
+    def cancel(self, order, bracket=False):
+        del order, bracket
+        raise RunnerConfigurationError("read-only local replay does not accept cancels")
+
+    def buy(self, *args, **kwargs):
+        del args, kwargs
+        raise RunnerConfigurationError("read-only local replay does not accept buys")
+
+    def sell(self, *args, **kwargs):
+        del args, kwargs
+        raise RunnerConfigurationError("read-only local replay does not accept sells")
+
+    def transmit(self, order, check=True):
+        del order, check
+        raise RunnerConfigurationError("read-only local replay does not accept order transmission")
+
+    def submit_accept(self, order):
+        del order
+        raise RunnerConfigurationError("read-only local replay does not accept order acceptance")
+
+    def add_order_history(self, *args, **kwargs):
+        del args, kwargs
+        raise RunnerConfigurationError("read-only local replay does not accept order history")
+
+    def next(self):
+        if self.pending or self.submitted or self._userhist:
+            raise RunnerConfigurationError("read-only local replay has no order fill path")
+        return None
 
 
 def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
@@ -3192,12 +3211,13 @@ def run_replay(
     run_id: str | None = None,
     retention_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Execute the frozen synthetic fixture through the native replay path.
+    """Execute the frozen synthetic fixture through the local replay path.
 
-    Drives the real Store/Feed/Broker/strategy chain with ``ReplayClient``
-    and ``ReplayClock``: no network, no local fill model, zero SDK write
-    requests.  Fails closed unless the strategy stays read-only and ends
-    flat; the manifest and evidence are finalized either way.
+    Drives the Backtrader Feed/strategy chain with an explicit ``ReplayClient``
+    and ``ReplayClock``, a minimal local-only Store, and a no-order valuation
+    broker. There is no CTP Store/Broker construction, SDK fallback, network,
+    or provider write route. Fails closed unless the strategy stays read-only
+    and ends flat; the manifest and evidence are finalized either way.
     """
     output_directory = _claim_output_directory(output_directory)
     replay = _mapping(config.get("replay"))
@@ -3320,25 +3340,11 @@ def run_replay(
             "quantity_step": 1,
             "currency": "CNY",
         }
-        store = BtApiStore(
-            provider="ctp",
-            api=client,
-            cash=float(replay["starting_cash"]),
-            value=float(replay["starting_cash"]),
-            contract_metadata={instrument: broker_metadata},
-        )
+        store = LocalReplayStore(client, contract_metadata={instrument: broker_metadata})
         cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-        broker = BtApiBroker(
-            store=store,
-            provider="ctp",
+        broker = LocalReplayBroker(
             cash=float(replay["starting_cash"]),
-            value=float(replay["starting_cash"]),
             position_mode="net",
-            contract_metadata={instrument: broker_metadata},
-            validation_enabled=True,
-            sdk_preflight=False,
-            flatten_on_stop=False,
-            force_refresh_queries=False,
         )
         cerebro.setbroker(broker)
         feed = store.getdata(
@@ -3399,6 +3405,7 @@ def run_replay(
                 "cerebro": f"{type(cerebro).__module__}.{type(cerebro).__name__}",
                 "store": f"{type(store).__module__}.{type(store).__name__}",
                 "feed": f"{type(feed).__module__}.{type(feed).__name__}",
+                "feed_provider": getattr(feed, "provider", None),
                 "broker": f"{type(broker).__module__}.{type(broker).__name__}",
                 "strategy": (f"{type(strategies[0]).__module__}.{type(strategies[0]).__name__}"),
             },
@@ -3524,8 +3531,6 @@ def _build_live_store(
     fronts = resolve_fronts(
         config,
         env_values,
-        select_reachable=True,
-        reachable_selector=reachable_selector,
     )
     credential_values = credentials(env_values)
     account_id_hash = account_fingerprint(
@@ -5558,7 +5563,14 @@ def run_api_diagnostic(
     return result
 
 
-def run_network(
+def run_network(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+    """Reject the retired network API when this module is imported directly."""
+    raise RunnerConfigurationError(
+        "the Iteration 22 network runner is disabled; use a registered Iteration 41 runtime"
+    )
+
+
+def _run_network_legacy_impl(
     config: Mapping[str, Any],
     *,
     mode: str,
@@ -6727,6 +6739,14 @@ def main(argv=None) -> int:
     """
     parser = build_parser()
     args = parser.parse_args(argv)
+    # This function remains importable for frozen replay fixtures, but its
+    # historical network modes do not pass through the process-level guard at
+    # the top of this file. Require an explicit offline replay mode before
+    # reading the old .env/config pair.
+    if args.mode != "replay":
+        raise RunnerConfigurationError(
+            "the Iteration 22 network CLI is disabled; use a registered Iteration 41 runtime"
+        )
     _load_env_file(HERE / ".env")
     config, _path = load_config(args.config, env_values=os.environ)
     mode = args.mode or str(config.get("mode", "shadow"))
@@ -6820,7 +6840,9 @@ def main(argv=None) -> int:
     run_id = _run_id(
         "api-diagnostic"
         if args.api_diagnostic
-        else "engineering-strategy-observation" if args.engineering_strategy_observation else mode
+        else "engineering-strategy-observation"
+        if args.engineering_strategy_observation
+        else mode
     )
     output_directory = _evidence_directory(config, run_id, args.output_dir)
     retention_root = (

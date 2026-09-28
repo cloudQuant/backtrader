@@ -12,7 +12,17 @@ from pathlib import Path
 import pytest
 
 cycle_module = importlib.import_module("examples.ctp_options_simnow_mechanical_cycle")
+fixture_cycle_module = importlib.import_module(
+    "backtrader_runtime._iteration41_l2_fixture.mechanical_cycle"
+)
 operator_module = importlib.import_module("examples.ctp_options_simnow_mechanical_operator")
+
+
+class _UnitFakeCycle(cycle_module.MechanicalCycle):
+    """Test-only fake dispatch seam; it is not an execution authority."""
+
+    def _require_dispatch_authority(self):
+        return None
 
 
 GATE_RECEIPT_NOW = datetime(2026, 9, 13, 1, 0, tzinfo=timezone.utc)
@@ -224,7 +234,7 @@ def make_cycle():
         A ``(cycle, broker)`` tuple.
     """
     broker = FakeBroker()
-    cycle = cycle_module.MechanicalCycle(
+    cycle = _UnitFakeCycle(
         broker=broker,
         owner=object(),
         feeds={"F": object()},
@@ -286,6 +296,51 @@ def test_unarmed_cycle_has_no_write_boundary_call():
     )
     with pytest.raises(cycle_module.MechanicalCycleBlocked, match="CYCLE_NOT_ARMED"):
         cycle.plan_entry([cycle_module.MechanicalLeg("F", "buy", 1, object())], intent_id="i")
+    assert broker.calls == []
+
+
+def test_generic_cycle_rejects_forged_arm_submit_and_cancel_before_broker_lookup():
+    class AttributeProbe:
+        def __init__(self):
+            self.lookups = []
+            self.calls = []
+
+        def __getattribute__(self, name):
+            if name in {"buy", "sell", "cancel"}:
+                object.__getattribute__(self, "lookups").append(name)
+            return object.__getattribute__(self, name)
+
+        def buy(self, **_kwargs):
+            self.calls.append("buy")
+
+        def sell(self, **_kwargs):
+            self.calls.append("sell")
+
+        def cancel(self, _order):
+            self.calls.append("cancel")
+
+    broker = AttributeProbe()
+    cycle = cycle_module.MechanicalCycle(
+        broker=broker, owner=object(), feeds={"F": object()}, cycle_id="direct-forged"
+    )
+    with pytest.raises(
+        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
+    ):
+        cycle.arm(proof())
+    with pytest.raises(
+        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
+    ):
+        cycle._submit(
+            cycle_module.MechanicalLeg("F", "buy", 1.0, object()),
+            intent_id="forged-entry",
+            offset="open",
+        )
+    cycle.pending_order = object()
+    with pytest.raises(
+        cycle_module.MechanicalCycleBlocked, match="TRUSTED_MECHANICAL_DISPATCH_UNAVAILABLE"
+    ):
+        cycle.cancel_pending()
+    assert broker.lookups == []
     assert broker.calls == []
 
 
@@ -416,13 +471,16 @@ def test_arm_rejects_nonflat_or_unstable_proof():
         value = proof()
         value.update(bad)
         with pytest.raises(cycle_module.MechanicalCycleBlocked):
-            cycle_module.MechanicalCycle(
+            _UnitFakeCycle(
                 broker=FakeBroker(), owner=object(), feeds={"F": object()}, cycle_id="bad"
             ).arm(value)
 
 
 def test_cycle_has_no_direct_api_or_store_private_boundary():
-    source = Path(cycle_module.__file__).read_text(encoding="utf-8")
+    # The source example preserves the historical import path as a thin
+    # compatibility export; the package fixture now owns the shared state
+    # machine implementation that must retain this boundary.
+    source = Path(fixture_cycle_module.__file__).read_text(encoding="utf-8")
     assert "._api" not in source
     assert "submit_order" not in source
     assert "cancel_order" not in source

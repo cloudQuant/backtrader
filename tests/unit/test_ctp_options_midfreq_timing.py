@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from dataclasses import replace
+import importlib
 import importlib.util
-import json
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -15,7 +13,6 @@ import backtrader as bt
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
-CONDA_PYTHON = sys.executable
 execution_timing = __import__("examples.014_2_ctp_options_midfreq.execution_timing", fromlist=["*"])
 ClockMapping = execution_timing.ClockMapping
 ClockObservation = execution_timing.ClockObservation
@@ -552,15 +549,8 @@ def test_calendar_is_explicit_and_common_cutoffs_are_intersected():
 
 
 def test_actual_cerebro_timing_runner_consumes_none_feed_and_never_writes():
-    result = subprocess.run(
-        [CONDA_PYTHON, str(EXAMPLE / "run.py"), "--timing"],
-        cwd=EXAMPLE,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    report = runner.run_timing_replay(runner.load_config())
     assert report["status"] == "LOCAL_TIMING_REPLAY_PASS"
     assert report["cerebro"]["actual_next_callback"] is True
     assert report["cerebro"]["actual_notify_idle_callback"] is True
@@ -1139,15 +1129,8 @@ def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> Non
 
 
 def test_actual_cerebro_two_minute_fixture_reaches_normal_exit_and_idle_stays_risk_only():
-    result = subprocess.run(
-        [CONDA_PYTHON, str(EXAMPLE / "run.py"), "--timing-normal-exit"],
-        cwd=EXAMPLE,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    report = runner.run_timing_replay(runner.load_config(), normal_exit_fixture=True)
     results = report["timing"]["results"]
     assert any(item["reason"] == "NORMAL_EXIT_PROPOSAL" for item in results)
     idle_results = [item for item in results if item["origin"] == "notify_idle"]

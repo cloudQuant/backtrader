@@ -816,6 +816,29 @@ def test_non_replay_modes_fail_closed_before_any_runtime_chain_is_created():
         runner.run_replay(shadow)
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected_error"),
+    (
+        ("shadow", "SHADOW_NOT_IMPLEMENTED_NO_NETWORK"),
+        ("simnow", "SIMNOW_NOT_IMPLEMENTED_FAIL_CLOSED"),
+        ("production", "PRODUCTION_NOT_SUPPORTED"),
+    ),
+)
+def test_legacy_cli_rejects_non_replay_modes_before_runner_dispatch(
+    monkeypatch, capsys, mode, expected_error
+):
+    """The retained CLI cannot turn a legacy candidate config into a live path."""
+
+    def unexpected_replay(*args, **kwargs):
+        pytest.fail("non-replay CLI mode reached the local replay runner")
+
+    monkeypatch.setattr(runner, "run_replay", unexpected_replay)
+
+    assert runner.main(["--mode", mode]) == 2
+    report = json.loads(capsys.readouterr().out)
+    assert report == {"status": "FAIL_CLOSED", "error": expected_error}
+
+
 def test_replay_cash_cannot_be_lower_than_the_frozen_capital_contract():
     raw, _ = runner.load_config(EXAMPLE / "config.yaml")
     raw = deepcopy(raw)

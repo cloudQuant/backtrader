@@ -26,12 +26,10 @@ import pytest
 import backtrader as bt
 from backtrader.utils import log_message
 
-try:
-    import spdlog  # noqa: F401
-
-    HAS_SPDLOG = True
-except ImportError:
-    HAS_SPDLOG = False
+# An importable package can still lack a usable native extension or fail its
+# file-write smoke probe.  Keep the optional test matrix aligned with the same
+# availability contract used by ``backend=\"auto\"`` at runtime.
+HAS_SPDLOG = log_message._detect_spdlog() is not None
 
 BACKENDS = [
     "stdlib",
@@ -77,6 +75,39 @@ def _managed_handlers(logger):
     return [
         handler for handler in logger.handlers if getattr(handler, "_backtrader_managed", False)
     ]
+
+
+def _symlink_or_skip(link, target):
+    """Create a directory symlink or skip when Windows policy forbids it."""
+
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        if os.name == "nt" and getattr(exc, "winerror", None) == 1314:
+            pytest.skip(
+                "Windows symlink creation requires Developer Mode or SeCreateSymbolicLinkPrivilege"
+            )
+        raise
+
+
+def test_release_spdlog_logger_closes_file_before_unregistering():
+    """Windows file handles must be closed before ``spdlog.drop`` unregisters them."""
+    events = []
+
+    class FakeLogger:
+        def flush(self):
+            events.append("flush")
+
+        def close(self):
+            events.append("close")
+
+    class FakeSpdlog:
+        @staticmethod
+        def drop(name):
+            events.append(("drop", name))
+
+    log_message._release_spdlog_logger(FakeSpdlog(), FakeLogger(), "probe")
+    assert events == ["flush", "close", ("drop", "probe")]
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +534,7 @@ def test_retention_does_not_follow_symlink_or_delete_date_file(tmp_path):
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "keep.txt").write_text("keep")
-    (script / "2000_01_01").symlink_to(outside, target_is_directory=True)
+    _symlink_or_skip(script / "2000_01_01", outside)
     (script / "2000_01_02").write_text("date-named file")
     _configure(tmp_path)
     assert (script / "2000_01_01").is_symlink()
@@ -516,7 +547,7 @@ def test_script_symlink_is_rejected_without_cleanup(tmp_path):
     script.parent.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    script.symlink_to(outside, target_is_directory=True)
+    _symlink_or_skip(script, outside)
     with pytest.raises(ValueError, match="symbolic"):
         _configure(tmp_path)
 

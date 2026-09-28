@@ -67,6 +67,10 @@ DEFAULT_AUTH_CODE = "0000000000000000"
 
 def load_dotenv_if_available():
     """Load environment variables from .env file if dotenv is available."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:load_dotenv_if_available"
+    )
     try:
         from dotenv import load_dotenv
 
@@ -75,7 +79,6 @@ def load_dotenv_if_available():
         pass
 
 
-load_dotenv_if_available()
 
 
 def resolve_config_path(config_arg: str | None, base_dir: Path, default_name: str) -> Path:
@@ -641,6 +644,10 @@ def get_simnow_credentials():
     Raises:
         RuntimeError: If credentials are not set.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:get_simnow_credentials"
+    )
     investor_id = os.getenv("SIMNOW_USER_ID") or os.getenv("simnow_user_id")
     password = os.getenv("SIMNOW_PASSWORD") or os.getenv("simnow_password")
     if not investor_id or not password:
@@ -675,6 +682,10 @@ def iter_simnow_env_candidates(env_key=None, strict=False):
     Raises:
         ValueError: If environment key is not supported.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:iter_simnow_env_candidates"
+    )
     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
     if not selected_env:
         selected_env = DEFAULT_SIMNOW_ENV
@@ -715,6 +726,10 @@ def create_simnow_connection(env_key=None):
     Raises:
         ValueError: If environment is not supported.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_simnow_connection"
+    )
     selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
     if selected_env not in SIMNOW_ENVIRONMENTS:
         raise ValueError(
@@ -746,6 +761,10 @@ def create_live_store(config):
     Returns:
         Tuple of (BtApiStore, connection_info).
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_live_store"
+    )
     config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
     env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
     requested_env = config_env or DEFAULT_SIMNOW_ENV
@@ -792,6 +811,10 @@ def create_live_broker(store, config):
     Returns:
         BtApiBroker instance.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:create_live_broker"
+    )
     broker_kwargs = dict(config.get("broker") or {})
     return BtApiBroker(store=store, **broker_kwargs)
 
@@ -807,6 +830,10 @@ def add_live_feeds(cerebro, store, config):
     Returns:
         List of added data feeds.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:add_live_feeds"
+    )
     feed_config = dict(config.get("feed") or {})
     timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
     compression = int(feed_config.pop("compression", 1))
@@ -837,6 +864,10 @@ def run_cerebro_with_timeout(cerebro, timeout_seconds=60):
     Returns:
         List of strategy results.
     """
+    from backtrader_runtime.legacy import legacy_direct_execution_error
+    raise legacy_direct_execution_error(
+        "examples/013_1_midfreq_cross_arbitrage/ctp_example_support.py:run_cerebro_with_timeout"
+    )
     timer = threading.Timer(float(timeout_seconds), cerebro.runstop)
     timer.daemon = True
     timer.start()

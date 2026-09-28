@@ -1,11 +1,11 @@
-"""Runner for the high-frequency calendar pair arbitrage example.
+"""Frozen local replay fixture for the calendar pair-arbitrage example.
 
-Reuses the SimNow wiring and config loading from
-``ctp_example_support`` (vendored beside this file); ``--replay`` validates the strategy
-state machine on a local MixBroker with synthetic ticks.
+The importable ``run_replay`` fixture keeps the historical synthetic ticks for
+offline regression.  Direct script execution is intentionally configuration
+first: it delegates to the reviewed Iteration 41 runtime entrypoint before
+this module imports a framework, provider, or historical SimNow wiring.
 """
 
-import argparse
 import datetime as dt
 import hashlib
 import json
@@ -19,10 +19,41 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
-# Self-contained: the shared live/replay support is vendored beside this file.
+# Make the configuration-first runtime package available for direct script use.
 for path in (str(HERE), str(REPO_ROOT)):
     if path not in sys.path:
         sys.path.insert(0, path)
+
+
+def _run_config_first_cli(argv=None) -> int:
+    """Route the retired legacy CLI through the sealed replay runtime.
+
+    The historical flags (including ``--replay`` and ``--config``) never
+    select a mode at runtime.  Operators use ``bt-runtime`` to bootstrap and
+    run the registered ``runtime/`` directory; a no-argument legacy invocation
+    is retained only as a safe convenience alias for that same route.
+    """
+
+    arguments = tuple(sys.argv[1:] if argv is None else argv)
+    if arguments:
+        from backtrader_runtime import PRESET_POLICY_VIOLATION, RuntimeConfigError
+
+        error = RuntimeConfigError(
+            PRESET_POLICY_VIOLATION,
+            "legacy CLI arguments cannot select or override an Iteration 41 runtime",
+            field_path="argv",
+            reason="legacy_cli_arguments_not_supported",
+        )
+        print(json.dumps(error.as_dict(), ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        return 2
+
+    from backtrader_runtime.cli import main as runtime_main
+
+    return runtime_main(("run", "--strategy-dir", str(HERE / "runtime")))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_config_first_cli())
 
 import backtrader as bt  # noqa: E402
 from backtrader.events import TickEvent  # noqa: E402
@@ -32,12 +63,6 @@ from backtrader.brokers.mixbroker import MixBroker  # noqa: E402
 from backtrader.brokers.hft.exchange import SimpleExchangeModel  # noqa: E402
 
 from strategy import PairArbitrageStrategy, close_offset  # noqa: E402,F401
-from ctp_example_support import (  # noqa: E402
-    add_live_feeds,
-    create_live_broker,
-    create_live_store,
-    run_cerebro_with_timeout,
-)
 from ctp_example_support import load_config as support_load_config  # noqa: E402
 
 STRATEGY_CLASS = PairArbitrageStrategy
@@ -106,7 +131,13 @@ def resolve_symbols(today=None):
 
 
 def load_config(directory=HERE, name=DEFAULT_CONFIG):
-    """Load this example's yaml config through the shared 007 support loader."""
+    """Read frozen legacy strategy parameters; it never chooses a runtime mode.
+
+    This compatibility reader stays available for replay baselines and
+    historical parameter inspection.  The direct CLI deliberately never calls
+    it: only ``runtime/config.yaml`` can authorize an Iteration 41 startup.
+    """
+
     config, _path = support_load_config(name, directory, DEFAULT_CONFIG)
     return config
 
@@ -350,75 +381,30 @@ def run_replay(scenario="profitable"):
     return _attach_business_summary(report)
 
 
-# ---------------- SimNow live ----------------
+# ---------------- retired direct SimNow profile ----------------
 
 
-def run_live(args):
-    """Run the SimNow live session (default 7x24) and freeze its final report.
+def run_live(*_args, **_kwargs):
+    """Fail closed because this example has no registered write-capable profile.
 
-    Symbols can be overridden via --symbols or yaml (dominant legs resolved
-    from the delivery calendar by default); connection info is printed first
-    (password excluded) and run_timeout_seconds stops the run through
-    run_cerebro_with_timeout to freeze the final business report.
+    This name remains only so historical callers receive a deterministic
+    migration error instead of silently creating a SimNow client.  The source
+    repository currently registers this example solely for
+    ``simulation/replay``; adding a future write profile requires a separately
+    reviewed config-v4 registration and managed-execution acceptance.
     """
-    config = load_config(HERE, args.config)
-    symbols = (
-        [token.strip() for token in args.symbols.split(",")] if args.symbols else resolve_symbols()
+
+    from backtrader_runtime import PRESET_POLICY_VIOLATION, RuntimeConfigError
+
+    raise RuntimeConfigError(
+        PRESET_POLICY_VIOLATION,
+        "legacy direct SimNow execution is not supported by this Iteration 41 runtime",
+        field_path="runtime.preset",
+        reason="legacy_direct_live_not_supported",
     )
-    if config.get("symbols") not in (None, ["auto"]):
-        symbols = list(config["symbols"])
-    store, connection = create_live_store({**config, "symbols": symbols})
-    broker = create_live_broker(store, config)
-    defaults = _defaults()
-    defaults.update(config.get("strategy_params") or {})
-    configure_commissions(broker, symbols, defaults)
-    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-    cerebro.setbroker(broker)
-    add_live_feeds(cerebro, store, {**config, "symbols": symbols})
-    _attach_trade_logger(
-        cerebro,
-        HERE / "reports" / "trade-logger" / dt.datetime.now().strftime("%Y%m%d_%H%M%S"),
-    )
-    cerebro.addstrategy(STRATEGY_CLASS, **dict(config.get("strategy_params") or {}))
-    timeout = float(config.get("run_timeout_seconds", 300))
-    print(
-        json.dumps(
-            {
-                "symbols": symbols,
-                "connection": {k: v for k, v in connection.items() if k != "password"},
-            },
-            default=str,
-        )
-    )
-    strategies = run_cerebro_with_timeout(cerebro, timeout)
-    report = _final_pair_report(strategies[0])
-    report.update(symbols=symbols, mode="simnow_live")
-    return _attach_business_summary(report)
 
 
-def main():
-    """Parse CLI args, dispatch replay vs live, print and optionally write the report."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default=DEFAULT_CONFIG)
-    parser.add_argument("--replay", action="store_true", help="synthetic tick replay")
-    parser.add_argument(
-        "--scenario", choices=("profitable", "loss", "no_edge"), default="profitable"
-    )
-    parser.add_argument("--symbols", help="comma-separated override, e.g. rb2701,rb2705")
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
-    if args.replay:
-        report = run_replay(args.scenario)
-    else:
-        report = run_live(args)
-    text = json.dumps(report, indent=2, default=str)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text + "\n", encoding="utf-8")
-    printable = {k: v for k, v in report.items() if k not in {"orders", "results"}}
-    print(json.dumps(printable, indent=2, default=str))
-    return 0
+def main(argv=None) -> int:
+    """Compatibility entrypoint that cannot select the retired direct profile."""
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    return _run_config_first_cli(argv)

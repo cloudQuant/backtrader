@@ -47,6 +47,18 @@ def started_stack():
     broker.stop()
 
 
+def _install_offline_submit_projection(monkeypatch, store, external_order_id="offline-order"):
+    """Project a Broker order locally without entering any Store writer route."""
+    projected_orders = []
+
+    def project(order):
+        projected_orders.append(order)
+        return {"id": external_order_id}
+
+    monkeypatch.setattr(store, "submit_order", project)
+    return projected_orders
+
+
 def test_buy_and_cancel_order_roundtrip(started_stack):
     """Broker should submit and cancel orders through BtApiStore."""
     client, _store, data, broker = started_stack
@@ -108,14 +120,15 @@ def test_sell_accepts_close_today_offset_and_passes_it_to_store(started_stack):
     assert client.submitted_orders[0]["offset"] == "close_today"
 
 
-def test_ctp_net_sell_against_long_infers_close_offset():
-    """CTP net-mode sell against an existing long position must close, not open short."""
+def test_ctp_net_sell_against_long_infers_close_offset(monkeypatch):
+    """Broker offset inference is testable without Store write dispatch."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
     store = make_store(api=client, provider="ctp_gateway")
+    projected_orders = _install_offline_submit_projection(monkeypatch, store)
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -133,7 +146,40 @@ def test_ctp_net_sell_against_long_infers_close_offset():
 
         assert order.status == bt.Order.Accepted
         assert order.info["offset"] == "close"
-        assert client.submitted_orders[0]["offset"] == "close"
+        assert projected_orders == [order]
+        assert client.submitted_orders == []
+    finally:
+        broker.stop()
+
+
+def test_ctp_broker_submit_and_store_cancel_remain_fail_closed():
+    """Broker/Store entry points must reject before the fake client's write sinks."""
+    symbol = "IF2506"
+    client = FakeBtApiClient(
+        positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
+        history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
+    )
+    store = make_store(api=client, provider="ctp_gateway")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+            broker.sell(
+                owner=None,
+                data=data,
+                size=1,
+                price=4010.0,
+                exectype=bt.Order.Limit,
+            )
+        with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+            store.cancel_order_ref("offline-order", dataname=symbol)
+
+        assert client.submitted_orders == []
+        assert client.cancelled_orders == []
     finally:
         broker.stop()
 
@@ -3307,8 +3353,8 @@ def test_ctp_offset_inference_rejects_when_pretrade_position_refresh_fails():
         broker.stop()
 
 
-def test_local_cash_validation_allows_flattening_existing_position():
-    """Closing a futures position should not be blocked by low available cash."""
+def test_local_cash_validation_allows_flattening_existing_position(monkeypatch):
+    """Closing a futures position may pass Broker cash checks in offline mode."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         balance={"cash": 100.0, "value": 500_000.0},
@@ -3326,6 +3372,7 @@ def test_local_cash_validation_allows_flattening_existing_position():
             }
         },
     )
+    projected_orders = _install_offline_submit_projection(monkeypatch, store)
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -3343,7 +3390,8 @@ def test_local_cash_validation_allows_flattening_existing_position():
 
         assert order.status == bt.Order.Accepted
         assert order.info["offset"] == "close"
-        assert client.submitted_orders[0]["offset"] == "close"
+        assert projected_orders == [order]
+        assert client.submitted_orders == []
     finally:
         broker.stop()
 
@@ -4881,8 +4929,8 @@ def test_remote_trade_update_net_inverse_futures_uses_contract_value():
         broker.stop()
 
 
-def test_remote_trade_update_uses_close_today_commission_rate():
-    """CTP close-today fills must use close-today fees, not opening fees."""
+def test_remote_trade_update_uses_close_today_commission_rate(monkeypatch):
+    """Offline Broker projection keeps close-today fill commission calculation."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
@@ -4900,6 +4948,9 @@ def test_remote_trade_update_uses_close_today_commission_rate():
                 "close_today_fee_rate": 0.000345,
             }
         },
+    )
+    projected_orders = _install_offline_submit_projection(
+        monkeypatch, store, external_order_id="btapi-1"
     )
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
@@ -4940,12 +4991,14 @@ def test_remote_trade_update_uses_close_today_commission_rate():
         assert exbit.closedcomm == pytest.approx(415.035)
         assert order.executed.comm == pytest.approx(415.035)
         assert broker.positions[symbol].size == pytest.approx(0.0)
+        assert projected_orders == [order]
+        assert client.submitted_orders == []
     finally:
         broker.stop()
 
 
-def test_remote_trade_update_uses_close_yesterday_commission_rate():
-    """CTP close-yesterday fills must use close-yesterday fees when provided."""
+def test_remote_trade_update_uses_close_yesterday_commission_rate(monkeypatch):
+    """Offline Broker projection keeps close-yesterday fee selection."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
@@ -4963,6 +5016,9 @@ def test_remote_trade_update_uses_close_yesterday_commission_rate():
                 "close_yesterday_fee_rate": 0.000032,
             }
         },
+    )
+    projected_orders = _install_offline_submit_projection(
+        monkeypatch, store, external_order_id="btapi-1"
     )
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
@@ -5003,12 +5059,16 @@ def test_remote_trade_update_uses_close_yesterday_commission_rate():
         assert exbit.closedcomm == pytest.approx(38.496)
         assert order.executed.comm == pytest.approx(38.496)
         assert broker.positions[symbol].size == pytest.approx(0.0)
+        assert projected_orders == [order]
+        assert client.submitted_orders == []
     finally:
         broker.stop()
 
 
-def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remote_fee():
-    """Fallback CTP close-today fees must include both ratio and per-lot components."""
+def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remote_fee(
+    monkeypatch,
+):
+    """Offline Broker projection keeps ratio plus per-lot close-today fees."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
@@ -5027,6 +5087,9 @@ def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remo
                 "close_today_fee_amount": 4.5,
             }
         },
+    )
+    projected_orders = _install_offline_submit_projection(
+        monkeypatch, store, external_order_id="btapi-1"
     )
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
@@ -5067,6 +5130,8 @@ def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remo
         assert exbit.closedcomm == pytest.approx(419.535)
         assert order.executed.comm == pytest.approx(419.535)
         assert broker.positions[symbol].size == pytest.approx(0.0)
+        assert projected_orders == [order]
+        assert client.submitted_orders == []
     finally:
         broker.stop()
 

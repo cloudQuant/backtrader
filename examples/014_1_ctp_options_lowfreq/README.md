@@ -1,12 +1,33 @@
 # CTP 期权期货低频套利（离线回放）
 
-本目录是一个独立策略单元。请从本目录直接运行：
+## 迭代 41：最简且受控的本地回放
 
-```bash
-/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python run.py --mode replay --scenario eligible
+从仓库根目录操作。推荐的首次创建与运行路径只有两条命令：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/014_1_ctp_options_lowfreq/runtime
+bt-runtime run --strategy-dir examples/014_1_ctp_options_lowfreq/runtime
 ```
 
-它只生成本目录内的确定性 15 分钟 C/P/F 闭合 K 线，并通过 Backtrader 的
+`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。
+
+`runtime/config.yaml` 是必填的 schema-v4 启动合同；缺失时会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、
+当前目录或父目录回退读取。当前受审核的代码清单只为本目录登记
+`runtime.mode: simulation` 与 `runtime.preset: replay`，并只允许 `parameters.scenario`。模式和预设由
+该文件及中央代码清单共同封存，命令行、环境变量和旧配置都不能覆盖它们。
+
+该入口执行 code-owned `run_runtime.py`。定向测试证明它只运行本地 replay，网络和外部订单写入均为零；它的
+`LOCAL_REPLAY_ONLY` 标记不构成 SimNow、实盘、受管执行、成交、PnL 或盈利准入。
+
+历史 `run.py` 与 `simnow_launcher.py` 现都先进入同一个固定、已登记的 runtime：无参数只能执行上述
+`simulation/replay` 路径，任何旧 flag 都会在导入 Backtrader、CTP 或 provider 前以
+`legacy_cli_arguments_not_supported` 拒绝。两个 launcher 的 `run_live`（包括保留的私有名称）也固定返回
+`legacy_direct_execution_not_supported`。保留的纯 `run_replay` fixture 与注入式 adapter 只供源代码审阅和
+回归测试，不是操作者入口，也不在 runtime inventory 中登记为 SimNow 或 live 路径。
+
+## 历史本地回放说明（非 Iteration 41 启动指南）
+
+本目录是一个独立策略单元。保留的 `run_replay` fixture 只生成本目录内的确定性 15 分钟 C/P/F 闭合 K 线，并通过 Backtrader 的
 `Cerebro` 与本地回测 Broker 演示单篮子顺序限价逻辑。回放不读取网络、凭据或
 其他 `examples/` 目录，也不会向 CTP 发出任何订单或查询。
 
@@ -36,7 +57,7 @@ fact、clock domain 和 generation 的时间事实，再允许发送下一腿；
 SDK 的多合约授权、期权规格/成本和真实会话预检均有独立验收证据。回放中的本地订单
 不构成交易所成交、实际 PnL 或收益证明。
 
-## SimNow engineering_smoke
+## 历史注入式 SimNow engineering_smoke（非 Iteration 41 启动入口）
 
 Iter23 增加了一个 fail-closed 的 `simnow engineering_smoke` 入口。它只接受 SDK
 owner 注入的已创建 API 对象（测试使用纯 mock），不读取 `.env`、不创建第二客户端、
@@ -55,13 +76,9 @@ read_only=True)`，收口账户范围的公共 Store 证据；退出时调用两
 当前 Iter22 信任根缺失时，engineering_smoke 仍固定 `market_data_only=true`、
 `order_write_allowed=false`，不会生成、读取或写入任何密钥，也不会解除该限制。
 
-本地 smoke 例：
-
-```bash
-/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python run.py --mode simnow --purpose engineering_smoke
-```
-
-未注入 API 时该命令必然 `BLOCKED`，这是预期的安全结果。
+这是历史的 SDK-owned 注入式工程接口，不读取或升级 `runtime/config.yaml`，也不是面向操作者的
+Iteration 41 启动方式。`python run.py`、`python simnow_launcher.py` 与 `run_live` 都不能用来取得
+SimNow 或受管模式；上述 replay 入口仍是当前受审核的用户路径。
 
 ## 策略逻辑与参数
 
@@ -79,14 +96,10 @@ read_only=True)`，收口账户范围的公共 Store 证据；退出时调用两
 | `budget` | 10,000 / 8,000 / 2,000 CNY | 总额 / 普通路径 / 恢复预留；replay 是投影，不是 O2 预算能力。 |
 | `timing` | 首腿 1 秒、整篮子 60 秒、持仓 30–120 分钟 | 使用显式单调时钟；空闲回调只推进风险投影。 |
 
-## 启动与输出
+## 历史回放 API 与输出说明
 
-从仓库根目录运行，`--output` 会自动创建其父目录：
-
-```bash
-python examples/014_1_ctp_options_lowfreq/run.py --mode replay --scenario eligible \
-  --output examples/014_1_ctp_options_lowfreq/reports/eligible.json
-```
+历史 `run.py` 的 `--mode`、`--scenario` 与 `--output` 已被封口并会结构化拒绝；不要用它们替代上方的
+`bt-runtime run --strategy-dir .../runtime`。只有后者会读取必填的 v4 runtime 配置并检查中央清单。
 
 `eligible`、`no_edge`、`budget_reject` 与 `misaligned` 是离线验证场景；它们均不会联网或写单。
 报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只能说明

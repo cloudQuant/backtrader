@@ -64,7 +64,9 @@ class TestFnnEmbeddingFunctional:
         assert result["signal_count"] == 6554
         assert result["signal_skip_count"] == 5379
         assert result["avg_selected_matches"] == pytest.approx(28.351330049261083, abs=1e-9)
-        assert result["avg_top_sim"] == pytest.approx(0.990117934889394, abs=1e-9)
+        # float32 embedding reductions vary by a few nanounits across
+        # supported NumPy/BLAS builds; decision counts and PnL remain frozen.
+        assert result["avg_top_sim"] == pytest.approx(0.990117934889394, abs=5e-9)
 
     def test_library_and_encoder_state(self, result):
         assert result["lib_size"] == 12055

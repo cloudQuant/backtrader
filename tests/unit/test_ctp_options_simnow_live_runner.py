@@ -22,6 +22,40 @@ from examples.ctp_options_simnow_live_runner import (
 SYMBOLS = ("DCE.m2701", "DCE.m2701-C-3400", "DCE.m2701-P-3400")
 
 
+class _UnitFakeDispatchCycle(live_runner.MechanicalCycle):
+    """Test-only seam for local state-machine tests; never grants runtime authority."""
+
+    def _require_dispatch_authority(self):
+        return None
+
+
+def _unit_fake_authorization_ready(authorization):
+    """LOCAL_FAIL_CLOSE_ONLY: preserve legacy fake-flow contracts, not HMAC proof."""
+    if not isinstance(authorization, dict) or authorization.get("armed") is not True:
+        raise SimNowLiveRunnerBlocked("HMAC_GRANT_REQUIRED")
+    if not authorization.get("hmac_grant_configured") and not authorization.get(
+        "grant_configured"
+    ):
+        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_CONFIGURED")
+    signature = authorization.get("signature_hmac_sha256")
+    nested = authorization.get("grant")
+    if signature in (None, "") and isinstance(nested, dict):
+        signature = nested.get("signature_hmac_sha256")
+    if not isinstance(signature, str) or not signature.strip():
+        raise SimNowLiveRunnerBlocked("HMAC_GRANT_SIGNATURE_MISSING")
+    return {
+        "armed": True,
+        "account_fingerprint": authorization.get("account_fingerprint"),
+        "connection_generation": authorization.get("connection_generation"),
+    }
+
+
+@pytest.fixture(autouse=True)
+def _local_fake_routes_are_explicitly_test_only(monkeypatch):
+    monkeypatch.setattr(live_runner, "MechanicalCycle", _UnitFakeDispatchCycle)
+    monkeypatch.setattr(live_runner, "_authorization_ready", _unit_fake_authorization_ready)
+
+
 def _identity(**changes):
     """Build a flat, write-free preflight identity, overriding named fields.
 
@@ -640,6 +674,61 @@ def test_execute_cannot_bypass_hmac_gate():
     with pytest.raises(SimNowLiveRunnerBlocked, match="HMAC_GRANT"):
         _execute(runner)
     assert broker.writes == []
+
+
+def test_default_runner_rejects_forged_signature_before_broker_attribute_access(monkeypatch):
+    monkeypatch.undo()
+
+    class AttributeProbe:
+        def __init__(self):
+            self.lookups = []
+            self.calls = []
+
+        def __getattribute__(self, name):
+            if name in {"buy", "sell", "cancel"}:
+                object.__getattribute__(self, "lookups").append(name)
+            return object.__getattribute__(self, name)
+
+        def __getattr__(self, name):
+            self.lookups.append(name)
+            raise AssertionError("default runner must not inspect an injected broker")
+
+        def buy(self, **_kwargs):
+            self.calls.append("buy")
+
+        def sell(self, **_kwargs):
+            self.calls.append("sell")
+
+        def cancel(self, _order):
+            self.calls.append("cancel")
+
+    constructor_probe = AttributeProbe()
+    _runner(broker=constructor_probe)
+    assert constructor_probe.lookups == []
+
+    runner, _ = _runner()
+    runner.preflight()
+    # Public reconciliation uses read-only broker hooks. Replace it after
+    # preflight to isolate the direct writer boundary under test.
+    dispatch_probe = AttributeProbe()
+    runner.broker = dispatch_probe
+    with pytest.raises(
+        SimNowLiveRunnerBlocked,
+        match="TRUSTED_EXECUTION_AUTHORIZATION_VERIFIER_UNAVAILABLE",
+    ):
+        runner.execute_preflighted(
+            prices=dict.fromkeys(SYMBOLS, 10.0),
+            execution_state=_execution_state(),
+            execution_authorization={
+                "armed": True,
+                "hmac_grant_configured": True,
+                "signature_hmac_sha256": "forged",
+                "account_fingerprint": "acct-test-sha256",
+                "connection_generation": 7,
+            },
+        )
+    assert dispatch_probe.lookups == []
+    assert dispatch_probe.calls == []
 
 
 def test_preflight_requires_execution_reference_capability_and_does_not_requery_store():

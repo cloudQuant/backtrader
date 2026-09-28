@@ -73,7 +73,24 @@ class TalibTestStrategy(bt.Strategy):
             This is a test strategy that does not execute trades, so this
             method is intentionally left empty.
         """
-        pass
+
+
+def _run_talib(*, runonce=True):
+    """Run the TA-Lib strategy through the requested Cerebro execution path."""
+    cerebro = bt.Cerebro()
+
+    modpath = os.path.dirname(os.path.abspath(__file__))
+    datapath = os.path.join(modpath, "../../datas/2006-day-001.txt")
+
+    data = bt.feeds.BacktraderCSVData(
+        dataname=datapath,
+        fromdate=datetime.datetime(2006, 1, 1),
+        todate=datetime.datetime(2006, 12, 31),
+    )
+
+    cerebro.adddata(data)
+    cerebro.addstrategy(TalibTestStrategy)
+    return cerebro.run(runonce=runonce)
 
 
 def test_talib(main=False):
@@ -106,26 +123,14 @@ def test_talib(main=False):
         Run in test mode:
             test_talib()
     """
-    cerebro = bt.Cerebro()
-
-    modpath = os.path.dirname(os.path.abspath(__file__))
-    datapath = os.path.join(modpath, "../../datas/2006-day-001.txt")
-
-    data = bt.feeds.BacktraderCSVData(
-        dataname=datapath,
-        fromdate=datetime.datetime(2006, 1, 1),
-        todate=datetime.datetime(2006, 12, 31),
-    )
-
-    cerebro.adddata(data)
-    cerebro.addstrategy(TalibTestStrategy)
-
-    results = cerebro.run()
+    results = _run_talib()
     assert len(results) > 0
 
-    if main:
-        # print('Talib test passed (or skipped if talib not installed)')  # Removed for performance
-        pass
+
+def test_talib_runnext_filters_backtrader_compatibility_params():
+    """The event path must not pass merged Backtrader params to TA-Lib either."""
+    results = _run_talib(runonce=False)
+    assert len(results) > 0
 
 
 if __name__ == "__main__":

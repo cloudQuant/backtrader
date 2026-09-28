@@ -9,6 +9,8 @@ description: Sizer 类完整 API 参考
 
 `Sizer` 类用于计算交易订单的仓位大小。它基于可用资金、风险参数和其他因素来确定每次下单的数量。
 
+可选受管风险额度读取接口和 Sizer 的用法见[受管策略名义额度 sizing](allocation_sizing_zh.md)。
+
 ## 类定义
 
 ```python

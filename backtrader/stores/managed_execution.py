@@ -578,7 +578,9 @@ def parse_ctp_managed_execution_projection(
     expected_fields = (
         _CTP_MANAGED_PROJECTION_FIELDS
         if version == 1
-        else _CTP_MANAGED_PROJECTION_V2_FIELDS if version == 2 else frozenset()
+        else _CTP_MANAGED_PROJECTION_V2_FIELDS
+        if version == 2
+        else frozenset()
     )
     if set(value) != expected_fields:
         raise ManagedExecutionAdapterError("managed CTP projection envelope has an invalid shape")

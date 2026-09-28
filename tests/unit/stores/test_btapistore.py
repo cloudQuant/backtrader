@@ -3402,19 +3402,17 @@ def test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes():
     ]
 
 
-def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref():
-    """Direct CTP submit must not swap instrument/exchange for exchange-prefixed symbols."""
+def test_ctp_wrapper_submit_order_rejects_caller_forged_store_capability():
+    """Direct CTP wrapper submit stays closed despite a caller-set object capability."""
     optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeApi:
         def __init__(self):
-            self.field = None
-            self.req_id = None
+            self.raw_calls = 0
 
         def ReqOrderInsert(self, field, req_id):
-            self.field = field
-            self.req_id = req_id
+            self.raw_calls += 1
             return 0
 
     class FakeTraderClient:
@@ -3425,6 +3423,11 @@ def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserve
             self._req_id = 20
             self._front_id = 11
             self._session_id = 22
+            self.insert_calls = 0
+
+        def submit_order_insert(self, field, req_id, *, execution_capability):
+            self.insert_calls += 1
+            return 0
 
     client = wrapper_cls(
         md_address="tcp://md",
@@ -3433,33 +3436,132 @@ def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserve
         investor_id="demo",
         password="secret",
     )
+    client._execution_gate_capability = object()
     client.trader_client = FakeTraderClient()
 
-    response = client.submit_order(
-        {
-            "data_name": "CFFEX.IF2506",
-            "side": "buy",
-            "size": "2.0",
-            "price": 4010.0,
-            "order_type": "limit",
-            "offset": "open",
-            "bt_order_ref": "bt-77",
-        }
-    )
+    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
+        client.submit_order(
+            {
+                "data_name": "CFFEX.IF2506",
+                "side": "buy",
+                "size": "2.0",
+                "price": 4010.0,
+                "order_type": "limit",
+                "offset": "open",
+                "bt_order_ref": "bt-77",
+            }
+        )
 
-    field = client.trader_client.api.field
-    assert field.InstrumentID == "IF2506"
-    assert field.ExchangeID == "CFFEX"
-    assert field.OrderRef == "bt-77"
-    assert field.VolumeTotalOriginal == 2
-    assert field.LimitPrice == pytest.approx(4010.0)
-    assert client.trader_client.api.req_id == 21
-    assert response == {
-        "order_ref": "bt-77",
-        "front_id": 11,
-        "session_id": 22,
-        "exchange_id": "CFFEX",
-    }
+    assert client.trader_client.insert_calls == 0
+    assert client.trader_client.api.raw_calls == 0
+
+def test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access():
+    """Disabled direct CTP submission rejects without reading typed or raw API properties."""
+    optional_sdk("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class RawApi:
+        def __init__(self):
+            self.raw_calls = 0
+
+        def ReqOrderInsert(self, field, req_id):
+            self.raw_calls += 1
+            return 0
+
+    class RawOnlyTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self._req_id = 20
+            self._front_id = 11
+            self._session_id = 22
+            self.api_reads = 0
+            self.typed_method_reads = 0
+            self.raw_api = RawApi()
+
+        @property
+        def submit_order_insert(self):
+            self.typed_method_reads += 1
+            raise AssertionError("typed method descriptor must not be read without capability")
+
+        @property
+        def api(self):
+            self.api_reads += 1
+            return self.raw_api
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = RawOnlyTraderClient()
+
+    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
+        client.submit_order(
+            {
+                "data_name": "CFFEX.IF2506",
+                "side": "buy",
+                "size": "2.0",
+                "price": 4010.0,
+                "order_type": "limit",
+                "offset": "open",
+                "bt_order_ref": "bt-77",
+            }
+        )
+
+    assert client.trader_client.api_reads == 0
+    assert client.trader_client.typed_method_reads == 0
+    assert client.trader_client.raw_api.raw_calls == 0
+
+
+@pytest.mark.parametrize(
+    "has_capability",
+    [False, True],
+    ids=["missing-capability", "caller-forged-capability"],
+)
+def test_ctp_wrapper_cancel_rejects_without_raw_action_access(has_capability):
+    """Direct CTP cancel remains disabled before typed or raw client access."""
+    optional_sdk("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeApi:
+        def __init__(self):
+            self.raw_calls = 0
+
+        def ReqOrderAction(self, field, req_id):
+            self.raw_calls += 1
+            raise AssertionError("raw ReqOrderAction must not be reached")
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self.api_reads = 0
+            self.typed_method_reads = 0
+            self.raw_api = FakeApi()
+
+        @property
+        def submit_order_action(self):
+            self.typed_method_reads += 1
+            return lambda *_args, **_kwargs: 0
+
+        @property
+        def api(self):
+            self.api_reads += 1
+            return self.raw_api
+
+    client = wrapper_cls()
+    client.trader_client = FakeTraderClient()
+    client._execution_gate_capability = object() if has_capability else None
+
+    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
+        client._send_native_order_action(object(), 17)
+
+    assert client.trader_client.api_reads == 0
+    assert client.trader_client.raw_api.raw_calls == 0
+    assert client.trader_client.typed_method_reads == 0
 
 
 @pytest.mark.parametrize("size", [0, 1.5, "bad"])
@@ -3620,6 +3722,109 @@ def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypat
     assert client._client.kwargs["exchange_type"] == "CTP"
 
 
+@pytest.mark.parametrize(
+    "wrapper_kwargs",
+    [
+        pytest.param({}, id="default-ctp"),
+        pytest.param({"exchange_type": "CTP___FUTURE"}, id="ctp-venue-alias-exact"),
+        pytest.param({"exchange_type": " cTp ___ fUtUrE "}, id="ctp-venue-alias-normalized"),
+        pytest.param(
+            {"exchange_type": "BINANCE", "_btapistore_ctp_session_provider": True},
+            id="store-ctp-marker",
+        ),
+    ],
+)
+def test_ctp_gateway_wrapper_direct_write_methods_fail_before_gateway_client_construction(
+    monkeypatch, wrapper_kwargs
+):
+    """CTP direct order methods deny before constructing or accessing the gateway client."""
+    constructed = []
+    accessed = []
+
+    class FakeGatewayClient:
+        def __init__(self, **kwargs):
+            constructed.append(dict(kwargs))
+
+    class MethodTrap:
+        def __init__(self, name):
+            self.name = name
+
+        def __get__(self, instance, owner):
+            accessed.append(self.name)
+            raise AssertionError(f"gateway client method accessed: {self.name}")
+
+    class TrapClient:
+        submit_order = MethodTrap("submit_order")
+        cancel_order = MethodTrap("cancel_order")
+
+    bt_api_module = types.ModuleType("bt_api_py")
+    gateway_module = types.ModuleType("bt_api_py.gateway")
+    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
+    gateway_client_module.GatewayClient = FakeGatewayClient
+    gateway_module.client = gateway_client_module
+    bt_api_module.gateway = gateway_module
+    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
+
+    wrapper = _create_ctp_gateway_wrapper_class()(**wrapper_kwargs)
+    assert constructed == []
+    wrapper._gateway_client = TrapClient()
+
+    with pytest.raises(BtApiStoreError):
+        wrapper.submit_order({"symbol": DEFAULT_SYMBOL})
+    with pytest.raises(BtApiStoreError):
+        wrapper.cancel_order("fake-ref", dataname=DEFAULT_SYMBOL)
+
+    delegated = []
+    monkeypatch.setattr(wrapper, "submit_order", lambda payload: delegated.append(payload))
+    with pytest.raises(BtApiStoreError):
+        wrapper.create_order(symbol=DEFAULT_SYMBOL)
+
+    assert constructed == []
+    assert accessed == []
+    assert delegated == []
+
+
+def test_non_ctp_binance_gateway_wrapper_keeps_direct_order_delegation(monkeypatch):
+    """An explicit supported non-CTP exchange still constructs and delegates to its client."""
+    constructed = []
+    calls = []
+
+    class FakeGatewayClient:
+        def __init__(self, **kwargs):
+            constructed.append(dict(kwargs))
+
+        def submit_order(self, payload):
+            calls.append(("submit", dict(payload)))
+            return {"ok": True}
+
+        def cancel_order(self, order_ref, dataname=None):
+            calls.append(("cancel", order_ref, dataname))
+            return {"cancelled": order_ref}
+
+    bt_api_module = types.ModuleType("bt_api_py")
+    gateway_module = types.ModuleType("bt_api_py.gateway")
+    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
+    gateway_client_module.GatewayClient = FakeGatewayClient
+    gateway_module.client = gateway_client_module
+    bt_api_module.gateway = gateway_module
+    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
+
+    wrapper = _create_ctp_gateway_wrapper_class()(exchange_type="BINANCE")
+    assert constructed == [{"exchange_type": "BINANCE", "asset_type": "FUTURE"}]
+    submitted = wrapper.submit_order({"symbol": "BTC/USDT", "data_name": "btc"})
+    created = wrapper.create_order(symbol="ETH/USDT", data_name="eth")
+    cancelled = wrapper.cancel_order("fake-ref", dataname="BTC/USDT")
+
+    assert submitted == {"ok": True, "data_name": "btc"}
+    assert created == {"ok": True, "data_name": "eth"}
+    assert cancelled == {"cancelled": "fake-ref"}
+    assert [call[0] for call in calls] == ["submit", "submit", "cancel"]
+
+
 def test_split_ctp_symbol_normalizes_czce_with_exchange():
     """Test that split CTP symbol normalizes CZCE with exchange."""
     assert _split_ctp_symbol("CF2609.CZCE") == ("CF609", "CZCE")
@@ -3671,3 +3876,134 @@ def test_missing_dependency_raises_without_api(monkeypatch):
 
     with pytest.raises(BtApiMissingDependencyError):
         store.start()
+
+
+@pytest.mark.parametrize(
+    "provider,exchange",
+    [("ctp", "CTP"), ("btapi", "CTP___FUTURE")],
+)
+def test_ctp_forwarding_store_direct_writes_fail_closed_before_api(provider, exchange):
+    """CTP provider or exchange routes may not use the generic forwarding writer."""
+    store = object.__new__(BtApiStore)
+    store.provider = provider
+    store.backend = "forwarding"
+    store._sdk_mode = False
+    store._config = {"exchange": exchange}
+    store._api_kwargs = {"exchange": exchange}
+    store._managed_execution_adapter = None
+    calls = []
+    fake_api = types.SimpleNamespace(
+        submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
+        cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
+        or {"ok": True, "status": "accepted"},
+    )
+    store._ensure_api_ready = lambda: fake_api
+    store._order_to_payload = lambda order: {"symbol": "IF2506", "side": "buy"}
+    store._extract_external_order_id = lambda response: None
+    store._submit_response_looks_accepted = lambda response: True
+    store.emit_runtime_event = lambda *args, **kwargs: None
+    store._extract_dataname = lambda data: "IF2506"
+
+    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+        store.submit_order(object())
+    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+        store._submit_order_legacy(object())
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order(object())
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order_ref("fake-order", dataname="IF2506")
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store._cancel_order_ref_legacy("fake-order", dataname="IF2506")
+    assert calls == []
+
+
+def test_forwarding_ctp_signal_in_lower_precedence_config_fails_closed():
+    """Any CTP exchange signal is denied despite conflicting forwarding kwargs."""
+    store = object.__new__(BtApiStore)
+    store.provider = "btapi"
+    store.backend = "forwarding"
+    store._sdk_mode = False
+    store._config = {"exchange": "CTP___SHFE"}
+    store._api_kwargs = {"exchange_type": "BINANCE"}
+    store._managed_execution_adapter = None
+    calls = []
+    fake_api = types.SimpleNamespace(
+        submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
+        cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
+        or {"ok": True, "status": "accepted"},
+    )
+    store._ensure_api_ready = lambda: fake_api
+    store._order_to_payload = lambda order: {"symbol": "IF2506", "side": "buy"}
+    store._extract_external_order_id = lambda response: None
+    store._submit_response_looks_accepted = lambda response: True
+    store.emit_runtime_event = lambda *args, **kwargs: None
+    store._extract_dataname = lambda data: "IF2506"
+
+    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+        store.submit_order(object())
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order_ref("fake-order", dataname="IF2506")
+    assert calls == []
+
+
+def test_forwarding_ctp_signal_fails_closed_through_adapter_legacy_ports():
+    """An adapter cannot dispatch a conflicting CTP forwarding route via legacy ports."""
+    class DispatchAdapter:
+        def submit_order(self, order, legacy_dispatch):
+            return legacy_dispatch(order)
+
+        def cancel_order(self, order_or_ref, dataname, legacy_dispatch):
+            return legacy_dispatch(order_or_ref, dataname)
+
+    store = object.__new__(BtApiStore)
+    store.provider = "btapi"
+    store.backend = "forwarding"
+    store._sdk_mode = False
+    store._config = {"exchange": "CTP"}
+    store._api_kwargs = {"exchange_type": "BINANCE"}
+    store._managed_execution_adapter = DispatchAdapter()
+    calls = []
+    fake_api = types.SimpleNamespace(
+        submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
+        cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
+        or {"ok": True, "status": "accepted"},
+    )
+    store._ensure_api_ready = lambda: fake_api
+    store._order_to_payload = lambda order: {"symbol": "IF2506", "side": "buy"}
+    store._extract_external_order_id = lambda response: None
+    store._submit_response_looks_accepted = lambda response: True
+    store.emit_runtime_event = lambda *args, **kwargs: None
+    store._extract_dataname = lambda data: "IF2506"
+
+    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+        store.submit_order(object())
+    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+        store.cancel_order_ref("fake-order", dataname="IF2506")
+    assert calls == []
+
+
+def test_non_ctp_forwarding_store_legacy_order_route_remains_available():
+    """The CTP fail-close predicate must preserve non-CTP forwarding behavior."""
+    store = object.__new__(BtApiStore)
+    store.provider = "btapi"
+    store.backend = "forwarding"
+    store._sdk_mode = False
+    store._config = {"exchange": "CTP"}
+    store._api_kwargs = {"exchange": "BINANCE___SPOT", "exchange_type": "CTP"}
+    store._managed_execution_adapter = None
+    calls = []
+    fake_api = types.SimpleNamespace(
+        submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
+        cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
+        or {"ok": True, "status": "accepted"},
+    )
+    store._ensure_api_ready = lambda: fake_api
+    store._order_to_payload = lambda order: {"symbol": "BTC-USDT", "side": "buy"}
+    store._extract_external_order_id = lambda response: None
+    store._submit_response_looks_accepted = lambda response: True
+    store.emit_runtime_event = lambda *args, **kwargs: None
+    store._extract_dataname = lambda data: "BTC-USDT"
+
+    assert store.submit_order(object()) == {"ok": True}
+    assert store.cancel_order_ref("fake-order", dataname="BTC-USDT") == {"ok": True, "status": "accepted"}
+    assert [call[0] for call in calls] == ["submit", "cancel"]

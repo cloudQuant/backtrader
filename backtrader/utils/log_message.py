@@ -797,6 +797,26 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
         super().close()
 
 
+def _release_spdlog_logger(spdlog_mod, logger, name):
+    """Flush, close and unregister one spdlog file logger.
+
+    ``spdlog.drop`` unregisters the logger but does not release its file
+    handle on the Windows binding.  Closing first keeps temporary probes,
+    rollover and retention cleanup portable across supported platforms.
+    """
+    try:
+        flush = getattr(logger, "flush", None)
+        if callable(flush):
+            flush()
+    finally:
+        try:
+            close = getattr(logger, "close", None)
+            if callable(close):
+                close()
+        finally:
+            spdlog_mod.drop(name)
+
+
 def _detect_spdlog():
     """Return the ``spdlog`` module if usable, else ``None``.
 
@@ -812,6 +832,7 @@ def _detect_spdlog():
 
         with tempfile.TemporaryDirectory() as tmp:
             probe_name = f"bt_backend_probe.{os.getpid()}.{time.monotonic_ns()}"
+            probe = None
             try:
                 probe = spdlog.FileLogger(probe_name, os.path.join(tmp, "probe.log"), truncate=True)
                 probe.set_pattern("%v")
@@ -823,7 +844,10 @@ def _detect_spdlog():
                     if "probe" not in stream.read():
                         return None
             finally:
-                spdlog.drop(probe_name)
+                if probe is None:
+                    spdlog.drop(probe_name)
+                else:
+                    _release_spdlog_logger(spdlog, probe, probe_name)
         return spdlog
     except Exception:
         return None
@@ -913,8 +937,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
     def _rotate(self, today):
         path = self._path_for(today)
         if self._owner_pid == os.getpid():
-            self._logger.flush()
-            self._mod.drop(self._unique)
+            _release_spdlog_logger(self._mod, self._logger, self._unique)
         self._unique = f"bt.{self._level_name}.{os.getpid()}.{id(self):x}"
         self._logger = self._open_logger(path)
         self._path = path
@@ -942,8 +965,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
         try:
             if getattr(self, "_owner_pid", None) == os.getpid() and not self._bt_closed:
                 try:
-                    self._logger.flush()
-                    self._mod.drop(self._unique)
+                    _release_spdlog_logger(self._mod, self._logger, self._unique)
                 except Exception:  # nosec B110
                     # Best-effort cleanup only.
                     pass

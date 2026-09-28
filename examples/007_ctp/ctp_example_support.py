@@ -15,16 +15,15 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import os
-import threading
+import threading as threading
 from pathlib import Path
 
 import backtrader as bt
 import yaml
 
-from backtrader.brokers.btapibroker import BtApiBroker
+from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker
 from backtrader.channel import DataChannel
-from backtrader.feeds.btapifeed import BtApiFeed
-from backtrader.stores.btapistore import BtApiStore
+from backtrader.feeds.btapifeed import BtApiFeed as BtApiFeed
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_ROOT = Path(__file__).resolve().parent
@@ -63,19 +62,6 @@ DEFAULT_SIMNOW_ENV = AUTO_SIMNOW_ENV
 DEFAULT_BROKER_ID = "9999"
 DEFAULT_APP_ID = "simnow_client_test"
 DEFAULT_AUTH_CODE = "0000000000000000"
-
-
-def load_dotenv_if_available():
-    """Load environment variables from .env file if dotenv is available."""
-    try:
-        from dotenv import load_dotenv
-
-        load_dotenv(REPO_ROOT / ".env")
-    except ImportError:
-        pass
-
-
-load_dotenv_if_available()
 
 
 def resolve_config_path(config_arg: str | None, base_dir: Path, default_name: str) -> Path:
@@ -119,7 +105,9 @@ def load_config(config_arg: str | None, base_dir: Path, default_name: str) -> tu
         raise ValueError(f"Unsupported config format: {config_path}")
 
 
-def load_json_config(config_arg: str | None, base_dir: Path, default_name: str) -> tuple[dict, Path]:
+def load_json_config(
+    config_arg: str | None, base_dir: Path, default_name: str
+) -> tuple[dict, Path]:
     """Load configuration from JSON file.
 
     Args:
@@ -348,6 +336,7 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
     strategies including order management, position tracking, and
     configurable trading parameters.
     """
+
     params = BASE_FUTURES_STRATEGY_PARAMS
 
     def __init__(self):
@@ -486,7 +475,9 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         }
         extra_info = {"offset": offset, "signal_tag": signal_tag}
         broker_module = str(type(self.broker).__module__ or "").lower()
-        is_live_btapi_broker = broker_module.endswith("btapibroker") or "btapibroker" in broker_module
+        is_live_btapi_broker = (
+            broker_module.endswith("btapibroker") or "btapibroker" in broker_module
+        )
         if is_live_btapi_broker:
             kwargs.update(extra_info)
         order = self.buy(**kwargs) if side == "buy" else self.sell(**kwargs)
@@ -509,9 +500,7 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             order: Order instance.
         """
         symbol = (
-            getattr(order.data, "_name", None)
-            or getattr(order.data, "symbol", None)
-            or "UNKNOWN"
+            getattr(order.data, "_name", None) or getattr(order.data, "symbol", None) or "UNKNOWN"
         )
         status_name = order.getstatusname()
         previous_status = self._last_order_status.get(order.ref)
@@ -555,7 +544,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         Returns:
             True if force entry or force exit after tick limits are set.
         """
-        return int(self.p.force_entry_after_ticks or 0) > 0 or int(self.p.force_exit_after_ticks or 0) > 0
+        return (
+            int(self.p.force_entry_after_ticks or 0) > 0
+            or int(self.p.force_exit_after_ticks or 0) > 0
+        )
 
     def reconcile_pending_order_states(self):
         """Reconcile all pending order states by calling notify_order."""
@@ -581,7 +573,9 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
                 continue
             if current_tick - int(submitted_tick) < cancel_after_ticks:
                 continue
-            self.log(f"cancel stale order ref={ref} after {current_tick - int(submitted_tick)} ticks")
+            self.log(
+                f"cancel stale order ref={ref} after {current_tick - int(submitted_tick)} ticks"
+            )
             self.cancel(order)
             canceled_any = True
         return canceled_any
@@ -633,21 +627,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
 
 
 def get_simnow_credentials():
-    """Get SimNow credentials from environment variables.
+    """Reject the retired credential path before consulting process state."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Returns:
-        Tuple of (investor_id, password).
-
-    Raises:
-        RuntimeError: If credentials are not set.
-    """
-    investor_id = os.getenv("SIMNOW_USER_ID") or os.getenv("simnow_user_id")
-    password = os.getenv("SIMNOW_PASSWORD") or os.getenv("simnow_password")
-    if not investor_id or not password:
-        raise RuntimeError(
-            "Missing SimNow credentials. Set SIMNOW_USER_ID and SIMNOW_PASSWORD in the environment or .env."
-        )
-    return investor_id, password
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py credentials")
 
 
 def _normalize_simnow_env_key(raw_value):
@@ -675,7 +658,9 @@ def iter_simnow_env_candidates(env_key=None, strict=False):
     Raises:
         ValueError: If environment key is not supported.
     """
-    selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+    selected_env = _normalize_simnow_env_key(
+        env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV
+    )
     if not selected_env:
         selected_env = DEFAULT_SIMNOW_ENV
 
@@ -704,143 +689,40 @@ def iter_simnow_env_candidates(env_key=None, strict=False):
 
 
 def create_simnow_connection(env_key=None):
-    """Create SimNow connection parameters.
+    """Reject the retired SimNow route before reading account credentials."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Args:
-        env_key: Specific environment key to use.
-
-    Returns:
-        Dictionary with connection parameters.
-
-    Raises:
-        ValueError: If environment is not supported.
-    """
-    selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
-    if selected_env not in SIMNOW_ENVIRONMENTS:
-        raise ValueError(
-            f"Unsupported SimNow environment {selected_env!r}. "
-            f"Choose from: {', '.join(sorted(SIMNOW_ENVIRONMENTS))}."
-        )
-
-    investor_id, password = get_simnow_credentials()
-    env_config = SIMNOW_ENVIRONMENTS[selected_env]
-    return {
-        "td_address": env_config["td_address"],
-        "md_address": env_config["md_address"],
-        "broker_id": DEFAULT_BROKER_ID,
-        "investor_id": investor_id,
-        "password": password,
-        "app_id": DEFAULT_APP_ID,
-        "auth_code": DEFAULT_AUTH_CODE,
-        "simnow_env": selected_env,
-        "simnow_name": env_config["name"],
-    }
+    del env_key
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py SimNow route")
 
 
 def create_live_store(config):
-    """Create live BtApi store from configuration.
+    """Reject direct Store construction; the old SimNow route is retired."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Args:
-        config: Configuration dictionary with simnow_env, store_kwargs, etc.
-
-    Returns:
-        Tuple of (BtApiStore, connection_info).
-    """
-    config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
-    env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
-    requested_env = config_env or DEFAULT_SIMNOW_ENV
-    if requested_env in {"", AUTO_SIMNOW_ENV} and env_override:
-        requested_env = env_override
-    strict_env = bool(config.get("simnow_strict_env", False))
-    candidates = tuple(iter_simnow_env_candidates(requested_env, strict=strict_env))
-    store_kwargs = dict(config.get("store_kwargs") or {})
-    if not candidates:
-        raise RuntimeError("Unable to resolve any SimNow environment candidates")
-
-    candidate_env = candidates[0]
-    connection = create_simnow_connection(candidate_env)
-    store_config = dict(
-        provider="ctp",
-        td_address=connection["td_address"],
-        md_address=connection["md_address"],
-        broker_id=connection["broker_id"],
-        investor_id=connection["investor_id"],
-        password=connection["password"],
-        app_id=connection["app_id"],
-        auth_code=connection["auth_code"],
-        **store_kwargs,
-    )
-
-    # Do not eager-start the live store here. BtApiFeed/BtApiBroker must own
-    # the startup sequence inside Cerebro; starting the CTP clients before the
-    # feed is attached causes live runs to exit immediately with 0 ticks/0
-    # events, and the process may later crash while the native md/trader
-    # threads are still shutting down.
-    connection["requested_simnow_env"] = requested_env
-    connection["fallback_used"] = requested_env not in {"", AUTO_SIMNOW_ENV, candidate_env}
-    connection["attempted_simnow_envs"] = candidates
-    return BtApiStore(**store_config), connection
+    del config
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py Store")
 
 
 def create_live_broker(store, config):
-    """Create live broker from store and configuration.
+    """Reject the retired direct broker composition route."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Args:
-        store: BtApiStore instance.
-        config: Configuration dictionary with broker settings.
-
-    Returns:
-        BtApiBroker instance.
-    """
-    broker_kwargs = dict(config.get("broker") or {})
-    return BtApiBroker(store=store, **broker_kwargs)
+    del store, config
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py Broker")
 
 
 def add_live_feeds(cerebro, store, config):
-    """Add live feeds to cerebro from configuration.
+    """Reject the retired direct feed route before inspecting caller inputs."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Args:
-        cerebro: Cerebro instance.
-        store: BtApiStore instance.
-        config: Configuration dictionary with feed and symbols settings.
-
-    Returns:
-        List of added data feeds.
-    """
-    feed_config = dict(config.get("feed") or {})
-    timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
-    compression = int(feed_config.pop("compression", 1))
-    backfill_start = bool(feed_config.pop("backfill_start", False))
-
-    feeds = []
-    for symbol in config.get("symbols") or []:
-        data = BtApiFeed(
-            store=store,
-            dataname=symbol,
-            timeframe=timeframe,
-            compression=compression,
-            backfill_start=backfill_start,
-            **feed_config,
-        )
-        cerebro.adddata(data, name=symbol)
-        feeds.append(data)
-    return feeds
+    del cerebro, store, config
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py live feeds")
 
 
 def run_cerebro_with_timeout(cerebro, timeout_seconds=60):
-    """Run cerebro with a timeout that stops execution.
+    """Reject the retired direct Cerebro runner before it can start a live Store."""
+    from backtrader_runtime.legacy import legacy_direct_execution_error
 
-    Args:
-        cerebro: Cerebro instance to run.
-        timeout_seconds: Timeout in seconds before forcing stop.
-
-    Returns:
-        List of strategy results.
-    """
-    timer = threading.Timer(float(timeout_seconds), cerebro.runstop)
-    timer.daemon = True
-    timer.start()
-    try:
-        return cerebro.run()
-    finally:
-        timer.cancel()
+    del cerebro, timeout_seconds
+    raise legacy_direct_execution_error("examples/007_ctp/ctp_example_support.py Cerebro runner")

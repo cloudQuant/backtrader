@@ -3,7 +3,8 @@
 Importing this module is deliberately inert: it does not read the environment,
 construct a client, connect, or submit an order.  A caller supplies the one
 Store, broker, feeds, public evidence, and (only when explicitly requested) an
-already armed authorization proof.
+caller-supplied evidence inputs. The direct writer path remains unavailable
+until a trusted authorization verifier and managed route are connected.
 """
 
 from __future__ import annotations
@@ -97,28 +98,9 @@ def _scope_value(snapshot: Mapping[str, Any], *names: str) -> Any:
 
 
 def _authorization_ready(authorization: Any) -> dict[str, Any]:
-    if not isinstance(authorization, Mapping):
-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_REQUIRED")
-    if authorization.get("armed") is not True:
-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_ARMED")
-    if (
-        authorization.get("hmac_grant_configured") is not True
-        and authorization.get("grant_configured") is not True
-    ):
-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_NOT_CONFIGURED")
-    signature = authorization.get("signature_hmac_sha256")
-    nested_grant = authorization.get("grant")
-    if signature in (None, "") and isinstance(nested_grant, Mapping):
-        signature = nested_grant.get("signature_hmac_sha256")
-    if not isinstance(signature, str) or not signature.strip():
-        raise SimNowLiveRunnerBlocked("HMAC_GRANT_SIGNATURE_MISSING")
-    # Return only booleans/identity fields needed by MechanicalCycle; never copy
-    # a secret or a full grant into the journal.
-    return {
-        "armed": True,
-        "account_fingerprint": authorization.get("account_fingerprint"),
-        "connection_generation": authorization.get("connection_generation"),
-    }
+    """Fail closed: this local runner has no trusted grant verifier."""
+    del authorization
+    raise SimNowLiveRunnerBlocked("TRUSTED_EXECUTION_AUTHORIZATION_VERIFIER_UNAVAILABLE")
 
 
 def _bundle_leg_identities(snapshot: Mapping[str, Any]) -> tuple[tuple[str, str, bool], ...]:
@@ -569,13 +551,11 @@ class SimNowLiveRunner:
         exit_reference_timeout: float = 15.0,
         exact_instrument_ids: Mapping[str, str] | None = None,
     ):
-        """Validate and store the injected parts; no connection or read happens here."""
+        """Store inert inputs; no connection, read, or broker lookup happens here."""
         if not isinstance(feeds, Mapping) or not feeds:
             raise SimNowLiveRunnerBlocked("CALLER_FEEDS_REQUIRED")
-        if not callable(getattr(broker, "buy", None)) or not callable(
-            getattr(broker, "sell", None)
-        ):
-            raise SimNowLiveRunnerBlocked("CALLER_BTAPI_BROKER_REQUIRED")
+        # Keep the supplied object opaque. Attribute lookup can execute caller
+        # descriptors, and this local runner has no trusted writer admission.
         self.store = store
         self.broker = broker
         self.feeds = dict(feeds)

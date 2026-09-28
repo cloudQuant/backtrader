@@ -33,6 +33,11 @@ from ..position_modes import (
     signed_position_size,
 )
 from ..stores.btapistore import _redact_diagnostic
+from ..stores.managed_execution import (
+    CtpManagedProjectionState,
+    ManagedExecutionAdapterError,
+    parse_ctp_managed_execution_projection,
+)
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -2477,11 +2482,103 @@ class BtApiBroker(BrokerBase):
         result["error_code"] = error_code
         return result
 
+    def _account_risk_snapshot_unavailable(self, error_code="account_risk_snapshot_unavailable"):
+        """Build the stable fail-closed shape when no callback snapshot is usable."""
+
+        routes_method = getattr(self.store, "get_symbol_routes", None)
+        try:
+            routes = routes_method() if callable(routes_method) else {}
+        except Exception as exc:
+            _safe_log("warning", "btapibroker:account-risk route lookup failed")
+            self._sanitize_exception(exc)
+            routes = {}
+        if not isinstance(routes, Mapping):
+            routes = {}
+        venues = sorted(
+            {
+                str(venue).partition("___")[0].strip().lower()
+                for venue in (routes or {}).values()
+                if str(venue).strip()
+            }
+        )
+        return {
+            "baseline_equity": None,
+            "current_equity": None,
+            "realized_net": None,
+            "configured_venues": venues,
+            "generation": 0,
+            "fencing_epoch": 0,
+            "as_of_monotonic_ns": 0,
+            "identity_binding_sha256": "",
+            "durable": False,
+            "trading_blocked": True,
+            "evidence_complete": False,
+            "evidence_errors": [error_code],
+            "error_code": error_code,
+        }
+
+    def _get_callback_account_risk_snapshot(self):
+        """Read the Store's atomic callback state, without inspecting SDK summary.
+
+        Returns ``None`` only for a legacy Store that has not implemented the
+        combined local-state API.  Any malformed or failed combined read is
+        itself a fail-closed result, so callers must not fall back to a possibly
+        blocking ``get_execution_summary`` read.
+        """
+
+        method = getattr(self.store, "get_callback_account_risk_state", None)
+        if not callable(method):
+            return None
+        try:
+            callback_state = method()
+        except Exception as exc:
+            _safe_log("warning", "btapibroker:callback account-risk state read failed")
+            self._sanitize_exception(exc)
+            return self._account_risk_snapshot_unavailable(
+                "account_risk_callback_state_read_failed"
+            )
+        if not isinstance(callback_state, Mapping):
+            return self._account_risk_snapshot_unavailable("account_risk_callback_state_invalid")
+
+        snapshot = callback_state.get("snapshot")
+        if not isinstance(snapshot, Mapping):
+            return self._account_risk_snapshot_unavailable("account_risk_callback_snapshot_invalid")
+        safe_snapshot = deepcopy(self._redact_runtime_value(dict(snapshot)))
+        refresh_state = callback_state.get("refresh_state")
+        entry_allowed = callback_state.get("entry_allowed")
+        if type(entry_allowed) is not bool:
+            return self._account_risk_snapshot_incomplete(
+                safe_snapshot, "account_risk_callback_state_invalid"
+            )
+        if refresh_state == "current":
+            if (
+                entry_allowed is False
+                and safe_snapshot.get("evidence_complete") is True
+                and safe_snapshot.get("trading_blocked") is False
+            ):
+                return self._account_risk_snapshot_incomplete(
+                    safe_snapshot, "account_risk_callback_entry_not_allowed"
+                )
+            return safe_snapshot
+
+        state_errors = {
+            "refresh_pending": "account_risk_refresh_in_progress",
+            "refresh_rejected": "account_risk_refresh_queue_rejected",
+            "refresh_failed": "account_risk_refresh_queue_failed",
+            "refresh_unavailable": "account_risk_refresh_unavailable",
+        }
+        error_code = state_errors.get(refresh_state, "account_risk_callback_state_invalid")
+        return self._account_risk_snapshot_incomplete(safe_snapshot, error_code)
+
     def get_account_risk_snapshot(self):
         """Return durable SDK account-loss evidence without local synthesis."""
         use_callback_cache = self._uses_async_commands() and bool(
             getattr(self.store, "_started", False)
         )
+        if use_callback_cache:
+            combined_snapshot = self._get_callback_account_risk_snapshot()
+            if combined_snapshot is not None:
+                return combined_snapshot
         method_name = (
             "get_cached_account_risk_snapshot"
             if use_callback_cache
@@ -2513,58 +2610,44 @@ class BtApiBroker(BrokerBase):
                     return self._account_risk_snapshot_incomplete(
                         safe_snapshot, "execution_summary_read_failed"
                     )
-                if not isinstance(summary, Mapping) or "evidence_errors" not in summary:
+                if not isinstance(summary, Mapping):
                     return self._account_risk_snapshot_incomplete(
                         safe_snapshot, "execution_summary_invalid"
                     )
 
-                error_values = summary["evidence_errors"]
                 refresh_marker = "account_risk_refresh_in_progress"
+                refresh_pending = summary.get(refresh_marker) is True
+                if "evidence_errors" not in summary:
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot,
+                        refresh_marker if refresh_pending else "execution_summary_invalid",
+                    )
+
+                error_values = summary["evidence_errors"]
                 if isinstance(error_values, Mapping):
-                    has_refresh_marker = refresh_marker in error_values or any(
+                    has_refresh_marker = refresh_pending or refresh_marker in error_values or any(
                         value == refresh_marker for value in error_values.values()
                     )
                 elif isinstance(error_values, str):
-                    has_refresh_marker = error_values == refresh_marker
+                    has_refresh_marker = refresh_pending or error_values == refresh_marker
                 elif isinstance(error_values, (list, tuple, set, frozenset)):
                     if any(not isinstance(value, str) for value in error_values):
                         return self._account_risk_snapshot_incomplete(
                             safe_snapshot, "execution_summary_invalid"
                         )
-                    has_refresh_marker = refresh_marker in error_values
+                    has_refresh_marker = refresh_pending or refresh_marker in error_values
                 else:
                     return self._account_risk_snapshot_incomplete(
                         safe_snapshot, "execution_summary_invalid"
                     )
 
                 if has_refresh_marker:
-                    return self._account_risk_snapshot_incomplete(safe_snapshot, refresh_marker)
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, refresh_marker
+                    )
                 return safe_snapshot
 
-        routes_method = getattr(self.store, "get_symbol_routes", None)
-        routes = routes_method() if callable(routes_method) else {}
-        venues = sorted(
-            {
-                str(venue).partition("___")[0].strip().lower()
-                for venue in (routes or {}).values()
-                if str(venue).strip()
-            }
-        )
-        return {
-            "baseline_equity": None,
-            "current_equity": None,
-            "realized_net": None,
-            "configured_venues": venues,
-            "generation": 0,
-            "fencing_epoch": 0,
-            "as_of_monotonic_ns": 0,
-            "identity_binding_sha256": "",
-            "durable": False,
-            "trading_blocked": True,
-            "evidence_complete": False,
-            "evidence_errors": ["account_risk_snapshot_unavailable"],
-            "error_code": "account_risk_snapshot_unavailable",
-        }
+        return self._account_risk_snapshot_unavailable()
 
     def get_order_reconciliation_state(self, order_or_ref):
         """Return the public unknown/cancel convergence state for one local order."""
@@ -2622,6 +2705,18 @@ class BtApiBroker(BrokerBase):
             "operation_count": operation_count,
         }
 
+    def get_strategy_allocation(self, strategy_id: str):
+        """Return a local managed risk snapshot for advisory strategy sizing.
+
+        This read never refreshes cash, positions, or provider balances.
+        ``getcash`` and ``getvalue`` retain their account-level semantics.
+        """
+
+        reader = getattr(self.store, "get_strategy_allocation", None)
+        if not callable(reader):
+            raise ValueError("managed strategy allocation reader is unavailable")
+        return reader(strategy_id)
+
     def getcash(self) -> float:
         """Return current available cash."""
         if not self._uses_async_commands():
@@ -2674,6 +2769,12 @@ class BtApiBroker(BrokerBase):
 
     def submit(self, order):
         """Submit an order through the store."""
+        if getattr(self, "_managed_provider_projection_failed", False):
+            return self._reject_order(
+                order,
+                "managed_provider_projection_session_fenced",
+                "Managed provider fill projection is uncertain; this Broker session is fenced.",
+            )
         if self._is_market_data_only():
             self._record_market_data_only_rejection("submit")
             return self._reject_order(
@@ -2773,6 +2874,22 @@ class BtApiBroker(BrokerBase):
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
             response = self.store.submit_order(order)
             self._freeze_order_execution_contract(order, replace=True)
+            try:
+                managed_projection = parse_ctp_managed_execution_projection(
+                    response, expected_operation="submit"
+                )
+            except ManagedExecutionAdapterError:
+                # A malformed durable projection does not prove that a queued
+                # action failed. Keep the original framework order nonterminal
+                # and mark it unknown; never let the Broker accept or fill it.
+                order.addinfo(
+                    execution_unknown=True,
+                    error_code="invalid_managed_execution_projection",
+                    error_msg="Managed execution projection is invalid; reconcile the original intent",
+                )
+                self.orders[order.ref] = order
+                self.notify(order)
+                return order
             queued_receipt = bool(
                 isinstance(response, dict) and response.get("kind") == "command_receipt"
             )
@@ -2782,12 +2899,36 @@ class BtApiBroker(BrokerBase):
                     str(response.get("error_code") or "command_queue_rejected"),
                     str(response.get("error_msg") or "SDK command queue rejected the order"),
                 )
+            if (
+                managed_projection is not None
+                and managed_projection.state is CtpManagedProjectionState.LOCAL_REJECTED
+            ):
+                return self._reject_order(
+                    order,
+                    managed_projection.error_code or "managed_ctp_local_rejection",
+                    "Managed CTP action was rejected locally before provider acknowledgement.",
+                )
             submit_error = self._submit_response_error(response)
             if submit_error is not None:
                 error_code, error_msg = submit_error
                 self._attach_remote_error_code(order, response)
                 return self._reject_order(order, error_code, error_msg)
-            if not queued_receipt:
+            managed_replay_error = self._managed_execution_replay_projection_error(response, order)
+            if managed_replay_error is not None:
+                error_code, error_msg = managed_replay_error
+                return self._reject_order(order, error_code, error_msg)
+            managed_framework_projection = self._managed_framework_projection_active(response, order)
+            managed_projection_pending = bool(
+                managed_projection is not None
+                and managed_projection.state
+                in (CtpManagedProjectionState.PENDING, CtpManagedProjectionState.UNKNOWN)
+            )
+            if managed_projection_pending:
+                order.addinfo(
+                    managed_execution_projection_id=managed_projection.durable_projection_id,
+                    managed_execution_projection_state=managed_projection.state.value,
+                )
+            if not queued_receipt and not managed_projection_pending:
                 order.accept(self)
 
             external_order_id = (
@@ -2812,8 +2953,21 @@ class BtApiBroker(BrokerBase):
 
             self.orders[order.ref] = order
             self.notify(order)
-            if not queued_receipt:
+            if not queued_receipt and not managed_projection_pending:
                 self._apply_submit_response_fill(order, response)
+                if managed_framework_projection:
+                    try:
+                        self.store.complete_managed_framework_projection(response, order)
+                    except Exception as exc:
+                        self._sanitize_exception(exc)
+                        self.store.fail_managed_framework_projection(
+                            response, "post_submit_apply_receipt_failure"
+                        )
+                        self._managed_provider_projection_failed = True
+                        self._mark_managed_provider_projection_failure(
+                            order, "post_submit_apply_receipt_failure"
+                        )
+                        return order
             if risk_reducing and self._requires_explicit_offset(order.data):
                 self._begin_ctp_reconciliation("risk_reducing_order_submitted")
             return order
@@ -2825,6 +2979,15 @@ class BtApiBroker(BrokerBase):
         except Exception as exc:
             _safe_log("error", "btapibroker:2710 exception before re-raise (Exception)")
             self._sanitize_exception(exc)
+            if bool(getattr(exc, "managed_local_reject", False)):
+                code = self._safe_exception_code(exc, "managed_ctp_local_rejection")
+                return self._reject_order(
+                    order,
+                    code,
+                    "Managed CTP action was rejected locally before SDK dispatch.",
+                )
+            if bool(getattr(exc, "managed_projection_pending", False)):
+                return self._preserve_managed_submit_pending(order, exc)
             if bool(getattr(exc, "execution_unknown", False)) or (
                 bool(getattr(self.store, "_sdk_mode", False))
                 and not bool(getattr(exc, "definite_reject", False))
@@ -2857,6 +3020,16 @@ class BtApiBroker(BrokerBase):
         """Cancel an existing order through the store."""
         if order is None:
             return None
+
+        if getattr(self, "_managed_provider_projection_failed", False):
+            order.addinfo(
+                cancel_requested_remote=False,
+                cancel_rejected_local=True,
+                error_code="managed_provider_projection_session_fenced",
+                error_msg="Managed provider fill projection is uncertain; this Broker session is fenced.",
+            )
+            self.notify(order)
+            return order
 
         if not order.alive():
             return order
@@ -2894,7 +3067,9 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             return order
 
-        if bool(self._order_info_get(order, "cancel_requested_remote", False)):
+        if bool(self._order_info_get(order, "cancel_requested_remote", False)) or bool(
+            self._order_info_get(order, "managed_execution_cancel_pending", False)
+        ):
             return order
 
         if self.store is None:
@@ -2929,6 +3104,49 @@ class BtApiBroker(BrokerBase):
         except Exception as exc:
             _safe_log("warning", "btapibroker:2813 fallback on Exception")
             self._sanitize_exception(exc)
+            if bool(getattr(exc, "managed_local_reject", False)):
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_execution_unknown=False,
+                    cancel_intent_active=False,
+                    managed_execution_cancel_state="LOCAL_REJECTED",
+                    managed_execution_cancel_pending=False,
+                    managed_execution_cancel_reconciliation_required=False,
+                    managed_execution_cancel_freeze_required=False,
+                    cancel_error_code=self._safe_exception_code(
+                        exc, "managed_ctp_local_rejection"
+                    ),
+                    cancel_error_msg="Managed CTP cancellation was rejected before SDK dispatch.",
+                )
+                self.orders[order.ref] = order
+                self.notify(order)
+                return order
+            if bool(getattr(exc, "managed_projection_pending", False)):
+                state = str(
+                    getattr(exc, "managed_execution_state", None)
+                    or ("UNKNOWN" if getattr(exc, "execution_unknown", False) else "PENDING")
+                ).upper()
+                if state not in ("PENDING", "UNKNOWN"):
+                    state = "UNKNOWN"
+                unknown = state == "UNKNOWN"
+                order.addinfo(
+                    cancel_requested_remote=unknown,
+                    cancel_execution_unknown=unknown,
+                    cancel_intent_active=True,
+                    managed_execution_cancel_state=state,
+                    managed_execution_cancel_pending=True,
+                    managed_execution_cancel_reconciliation_required=True,
+                    managed_execution_cancel_freeze_required=unknown,
+                    cancel_error_code=self._safe_exception_code(
+                        exc, "managed_ctp_cancel_handoff_unresolved"
+                    ),
+                    cancel_error_msg="Managed CTP cancellation handoff is unresolved.",
+                )
+                if unknown:
+                    order.addinfo(execution_unknown=True)
+                self.orders[order.ref] = order
+                self.notify(order)
+                return order
             if not bool(getattr(exc, "execution_unknown", False)) and not isinstance(
                 exc, TimeoutError
             ):
@@ -2994,6 +3212,9 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             return order
 
+        if self._preserve_managed_cancel_pending(order, response):
+            return order
+
         if bool(self.p.cancel_wait_remote) or bool(getattr(self.store, "_sdk_mode", False)):
             order.addinfo(cancel_requested_remote=True, cancel_intent_active=True)
             if self._is_confirmed_terminal_order_response(response):
@@ -3009,6 +3230,124 @@ class BtApiBroker(BrokerBase):
         self._clear_order_mappings(order)
         self.notify(order)
         return order
+
+    def _preserve_managed_submit_pending(self, order, exc):
+        """Keep an unresolved managed handoff submitted without implying ACK."""
+
+        self._abort_recovery_dispatch(order, "managed_execution_handoff_unresolved")
+        state = str(
+            getattr(exc, "managed_execution_state", None)
+            or ("UNKNOWN" if getattr(exc, "execution_unknown", False) else "PENDING")
+        ).upper()
+        if state not in ("PENDING", "UNKNOWN"):
+            state = "UNKNOWN"
+        error_code = self._safe_exception_code(exc, "managed_ctp_handoff_unresolved")
+        order.addinfo(
+            managed_execution_projection_state=state,
+            execution_unknown=state == "UNKNOWN",
+            error_code=error_code,
+            error_msg="Managed execution handoff is unresolved; reconcile the original intent.",
+        )
+        self.orders[order.ref] = order
+        self.notify(order)
+        return order
+
+    def _preserve_managed_cancel_pending(self, order, response):
+        """Keep a managed cancellation live until a terminal cancel is proven.
+
+        Legacy direct Store paths historically cancel locally as soon as their
+        synchronous call returns.  A managed cancellation ``ACKED`` record only
+        proves dispatch, while ``UNKNOWN`` and rejected records prove even less.
+        The trusted bridge marks these projections explicitly; retain all order
+        identifiers so an authoritative late fill or reconciliation update can
+        still be matched.  Only the bridge's explicit terminal ``cancelled``
+        response reaches the ordinary local-terminal branch below.
+        """
+
+        try:
+            projection = parse_ctp_managed_execution_projection(
+                response, expected_operation="cancel"
+            )
+        except ManagedExecutionAdapterError:
+            order.addinfo(
+                cancel_requested_remote=True,
+                cancel_execution_unknown=True,
+                cancel_intent_active=True,
+                execution_unknown=True,
+                managed_execution_cancel_state="UNKNOWN",
+                managed_execution_cancel_pending=True,
+                managed_execution_cancel_reconciliation_required=True,
+                managed_execution_cancel_freeze_required=True,
+                cancel_error_code="invalid_managed_execution_projection",
+            )
+            self.orders[order.ref] = order
+            self.notify(order)
+            return True
+
+        if projection is not None:
+            state = projection.state.value
+            if state == CtpManagedProjectionState.LOCAL_REJECTED.value:
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_execution_unknown=False,
+                    cancel_intent_active=False,
+                    managed_execution_cancel_state=state,
+                    managed_execution_cancel_pending=False,
+                    managed_execution_cancel_reconciliation_required=False,
+                    managed_execution_cancel_freeze_required=False,
+                    cancel_error_code=projection.error_code,
+                )
+                self.orders[order.ref] = order
+                self.notify(order)
+                return True
+            unknown = state == CtpManagedProjectionState.UNKNOWN.value
+            order.addinfo(
+                cancel_requested_remote=unknown,
+                cancel_execution_unknown=unknown,
+                cancel_intent_active=True,
+                managed_execution_cancel_state=state,
+                managed_execution_cancel_pending=True,
+                managed_execution_cancel_reconciliation_required=True,
+            )
+            if unknown:
+                order.addinfo(
+                    execution_unknown=True,
+                    managed_execution_cancel_freeze_required=True,
+                )
+            self.orders[order.ref] = order
+            self.notify(order)
+            return True
+
+        if (
+            not isinstance(response, dict)
+            or response.get("managed_execution_cancel_pending") is not True
+        ):
+            return False
+
+        state = str(response.get("managed_execution_cancel_state") or "UNKNOWN").strip().upper()
+        unknown = state == "UNKNOWN" or response.get("execution_unknown") is True
+        order.addinfo(
+            cancel_requested_remote=state == "ACKED" or unknown,
+            cancel_execution_unknown=unknown,
+            cancel_intent_active=True,
+            managed_execution_cancel_state=state,
+            managed_execution_cancel_pending=True,
+            managed_execution_cancel_reconciliation_required=True,
+        )
+        if unknown:
+            order.addinfo(
+                execution_unknown=True,
+                managed_execution_cancel_freeze_required=True,
+            )
+        error_code = response.get("error_code")
+        if error_code not in (None, ""):
+            order.addinfo(cancel_error_code=str(self._redact_runtime_value(error_code)))
+        error_msg = response.get("error_msg")
+        if error_msg not in (None, ""):
+            order.addinfo(cancel_error_msg=str(self._redact_runtime_value(error_msg)))
+        self.orders[order.ref] = order
+        self.notify(order)
+        return True
 
     def _accept_unknown_submission(self, order, exc, error_code):
         """Keep an ambiguously submitted order alive under its original identity."""
@@ -5891,6 +6230,11 @@ class BtApiBroker(BrokerBase):
             return cls._non_mapping_submit_response_error(result)
         if not result:
             return "remote_submit_rejected", "empty remote submit response"
+        if result.get("kind") == "managed_execution_projection":
+            # Exact shape/state echoes were already checked by the typed
+            # parser in submit(); these non-provider projections never enter
+            # generic remote ACK/rejection inference.
+            return None
         if result.get("execution_unknown") is True:
             return None
 
@@ -5967,6 +6311,45 @@ class BtApiBroker(BrokerBase):
         if cls._submit_response_has_identity(result):
             return None
         return "remote_submit_rejected", "invalid remote submit response"
+
+    def _managed_execution_replay_projection_error(self, response, order):
+        """Block a durable replay from becoming a second framework execution.
+
+        A durable execution record alone proves a provider dispatch, not
+        permission to mutate the current in-memory Broker.  A fully composed
+        direct managed runtime may supply a live, private framework receipt;
+        that narrow recovery path is checked below.  Every other replay is
+        rejected, because applying its cumulative fill could book a second
+        local position/commission event.  Direct first-dispatch responses have
+        no replay marker and continue through the ordinary fill path.
+        """
+
+        result = self._unwrap_submit_response(response)
+        if not isinstance(result, Mapping) or result.get("managed_execution_replayed") is not True:
+            return None
+        if self._managed_framework_projection_active(result, order):
+            return None
+        state = str(result.get("managed_execution_state") or "CONFIRMED").strip().upper()
+        return (
+            "managed_execution_projection_replay_blocked",
+            "Managed execution {0} was recovered from durable state; "
+            "framework fill projection requires an audited recovery receipt.".format(state),
+        )
+
+    def _managed_framework_projection_active(self, response, order):
+        """Return a bridge-validated fill-recovery receipt, never a raw flag."""
+
+        if not isinstance(response, Mapping) or self.store is None:
+            return False
+        validate = getattr(self.store, "validate_managed_framework_projection", None)
+        if not callable(validate):
+            return False
+        try:
+            return validate(response, order) is True
+        except Exception as exc:
+            _safe_log("warning", "btapibroker:managed framework projection receipt invalid")
+            self._sanitize_exception(exc)
+            return False
 
     @staticmethod
     def _non_mapping_submit_response_error(result):
@@ -6223,16 +6606,104 @@ class BtApiBroker(BrokerBase):
 
     def _drain_store_updates(self):
         """Consume remote broker updates from the store and reflect them locally."""
+        if getattr(self, "_managed_provider_projection_failed", False):
+            return
+        if self.store is not None and bool(
+            getattr(self.store, "managed_provider_projection_blocked", False)
+        ):
+            self._managed_provider_projection_failed = True
+            for pending_order in self.orders.values():
+                if self._order_info_get(pending_order, "managed_intent_id"):
+                    self._mark_managed_provider_projection_failure(
+                        pending_order, "managed_provider_projection_session_fenced"
+                    )
+            return
         if self.store is None or not hasattr(self.store, "poll_broker_update"):
             return
 
         while True:
             raw_update = self.store.poll_broker_update()
             if raw_update is None:
+                if bool(getattr(self.store, "managed_provider_projection_blocked", False)):
+                    self._managed_provider_projection_failed = True
+                    for pending_order in self.orders.values():
+                        if self._order_info_get(pending_order, "managed_intent_id"):
+                            self._mark_managed_provider_projection_failure(
+                                pending_order, "managed_provider_projection_session_fenced"
+                            )
                 break
 
             for update in self._iter_broker_update_rows(raw_update):
                 kind = str(update.get("kind") or "").lower()
+                managed_projection_receipt = False
+                managed_projection_order = None
+                if (
+                    kind in {"order", "trade"}
+                    and bool(
+                        getattr(self.store, "managed_provider_projection_enabled", False)
+                    )
+                ):
+                    managed_projection_order = self._lookup_order(update)
+                    if managed_projection_order is None:
+                        self._managed_provider_projection_failed = True
+                        return
+                    if bool(
+                        self._order_info_get(
+                            managed_projection_order, "managed_provider_projection_blocked", False
+                        )
+                    ):
+                        continue
+                    try:
+                        prepared = self.store.prepare_managed_provider_projection(
+                            update, managed_projection_order
+                        )
+                    except Exception as exc:
+                        self._sanitize_exception(exc)
+                        retryable = bool(
+                            getattr(exc, "provider_projection_retryable", False)
+                        )
+                        if not retryable:
+                            managed_projection_order.addinfo(
+                                managed_provider_projection_blocked=True
+                            )
+                        managed_projection_order.addinfo(
+                            execution_unknown=True,
+                            managed_provider_projection_error=(
+                                "cumulative_fee_pending"
+                                if retryable
+                                else "durable_provider_observation_unavailable"
+                            ),
+                        )
+                        self.notify(managed_projection_order)
+                        if bool(
+                            getattr(self.store, "managed_provider_projection_blocked", False)
+                        ):
+                            self._managed_provider_projection_failed = True
+                            return
+                        continue
+                    if prepared is None:
+                        # The facade reported an exact duplicate or no new
+                        # durable observation. It grants no Broker mutation.
+                        continue
+                    update = dict(prepared)
+                    kind = str(update.get("kind") or "").lower()
+                    managed_projection_order = self._lookup_order(update)
+                    if (
+                        managed_projection_order is None
+                        or not self.store.validate_managed_provider_projection(
+                            update, managed_projection_order
+                        )
+                    ):
+                        self.store.fail_managed_provider_projection(
+                            update, "receipt_validation_failed"
+                        )
+                        self._managed_provider_projection_failed = True
+                        if managed_projection_order is not None:
+                            self._mark_managed_provider_projection_failure(
+                                managed_projection_order, "receipt_validation_failed"
+                            )
+                        return
+                    managed_projection_receipt = True
                 command = str(update.get("command") or "")
                 ctp_query_completion = bool(
                     kind == "command_completion" and command == "ctp_reconcile"
@@ -6253,14 +6724,56 @@ class BtApiBroker(BrokerBase):
                         # snapshot obsolete even when the two-round gate had
                         # already opened.
                         self._begin_ctp_reconciliation("broker_update_after_reconciliation")
-                if kind == "order":
-                    self._apply_order_update(update)
-                elif kind == "trade":
-                    self._apply_trade_update(update)
-                elif kind == "error":
-                    self._apply_error_update(update)
-                elif kind == "command_completion":
-                    self._apply_command_completion(update)
+                try:
+                    if kind == "order":
+                        self._apply_order_update(update)
+                    elif kind == "trade":
+                        self._apply_trade_update(update)
+                    elif kind == "error":
+                        self._apply_error_update(update)
+                    elif kind == "command_completion":
+                        self._apply_command_completion(update)
+                    if managed_projection_receipt:
+                        if bool(
+                            self._order_info_get(
+                                managed_projection_order, "ledger_mismatch", False
+                            )
+                        ) or bool(
+                            self._order_info_get(
+                                managed_projection_order, "execution_unknown", False
+                            )
+                        ):
+                            raise RuntimeError(
+                                "Broker rejected managed cumulative provider facts"
+                            )
+                        self.store.complete_managed_provider_projection(
+                            update, managed_projection_order
+                        )
+                except Exception as exc:
+                    if not managed_projection_receipt:
+                        raise
+                    self._sanitize_exception(exc)
+                    self.store.fail_managed_provider_projection(
+                        update, "broker_apply_or_receipt_failure"
+                    )
+                    self._managed_provider_projection_failed = True
+                    self._mark_managed_provider_projection_failure(
+                        managed_projection_order, "broker_apply_or_receipt_failure"
+                    )
+                    return
+
+    def _mark_managed_provider_projection_failure(self, order, reason):
+        """Mark an already uncertain managed Broker projection without continuing it."""
+
+        if order is None:
+            return
+        order.addinfo(
+            execution_unknown=True,
+            ledger_mismatch=True,
+            managed_provider_projection_blocked=True,
+            managed_provider_projection_error=str(reason),
+        )
+        self.notify(order)
 
     def _apply_command_completion(self, update):
         """Apply worker results on the Cerebro thread without treating REST ACKs as fills."""
@@ -6933,6 +7446,9 @@ class BtApiBroker(BrokerBase):
                     cancel_deadline_unknown_marked=False,
                     cancel_retry_due_monotonic_ns=None,
                     cancel_retry_exhausted=False,
+                    managed_execution_cancel_pending=False,
+                    managed_execution_cancel_reconciliation_required=False,
+                    managed_execution_cancel_freeze_required=False,
                 )
             elif from_query and bool(
                 self._order_info_get(order, "cancel_execution_unknown", False)

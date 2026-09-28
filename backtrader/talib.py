@@ -95,7 +95,14 @@ else:
             # Get the minimum period by using the abstract interface and params
             # Get the required minimum period through abstract interface and parameters
             if hasattr(self, "_tabstract"):
-                self._tabstract.set_function_args(**self.p._getkwargs())
+                # ``Indicator`` contributes Backtrader-wide compatibility
+                # parameters (for example ``period`` and ``movav``) to the
+                # merged parameter schema.  TA-Lib functions only accept the
+                # parameters declared by their abstract function, so passing
+                # the complete schema leaks unrelated keywords into the C
+                # wrapper (``talib.SMA(..., period=...)`` is invalid).
+                self._ta_parameter_names = tuple(self._tabstract.get_parameters())
+                self._tabstract.set_function_args(**self._ta_kwargs())
                 self._lookback = lookback = self._tabstract.lookback + 1
                 self.updateminperiod(lookback)
                 if (
@@ -108,6 +115,11 @@ else:
                 # cerebro = bt.metabase.findowner(self, bt.Cerebro)
                 tafuncinfo = self._tabstract.info
                 self._tafunc = getattr(talib, tafuncinfo["name"], None)
+
+        def _ta_kwargs(self):
+            """Return only the keyword arguments accepted by this TA-Lib function."""
+            params = self.p._getkwargs()
+            return {name: params[name] for name in self._ta_parameter_names if name in params}
 
         # Class method
         @classmethod
@@ -230,7 +242,7 @@ else:
             # prepare the data arrays - single shot
             narrays = [np.array(x.lines[0].array) for x in self.datas]
             # Execute
-            output = self._tafunc(*narrays, **self.p._getkwargs())
+            output = self._tafunc(*narrays, **self._ta_kwargs())
 
             fsize = self.size()
             lsize = fsize - getattr(self, "_iscandle", False)
@@ -256,7 +268,7 @@ else:
             size = getattr(self, "_lookback", None) or len(self)
             narrays = [np.array(x.lines[0].get(size=size)) for x in self.datas]
 
-            out = self._tafunc(*narrays, **self.p._getkwargs())
+            out = self._tafunc(*narrays, **self._ta_kwargs())
 
             fsize = self.size()
             lsize = fsize - getattr(self, "_iscandle", False)

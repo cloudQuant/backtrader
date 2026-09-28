@@ -1,0 +1,169 @@
+"""Guarded offline contracts for the retired 007 CTP broker factory."""
+
+from __future__ import annotations
+
+import builtins
+import importlib.util
+import io
+import os
+import socket
+import sys
+from pathlib import Path
+
+import pytest
+
+from backtrader_runtime.errors import RuntimeConfigError
+
+
+REPO = Path(__file__).resolve().parents[2]
+SUPPORT_PATH = REPO / "examples" / "007_ctp" / "ctp_example_support.py"
+SDK_PREFIXES = (
+    "bt_api_py",
+    "bt_api_ctp",
+    "bt_api_execution",
+    "thosttrader",
+    "thostmduserapi",
+    "ctpbee",
+    "ctp_api",
+    "_ctp",
+    "vnpy_ctp",
+)
+
+
+def _load_support_under_guards(monkeypatch, module_name):
+    """Import the real support module with provider, file, env, and socket guards."""
+    sdk_imports = []
+    environment_reads = []
+    env_file_reads = []
+    network_calls = []
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        if any(name == prefix or name.startswith(prefix + ".") for prefix in SDK_PREFIXES):
+            sdk_imports.append(name)
+            raise AssertionError("provider/native CTP import blocked")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    def guarded_getenv(name, default=None):
+        environment_reads.append(name)
+        raise AssertionError("support helper read process environment")
+
+    monkeypatch.setattr(os, "getenv", guarded_getenv)
+
+    def guard_open(original):
+        def guarded(file, *args, **kwargs):
+            try:
+                name = Path(os.fsdecode(os.fspath(file))).name.casefold()
+            except (TypeError, ValueError, OSError):
+                name = ""
+            if name == ".env":
+                env_file_reads.append(os.fsdecode(os.fspath(file)))
+                raise AssertionError("support helper read .env")
+            return original(file, *args, **kwargs)
+
+        return guarded
+
+    monkeypatch.setattr(builtins, "open", guard_open(builtins.open))
+    monkeypatch.setattr(io, "open", guard_open(io.open))
+    monkeypatch.setattr(os, "open", guard_open(os.open))
+
+    def denied(name):
+        def deny(*args, **kwargs):
+            network_calls.append(name)
+            raise AssertionError("network operation blocked")
+
+        return deny
+
+    for name in ("getaddrinfo", "create_connection"):
+        monkeypatch.setattr(socket, name, denied("socket." + name))
+    socket_methods = (
+        "connect",
+        "connect_ex",
+        "send",
+        "sendall",
+        "sendto",
+        "bind",
+        "listen",
+        "accept",
+        "sendfile",
+    )
+    for name in socket_methods:
+        monkeypatch.setattr(socket.socket, name, denied("socket.socket." + name))
+
+    spec = importlib.util.spec_from_file_location(module_name, SUPPORT_PATH)
+    assert spec is not None and spec.loader is not None
+    support = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, support)
+    spec.loader.exec_module(support)
+
+    trackers = {
+        "sdk_imports": sdk_imports,
+        "environment_reads": environment_reads,
+        "env_file_reads": env_file_reads,
+        "network_calls": network_calls,
+    }
+    assert all(not events for events in trackers.values())
+    return support, trackers
+
+
+def test_007_broker_factory_fails_before_store_config_or_dispatch(monkeypatch):
+    """The direct helper rejects before inspecting inputs or dispatching."""
+    support, trackers = _load_support_under_guards(
+        monkeypatch, "iteration41_007_live_broker_failclose_bombs"
+    )
+
+    class StoreBomb:
+        def __getattr__(self, name):
+            raise AssertionError("broker factory inspected the caller-supplied Store")
+
+    config_reads = []
+
+    class ConfigBomb:
+        def get(self, name, default=None):
+            config_reads.append((name, default))
+            raise AssertionError("broker factory inspected config")
+
+    constructor_calls = []
+
+    def forbidden_constructor(*args, **kwargs):
+        constructor_calls.append((args, kwargs))
+        raise AssertionError("broker factory reached the broker constructor")
+
+    monkeypatch.setattr(support, "BtApiBroker", forbidden_constructor)
+
+    with pytest.raises(RuntimeConfigError) as failure:
+        support.create_live_broker(StoreBomb(), ConfigBomb())
+
+    assert failure.value.reason == "legacy_direct_execution_not_supported"
+    assert constructor_calls == []
+    assert config_reads == []
+    assert all(not events for events in trackers.values())
+
+
+def test_007_broker_factory_cannot_wrap_a_caller_supplied_store(monkeypatch):
+    """Ordinary config cannot turn an injected Store into a broker route."""
+    support, trackers = _load_support_under_guards(
+        monkeypatch, "iteration41_007_live_broker_failclose_injected_store"
+    )
+
+    store = object()
+    calls = []
+
+    def record_constructor(*args, **kwargs):
+        calls.append((args, kwargs))
+        return object()
+
+    monkeypatch.setattr(support, "BtApiBroker", record_constructor)
+
+    try:
+        support.create_live_broker(store, {"broker": {"synthetic_tag": "route-probe"}})
+    except RuntimeConfigError as failure:
+        assert failure.reason == "legacy_direct_execution_not_supported"
+    else:
+        assert calls == [((), {"store": store, "synthetic_tag": "route-probe"})]
+        pytest.fail(f"legacy helper wrapped the injected Store in BtApiBroker: {calls!r}")
+
+    assert calls == []
+    assert all(not events for events in trackers.values())

@@ -1,10 +1,9 @@
 """Black-box checks for the self-contained Iteration 24 replay example."""
 
 import ast
+import copy
+import importlib
 import importlib.util
-import json
-import os
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -18,29 +17,15 @@ RUNNER = EXAMPLE / "run.py"
 CONFIG = EXAMPLE / "config.yaml"
 
 
-def _run(*arguments: str) -> subprocess.CompletedProcess:
-    """Run the example runner in a subprocess with the given CLI arguments."""
-    environment = os.environ.copy()
-    return subprocess.run(
-        [sys.executable, str(RUNNER), *arguments],
-        cwd=str(EXAMPLE),
-        env=environment,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+def _runner():
+    """Load the retained fixture API without invoking its retired script CLI."""
+
+    return importlib.import_module("examples.014_2_ctp_options_midfreq.run")
 
 
-def _report(result: subprocess.CompletedProcess) -> dict:
-    """Parse the JSON report emitted on a runner's standard output."""
-    assert result.stdout, result.stderr
-    return json.loads(result.stdout)
-
-
-def test_direct_subprocess_runs_actual_cerebro_with_no_external_side_effects() -> None:
-    result = _run()
-    assert result.returncode == 0, result.stderr
-    report = _report(result)
+def test_imported_replay_fixture_runs_actual_cerebro_with_no_external_side_effects() -> None:
+    runner = _runner()
+    report = runner.run_replay(runner.load_config())
     assert report["status"] == "LOCAL_REPLAY_PASS"
     assert report["cerebro"] == {
         "broker_class": "BackBroker",
@@ -68,7 +53,7 @@ def test_direct_subprocess_runs_actual_cerebro_with_no_external_side_effects() -
     assert report["actual_order_permission"] == "NOT_PROVEN"
 
 
-def test_runtime_import_graph_has_no_other_example_dependency_or_path_injection() -> None:
+def test_runtime_import_graph_has_no_other_example_dependency_and_a_pre_framework_gate() -> None:
     for source in (RUNNER, EXAMPLE / "ctp_options_midfreq_strategy.py"):
         tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
         imported_modules = []
@@ -82,13 +67,18 @@ def test_runtime_import_graph_has_no_other_example_dependency_or_path_injection(
             for module in imported_modules
         )
         source_text = source.read_text(encoding="utf-8")
-        assert "sys.path" not in source_text
         assert "importlib" not in source_text
         assert "pkgutil" not in source_text
+        if source == RUNNER:
+            assert "backtrader_runtime.legacy" in source_text
+            assert source_text.index('if __name__ == "__main__":') < source_text.index(
+                "import backtrader"
+            )
+        else:
+            assert "sys.path" not in source_text
 
-    result = _run("--scenario", "edge")
-    assert result.returncode == 0, result.stderr
-    report = _report(result)
+    runner = _runner()
+    report = runner.run_replay(runner.load_config(), scenario="edge")
     assert report["self_contained_runtime"] is True
     assert report["contracts"] == {
         "call": "C_LOCAL_1000",
@@ -100,30 +90,25 @@ def test_runtime_import_graph_has_no_other_example_dependency_or_path_injection(
 def test_tick_callback_cannot_submit_an_ordinary_trade_and_rejects_cutoff_boundary(
     tmp_path: Path,
 ) -> None:
-    no_edge = _run("--inject-cutoff-tick")
-    assert no_edge.returncode == 0, no_edge.stderr
-    no_edge_report = _report(no_edge)
+    runner = _runner()
+    raw_config = runner.load_config()
+    no_edge_report = runner.run_replay(raw_config, inject_cutoff_tick=True)
     assert no_edge_report["ordinary_decision_count_before_tick"] == 1
     assert no_edge_report["ordinary_decision_count"] == 1
     assert no_edge_report["accepted_cutoff_tick_features"]
     assert no_edge_report["orders_submitted"] == 0
     assert all(decision["origin"] == "next" for decision in no_edge_report["ordinary_decisions"])
 
-    boundary = _run("--inject-at-cutoff-tick")
-    assert boundary.returncode == 0, boundary.stderr
-    boundary_report = _report(boundary)
+    boundary_report = runner.run_replay(raw_config, inject_at_cutoff_tick=True)
     assert boundary_report["accepted_cutoff_tick_features"] == []
     assert boundary_report["rejected_tick_count"] == 1
     assert boundary_report["orders_submitted"] == 0
 
     external_config = tmp_path / "budget-rejected.yaml"
     external_config.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
-    blocked = _run("--config", str(external_config), "--scenario", "edge")
-    assert blocked.returncode == 2, blocked.stderr
-    blocked_report = _report(blocked)
-    assert blocked_report["status"] == "REJECTED"
-    assert blocked_report["error_code"] == "CONFIG_PATH"
-    assert blocked_report["external_trade_writes"] == 0
+    with pytest.raises(runner.ConfigurationError) as failure:
+        runner.load_config(external_config)
+    assert failure.value.code == "CONFIG_PATH"
 
 
 def test_fixed_budget_boundaries_and_timezone_qualified_ticks_fail_closed(tmp_path: Path) -> None:
@@ -160,15 +145,15 @@ def test_fixed_budget_boundaries_and_timezone_qualified_ticks_fail_closed(tmp_pa
 
 
 def test_non_replay_mode_fails_closed_before_any_external_action() -> None:
+    runner = _runner()
+    raw_config = runner.load_config()
     for mode, error_code in (
         ("shadow", "MODE_NOT_SUPPORTED_OFFLINE"),
         ("simnow", "MODE_NOT_SUPPORTED_OFFLINE"),
         ("production", "PRODUCTION_DISABLED"),
     ):
-        result = _run("--mode", mode)
-        assert result.returncode == 2
-        report = _report(result)
-        assert report["status"] == "REJECTED"
-        assert report["error_code"] == error_code
-        assert report["external_network_requests"] == 0
-        assert report["external_trade_writes"] == 0
+        invalid = copy.deepcopy(raw_config)
+        invalid["mode"] = mode
+        with pytest.raises(runner.ConfigurationError) as failure:
+            runner.run_replay(invalid)
+        assert failure.value.code == error_code
