@@ -2464,9 +2464,7 @@ class BtApiBroker(BrokerBase):
 
         result = deepcopy(snapshot)
         errors = result.get("evidence_errors")
-        if isinstance(errors, Mapping):
-            existing = [item for item in errors if isinstance(item, str)]
-        elif isinstance(errors, (list, tuple, set, frozenset)):
+        if isinstance(errors, (Mapping, list, tuple, set, frozenset)):
             existing = [item for item in errors if isinstance(item, str)]
         elif isinstance(errors, str) and errors:
             existing = [errors]
