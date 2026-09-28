@@ -1,6 +1,7 @@
 """AC32-13 / AC32-14: local rate limiting, retry policy and flush delivery."""
 
 import time
+from types import SimpleNamespace
 
 import backtrader as bt
 from backtrader.notifications import core as notify_core
@@ -217,13 +218,26 @@ def test_dedup_requires_an_explicit_cooldown(notifier_env):
     assert len(transport.requests) == 3
 
 
-def test_dedup_window_expires(notifier_env):
+def test_dedup_window_expires(notifier_env, monkeypatch):
     """After the cooldown elapses the key is delivered again."""
+    clock = {"now": 0.0}
+    monkeypatch.setattr(
+        notify_core,
+        "time",
+        SimpleNamespace(monotonic=lambda: clock["now"], sleep=time.sleep),
+    )
     _, transport, _ = notifier_env([{"channel": "ntfy", "topic": "t"}], dedup_cooldown=0.05)
-    bt.send_message("first", dedup_key="k", wait=True)
+    first = bt.send_message("first", dedup_key="k", wait=True)
+    assert first.outcomes[0].ok is True
+    assert len(transport.requests) == 1
+
+    # Stay 1 ms inside the window, then advance 1 ms beyond its expiry.
+    clock["now"] = 0.05 - 0.001
     suppressed = bt.send_message("second", dedup_key="k", wait=True)
     assert suppressed.outcomes[0].error_category == "deduped"
-    time.sleep(0.06)
+    assert len(transport.requests) == 1
+
+    clock["now"] = 0.05 + 0.001
     delivered = bt.send_message("third", dedup_key="k", wait=True)
     assert delivered.outcomes[0].ok is True
     assert len(transport.requests) == 2
