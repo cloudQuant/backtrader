@@ -167,6 +167,7 @@ examples/003_hft_notebook_examples/data/
 examples/007_ctp/live_certification/simnow_penetration/reports/
 examples/007_ctp/live_certification/simnow_penetration/config.yaml
 examples/007_ctp/live_certification/simnow_penetration/secrets.yaml
+examples/007_ctp/live_certification/simnow_penetration/cases/**/secrets.yaml
 examples/007_ctp/live_certification/hongyuan_penetration/*.docx
 
 # Generated visualizations and reports from runnable examples
