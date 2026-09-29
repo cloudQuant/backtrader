@@ -60,6 +60,7 @@ It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and othe
 - [Built-in Components](#-built-in-components)
 - [Advanced Topics](#-advanced-topics)
 - [Project Architecture](#-project-architecture)
+- [Live Trading Architecture](#-live-trading-architecture)
 - [Testing](#-testing)
 - [Repository Maintenance Notes](#-repository-maintenance-notes)
 - [API Documentation](#-api-documentation)
@@ -67,6 +68,7 @@ It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and othe
 - [Contributing](#-contributing)
 - [License](#-license)
 - [中文文档](#-中文文档)
+  - [实盘交易架构](#-实盘交易架构)
 
 ---
 
@@ -626,6 +628,60 @@ backtrader/
 ├── scripts/              # Install, test, benchmark, and maintenance helpers
 └── docs/                 # Documentation
 ```
+
+---
+
+## 🔌 Live Trading Architecture
+
+The live-trading stack starts with Backtrader's `BtApiFeed`, `BtApiStore`, and
+`BtApiBroker`. The bracketed packages below are optional deployment choices;
+the diagram shows their roles in the overall architecture rather than a fixed
+call sequence for every market-data update or order.
+
+```text
+Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
+    → [bt_api_gateway]
+        └─ [bt_api_transport_zmq: pyzmq transport]
+    → [bt_api_execution]
+    → [bt_api_risk]
+    → [bt_api_monitor]
+    → bt_api_py → bt_api_base
+    → bt_api_ctp | bt_api_ib_web | bt_api_mt5 | bt_api_okx | bt_api_binance | ...
+```
+
+**GitHub repositories:**
+[`backtrader`](https://github.com/cloudQuant/backtrader) →
+[`bt_api_gateway`](https://github.com/cloudQuant/bt_api_gateway)
+(transport: [`bt_api_transport_zmq`](https://github.com/cloudQuant/bt_api_transport_zmq)) →
+[`bt_api_execution`](https://github.com/cloudQuant/bt_api_execution) →
+[`bt_api_risk`](https://github.com/cloudQuant/bt_api_risk) →
+[`bt_api_monitor`](https://github.com/cloudQuant/bt_api_monitor) →
+[`bt_api_py`](https://github.com/cloudQuant/bt_api_py) →
+[`bt_api_base`](https://github.com/cloudQuant/bt_api_base) →
+[`bt_api_ctp`](https://github.com/cloudQuant/bt_api_ctp) |
+[`bt_api_ib_web`](https://github.com/cloudQuant/bt_api_ib_web) |
+[`bt_api_mt5`](https://github.com/cloudQuant/bt_api_mt5) |
+[`bt_api_okx`](https://github.com/cloudQuant/bt_api_okx) |
+[`bt_api_binance`](https://github.com/cloudQuant/bt_api_binance).
+
+- **Gateway and transport:** `bt_api_gateway` can forward market data and
+  account information. `bt_api_transport_zmq` uses `pyzmq` for that forwarding;
+  other middleware transports may be added later. Without a gateway, the SDK
+  connects to the exchange adapter directly.
+- **Execution and risk:** When selected, `bt_api_execution` receives orders and
+  cancellations for centralized execution. `bt_api_risk` applies controls to
+  order submission and cancellation before provider writes.
+- **Monitoring:** `bt_api_monitor` observes account, strategy, order, and
+  cancellation state; it consumes status and events rather than acting as a
+  serial order-forwarding hop.
+- **Exchange integration:** `bt_api_py` exposes the unified exchange interface,
+  `bt_api_base` supplies shared exchange infrastructure, and the venue packages
+  implement exchange-specific connectivity.
+
+Market data and account information flow back toward the Backtrader feed/store;
+orders and cancellations flow toward the selected exchange adapter. This is a
+composable architecture, not a claim that every optional route is deployed or
+approved for live trading. In particular, CTP live writes remain closed.
 
 ---
 
@@ -1227,6 +1283,54 @@ bt.flush_notifications(timeout=10.0)
 环境变量、错误分类和安全要求请见
 [`docs/NOTIFICATIONS_GUIDELINES.md`](docs/NOTIFICATIONS_GUIDELINES.md) 与
 [Read the Docs 通知指南](https://backtrader-zh.readthedocs.io/zh-cn/latest/user-guide/notifications_zh.html)。
+
+---
+
+## 🔌 实盘交易架构
+
+实盘链路从 Backtrader 的 `BtApiFeed`、`BtApiStore` 和 `BtApiBroker` 开始。
+方括号中的组件可按部署需要选择；下图表达整体职责，并不表示每条行情或订单消息
+都必须依次经过所有组件。
+
+```text
+Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
+    → [bt_api_gateway]
+        └─ [bt_api_transport_zmq：基于 pyzmq 的传输层]
+    → [bt_api_execution]
+    → [bt_api_risk]
+    → [bt_api_monitor]
+    → bt_api_py → bt_api_base
+    → bt_api_ctp | bt_api_ib_web | bt_api_mt5 | bt_api_okx | bt_api_binance | ...
+```
+
+**对应 GitHub 仓库：**
+[`backtrader`](https://github.com/cloudQuant/backtrader) →
+[`bt_api_gateway`](https://github.com/cloudQuant/bt_api_gateway)
+（传输层：[`bt_api_transport_zmq`](https://github.com/cloudQuant/bt_api_transport_zmq)）→
+[`bt_api_execution`](https://github.com/cloudQuant/bt_api_execution) →
+[`bt_api_risk`](https://github.com/cloudQuant/bt_api_risk) →
+[`bt_api_monitor`](https://github.com/cloudQuant/bt_api_monitor) →
+[`bt_api_py`](https://github.com/cloudQuant/bt_api_py) →
+[`bt_api_base`](https://github.com/cloudQuant/bt_api_base) →
+[`bt_api_ctp`](https://github.com/cloudQuant/bt_api_ctp) |
+[`bt_api_ib_web`](https://github.com/cloudQuant/bt_api_ib_web) |
+[`bt_api_mt5`](https://github.com/cloudQuant/bt_api_mt5) |
+[`bt_api_okx`](https://github.com/cloudQuant/bt_api_okx) |
+[`bt_api_binance`](https://github.com/cloudQuant/bt_api_binance)。
+
+- **网关与传输层**：`bt_api_gateway` 可转发行情和账户信息；
+  `bt_api_transport_zmq` 使用 `pyzmq` 完成转发，后续可接入其他中间件。
+  不选择网关时，SDK 经交易所适配层直连交易所。
+- **集中执行与风控**：选择 `bt_api_execution` 时，订单和撤单可交由它集中执行；
+  `bt_api_risk` 对下单和撤单实施风控，在写入交易所前做决策。
+- **监控**：`bt_api_monitor` 观察账户、策略、订单和撤单状态；它消费状态与事件，
+  并非订单必须经过的串行转发节点。
+- **交易所接口**：`bt_api_py` 提供统一交易所接口，`bt_api_base` 提供共用的
+  交易所基础架构，各 `bt_api_*` 交易所包负责相应交易所的具体连接。
+
+行情与账户信息向 Backtrader 的 Feed/Store 回传，下单与撤单向所选交易所适配层
+传递。这是可组合的架构说明，不代表所有可选链路均已部署或取得实盘交易验收；
+其中 CTP 实盘写入仍处于关闭状态。
 
 ---
 
