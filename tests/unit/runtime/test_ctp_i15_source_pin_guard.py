@@ -23,9 +23,7 @@ def _worker_command(tmp_path: Path) -> FixedChildCommand:
     return FixedChildCommand((sys.executable, "-I", "-S", "-B"), tmp_path, {})
 
 
-def _install_fake_build_dependencies(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> list[str]:
+def _install_fake_build_dependencies(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
     rendered_digests: list[str] = []
     base_worker = _worker_command(tmp_path)
     artifact_code = f"sys.path.insert(0, {str(tmp_path)!r})\nprint('offline')\n"
@@ -40,9 +38,7 @@ def _install_fake_build_dependencies(
         "_fixed_i12_artifact_preflight_command",
         lambda _worker: base_artifact,
     )
-    monkeypatch.setattr(
-        i15, "_new_i15_pycache_prefix", lambda: tmp_path / "unused-cache-prefix"
-    )
+    monkeypatch.setattr(i15, "_new_i15_pycache_prefix", lambda: tmp_path / "unused-cache-prefix")
 
     def render_bootstrap(**kwargs: object) -> str:
         digest = kwargs["expected_manifest_sha256"]

@@ -260,9 +260,9 @@ def test_candidate_package_version_reads_installed_wheel_record(package_name):
     try:
         module = importlib.import_module(package_name)
         distribution = importlib.metadata.distribution(package_name)
-        expected_path = Path(
-            distribution.locate_file(package_name + "/__init__.py")
-        ).resolve(strict=True)
+        expected_path = Path(distribution.locate_file(package_name + "/__init__.py")).resolve(
+            strict=True
+        )
         actual_path = Path(module.__file__).resolve(strict=True)
     except (ImportError, importlib.metadata.PackageNotFoundError, OSError):
         pytest.skip("installed wheel package is unavailable")
