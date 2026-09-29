@@ -664,6 +664,17 @@ Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
 [`bt_api_okx`](https://github.com/cloudQuant/bt_api_okx) |
 [`bt_api_binance`](https://github.com/cloudQuant/bt_api_binance).
 
+**Other venue repositories:**
+[`bt_api_bitget`](https://github.com/cloudQuant/bt_api_bitget) ·
+[`bt_api_bybit`](https://github.com/cloudQuant/bt_api_bybit) ·
+[`bt_api_coinbase`](https://github.com/cloudQuant/bt_api_coinbase) ·
+[`bt_api_dydx`](https://github.com/cloudQuant/bt_api_dydx) ·
+[`bt_api_gateio`](https://github.com/cloudQuant/bt_api_gateio) ·
+[`bt_api_htx`](https://github.com/cloudQuant/bt_api_htx) ·
+[`bt_api_hyperliquid`](https://github.com/cloudQuant/bt_api_hyperliquid) ·
+[`bt_api_kraken`](https://github.com/cloudQuant/bt_api_kraken) ·
+[`bt_api_mexc`](https://github.com/cloudQuant/bt_api_mexc).
+
 - **Gateway and transport:** `bt_api_gateway` can forward market data and
   account information. `bt_api_transport_zmq` uses `pyzmq` for that forwarding;
   other middleware transports may be added later. Without a gateway, the SDK
@@ -1317,6 +1328,17 @@ Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
 [`bt_api_mt5`](https://github.com/cloudQuant/bt_api_mt5) |
 [`bt_api_okx`](https://github.com/cloudQuant/bt_api_okx) |
 [`bt_api_binance`](https://github.com/cloudQuant/bt_api_binance)。
+
+**其他交易所仓库：**
+[`bt_api_bitget`](https://github.com/cloudQuant/bt_api_bitget) ·
+[`bt_api_bybit`](https://github.com/cloudQuant/bt_api_bybit) ·
+[`bt_api_coinbase`](https://github.com/cloudQuant/bt_api_coinbase) ·
+[`bt_api_dydx`](https://github.com/cloudQuant/bt_api_dydx) ·
+[`bt_api_gateio`](https://github.com/cloudQuant/bt_api_gateio) ·
+[`bt_api_htx`](https://github.com/cloudQuant/bt_api_htx) ·
+[`bt_api_hyperliquid`](https://github.com/cloudQuant/bt_api_hyperliquid) ·
+[`bt_api_kraken`](https://github.com/cloudQuant/bt_api_kraken) ·
+[`bt_api_mexc`](https://github.com/cloudQuant/bt_api_mexc)。
 
 - **网关与传输层**：`bt_api_gateway` 可转发行情和账户信息；
   `bt_api_transport_zmq` 使用 `pyzmq` 完成转发，后续可接入其他中间件。
