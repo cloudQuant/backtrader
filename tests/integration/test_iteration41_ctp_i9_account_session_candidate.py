@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import importlib
+import importlib.metadata
 import math
 import queue
 from hashlib import sha256
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +18,7 @@ from backtrader_runtime.ctp_i9_account_session_candidate import (
     CtpI9AccountSessionCandidateError,
     CtpI9NativeLifecycleSupervisor,
     _claimed_native_payload,
+    _candidate_package_version,
     _trusted_candidate_types,
 )
 
@@ -249,6 +253,94 @@ def _candidate_types_or_skip():
     if types is None:
         pytest.skip("reviewed local execution and CTP source candidates are unavailable")
     return types
+
+
+@pytest.mark.parametrize("package_name", ["bt_api_execution", "bt_api_ctp"])
+def test_candidate_package_version_reads_installed_wheel_record(package_name):
+    try:
+        module = importlib.import_module(package_name)
+        distribution = importlib.metadata.distribution(package_name)
+        expected_path = Path(
+            distribution.locate_file(package_name + "/__init__.py")
+        ).resolve(strict=True)
+        actual_path = Path(module.__file__).resolve(strict=True)
+    except (ImportError, importlib.metadata.PackageNotFoundError, OSError):
+        pytest.skip("installed wheel package is unavailable")
+    if actual_path != expected_path:
+        pytest.skip("package import resolves to a source checkout, not the installed wheel")
+    assert _candidate_package_version(package_name, module) == distribution.version
+
+
+def test_candidate_package_version_rejects_same_name_shadow(tmp_path):
+    shadow_init = tmp_path / "shadow" / "bt_api_execution" / "__init__.py"
+    shadow_init.parent.mkdir(parents=True)
+    shadow_init.write_text("__version__ = '0.2.0'\n", encoding="utf-8")
+    shadow = SimpleNamespace(
+        __name__="bt_api_execution",
+        __file__=str(shadow_init),
+        __spec__=SimpleNamespace(origin=str(shadow_init)),
+    )
+    assert _candidate_package_version("bt_api_execution", shadow) is None
+
+
+class _FakeWheelRecordEntry:
+    def __init__(self, hash_value):
+        self.hash = SimpleNamespace(mode="sha256", value=hash_value)
+
+    def as_posix(self):
+        return "bt_api_execution/__init__.py"
+
+    def __str__(self):
+        return self.as_posix()
+
+
+def test_candidate_package_version_rejects_record_hash_mismatch(tmp_path, monkeypatch):
+    root = tmp_path / "site-packages"
+    package_init = root / "bt_api_execution" / "__init__.py"
+    package_init.parent.mkdir(parents=True)
+    package_init.write_text("__version__ = '0.2.0'\n", encoding="utf-8")
+    entry = _FakeWheelRecordEntry("0" * 43)
+
+    class Distribution:
+        version = "0.2.0"
+        files = (entry,)
+
+        @staticmethod
+        def locate_file(relative):
+            return root / str(relative)
+
+    monkeypatch.setattr(importlib.metadata, "distribution", lambda _name: Distribution())
+    installed_lookalike = SimpleNamespace(
+        __name__="bt_api_execution",
+        __file__=str(package_init),
+        __spec__=SimpleNamespace(origin=str(package_init)),
+    )
+    assert _candidate_package_version("bt_api_execution", installed_lookalike) is None
+
+
+def test_candidate_package_version_accepts_matching_wheel_record(tmp_path, monkeypatch):
+    root = tmp_path / "site-packages"
+    package_init = root / "bt_api_execution" / "__init__.py"
+    package_init.parent.mkdir(parents=True)
+    package_init.write_text("__version__ = '0.2.0'\n", encoding="utf-8")
+    digest = base64.urlsafe_b64encode(sha256(package_init.read_bytes()).digest()).decode("ascii")
+    entry = _FakeWheelRecordEntry(digest.rstrip("="))
+
+    class Distribution:
+        version = "0.2.0"
+        files = (entry,)
+
+        @staticmethod
+        def locate_file(relative):
+            return root / str(relative)
+
+    monkeypatch.setattr(importlib.metadata, "distribution", lambda _name: Distribution())
+    installed = SimpleNamespace(
+        __name__="bt_api_execution",
+        __file__=str(package_init),
+        __spec__=SimpleNamespace(origin=str(package_init)),
+    )
+    assert _candidate_package_version("bt_api_execution", installed) == "0.2.0"
 
 
 def _fake_native_call_admission(_owner, _binding, _verified):

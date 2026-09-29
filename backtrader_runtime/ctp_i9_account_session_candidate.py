@@ -14,6 +14,8 @@ against hostile Python code and does not authorize a provider account.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import queue
 import sys
@@ -126,23 +128,76 @@ def _trusted_candidate_types() -> tuple[type, ...] | None:
 
 
 def _candidate_package_version(package_name: str, module: Any) -> str | None:
-    """Read the exact version declared by an adjacent source-candidate pyproject."""
+    """Read a package version only from its source project or matching wheel RECORD."""
 
     if sys.version_info < (3, 11):
         return None
-    import tomllib
-
     source = getattr(module, "__file__", None)
-    if type(source) is str:
-        project_file = Path(source).resolve().parents[2] / "pyproject.toml"
+    if (
+        type(source) is not str
+        or getattr(module, "__name__", None) != package_name
+        or package_name not in {"bt_api_execution", "bt_api_ctp"}
+    ):
+        return None
+    try:
+        module_path = Path(source).resolve(strict=True)
+        module_spec = getattr(module, "__spec__", None)
+        origin = getattr(module_spec, "origin", None)
+        if type(origin) is str and Path(origin).resolve(strict=True) != module_path:
+            return None
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return None
+    if module_path.name != "__init__.py" or module_path.parent.name != package_name:
+        return None
+
+    # Developer source candidates carry their own pyproject. Installed wheels
+    # do not, so their version must come from the Distribution whose RECORD
+    # names and hashes the exact imported package initializer.
+    try:
+        import tomllib
+
+        project_file = module_path.parents[2] / "pyproject.toml"
         try:
             project = tomllib.loads(project_file.read_text(encoding="utf-8"))["project"]
         except (OSError, KeyError, TypeError, tomllib.TOMLDecodeError):
             project = None
         if isinstance(project, Mapping) and project.get("name") == package_name:
             project_version = project.get("version")
-            return project_version if type(project_version) is str else None
-    return None
+            if type(project_version) is str and project_version:
+                return project_version
+    except (OSError, RuntimeError, TypeError, ValueError):
+        pass
+
+    try:
+        from importlib import metadata
+
+        distribution = metadata.distribution(package_name)
+        distribution_root = Path(distribution.locate_file("")).resolve(strict=True)
+        relative_source = module_path.relative_to(distribution_root).as_posix()
+        matching_entries = [
+            entry
+            for entry in (distribution.files or ())
+            if entry.as_posix().casefold() == relative_source.casefold()
+        ]
+        if len(matching_entries) != 1:
+            return None
+        entry = matching_entries[0]
+        if entry.as_posix() != relative_source:
+            return None
+        recorded_path = Path(distribution.locate_file(entry)).resolve(strict=True)
+        if recorded_path != module_path:
+            return None
+        recorded_hash = entry.hash
+        if recorded_hash is None:
+            return None
+        digest = hashlib.new(recorded_hash.mode, module_path.read_bytes()).digest()
+        actual_record_value = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+        if actual_record_value != recorded_hash.value:
+            return None
+        version = distribution.version
+        return version if type(version) is str and version else None
+    except Exception:
+        return None
 
 
 def _session_payload(binding: Any) -> dict[str, Any]:
