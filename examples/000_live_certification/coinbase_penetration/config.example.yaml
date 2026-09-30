@@ -1,0 +1,92 @@
+# Live-only v2 managed certification. Copy to a private path before editing.
+# Values below are environment-variable NAMES or non-executable evidence placeholders.
+schema_version: 2
+venue: coinbase
+environment:
+  name: demo
+  kind: sandbox
+backend:
+  kind: http_json
+  endpoint_env: BT_API_PENETRATION_COINBASE_ENDPOINT
+  token_env: BT_API_PENETRATION_COINBASE_TOKEN
+credentials:
+  account: BT_API_PENETRATION_COINBASE_ACCOUNT
+policy:
+  allow_write: false
+  allow_dangerous: false
+  allow_production_write: false
+  max_actions: 40
+  max_quantity: 1
+  max_notional: 100
+  allowed_instruments: [REPLACE_WITH_SANDBOX_SYMBOL]
+  max_total_actions: 40
+  max_total_quantity: 1
+  max_total_notional: 100
+  max_price_deviation_bps: 100
+  notional_currency: USD
+defaults:
+  params:
+    symbol: REPLACE_WITH_SANDBOX_SYMBOL
+    side: buy
+    quantity: "0.001"
+    price: "1"
+    order_type: limit
+    remote_id: REPLACE_WITH_OWN_ORDER_ID
+    position_id: REPLACE_WITH_OWN_POSITION_ID
+    position_snapshot_id: REPLACE_WITH_POSITION_SNAPSHOT
+    order_snapshot_id: REPLACE_WITH_ORDER_SNAPSHOT
+    source_session_id: REPLACE_WITH_PROVIDER_SESSION
+    new_session_id: REPLACE_WITH_NEW_PROVIDER_SESSION
+    evidence_window_id: REPLACE_WITH_EVIDENCE_WINDOW
+    external_ref: REPLACE_WITH_PROVIDER_REFERENCE
+    source_request_id: REPLACE_WITH_PROVIDER_REQUEST
+    reason_code: REPLACE_WITH_REASON_CODE
+    operator_ref: REPLACE_WITH_OPERATOR_ID
+    authorization_ref: REPLACE_WITH_AUTHORIZATION_ID
+    restriction_ref: REPLACE_WITH_RESTRICTION_ID
+    restoration_ref: REPLACE_WITH_RESTORATION_ID
+    strategy_ref: REPLACE_WITH_STRATEGY_ID
+    trace_ref: REPLACE_WITH_TRACE_ID
+    order_ref: REPLACE_WITH_ORDER_REFERENCE
+    trade_ref: REPLACE_WITH_TRADE_REFERENCE
+    rule_ref: REPLACE_WITH_RULE_REFERENCE
+    config_snapshot_id: REPLACE_WITH_CONFIG_SNAPSHOT
+    order_count: 2
+    repeat_count: 2
+    expected_threshold: 5
+    baseline_count: 1
+    window_seconds: 60
+cases:
+  C01: {enabled: true, params: {}}
+  T01: {enabled: false, params: {}}
+  T02: {enabled: false, params: {side: sell, reduce_only: true}}
+  T03: {enabled: false, params: {}}
+  M01: {enabled: true, params: {}}
+  M02: {enabled: true, params: {}}
+  M03: {enabled: true, params: {}}
+  M04: {enabled: false, params: {}}
+  M05: {enabled: false, params: {}}
+  O01: {enabled: false, params: {}}
+  O02: {enabled: false, params: {side: sell, reduce_only: true}}
+  O03: {enabled: false, params: {}}
+  TH01: {enabled: true, params: {}}
+  TH02: {enabled: false, params: {expected_threshold: 2}}
+  TH03: {enabled: true, params: {expected_threshold: 10}}
+  TH04: {enabled: false, params: {expected_threshold: 3}}
+  TH05: {enabled: true, params: {expected_threshold: 3}}
+  TH06: {enabled: false, params: {expected_threshold: 2, repeat_count: 3}}
+  V01: {enabled: true, params: {}}
+  V02: {enabled: true, params: {}}
+  V03: {enabled: true, params: {}}
+  E01: {enabled: true, params: {}}
+  E02: {enabled: true, params: {}}
+  E03: {enabled: true, params: {}}
+  EM01: {enabled: true, params: {}}
+  EM02: {enabled: true, params: {}}
+  EM03: {enabled: true, params: {}}
+  B01: {enabled: false, params: {}}
+  B02: {enabled: false, params: {}}
+  L01: {enabled: true, params: {}}
+  L02: {enabled: true, params: {}}
+  L03: {enabled: true, params: {}}
+  L04: {enabled: true, params: {}}

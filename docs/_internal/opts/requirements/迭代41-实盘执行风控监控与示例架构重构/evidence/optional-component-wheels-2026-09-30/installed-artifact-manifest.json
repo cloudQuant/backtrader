@@ -1,0 +1,331 @@
+[
+  {
+    "name": "bt_api_execution",
+    "version": "0.2.0",
+    "url": "file:///D:/temp/optional-component-wheels-20260930-ae3255ed/wheels/bt_api_execution-0.2.0-py3-none-any.whl",
+    "sha256": "784f701e3cc22289385a18d187567f8976bd650077b7a27682120dcbe0fafbc1",
+    "requested": true
+  },
+  {
+    "name": "bt_api_gateway",
+    "version": "0.1.0",
+    "url": "file:///D:/temp/optional-component-wheels-20260930-ae3255ed/wheels/bt_api_gateway-0.1.0-py3-none-any.whl",
+    "sha256": "8886fa858dc0c85251034492bf3ee9daec4089eae0705779183d56194bc4f8b0",
+    "requested": true
+  },
+  {
+    "name": "bt_api_monitor",
+    "version": "0.1.0",
+    "url": "file:///D:/temp/optional-component-wheels-20260930-ae3255ed/wheels/bt_api_monitor-0.1.0-py3-none-any.whl",
+    "sha256": "918b036df5094ec0724c2471dc01d7ee9bedfcf4fdfcff8d145f19b4bad46a5d",
+    "requested": true
+  },
+  {
+    "name": "bt_api_risk",
+    "version": "0.1.0",
+    "url": "file:///D:/temp/optional-component-wheels-20260930-ae3255ed/wheels/bt_api_risk-0.1.0-py3-none-any.whl",
+    "sha256": "e8e3be76291d1319d56b3883227adc871a5561014f7f2d00b9c308aebddbd64b",
+    "requested": true
+  },
+  {
+    "name": "bt_api_transport_zmq",
+    "version": "0.1.0",
+    "url": "file:///D:/temp/optional-component-wheels-20260930-ae3255ed/wheels/bt_api_transport_zmq-0.1.0-py3-none-any.whl",
+    "sha256": "7b2d05e5c7edafee9c3e8baa99bc07f7264faae7e1a67eab3898ca44d3269ac4",
+    "requested": true
+  },
+  {
+    "name": "aiohttp",
+    "version": "3.13.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/aiohttp-3.13.3-cp311-cp311-win_amd64.whl",
+    "sha256": "f58f16562906f05b1d15e44b4de7ac90e2eaea977eb1fef31d5ae248a4935edc",
+    "requested": false
+  },
+  {
+    "name": "bt_api_base",
+    "version": "0.15.5",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/bt_api_base-0.15.5-py3-none-any.whl",
+    "sha256": "2f413f7e914c4bbd1dcd47b3b95a3fb36e224dda2c4db97bdda35bf61797ad68",
+    "requested": false
+  },
+  {
+    "name": "numpy",
+    "version": "1.26.4",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/numpy-1.26.4-cp311-cp311-win_amd64.whl",
+    "sha256": "1acf3933176ca2a6ecef8aa6a6d8b919c0108787c05caf13395b2292089ba805",
+    "requested": false
+  },
+  {
+    "name": "psutil",
+    "version": "5.9.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/psutil-5.9.0-cp311-cp311-win_amd64.whl",
+    "sha256": "ff08af9b57dd573671615e055d6539a7b0183773ef6fb7fecc685336de55a4d2",
+    "requested": false
+  },
+  {
+    "name": "pydantic",
+    "version": "2.5.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pydantic-2.5.0-py3-none-any.whl",
+    "sha256": "c4286ac883c5e62878bf764c5c6a514be633b24f840227f00708dd67fb426723",
+    "requested": false
+  },
+  {
+    "name": "pydantic_core",
+    "version": "2.14.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pydantic_core-2.14.1-cp311-none-win_amd64.whl",
+    "sha256": "d79f1527eb306e72d388e6591104784199fdbe05826b40af4e21a02b06eed178",
+    "requested": false
+  },
+  {
+    "name": "pyzmq",
+    "version": "27.1.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pyzmq-27.1.0-cp311-cp311-win_amd64.whl",
+    "sha256": "0903f03e6171c4cebfdb8e7c14ec6d0b0bb59f7076e8de58ed65e564de3878b0",
+    "requested": false
+  },
+  {
+    "name": "scikit-learn",
+    "version": "1.3.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/scikit_learn-1.3.0-cp311-cp311-win_amd64.whl",
+    "sha256": "6896e7ad9ab66eb7c040c6404569aa460846e885b09b4523e6d1dc8732ee480d",
+    "requested": false
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.15.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/typing_extensions-4.15.0-py3-none-any.whl",
+    "sha256": "057477a9936bdee3652e810f5fbc161df970a35fbe4de3c61a183fbb6eae5ad9",
+    "requested": false
+  },
+  {
+    "name": "aiohappyeyeballs",
+    "version": "2.6.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/aiohappyeyeballs-2.6.1-py3-none-any.whl",
+    "sha256": "000513f4897d1103d532c58a6d2125604e86e85bd5aa8c55e6bd9ae2b8d03a7e",
+    "requested": false
+  },
+  {
+    "name": "aiosignal",
+    "version": "1.4.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/aiosignal-1.4.0-py3-none-any.whl",
+    "sha256": "5a7c48c8b3bc88f1139d72f311cc229582fa6a133948d77fda2e917b241159e0",
+    "requested": false
+  },
+  {
+    "name": "annotated-types",
+    "version": "0.7.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/annotated_types-0.7.0-py3-none-any.whl",
+    "sha256": "2abb7cc0823eab141e7ea565b62507960e22ee5e80091bf27d053a922131fa6a",
+    "requested": false
+  },
+  {
+    "name": "attrs",
+    "version": "25.4.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/attrs-25.4.0-py3-none-any.whl",
+    "sha256": "39c2ebee6863a3dcfe682286ce86aa26dfaa02938140228f161a451fa99c1a2e",
+    "requested": false
+  },
+  {
+    "name": "frozenlist",
+    "version": "1.3.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/frozenlist-1.3.3-cp311-cp311-win_amd64.whl",
+    "sha256": "bddbea049578ccf37a09e9d71898bf94f5d9eb6d532fb4df8d8d1572fc8d5bbd",
+    "requested": false
+  },
+  {
+    "name": "httpx",
+    "version": "0.28.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/httpx-0.28.1-py3-none-any.whl",
+    "sha256": "bec0f03b1c5836e368472049c40a8ef9cee16d03fa357db39e38143af04717b3",
+    "requested": false
+  },
+  {
+    "name": "httpcore",
+    "version": "1.0.5",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/httpcore-1.0.5-py3-none-any.whl",
+    "sha256": "c141c9e7cb6581635e19a5c89dc5e0860033bfdad6fd33a78fc7e2ed6a259a06",
+    "requested": false
+  },
+  {
+    "name": "joblib",
+    "version": "1.2.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/joblib-1.2.0-py3-none-any.whl",
+    "sha256": "2075e8f5e8a79e21a208453a1a472301e132e812f0e4264409769c914420b72a",
+    "requested": false
+  },
+  {
+    "name": "multidict",
+    "version": "6.0.2",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/multidict-6.0.2-cp311-cp311-win_amd64.whl",
+    "sha256": "b6d17d19d2da7e8ae743213331a16ecd561c5257ad1806b105e1ad4be6a38ccb",
+    "requested": false
+  },
+  {
+    "name": "packaging",
+    "version": "26.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/packaging-26.3-py3-none-any.whl",
+    "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "requested": false
+  },
+  {
+    "name": "pandas",
+    "version": "2.2.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pandas-2.2.3-cp311-cp311-win_amd64.whl",
+    "sha256": "d9a1b285a8bf7b81182565e441813885cad722bbfc92b6a6817d3987063423d3",
+    "requested": false
+  },
+  {
+    "name": "propcache",
+    "version": "0.4.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/propcache-0.4.1-cp311-cp311-win_amd64.whl",
+    "sha256": "ab9febd75d127c359bb9b16fe4782de1ff01695b090d83423c67ab55534516ee",
+    "requested": false
+  },
+  {
+    "name": "pyarrow",
+    "version": "23.0.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pyarrow-23.0.1-cp311-cp311-win_amd64.whl",
+    "sha256": "45e62bc15f7e6ffd4fe9636158e36d734332f5d1b739c75eca4dbfa6c99ac975",
+    "requested": false
+  },
+  {
+    "name": "python-dotenv",
+    "version": "1.1.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/python_dotenv-1.1.1-py3-none-any.whl",
+    "sha256": "5b5e0510af3cda46a0257893630a1bf62b84cb6171b6334a11143cf63047de79",
+    "requested": false
+  },
+  {
+    "name": "python-rapidjson",
+    "version": "1.20",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/python_rapidjson-1.20-cp311-cp311-win_amd64.whl",
+    "sha256": "1c4b2ae01a9a0f748ce3ae163fe163d33157deabd90ef694aec91cdaba019c0a",
+    "requested": false
+  },
+  {
+    "name": "pytz",
+    "version": "2025.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pytz-2025.1-py2.py3-none-any.whl",
+    "sha256": "a798de4d2b675d68b4c435ca6352e943346adaaa1878f39b4630bd8572b71fca",
+    "requested": false
+  },
+  {
+    "name": "PyYAML",
+    "version": "6.0.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/pyyaml-6.0.1-cp311-cp311-win_amd64.whl",
+    "sha256": "c58d7fa75503c7b24a835357e6679682cf6d9e2ef7883def57e3949f0e3bed40",
+    "requested": false
+  },
+  {
+    "name": "requests",
+    "version": "2.32.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/requests-2.32.3-py3-none-any.whl",
+    "sha256": "13c4965a35bf4e2284b36baa59928d884bb171f3c5413c498f931fdc026add89",
+    "requested": false
+  },
+  {
+    "name": "scipy",
+    "version": "1.15.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/scipy-1.15.1-cp311-cp311-win_amd64.whl",
+    "sha256": "b4268def8270281e46e3697db652f390fdff2ca47e570ad346464457a0b4ba5a",
+    "requested": false
+  },
+  {
+    "name": "threadpoolctl",
+    "version": "3.6.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/threadpoolctl-3.6.0-py3-none-any.whl",
+    "sha256": "00e53b369063b2a18610e3b374248483aeeb06caf967233e76b9aa3dd2a579a4",
+    "requested": false
+  },
+  {
+    "name": "websocket-client",
+    "version": "1.8.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/websocket_client-1.8.0-py3-none-any.whl",
+    "sha256": "503497a80530e045e562bc721bcfc39b842c3f8332a46895eb5090725fd89416",
+    "requested": false
+  },
+  {
+    "name": "websockets",
+    "version": "15.0.1",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/websockets-15.0.1-cp311-cp311-win_amd64.whl",
+    "sha256": "40bc5816c9f42b67aa9d39da4114e488a8ec3246a2b16e406ed7eab07ff26652",
+    "requested": false
+  },
+  {
+    "name": "yarl",
+    "version": "1.23.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/yarl-1.23.0-cp311-cp311-win_amd64.whl",
+    "sha256": "96ea9315819449383fd889dd4616e561b9ff3be1d77df2711d388be885b370aa",
+    "requested": false
+  },
+  {
+    "name": "certifi",
+    "version": "2024.12.14",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/certifi-2024.12.14-py3-none-any.whl",
+    "sha256": "ab19c3b871d24aea368eeabd3aa2995fb7308af721e136282506f12c136af2a5",
+    "requested": false
+  },
+  {
+    "name": "charset-normalizer",
+    "version": "2.0.4",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/charset_normalizer-2.0.4-py3-none-any.whl",
+    "sha256": "83c341b0615f0e822ec71c67bf757e618b5795eea2cba0600fdf10750a78a465",
+    "requested": false
+  },
+  {
+    "name": "idna",
+    "version": "3.4",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/idna-3.4-py3-none-any.whl",
+    "sha256": "6029b54e86b8b02d6d40d060431b371e74067132a465d73bf1b73f841fcfbb0c",
+    "requested": false
+  },
+  {
+    "name": "python-dateutil",
+    "version": "2.9.0.post0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+    "sha256": "b2f3a98e72785ad97f38dc60371fb2da1c0e382490b9ed4ae42fd03fce63d7e5",
+    "requested": false
+  },
+  {
+    "name": "tzdata",
+    "version": "2023.3",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/tzdata-2023.3-py2.py3-none-any.whl",
+    "sha256": "33cd41ed56b244a25d9319bcfaab6860b3ff3dc0fbc2746219bf78bbab161bad",
+    "requested": false
+  },
+  {
+    "name": "urllib3",
+    "version": "1.26.20",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/urllib3-1.26.20-py2.py3-none-any.whl",
+    "sha256": "eb821b7a9ee5fea24e010fac5b57475ec30e305cad63fb0cb2cd104641379281",
+    "requested": false
+  },
+  {
+    "name": "anyio",
+    "version": "4.11.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/anyio-4.11.0-py3-none-any.whl",
+    "sha256": "1d3c940063423b0e3729aaefe7c416670960a087c434ff4fdebfa183f1e80fb3",
+    "requested": false
+  },
+  {
+    "name": "h11",
+    "version": "0.14.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/h11-0.14.0-py3-none-any.whl",
+    "sha256": "84f387fab02f524e7309f85eb8a7d47555d5d5ae08f2efb5a534ecf77ad9b2c3",
+    "requested": false
+  },
+  {
+    "name": "six",
+    "version": "1.16.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/six-1.16.0-py2.py3-none-any.whl",
+    "sha256": "c886eed9a2a67f3364797d03d991e4a24b9a60eb3fa22e1ea45f6f0a83268df4",
+    "requested": false
+  },
+  {
+    "name": "sniffio",
+    "version": "1.2.0",
+    "url": "file:///D:/temp/ac41-gateway-parent-compatible-consumer-20260928/wheelhouse/sniffio-1.2.0-py3-none-any.whl",
+    "sha256": "5e9e5c05a1d8ef265ef6225ec9413ef9d53f109f4aa57a3e13a276fec90b533d",
+    "requested": false
+  }
+]

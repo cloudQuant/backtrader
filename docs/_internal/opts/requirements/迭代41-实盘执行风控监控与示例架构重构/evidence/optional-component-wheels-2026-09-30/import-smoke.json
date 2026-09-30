@@ -1,0 +1,52 @@
+{
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "executable": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Scripts\\python.exe",
+  "prefix": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv",
+  "base_prefix": "C:\\anaconda3",
+  "isolated": 1,
+  "rows": [
+    {
+      "name": "bt_api_gateway",
+      "version": "0.1.0",
+      "module_version": null,
+      "origin": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Lib\\site-packages\\bt_api_gateway\\__init__.py",
+      "installed_record_hashes": 13,
+      "passed": true
+    },
+    {
+      "name": "bt_api_transport_zmq",
+      "version": "0.1.0",
+      "module_version": null,
+      "origin": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Lib\\site-packages\\bt_api_transport_zmq\\__init__.py",
+      "installed_record_hashes": 12,
+      "passed": true
+    },
+    {
+      "name": "bt_api_execution",
+      "version": "0.2.0",
+      "module_version": null,
+      "origin": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Lib\\site-packages\\bt_api_execution\\__init__.py",
+      "installed_record_hashes": 21,
+      "passed": true
+    },
+    {
+      "name": "bt_api_risk",
+      "version": "0.1.0",
+      "module_version": "0.1.0",
+      "origin": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Lib\\site-packages\\bt_api_risk\\__init__.py",
+      "installed_record_hashes": 22,
+      "passed": true
+    },
+    {
+      "name": "bt_api_monitor",
+      "version": "0.1.0",
+      "module_version": null,
+      "origin": "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Lib\\site-packages\\bt_api_monitor\\__init__.py",
+      "installed_record_hashes": 21,
+      "passed": true
+    }
+  ],
+  "provider_import_attempts": [],
+  "original_sources_unchanged_since_snapshot": true,
+  "scope": "INSTALLATION_PROVENANCE_ONLY; NOT_ROUTE_OR_PROVIDER_ACCEPTANCE"
+}

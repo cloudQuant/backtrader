@@ -389,6 +389,10 @@ The separate [Store lazy-connect audit](docs/_internal/opts/requirements/迭代4
 
 Default CTP writes, live dispatch, and real SimNow/production trading remain closed: NO_WRITE / LIVE_NO_GO.
 
+The `examples/000_live_certification/{simnow_penetration,hongyuan_penetration}` suites each keep one Git-ignored `config.yaml` at the suite root and only `<ID>_strategy.py` plus `run.py` in each of their 33 case directories. Each strategy class is named `<ID>Strategy`, and its runner derives that class name from the case directory. Corresponding strategy and runner files are identical across the two suites; their local configs select the provider settings. From a suite root, `python cases/C01/run.py` is an offline Cerebro smoke; `--live` remains `BLOCKED` because no managed certification runner is registered, and the smoke does not prove provider certification. The ignored checkout-root `.env` holds Hongyuan-specific account, password, AppID, authorization code, product-info, and connection-mode variables. The case runners do not load `.env` or use the product-info and connection-mode values; a separately admitted provider runner would have to resolve the four config-referenced credential variables from its process environment.
+
+The same `examples/000_live_certification` root also contains 13 sibling live-only venue suites for OKX, Binance, Bitget, Bybit, Coinbase, dYdX, Gate.io, HTX, Hyperliquid, IB Web, MT5, Kraken, and MEXC. Like the SimNow layout, each venue owns 33 `cases/<ID>/{<ID>_strategy.py,run.py}` entries, but these new entries never run the SimNow offline smoke. Each venue also bundles its own `_certification` schema-v2 runtime and `config.example.yaml`; there are no shared `penetration_*.py` files at the 000 root and no import of `bt_api_py` or sibling venue code, so a whole venue directory is portable. The strategy file declares the protected case/risk/evidence contract and the adjacent runner is fixed to that one case ID. Example configs contain environment-variable names and placeholders only, keep all WRITE/DANGEROUS cases and policy grants disabled, and require private real configs outside the repository. READ cases consume referenced provider evidence without creating state; write cases require exact config/CLI grants, bounded runner-authored operations, independent observations, complete snapshots, and cleanup restricted to authorized orders. No reviewed/deployed venue adapter or live result is included, so source presence and static checks establish zero venue `PASS` results. The managed bridge remains a trust boundary; incomplete product metadata, unsupported valuation, missing independent evidence, or uncertain cleanup must be `BLOCKED`. CTP's separate `NO_WRITE / LIVE_NO_GO` status is unchanged.
+
 The Iteration 41 inventory currently has 17 registrations, including a 007 suite-root zero-write `simulation/sandbox` runtime/front-check route. Its protected, Git-ignored config and directory ACL are aligned with 013_3; the schema-v4 config is rebound to `example.007_ctp.simnow_penetration` and contains five configured MD/TD pairs. Offline `doctor` exited 0 with `provider_preflight_started=false`, five pairs, and `preflight_available=false`; ordinary `preflight` remains fail-closed pending a bounded Windows Job supervisor and independent acceptance. On 2026-09-28, one explicit credential-free `check-ctp-fronts` TCP probe selected pair index 3 (MD and TD each 3/3 reachable); indexes 0/1/2/4 each had 0/3. This is a host-and-time-specific transport observation only: no SDK import, provider login, market-data subscription, order, or cancel occurred, and it does not establish future reachability. `bt-runtime run` on the suite root returns `profile_dispatch_unavailable`/exit 2 with `provider_preflight_started=false`; this route has no runner. The 007 route has no certification case runner, trading runner, or write permission. All 33 case directories are staged at `examples/007_ctp/live_certification/simnow_penetration/cases/<ID>/{config.yaml,<ID>_strategy.py,run.py}`; per-case configs contain scenario parameters only and must not duplicate account credentials. Their strategy files describe planned real actions and evidence, not executable provider strategies. Historical flat `cases/*.py` remain closed source. `managed_case_entry` returns `BLOCKED`/exit 2 for the cases; that unavailable-case-runner result is never real SimNow `PASS`. The latest six-file fake/offline runtime focus passed 176 tests, skipped 13, with one existing pytest-configuration warning; it does not establish TCP, provider, account, or trading behavior. Keep `NO_WRITE / LIVE_NO_GO`.
 
 The suite-root 007 `config.yaml` and any `secrets.yaml` now have exact Git-ignore rules. Offline CI smoke skips both reviewed CTP private-read runtimes before config loading; the synthetic same-path CLI test clones only its matching read-only binding. These checks do not read the private config or enable a runner.
@@ -2171,3 +2175,28 @@ branches resolve the earlier README-only Gateway pointer for review, but do
 not establish an authenticated account Actor, native binary provenance,
 provider reconciliation, a trusted writer fence, or a managed CTP route.
 G4/G6-P and real SimNow certification remain `NO_GO`.
+
+#### 000 three-venue simulation preflights (2026-09-30)
+
+The 000 Binance and OKX suites now have separate read-only direct account
+preflight scripts; the 000 SimNow suite has an offline admission preflight.
+These scripts do not implement the schema-v2 certification backend or produce
+any of the 33 case results. One Binance USD-M demo signed account query returned
+HTTP 200 with zero order/cancel requests. OKX still needs an explicit account
+region before its signed query. The 000 SimNow suite is not registered and its
+preflight stops before private config loading or native import. Focused offline
+tests passed 28 Binance, 44 OKX, and 13 SimNow cases. The
+33 separate 000 SimNow `run.py --live` entries all returned exit 2 / `BLOCKED`
+with `managed_ctp_certification_not_registered`. The
+three preflight suites, 000 venue entry-contract suite and explicit-topology
+guard suite passed 173 tests in total. Binance/OKX now block every explicitly
+selected direct or gateway/ZMQ topology, with any execution/risk/monitor
+selection, before credential/backend access because no reviewed route is
+registered; omitted topology is stamped `legacy_generic_bridge` in evidence.
+This guard is not direct or component route acceptance. Five
+optional-component wheels were independently built and installed
+in an isolated Python 3.11 consumer with source/RECORD/origin and `pip check`
+passing; this is installation-only evidence, not a route acceptance. The
+[three-venue Iteration 41 plan](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/000三场所模拟穿透开发与验收.md)
+records the distinct 99-case and optional-component acceptance gates. No real
+penetration certification case has passed.

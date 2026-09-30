@@ -1,0 +1,86 @@
+[
+  {
+    "wheel": "bt_api_execution-0.2.0-py3-none-any.whl",
+    "sha256": "784f701e3cc22289385a18d187567f8976bd650077b7a27682120dcbe0fafbc1",
+    "name": "bt_api_execution",
+    "version": "0.2.0",
+    "requires_dist": [
+      "pytest>=7.0; extra == \"dev\"",
+      "ruff>=0.1.0; extra == \"dev\"",
+      "mypy>=1.0; extra == \"dev\""
+    ],
+    "record_entries": 19,
+    "source_payload_files": 14,
+    "record_verified": true,
+    "source_payload_verified": true
+  },
+  {
+    "wheel": "bt_api_gateway-0.1.0-py3-none-any.whl",
+    "sha256": "8886fa858dc0c85251034492bf3ee9daec4089eae0705779183d56194bc4f8b0",
+    "name": "bt_api_gateway",
+    "version": "0.1.0",
+    "requires_dist": [
+      "pytest>=7.0; extra == \"dev\"",
+      "ruff>=0.1.0; extra == \"dev\""
+    ],
+    "record_entries": 11,
+    "source_payload_files": 6,
+    "record_verified": true,
+    "source_payload_verified": true
+  },
+  {
+    "wheel": "bt_api_monitor-0.1.0-py3-none-any.whl",
+    "sha256": "918b036df5094ec0724c2471dc01d7ee9bedfcf4fdfcff8d145f19b4bad46a5d",
+    "name": "bt_api_monitor",
+    "version": "0.1.0",
+    "requires_dist": [
+      "bt_api_base<0.16,>=0.15.4",
+      "psutil>=5.9.0",
+      "aiohttp>=3.9.0",
+      "pydantic>=2.0.0",
+      "typing-extensions>=4.8.0",
+      "pytest>=7.0; extra == \"dev\"",
+      "ruff>=0.1.0; extra == \"dev\"",
+      "mypy>=1.0; extra == \"dev\""
+    ],
+    "record_entries": 19,
+    "source_payload_files": 15,
+    "record_verified": true,
+    "source_payload_verified": true
+  },
+  {
+    "wheel": "bt_api_risk-0.1.0-py3-none-any.whl",
+    "sha256": "e8e3be76291d1319d56b3883227adc871a5561014f7f2d00b9c308aebddbd64b",
+    "name": "bt_api_risk",
+    "version": "0.1.0",
+    "requires_dist": [
+      "bt_api_base<0.16,>=0.15.4",
+      "numpy>=1.26.0",
+      "pydantic>=2.0.0",
+      "typing-extensions>=4.8.0",
+      "scikit-learn>=1.0.0",
+      "pytest>=7.0; extra == \"dev\"",
+      "ruff>=0.1.0; extra == \"dev\"",
+      "mypy>=1.0; extra == \"dev\""
+    ],
+    "record_entries": 20,
+    "source_payload_files": 16,
+    "record_verified": true,
+    "source_payload_verified": true
+  },
+  {
+    "wheel": "bt_api_transport_zmq-0.1.0-py3-none-any.whl",
+    "sha256": "7b2d05e5c7edafee9c3e8baa99bc07f7264faae7e1a67eab3898ca44d3269ac4",
+    "name": "bt_api_transport_zmq",
+    "version": "0.1.0",
+    "requires_dist": [
+      "pyzmq>=25",
+      "pytest>=7.0; extra == \"dev\"",
+      "ruff>=0.1.0; extra == \"dev\""
+    ],
+    "record_entries": 10,
+    "source_payload_files": 5,
+    "record_verified": true,
+    "source_payload_verified": true
+  }
+]

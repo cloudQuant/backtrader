@@ -1,0 +1,167 @@
+[
+  {
+    "label": "build-venv",
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-I",
+      "-m",
+      "venv",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-tools",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "install",
+      "--no-index",
+      "--find-links",
+      "D:\\temp\\ac41-wc-verify-wheelhouse-cf594-20260928",
+      "setuptools==75.8.0",
+      "wheel==0.43.0",
+      "packaging"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-bt_api_gateway",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "wheel",
+      "--no-index",
+      "--no-deps",
+      "--no-build-isolation",
+      "--wheel-dir",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\sources\\bt_api_gateway"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-bt_api_transport_zmq",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "wheel",
+      "--no-index",
+      "--no-deps",
+      "--no-build-isolation",
+      "--wheel-dir",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\sources\\bt_api_transport_zmq"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-bt_api_execution",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "wheel",
+      "--no-index",
+      "--no-deps",
+      "--no-build-isolation",
+      "--wheel-dir",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\sources\\bt_api_execution"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-bt_api_risk",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "wheel",
+      "--no-index",
+      "--no-deps",
+      "--no-build-isolation",
+      "--wheel-dir",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\sources\\bt_api_risk"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "build-bt_api_monitor",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\build-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "wheel",
+      "--no-index",
+      "--no-deps",
+      "--no-build-isolation",
+      "--wheel-dir",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\sources\\bt_api_monitor"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "consumer-venv",
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-I",
+      "-m",
+      "venv",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "install",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "install",
+      "--no-index",
+      "--find-links",
+      "D:\\temp\\ac41-gateway-parent-compatible-consumer-20260928\\wheelhouse",
+      "--report",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\install-report.json",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels\\bt_api_execution-0.2.0-py3-none-any.whl",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels\\bt_api_gateway-0.1.0-py3-none-any.whl",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels\\bt_api_monitor-0.1.0-py3-none-any.whl",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels\\bt_api_risk-0.1.0-py3-none-any.whl",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\wheels\\bt_api_transport_zmq-0.1.0-py3-none-any.whl"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "pip-check",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Scripts\\python.exe",
+      "-I",
+      "-m",
+      "pip",
+      "check"
+    ],
+    "exit": 0
+  },
+  {
+    "label": "import-smoke",
+    "command": [
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\consumer-venv\\Scripts\\python.exe",
+      "-I",
+      "D:\\temp\\optional-component-wheels-20260930-ae3255ed\\import_smoke.py"
+    ],
+    "exit": 0
+  }
+]

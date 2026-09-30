@@ -169,6 +169,13 @@ examples/007_ctp/live_certification/simnow_penetration/config.yaml
 examples/007_ctp/live_certification/simnow_penetration/secrets.yaml
 examples/007_ctp/live_certification/simnow_penetration/cases/**/secrets.yaml
 examples/007_ctp/live_certification/hongyuan_penetration/*.docx
+examples/000_live_certification/simnow_penetration/config.yaml
+examples/000_live_certification/hongyuan_penetration/config.yaml
+examples/000_live_certification/simnow_penetration/reports/
+examples/000_live_certification/hongyuan_penetration/reports/
+examples/000_live_certification/*_penetration/config.yaml
+examples/000_live_certification/*_penetration/secrets.yaml
+examples/000_live_certification/*_penetration/reports/
 
 # Generated visualizations and reports from runnable examples
 /examples/output/

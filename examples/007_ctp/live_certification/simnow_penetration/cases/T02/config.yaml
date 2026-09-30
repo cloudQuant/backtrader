@@ -1,8 +1,0 @@
-config_schema_version: 4
-strategy:
-  id: example.007_ctp.simnow_penetration.T02
-runtime:
-  mode: simulation
-  preset: sandbox
-parameters:
-  scenario: T02
