@@ -271,3 +271,15 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "scripts/iteration41_binance_th01_spawn_pipe_gate_r1.py" -text
 "tests/unit/live_certification/test_binance_th01_account_window_candidate_r2.py" -text
 "tests/unit/live_certification/test_binance_th01_spawn_pipe_gate_r1.py" -text
+
+# Exact checkout bytes for the accepted OKX M01 R2 lifecycle source component.
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/delivery-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/round-record.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-r2-independent-review-r1-2026-10-09/README.md" -text
+"scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r2.py" -text
+"scripts/iteration41_okx_m01_root_helper_lifecycle_patch_r2.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r2.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_patch_r2_source_fake.py" -text

@@ -1,0 +1,225 @@
+{
+  "schema": "iteration41.okx.m01.lifecycle_r2.source_component_delivery_manifest.v1",
+  "baseline": {
+    "branch": "dev",
+    "head": "d5fcfaa2c032d715def3969af4965522fd14a6fd"
+  },
+  "acceptance_scope": "SOURCE_FAKE_LIFECYCLE_REPAIR_COMPONENT_ONLY",
+  "files": [
+    {
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r2.py",
+      "bytes": 42137,
+      "sha256": "0c9067ba1a759a6843bc7249ffbe38a09f30c6d5f7e5ab1612cd60846d83e976",
+      "classification": "proposed_source_component"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r2.py",
+      "bytes": 20224,
+      "sha256": "d6df3de0af5695d6842c711597dddd998dc3f394144be89d720c851e1c600848",
+      "classification": "proposed_source_component"
+    },
+    {
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_patch_r2.py",
+      "bytes": 13625,
+      "sha256": "c53833b20238cb82d491bf7972508a604e56c8ad3158cada7060f9910629a78e",
+      "classification": "proposed_source_component"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_patch_r2_source_fake.py",
+      "bytes": 7396,
+      "sha256": "c413205ebd5053d13396368dd23c88b9e7ac431881802f9319c2425eb559bfc5",
+      "classification": "proposed_source_component"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-r2-independent-review-r1-2026-10-09/README.md",
+      "bytes": 2892,
+      "sha256": "c89bf7902e2e680224839d3c7f375b9348ed03247f68db9d5fe1dc7b6345d7ec",
+      "classification": "independent_source_fake_review"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.py",
+      "bytes": 5969,
+      "sha256": "e9105da60691998a5d3005fc084d396f23ce7485f6b4bfffd58ed506b293cc43",
+      "classification": "root_source_qa_evidence"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.json",
+      "bytes": 4434,
+      "sha256": "a7a7939f16c5007fae066722f8fbeb69ac462ccfdae49342ccace2a461c662f1",
+      "classification": "root_source_qa_evidence"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/README.md",
+      "bytes": 1563,
+      "sha256": "e68eb35fd883b8f948009d2402ed65c0163ab93f236fbfedf84d6f73b4baadd7",
+      "classification": "root_source_qa_evidence"
+    }
+  ],
+  "round_record_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/round-record.md",
+  "delivery_manifest_self_pin_convention": "round-record.md records the final byte count and SHA-256 of delivery-manifest.json; round-record hash is returned to Root after freeze",
+  "inherited_dependencies_excluded": [
+    {
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/__init__.py",
+      "bytes": 66,
+      "sha256": "a55f2a221bc45d1b840c15ca9ec8e5f46579e011728ec9e7c3b0748eacc7f7dc",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/cases.py",
+      "bytes": 5569,
+      "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/config.py",
+      "bytes": 19369,
+      "sha256": "3b5141a3c903e8c7eb0388d2907906c06c54ac41657e32fb9f11360e7efdeae3",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/evidence.py",
+      "bytes": 5491,
+      "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/fixed_owner_routes.py",
+      "bytes": 2152,
+      "sha256": "fe22dfca3b902c0b04855acd89f947d5d8de72a2475090ea92179eb415dad401",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/m01_private_monitor_v2.py",
+      "bytes": 25108,
+      "sha256": "1c319502dcec4da91a7166ad1a532e4610319ca837ac93f2391f21fda87ae1db",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/models.py",
+      "bytes": 6526,
+      "sha256": "f6db3e492fb8681bb156a577515b73e9966142e447f9d857ad4ec8a024389362",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/runner.py",
+      "bytes": 83470,
+      "sha256": "b25dbccd2ea745433d1f646d217c98d970207a6e861f9da45b9c0d40a0b340e5",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/__init__.py",
+      "bytes": 56,
+      "sha256": "d7cbd961ed06466f6bd2388d44a5951f92b0bb9f61d930cc9d26ec21be8d1a5c",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/current_types.py",
+      "bytes": 7364,
+      "sha256": "cd896051b0580195baa569989622c18fec594afc3772e7ea4af9e4cf226778ea",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/job_supervisor.py",
+      "bytes": 71188,
+      "sha256": "188b929b4e74b6e16a54d21093b6d52a7471849b161b2777945561e6d8d62e82",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/worker.py",
+      "bytes": 60000,
+      "sha256": "aea9651c571d4bbd93592ccbd06c630a2a73df8286e9425a357433d598ca4f41",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/__init__.py",
+      "bytes": 50,
+      "sha256": "ae66c18bb4d289dd2e09e9ac637af8a6ef017f4f6cc5edec4a23ee23d7e560e6",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "bytes": 63711,
+      "sha256": "b350e0d0110a3c87f6fc44a841b9df12e229eff2efac1060d66b598c17cbc734",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py",
+      "bytes": 5952,
+      "sha256": "a5ac85ff1b4c19a542abff56e728696eedee3959e5e7e4df8d6ac7cec0332575",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/issuer.py",
+      "bytes": 43112,
+      "sha256": "afdfb863dc8917ef07dbf844183b6216df578a85d3477dda1c32c9226cdb9ad8",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/M01_strategy.py",
+      "bytes": 480,
+      "sha256": "2ce73442c1e1ed0be95b3065e5434fb95b16d2b6026ed86e20b07a8e6ba97afc",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/run.py",
+      "bytes": 1992,
+      "sha256": "95db64019fb4f7e6124e15ead558b2686c70c8987d2b4ec941467e269ff0fc92",
+      "classification": "already_committed_clean_inherited_dependency"
+    },
+    {
+      "path": "tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py",
+      "bytes": 32737,
+      "sha256": "9d66d25310f5ee1b29943b222854e2a9d9b8ba48adcfe9848037f7afcb297a0d",
+      "classification": "already_committed_clean_inherited_dependency"
+    }
+  ],
+  "inherited_dependency_count": 20,
+  "pinning_source_index_excluded": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source-index.json",
+    "bytes": 11314,
+    "sha256": "abc6e49afab4fad7d44dc70474cfc993e212e71c56270b7d065374da63da9bc8",
+    "classification": "pinned_index_excluded_from_delivery"
+  },
+  "exact_pre_post_pin_count": 25,
+  "candidate_file_count": 4,
+  "independent_review_file_count": 1,
+  "qa_evidence_file_count": 3,
+  "proposed_payload_file_count": 10,
+  "proposed_gitattributes_rule_count": 10,
+  "proposed_gitattributes_lines": [
+    "\"scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r2.py\" -text",
+    "\"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r2.py\" -text",
+    "\"scripts/iteration41_okx_m01_root_helper_lifecycle_patch_r2.py\" -text",
+    "\"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_patch_r2_source_fake.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-r2-independent-review-r1-2026-10-09/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/root-source-qa.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/round-record.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-lifecycle-r2-root-source-qa-r1-2026-10-09/delivery-manifest.json\" -text"
+  ],
+  "root_source_qa": {
+    "tool_id": "54125f",
+    "passed": 14,
+    "exit_code": 0,
+    "warning_count": 0,
+    "module_origins_verified": true,
+    "exact_pre_post_pins_verified": true,
+    "source_index_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source-index.json",
+    "source_index_sha256": "abc6e49afab4fad7d44dc70474cfc993e212e71c56270b7d065374da63da9bc8"
+  },
+  "excluded": {
+    "frozen_r1_failure_archive": "separate future capsule round",
+    "future_r3_gate_and_test": "not part of R2 source component",
+    "real_windows_cleanup": "not established",
+    "account_provider_behavior": "not established",
+    "formal_m01_acceptance": "not established"
+  },
+  "staging_or_commit_performed": false
+}
