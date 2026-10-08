@@ -1093,10 +1093,30 @@ def _root_helper_wrapper(root_helper_bytes: bytes) -> bytes:
     )
 
 
+_ROOT_HELPER_RETAINED_CONTEXTS: list[tuple[Any, ...]] = []
+
+def _wait_for_job_zero(kernel: Any, job: int, *, timeout_seconds: float) -> bool:
+    """Poll a held Job until its active process count is zero or time expires."""
+    deadline = time.monotonic() + max(0.0, float(timeout_seconds))
+    while True:
+        try:
+            active = job_supervisor._active_count(kernel, job)
+        except Exception:
+            raise CurrentReaderError("root_helper_job_count_unavailable") from None
+        if type(active) is not int:
+            raise CurrentReaderError("root_helper_job_count_invalid")
+        if active == 0:
+            return True
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(0.025, remaining))
+
+
 def _run_pinned_root_helper(
     wrapper: bytes, environment: Mapping[str, str], *, timeout_seconds: float
 ) -> tuple[bytes, bytes, int | None, int, dict[str, Any]]:
-    """Run exact root-helper bytes in a suspended Anaconda child under a Job."""
+    """Run exact helper bytes and retain uncertain process/Job ownership."""
     _require(type(timeout_seconds) in (int, float) and 1 <= timeout_seconds <= 360, "root_timeout")
     _require(
         type(wrapper) is bytes and 0 < len(wrapper) <= worker.MAX_LAUNCH_FRAME_BYTES,
@@ -1109,6 +1129,9 @@ def _run_pinned_root_helper(
     states = [job_supervisor._new_pipe_state(), job_supervisor._new_pipe_state()]
     threads = []
     result = None
+    primary_error = None
+    cleanup_complete = False
+
     try:
         control = job_supervisor._create_suspended(
             kernel,
@@ -1140,12 +1163,27 @@ def _run_pinned_root_helper(
         if not job_supervisor._close_handle(kernel, control["handles"], control["stdin"]):
             raise CurrentReaderError("root_helper_stdin_close")
         control["stdin"] = 0
+
         remaining = max(0, int((deadline - time.monotonic()) * 1000))
         exited = job_supervisor._wait_process(kernel, control["process"], remaining)
         if not exited:
             raise CurrentReaderError("root_helper_timeout")
+        control["process_reaped"] = True
         exit_code = job_supervisor._process_exit_code(kernel, control["process"])
-        active = job_supervisor._active_count(kernel, control["job"])
+        if exit_code is None:
+            raise CurrentReaderError("root_helper_exit_code_unavailable")
+
+        # Windows Job accounting can retain the root process while its parent
+        # process handle remains open. Release that reference before querying.
+        if not job_supervisor._close_handle(kernel, control["handles"], control["process"]):
+            raise CurrentReaderError("root_helper_process_handle_close")
+        control["process"] = 0
+
+        job_zero = _wait_for_job_zero(kernel, control["job"], timeout_seconds=2.0)
+        control["job_zero_confirmed"] = job_zero
+        if not job_zero:
+            raise CurrentReaderError("root_helper_descendant_active")
+
         for thread in threads:
             thread.join(timeout=5.0)
         _require(all(not thread.is_alive() for thread in threads), "root_helper_pipe_join")
@@ -1154,7 +1192,6 @@ def _run_pinned_root_helper(
                 state["eof"] and state["done"] and not state["error"] and not state["overflow"],
                 "root_helper_pipe_incomplete",
             )
-        _require(active == 0, "root_helper_descendant_active")
         stdout, stderr = bytes(states[0]["raw"]), bytes(states[1]["raw"])
         control["root_helper_normal_exit"] = True
         result = (
@@ -1165,43 +1202,118 @@ def _run_pinned_root_helper(
             {
                 "pid": int(control["pid"]),
                 "assigned_before_resume": bool(control.get("assigned")),
-                "active_count_after_exit": active,
+                "active_count_after_exit": 0,
                 "normal_exit": exit_code == 0 and exited,
             },
         )
-        return result
     except BaseException as exc:
+        primary_error = exc
         if control is not None:
             try:
-                job_supervisor._terminate_control(kernel, control, 0xEE5A)
+                control["termination_succeeded"] = bool(
+                    job_supervisor._terminate_control(kernel, control, 0xEE5A)
+                )
             except Exception:
-                pass
-            try:
-                job_supervisor._wait_process(kernel, control["process"], 5000)
-            except Exception:
-                pass
+                control["termination_succeeded"] = False
+
+            process = control.get("process")
+            process_reaped = bool(control.get("process_reaped"))
+            if process and not process_reaped:
+                try:
+                    process_reaped = job_supervisor._wait_process(kernel, process, 5000)
+                except Exception:
+                    process_reaped = False
+                control["process_reaped"] = process_reaped
+            if process and process_reaped:
+                try:
+                    if job_supervisor._close_handle(kernel, control["handles"], process):
+                        control["process"] = 0
+                except Exception:
+                    pass
+
+            if control.get("process_reaped") and not control.get("process"):
+                try:
+                    control["job_zero_confirmed"] = _wait_for_job_zero(
+                        kernel, control["job"], timeout_seconds=5.0
+                    )
+                except Exception:
+                    control["job_zero_confirmed"] = False
             for thread in threads:
-                thread.join(timeout=5.0)
-            raise CurrentReaderError("root_helper_lifecycle_failed") from None
-        if isinstance(exc, CurrentReaderError):
-            raise
-        raise CurrentReaderError("root_helper_lifecycle_failed") from None
+                try:
+                    thread.join(timeout=5.0)
+                except Exception:
+                    pass
     finally:
-        if control is not None:
-            reaped = False
-            try:
-                reaped = job_supervisor._wait_process(kernel, control["process"], 0)
-            except Exception:
-                pass
-            runtime_handles = set(control.get("runtime_handles", ()))
-            leaked = []
-            for handle in tuple(control.get("handles", ())):
-                if handle in runtime_handles and not reaped:
-                    leaked.append(handle)
-                    continue
-                job_supervisor._close_handle(kernel, control["handles"], handle)
-            if leaked:
-                job_supervisor._ORPHANED_RUNTIME_HANDLE_SETS.append((kernel, tuple(leaked)))
+        if control is None:
+            cleanup_complete = True
+        else:
+            process = control.get("process")
+            process_reaped = bool(control.get("process_reaped"))
+            if process and not process_reaped:
+                try:
+                    process_reaped = job_supervisor._wait_process(kernel, process, 0)
+                except Exception:
+                    process_reaped = False
+                control["process_reaped"] = process_reaped
+            if process and process_reaped:
+                try:
+                    if job_supervisor._close_handle(kernel, control["handles"], process):
+                        control["process"] = 0
+                except Exception:
+                    pass
+
+            threads_joined = all(not thread.is_alive() for thread in threads)
+            pipes_complete = all(
+                state["eof"] and state["done"] and not state["error"] and not state["overflow"]
+                for state in states
+            )
+            retain_context = (
+                not control.get("process_reaped")
+                or bool(control.get("process"))
+                or not control.get("job_zero_confirmed")
+                or not threads_joined
+                or not pipes_complete
+            )
+            if not retain_context:
+                handles = control.get("handles")
+                if type(handles) is not set:
+                    retain_context = True
+                else:
+                    job_value = control.get("job")
+                    try:
+                        ordered_handles = sorted(
+                            tuple(handles),
+                            key=lambda handle: (handle == job_value, int(handle)),
+                        )
+                    except Exception:
+                        ordered_handles = []
+                        retain_context = True
+                    for handle in ordered_handles:
+                        try:
+                            closed = job_supervisor._close_handle(kernel, handles, handle)
+                        except Exception:
+                            closed = False
+                        if not closed:
+                            retain_context = True
+                            break
+            if retain_context:
+                _ROOT_HELPER_RETAINED_CONTEXTS.append(
+                    (kernel, control, tuple(threads), tuple(states))
+                )
+            else:
+                cleanup_complete = not control.get("handles")
+
+    if primary_error is not None:
+        if isinstance(primary_error, CurrentReaderError):
+            raise primary_error
+        raise CurrentReaderError("root_helper_lifecycle_failed") from None
+    if not cleanup_complete:
+        raise CurrentReaderError("root_helper_cleanup_unconfirmed")
+    if result is None:
+        raise CurrentReaderError("root_helper_lifecycle_failed")
+    return result
+
+
 
 
 def _verify_root_c01_artifacts(

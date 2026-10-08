@@ -1,0 +1,310 @@
+{
+  "acceptance_level": "SOURCE_FAKE_CANONICAL_READER_LIFECYCLE_INTEGRATION_ONLY",
+  "baseline": {
+    "branch": "dev",
+    "gitattributes_bytes": 50230,
+    "gitattributes_sha256": "110df3c098c8ff9f7b32c884688026068b682c81be6d94ec3069f93f81649bf5",
+    "head": "9617fb3280d92edd1eae0198877d9438fd8cce5c"
+  },
+  "expected_file_count_including_manifest_record_and_gitattributes": 23,
+  "expected_payload_count": 20,
+  "historical_fixture": {
+    "archived_current_reader_bytes": 63711,
+    "archived_current_reader_member": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+    "archived_current_reader_sha256": "b350e0d0110a3c87f6fc44a841b9df12e229eff2efac1060d66b598c17cbc734",
+    "source_archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source.zip",
+    "source_archive_sha256": "fb319aa4b066a839dc8681d2ac30897374bece35d90bf29d6c26b28c40b7ee35",
+    "source_map_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source-map.json",
+    "source_map_sha256": "db7b351656a0e26aac3778332ed7eb838a92a73605a5bb3604cb4b770c06ebe3",
+    "use": "historical source-fake fixture only; no runtime/account proof"
+  },
+  "inherited_exact_committed_inputs": [
+    {
+      "bytes": 17537,
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+    },
+    {
+      "bytes": 66,
+      "path": "examples/000_live_certification/okx_penetration/_certification/__init__.py",
+      "sha256": "a55f2a221bc45d1b840c15ca9ec8e5f46579e011728ec9e7c3b0748eacc7f7dc"
+    },
+    {
+      "bytes": 5569,
+      "path": "examples/000_live_certification/okx_penetration/_certification/cases.py",
+      "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+    },
+    {
+      "bytes": 19369,
+      "path": "examples/000_live_certification/okx_penetration/_certification/config.py",
+      "sha256": "3b5141a3c903e8c7eb0388d2907906c06c54ac41657e32fb9f11360e7efdeae3"
+    },
+    {
+      "bytes": 5491,
+      "path": "examples/000_live_certification/okx_penetration/_certification/evidence.py",
+      "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+    },
+    {
+      "bytes": 2152,
+      "path": "examples/000_live_certification/okx_penetration/_certification/fixed_owner_routes.py",
+      "sha256": "fe22dfca3b902c0b04855acd89f947d5d8de72a2475090ea92179eb415dad401"
+    },
+    {
+      "bytes": 25108,
+      "path": "examples/000_live_certification/okx_penetration/_certification/m01_private_monitor_v2.py",
+      "sha256": "1c319502dcec4da91a7166ad1a532e4610319ca837ac93f2391f21fda87ae1db"
+    },
+    {
+      "bytes": 6526,
+      "path": "examples/000_live_certification/okx_penetration/_certification/models.py",
+      "sha256": "f6db3e492fb8681bb156a577515b73e9966142e447f9d857ad4ec8a024389362"
+    },
+    {
+      "bytes": 83470,
+      "path": "examples/000_live_certification/okx_penetration/_certification/runner.py",
+      "sha256": "b25dbccd2ea745433d1f646d217c98d970207a6e861f9da45b9c0d40a0b340e5"
+    },
+    {
+      "bytes": 56,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/__init__.py",
+      "sha256": "d7cbd961ed06466f6bd2388d44a5951f92b0bb9f61d930cc9d26ec21be8d1a5c"
+    },
+    {
+      "bytes": 7364,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/current_types.py",
+      "sha256": "cd896051b0580195baa569989622c18fec594afc3772e7ea4af9e4cf226778ea"
+    },
+    {
+      "bytes": 71188,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/job_supervisor.py",
+      "sha256": "188b929b4e74b6e16a54d21093b6d52a7471849b161b2777945561e6d8d62e82"
+    },
+    {
+      "bytes": 60000,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/worker.py",
+      "sha256": "aea9651c571d4bbd93592ccbd06c630a2a73df8286e9425a357433d598ca4f41"
+    },
+    {
+      "bytes": 50,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/__init__.py",
+      "sha256": "ae66c18bb4d289dd2e09e9ac637af8a6ef017f4f6cc5edec4a23ee23d7e560e6"
+    },
+    {
+      "bytes": 43112,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/issuer.py",
+      "sha256": "afdfb863dc8917ef07dbf844183b6216df578a85d3477dda1c32c9226cdb9ad8"
+    },
+    {
+      "bytes": 480,
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/M01_strategy.py",
+      "sha256": "2ce73442c1e1ed0be95b3065e5434fb95b16d2b6026ed86e20b07a8e6ba97afc"
+    },
+    {
+      "bytes": 67503,
+      "path": "scripts/iteration41_okx_m01_local_source_lease_reconciliation_r7.py",
+      "sha256": "8e7e3fb7e9b0e51968e6d8a3bdc47793c7ca276e55eb9cfd60367270aa8ebef5"
+    },
+    {
+      "bytes": 13625,
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_patch_r2.py",
+      "sha256": "c53833b20238cb82d491bf7972508a604e56c8ad3158cada7060f9910629a78e"
+    },
+    {
+      "bytes": 20224,
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r2.py",
+      "sha256": "d6df3de0af5695d6842c711597dddd998dc3f394144be89d720c851e1c600848"
+    },
+    {
+      "bytes": 32737,
+      "path": "tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py",
+      "sha256": "9d66d25310f5ee1b29943b222854e2a9d9b8ba48adcfe9848037f7afcb297a0d"
+    },
+    {
+      "bytes": 105065,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source.zip",
+      "sha256": "fb319aa4b066a839dc8681d2ac30897374bece35d90bf29d6c26b28c40b7ee35"
+    },
+    {
+      "bytes": 2877,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-reason-preservation-r2-selected-source-qa-r4-2026-10-09/source-map.json",
+      "sha256": "db7b351656a0e26aac3778332ed7eb838a92a73605a5bb3604cb4b770c06ebe3"
+    }
+  ],
+  "payload_files": [
+    {
+      "bytes": 68215,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "sha256": "5a8fd479c999279d9efde625cac1938d794201f04e1beaa6f3663b267d7a7ebc"
+    },
+    {
+      "bytes": 5952,
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py",
+      "sha256": "e0613b66fa54d5ea155da263d1e901e8ada78adf7d83a7e1c8dc5430ea440d1e"
+    },
+    {
+      "bytes": 1992,
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/run.py",
+      "sha256": "d498e32fcb573781a3eec25eff4c7ba98bfe2c8d4d94f9e5a9b078ab4074641e"
+    },
+    {
+      "bytes": 9809,
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py",
+      "sha256": "21d43a5e8d1c517c2ffaa147c96f58343fb188432d4fae47717a5b68b6ec040d"
+    },
+    {
+      "bytes": 75271,
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+      "sha256": "43e2b3cee8da9f1ebcf148992160512893615bfa15fc118ced491b04dd05ac72"
+    },
+    {
+      "bytes": 27576,
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+      "sha256": "73fd436e5de9327f0d02f59baab66b60b1887bf1bf0d27ceeaca7a5c018b3038"
+    },
+    {
+      "bytes": 3219,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/README.md",
+      "sha256": "5a718a0e209a7e967b2104bb09ac9291741d2aa8f92ebc8c0d773ec1471156c6"
+    },
+    {
+      "bytes": 8427,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/delivery-scope.json",
+      "sha256": "c8d2839e6d11a9638b4f6b6008ac46187b06c1b10eda8a0f3f334eb71ae554e0"
+    },
+    {
+      "bytes": 837,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/qa-command.txt",
+      "sha256": "3345e8b3c3a83c80c567b6d84ed8022575b281b9dfe7904ac5949ce033d6792f"
+    },
+    {
+      "bytes": 9970,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-index.json",
+      "sha256": "8cd0360bb9519daf785412a6176091d2ca0ff4471e2bf65aba011aeec3444564"
+    },
+    {
+      "bytes": 2877,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-map.json",
+      "sha256": "07f0eb60d60f37919c75cc3ec6833b41653fdbc9952c8478dbbc36ba0cda1ff3"
+    },
+    {
+      "bytes": 1673,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-qa-result.json",
+      "sha256": "03aa50336c57b79b984684e0cb53771af7e9d350b07d4ed0d911ed51eb0ee3b2"
+    },
+    {
+      "bytes": 151736,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source.zip",
+      "sha256": "337d8f48eed1de8e7f880d6c8a24cf41e3707649cd0b0c3be87cc0b0948d39b3"
+    },
+    {
+      "bytes": 3744,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-gate-r7-independent-review-r1-2026-10-09-oct7f/README.md",
+      "sha256": "fbf545e96ef4faca992e4e804dd1fea799749f797881426f101ac236c2636417"
+    },
+    {
+      "bytes": 3820,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-independent-review-r1-2026-10-09-oct7f/README.md",
+      "sha256": "c09eb8be009567b70d50a063e042ef7d75af8ce8d2368fd568bdb4b82e38263b"
+    },
+    {
+      "bytes": 62187,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/root-source-qa-r11.py",
+      "sha256": "5a0ab2b01a4047a64430fc97cc19f127e13f387ef26a30951ed30f1beaaea9e6"
+    },
+    {
+      "bytes": 21892,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/root-source-qa-r11.json",
+      "sha256": "cc12739614623f75c68ab8897b5e948f43967e91ef2bc52f791b210d56b06008"
+    },
+    {
+      "bytes": 34385,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/executed-child-source.py",
+      "sha256": "69e91158138dacc86d51fef4431a390390cae6a041246e8c8318064db8740904"
+    },
+    {
+      "bytes": 889,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/focused-pytest-stdout.txt",
+      "sha256": "894aa98b969e36f60f55c1197b1bc27e5dc4963c9ca875e8bb6e94a8c2c8167a"
+    },
+    {
+      "bytes": 2813,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/child-diagnostic.json",
+      "sha256": "e693081ddb6debeb280cdbf09512833347b53c95c1b7e15066a7edfd370bbbfe"
+    }
+  ],
+  "proposed_gitattributes_lines": [
+    "\"examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py\" -text",
+    "\"examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py\" -text",
+    "\"examples/000_live_certification/okx_penetration/cases/M01/run.py\" -text",
+    "\"tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py\" -text",
+    "\"scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r7.py\" -text",
+    "\"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r7.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/delivery-scope.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/qa-command.txt\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-index.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-map.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-qa-result.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source.zip\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-gate-r7-independent-review-r1-2026-10-09-oct7f/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-independent-review-r1-2026-10-09-oct7f/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/root-source-qa-r11.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/root-source-qa-r11.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/executed-child-source.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/focused-pytest-stdout.txt\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/child-diagnostic.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/delivery-manifest.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/round-record.md\" -text"
+  ],
+  "record_pin": {
+    "bytes": 2022,
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-canonical-reader-lifecycle-integration-dev-round-r1-2026-10-09/round-record.md",
+    "sha256": "39439a7d6e480b3dfbd671f4eebab4efd5946b6af1cd67fc226cccc729cd8408"
+  },
+  "root_source_qa": {
+    "child_diagnostic": {
+      "bytes": 2813,
+      "path": ".codex-tmp/okx_m01_reader_lifecycle_integration_root_qa_r11_child_diagnostic_20261009.json",
+      "sha256": "e693081ddb6debeb280cdbf09512833347b53c95c1b7e15066a7edfd370bbbfe"
+    },
+    "child_source": {
+      "bytes": 34385,
+      "path": "child.py",
+      "sha256": "69e91158138dacc86d51fef4431a390390cae6a041246e8c8318064db8740904"
+    },
+    "exit_code": 0,
+    "failed": 0,
+    "focused_stdout": {
+      "bytes": 889,
+      "path": "child.stdout.txt",
+      "sha256": "894aa98b969e36f60f55c1197b1bc27e5dc4963c9ca875e8bb6e94a8c2c8167a"
+    },
+    "guard_denial_trip_count": 0,
+    "guard_scope": "Reviewed selected-suite enforcement only; open-path/API checks do not form a general filesystem sandbox.",
+    "module_origins_verified": true,
+    "packet_pin_count": 7,
+    "passed": 16,
+    "result": {
+      "bytes": 21892,
+      "path": "root-source-qa-r11.json",
+      "sha256": "cc12739614623f75c68ab8897b5e948f43967e91ef2bc52f791b210d56b06008"
+    },
+    "scope": "PUBLIC_SOURCE_FAKE_QA_ONLY",
+    "script": {
+      "bytes": 62187,
+      "path": "root-source-qa-r11.py",
+      "sha256": "5a0ab2b01a4047a64430fc97cc19f127e13f387ef26a30951ed30f1beaaea9e6"
+    },
+    "selected_test_file_count": 2,
+    "source_and_archive_pin_count": 29,
+    "warning_count": 0
+  },
+  "schema": "iteration41.okx.m01.canonical-reader-lifecycle-integration.scoped-dev-delivery.v2",
+  "scope_limits": [
+    "Source-fake integration only; no real account or provider read.",
+    "No actual Root gate, target process/Pipe operation, native cleanup, or retained-host state claim.",
+    "Formal M01 PASS count remains zero.",
+    "Selected-suite guards are not a general filesystem sandbox."
+  ],
+  "status": "ROOT_R11_SOURCE_FAKE_READY_FOR_DELIVERY_REVIEW"
+}

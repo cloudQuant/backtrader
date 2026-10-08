@@ -16,7 +16,7 @@ VENUE = ROOT / "examples/000_live_certification/okx_penetration"
 PROFILE = "OKX_GLOBAL_DEMO_M01_CASE_V3"
 _SAFE_REASON = re.compile(r"[a-z0-9_]{1,64}\Z")
 _PINNED_PREIMPORTS = {
-    "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py": "b350e0d0110a3c87f6fc44a841b9df12e229eff2efac1060d66b598c17cbc734",
+    "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py": "5a8fd479c999279d9efde625cac1938d794201f04e1beaa6f3663b267d7a7ebc",
     "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/__init__.py": "d7cbd961ed06466f6bd2388d44a5951f92b0bb9f61d930cc9d26ec21be8d1a5c",
     "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/current_types.py": "cd896051b0580195baa569989622c18fec594afc3772e7ea4af9e4cf226778ea",
     "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/worker.py": "aea9651c571d4bbd93592ccbd06c630a2a73df8286e9425a357433d598ca4f41",

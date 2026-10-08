@@ -13,7 +13,7 @@ CASE_DIRECTORY = Path(__file__).resolve().parent
 VENUE_ROOT = CASE_DIRECTORY.parents[1]
 ENTRY_PATH = VENUE_ROOT / "_m01_readonly_monitor_v3" / "entry.py"
 PACKAGE_INIT_PATH = VENUE_ROOT / "_m01_readonly_monitor_v3" / "__init__.py"
-ENTRY_SHA256 = "a5ac85ff1b4c19a542abff56e728696eedee3959e5e7e4df8d6ac7cec0332575"
+ENTRY_SHA256 = "e0613b66fa54d5ea155da263d1e901e8ada78adf7d83a7e1c8dc5430ea440d1e"
 PACKAGE_INIT_SHA256 = "ae66c18bb4d289dd2e09e9ac637af8a6ef017f4f6cc5edec4a23ee23d7e560e6"
 
 
