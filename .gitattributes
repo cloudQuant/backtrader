@@ -335,3 +335,21 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/delivery-manifest.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/round-record.md" -text
+
+# Iteration41 OKX M01 R7 accepted normal source-close round
+"scripts/iteration41_okx_m01_local_source_lease_reconciliation_r7.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_local_source_lease_reconciliation_r7.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-local-source-lease-reconciliation-independent-review-r7-2026-10-09/README.md" -text
+"scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r1.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-gate-independent-review-r1-2026-10-09/README.md" -text
+".codex-tmp/okx_m01_local_lifecycle_root_actual_20261009.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-cuv2-public-source-snapshot-r1-2026-10-08/cuv2-source.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-local-lifecycle-root-actual-r1-2026-10-09/observation.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-local-lifecycle-root-actual-r1-2026-10-09/retained-facts.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/root-source-qa.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/root-source-qa.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/root-source-close-actual-driver.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-lease-reconciliation-root-actual-r7-2026-10-09/observation.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/delivery-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/round-record.md" -text
