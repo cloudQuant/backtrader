@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Protected SimNow C01 native TD read V3 admission",
+  "description": "Public schema only. The root owner creates one owner-only admission file at KnownFolder.LocalAppData/simnow-c01-native-td-read-v3/admissions/<admission_id>/admission.json. The case issuer creates consumed/consumed.json and a profile-wide admissions/claimed/claim.json with CREATE_NEW before config, credential .env, profile, worker, interpreter, or SDK reads. Before consumption, USERPROFILE is read only as a nonsecret identity sanity check against the fixed KnownFolder API result. Encode as canonical ASCII JSON with sorted keys, compact separators, and one final LF. Hashes below bind exact source and private account scope but reveal no credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profile_id",
+    "case_id",
+    "admission_id",
+    "status",
+    "not_before_utc",
+    "expires_at_utc",
+    "scope",
+    "bindings"
+  ],
+  "properties": {
+    "schema": {
+      "const": "simnow.c01.native_td_read_v3.admission.v1"
+    },
+    "profile_id": {
+      "const": "C01_NATIVE_TD_READ_V3"
+    },
+    "case_id": {
+      "const": "C01"
+    },
+    "admission_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "status": {
+      "const": "ACTIVE"
+    },
+    "not_before_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "expires_at_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "case_id",
+        "environment",
+        "operation_scope",
+        "front_transport_probe",
+        "max_front_pair_candidates",
+        "md_sdk_session",
+        "market_data_subscribe",
+        "native_join",
+        "order_insert",
+        "order_cancel",
+        "max_order_insert_requests",
+        "max_order_cancel_requests"
+      ],
+      "properties": {
+        "role": {
+          "const": "READ_ONLY_NATIVE_TD_NO_JOIN"
+        },
+        "case_id": {
+          "const": "C01"
+        },
+        "environment": {
+          "const": "simulation"
+        },
+        "operation_scope": {
+          "const": "TD_AUTH_LOGIN_ORDERS_POSITIONS_FUNDS_BASELINE_FINAL"
+        },
+        "front_transport_probe": {
+          "const": true
+        },
+        "max_front_pair_candidates": {
+          "const": 5
+        },
+        "md_sdk_session": {
+          "const": false
+        },
+        "market_data_subscribe": {
+          "const": false
+        },
+        "native_join": {
+          "const": false
+        },
+        "order_insert": {
+          "const": false
+        },
+        "order_cancel": {
+          "const": false
+        },
+        "max_order_insert_requests": {
+          "const": 0
+        },
+        "max_order_cancel_requests": {
+          "const": 0
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_runner_source_sha256",
+        "issuer_source_sha256",
+        "source_manifest_sha256",
+        "profile_contract_sha256",
+        "owner_source_sha256",
+        "worker_source_sha256",
+        "protocol_source_sha256",
+        "contract_source_sha256",
+        "supervisor_source_sha256",
+        "sdk_dependency_manifest_sha256",
+        "interpreter_binding_source_sha256",
+        "case_contract_sha256",
+        "case_strategy_sha256",
+        "envref_template_sha256",
+        "config_source_sha256",
+        "account_scope_sha256",
+        "credential_binding_sha256"
+      ],
+      "properties": {
+        "case_runner_source_sha256": {"$ref": "#/$defs/sha256"},
+        "issuer_source_sha256": {"$ref": "#/$defs/sha256"},
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "profile_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "owner_source_sha256": {"$ref": "#/$defs/sha256"},
+        "worker_source_sha256": {"$ref": "#/$defs/sha256"},
+        "protocol_source_sha256": {"$ref": "#/$defs/sha256"},
+        "contract_source_sha256": {"$ref": "#/$defs/sha256"},
+        "supervisor_source_sha256": {"$ref": "#/$defs/sha256"},
+        "sdk_dependency_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "interpreter_binding_source_sha256": {"$ref": "#/$defs/sha256"},
+        "case_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "case_strategy_sha256": {"$ref": "#/$defs/sha256"},
+        "envref_template_sha256": {"$ref": "#/$defs/sha256"},
+        "config_source_sha256": {"$ref": "#/$defs/sha256"},
+        "account_scope_sha256": {"$ref": "#/$defs/sha256"},
+        "credential_binding_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

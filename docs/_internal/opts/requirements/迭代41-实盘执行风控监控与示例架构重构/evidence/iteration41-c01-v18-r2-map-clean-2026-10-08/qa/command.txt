@@ -1,0 +1,7 @@
+From the repository root at baseline `dev` HEAD `f46234e338c774d017eb58853f32cfd7310ff9d5`:
+
+```powershell
+python -I -S -B -X utf8 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/runner.py
+```
+
+The runner requires Python 3.11 and pytest 8.0.0 available at the interpreter’s `Lib/site-packages`. It disables pytest plugin autoload and uses only the explicit path-only bootstrap, with a short temporary clean root under `.codex-tmp`.

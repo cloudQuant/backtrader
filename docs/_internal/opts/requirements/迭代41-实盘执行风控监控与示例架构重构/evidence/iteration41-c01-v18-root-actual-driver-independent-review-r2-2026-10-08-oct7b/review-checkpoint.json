@@ -1,0 +1,20 @@
+{
+  "schema": "iteration41.simnow.v18.root_driver.independent_review_checkpoint.r2",
+  "status": "SEALED",
+  "packet_id": "iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b",
+  "review_sha256": "73c5f2386a1f37c8fef13bf0d0699cb0509a6837a8c9221e0f4f9a5a2f82f800",
+  "review_bundle_sha256": "5c3133b33bd9e0f3c9fb097b3326864750906118a2f13611e4c31083457f5e5d",
+  "review_index_sha256": "602c21b58ac089be9ad47cd166f197337b17310d8bbb0137163595faa6b9f054",
+  "candidate_driver_sha256": "4165e23f8f9ebb429df7cac4f26482d4a68383fb1c898661bcf8a21b0eaf2b4a",
+  "candidate_driver_packet_pins_sha256": "20b5bca15b9b4d3f6e8f6ef8bb253d3ce7fae7fffa9f06a08c5bca5845b1d359",
+  "v18_activation_packet_pins_sha256": "fdb94c5416f0fe7949326bcd67af14d9e588d21c7dbf4c07f70efdc872d5c103",
+  "r1_parent_diagnostic_sha256": "72eeecb119273c497be8130bb89c60ff74fea076af9c3254bff47a140a622434",
+  "public_source_file_count": 29,
+  "software_pin_count": 2,
+  "held_file_count": 31,
+  "member_count": 55,
+  "official_c01_pass_count": 0,
+  "actual_root_provider_native_acceptance": "NOT_RUN",
+  "driver_executed": false,
+  "private_inputs_read": false
+}

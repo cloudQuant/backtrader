@@ -1,0 +1,693 @@
+{
+  "schema": "iteration41.c01.root_actual_driver.map_clean_source_round.v1",
+  "date": "2026-10-08",
+  "branch": "dev",
+  "baseline_head": "f46234e338c774d017eb58853f32cfd7310ff9d5",
+  "round_status": "R2 map/cleanup evidence accepted for source delivery review; formal C01 remains unaccepted",
+  "actual_r2": {
+    "driver_sha256": "4165e23f8f9ebb429df7cac4f26482d4a68383fb1c898661bcf8a21b0eaf2b4a",
+    "driver_bytes": 40248,
+    "pins_sha256": "20b5bca15b9b4d3f6e8f6ef8bb253d3ce7fae7fffa9f06a08c5bca5845b1d359",
+    "pins_bytes": 10696,
+    "wrapper_result": "BLOCKED/root_entry_blocked",
+    "all_job_and_outer_cu_cleanup": true,
+    "retained_references": 0,
+    "host_exit_code": 0,
+    "official_c01_pass_count": 0,
+    "diagnostic_observation_sha256": "3ebf3f8c71b5dab3d5f83cfe5af6a7fc28defcf3b94e36123dc8f37e264441e3",
+    "diagnostic_observation_bytes": 1587
+  },
+  "r2_packet": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08",
+    "pins_sha256": "20b5bca15b9b4d3f6e8f6ef8bb253d3ce7fae7fffa9f06a08c5bca5845b1d359",
+    "pins_bytes": 10696,
+    "packet_file_count": 48,
+    "source_payload_file_count": 29,
+    "frozen": true
+  },
+  "independent_review": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b",
+    "review_sha256": "73c5f2386a1f37c8fef13bf0d0699cb0509a6837a8c9221e0f4f9a5a2f82f800",
+    "review_pass_count": 25,
+    "file_count": 5
+  },
+  "root_readback": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08",
+    "observation_sha256": "05df7765e4057513fc7564cbf47c8a09a2ead8d299ba83437026d7a98b568feb",
+    "observation_bytes": 1412,
+    "file_count": 1
+  },
+  "actual_diagnostic": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08",
+    "observation_sha256": "3ebf3f8c71b5dab3d5f83cfe5af6a7fc28defcf3b94e36123dc8f37e264441e3",
+    "observation_bytes": 1587,
+    "file_count": 2
+  },
+  "frozen_inputs": [
+    {
+      "name": "frozen_r2_driver_packet",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08",
+      "file_count": 48,
+      "files": [
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/pins.json",
+          "bytes": 10696,
+          "sha256": "20b5bca15b9b4d3f6e8f6ef8bb253d3ce7fae7fffa9f06a08c5bca5845b1d359"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/qa/command.txt",
+          "bytes": 796,
+          "sha256": "82d6a9f3dd4f4b2f312322f67dc5a57b33af535471eeb1b2d8b60a6096a80cb4"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/qa/pytest-output.txt",
+          "bytes": 397,
+          "sha256": "eb02661839fb0f92ee9990a48b278b7769034722fd2403e449b25869fdac256b"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/qa/test_root_actual_driver_source_fake.py",
+          "bytes": 20212,
+          "sha256": "51013c2df3ad13ade82b710a1cd9ee65bd6b96efa6658fd55e8ef31fe0ec0773"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/README.md",
+          "bytes": 4641,
+          "sha256": "bcfd19faf2212d01cb33a3cb61a03799198646cd207ad983090401eece641b78"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/independent-review-contract.json",
+          "bytes": 1051,
+          "sha256": "2f71e10e7b335f51e7cc037444bec370d99b46eb00fa613f7f4b7c2c97d6b085"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/preactivation-readback-contract.json",
+          "bytes": 1157,
+          "sha256": "5592c060ecc2d13c18201ed1966dea2545c8d3ab0f6b3cc1d61c7da6dfb12d07"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/r1-parent-diagnostic/observation.json",
+          "bytes": 1529,
+          "sha256": "72eeecb119273c497be8130bb89c60ff74fea076af9c3254bff47a140a622434"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/r1-parent-diagnostic/README.md",
+          "bytes": 1158,
+          "sha256": "b0d70f2181c44e4dff7c65a1b6be0a0be983e988da80061887cbe12ea3f4bc74"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-activation/pins.json",
+          "bytes": 17428,
+          "sha256": "fdb94c5416f0fe7949326bcd67af14d9e588d21c7dbf4c07f70efdc872d5c103"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-activation/public-result-schema.json",
+          "bytes": 1960,
+          "sha256": "8da85be1ae93324bdad4c585d9c34ea33ad3279128dcd26fb4d9a3cbaf7a338f"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-activation/qa/command.txt",
+          "bytes": 806,
+          "sha256": "bce29b6ae9532369dd3d400e8e3bce03bfd159091e14013680bb9eb8e71c26eb"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-activation/qa/pytest-output.txt",
+          "bytes": 373,
+          "sha256": "29e61be2a002bb4449f80d8d32af6cdeca56247b1ced3787411392b32547179e"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-activation/README.md",
+          "bytes": 3786,
+          "sha256": "c6842c84e5c9b4903d386102a9a53756d4889ff86766d4a771d4abd74511207e"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-tests/test_certification_simnow_c01_root_custody_v16_source_fake.py",
+          "bytes": 44164,
+          "sha256": "f51f44df1d0beafe4c814fdb55890468330f08c200212b16788b37c02b967274"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-tests/test_certification_simnow_c01_root_entry_v18_source_fake.py",
+          "bytes": 30594,
+          "sha256": "da97d91bb8b08a3f75b005ad9e1597baa912abe0d3ed693c87d21ff68e79bf56"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-tests/test_certification_simnow_c01_root_v16_source_fake.py",
+          "bytes": 16005,
+          "sha256": "7630df5bba6946214564d10ca6f52d87e5a9286e0770b98115536199cf11e314"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-tests/test_root_activation_wrapper_r1_source_fake.py",
+          "bytes": 23611,
+          "sha256": "f7e7e99ba3d44daa01ea549673cfe7b65754529542b2f8050d167dcc0fe3f2b6"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/root-actual-driver.py",
+          "bytes": 40248,
+          "sha256": "4165e23f8f9ebb429df7cac4f26482d4a68383fb1c898661bcf8a21b0eaf2b4a"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+          "bytes": 33887,
+          "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_roundtrip_private.py",
+          "bytes": 17537,
+          "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_dependencies_v1.json",
+          "bytes": 1975,
+          "sha256": "7cb851df481066ee7622aea0bdd87863d6e04d3372fb520e7685a241411f2324"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_front_transport_v12.py",
+          "bytes": 7919,
+          "sha256": "f23d1488c29366f040df3bf98fbdc94fc17dc1a58886f269faaf30650d449091"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py",
+          "bytes": 7700,
+          "sha256": "a38d00ecfbc7a777edab4b9d090be49ef03a94e7c23340dfe95366bacfd05494"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_native_td_read_v18.admission.schema.json",
+          "bytes": 5128,
+          "sha256": "02f4891ea2dc18b2125db05706779abf830eef33fd3c264b81104e3154333c54"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_native_td_read_v18.py",
+          "bytes": 198449,
+          "sha256": "0f0026f1b2c217bf124bc8ba5ebe44a00d7c86eb096975f2cd76c7eb850b44ab"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_native_td_read_v18.sources.json",
+          "bytes": 2686,
+          "sha256": "372ee3aefc9d7066fcbeb82253dd4798d7f74c0b9eea9337c3d0af58c702f70d"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_native_v4.py",
+          "bytes": 199788,
+          "sha256": "66666d2addc3bddbf0f13a9a30fab9fea83479d7cac7328879552e13baea5a66"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_root_custody_v16.py",
+          "bytes": 78953,
+          "sha256": "571036d79815f7791bc6917f7afbf87ff8acd9806dc0556a80b9b39d34553f26"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_root_entry_v18.py",
+          "bytes": 16457,
+          "sha256": "ea7221fdc5d156670376f64ae5302306e42a34af82411650ccec94336949ab30"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_root_v16.py",
+          "bytes": 40358,
+          "sha256": "c703e509a73aeb5e4b1e37fd911a8a3ccd4211fe1ce9cf2cdcf65edffe586cef"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_v3_contract.py",
+          "bytes": 59663,
+          "sha256": "19d8b13bda11e54a5ca037387b6abc884035ec02c05fb099f2398b99319d8fb0"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_v3_protocol.py",
+          "bytes": 80745,
+          "sha256": "c48b41272ae6378060b0b65188b56ef613f001b53d13db7aceaf13489d398160"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_v4_supervisor.py",
+          "bytes": 54026,
+          "sha256": "daf2cf99cbc5d977e27f59efb0f27087abdf3493c9d959d5c3d253744f869da1"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/certification_simnow_c01_v7_owner.py",
+          "bytes": 36778,
+          "sha256": "ee492f115c60ca14f770a055061014f30b7b9cc1cecdfd09cae17f75aabf55e9"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/backtrader_runtime/ctp_front_pair_probe.py",
+          "bytes": 24442,
+          "sha256": "d6f92c7d2f6df13480cebcee2c7f864ac305d34d4cda37d1a22c466932d2905f"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/case_contracts/C01.yaml",
+          "bytes": 177,
+          "sha256": "33d60824f780784f0c391a8212816c6167dd7485dec5b9fc0b461b28e6b4adca"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/cases/C01/C01_strategy.py",
+          "bytes": 3829,
+          "sha256": "c88501fda1ce83cebb334b58566776bee5154a5cfea1c5cc22d717a2e09d3f17"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/cases/C01/run_v18.py",
+          "bytes": 9129,
+          "sha256": "507ca6c373a83fbbf7580a740c06d7ee5417701aba6c79bf02aea30810cc936e"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/common/c01_root_admission_bridge.py",
+          "bytes": 39279,
+          "sha256": "ad8cab9db917ebdadc5fbfb28ee26ca485746b7c8e6c4e4e2501d033fdb956f8"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/common/certification.py",
+          "bytes": 14162,
+          "sha256": "1604afa4dba946cd1d1fbd327c6d47057f0380d766e42d9a4614c3369851d020"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/examples/000_live_certification/simnow_penetration/config.private.yaml.template",
+          "bytes": 1478,
+          "sha256": "debc71d75b4e04c4e64c38750cdfa2101dc69585ef7898a290c721d882f51db2"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/ctp_000_front_handoff.py",
+          "bytes": 10157,
+          "sha256": "b08e70e723a5d31f18809129387455dfee3645e6ad9f2b516d7aa2789ffd19f7"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/ctp_000_paired_front_selector.py",
+          "bytes": 11099,
+          "sha256": "08d4025684503ba89c286699ad0511793c536e09af58333963cbecb40ad49ebb"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/ctp_000_render_config.py",
+          "bytes": 23998,
+          "sha256": "34bf2a99872f43f0d915bafcb0284827a8ac0c4baf70a2ce5f1046888223eac9"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/ctp_i13_i15_outer_watchdog.py",
+          "bytes": 25363,
+          "sha256": "31c945c77c7e147a296e66f4f1ec075e0a23f1a88b94fd339884268e79ca251c"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/ctp_i13_i15_windows_job_backend.py",
+          "bytes": 47251,
+          "sha256": "2566dd55d1a96285473850b1e2c63174696347da56e07d69fb72aa3a6285e381"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/source/scripts/run_simnow_c01_native_td_read_v18_root_activation_r1.py",
+          "bytes": 100708,
+          "sha256": "a77627312d0823284ebe8d673392668abf31e8fd6fc2a91892d4a215be004075"
+        }
+      ]
+    },
+    {
+      "name": "independent_r2_review",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b",
+      "file_count": 5,
+      "files": [
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/README.md",
+          "bytes": 2983,
+          "sha256": "d100b414a4ed3f7d13ab4a75351d9d4202cae0b44f67e1b6ab8a15a695df3648"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/review-bundle.zip",
+          "bytes": 315317,
+          "sha256": "5c3133b33bd9e0f3c9fb097b3326864750906118a2f13611e4c31083457f5e5d"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/review-checkpoint.json",
+          "bytes": 1167,
+          "sha256": "4545ab68f7875b7c40fe94a0fe606a8da505e5934dd2a3c63d9ea250c7685c28"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/review-index.json",
+          "bytes": 14110,
+          "sha256": "602c21b58ac089be9ad47cd166f197337b17310d8bbb0137163595faa6b9f054"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/review.json",
+          "bytes": 1139,
+          "sha256": "73c5f2386a1f37c8fef13bf0d0699cb0509a6837a8c9221e0f4f9a5a2f82f800"
+        }
+      ]
+    },
+    {
+      "name": "actual_r2_parent_diagnostic",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08",
+      "file_count": 2,
+      "files": [
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08/observation.json",
+          "bytes": 1587,
+          "sha256": "3ebf3f8c71b5dab3d5f83cfe5af6a7fc28defcf3b94e36123dc8f37e264441e3"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08/README.md",
+          "bytes": 1305,
+          "sha256": "59c92c7bacecefdefbd993cc5a1afbe5521d874787d681c34123d1028b9bb696"
+        }
+      ]
+    },
+    {
+      "name": "r2_root_readback",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08",
+      "file_count": 1,
+      "files": [
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08/observation.json",
+          "bytes": 1412,
+          "sha256": "05df7765e4057513fc7564cbf47c8a09a2ead8d299ba83437026d7a98b568feb"
+        }
+      ]
+    }
+  ],
+  "test_only_snapshots": [
+    {
+      "snapshot": "qa-inputs/r3-01.json",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v3.admission.schema.json",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 4957,
+      "sha256": "3b3a3c4d9ef2895a6fef4167a32e528b100579b74a373f70576460b26e0c2f14"
+    },
+    {
+      "snapshot": "qa-inputs/r3-02.py",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v3.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 99810,
+      "sha256": "da3bdba841a0dcfd7bfecbd828cc44ac3ef183e92a156a860acbd327bdea562d"
+    },
+    {
+      "snapshot": "qa-inputs/r3-03.json",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v3.sources.json",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 2680,
+      "sha256": "7da8735cea74f4eafbd43fe0ed94d08232f8f20b9814cad0d682281c89eb116a"
+    },
+    {
+      "snapshot": "qa-inputs/r3-04.py",
+      "path": "backtrader_runtime/certification_simnow_c01_v2_supervisor.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 51447,
+      "sha256": "4975fbdf8fbe8c7174a92f9f26069b65bbfac0021666fb6bcb6577819a340555"
+    },
+    {
+      "snapshot": "qa-inputs/r3-05.py",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_owner.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 36540,
+      "sha256": "745c468247751068f5dd50d21ce988c61394c218a77350e78d9d26b6c1d54d2a"
+    },
+    {
+      "snapshot": "qa-inputs/r3-06.py",
+      "path": "examples/000_live_certification/simnow_penetration/cases/C01/run_v3.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 3356,
+      "sha256": "8d11c023e3e9d54b6c9678cec5e74b9c38cf854e933c966734c2b21e536266c2"
+    },
+    {
+      "snapshot": "qa-inputs/r3-07.py",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_native_td_read_v3_source_fake.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 10186,
+      "sha256": "cd29a1a888a01da044207cd51a35013a9b4c498b92b700445ee19f53203bb8c4"
+    },
+    {
+      "snapshot": "qa-inputs/r3-08.py",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_root_admission_bridge_source_fake.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 10196,
+      "sha256": "acc114956630ad421349963c5127acb0a0ac73be67b7fb8e1396a42206b9f399"
+    },
+    {
+      "snapshot": "qa-inputs/r3-09.py",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_v2_contract.py",
+      "source": "R3-pinned-support",
+      "scope": "test-only-source-closure",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 29118,
+      "sha256": "a522e914307a5b3113e14d2e93661170d9b3a435d0c2c040950f0dd6d4a1f8a3"
+    },
+    {
+      "snapshot": "qa-inputs/head-01.py",
+      "path": "backtrader_runtime/certification_simnow_c01_native_v2.py",
+      "source": "HEAD:f46234e338c774d017eb58853f32cfd7310ff9d5",
+      "git_blob": "98393babe0aa22dac4a94a150925f348e7fb5fa7",
+      "scope": "inherited-tracked-test-prerequisite-snapshot",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 198605,
+      "sha256": "9a24ef954a4e192ae2879e657613ff5ca7b1cdf5d7ee116d9e28fbef9d70ce91"
+    },
+    {
+      "snapshot": "qa-inputs/head-02.py",
+      "path": "backtrader_runtime/certification_simnow_c01_v2_contract.py",
+      "source": "HEAD:f46234e338c774d017eb58853f32cfd7310ff9d5",
+      "git_blob": "a1afe3ad53dbbb4c48a72874582a1faff56f245a",
+      "scope": "inherited-tracked-test-prerequisite-snapshot",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 58817,
+      "sha256": "3892af9a87ab424ceea896f9ebcbc1608515ead5e9d5c89a21ea823ff32de20c"
+    },
+    {
+      "snapshot": "qa-inputs/head-03.py",
+      "path": "backtrader_runtime/certification_simnow_c01_v2_protocol.py",
+      "source": "HEAD:f46234e338c774d017eb58853f32cfd7310ff9d5",
+      "git_blob": "4c6f246aeb163129cef827f49e850467a82b98bf",
+      "scope": "inherited-tracked-test-prerequisite-snapshot",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 79756,
+      "sha256": "fa1028021a903fdc5602caf1e7375c6f4eb76e46ffbb819ea057b97ef048fc88"
+    },
+    {
+      "snapshot": "qa-inputs/head-04.py",
+      "path": "examples/000_live_certification/simnow_penetration/common/case_engine.py",
+      "source": "HEAD:f46234e338c774d017eb58853f32cfd7310ff9d5",
+      "git_blob": "88680af74a303ba9e9771f627bfacffe9719e24f",
+      "scope": "inherited-tracked-test-prerequisite-snapshot",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 74988,
+      "sha256": "8f70776f0ecd5e2b2c06f09894adc7bc96929d2b835d168df9f470f5ad11ac09"
+    },
+    {
+      "snapshot": "qa-inputs/head-05.py",
+      "path": "examples/000_live_certification/simnow_penetration/common/completion_invariants.py",
+      "source": "HEAD:f46234e338c774d017eb58853f32cfd7310ff9d5",
+      "git_blob": "0ee07df84d16cf3b109c34fea48c636d36391da0",
+      "scope": "inherited-tracked-test-prerequisite-snapshot",
+      "default_runtime_registry_dispatch": false,
+      "bytes": 103998,
+      "sha256": "11d216e0063d07522c3721d01f50cff596f7bf05bab7d88a137dd015b3e1e16e"
+    }
+  ],
+  "clean_source_qa": {
+    "suite": [
+      "iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/qa/test_root_actual_driver_source_fake.py",
+      "iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/reference/v18-tests/test_root_activation_wrapper_r1_source_fake.py"
+    ],
+    "test_cases": 25,
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0,
+    "python": "3.11.5",
+    "pytest": "8.0.0",
+    "isolated_flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-X utf8"
+    ],
+    "pytest_plugins": "autoload disabled; only path-only bootstrap and no-cacheprovider",
+    "result_level": "PUBLIC_SOURCE_FAKE_ONLY_NOT_REAL_ACCOUNT_OR_PROVIDER_ACCEPTANCE",
+    "bootstrap_scope": "Path-only clean-root rebinding for driver ROOT/EVIDENCE/V18 pins and wrapper REPO_ROOT; no validator or hash checks patched",
+    "output_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/pytest-output.txt",
+    "runner_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/runner.py",
+    "qa_artifacts": [
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/README.md",
+        "bytes": 2890,
+        "sha256": "026d26bf9832757f76ea6f9fb50b4568a8b68a8482067c01e0959f9f5b4d1a7d"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/runner.py",
+        "bytes": 7561,
+        "sha256": "60f87ada723cef193731a00bbda9864b423097bf848515eee8b2e8b835bf784c"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/command.txt",
+        "bytes": 531,
+        "sha256": "9ec22426e3416e740557d93eed6c0eb0fbd171fa9cbfa88bd65d25f11695fa1d"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/pytest-output.txt",
+        "bytes": 101,
+        "sha256": "d8099204f54bca427803a10b5b85e4c96d15619134b554ca0a55e9cc7e36208c"
+      }
+    ]
+  },
+  "default_runtime_registry_dispatch_check": {
+    "dispatch": false,
+    "method": "Targeted public HEAD grep of backtrader_runtime/registry.py, runner.py, and cli.py for the 14 test-only snapshot module/test names returned no matches; snapshots are delivered only under docs evidence and materialized only in ephemeral clean QA root.",
+    "scope": "No registration, registry, runner, or CLI files are changed by this round."
+  },
+  "delivery_boundary": {
+    "production_runtime_source_changes": 0,
+    "original_v18_core_and_runtime_support_paths_accepted": false,
+    "test_only_snapshot_count": 14,
+    "test_only_snapshots_are_runtime_dispatchable": false,
+    "note": "R2 evidence and exact test-only inputs are reviewable; formal C01 remains unaccepted. Do not stage V18 production/core source paths from the original candidate set in this round."
+  },
+  "attributes": {
+    "attribute": "-text",
+    "scoped_evidence_directories": [
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08"
+    ],
+    "purpose": "Preserve exact evidence and public source snapshot bytes so recorded SHA-256 values survive checkout without line-ending conversion.",
+    "exact_rules": [
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08/** -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b/** -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08/** -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08/** -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/** -text"
+    ]
+  },
+  "new_round_file_count_including_manifest": 19,
+  "delivery_whitelist": {
+    "untracked_evidence_file_count": 75,
+    "frozen_input_sets": [
+      {
+        "name": "frozen_r2_driver_packet",
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08",
+        "file_count": 48
+      },
+      {
+        "name": "independent_r2_review",
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-independent-review-r2-2026-10-08-oct7b",
+        "file_count": 5
+      },
+      {
+        "name": "actual_r2_parent_diagnostic",
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-parent-diagnostic-r2-2026-10-08",
+        "file_count": 2
+      },
+      {
+        "name": "r2_root_readback",
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-driver-root-readback-r2-2026-10-08",
+        "file_count": 1
+      }
+    ],
+    "new_round_files": [
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/command.txt",
+        "bytes": 531,
+        "sha256": "9ec22426e3416e740557d93eed6c0eb0fbd171fa9cbfa88bd65d25f11695fa1d"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/pytest-output.txt",
+        "bytes": 101,
+        "sha256": "d8099204f54bca427803a10b5b85e4c96d15619134b554ca0a55e9cc7e36208c"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa/runner.py",
+        "bytes": 7561,
+        "sha256": "60f87ada723cef193731a00bbda9864b423097bf848515eee8b2e8b835bf784c"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/head-01.py",
+        "bytes": 198605,
+        "sha256": "9a24ef954a4e192ae2879e657613ff5ca7b1cdf5d7ee116d9e28fbef9d70ce91"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/head-02.py",
+        "bytes": 58817,
+        "sha256": "3892af9a87ab424ceea896f9ebcbc1608515ead5e9d5c89a21ea823ff32de20c"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/head-03.py",
+        "bytes": 79756,
+        "sha256": "fa1028021a903fdc5602caf1e7375c6f4eb76e46ffbb819ea057b97ef048fc88"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/head-04.py",
+        "bytes": 74988,
+        "sha256": "8f70776f0ecd5e2b2c06f09894adc7bc96929d2b835d168df9f470f5ad11ac09"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/head-05.py",
+        "bytes": 103998,
+        "sha256": "11d216e0063d07522c3721d01f50cff596f7bf05bab7d88a137dd015b3e1e16e"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-01.json",
+        "bytes": 4957,
+        "sha256": "3b3a3c4d9ef2895a6fef4167a32e528b100579b74a373f70576460b26e0c2f14"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-02.py",
+        "bytes": 99810,
+        "sha256": "da3bdba841a0dcfd7bfecbd828cc44ac3ef183e92a156a860acbd327bdea562d"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-03.json",
+        "bytes": 2680,
+        "sha256": "7da8735cea74f4eafbd43fe0ed94d08232f8f20b9814cad0d682281c89eb116a"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-04.py",
+        "bytes": 51447,
+        "sha256": "4975fbdf8fbe8c7174a92f9f26069b65bbfac0021666fb6bcb6577819a340555"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-05.py",
+        "bytes": 36540,
+        "sha256": "745c468247751068f5dd50d21ce988c61394c218a77350e78d9d26b6c1d54d2a"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-06.py",
+        "bytes": 3356,
+        "sha256": "8d11c023e3e9d54b6c9678cec5e74b9c38cf854e933c966734c2b21e536266c2"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-07.py",
+        "bytes": 10186,
+        "sha256": "cd29a1a888a01da044207cd51a35013a9b4c498b92b700445ee19f53203bb8c4"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-08.py",
+        "bytes": 10196,
+        "sha256": "acc114956630ad421349963c5127acb0a0ac73be67b7fb8e1396a42206b9f399"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/qa-inputs/r3-09.py",
+        "bytes": 29118,
+        "sha256": "a522e914307a5b3113e14d2e93661170d9b3a435d0c2c040950f0dd6d4a1f8a3"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/README.md",
+        "bytes": 2890,
+        "sha256": "026d26bf9832757f76ea6f9fb50b4568a8b68a8482067c01e0959f9f5b4d1a7d"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-r2-map-clean-2026-10-08/manifest.json",
+        "role": "self-describing machine-readable manifest"
+      }
+    ],
+    "modified_tracked_file": ".gitattributes",
+    "production_source_paths": [],
+    "exclude": [
+      "No original V18 candidate runtime/core source paths.",
+      "No original V18 support files at production repository paths.",
+      "No ambient checkout source outside the frozen R2 packet and the 14 manifest-pinned snapshots."
+    ]
+  }
+}

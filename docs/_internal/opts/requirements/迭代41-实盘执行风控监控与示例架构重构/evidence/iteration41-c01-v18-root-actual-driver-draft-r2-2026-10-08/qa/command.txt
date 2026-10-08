@@ -1,0 +1,3 @@
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+& 'D:\temp\iteration41-main-source-qa-20260926\venv\Scripts\python.exe' -I -S -B -X utf8 -c "import sys; sys.path[:0]=[r'D:\source_code\backtrader',r'D:\temp\iteration41-main-source-qa-20260926\venv\Lib\site-packages']; import pytest; raise SystemExit(pytest.main([r'D:\source_code\backtrader\docs\_internal\opts\requirements\迭代41-实盘执行风控监控与示例架构重构\evidence\iteration41-c01-v18-root-actual-driver-draft-r2-2026-10-08\qa\test_root_actual_driver_source_fake.py',r'tests/unit/runtime/test_simnow_c01_native_td_read_v18_root_activation_r1_source_fake.py','-q','-p','no:cacheprovider',r'--basetemp=D:\source_code\backtrader\.codex-tmp\c01-v18-driver-sourcefake-r2']))"
