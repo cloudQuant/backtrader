@@ -1,0 +1,22 @@
+{
+  "schema": "codex.monitor.r3.root_local_gate_evidence_pin_map.v1",
+  "file_count": 4,
+  "files": {
+    "observation.json": {
+      "bytes": 1193,
+      "sha256": "5e908664f209b7b3aa747e7f78a602545ac120d44ed95be4a94905f8d08201fc"
+    },
+    "root-local-gate.py": {
+      "bytes": 4795,
+      "sha256": "ee8e062e0e1935a6faf956ffec64490a79d18bb972f4fe4f129ae73dc21f92c3"
+    },
+    "command.md": {
+      "bytes": 834,
+      "sha256": "f8ac462578e7a828d36c8d4ffe900bb1b2211f8ae462129ceab1d8a0e9257afc"
+    },
+    "README.md": {
+      "bytes": 1918,
+      "sha256": "66e5ede5a7bb37c2a305021357d56ac7fbf657a84192ceb15b372df61d1fd3ca"
+    }
+  }
+}

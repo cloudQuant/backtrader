@@ -94,3 +94,13 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-actual-r4b-parent-diagnostic-r1-2026-10-08/** -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-prelaunch-cleanup-capsule-r3-clean-source-qa-r1-2026-10-08/** -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-prelaunch-cleanup-r3-delivery-round-r1-2026-10-08/** -text
+
+# Preserve the accepted monitor R3 public evidence bytes.
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-root-local-gate-2026-10-08/observation.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-root-local-gate-2026-10-08/root-local-gate.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-root-local-gate-2026-10-08/command.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-root-local-gate-2026-10-08/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-root-local-gate-2026-10-08/artifact-pins.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-local-component-2026-10-08/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-independent-review-oct7f-2026-10-08/review.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-independent-review-oct7f-2026-10-08/readback-current-readme.md -text
