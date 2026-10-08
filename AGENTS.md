@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## 用户长期开发原则（2026-10-08）
+
+- Backtrader、实际使用的 `D:\bt_api_py` 及其相关子包，直接在各自现有的 `dev` 工作区修改；用户未要求时，不另建开发 worktree。
+- 每轮按“修复或优化 → 完成本轮约定的验收 → 提交到对应 `dev` → 下一轮”推进，不等整个大项目全部完成才提交。
+- 验收失败则继续修复本轮；必须区分源码、模拟测试与真实账户验收，不能用模拟测试替代真实账户通过结果。
+- 仅提交本轮已验收的明确文件或改动块，保留其他已有修改。SDK 子包先提交，再更新并提交父仓库的 gitlink。
+- 对历史工作区中的相关修改逐项登记、核对和归并，避免已完成代码遗留在其他工作区造成重复开发。
+- 每轮记录范围、验收结果、仓库/分支及提交哈希，后续从已提交状态继续。
+
 This file guides Codex (Codex.ai/code) when working in this repository.
 It is kept deliberately factual — every claim below was verified against the
 source tree. When you change something structural, update this file.
