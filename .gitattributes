@@ -104,3 +104,24 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-local-component-2026-10-08/README.md -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-independent-review-oct7f-2026-10-08/review.md -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-bt-api-monitor-readonly-events-r3-independent-review-oct7f-2026-10-08/readback-current-readme.md -text
+
+# Preserve accepted M01 R24 R7 source-lease cleanup bytes.
+/scripts/iteration41_okx_m01_r33_no_session_cleanup_r24_r7.py -text
+/tests/unit/runtime/test_iteration41_okx_m01_r33_no_session_cleanup_r24_r7_source_fake.py -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-cleanup-source-fake-r1-2026-10-09/README.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-cleanup-source-fake-r1-2026-10-09/pins.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-cleanup-source-fake-r1-2026-10-09/qa-command.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-cleanup-source-fake-r1-2026-10-09/qa-result.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-source-snapshot-r1-2026-10-09/README.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-source-snapshot-r1-2026-10-09/snapshot-map.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-source-snapshot-r1-2026-10-09/public-source-snapshot.zip -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-no-session-cleanup-independent-review-r7-r1-2026-10-09/README.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-no-session-cleanup-independent-review-r7-r1-2026-10-09/review.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/README.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/artifact-pins.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/observation.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/owner-postcleanup.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/readback.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/root-orchestrator.py -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/root-owner-bootstrap.py -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r24-r7-cleanup-dev-round-2026-10-09.md -text

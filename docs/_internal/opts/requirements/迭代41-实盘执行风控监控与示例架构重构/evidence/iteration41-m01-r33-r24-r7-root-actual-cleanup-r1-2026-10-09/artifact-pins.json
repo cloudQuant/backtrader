@@ -1,0 +1,39 @@
+{
+  "actual_calls": 1,
+  "evidence_level": "ROOT_ACTUAL_SOURCE_LEASE_CLEANUP_ONLY",
+  "files": [
+    {
+      "path": "observation.json",
+      "sha256": "095f1817abb82c42abbc0aaa40aa81196801276422957afec1b40348de682fa4",
+      "size_bytes": 4821
+    },
+    {
+      "path": "owner-postcleanup.json",
+      "sha256": "48d8a1fdc1836ec01960947f202d7c5987cc06551f839a2ab9de6173f7ff51ee",
+      "size_bytes": 419
+    },
+    {
+      "path": "readback.json",
+      "sha256": "0b35003e80f6b13d4caba21d675f51e43aca984c845377f62e462bb1e221157e",
+      "size_bytes": 10333
+    },
+    {
+      "path": "README.md",
+      "sha256": "35c91f466abcb52f705d0cc4d73381f93dd7edee5f3419599d11940423cb679f",
+      "size_bytes": 1961
+    },
+    {
+      "path": "root-orchestrator.py",
+      "sha256": "684e44ba497052c68ed0e1a3352d0018c871f61e5be1afc6f29940e1c5dd20eb",
+      "size_bytes": 16338
+    },
+    {
+      "path": "root-owner-bootstrap.py",
+      "sha256": "f7ab5d4a3f8c3ed236297e9bbbb12f1c521f517ab91d1fbf44cb952756be96c3",
+      "size_bytes": 1946
+    }
+  ],
+  "formal_case_pass": false,
+  "owner_process_exit_requested": false,
+  "schema": "iteration41.m01.r24.r7.actual-public-artifact-pins.v1"
+}

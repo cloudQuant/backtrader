@@ -1,0 +1,9 @@
+# M01 R24 R7 actual source-scope cleanup
+
+Root invoked the frozen R7 helper once in original owner 90344 after independently reviewed source QA passed 28 tests and the exact 54-file public readback matched. The one actual call returned `CLEANUP_ACCEPTED`, phase 130. Observation SHA-256: `095f1817abb82c42abbc0aaa40aa81196801276422957afec1b40348de682fa4`.
+
+Both original CUv2 generators closed through the exact pinned R23 release callback and normal post-yield verification. The new public review scope also closed and postverified normally. The retention registry and late references are zero; all seven original Root scope keys were dropped; KEEPALIVE contains only the original R23 result. The original result object, fixed fields, child phase, summary and public record remain unchanged. Root's separate finite postcleanup assertions passed; owner-postcleanup SHA-256 is `48d8a1fdc1836ec01960947f202d7c5987cc06551f839a2ab9de6173f7ff51ee`.
+
+This accepts **only the no-session source-lease cleanup support round**. It establishes no successful M01 authentication, private capture, provider account observation or formal case PASS. No new authentication or late private capture read occurred. The owner process remains alive under the current AGENTS instruction; no process shutdown is claimed or requested. Do not repeat R7 or retry authentication in that owner.
+
+The helper permits originless hold rows only for the exact same-result R9 sidecar and R10 composer bytes. Other rows retain their origin requirement. The 45-file public archive preserves all source/test inputs, including previously untracked upstream code, as QA inputs; those upstream authentication paths are not accepted production changes. The canonical-path source QA is 28 passed for author and independent reviewer. No relocated clean-source QA is claimed because the frozen CUv2 and R23 sources bind the canonical Root path. R23's later lock repair starts after this scoped dev commit.
