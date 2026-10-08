@@ -1747,7 +1747,12 @@ class Strategy(StrategyBase):
                 obs = [obs]  # support of multi-data observers
 
             for o in obs:
-                o._start()
+                previous_starting_observer = getattr(self, "_framework_starting_observer", None)
+                self._framework_starting_observer = o
+                try:
+                    o._start()
+                finally:
+                    self._framework_starting_observer = previous_starting_observer
 
         # Change operators to stage 2
         self._stage2()

@@ -321,3 +321,17 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "scripts/iteration41_root_held_source_scope_v4.py" -text
 "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r2_source_fake.py" -text
 "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_driver_r2_source_fake.py" -text
+
+# Iteration41 TradeLogger configuration snapshot accepted source component
+"backtrader/observers/trade_logger.py" -text
+"backtrader/strategy.py" -text
+"tests/unit/observers/test_trade_logger_config_snapshot.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review-bundle.zip" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/delivery-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/round-record.md" -text

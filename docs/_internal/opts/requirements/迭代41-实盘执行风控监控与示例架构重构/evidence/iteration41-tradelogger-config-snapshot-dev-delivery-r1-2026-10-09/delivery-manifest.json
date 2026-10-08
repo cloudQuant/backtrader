@@ -1,0 +1,687 @@
+{
+  "schema": "iteration41.delivery-whitelist.v1",
+  "round_id": "tradelogger-config-snapshot-seam-dev-sourcefake-r1",
+  "acceptance_level": "SOURCE_FAKE_COMPONENT_ONLY",
+  "proposal_status": "ACCEPTED_SOURCE_FAKE_COMPONENT_ONLY_READY_FOR_ROOT_STAGING",
+  "baseline": {
+    "repository": "D:/source_code/backtrader",
+    "branch": "dev",
+    "head": "567a204660f10befccddc55663b96991ad04f6ab",
+    "index_empty": true,
+    "gitattributes_bytes": 43965,
+    "gitattributes_sha256": "cfbd3f9849f67cd6cb252602fa43db6f3b8b5235fe813bace9b839177a534aff",
+    "preexisting_unrelated_changes_preserved": true
+  },
+  "scope_counts": {
+    "candidate_source_test_files": 3,
+    "root_qa_fixed_core_dependencies": 10,
+    "tracked_clean_compatibility_test_inputs": 6,
+    "required_independent_review_artifacts": 3,
+    "root_qa_archive_payloads_planned": 4,
+    "root_qa_archive_payloads_pinned": 4,
+    "currently_pinned_payload_files": 10,
+    "planned_payload_files": 10,
+    "delivery_metadata_files": 2,
+    "proposed_exact_text_attribute_rules": 12
+  },
+  "candidate_source_test_closure": [
+    {
+      "path": "backtrader/observers/trade_logger.py",
+      "bytes": 134254,
+      "sha256": "9700bf8ab0de0a1b36786cd2ba5c085b387378f597fe64b085d022ee33187a3c",
+      "role": "candidate_source",
+      "baseline_status": "tracked_modified",
+      "classification": "trade_logger_config_snapshot_seam"
+    },
+    {
+      "path": "backtrader/strategy.py",
+      "bytes": 151163,
+      "sha256": "1b4f02a5e59774d057545fbc73b17e40c84add6c557c59c4a320d0b3223f043c",
+      "role": "candidate_source",
+      "baseline_status": "tracked_modified",
+      "classification": "framework_observer_start_context"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_config_snapshot.py",
+      "bytes": 7956,
+      "sha256": "3e9baf54b825ea07adcd1066f6b3434d1346baf26a0d13237a5aad311e22553c",
+      "role": "candidate_test",
+      "baseline_status": "untracked",
+      "classification": "source_fake_lifecycle_test"
+    }
+  ],
+  "root_qa_fixed_core_dependencies": [
+    {
+      "path": "backtrader/cerebro.py",
+      "bytes": 34568,
+      "sha256": "8175073447380b0e11f3713e0970c1aaa0f55626a973507e5fc50cad1bfc0f69",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "framework_composition"
+    },
+    {
+      "path": "backtrader/_cerebro/execution.py",
+      "bytes": 16481,
+      "sha256": "18d436df1eeb91dbe7485930dc92125293ce232554d897c9fb7187e101839ac4",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "framework_composition"
+    },
+    {
+      "path": "backtrader/observer.py",
+      "bytes": 3779,
+      "sha256": "bf7697b94ab1f787b6dc48eb0e86afe36d8b66500e5bec75d18acf30276e3fbd",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "observer_lifecycle"
+    },
+    {
+      "path": "backtrader/lineiterator.py",
+      "bytes": 117069,
+      "sha256": "6d458609f7463955a935b24edfbc76509f586922db1e9e34713cb0f1435662a9",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "observer_lifecycle"
+    },
+    {
+      "path": "backtrader/__init__.py",
+      "bytes": 5961,
+      "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "package_import_closure"
+    },
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "bytes": 798302,
+      "sha256": "65f8f02595545d90babc5118f89fdff1884706492dfbf131ef6017ccf3d66bb9",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "synthetic_fixture_closure"
+    },
+    {
+      "path": "backtrader/events.py",
+      "bytes": 33624,
+      "sha256": "fa7e1c9c152b66bc375fced3908fc7eb7ffa70b3606a331351c0bc02224ef4aa",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "event_closure"
+    },
+    {
+      "path": "backtrader/channel.py",
+      "bytes": 23418,
+      "sha256": "a9a0ec61172f3a067e130bfa13dccd83033e5f3f19df33c8c41bec65afda5579",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "event_closure"
+    },
+    {
+      "path": "backtrader/brokers/tickbroker.py",
+      "bytes": 88817,
+      "sha256": "06e38e271947384c91e5bdb2aeeb25307114652cb5991b823ee2cff37a37b62c",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "broker_fixture_closure"
+    },
+    {
+      "path": "tests/fixtures/fake_btapi.py",
+      "bytes": 7837,
+      "sha256": "6599b7ff7ddbb50d6d238c5bac5752a4af9fe2ff842ce692a8259d3df21a016a",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "synthetic_fixture_closure"
+    }
+  ],
+  "tracked_clean_compatibility_test_inputs": [
+    {
+      "path": "tests/unit/observers/test_trade_logger_monitoring.py",
+      "bytes": 4577,
+      "sha256": "ef7dd309d33e48da9d217e82d4aed33a5663b05d95695bcf32d7b7606f2529ae",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_internal_errors.py",
+      "bytes": 2239,
+      "sha256": "32f65adb2eaa7e79f1d6f75121d2184a97c7a3079496c3384bda94a7d8a8ed01",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_edge_cases.py",
+      "bytes": 27609,
+      "sha256": "38fa5792669fb041073bdbb679d424ccaaef8982fc41d74618e12b381269ba03",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger.py",
+      "bytes": 17407,
+      "sha256": "e9e2f85765dee80e53fbf6141a5c8c2d6d4e714344271c0b8919f277715bb7d9",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger_report.py",
+      "bytes": 19289,
+      "sha256": "823fcfda91a1fdcc5b9e8e2608311c567f1ca400cab9e1c64709ab790d338369",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger_runtime.py",
+      "bytes": 25049,
+      "sha256": "10f287feb5035558ced74ddd821e680176e2474ac911f1efc2a2b39b542d7e06",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    }
+  ],
+  "payload_files": [
+    {
+      "path": "backtrader/observers/trade_logger.py",
+      "bytes": 134254,
+      "sha256": "9700bf8ab0de0a1b36786cd2ba5c085b387378f597fe64b085d022ee33187a3c",
+      "role": "candidate_source",
+      "baseline_status": "tracked_modified",
+      "classification": "trade_logger_config_snapshot_seam"
+    },
+    {
+      "path": "backtrader/strategy.py",
+      "bytes": 151163,
+      "sha256": "1b4f02a5e59774d057545fbc73b17e40c84add6c557c59c4a320d0b3223f043c",
+      "role": "candidate_source",
+      "baseline_status": "tracked_modified",
+      "classification": "framework_observer_start_context"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_config_snapshot.py",
+      "bytes": 7956,
+      "sha256": "3e9baf54b825ea07adcd1066f6b3434d1346baf26a0d13237a5aad311e22553c",
+      "role": "candidate_test",
+      "baseline_status": "untracked",
+      "classification": "source_fake_lifecycle_test"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review.json",
+      "bytes": 7689,
+      "sha256": "f75112b302cfb8fa7a6cdf86439058436708a32d886935e636095cb084313543",
+      "role": "independent_review_result",
+      "baseline_status": "untracked",
+      "classification": "required_review_artifact"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/README.md",
+      "bytes": 1663,
+      "sha256": "5e21d6e79ad8a6be7bb1bd7116c597c557ada04002b657b1bb8011c907571cb2",
+      "role": "independent_review_summary",
+      "baseline_status": "untracked",
+      "classification": "required_review_artifact"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review-bundle.zip",
+      "bytes": 79971,
+      "sha256": "36515cd179e1c5b0813ea51c7a7a05b06cf9982cee2217790166d0bd130e6f27",
+      "role": "independent_review_bundle",
+      "baseline_status": "untracked",
+      "classification": "required_review_artifact"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.py",
+      "bytes": 6495,
+      "sha256": "c5de52132a7f50944f061725f8623173f8253001453215f99eb649a2bdd8d0d9",
+      "role": "historical_root_qa_r1_harness",
+      "baseline_status": "untracked",
+      "classification": "compatibility_diagnostic_guard_incomplete"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.json",
+      "bytes": 3746,
+      "sha256": "46c923284b36ec279bfc6dde9f8ce35cd415cb38b39c11e3f129d49a9d20b251",
+      "role": "historical_root_qa_r1_result",
+      "baseline_status": "untracked",
+      "classification": "compatibility_diagnostic_guard_incomplete"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.py",
+      "bytes": 7142,
+      "sha256": "2df764bc75ac0cd97c5a8ee28c87287cbed216fab154244cfb29bd8bb7fe834f",
+      "role": "root_qa_r2_harness",
+      "baseline_status": "untracked",
+      "classification": "accepted_root_source_qa_archive"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.json",
+      "bytes": 3791,
+      "sha256": "fc3e6e41a569b9cca2efb9a80a1d62c4a96e35e8190f1d28e2385dec549e29a2",
+      "role": "root_qa_r2_result",
+      "baseline_status": "untracked",
+      "classification": "accepted_root_source_qa_archive"
+    }
+  ],
+  "pending_payload_files": [],
+  "qa": {
+    "author": {
+      "focused": "4 passed, 0 failed",
+      "compatibility": "76 passed, 0 failed",
+      "warning": "One existing pytest configuration warning per run."
+    },
+    "independent_review": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review.json",
+      "sha256": "f75112b302cfb8fa7a6cdf86439058436708a32d886935e636095cb084313543",
+      "verdict": "GO_SOURCE_FAKE_ONLY; RECEIPT_ALONE_NOT_ROOT_ENGINE_PROOF",
+      "focused": "4 passed, 0 failed",
+      "compatibility": "76 passed, 0 failed",
+      "warning": "One existing pytest configuration warning per run."
+    },
+    "root_source_qa": {
+      "status": "R1_COMPATIBILITY_ONLY_PRIVATE_PATH_GUARD_INCOMPLETE",
+      "harness_path": ".codex-tmp/tradelogger_snapshot_root_source_qa_20261009.py",
+      "archived_harness_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.py",
+      "harness_bytes": 6495,
+      "harness_sha256": "c5de52132a7f50944f061725f8623173f8253001453215f99eb649a2bdd8d0d9",
+      "final_process_id": 92693,
+      "earlier_harness_setup_failures": [
+        "First attempt stopped at collection with seven errors; origin reporting raised a KeyError that masked genuine import errors. Harness origin reporting was repaired; candidate sources unchanged.",
+        "Second attempt stopped during collection because a cold statsmodels.api import called platform.uname and reached an OS pipe denied by the guard. Harness now preloads statsmodels.api and platform.uname before candidate guards; candidate sources unchanged.",
+        "Third attempt executed all 76 tests successfully but the outer harness stopped at its strict zero-warning assertion on one existing Quandl deprecation warning and fourteen unknown integration-mark warnings from the isolated empty pytest config. The required pre/post source-pin gate did not complete; candidate sources unchanged. The next harness accepts exactly these fifteen warnings and checks pre/post pins."
+      ],
+      "result_source_path": ".codex-tmp/tradelogger_snapshot_root_source_qa_20261009.json",
+      "result_archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.json",
+      "acceptance": "R1 is compatibility history only. Root audit found the rawrunner path-normalization expression replaced pairs of backslashes and did not fully verify single Windows path separators in the private-path guard. Do not claim the guard gate or component acceptance from R1.",
+      "root_audit_limitation": "The earlier candidate-import-after-denial output does not prove complete private-path coverage because the audit deny self-check did not validate the single-separator Windows path form.",
+      "prior_test_execution": {
+        "process_id": 28127,
+        "result": "76 passed, exit 0, 31.82 seconds",
+        "outer_gate": "stopped at strict zero-warning assertion before pre/post source pin verification",
+        "warning_count": 15,
+        "warning_breakdown": {
+          "existing_quandl_deprecation": 1,
+          "isolated_config_unregistered_integration_mark": 14
+        },
+        "acceptance": "not a completed Root source QA gate"
+      },
+      "actual_account_provider": false,
+      "formal_case_pass": false,
+      "candidate_import_after_denial_claim_is_not_reliable": true,
+      "limitation": "Root audit found the rawrunner path-normalization expression matched pairs of backslashes, so single Windows separators were not fully verified by the R1 private-path guard. Preserve this output as compatibility history only.",
+      "root_tool_chunk": "773372",
+      "duration_seconds": 33.91,
+      "passed": 76,
+      "failed": 0,
+      "exit_code": 0,
+      "warning_count": 15,
+      "warnings": {
+        "existing_quandl_deprecation": 1,
+        "isolated_config_unregistered_integration_mark": 14
+      },
+      "result_bytes": 3746,
+      "result_sha256": "46c923284b36ec279bfc6dde9f8ce35cd415cb38b39c11e3f129d49a9d20b251",
+      "result_pin_pending": false
+    },
+    "root_source_qa_r2": {
+      "result_source_path": ".codex-tmp/tradelogger_snapshot_root_source_qa_r2_20261009.json",
+      "duration_seconds": 32.47,
+      "warning_count": 15,
+      "result_archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.json",
+      "result_bytes": 3791,
+      "status": "ROOT_SOURCE_QA_PASSED_SOURCE_FAKE_COMPONENT_ONLY",
+      "actual_private_open": false,
+      "candidate_import_after_private_native_sdk_network_process_pipe_denial": true,
+      "actual_account_provider": false,
+      "archived_harness_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.py",
+      "result_sha256": "fc3e6e41a569b9cca2efb9a80a1d62c4a96e35e8190f1d28e2385dec549e29a2",
+      "process_id": 21075,
+      "formal_case_pass": false,
+      "exit_code": 0,
+      "harness_sha256": "2df764bc75ac0cd97c5a8ee28c87287cbed216fab154244cfb29bd8bb7fe834f",
+      "harness_source_path": ".codex-tmp/tradelogger_snapshot_root_source_qa_r2_20261009.py",
+      "four_core_module_origins_verified": true,
+      "harness_bytes": 7142,
+      "passed": 76,
+      "private_path_audit_guard_selfchecks": 4,
+      "exact_pre_post_pin_count": 20,
+      "warnings": {
+        "existing_quandl_deprecation": 1,
+        "isolated_config_unregistered_integration_mark": 14
+      },
+      "source_pin_map": [
+        {
+          "path": "backtrader/cerebro.py",
+          "bytes": 34568,
+          "sha256": "8175073447380b0e11f3713e0970c1aaa0f55626a973507e5fc50cad1bfc0f69",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "framework_composition"
+        },
+        {
+          "path": "backtrader/_cerebro/execution.py",
+          "bytes": 16481,
+          "sha256": "18d436df1eeb91dbe7485930dc92125293ce232554d897c9fb7187e101839ac4",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "framework_composition"
+        },
+        {
+          "path": "backtrader/observer.py",
+          "bytes": 3779,
+          "sha256": "bf7697b94ab1f787b6dc48eb0e86afe36d8b66500e5bec75d18acf30276e3fbd",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "observer_lifecycle"
+        },
+        {
+          "path": "backtrader/lineiterator.py",
+          "bytes": 117069,
+          "sha256": "6d458609f7463955a935b24edfbc76509f586922db1e9e34713cb0f1435662a9",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "observer_lifecycle"
+        },
+        {
+          "path": "backtrader/__init__.py",
+          "bytes": 5961,
+          "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "package_import_closure"
+        },
+        {
+          "path": "backtrader/stores/btapistore.py",
+          "bytes": 798302,
+          "sha256": "65f8f02595545d90babc5118f89fdff1884706492dfbf131ef6017ccf3d66bb9",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "synthetic_fixture_closure"
+        },
+        {
+          "path": "backtrader/events.py",
+          "bytes": 33624,
+          "sha256": "fa7e1c9c152b66bc375fced3908fc7eb7ffa70b3606a331351c0bc02224ef4aa",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "event_closure"
+        },
+        {
+          "path": "backtrader/channel.py",
+          "bytes": 23418,
+          "sha256": "a9a0ec61172f3a067e130bfa13dccd83033e5f3f19df33c8c41bec65afda5579",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "event_closure"
+        },
+        {
+          "path": "backtrader/brokers/tickbroker.py",
+          "bytes": 88817,
+          "sha256": "06e38e271947384c91e5bdb2aeeb25307114652cb5991b823ee2cff37a37b62c",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "broker_fixture_closure"
+        },
+        {
+          "path": "tests/fixtures/fake_btapi.py",
+          "bytes": 7837,
+          "sha256": "6599b7ff7ddbb50d6d238c5bac5752a4af9fe2ff842ce692a8259d3df21a016a",
+          "role": "root_qa_fixed_dependency",
+          "baseline_status": "tracked_clean",
+          "classification": "synthetic_fixture_closure"
+        },
+        {
+          "path": "backtrader/observers/trade_logger.py",
+          "bytes": 134254,
+          "sha256": "9700bf8ab0de0a1b36786cd2ba5c085b387378f597fe64b085d022ee33187a3c",
+          "role": "candidate_source",
+          "baseline_status": "tracked_modified",
+          "classification": "trade_logger_config_snapshot_seam"
+        },
+        {
+          "path": "backtrader/strategy.py",
+          "bytes": 151163,
+          "sha256": "1b4f02a5e59774d057545fbc73b17e40c84add6c557c59c4a320d0b3223f043c",
+          "role": "candidate_source",
+          "baseline_status": "tracked_modified",
+          "classification": "framework_observer_start_context"
+        },
+        {
+          "path": "tests/unit/observers/test_trade_logger_config_snapshot.py",
+          "bytes": 7956,
+          "sha256": "3e9baf54b825ea07adcd1066f6b3434d1346baf26a0d13237a5aad311e22553c",
+          "role": "candidate_test",
+          "baseline_status": "untracked",
+          "classification": "source_fake_lifecycle_test"
+        },
+        {
+          "path": "tests/unit/observers/test_trade_logger_monitoring.py",
+          "bytes": 4577,
+          "sha256": "ef7dd309d33e48da9d217e82d4aed33a5663b05d95695bcf32d7b7606f2529ae",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "tests/unit/observers/test_trade_logger_internal_errors.py",
+          "bytes": 2239,
+          "sha256": "32f65adb2eaa7e79f1d6f75121d2184a97c7a3079496c3384bda94a7d8a8ed01",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "tests/unit/observers/test_trade_logger_edge_cases.py",
+          "bytes": 27609,
+          "sha256": "38fa5792669fb041073bdbb679d424ccaaef8982fc41d74618e12b381269ba03",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "tests/integration/test_trade_logger.py",
+          "bytes": 17407,
+          "sha256": "e9e2f85765dee80e53fbf6141a5c8c2d6d4e714344271c0b8919f277715bb7d9",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "tests/integration/test_trade_logger_report.py",
+          "bytes": 19289,
+          "sha256": "823fcfda91a1fdcc5b9e8e2608311c567f1ca400cab9e1c64709ab790d338369",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "tests/integration/test_trade_logger_runtime.py",
+          "bytes": 25049,
+          "sha256": "10f287feb5035558ced74ddd821e680176e2474ac911f1efc2a2b39b542d7e06",
+          "role": "compatibility_test_input",
+          "baseline_status": "tracked_clean",
+          "classification": "existing_tradelogger_compatibility"
+        },
+        {
+          "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review.json",
+          "bytes": 7689,
+          "sha256": "f75112b302cfb8fa7a6cdf86439058436708a32d886935e636095cb084313543",
+          "role": "independent_review_result",
+          "baseline_status": "untracked",
+          "classification": "required_review_artifact"
+        }
+      ],
+      "failed": 0,
+      "tool_chunk": "4c6eb5",
+      "source_pin_map_count": 20
+    }
+  },
+  "inherited_tracked_clean_dependencies_not_added": [
+    {
+      "path": "backtrader/cerebro.py",
+      "bytes": 34568,
+      "sha256": "8175073447380b0e11f3713e0970c1aaa0f55626a973507e5fc50cad1bfc0f69",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "framework_composition"
+    },
+    {
+      "path": "backtrader/_cerebro/execution.py",
+      "bytes": 16481,
+      "sha256": "18d436df1eeb91dbe7485930dc92125293ce232554d897c9fb7187e101839ac4",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "framework_composition"
+    },
+    {
+      "path": "backtrader/observer.py",
+      "bytes": 3779,
+      "sha256": "bf7697b94ab1f787b6dc48eb0e86afe36d8b66500e5bec75d18acf30276e3fbd",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "observer_lifecycle"
+    },
+    {
+      "path": "backtrader/lineiterator.py",
+      "bytes": 117069,
+      "sha256": "6d458609f7463955a935b24edfbc76509f586922db1e9e34713cb0f1435662a9",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "observer_lifecycle"
+    },
+    {
+      "path": "backtrader/__init__.py",
+      "bytes": 5961,
+      "sha256": "a410a7181f1c4758fab76a929437a5629d137bebf78b87b5547949af908579f8",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "package_import_closure"
+    },
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "bytes": 798302,
+      "sha256": "65f8f02595545d90babc5118f89fdff1884706492dfbf131ef6017ccf3d66bb9",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "synthetic_fixture_closure"
+    },
+    {
+      "path": "backtrader/events.py",
+      "bytes": 33624,
+      "sha256": "fa7e1c9c152b66bc375fced3908fc7eb7ffa70b3606a331351c0bc02224ef4aa",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "event_closure"
+    },
+    {
+      "path": "backtrader/channel.py",
+      "bytes": 23418,
+      "sha256": "a9a0ec61172f3a067e130bfa13dccd83033e5f3f19df33c8c41bec65afda5579",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "event_closure"
+    },
+    {
+      "path": "backtrader/brokers/tickbroker.py",
+      "bytes": 88817,
+      "sha256": "06e38e271947384c91e5bdb2aeeb25307114652cb5991b823ee2cff37a37b62c",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "broker_fixture_closure"
+    },
+    {
+      "path": "tests/fixtures/fake_btapi.py",
+      "bytes": 7837,
+      "sha256": "6599b7ff7ddbb50d6d238c5bac5752a4af9fe2ff842ce692a8259d3df21a016a",
+      "role": "root_qa_fixed_dependency",
+      "baseline_status": "tracked_clean",
+      "classification": "synthetic_fixture_closure"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_monitoring.py",
+      "bytes": 4577,
+      "sha256": "ef7dd309d33e48da9d217e82d4aed33a5663b05d95695bcf32d7b7606f2529ae",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_internal_errors.py",
+      "bytes": 2239,
+      "sha256": "32f65adb2eaa7e79f1d6f75121d2184a97c7a3079496c3384bda94a7d8a8ed01",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/unit/observers/test_trade_logger_edge_cases.py",
+      "bytes": 27609,
+      "sha256": "38fa5792669fb041073bdbb679d424ccaaef8982fc41d74618e12b381269ba03",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger.py",
+      "bytes": 17407,
+      "sha256": "e9e2f85765dee80e53fbf6141a5c8c2d6d4e714344271c0b8919f277715bb7d9",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger_report.py",
+      "bytes": 19289,
+      "sha256": "823fcfda91a1fdcc5b9e8e2608311c567f1ca400cab9e1c64709ab790d338369",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    },
+    {
+      "path": "tests/integration/test_trade_logger_runtime.py",
+      "bytes": 25049,
+      "sha256": "10f287feb5035558ced74ddd821e680176e2474ac911f1efc2a2b39b542d7e06",
+      "role": "compatibility_test_input",
+      "baseline_status": "tracked_clean",
+      "classification": "existing_tradelogger_compatibility"
+    }
+  ],
+  "delivery_metadata": {
+    "manifest_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/delivery-manifest.json",
+    "round_record_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/round-record.md",
+    "manifest_self_hash_stored_in_round_record": true,
+    "round_record_self_hash_reported_out_of_band": true
+  },
+  "proposed_gitattributes_lines": [
+    "\"backtrader/observers/trade_logger.py\" -text",
+    "\"backtrader/strategy.py\" -text",
+    "\"tests/unit/observers/test_trade_logger_config_snapshot.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/README.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-seam-independent-review-r1-2026-10-09/review-bundle.zip\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r1.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/root-source-qa-r2.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/delivery-manifest.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-tradelogger-config-snapshot-dev-delivery-r1-2026-10-09/round-record.md\" -text"
+  ],
+  "final_scope_file_count": 13,
+  "final_scope_composition": {
+    "candidate_source_test": 3,
+    "required_independent_review": 3,
+    "root_qa_r1_history": 2,
+    "root_qa_r2_accepted": 2,
+    "delivery_metadata": 2,
+    "gitattributes": 1
+  },
+  "status_limits": {
+    "actual_account_provider_action": false,
+    "network_probe": false,
+    "native_provider_action": false,
+    "private_input_read": false,
+    "official_case_pass_count": 0,
+    "local_synthetic_engine_test_only": true
+  }
+}

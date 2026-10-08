@@ -37,7 +37,9 @@ import os
 import time
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from ..observer import Observer
 from ..utils.log_message import get_logger
@@ -80,6 +82,35 @@ _STARTUP_ACCOUNT_OBSERVATION_SENSITIVE_KEY_FRAGMENTS = (
     "credential",
     "passphrase",
 )
+
+_TRADE_LOGGER_CONFIG_SNAPSHOT_SCHEMA = "iteration41.backtrader.trade_logger.config_snapshot.v1"
+_TRADE_LOGGER_CONFIG_FIELDS = (
+    "submit_count_warn_threshold",
+    "cancel_count_warn_threshold",
+    "submit_cancel_total_warn_threshold",
+    "duplicate_order_warn_threshold",
+    "duplicate_order_window_seconds",
+)
+
+
+@dataclass(frozen=True)
+class TradeLoggerConfigSnapshotV1:
+    """Immutable, source-owned configuration captured by one TradeLogger start."""
+
+    schema: str
+    config_snapshot_id: str
+    run_id: str
+    observer_generation: int
+    started_at: str
+    captured_at: str
+    threshold_projection: tuple
+    config_event_ref: Optional[str]
+    config_event_occurred_at: Optional[str]
+
+
+class TradeLoggerConfigSnapshotError(RuntimeError):
+    """A fixed, non-sensitive failure from active TradeLogger snapshot readback."""
+
 
 # Optional MySQL support
 try:
@@ -223,6 +254,11 @@ class TradeLogger(Observer):
         self._duplicate_requests = collections.defaultdict(collections.deque)
         self._triggered_thresholds = set()
         self._loggers_initialized = False
+        self._config_snapshot_generation = 0
+        self._config_snapshot_receipt = None
+        self._config_snapshot_pending = None
+        self._config_snapshot_active = False
+        self._config_snapshot_engine_start = False
         self._init_report_state()
 
     # ------------------------------------------------------------------
@@ -1041,6 +1077,7 @@ class TradeLogger(Observer):
                         self._owner._lineiterators[self._ltype].append(self)
         self._ensure_loggers_initialized()
         self._start_report()
+        self._begin_config_snapshot()
         self._save_startup_position_snapshot()
         self._log_event(
             "system",
@@ -1048,7 +1085,221 @@ class TradeLogger(Observer):
             level="INFO",
             details={"observer": self.__class__.__name__},
         )
-        self._log_configured_risk_thresholds()
+        config_event = self._log_configured_risk_thresholds()
+        self._finish_config_snapshot(config_event)
+
+    def _start(self):
+        """Mark the strategy-owned observer lifecycle while delegating to ``start``."""
+        owner = getattr(self, "_owner", None)
+        self._config_snapshot_engine_start = (
+            getattr(owner, "_framework_starting_observer", None) is self
+        )
+        try:
+            return super()._start()
+        finally:
+            self._config_snapshot_engine_start = False
+
+    def _config_snapshot_is_attached(self):
+        """Return whether this instance is registered on its owning strategy."""
+        owner = getattr(self, "_owner", None)
+        lineiterators = getattr(owner, "_lineiterators", None) if owner is not None else None
+        if isinstance(lineiterators, Mapping):
+            observers = lineiterators.get(self._ltype)
+            if observers is not None:
+                try:
+                    if any(observer is self for observer in observers):
+                        return True
+                except TypeError:
+                    pass
+
+        # Strategy observers live in ``stats`` so the engine can process them
+        # without double-running them in the normal line-iterator traversal.
+        stats = getattr(owner, "stats", None) if owner is not None else None
+        items = getattr(stats, "items", None)
+        if items is None:
+            return False
+        try:
+            for item in items:
+                if item is self:
+                    return True
+                if isinstance(item, (list, tuple)) and any(observer is self for observer in item):
+                    return True
+        except TypeError:
+            return False
+        return False
+
+    def _config_snapshot_projection(self):
+        """Read the allowlisted risk configuration from this instance's params."""
+        values = []
+        params = getattr(self, "p", None)
+        for name in _TRADE_LOGGER_CONFIG_FIELDS:
+            try:
+                value = getattr(params, name)
+            except Exception:
+                raise TradeLoggerConfigSnapshotError(
+                    "trade_logger_config_snapshot_parameters_unavailable"
+                ) from None
+            if name == "duplicate_order_window_seconds":
+                if type(value) not in (int, float) or value < 0:
+                    raise TradeLoggerConfigSnapshotError(
+                        "trade_logger_config_snapshot_window_invalid"
+                    ) from None
+                try:
+                    value = float(value)
+                except (OverflowError, TypeError, ValueError):
+                    raise TradeLoggerConfigSnapshotError(
+                        "trade_logger_config_snapshot_window_invalid"
+                    ) from None
+                if not math.isfinite(value):
+                    raise TradeLoggerConfigSnapshotError(
+                        "trade_logger_config_snapshot_window_invalid"
+                    ) from None
+            elif type(value) is not int or value < 0:
+                raise TradeLoggerConfigSnapshotError(
+                    "trade_logger_config_snapshot_threshold_invalid"
+                ) from None
+            values.append((name, value))
+        return tuple(values)
+
+    def _begin_config_snapshot(self):
+        """Capture one source-owned snapshot during an attached normal start."""
+        self._config_snapshot_pending = None
+        self._config_snapshot_receipt = None
+        self._config_snapshot_active = False
+        if (
+            getattr(self, "_config_snapshot_engine_start", False) is not True
+            or not self._config_snapshot_is_attached()
+        ):
+            return
+
+        try:
+            projection = self._config_snapshot_projection()
+        except TradeLoggerConfigSnapshotError:
+            return
+        run_id = getattr(self, "_run_id", None)
+        started_at = getattr(self, "_report_started_at", None)
+        current_generation = getattr(self, "_config_snapshot_generation", None)
+        if (
+            type(run_id) is not str
+            or not run_id
+            or type(started_at) is not str
+            or not started_at
+            or getattr(self, "_report_finalized", True) is not False
+            or type(current_generation) is not int
+            or current_generation < 0
+        ):
+            return
+
+        generation = current_generation + 1
+        snapshot_id = uuid.uuid4().hex
+        self._config_snapshot_generation = generation
+        self._config_snapshot_pending = (
+            snapshot_id,
+            run_id,
+            generation,
+            started_at,
+            self._log_time_str(),
+            projection,
+        )
+        self._config_snapshot_active = True
+
+    def _finish_config_snapshot(self, config_event):
+        """Freeze the start receipt after its real configuration event is emitted."""
+        pending = self._config_snapshot_pending
+        if pending is None:
+            return
+
+        snapshot_id, run_id, generation, started_at, captured_at, projection = pending
+        event_ref = None
+        event_occurred_at = None
+        if config_event is not None:
+            try:
+                details = config_event.get("details")
+                configured_values = dict(projection)
+                expected_event_thresholds = {
+                    event_name: configured_values[param_name]
+                    for param_name, event_name in (
+                        ("submit_count_warn_threshold", "submit_count"),
+                        ("cancel_count_warn_threshold", "cancel_count"),
+                        ("submit_cancel_total_warn_threshold", "submit_cancel_total"),
+                        ("duplicate_order_warn_threshold", "duplicate_order"),
+                    )
+                    if configured_values[param_name] > 0
+                }
+                event_ref_value = config_event.get("event_ref")
+                event_ref_suffix = (
+                    event_ref_value[len("tlevent:v1:") :]
+                    if type(event_ref_value) is str and event_ref_value.startswith("tlevent:v1:")
+                    else ""
+                )
+                if (
+                    config_event.get("event_type") == "risk_threshold_configured"
+                    and config_event.get("run_id") == run_id
+                    and isinstance(details, Mapping)
+                    and details.get("config_snapshot_id") == snapshot_id
+                    and details.get("observer_generation") == generation
+                    and details.get("thresholds") == expected_event_thresholds
+                    and details.get("repeat_window_sec")
+                    == configured_values["duplicate_order_window_seconds"]
+                    and type(event_ref_value) is str
+                    and event_ref_value.startswith("tlevent:v1:")
+                    and len(event_ref_suffix) == 32
+                    and all(character in "0123456789abcdef" for character in event_ref_suffix)
+                    and type(config_event.get("event_time")) is str
+                    and config_event.get("event_time") == config_event.get("log_time")
+                ):
+                    event_ref = event_ref_value
+                    event_occurred_at = config_event["event_time"]
+            except Exception:
+                event_ref = None
+                event_occurred_at = None
+
+        thresholds_enabled = any(value > 0 for name, value in projection[:-1])
+        if thresholds_enabled and (
+            event_ref is None
+            or getattr(self.p, "log_monitoring", False) is not True
+            or getattr(self, "_monitor_logger", None) is None
+        ):
+            self._config_snapshot_active = False
+            self._config_snapshot_pending = None
+            return
+
+        self._config_snapshot_receipt = TradeLoggerConfigSnapshotV1(
+            schema=_TRADE_LOGGER_CONFIG_SNAPSHOT_SCHEMA,
+            config_snapshot_id=snapshot_id,
+            run_id=run_id,
+            observer_generation=generation,
+            started_at=started_at,
+            captured_at=captured_at,
+            threshold_projection=projection,
+            config_event_ref=event_ref,
+            config_event_occurred_at=event_occurred_at,
+        )
+        self._config_snapshot_pending = None
+
+    def config_snapshot(self):
+        """Read this active instance's start-captured configuration receipt.
+
+        The method returns the exact immutable object created by ``start``.
+        It accepts no caller-provided identity or configuration and refuses a
+        stopped, detached, incomplete, or subsequently changed observer.
+        """
+        receipt = getattr(self, "_config_snapshot_receipt", None)
+        if (
+            getattr(self, "_config_snapshot_active", False) is not True
+            or self._config_snapshot_pending is not None
+            or type(receipt) is not TradeLoggerConfigSnapshotV1
+            or self._config_snapshot_is_attached() is not True
+            or receipt.run_id != getattr(self, "_run_id", None)
+            or receipt.observer_generation != getattr(self, "_config_snapshot_generation", None)
+            or receipt.started_at != getattr(self, "_report_started_at", None)
+            or getattr(self, "_report_finalized", True) is not False
+            or receipt.threshold_projection != self._config_snapshot_projection()
+        ):
+            raise TradeLoggerConfigSnapshotError(
+                "trade_logger_config_snapshot_unavailable_or_changed"
+            ) from None
+        return receipt
 
     def _configured_risk_thresholds(self):
         """Return enabled monitoring thresholds for certification evidence."""
@@ -1064,16 +1315,26 @@ class TradeLogger(Observer):
         """Record threshold configuration using the canonical certification event."""
         thresholds = self._configured_risk_thresholds()
         if not thresholds:
-            return
+            return None
 
-        self._log_event(
+        pending = getattr(self, "_config_snapshot_pending", None)
+        details = {
+            "thresholds": thresholds,
+            "repeat_window_sec": float(self.p.duplicate_order_window_seconds or 0.0),
+        }
+        event_fields = {}
+        if pending is not None:
+            snapshot_id, _run_id, generation = pending[:3]
+            details["config_snapshot_id"] = snapshot_id
+            details["observer_generation"] = generation
+            event_fields["event_ref"] = "tlevent:v1:" + uuid.uuid4().hex
+
+        return self._log_event(
             "monitor",
             "risk_threshold_configured",
             level="INFO",
-            details={
-                "thresholds": thresholds,
-                "repeat_window_sec": float(self.p.duplicate_order_window_seconds or 0.0),
-            },
+            details=details,
+            **event_fields,
         )
 
     def _ensure_loggers_initialized(self):
@@ -2969,4 +3230,8 @@ class TradeLogger(Observer):
                 try:
                     self._shutdown_file_loggers()
                 finally:
-                    self._freeze_report()
+                    try:
+                        self._freeze_report()
+                    finally:
+                        self._config_snapshot_pending = None
+                        self._config_snapshot_active = False
