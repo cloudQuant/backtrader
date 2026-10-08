@@ -167,3 +167,13 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata-independent-review-r1-2026-10-09/checkpoint.json -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata-independent-review-r1-2026-10-09/review.json -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata-dev-round-r1-2026-10-09.md -text
+
+# Accepted SimNow C01 content-validator round (2026-10-09)
+"examples/000_live_certification/simnow_penetration/common/c01_root_ledger_v1.py" -text
+"tests/unit/live_certification/test_simnow_c01_root_ledger_v1.py" -text
+"examples/000_live_certification/simnow_penetration/common/c01_root_ledger_v1_field_map.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-root-ledger-v1-independent-review-r1-2026-10-09.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-root-ledger-v1-independent-review-r2-2026-10-09.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-ledger-root-source-qa-r1-2026-10-09/simnow_c01_ledger_root_qa_20261009.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-ledger-root-source-qa-r1-2026-10-09/simnow_c01_ledger_root_qa_20261009.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-ledger-content-dev-round-r1-2026-10-09.md" -text
