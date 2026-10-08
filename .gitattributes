@@ -13,3 +13,17 @@ scripts/ctp_000_paired_front_selector.py text eol=lf
 tests/unit/runtime/test_ctp_front_pair_probe.py text eol=crlf
 tests/unit/scripts/test_ctp_000_paired_front_selector.py text eol=lf
 tests/unit/scripts/test_ctp_000_paired_front_selector_independent.py text eol=lf
+# Fixed checkout bytes for the accepted readonly strategy closure.
+examples/000_live_certification/simnow_penetration/cases/C01/C01_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/cases/M01/M01_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/cases/L02/L02_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/cases/TH01/TH01_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/cases/TH03/TH03_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/cases/TH05/TH05_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/__init__.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/read_only_case_strategy.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/case_engine.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/certification.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/completion_invariants.py text eol=crlf
+examples/000_live_certification/simnow_penetration/common/decision_engine.py text eol=crlf
+tests/unit/live_certification/test_simnow_read_only_case_strategies.py text eol=crlf

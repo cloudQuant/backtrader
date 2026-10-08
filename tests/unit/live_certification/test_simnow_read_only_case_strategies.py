@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SUITE_ROOT = REPO_ROOT / "examples" / "007_ctp" / "live_certification" / "simnow_penetration"
+SUITE_ROOT = REPO_ROOT / "examples" / "000_live_certification" / "simnow_penetration"
 CASES_ROOT = SUITE_ROOT / "cases"
 CASE_IDS = ("C01", "M01", "L02", "TH01", "TH03", "TH05")
 BASE_TIME = datetime(2026, 9, 28, 9, 0, tzinfo=timezone.utc)
