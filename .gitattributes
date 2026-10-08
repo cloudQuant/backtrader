@@ -353,3 +353,15 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-lease-reconciliation-root-actual-r7-2026-10-09/observation.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/delivery-manifest.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-source-close-r7-dev-round-r1-2026-10-09/round-record.md" -text
+
+# Iteration41 Binance forceOrders R9 source-fake component round
+"examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py" -text
+"tests/unit/live_certification/test_binance_th01_force_orders_transport_r9.py" -text
+"scripts/iteration41_binance_th01_root_account_window_call_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/independent-review.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/source-pins-and-qa.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/qa/pytest-result.txt" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/delivery-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/round-record.md" -text

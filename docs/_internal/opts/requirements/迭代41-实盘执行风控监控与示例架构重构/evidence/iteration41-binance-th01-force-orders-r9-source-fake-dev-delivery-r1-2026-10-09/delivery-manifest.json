@@ -1,0 +1,134 @@
+{
+  "schema": "iteration41.binance.th01.force-orders-r9.scoped-dev-delivery.v1",
+  "status": "PROPOSED_READY_FOR_ROOT_SCOPED_STAGING",
+  "acceptance_level": "SOURCE_FAKE_COMPONENT_ONLY",
+  "baseline": {
+    "branch": "dev",
+    "head": "776be6c249b2ba36b9b36c24bb925761be6fc2c2",
+    "gitattributes_bytes": 48456,
+    "gitattributes_sha256": "1ca223194884458184fc8a02c3bdbc1828d7b3f527b77201b88d9595ff3920cf"
+  },
+  "payload_files": [
+    {
+      "path": "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py",
+      "bytes": 73002,
+      "sha256": "c937a07671a6df7991fb29e131d895c0eca21644d28140542fab7c8b0db1b944"
+    },
+    {
+      "path": "tests/unit/live_certification/test_binance_th01_force_orders_transport_r9.py",
+      "bytes": 40454,
+      "sha256": "90a2e9acd17ddcf2996ffb99d300c706d415afab420a940237e441f70375183f"
+    },
+    {
+      "path": "scripts/iteration41_binance_th01_root_account_window_call_r1.py",
+      "bytes": 132886,
+      "sha256": "ba0360ecc5ed99b37196e3d077e25a78cd771facec8e224ab1371635cf9be021"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/independent-review.md",
+      "bytes": 4523,
+      "sha256": "7f68615561a2f07cfb4beea5c7f01bf6c930440ba48ea98cd2cf5e4b7995f1a2"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/source-pins-and-qa.json",
+      "bytes": 4171,
+      "sha256": "0990c4d001e1c13b9f8fd28003155888f88cfc97ad8ff3ccea4730456d13473c"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/qa/pytest-result.txt",
+      "bytes": 956,
+      "sha256": "1da2a28217484efc3d64cfd6469a73f189f7861937bfd1ed4be4d13245502a32"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.py",
+      "bytes": 23870,
+      "sha256": "8c5b74f82b58af4ce3c267dd795a26436fe2e31b626b55e9df872b4a9b45eb7c"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.json",
+      "bytes": 18768,
+      "sha256": "f3d5ab8a4e311a779c39d642c69ab2d1337134bff7fa254a71595217707a5975"
+    }
+  ],
+  "inherited_exact_committed_inputs": {
+    "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py": {
+      "bytes": 92566,
+      "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f"
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py": {
+      "bytes": 62664,
+      "sha256": "4dfe7ea41c2666b87ef63984780ae5be7e3ae7c3c2777fb69dd79f764e89ac63"
+    },
+    "scripts/iteration41_binance_th01_account_window_candidate_r2.py": {
+      "bytes": 11391,
+      "sha256": "698d607e6abce0f5595470c5207a4e065b11200df5b895db35fb6af816364cd6"
+    }
+  },
+  "root_qa_preservation_context": [
+    {
+      "path": "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r8.py",
+      "bytes": 72884,
+      "sha256": "e59d594578d7594932fcdeda43e05175b95922c42fca2d7783350e598fbbafee",
+      "classification": "HOLD_preservation_context_only_excluded"
+    },
+    {
+      "path": "tests/unit/live_certification/test_binance_th01_force_orders_transport_r8.py",
+      "bytes": 34739,
+      "sha256": "b8f6d1900a8b2f1e8372e0193bb79e835fe28624edb82dab7451ad3ef71023b6",
+      "classification": "HOLD_preservation_context_only_excluded"
+    }
+  ],
+  "record_pin": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/round-record.md",
+    "bytes": 2330,
+    "sha256": "0453c5a9411a54cb36221e470b09ce474fef85254a562335dea340c6510fc92d"
+  },
+  "proposed_gitattributes_lines": [
+    "\"examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py\" -text",
+    "\"tests/unit/live_certification/test_binance_th01_force_orders_transport_r9.py\" -text",
+    "\"scripts/iteration41_binance_th01_root_account_window_call_r1.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/independent-review.md\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/source-pins-and-qa.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-transport-r9-independent-review-2026-10-09/qa/pytest-result.txt\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.py\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/root-source-qa.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/delivery-manifest.json\" -text",
+    "\"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-force-orders-r9-source-fake-dev-delivery-r1-2026-10-09/round-record.md\" -text"
+  ],
+  "root_source_qa": {
+    "passed": 20,
+    "exit_code": 0,
+    "warning_count": 0,
+    "tool": "d500a9",
+    "pin_count": 8,
+    "module_origins_verified": true,
+    "guard_selfchecks_verified": true,
+    "candidate_sources_modified": false,
+    "actual_provider_or_account": false,
+    "actual_worker_or_pipe_lifecycle": false,
+    "formal_th01_pass": false,
+    "staging_index_empty_before_and_after": true
+  },
+  "independent_review": {
+    "verdict": "GO_COMPONENT_SOURCE_FAKE_ONLY",
+    "focused_passed": 20,
+    "exit_code": 0,
+    "warning_count": 1,
+    "warning": "existing asyncio_default_fixture_loop_scope PytestConfigWarning"
+  },
+  "delivery_counts": {
+    "payload_files": 8,
+    "metadata_files": 2,
+    "gitattributes_file": 1,
+    "total_files": 11,
+    "exact_path_attribute_rules": 10
+  },
+  "scope_limits": [
+    "No actual forceOrders request or worker lifecycle.",
+    "No provider/account operation, actual transport, account completeness, or formal TH01 acceptance.",
+    "Root wrapper is a pinned source dependency with integration disabled.",
+    "R8 remains HOLD and is excluded from delivery; its QA pins are preservation context only.",
+    "The separate Root-wrapper test is excluded."
+  ],
+  "expected_file_count_including_gitattributes": 11
+}
