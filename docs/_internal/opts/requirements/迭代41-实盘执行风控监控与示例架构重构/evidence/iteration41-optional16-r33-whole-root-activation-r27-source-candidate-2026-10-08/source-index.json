@@ -1,0 +1,109 @@
+{
+  "actual_process_started": false,
+  "candidate_status": "READY_FOR_INDEPENDENT_SOURCE_FAKE_REVIEW",
+  "generated_qa_summary_sha256": "30e21fbcbd85a1e56dcf710635dd044193eb3fe56246e07e94e898c8963e7d38",
+  "members": [
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_invoke_r27.py",
+      "sha256": "ea0a4f9ec5978508b854fe457dd1cfc3c0e9c41b7b23b89ec461bfed4d798339",
+      "size_bytes": 98440,
+      "source_set": "r27-frozen-r19-namespace-binding"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_whole_call_supervisor_r27.py",
+      "sha256": "bfdd7bc9530b9ded9722ec86c1c184f36de3fb6337fb6688cbe15fa0f77f2876",
+      "size_bytes": 71265,
+      "source_set": "r27-frozen-r19-namespace-binding"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_activation_r27_source_fake.py",
+      "sha256": "d1794b07e9f742dc7ee893bf31194ca16729542d6936a303bc05b1ed55f4039f",
+      "size_bytes": 23492,
+      "source_set": "r27-frozen-r19-namespace-binding"
+    }
+  ],
+  "native_enabled": false,
+  "network_access_allowed": false,
+  "predecessor_pins": {
+    "r19_runtime": {
+      "binding_helper_sha256": "1774b2776c9c03c0e10574fda4f58093f3c2947d902d78c2d41bac9d4c47ba58",
+      "driver_sha256": "d7cd9a173e44510e8e2df8fbf68ff5420e495b5a7dd82c589bd1cbef3351c890",
+      "packet_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r19-source-candidate-2026-10-07",
+      "packet_pins": {
+        "README.md": "f1d5788f7b18507fd7b6f19b0632b2cd830cfac88ec20ed0e1116012ad83acc0",
+        "checkpoint.json": "1c09f6660ab7c470a65d0843ae98837dc8d5dda73a0aa772d6743c8a367f5da3",
+        "qa/qa-summary.json": "818c0bac5dc99b6494a5ac77fd514419d8b3bcb5cb27afe1bd851a1ba62c0710",
+        "source-bundle.zip": "9ee3054927823b6c746058a291aacdb21b2df65f9a6660e7acdca139c1095626",
+        "source-index.json": "dd3e008f645b598e118c03cd48f5dc07618605c9c826b776e0a17e3d41906263",
+        "source-pins.json": "db243608a6b5fd651d97e508c4ae79efabe0c82bef782815f30a381b4d8597b4"
+      },
+      "review_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r19-independent-review-2026-10-07",
+      "review_pins": {
+        "README.md": "7de172f561ebcc0ed51fee854e15bef47d20eca693b0f00390a23f3d16e6caf5",
+        "review-bundle.zip": "e78e4eea04a2733f25803f26aa2b9b1880cf027cc2e4a33581f004275cc04099",
+        "review-checkpoint.json": "6c279228ec6523989c71fc1a06f779f316261df657856fce4b5bc842a73eb634",
+        "review-index.json": "9bca667b3c713f767b5ae28ca017ea9d3667f95fe72bbc6127349b7e9e9c0b94",
+        "review.json": "6a5f8583172baf30f9252ad8f53b421a6e6990c0fae63299708e7dd4d8f2cba7"
+      },
+      "test_sha256": "482573a175cd54b7607a87e8da2bb995b845fc0a946d7d7bfdfd490f2488d88c"
+    },
+    "r24_predecessor": {
+      "disposition": "GO_SOURCE_FAKE_ONLY / NO_GO_AS_ACTUAL_G1",
+      "packet_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r24-source-candidate-2026-10-08",
+      "packet_pins": {
+        "README.md": "8a487bc0049a34d58c0bdba7ada21aeb65662c7956f4cd726398667a5e48d86e",
+        "checkpoint.json": "b1ea8c656a353405bb257d68061bc2b8f44bb202952ec1e6a075fdb8c9ef75d5",
+        "qa/qa-summary.json": "0550277f5de4866aca51b5bd609865e7cf2d5be56c9f6b422400a538af773de4",
+        "source-bundle.zip": "b21ebad023de75fbf6dd989a0e050f312a5c7afa0ceca5d4076c26e6e5285572",
+        "source-index.json": "14710605c7304a1b666c044feb9ae9a4775e7b28abfbf5ea2349c66a4cb1f8f2",
+        "source-pins.json": "3089e9fd9e97d625ee8f7a3015113c5122bf1f8d39fd63818dbf4c610c10f22a"
+      },
+      "review_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r24-independent-review-2026-10-08",
+      "review_pins": {
+        "README.md": "0fc771fe55fb13f33ac8385d690877de3dc5a64ac30e936da17fd793d0c282d8",
+        "review-bundle.zip": "ffec05d5b1675b23189bbf8275fca9e235cfd7d8dc213e04f8d1b7ebea71b546",
+        "review-checkpoint.json": "418b0055a4dfec0834e3819f7ab92b80c272b2874dc5142f0ba7cc813ddfa543",
+        "review-index.json": "069570920b0a9e0d08114b59345a5f4603d924c7b817757151a758e64ab0e4b2",
+        "review.json": "1a122029f20e0504a90e1d677cca565d03251bd091580dce0822f0f9ba98c2aa"
+      },
+      "source_sha256": "00f7e5ca4bbac9651165a53492e60f9021f3a9b5953c60cb6102ad824147603a",
+      "test_sha256": "cc18dc20745e0f03ba700d96998bce7df5942d77c4499f4e0853fd2f4a9c9c58"
+    },
+    "r25_review_hold": {
+      "disposition": "SOURCE_FAKE_HOLD / NO_ACTUAL_G1; historical provenance, not authority",
+      "packet_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r25-source-candidate-2026-10-08",
+      "packet_pins": {
+        "README.md": "55af4d088bec62fcdd427732175113ae5a62cfb10a68feb4e2cb3ccde03fe5a8",
+        "checkpoint.json": "7264173695fa1eff59c1c607416f11375a121fb99a4bd02adcb4d7f624254eb5",
+        "qa/qa-summary.json": "102c7c88edf012b601a80793266842604ed1720657704bc3c06cc1f26dede5c1",
+        "source-bundle.zip": "bfdeb4969b9758c01f31b7c1ca1e0f402b17165491d988a124738fe96818c3ec",
+        "source-index.json": "d3555c3c44e6a889b7a494b79565188ff52426beb4f82a77f5571d2f93700893",
+        "source-pins.json": "9fc445a698748af5da01c2dc80212bd664d717c32925c963bd43e6357ee65fcf"
+      },
+      "review_dir": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-whole-root-activation-r25-independent-review-2026-10-08",
+      "review_pins": {
+        "README.md": "b50e9d0c6c75c27dadfd6d6c57fb38eea6be4f3e0624be7818c84d46d197bb16",
+        "review-bundle.zip": "c950ce45cd97cab22d1cef7b3bf89d13598cfc17ac04d5e1c2ed6abbbffc2192",
+        "review-checkpoint.json": "49a9caa1dd3bc1de740418290291477ede4ed1efef31c7eabf85bfd9121ad337",
+        "review-index.json": "f37c85165bcbbb0671dd8c1285ff345961ee7da18d2bea4ab14cc5a2de4eeb93",
+        "review.json": "beb73455618e11f419c6dfeb1e2fe1c438571eec2d972d9328c7232826e3e284"
+      }
+    }
+  },
+  "public_source_counts": {
+    "active_public_paths": 575,
+    "base_inert_public_paths": 379,
+    "default_closed_public_paths": 495,
+    "path_aliases": 19,
+    "software_paths": 5
+  },
+  "public_source_map": {
+    "path": "evidence/iteration41-optional16-r22-root-map-preparation-r1-2026-10-08/map.json",
+    "sha256": "4812ab9b89a3eb2d1dad051c62190c77083a8579877aacc3218442d86fdd9d24"
+  },
+  "root_enabled": false,
+  "schema": "iteration41.optional16.r33.whole-call-r27.source-index.v1",
+  "source_bundle_member_count": 3,
+  "source_bundle_sha256": "8ab7c6b8810cbee8e75ffc6fba17f7e2a0339d0751e72df89e4ffed8b401aa8d",
+  "strict_cases_passed": 0
+}

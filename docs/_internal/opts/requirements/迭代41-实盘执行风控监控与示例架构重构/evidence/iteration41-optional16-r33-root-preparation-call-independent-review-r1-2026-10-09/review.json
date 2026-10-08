@@ -1,0 +1,281 @@
+{
+  "schema": "iteration41.optional16.r33.root-preparation-call.independent-review.v1",
+  "verdict": "GO_SOURCE_FAKE_CALL_GATE_ONLY",
+  "reviewer": "/root/optional16_entry_bridge_r2_review_oct9",
+  "reviewed_date": "2026-10-09",
+  "scope": [
+    "Frozen Root preparation call adapter and sourcefake test",
+    "All fixed public dependency and packet pins",
+    "V3/V4 module binding, same-scope source readback, failure retention, and no sys.modules authority",
+    "Pinned Entry R2/R1 pre-installer preparation boundary and full-map derivation"
+  ],
+  "candidate_packet": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-call-source-fake-r1-2026-10-09",
+    "source_index_size_bytes": 10861,
+    "source_index_sha256": "f8f620ee880820142c521ad74ffa195e948c9b48445639e32281d1d0ff326cff",
+    "readme_size_bytes": 5031,
+    "readme_sha256": "169aac92b31cc27cce5844add4ceb009471d56776f3d39b84e44685e0662eba2",
+    "qa_summary_size_bytes": 1816,
+    "qa_summary_sha256": "828a934e7fb9f14a33eb150dc2fd3186518da26f436b3c13ad35aeaa45594de9",
+    "source_packet_size_bytes": 9112,
+    "source_packet_sha256": "2dfd4becf9a8b1d19c008b0db3efd943cb543c5fc88e178d56dc04f1b904aa51",
+    "checkpoint_size_bytes": 1373,
+    "checkpoint_sha256": "c575fae4136b42d98fa8a471c57e53bc405631da0bac2fc06f55d0bca735016b"
+  },
+  "source_rows": [
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_call_r1.py",
+      "bytes": 22428,
+      "sha256": "762cf58ed2d9d4e2eed2c089a967946610ba660854327d7786c63f463ae4ef8e"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r1_source_fake.py",
+      "bytes": 9903,
+      "sha256": "ef2ff7c1995f0e789489f914b42a342581ea1f7c0ea4d3605d7607f690aae7d6"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_entry_r2.py",
+      "bytes": 108188,
+      "sha256": "80295025d0145893f4f63745182042812284434e4e7e5b4388b89d82623c2ead"
+    },
+    {
+      "path": "scripts/iteration41_root_held_source_scope_v3.py",
+      "bytes": 42252,
+      "sha256": "f3270495d3ddb046f8617d689510d4ae6ee700d639e0db769c518a15099a7677"
+    },
+    {
+      "path": "scripts/iteration41_root_held_source_scope_v4.py",
+      "bytes": 31692,
+      "sha256": "138c86e21de773822eceac07034e113e0adb5ea5d9056fcc16cee10a75c0e830"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_invoke_r27.py",
+      "bytes": 98440,
+      "sha256": "ea0a4f9ec5978508b854fe457dd1cfc3c0e9c41b7b23b89ec461bfed4d798339"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_whole_call_supervisor_r27.py",
+      "bytes": 71265,
+      "sha256": "bfdd7bc9530b9ded9722ec86c1c184f36de3fb6337fb6688cbe15fa0f77f2876"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_activation_r27_source_fake.py",
+      "bytes": 23492,
+      "sha256": "d1794b07e9f742dc7ee893bf31194ca16729542d6936a303bc05b1ed55f4039f"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_invoke_r28_r5.py",
+      "bytes": 146687,
+      "sha256": "710452c8358887faa152cd2c6d11333ccf8ecb18fbe64d511ce86eb8f112c99c"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_glue_r15.py",
+      "bytes": 17658,
+      "sha256": "f9c9a5332a9d2456db8179d7a7e63103269c16feb2712a2b039479d97fe2dd98"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_driver_r19.py",
+      "bytes": 168431,
+      "sha256": "d7cd9a173e44510e8e2df8fbf68ff5420e495b5a7dd82c589bd1cbef3351c890"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_invoke_r28_r2.py",
+      "bytes": 45932,
+      "sha256": "fea25e15d535e7cd47d0637e060d464cbc982e8cdedfc2a1b620d166118cb213"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_deadline_r19_binding.py",
+      "bytes": 38956,
+      "sha256": "1774b2776c9c03c0e10574fda4f58093f3c2947d902d78c2d41bac9d4c47ba58"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_deadline_r18_binding.py",
+      "bytes": 32224,
+      "sha256": "5977009ff0d6bfafb98f5e9eace3e49cd9e49a15c760237ff5cee4d0f9c2fb43"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_deadline_r17_binding.py",
+      "bytes": 25753,
+      "sha256": "f4526bd40433fb74fe0c3d360c863d07e5613924a9bba243611026c058b442bd"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_deadline_r15_root_binding_r1.py",
+      "bytes": 53923,
+      "sha256": "5b30bb4a1516fcc632362a8be9073b4dfbdaafe8476b8d73c5b300ca05433a75"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r32_root_held_invoke_r3_public_snapshot.py",
+      "bytes": 16141,
+      "sha256": "c93a20753db03df0710b86262b3e4a95d9a49ac5c86fe6aad055acfc945f162e"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iter41-zmq-r6-map-r3-20261007/source/p/r25-public-path-pins.json",
+      "bytes": 110892,
+      "sha256": "5264b763bac6aac5d70fcbaa4e7cea423544ce90cd367e5e34da55c1680b9899"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-cache-opaque-snapshot-r1-2026-10-08/index.json",
+      "bytes": 1418,
+      "sha256": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-stdlib-opaque-snapshot-r1-2026-10-08/index.json",
+      "bytes": 991,
+      "sha256": "b6c355a4f3b5befe33f9fe0cc5880dfcbde711879d546c876c9b48d2013b1dec"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r29-root-driver-independent-review-r1-2026-10-04/external/iteration41-r29-profiler-bytecode-source-proof-r1.py",
+      "bytes": 4810,
+      "sha256": "7c7de3f15710f5f1b3fc8047bb35b50454d2ed6e5382bfb4096827dca405a913"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_r1.py",
+      "bytes": 18324,
+      "sha256": "a626001a9f80bee26996a0fd3effb0e670c96ffd7a167ba154d23521eca64aa4"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_r1_source_fake.py",
+      "bytes": 5188,
+      "sha256": "83099569011a56faa494b7cfffa62ed67df3fb5ffe9d801d19263458921a1c89"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-source-fake-r1-2026-10-09/README.md",
+      "bytes": 2372,
+      "sha256": "c9ceeb83ab82c572d31661c74c576661bf8f52a435e371714bb10946be8e6707"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-source-fake-r1-2026-10-09/source-index.json",
+      "bytes": 5488,
+      "sha256": "967bf296ea3218c37ccd00aa3c5de25f588df5c676879a3ae42a37a2740be7b8"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-source-fake-r1-2026-10-09/qa-summary.json",
+      "bytes": 1548,
+      "sha256": "e9f349a76b266bfe3786695bb5635e04831d21f1e1216207cafe728a446a2022"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-source-fake-r1-2026-10-09/source-packet.zip",
+      "bytes": 7681,
+      "sha256": "1201c232e264cdae67c94edb3fbe48ebb434365574ea84d7534e5eaf4b5e5f76"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-source-fake-r1-2026-10-09/checkpoint.json",
+      "bytes": 1307,
+      "sha256": "3f66e6f3cbbbacaea84f1629b8ad26fad1365d34846f4dd9ae03bb67732b85b2"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r33-root-preparation-independent-review-r1-2026-10-09/review.json",
+      "bytes": 11255,
+      "sha256": "be220c877f4aa98256dc8e502bc58ec5e0955c3092b5d4e2c10957208060f8ad"
+    }
+  ],
+  "source_pin_result": {
+    "candidate_rows": 2,
+    "fixed_dependency_rows": 27,
+    "total_rows": 29,
+    "current_checkout_pins": "MATCH_ALL",
+    "source_packet_members": [
+      {
+        "path": "scripts/iteration41_optional16_r33_root_preparation_call_r1.py",
+        "bytes": 22428,
+        "sha256": "762cf58ed2d9d4e2eed2c089a967946610ba660854327d7786c63f463ae4ef8e"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r1_source_fake.py",
+        "bytes": 9903,
+        "sha256": "ef2ff7c1995f0e789489f914b42a342581ea1f7c0ea4d3605d7607f690aae7d6"
+      }
+    ],
+    "zip_member_bytes_match_current_checkout": true,
+    "blob_or_pyc_payload_members": 0
+  },
+  "module_source_binding": {
+    "v3_path": "scripts/iteration41_root_held_source_scope_v3.py",
+    "v3_sha256": "f3270495d3ddb046f8617d689510d4ae6ee700d639e0db769c518a15099a7677",
+    "v4_path": "scripts/iteration41_root_held_source_scope_v4.py",
+    "v4_sha256": "138c86e21de773822eceac07034e113e0adb5ea5d9056fcc16cee10a75c0e830",
+    "evidence": [
+      "The candidate requires exactly the v3/v4 byte keys, exact bytes types, bounded lengths, and fixed SHA-256 pins.",
+      "It compiles isolated V3 and V4 reference modules from those bytes. The V4 reference changes only the unique top-level _V3_MODULE = _load_v3_module() anchor to use the held V3 reference.",
+      "It compares module names/paths/spec origin, loader/cache/builtins metadata, global names and values, source-defined function code/globals/defaults/kwdefaults/annotations/closures, and class bases/descriptors/values.",
+      "The actual V4 nested V3 module must retain exactly the caller scope object in the V3 retained-scope list; the V4 scope class base must be the actual nested V3 scope class.",
+      "The adapter does not consult or register modules in sys.modules; its test checks that the V3 registry entry remains unchanged."
+    ],
+    "same_scope_readback": "After module comparison, the exact V4 production scope must be OPEN and test_only false; its manifest must pin V3/V4, and read_held must return bytes equal to the supplied source bytes before the pinned R1 helper is loaded or called.",
+    "ancillary_state_limit": "The comparator does not separately compare mutable function __dict__/__doc__ attributes or ModuleSpec.loader. I found no corresponding V3/V4 verification path that consumes these fields; executable function code, globals, defaults, closures, class descriptors, and module constants are compared."
+  },
+  "preparation_boundary": {
+    "preparation_helper_path": "scripts/iteration41_optional16_r33_root_preparation_r1.py",
+    "preparation_helper_sha256": "a626001a9f80bee26996a0fd3effb0e670c96ffd7a167ba154d23521eca64aa4",
+    "entry_path": "Entry R2 _execute_with_scope via the pinned R1 pre-installer prefix",
+    "entry_sha256": "80295025d0145893f4f63745182042812284434e4e7e5b4388b89d82623c2ead",
+    "static_boundary_review": [
+      "R1 reads Entry R2 bytes through the held scope and extracts the unique _execute_with_scope prefix before its unique helper.install_full_hold_adaptation statement.",
+      "The prefix requires the pinned R19 active-map derivation, full-map builder, V4 profiler verifier call, and both R5/R27 source transforms; it rejects installer calls and invoke start/run entry calls before the boundary.",
+      "R1 checks 582 public rows, 5 software rows, 3 profiler modules, full union >=582, and held rows >=587 before normal scope release/postverify.",
+      "Entry R2 derives active 575 public plus 5 software rows; its pinned cold base is 515, outer map 14 with overlap 11, cold/outer union 518, and active/cold-outer union 582. Support/payload rows are derived into full_union and held with the software rows.",
+      "The adapter reports only PREPARATION_VERIFIED_NO_AUTHORITY after the exact R1 success status and scope.state CLOSED; any other result is BLOCKED_RETAINED."
+    ],
+    "call_order": "Source check and static AST test confirm module binding precedes exact-scope readback, which precedes pinned R1 helper load and call.",
+    "failure_retention": "Static review confirms scope, V4, supplied source bytes, payload and R1 source are retained on exceptions or non-success results; isolated reference modules/helper are also retained after the binding phase. R1 requests retention on errors or uncertain close.",
+    "successful_prefix_executed_in_review": false
+  },
+  "independent_qa": {
+    "interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+    "flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-X utf8"
+    ],
+    "explicit_paths": [
+      "D:/source_code/backtrader",
+      "D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages"
+    ],
+    "plugin_autoload": "disabled",
+    "PYTHONPATH": "unset",
+    "pytest_plugins": [
+      "no:capture",
+      "no:asyncio",
+      "no:cacheprovider"
+    ],
+    "basetemp": "D:/source_code/backtrader/.codex-tmp/o16-preparation-call-independent-20261009-a482",
+    "result": {
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "warning": "One existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope.",
+    "deny_guards": [
+      "subprocess.Popen/run/call",
+      "os.system/startfile",
+      "socket.socket/create_connection/socketpair",
+      "ctypes.CDLL/WinDLL/OleDLL"
+    ],
+    "observed_test_boundary": "Tests compile pinned public V3/V4 source and test code/module binding, mutations, retained scope identity, descriptors, default-closed behavior, exact R1 pin loading, and AST call order. They do not create a production scope, call prepare_root_source_verification(requested=True), execute Entry R1 prefix, invoke V4 verification/R29, or access/fabricate cache bytes."
+  },
+  "public_opaque_provenance": {
+    "cache_index_sha256": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0",
+    "cache_index_pin": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0",
+    "stdlib_index_sha256": "b6c355a4f3b5befe33f9fe0cc5880dfcbde711879d546c876c9b48d2013b1dec",
+    "payload_read_or_fabricated": false,
+    "v4_or_r29_proof_executed": false,
+    "note": "Only public JSON index metadata and source were inspected. The frozen Entry/R1 success path would invoke the V4/R29 cache proof; this review did not invoke that path.",
+    "cache_index_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-cache-opaque-snapshot-r1-2026-10-08/index.json",
+    "stdlib_index_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-stdlib-opaque-snapshot-r1-2026-10-08/index.json",
+    "opaque_cache_row_example": "C:/anaconda3/Lib/__pycache__/cProfile.cpython-311.pyc"
+  },
+  "limitations": [
+    "This review accepts only the sourcefake call gate and source binding. No real V4 scope or successful R1 preparation prefix was exercised.",
+    "No V4 verifier/R29 proof or opaque .pyc bytes were read, fabricated, or tested.",
+    "No worker installer, child/control/claim creation, SDK/provider/account/native/network/WinAPI activity, or activation occurred.",
+    "The packet does not bind the full Entry/R5/R27/V3/V4/R29 production composition, and it grants no authorization for the old R1 driver or Optional16 activation.",
+    "The sourcefake suite does not directly test same-scope readback or failure-retention paths; those were reviewed statically and through AST ordering."
+  ],
+  "authority": {
+    "actual_root_authority": false,
+    "activation_authorization": false,
+    "formal_optional16_pass_count": 0
+  }
+}
