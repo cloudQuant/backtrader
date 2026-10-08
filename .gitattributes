@@ -7,3 +7,9 @@ examples/012_2_event_driven_cross_exchange/config.yaml text eol=lf
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-independent-qa-r1-2026-09-27/candidate-inputs/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-independent-qa-r1-2026-09-27/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/unified-offline-wheelhouse-settlement-r1-2026-09-27/unified-offline-wheelhouse-settlement-evidence-r1.zip filter=lfs diff=lfs merge=lfs -text
+# Fixed checkout bytes for the accepted paired-front source pins.
+backtrader_runtime/ctp_front_pair_probe.py text eol=crlf
+scripts/ctp_000_paired_front_selector.py text eol=lf
+tests/unit/runtime/test_ctp_front_pair_probe.py text eol=crlf
+tests/unit/scripts/test_ctp_000_paired_front_selector.py text eol=lf
+tests/unit/scripts/test_ctp_000_paired_front_selector_independent.py text eol=lf

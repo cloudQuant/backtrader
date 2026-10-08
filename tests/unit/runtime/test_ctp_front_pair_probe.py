@@ -148,7 +148,7 @@ def test_failed_candidate_is_skipped_only_in_favor_of_another_configured_pair():
     )
     fixture = _ProbeFixture(
         {
-            "198.51.100.9": [None, 0.02],
+            "198.51.100.9": [None, None],
             "198.51.100.10": [0.02, 0.02],
             "198.51.100.11": [0.05, 0.05],
             "198.51.100.12": [0.05, 0.05],
@@ -190,33 +190,37 @@ def test_majority_connected_pair_uses_successful_samples_and_never_invents_front
     assert selected.latency_score_ms == pytest.approx(30.0)
 
 
-def test_one_of_three_connections_is_insufficient_even_when_both_sides_connect_once():
+def test_single_configured_pair_is_selected_when_both_sides_connect_once():
     configured = (_pair("tcp://198.51.100.21:10131", "tcp://198.51.100.22:10130"),)
     fixture = _ProbeFixture(
         {"198.51.100.21": [None, 0.010, None], "198.51.100.22": [None, 0.010, None]}
     )
 
-    with pytest.raises(CtpFrontPairProbeError, match="no_configured_front_pair_reachable") as exc:
-        _selector(configured, fixture)
+    selected = _selector(configured, fixture, max_pairs=1)
 
-    assert exc.value.evidence[0].reachable is False
-    assert exc.value.evidence[0].md.median_latency_ms is None
-    assert exc.value.evidence[0].td.median_latency_ms is None
+    assert selected.config_index == 0
+    assert selected.pair.md_front == configured[0]["md_front"]
+    assert selected.pair.td_front == configured[0]["td_front"]
+    assert selected.evidence[0].reachable is True
+    assert selected.latency_score_ms == pytest.approx(10.0)
 
 
-def test_all_configured_pairs_failed_raises_with_complete_evidence():
+@pytest.mark.parametrize("pair_count", [1, 2])
+def test_all_configured_pairs_failed_raises_with_complete_evidence(pair_count):
     configured = (
         _pair("tcp://198.51.100.13:10131", "tcp://198.51.100.14:10130"),
-    )
-    fixture = _ProbeFixture({"198.51.100.13": [None, None], "198.51.100.14": [None, None]})
+        _pair("tcp://198.51.100.15:10131", "tcp://198.51.100.16:10130"),
+    )[:pair_count]
+    fixture = _ProbeFixture({})
 
     with pytest.raises(CtpFrontPairProbeError, match="no_configured_front_pair_reachable") as exc:
         _selector(configured, fixture, samples=2)
 
-    assert len(exc.value.evidence) == 1
-    assert exc.value.evidence[0].reachable is False
-    assert all(not sample.connected for sample in exc.value.evidence[0].md.samples)
-    assert all(not sample.connected for sample in exc.value.evidence[0].td.samples)
+    assert len(exc.value.evidence) == pair_count
+    for evidence in exc.value.evidence:
+        assert evidence.reachable is False
+        assert all(not sample.connected for sample in evidence.md.samples)
+        assert all(not sample.connected for sample in evidence.td.samples)
 
 
 @pytest.mark.parametrize(

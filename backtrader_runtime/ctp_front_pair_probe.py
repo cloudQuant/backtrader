@@ -6,7 +6,8 @@ fronts, read credentials, log in, or authorize trading. It is a small network
 diagnostic that returns the selected configured pair and detached timing
 evidence. Callers must perform their separate config and execution admission.
 
-Each endpoint must connect in a strict majority of its bounded samples. The
+One or more configured MD/TD pairs may be supplied. Each endpoint must connect
+in at least one of its bounded samples for its pair to be eligible. The
 latency score is the larger of the successful-sample medians for MD and TD,
 so a fast market-data front cannot hide a slow trading front. Ties retain
 config order. Numeric IPv4 addresses use direct timed sockets. Hostname
@@ -40,7 +41,8 @@ from urllib.parse import urlsplit
 _MAX_PAIRS = 8
 _MAX_REPEATED_SAMPLES = 5
 _MAX_TIMEOUT_SECONDS = 10.0
-_MAX_WORST_CASE_SECONDS = 180.0
+MAX_PROBE_WORST_CASE_SECONDS = 180.0
+_MAX_WORST_CASE_SECONDS = MAX_PROBE_WORST_CASE_SECONDS
 _MAX_CONCURRENT_ENDPOINTS = 8
 _WORKER_TERMINATION_GRACE_SECONDS = 0.25
 _WORKER_TERMINATION_ATTEMPTS = 2
@@ -112,7 +114,7 @@ class CtpFrontEndpointEvidence:
             for sample in self.samples
             if sample.connected and sample.latency_ms is not None
         )
-        if len(connected) < len(self.samples) // 2 + 1:
+        if not connected:
             return None
         return float(median(connected))
 
@@ -456,10 +458,10 @@ def select_ctp_front_pair(
 
     All addresses are parsed before any socket opens. ``max_pairs`` is a hard
     bound: excess config entries fail before probing instead of being silently
-    truncated. Every candidate receives the same number of MD and TD samples;
-    each endpoint needs a strict majority of successful samples. If every
-    configured pair is ineligible, a typed error contains failure evidence
-    and no pair is chosen.
+    truncated. A single configured pair is valid. Every candidate receives the
+    same number of MD and TD samples; each endpoint needs at least one successful
+    sample. If every configured pair is ineligible, a typed error contains failure
+    evidence and no pair is chosen.
 
     Use a timeout of at least 3 seconds for typical CTP fronts. The maximum
     aggregate probe budget, including a bounded worker termination grace, is
@@ -610,6 +612,7 @@ def select_ctp_front_pair(
 
 
 __all__ = [
+    "MAX_PROBE_WORST_CASE_SECONDS",
     "CtpConfiguredFrontPair",
     "CtpFrontEndpointEvidence",
     "CtpFrontPairEvidence",
