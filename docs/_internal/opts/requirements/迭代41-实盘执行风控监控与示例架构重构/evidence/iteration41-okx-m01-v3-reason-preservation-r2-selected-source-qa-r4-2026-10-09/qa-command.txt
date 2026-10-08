@@ -1,0 +1,8 @@
+$snap='D:/source_code/backtrader/.codex-tmp/iteration41_m01_v3_reason_r2_selected_source_r4'
+$base='D:/source_code/backtrader/.codex-tmp/M01_V3_R2_SNAPSHOT_QA_20261009_R1'
+$code="import os,sys; os.environ.pop('PYTHONPATH',None); os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD']='1'; sys.path[:0]=['$snap','D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages']; import pytest; raise SystemExit(pytest.main(['-q','-p','no:asyncio','-p','no:cacheprovider','--rootdir=$snap','--confcutdir=$snap','--basetemp=$base','$snap/tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py::test_v3_entry_and_runner_have_no_unresolved_source_pins','$snap/tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py::test_v3_missing_proof_preserves_first_failure_and_releases_admission','$snap/tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py::test_v3_missing_proof_release_failure_reports_uncertainty_and_retains_custody']))"
+& 'D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe' -I -S -B -X utf8 -c $code
+
+Output:
+.... [100%]
+4 passed, 1 warning in 0.17s

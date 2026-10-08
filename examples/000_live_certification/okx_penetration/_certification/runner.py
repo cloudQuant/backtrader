@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from collections import defaultdict
 from copy import deepcopy
@@ -12,9 +11,9 @@ from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from .backends import Backend, create_backend
 from .cases import CASES
 from .config import Config, Environment, Grants
 from .evidence import EvidenceWriter
@@ -38,6 +37,10 @@ from .models import (
     Status,
     UnsupportedCaseError,
 )
+from .fixed_owner_routes import resolve_fixed_owner_route
+
+if TYPE_CHECKING:
+    from .backends import Backend
 
 _REMOTE = ("provider", "exchange", "broker", "gateway", "remote_log")
 UTC = timezone.utc
@@ -363,6 +366,71 @@ def _notional(
     return quantity * spec.contract_value
 
 
+def _provider_native_order_fields(
+    venue: str,
+    side: str | None,
+    order_type: str | None,
+    position_side: str | None,
+    time_in_force: str | None,
+) -> dict[str, str]:
+    if (
+        side not in {"buy", "sell"}
+        or order_type != "limit"
+        or position_side not in {"BOTH", "LONG", "SHORT"}
+        or time_in_force != "GTC"
+    ):
+        raise CertificationError(
+            "explicit supported LIMIT side, position side and GTC are required"
+        )
+    if venue == "binance":
+        return {
+            "type": "LIMIT",
+            "side": side.upper(),
+            "positionSide": position_side,
+            "timeInForce": time_in_force,
+        }
+    if venue == "okx":
+        return {
+            "tdMode": "cross",
+            "side": side,
+            "posSide": {"BOTH": "net", "LONG": "long", "SHORT": "short"}[position_side],
+            "ordType": "limit",
+        }
+    raise CertificationError("native order fields are unsupported for this venue")
+
+
+def _operation_request_digest(venue: str, operation: PlannedOperation) -> str:
+    """Bind typed intent and venue-native request fields to actual operation evidence."""
+    native_fields = _provider_native_order_fields(
+        venue,
+        operation.side,
+        operation.order_type,
+        operation.position_side,
+        operation.time_in_force,
+    )
+    document = {
+        "schema": "venue-native-order-request-v1",
+        "venue": venue,
+        "operation_id": operation.operation_id,
+        "kind": operation.kind,
+        "client_order_id": operation.client_order_id,
+        "target_order_id": operation.target_order_id,
+        "symbol": operation.symbol,
+        "side": operation.side,
+        "quantity": format(operation.quantity, "f"),
+        "price": format(operation.price, "f"),
+        "order_type": operation.order_type,
+        "position_id": operation.position_id,
+        "reduce_only": operation.reduce_only,
+        "instrument_spec_id": operation.instrument_spec_id,
+        "position_side": operation.position_side,
+        "time_in_force": operation.time_in_force,
+        "provider_fields": native_fields,
+    }
+    canonical = json.dumps(document, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
 def _reference(
     config: Config,
     binding: Binding,
@@ -389,6 +457,7 @@ def _plan(
     spec: InstrumentSpec | None,
     ref: MarketReference | None,
     currency: str,
+    venue: str | None = None,
 ) -> ActionPlan:
     ops: list[PlannedOperation] = []
     symbol = str(params["symbol"]) if "symbol" in params else None
@@ -398,23 +467,36 @@ def _plan(
     reducing = params.get("reduce_only") is True
 
     def add(phase: str, kind: str, *, client: str | None = None, target: str | None = None) -> None:
-        ops.append(
-            PlannedOperation(
-                uuid4().hex,
-                phase,
-                kind,
-                client,
-                target,
-                symbol,
-                str(params["side"]) if kind == "submit" else None,
-                quantity if kind == "submit" else Decimal(0),
-                price if kind == "submit" else Decimal(0),
-                "limit" if kind == "submit" else None,
-                position if kind == "submit" else None,
-                reducing if kind == "submit" else False,
-                spec.spec_id if spec and kind == "submit" else None,
-            )
+        operation = PlannedOperation(
+            uuid4().hex,
+            phase,
+            kind,
+            client,
+            target,
+            symbol,
+            str(params["side"]) if kind == "submit" else None,
+            quantity if kind == "submit" else Decimal(0),
+            price if kind == "submit" else Decimal(0),
+            "limit" if kind == "submit" else None,
+            position if kind == "submit" else None,
+            reducing if kind == "submit" else False,
+            spec.spec_id if spec and kind == "submit" else None,
         )
+        if kind == "submit" and venue in {"binance", "okx"}:
+            if "position_side" not in params or "time_in_force" not in params:
+                raise CertificationError(
+                    "Binance and OKX submit plans require explicit position_side and time_in_force"
+                )
+            operation = replace(
+                operation,
+                position_side=str(params["position_side"]),
+                time_in_force=str(params["time_in_force"]),
+            )
+            operation = replace(
+                operation,
+                request_digest=_operation_request_digest(venue, operation),
+            )
+        ops.append(operation)
 
     if CASES[case_id].risk == Risk.READ:
         add("execute", "read")
@@ -460,6 +542,19 @@ def _validate_operation(
     ):
         raise CertificationError("operation evidence does not match immutable plan")
     if (
+        planned.kind == "submit"
+        and planned.position_side is not None
+        and (
+            actual.position_side is None
+            or actual.time_in_force is None
+            or actual.request_digest is None
+        )
+    ):
+        raise UnsupportedCaseError("provider operation lacks native order request evidence")
+    if planned.kind == "submit" and planned.position_side is not None:
+        if planned.request_digest != _operation_request_digest(action.binding.venue, planned):
+            raise CertificationError("immutable plan request digest does not match native fields")
+    if (
         actual.client_order_id,
         actual.target_order_id,
         actual.symbol,
@@ -470,6 +565,9 @@ def _validate_operation(
         actual.position_id,
         actual.reduce_only,
         actual.instrument_spec_id,
+        actual.position_side,
+        actual.time_in_force,
+        actual.request_digest,
     ) != (
         planned.client_order_id,
         planned.target_order_id,
@@ -481,6 +579,9 @@ def _validate_operation(
         planned.position_id,
         planned.reduce_only,
         planned.instrument_spec_id,
+        planned.position_side,
+        planned.time_in_force,
+        planned.request_digest,
     ):
         raise CertificationError("operation parameters differ from authorized plan")
     if not _channel(att, actual.source_instance, actual.source_channel, "command_response"):
@@ -543,6 +644,80 @@ def _validate_cancel_targets(
         raise CertificationError("T03 requires one accepted cancel of the referenced order")
     if action.case_id == "O03" and not any(operation.accepted for operation in cancels):
         raise CertificationError("O03 never obtained an accepted cancel")
+
+
+def _validate_native_event_facts(
+    action: Action,
+    event: Observation,
+    operation_by_id: dict[str, OperationEvidence],
+) -> set[str]:
+    planned_native = {
+        operation.operation_id: operation
+        for operation in action.plan.operations
+        if operation.phase == "execute"
+        and operation.kind == "submit"
+        and operation.position_side is not None
+    }
+    covered = set(event.operation_ids) & set(planned_native)
+    if not covered:
+        return set()
+    facts = event.payload.get("native_order_facts")
+    if not isinstance(facts, list):
+        raise UnsupportedCaseError("independent native order facts are unavailable")
+    fact_by_operation: dict[str, dict[str, object]] = {}
+    required_keys = {
+        "operation_id",
+        "provider_request_id",
+        "provider_order_id",
+        "request_digest",
+        "provider_fields",
+    }
+    for fact in facts:
+        if not isinstance(fact, dict):
+            raise CertificationError("independent native order fact has an invalid shape")
+        if required_keys - set(fact):
+            raise UnsupportedCaseError("independent native order fact omits required fields")
+        if set(fact) - required_keys:
+            raise CertificationError("independent native order fact has an invalid shape")
+        operation_id = fact.get("operation_id")
+        if not isinstance(operation_id, str) or operation_id in fact_by_operation:
+            raise CertificationError("independent native order facts are duplicated or unbound")
+        fact_by_operation[operation_id] = fact
+    if set(fact_by_operation) != covered:
+        raise UnsupportedCaseError("independent native order fact coverage is incomplete")
+    for operation_id in covered:
+        planned = planned_native[operation_id]
+        actual = operation_by_id[operation_id]
+        fact = fact_by_operation[operation_id]
+        if any(
+            not isinstance(fact[name], str) or not fact[name]
+            for name in ("provider_request_id", "provider_order_id", "request_digest")
+        ):
+            raise UnsupportedCaseError("independent native fact lacks request/order evidence")
+        if (
+            fact["provider_request_id"] != actual.provider_request_id
+            or fact["provider_order_id"] != actual.provider_order_id
+            or fact["request_digest"] != planned.request_digest
+            or fact["request_digest"] != actual.request_digest
+        ):
+            raise CertificationError(
+                "independent native fact does not match request/order identity"
+            )
+        native_fields = fact["provider_fields"]
+        expected_fields = _provider_native_order_fields(
+            action.binding.venue,
+            planned.side,
+            planned.order_type,
+            planned.position_side,
+            planned.time_in_force,
+        )
+        if not isinstance(native_fields, dict):
+            raise UnsupportedCaseError("independent native order fields are unavailable")
+        if set(expected_fields) - set(native_fields):
+            raise UnsupportedCaseError("independent native order fields are incomplete")
+        if set(native_fields) - set(expected_fields) or native_fields != expected_fields:
+            raise CertificationError("independent native order fields differ from authorized plan")
+    return covered
 
 
 def _validate_operations(
@@ -846,7 +1021,13 @@ def _observe(
     seen_events: set[str] = set()
     covered_ops: set[str] = set()
     covered_orders: set[str] = set()
+    covered_native_ops: set[str] = set()
     planned_execute = {o.operation_id for o in action.plan.operations if o.phase == "execute"}
+    planned_native_ops = {
+        o.operation_id
+        for o in action.plan.operations
+        if o.phase == "execute" and o.kind == "submit" and o.position_side is not None
+    }
     operation_by_id = {o.operation_id: o for o in receipt.operations}
     aggregate_cases = {"B01", "B02", "O01", "O02", "TH02", "TH04", "TH06"}
     if action.case_id in {"TH02", "TH04", "TH06"} and len(events) != 1:
@@ -907,6 +1088,7 @@ def _observe(
             raise CertificationError("event request IDs do not match covered planned operations")
         if event.payload.get("provider_response_id") != receipt.provider_response_id:
             raise CertificationError("event provider response reference mismatch")
+        covered_native_ops.update(_validate_native_event_facts(action, event, operation_by_id))
         if not _proof(action, event, att, created):
             raise CertificationError("case proof is missing or inconsistent")
         seen_events.add(event.provider_event_id)
@@ -918,6 +1100,8 @@ def _observe(
         ):
             raise CertificationError("aggregate event lacks complete per-operation/order proof")
         covered_orders.update(event.provider_order_ids)
+    if covered_native_ops != planned_native_ops:
+        raise UnsupportedCaseError("independent native order fact coverage is incomplete")
     if not events or covered_ops != planned_execute or not set(created) <= covered_orders:
         raise CertificationError("not every operation/order has independent event evidence")
     _cross_case_evidence(action, receipt, events, created)
@@ -1026,6 +1210,24 @@ def _snapshot(action: Action, snap: StateSnapshot, att: Attestation, phase: str)
             not in {"open", "partially_filled", "cancelled", "filled", "rejected", "expired"}
         ):
             raise CertificationError("snapshot order quantity equation failed")
+    planned_native = {
+        operation.client_order_id: operation
+        for operation in action.plan.operations
+        if operation.kind == "submit"
+        and operation.client_order_id is not None
+        and operation.position_side is not None
+    }
+    for order in snap.orders:
+        planned = planned_native.get(order.client_order_id)
+        if planned is None:
+            continue
+        if order.position_side is None or order.time_in_force is None:
+            raise UnsupportedCaseError("provider snapshot lacks native order fields")
+        if (order.position_side, order.time_in_force) != (
+            planned.position_side,
+            planned.time_in_force,
+        ):
+            raise CertificationError("snapshot native order fields differ from authorized plan")
 
 
 def _pre_execute_target(action: Action, baseline: StateSnapshot) -> None:
@@ -1204,6 +1406,8 @@ def _reconcile_state(
             or order.reduce_only != operation.reduce_only
             or order.instrument_spec_id != operation.instrument_spec_id
             or order.requested != operation.quantity
+            or order.position_side != operation.position_side
+            or order.time_in_force != operation.time_in_force
         ):
             raise CertificationError("order state differs from accepted planned submit")
     for order_id in touched:
@@ -1430,6 +1634,8 @@ def _recover_owned_orders(
             or order.reduce_only != operation.reduce_only
             or order.instrument_spec_id != operation.instrument_spec_id
             or order.requested != operation.quantity
+            or order.position_side != operation.position_side
+            or order.time_in_force != operation.time_in_force
         ):
             mismatched.append(order.client_order_id)
     return recovered, tuple(mismatched)
@@ -1736,7 +1942,9 @@ def _run_one(
             if cleanup_error is not None:
                 result = CaseResult(
                     action.case_id,
-                    Status.FAILED,
+                    Status.BLOCKED
+                    if isinstance(cleanup_error, UnsupportedCaseError)
+                    else Status.FAILED,
                     f"cleanup or state reconciliation failed ({type(cleanup_error).__name__})",
                     int(receipt is not None),
                     len(observations),
@@ -1747,207 +1955,26 @@ def _run_one(
 def run_live(
     config: Config, selected: list[str], grants: Grants, evidence_dir: str | Path
 ) -> tuple[list[CaseResult], Path]:
-    """Authorize before credentials/factory; then run only provider-backed cases."""
+    """Run only an exact route registered to a reviewed same-owner implementation."""
     if not selected or len(set(selected)) != len(selected) or set(selected) - set(CASES):
         raise CertificationError("case selection must contain unique known IDs")
-    if config.topology is not None:
-        components = (
-            ",".join(
-                name for name in ("execution", "risk", "monitor") if getattr(config.topology, name)
+    route = resolve_fixed_owner_route(config.venue, selected, config.topology)
+    if route is None:
+        # The candidate mapper is not an admitted route. Never fall back to the
+        # arbitrary Python/HTTP backend factory when topology is omitted or
+        # when an explicit selection has no exact same-owner registration.
+        if config.topology is not None:
+            components = (
+                ",".join(
+                    name
+                    for name in ("execution", "risk", "monitor")
+                    if getattr(config.topology, name)
+                )
+                or "none"
             )
-            or "none"
-        )
-        # A generic bridge cannot stand in for an explicitly selected provider
-        # route or prove optional component participation. Reject before even
-        # reading credentials, creating evidence, or importing a backend.
-        raise CertificationError(
-            f"selected topology unavailable: {config.topology.transport}; components={components}"
-        )
-    # The entire selected enabled write set is authorized before the first secret
-    # lookup, backend import, factory invocation, or bridge connection.
-    for case_id in selected:
-        item = config.cases.get(case_id)
-        if item is not None and item.enabled:
-            _authorize(config, grants, CASES[case_id].risk, config.environment)
-    run_id = f"{config.venue}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{uuid4().hex[:10]}"
-    secrets = tuple(
-        filter(
-            None,
-            (
-                *(os.environ.get(name, "") for name in config.credentials.values()),
-                os.environ.get(config.backend.token_env or "", ""),
-                os.environ.get(config.backend.endpoint_env or "", ""),
-            ),
-        )
-    )
-    evidence = EvidenceWriter(Path(evidence_dir), run_id, secrets)
-    results: list[CaseResult] = []
-    backend: Backend | None = None
-    att: Attestation | None = None
-    binding: Binding | None = None
-    blocked_reason = "v2 live attestation unavailable"
-    used_actions = 0
-    used_notional = Decimal(0)
-    used_quantity: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
-    stop_writes = False
-    try:
-        evidence.append(
-            "run_start",
-            {
-                "venue": config.venue,
-                "environment": asdict(config.environment),
-                "case_ids": selected,
-                "route_identity": "legacy_generic_bridge",
-            },
-        )
-        if any((item := config.cases.get(c)) is not None and item.enabled for c in selected):
-            try:
-                backend = create_backend(config)
-                expected_account = os.environ.get(config.credentials["account"], "")
-                if not expected_account:
-                    raise CertificationError("account environment variable is empty")
-                att = backend.attest()
-                binding = _attest(config, expected_account, att)
-                evidence.append("attestation", asdict(att), durable=True)
-                for case_id in selected:
-                    item = config.cases.get(case_id)
-                    if item is not None and item.enabled:
-                        _authorize(
-                            config,
-                            grants,
-                            CASES[case_id].risk,
-                            Environment(binding.environment_name, binding.environment_kind),
-                        )
-            except Exception as exc:
-                blocked_reason = f"v2 live attestation failed ({type(exc).__name__})"
-                binding = None
-                evidence.append("attestation_failed", {"error_type": type(exc).__name__})
-        for case_id in selected:
-            item = config.cases.get(case_id)
-            risk = CASES[case_id].risk
-            if item is None or not item.enabled:
-                result = CaseResult(case_id, Status.BLOCKED, "case not configured or disabled")
-            elif backend is None or binding is None or att is None:
-                result = CaseResult(case_id, Status.BLOCKED, blocked_reason)
-            elif stop_writes and risk != Risk.READ:
-                result = CaseResult(
-                    case_id,
-                    Status.BLOCKED,
-                    "prior write outcome or cleanup uncertain; later writes stopped",
-                )
-            else:
-                try:
-                    params = item.params
-                    spec: InstrumentSpec | None = None
-                    ref: MarketReference | None = None
-                    if risk != Risk.READ and "quantity" in params:
-                        symbol = str(params["symbol"])
-                        spec = backend.instrument_spec(symbol)
-                        _instrument(config, binding, spec, symbol, att)
-                        evidence.append("instrument_spec", asdict(spec))
-                        price = Decimal(str(params["price"]))
-                        quantity = Decimal(str(params["quantity"]))
-                        if price % spec.price_tick or quantity % spec.quantity_step:
-                            raise CertificationError(
-                                "order price/quantity violate provider tick/step"
-                            )
-                        ref = backend.reference_price(symbol)
-                        _reference(config, binding, symbol, price, ref, att)
-                        evidence.append("reference_price", asdict(ref))
-                    plan = _plan(case_id, params, spec, ref, config.policy.notional_currency)
-                    if (
-                        len(plan.operations) > config.policy.max_actions
-                        or used_actions + len(plan.operations) > config.policy.max_total_actions
-                    ):
-                        raise CertificationError("planned operations exceed action caps")
-                    if (
-                        plan.total_notional > config.policy.max_notional
-                        or used_notional + plan.total_notional > config.policy.max_total_notional
-                    ):
-                        raise CertificationError("planned notional exceeds policy currency cap")
-                    if spec is not None:
-                        key = (spec.symbol, spec.quantity_unit)
-                        if (
-                            plan.total_quantity > config.policy.max_quantity
-                            or used_quantity[key] + plan.total_quantity
-                            > config.policy.max_total_quantity
-                        ):
-                            raise CertificationError("planned symbol/unit quantity exceeds cap")
-                    action = Action(
-                        case_id,
-                        CASES[case_id].action,
-                        risk,
-                        binding,
-                        deepcopy(params),
-                        uuid4().hex,
-                        f"cert-{uuid4().hex}",
-                        att.provider_session_id,
-                        str(params.get("evidence_window_id", uuid4().hex)),
-                        plan,
-                    )
-                    used_actions += len(plan.operations)
-                    used_notional += plan.total_notional
-                    if spec is not None:
-                        used_quantity[(spec.symbol, spec.quantity_unit)] += plan.total_quantity
-                    result = _run_one(action, backend, att, spec, evidence)
-                    if risk != Risk.READ and result.status != Status.PASS:
-                        stop_writes = True
-                except UnsupportedCaseError:
-                    result = CaseResult(
-                        case_id, Status.BLOCKED, "v2 provider capability unsupported"
-                    )
-                except CertificationError as exc:
-                    result = CaseResult(
-                        case_id, Status.BLOCKED, f"preflight blocked ({type(exc).__name__})"
-                    )
-                except Exception as exc:
-                    result = CaseResult(
-                        case_id, Status.FAILED, f"preflight failed ({type(exc).__name__})"
-                    )
-                    if risk != Risk.READ:
-                        stop_writes = True
-            results.append(result)
-    finally:
-        if backend is not None:
-            try:
-                backend.close()
-                evidence.append("backend_close", {"completed": True})
-            except Exception as exc:
-                evidence.append(
-                    "backend_close", {"completed": False, "error_type": type(exc).__name__}
-                )
-                results = [
-                    CaseResult(
-                        r.case_id,
-                        Status.FAILED,
-                        "backend close failed",
-                        r.receipt_count,
-                        r.observation_count,
-                    )
-                    if r.status == Status.PASS
-                    else r
-                    for r in results
-                ]
-        for result in results:
-            evidence.append("case_result", asdict(result), durable=True)
-        summary = {
-            "venue": config.venue,
-            "route_identity": "legacy_generic_bridge",
-            "environment": asdict(config.environment),
-            "results": [asdict(r) for r in results],
-            "counts": {s.value: sum(r.status == s for r in results) for s in Status},
-            "planned_budget_used": {
-                "actions": used_actions,
-                "notional": str(used_notional),
-                "notional_currency": config.policy.notional_currency,
-                "quantity_by_symbol_unit": {
-                    f"{symbol}/{unit}": str(value)
-                    for (symbol, unit), value in used_quantity.items()
-                },
-            },
-        }
-        try:
-            evidence.finish(summary)
-        finally:
-            evidence.close()
-    return results, evidence.summary_path
+            raise CertificationError(
+                f"selected topology unavailable: {config.topology.transport}; "
+                f"components={components}"
+            )
+        raise CertificationError("no fixed reviewed same-owner route is admitted")
+    return route.dispatch(config, selected, grants, evidence_dir)

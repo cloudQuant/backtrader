@@ -1,0 +1,30 @@
+{
+  "schema": "iteration41.okx.m01.r2.dev_round_archive_pins.v1",
+  "scope": "Exact archive payload byte pins; this manifest excludes itself.",
+  "evidence_directory": "iteration41-okx-m01-r2-coherent-dev-round-r1-2026-10-09",
+  "base_head": "565cb93298a53703c47390a05eb23a1ff4985b09",
+  "branch": "dev",
+  "source_acceptance_scope": "SOURCE_FAKE_COMPONENT_ONLY",
+  "files": [
+    {
+      "path": "okx_m01_r2_root_source_qa_20261009.py",
+      "bytes": 5494,
+      "sha256": "39e4af5c843455d9d294ffba9bb0493f904b82fdb8c37c3ab404ffd3c3989bb4"
+    },
+    {
+      "path": "okx_m01_r2_root_source_qa_20261009.json",
+      "bytes": 4487,
+      "sha256": "6695a318c3f6f0431de96c667a7546043b8143c3dbcb9b86d55c2bdcf6fbaaac"
+    },
+    {
+      "path": "delivery-whitelist.json",
+      "bytes": 33942,
+      "sha256": "5936d8c819a418286cd1ef4a67aec8f3ab7a8bfdd650c0773606b0ca72da03ee"
+    },
+    {
+      "path": "round-record.md",
+      "bytes": 10223,
+      "sha256": "04aa02529951676730bb25da8b2aa2b58ec6a6c0ffd130cd12b3d63567856b26"
+    }
+  ]
+}

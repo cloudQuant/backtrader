@@ -34,6 +34,11 @@ VENUES = frozenset(
 _ENV = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")
 _NAME = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _SYMBOL = re.compile(r"^[A-Za-z0-9_:/.-]{1,80}$")
+_NATIVE_ORDER_VENUES = frozenset({"binance", "okx"})
+_NATIVE_SUBMIT_CASES = frozenset(
+    {"B01", "B02", "M04", "M05", "O01", "O02", "T01", "T02", "TH02", "TH04", "TH06"}
+)
+_NATIVE_ORDER_PARAMS = frozenset({"position_side", "time_in_force"})
 
 
 def _strip_package_prefix(value: str) -> str:
@@ -172,9 +177,21 @@ class Config:
         return resolved
 
 
-def _validate_params(case_id: str, params: Any, policy: Policy, enabled: bool) -> dict[str, Any]:
+def _validate_params(
+    case_id: str,
+    params: Any,
+    policy: Policy,
+    enabled: bool,
+    *,
+    venue: str | None = None,
+    explicit_native_fields: set[str] | None = None,
+) -> dict[str, Any]:
     spec = CASES[case_id]
-    data = _mapping(params, f"cases.{case_id}.params", set(spec.required + spec.optional))
+    native_case = venue in _NATIVE_ORDER_VENUES and case_id in _NATIVE_SUBMIT_CASES
+    allowed = set(spec.required + spec.optional)
+    if native_case:
+        allowed.update(_NATIVE_ORDER_PARAMS)
+    data = _mapping(params, f"cases.{case_id}.params", allowed)
     missing = set(spec.required) - set(data)
     if missing and enabled:
         raise CertificationError(f"cases.{case_id} missing parameters: {sorted(missing)}")
@@ -218,6 +235,27 @@ def _validate_params(case_id: str, params: Any, policy: Policy, enabled: bool) -
                 raise CertificationError(f"cases.{case_id}.params.{key} must be a bounded integer")
         elif key == "reduce_only":
             validated[key] = _boolean(value, f"cases.{case_id}.params.reduce_only")
+        elif key == "position_side":
+            if not isinstance(value, str) or value not in {"BOTH", "LONG", "SHORT"}:
+                raise CertificationError(
+                    f"cases.{case_id}.params.position_side must be BOTH, LONG or SHORT"
+                )
+        elif key == "time_in_force":
+            if not isinstance(value, str) or value != "GTC":
+                raise CertificationError(f"cases.{case_id}.params.time_in_force must be GTC")
+    if (
+        native_case
+        and enabled
+        and not _NATIVE_ORDER_PARAMS.issubset(explicit_native_fields or set())
+    ):
+        raise CertificationError(
+            f"cases.{case_id} must explicitly set position_side and time_in_force"
+        )
+    native_values = _NATIVE_ORDER_PARAMS & set(validated)
+    if native_values and native_values != _NATIVE_ORDER_PARAMS:
+        raise CertificationError(
+            f"cases.{case_id} must specify position_side and time_in_force together"
+        )
     if "side" in validated and validated["side"].lower() not in {"buy", "sell"}:
         raise CertificationError(f"cases.{case_id}.params.side must be buy or sell")
     if "side" in validated:
@@ -415,10 +453,23 @@ def load_config(path: str | Path, expected_venue: str) -> Config:
         item = _mapping(case_data, f"cases.{case_id}", {"params", "enabled"})
         enabled = _boolean(item.get("enabled", True), f"cases.{case_id}.enabled")
         overrides = _mapping(item.get("params", {}), f"cases.{case_id}.params")
+        native_case = expected_venue in _NATIVE_ORDER_VENUES and case_id in _NATIVE_SUBMIT_CASES
         applicable = set(CASES[case_id].required + CASES[case_id].optional)
+        if native_case:
+            applicable.update(_NATIVE_ORDER_PARAMS)
         merged = {key: value for key, value in default_params.items() if key in applicable}
         merged.update(overrides)
-        cases[case_id] = CaseConfig(enabled, _validate_params(case_id, merged, policy, enabled))
+        cases[case_id] = CaseConfig(
+            enabled,
+            _validate_params(
+                case_id,
+                merged,
+                policy,
+                enabled,
+                venue=expected_venue,
+                explicit_native_fields=set(overrides) & _NATIVE_ORDER_PARAMS,
+            ),
+        )
     credential_refs = _mapping(root.get("credentials", {}), "credentials")
     credentials = {}
     for key, value in credential_refs.items():

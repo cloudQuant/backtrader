@@ -1,0 +1,52 @@
+{
+  "schema": "iteration41.okx.m01.v3.delivery-scope.r1",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "tracked_head_at_freeze": "565cb93298a53703c47390a05eb23a1ff4985b09",
+  "prior_inventory_head": "309fafdd0c43bd4b4d61ac3cc1c71ca6c80ea5f6",
+  "runtime_source_rows": {
+    "count": 19,
+    "clean_tracked": 5,
+    "modified_tracked": 4,
+    "untracked": 10,
+    "pins": "source-index.json",
+    "source_map": "source-map.json",
+    "source_map_sha256": "db7b351656a0e26aac3778332ed7eb838a92a73605a5bb3604cb4b770c06ebe3"
+  },
+  "r2_direct_source_changes": [
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/issuer.py",
+      "purpose": "Preserve the first fixed failure when proof acquisition fails; release admission once and retain custody if release is uncertain."
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "purpose": "Bind the current source-owned R2 review reference and matching source-reader pin."
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py",
+      "purpose": "Bind the R2 current_reader bytes in the entry preimport pin set."
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/run.py",
+      "purpose": "Bind the R2 fixed entry bytes in the M01 runner."
+    }
+  ],
+  "r2_direct_test": {
+    "path": "tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py",
+    "sha256": "9d66d25310f5ee1b29943b222854e2a9d9b8ba48adcfe9848037f7afcb297a0d"
+  },
+  "inherited_source_scope": {
+    "unchanged_runtime_rows": 15,
+    "review": "GO_SOURCE_FAKE_ONLY",
+    "candidate_archive_sha256": "02f9605429a5e230dfe9f252a08f8d48af311f0b3833891676415bab8551cdde",
+    "review_record": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-current-owner-v3-independent-review-r1-2026-10-03/review.json"
+  },
+  "shared_file_scope": {
+    "config_py": "R1-pinned full-file source row; its existing native-order validation diff is not a new R2 hunk.",
+    "models_py": "R1-pinned full-file source row; current hash is f6db3e492fb8681bb156a577515b73e9966142e447f9d857ad4ec8a024389362. L04 formal_proof import/field hunk is excluded and must remain a separate later change.",
+    "runner_py": "R1-pinned full-file source row; existing route/native-order code is not a new R2 hunk. Its import of fixed_owner_routes.py makes that untracked R1 row a required dependency.",
+    "fixed_owner_routes_py": "R1-pinned untracked source dependency; include it with the complete source closure."
+  },
+  "minimum_coherent_delivery": "Keep all 19 map-pinned runtime files available with the R2 test. Do not deliver only the four R2-edited runtime files and test while leaving the ten untracked V2/V3 dependencies out. For tracked shared files, stage only the accepted R1 source bytes/hunks required to establish the pinned closure; preserve later L04 edits separately.",
+  "acceptance_boundary": "Selected-source and fake-test evidence only. No protected-map update, actual account read, provider/native operation, or M01 PASS is established by this packet."
+}

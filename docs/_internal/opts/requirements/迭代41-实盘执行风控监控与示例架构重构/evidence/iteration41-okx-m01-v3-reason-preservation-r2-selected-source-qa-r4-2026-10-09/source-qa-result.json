@@ -1,0 +1,37 @@
+{
+  "schema": "iteration41.okx.m01.v3.selected-source-qa-result.r1",
+  "scope": "selected public source snapshot only",
+  "snapshot_root": ".codex-tmp/iteration41_m01_v3_reason_r2_selected_source_r4",
+  "source_zip_sha256": "fb319aa4b066a839dc8681d2ac30897374bece35d90bf29d6c26b28c40b7ee35",
+  "source_map_path": "source-map.json",
+  "source_map_bytes": 2877,
+  "source_map_sha256": "db7b351656a0e26aac3778332ed7eb838a92a73605a5bb3604cb4b770c06ebe3",
+  "source_map_canonical_body_sha256": "43ea368c7acd2dddd88bac718e5f57cceb59ef27a2d0c6c22d5bcdf2f68d1da8",
+  "map_checks": {
+    "exactly_one_terminal_lf": true,
+    "canonical_body_roundtrip": true,
+    "19_keys_match_pinned_reader_source_map_relatives_ast": true,
+    "reader_deployment_binding_hashes_raw_lf_terminated_bytes": true,
+    "20_source_zip_members_match_index_path_size_sha256": true
+  },
+  "pytest": {
+    "result": "4 passed, 0 failed, exit 0",
+    "duration": "0.17s",
+    "warning": "One existing PytestConfigWarning: asyncio_default_fixture_loop_scope is unknown while plugin autoload is disabled.",
+    "selected_cases": [
+      "test_v3_entry_and_runner_have_no_unresolved_source_pins",
+      "test_v3_missing_proof_preserves_first_failure_and_releases_admission[admission-source_admission_invalid]",
+      "test_v3_missing_proof_preserves_first_failure_and_releases_admission[current_read-c01_account_uid_shape]",
+      "test_v3_missing_proof_release_failure_reports_uncertainty_and_retains_custody"
+    ],
+    "interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+    "flags": ["-I", "-S", "-B", "-X", "utf8"],
+    "environment": "The command first removed PYTHONPATH and set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; sys.path was prepended only with the selected snapshot root and the designated QA venv site-packages.",
+    "pytest_flags": ["-q", "-p no:asyncio", "-p no:cacheprovider", "--rootdir=<snapshot>", "--confcutdir=<snapshot>", "--basetemp=D:/source_code/backtrader/.codex-tmp/M01_V3_R2_SNAPSHOT_QA_20261009_R1"]
+  },
+  "limitations": [
+    "This is a focused fake-source run, not the full V3 test file or a protected-map test.",
+    "It establishes no account, provider, native, Windows API, or formal M01 PASS result.",
+    "The source-map file was validated as canonical metadata; no private deployment source map was read or changed."
+  ]
+}

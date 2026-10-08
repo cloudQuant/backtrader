@@ -1,0 +1,13 @@
+{
+  "schema": "iteration41.independent-review-index.v1",
+  "decision": "GO_SOURCE_FAKE_ONLY",
+  "source_candidate_zip_sha256": "02f9605429a5e230dfe9f252a08f8d48af311f0b3833891676415bab8551cdde",
+  "source_candidate_index_sha256": "42b55e501ed13f6e33be18fc15aca74ee386ef57401f871ee487fb624b525aae",
+  "source_map_sha256": "de8b619925353364b950b2f8beb97ccb5c7d5862868ff9665d081ba8afb83cdd",
+  "source_pins_sha256": "78e84aee4ba39d02711bc6bd9f95f49871a81f20422af764e3d36a7dbdc96e78",
+  "review_bundle_sha256": "0c1d6e508bf277649ec9a79d0c9a775e9042d627d42f5c255d3d56f99d85d634",
+  "members": {
+    "README.md": "5e87e5425ccf2a49faed7883feeeaca8ec50d83a6e684a339d10c7f6f73a1179",
+    "review.json": "5170183cbd17346d8c804472e6131cd3804963e8d38fba25852cf53f04932779"
+  }
+}
