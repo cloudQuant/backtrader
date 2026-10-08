@@ -1,0 +1,107 @@
+{
+  "schema": "iteration41.c01.v18.root_prelaunch_cleanup_capsule_r3.clean_source_qa.r1",
+  "packet_id": "iteration41-c01-v18-root-prelaunch-cleanup-capsule-r3-2026-10-08",
+  "packet_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-prelaunch-cleanup-capsule-r3-2026-10-08",
+  "packet_pins_sha256": "e9f0ad5851f5601bb250e2386c85b5a249e85a3c5294c5ffa2e7e87df5c3b35e",
+  "clean_root": ".codex-tmp/c01v18r3q2/root",
+  "clean_layout": "a/b/c/d/e/f/g/p is the packet directory; eight parent levels preserve the pinned test parents[8] root calculation.",
+  "clean_root_file_count": 10,
+  "empty_pytest_ini": {
+    "path": "pytest.ini",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "exact_packet_files": [
+    {
+      "packet_path": "pins.json",
+      "clean_root_path": "a/b/c/d/e/f/g/p/pins.json",
+      "role": "source-packet-pin-manifest",
+      "bytes": 3476,
+      "sha256": "e9f0ad5851f5601bb250e2386c85b5a249e85a3c5294c5ffa2e7e87df5c3b35e"
+    },
+    {
+      "packet_path": "README.md",
+      "clean_root_path": "a/b/c/d/e/f/g/p/README.md",
+      "role": "source-packet-scope-and-limitations",
+      "bytes": 4176,
+      "sha256": "6dfc2d892c46fbdc82422cf5081791491e99e752494a0d4c484e7fd6d280cb86"
+    },
+    {
+      "packet_path": "root-prelaunch-cleanup-capsule.py",
+      "clean_root_path": "a/b/c/d/e/f/g/p/root-prelaunch-cleanup-capsule.py",
+      "role": "root-support-source-candidate-source-fake-only-not-runtime-registered",
+      "bytes": 43922,
+      "sha256": "e2406e6e4fc14f3bf89a5a3de5489ddcb6faf0dee00d874054bc654e176c3bb4"
+    },
+    {
+      "packet_path": "qa/command.txt",
+      "clean_root_path": "a/b/c/d/e/f/g/p/qa/command.txt",
+      "role": "source-packet-original-qa-command-record",
+      "bytes": 815,
+      "sha256": "86014434ea054f6499b5e43d9bd1083e1353c154b1daaa1bd1ff121fbeae4d89"
+    },
+    {
+      "packet_path": "qa/pytest-output.txt",
+      "clean_root_path": "a/b/c/d/e/f/g/p/qa/pytest-output.txt",
+      "role": "source-packet-original-qa-output-record",
+      "bytes": 626,
+      "sha256": "4046d7c52d25a383919ab47dbed3ec510536bd48513097a32d8971ec6912f745"
+    },
+    {
+      "packet_path": "reference/r4b-driver-source/root-actual-driver.py",
+      "clean_root_path": "a/b/c/d/e/f/g/p/reference/r4b-driver-source/root-actual-driver.py",
+      "role": "pinned-public-reference-snapshot-read-by-source-fake-tests-not-executed",
+      "bytes": 61433,
+      "sha256": "f23aa6af03f8687ff99198cdc4184c72c3b9ee70d2be463fb1177b19e5c06fec"
+    },
+    {
+      "packet_path": "reference/r4b-driver-source/reference/v18-activation-r5/pins.json",
+      "clean_root_path": "a/b/c/d/e/f/g/p/reference/r4b-driver-source/reference/v18-activation-r5/pins.json",
+      "role": "pinned-public-reference-manifest-read-by-source-fake-tests",
+      "bytes": 4709,
+      "sha256": "3c1fdd78d0eaf6103478a534a51809948839daa9096a226a57d16f784890691d"
+    },
+    {
+      "packet_path": "reference/r4b-driver-source/reference/v18-activation-r5/public-source/root_activation_wrapper_r2.py",
+      "clean_root_path": "a/b/c/d/e/f/g/p/reference/r4b-driver-source/reference/v18-activation-r5/public-source/root_activation_wrapper_r2.py",
+      "role": "pinned-public-reference-snapshot-read-by-source-fake-tests-not-executed",
+      "bytes": 112913,
+      "sha256": "ce221c68a92bfce4ef0f273347f09c3260f127b6b68f985b16505ef7a1cda4bb"
+    },
+    {
+      "packet_path": "tests/test_root_prelaunch_cleanup_capsule_source_fake.py",
+      "clean_root_path": "a/b/c/d/e/f/g/p/tests/test_root_prelaunch_cleanup_capsule_source_fake.py",
+      "role": "test-only-source-fake",
+      "bytes": 22363,
+      "sha256": "08398c9b9c4bf421065839787e47af824d78fa8030583243bb4823310b4a6c2d"
+    }
+  ],
+  "qa": {
+    "classification": "CLEAN_SOURCE_FAKE_ONLY",
+    "result": "23 passed, 0 failed, exit 0",
+    "warning_count": 0,
+    "test_path": "a/b/c/d/e/f/g/p/tests/test_root_prelaunch_cleanup_capsule_source_fake.py",
+    "python": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe",
+    "flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-X",
+      "utf8"
+    ],
+    "site_path_explicit": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages",
+    "pytest_plugin_autoload_disabled": true,
+    "PYTHONPATH_removed": true,
+    "command_file": "qa/command.txt",
+    "command_bytes": 1239,
+    "command_sha256": "09c134f534abc3471c67a6bdf1f9713f452d5f447433d51419272f4e6158ad57",
+    "output_file": "qa/pytest-output.txt",
+    "output_bytes": 101,
+    "output_sha256": "d4abb1e0e60e0bcb5e0362765b986529aae941336b60f4724dfe43c1f125958b"
+  },
+  "limitations": [
+    "R3 has independent GO_SOURCE_FAKE_ONLY and Root actual cleanup acceptance, while official C01 PASS remains 0.",
+    "No candidate driver/wrapper execution, activation, new activation call, or formal C01 PASS was performed.",
+    "No native/provider, network, WinAPI, process, private-input, or private-capture operation was performed."
+  ]
+}

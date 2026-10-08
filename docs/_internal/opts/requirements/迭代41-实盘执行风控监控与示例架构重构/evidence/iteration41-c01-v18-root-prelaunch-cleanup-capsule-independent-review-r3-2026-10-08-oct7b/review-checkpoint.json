@@ -1,0 +1,18 @@
+{
+  "schema": "iteration41.simnow.v18.root_prelaunch_cleanup_capsule.independent_review.checkpoint.r3",
+  "packet_id": "iteration41-c01-v18-root-prelaunch-cleanup-capsule-independent-review-r3-2026-10-08-oct7b",
+  "candidate_packet_pins_sha256": "e9f0ad5851f5601bb250e2386c85b5a249e85a3c5294c5ffa2e7e87df5c3b35e",
+  "candidate_capsule_sha256": "e2406e6e4fc14f3bf89a5a3de5489ddcb6faf0dee00d874054bc654e176c3bb4",
+  "candidate_test_sha256": "08398c9b9c4bf421065839787e47af824d78fa8030583243bb4823310b4a6c2d",
+  "prior_r1_review_json_sha256": "753a7a34f38f69d0a0dca68bb54af029081410ba32ac08b315bdf8590b6824ff",
+  "prior_r2_review_json_sha256": "8061c1a631decc15844bc4e5aaf7467e7c2023bfc80220434c3627fdba873732",
+  "root_observation_sha256": "b36a8a449c5ccae7a31fc6bc252a5e0a3b8e18bd58f5ce22e2080040fc2de6a2",
+  "qa_result": "23 passed, 1 existing warning, exit 0",
+  "verdict": "GO_SOURCE_FAKE_ONLY",
+  "artifacts": {
+    "review_json_sha256": "c13f746bc68377a5e6ef8bcb7bf5c9f728b1a953cea9d826c6ddab99684f1b16",
+    "review_bundle_sha256": "2fe9607a7b41a95c54509ca39d237152e05d967dbe25775a35098eb8a6abdc6d",
+    "review_index_sha256": "d4c0119138b877d0b7cdb65174ec660204c3845d194e0b8a531d69e9db3d69cb",
+    "readme_sha256": "b30e8aa8f991995e59b181226c8b39f1669da886b9253c4531ce78b3f029cb51"
+  }
+}

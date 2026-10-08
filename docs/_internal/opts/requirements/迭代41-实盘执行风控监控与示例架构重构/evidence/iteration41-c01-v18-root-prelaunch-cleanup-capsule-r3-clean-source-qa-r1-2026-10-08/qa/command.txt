@@ -1,0 +1,25 @@
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+$python = 'D:\temp\iteration41-main-source-qa-20260926\venv\Scripts\python.exe'
+$root = (Get-Location).Path
+$site = 'D:\temp\iteration41-main-source-qa-20260926\venv\Lib\site-packages'
+$test = Join-Path $root 'a\b\c\d\e\f\g\p\tests\test_root_prelaunch_cleanup_capsule_source_fake.py'
+$base = 'D:\source_code\backtrader\.codex-tmp\c01v18r3q2\basetemp'
+New-Item -ItemType Directory -Path $base -Force | Out-Null
+$out = 'D:\source_code\backtrader\.codex-tmp\c01v18r3q2\pytest-output.txt'
+$code = @"
+from pathlib import Path
+import sys
+root=Path(r'$root')
+sys.path[:0]=[str(root), r'$site']
+import pytest
+file=root / r'a/b/c/d/e/f/g/p/tests/test_root_prelaunch_cleanup_capsule_source_fake.py'
+raise SystemExit(pytest.main([str(file), '-q', '-p', 'no:cacheprovider', r'--basetemp=$base']))
+"@
+$lines = & $python -I -S -B -X utf8 -c $code 2>&1
+$testExit = $LASTEXITCODE
+$outputText = ($lines | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+[System.IO.File]::WriteAllText($out, $outputText + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+$outputText
+"EXIT_CODE=$testExit"
+if ($testExit -ne 0) { exit $testExit }

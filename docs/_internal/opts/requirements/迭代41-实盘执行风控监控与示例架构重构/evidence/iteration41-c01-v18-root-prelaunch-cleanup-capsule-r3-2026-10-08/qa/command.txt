@@ -1,0 +1,5 @@
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+$python = 'D:\temp\iteration41-main-source-qa-20260926\venv\Scripts\python.exe'
+$code = "from pathlib import Path`nimport sys`nroot=Path(r'D:\source_code\backtrader')`nsys.path[:0]=[str(root), r'D:\temp\iteration41-main-source-qa-20260926\venv\Lib\site-packages']`nimport pytest`nfile=root / r'docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-c01-v18-root-prelaunch-cleanup-capsule-r3-2026-10-08/tests/test_root_prelaunch_cleanup_capsule_source_fake.py'`nraise SystemExit(pytest.main([str(file), '-q', '-p', 'no:cacheprovider', r'--basetemp=D:\source_code\backtrader\.codex-tmp\c01-v18-cleanup-capsule-sourcefake-r3']))"
+& $python -I -S -B -X utf8 -c $code

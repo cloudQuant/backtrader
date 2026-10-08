@@ -1,0 +1,75 @@
+{
+  "schema": "iteration41.simnow.v18.root_prelaunch_cleanup_capsule.pins.r3",
+  "packet_id": "iteration41-c01-v18-root-prelaunch-cleanup-capsule-r3-2026-10-08",
+  "classification": "SOURCE_FAKE_ONLY_PENDING_INDEPENDENT_REVIEW",
+  "api": "prepare_prelaunch_cleanup(driver_module, actual_result) -> RootPrelaunchCleanupCapsule; cleanup_once()",
+  "official_c01_pass_count": 0,
+  "prior_revisions": [
+    {
+      "packet_id": "iteration41-c01-v18-root-prelaunch-cleanup-capsule-r1-2026-10-08",
+      "pins_sha256": "871d17f2d514bd264476e42f87e47892d95b7f67724f25a304864e617ecf7ddd",
+      "status": "PRESERVED_FROZEN_HOLD",
+      "finding": "R1 did not revalidate lease method identity immediately before close and invoked a mutable instance method lookup."
+    },
+    {
+      "packet_id": "iteration41-c01-v18-root-prelaunch-cleanup-capsule-r2-2026-10-08",
+      "pins_sha256": "d0ab130483feca423d01bc3af4b4f72e47ab9594a6aa19f1e90dbca8caf85ef9",
+      "independent_review_json_sha256": "8061c1a631decc15844bc4e5aaf7467e7c2023bfc80220434c3627fdba873732",
+      "status": "PRESERVED_FROZEN_HOLD",
+      "finding": "R2 returned the method binding before later mutable holder, lease-state, expected-map, CUv2 and wrapper checks, leaving those checks unreachable."
+    }
+  ],
+  "r4b_binding": {
+    "driver_packet_id": "iteration41-c01-v18-root-actual-driver-draft-r4b-2026-10-08",
+    "driver_sha256": "f23aa6af03f8687ff99198cdc4184c72c3b9ee70d2be463fb1177b19e5c06fec",
+    "driver_bytes": 61433,
+    "v18_pins_sha256": "3c1fdd78d0eaf6103478a534a51809948839daa9096a226a57d16f784890691d",
+    "wrapper_sha256": "ce221c68a92bfce4ef0f273347f09c3260f127b6b68f985b16505ef7a1cda4bb"
+  },
+  "held_map": {
+    "public_source_count": 31,
+    "software_pin_count": 2,
+    "total_count": 33
+  },
+  "candidate_files": {
+    "root-prelaunch-cleanup-capsule.py": {
+      "sha256": "e2406e6e4fc14f3bf89a5a3de5489ddcb6faf0dee00d874054bc654e176c3bb4",
+      "bytes": 43922
+    },
+    "tests/test_root_prelaunch_cleanup_capsule_source_fake.py": {
+      "sha256": "08398c9b9c4bf421065839787e47af824d78fa8030583243bb4823310b4a6c2d",
+      "bytes": 22363
+    },
+    "README.md": {
+      "sha256": "6dfc2d892c46fbdc82422cf5081791491e99e752494a0d4c484e7fd6d280cb86",
+      "bytes": 4176
+    }
+  },
+  "source_references": {
+    "reference/r4b-driver-source/root-actual-driver.py": {
+      "sha256": "f23aa6af03f8687ff99198cdc4184c72c3b9ee70d2be463fb1177b19e5c06fec",
+      "bytes": 61433
+    },
+    "reference/r4b-driver-source/reference/v18-activation-r5/pins.json": {
+      "sha256": "3c1fdd78d0eaf6103478a534a51809948839daa9096a226a57d16f784890691d",
+      "bytes": 4709
+    },
+    "reference/r4b-driver-source/reference/v18-activation-r5/public-source/root_activation_wrapper_r2.py": {
+      "sha256": "ce221c68a92bfce4ef0f273347f09c3260f127b6b68f985b16505ef7a1cda4bb",
+      "bytes": 112913
+    }
+  },
+  "qa": {
+    "command": "qa/command.txt",
+    "command_sha256": "86014434ea054f6499b5e43d9bd1083e1353c154b1daaa1bd1ff121fbeae4d89",
+    "result": "23 passed, 1 pre-existing pytest configuration warning",
+    "output": "qa/pytest-output.txt",
+    "output_sha256": "4046d7c52d25a383919ab47dbed3ec510536bd48513097a32d8971ec6912f745"
+  },
+  "limitations": [
+    "No actual cleanup call was made.",
+    "No candidate driver or wrapper code was executed.",
+    "No private input, capture, binary, WinAPI, provider, network, or process operation was performed.",
+    "Official C01 PASS remains 0."
+  ]
+}
