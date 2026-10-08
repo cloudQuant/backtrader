@@ -1,0 +1,21 @@
+{
+  "schema": "iteration41.binance.th01.spawn_pipe_gate.root_host_exit.r1",
+  "root_precheck_tool_id": "47e301",
+  "root_invocation_tool_id": "13bb2a",
+  "root_host_id": "85573",
+  "preexit_tool_id": "aadcf2",
+  "normal_host_exit": true,
+  "host_exit_code": 0,
+  "forced_termination": false,
+  "preexit_checks": {
+    "active_gate_refs": 0,
+    "retained_owners": 0,
+    "retained_resources": 0,
+    "source_pins_match": true,
+    "exit_permitted": true
+  },
+  "scope": "ROOT_LOCAL_SYNTHETIC_TRANSPORT_ONLY",
+  "provider_call": false,
+  "account_full_snapshot_issued": false,
+  "formal_case_pass": false
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "iteration41.binance.th01.spawn_pipe_gate.failed_snapshot.v1",
+  "snapshot_id": "r2-root-failure-2026-10-09",
+  "files": [
+    {"path": "iteration41_binance_th01_spawn_pipe_gate_r1.py", "bytes": 43645, "sha256": "2eae250fe2af32315496fd6ad7b9fd1df4e14fd345e79433b12487f944f968e4"},
+    {"path": "test_binance_th01_spawn_pipe_gate_r1.py", "bytes": 17451, "sha256": "0da362ec90b2accc96ffeaa3e7833ef09b671e888d03d2ee77ea74886691f4b1"},
+    {"path": "independent-review-r2.md", "sha256": "990dbb7e8268fd11ba5ba8595e18c6f58644957f89e0afe94eaa8e70b4a19a7d"}
+  ],
+  "actual_attempt": {
+    "tool_id": "8b4f27",
+    "host_id": "51757",
+    "status": "BLOCKED_SYNTHETIC_GATE",
+    "first_failure": "synthetic_spawn_or_pipe_gate_failed",
+    "evidence_level": "ROOT_LOCAL_SYNTHETIC_TRANSPORT_ONLY",
+    "formal_case_pass": false,
+    "account_full_snapshot_issued": false,
+    "provider_call": false,
+    "post_call_source_pins": {"candidate": true, "candidate_dependencies": true, "launcher": true, "owner": true},
+    "post_call_source_pins_valid": true,
+    "host_exit_forbidden": false,
+    "preexit_tool_id": "297619",
+    "preexit_retained_owner_refs": 0,
+    "preexit_retained_resource_refs": 0,
+    "preexit_active_gate_refs": 0,
+    "preexit_permitted": true,
+    "exit_tool_id": "778ccd",
+    "exit_code": 0,
+    "child_lifecycle": "UNPROVEN",
+    "child_stderr_category": "multiprocessing.spawn.spawn_main -> reduction.duplicate -> _winapi.DuplicateHandle: WinError 6"
+  },
+  "interpretation": {
+    "source_reproduction": "ForkingPickler rejects a SpawnProcess instance when multiprocessing.context.SpawnProcess is replaced by a function.",
+    "attribution": "This is a source-grounded cause of partial-start risk; the original parent exception was not retrieved, so it is not attributed as the exact historical parent exception.",
+    "scope": "No provider/account read, native API call, private input read, or retry was performed."
+  }
+}

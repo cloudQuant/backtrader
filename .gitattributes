@@ -240,3 +240,34 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json" -text
 "scripts/iteration41_okx_m01_v3_protected_rebind_r1.py" -text
 "tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r1.py" -text
+
+# Exact checkout bytes for the accepted Binance TH01 R2/R3 component round.
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-account-window-candidate-r2-2026-10-09.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-account-window-candidate-r2-independent-review-r1-2026-10-09.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-r2-r3-dev-delivery-r1-2026-10-09/delivery-whitelist.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-r2-r3-dev-delivery-r1-2026-10-09/round-record.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r1-independent-review-r2-2026-10-09.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r2-root-failure-snapshot-2026-10-09/independent-review-r2.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r2-root-failure-snapshot-2026-10-09/iteration41_binance_th01_spawn_pipe_gate_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r2-root-failure-snapshot-2026-10-09/root-attempt-summary.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r2-root-failure-snapshot-2026-10-09/snapshot-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r2-root-failure-snapshot-2026-10-09/test_binance_th01_spawn_pipe_gate_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-partial-start-source-review-2026-10-09/independent-review-r3.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-partial-start-source-review-2026-10-09/iteration41_binance_th01_spawn_pipe_gate_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-partial-start-source-review-2026-10-09/source-diagnosis.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-partial-start-source-review-2026-10-09/source-pins-and-qa.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-partial-start-source-review-2026-10-09/test_binance_th01_spawn_pipe_gate_r1.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/artifact-pins.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/command.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/host-exit.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/host-pre-exit.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/observation.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/qa/binance_th01_window_gate_root_source_qa_20261009.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/qa/binance_th01_window_gate_source_qa_20261009.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-spawn-pipe-gate-r3-root-actual-r1-2026-10-09/root-local-gate.py" -text
+"examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py" -text
+"scripts/iteration41_binance_th01_account_window_candidate_r2.py" -text
+"scripts/iteration41_binance_th01_spawn_pipe_gate_r1.py" -text
+"tests/unit/live_certification/test_binance_th01_account_window_candidate_r2.py" -text
+"tests/unit/live_certification/test_binance_th01_spawn_pipe_gate_r1.py" -text
