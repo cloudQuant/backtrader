@@ -1,0 +1,133 @@
+{
+  "schema": "iteration41.optional16.r33.root-held-entry.opaque-metadata-component.independent-review.v1",
+  "verdict": "GO_SOURCE_FAKE_COMPONENT_ONLY",
+  "reviewer": "/root/optional16_entry_bridge_r2_review_oct9",
+  "reviewed_utc_date": "2026-10-09",
+  "review_scope": [
+    "Entry R2 opaque metadata snapshot component",
+    "Bridge R2 exact source transform",
+    "pinned R15 closure AST anchor",
+    "public metadata indexes and two source-fake tests"
+  ],
+  "candidate_packet": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata",
+    "index_sha256": "97c2fb2e63493744d0ffec2bc512d58d508821917f9e8292bdc22500bfdd86b0",
+    "index_size_bytes": 3582,
+    "readme_sha256": "24dd22087f8becb3d52a5209b3d5056fbb9d820ea86aed9631cccc5514312713",
+    "qa_summary_sha256": "34223425f844e48a0905e5153d8167d0674cb6547128d3988bc2e2c435567d2c",
+    "checkpoint_sha256": "dba62112f9e0b3e9f541e4148ec6b86f554285961560071a99b6c265f37052af"
+  },
+  "source_rows": [
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_entry_r2.py",
+      "sha256": "80295025d0145893f4f63745182042812284434e4e7e5b4388b89d82623c2ead",
+      "size_bytes": 108188,
+      "role": "Entry R2 metadata snapshot component"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_child_bridge_r2.py",
+      "sha256": "da4c5c24cadc0bc768c43533d64cd0159d062bca19fbf9f3a122c9d84720556b",
+      "size_bytes": 40283,
+      "role": "Entry Bridge R2 source transform"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_glue_r15.py",
+      "sha256": "f9c9a5332a9d2456db8179d7a7e63103269c16feb2712a2b039479d97fe2dd98",
+      "size_bytes": 17658,
+      "role": "pinned R15 closure transform source"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_held_entry_r2_source_fake.py",
+      "sha256": "e3b2edac19ca7fdef881dc2962833672758982849a0ac9ece46d7c12fc2ca792",
+      "size_bytes": 8399,
+      "role": "metadata-only Entry R2 tests"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_r5_same_child_composition_r2_source_fake.py",
+      "sha256": "cad6cb3fd3bdd8f44a5b6521fd54a663a7a5f1c564e5d1ee00e15f9ae6643876",
+      "size_bytes": 8662,
+      "role": "snapshot API, bridge, and R15 closure component tests"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-stdlib-opaque-snapshot-r1-2026-10-08/index.json",
+      "sha256": "b6c355a4f3b5befe33f9fe0cc5880dfcbde711879d546c876c9b48d2013b1dec",
+      "size_bytes": 991,
+      "role": "public standard-library source metadata index"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-cache-opaque-snapshot-r1-2026-10-08/index.json",
+      "sha256": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0",
+      "size_bytes": 1418,
+      "role": "public opaque cache metadata index"
+    }
+  ],
+  "packet_integrity": {
+    "candidate_and_packet_member_pins": "MATCH",
+    "checkpoint_member_pins": "MATCH",
+    "opaque_blob_or_pyc_payload_files": 0,
+    "opaque_payload_bytes_read": 0
+  },
+  "public_provenance": {
+    "stdlib_index": {
+      "sha256": "b6c355a4f3b5befe33f9fe0cc5880dfcbde711879d546c876c9b48d2013b1dec",
+      "classification": "ROOT_PRODUCED_PUBLIC_OPAQUE_BYTES_NOT_RUNTIME_ACCEPTANCE",
+      "allowed_review": "HASH_SIZE_TRANSPORT_ONLY_NO_PARSE_IMPORT_EXECUTE",
+      "rows": [
+        "cProfile.py",
+        "profile.py",
+        "pstats.py"
+      ]
+    },
+    "cache_index": {
+      "sha256": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0",
+      "role": "ROOT_SNAPSHOTTED_FIXED_STDLIB_CACHE_OPAQUE_BYTES",
+      "cache_unmarshaled_or_imported": false,
+      "rows": 3
+    },
+    "producer_note": "The pinned public indexes identify the artifacts as public fixed-hash transport snapshots. No checked-in producer script was located; provenance is limited to these public indexes and frozen sourcefake reader references."
+  },
+  "findings": [
+    "R2 binds the three indexed profiler .py source rows and three indexed .pyc cache rows by exact normalized path, digest, indexed size, and metadata role. Unindexed .py software and .pyc pins fail closed.",
+    "Ordinary public .py rows still use read_held and SHA-256 validation; opaque rows are kept out of public_bytes and the worker held-byte map.",
+    "The R15 transform finds exactly one pinned closure predicate and replaces only its generator element with ROOT_R27_INVOKE._R5_WORKER_ASSERT_HELD(p, h, held). The sourcefake tests compare that AST target and reject wrong digest, missing opaque proof, opaque bytes supplied, and ordinary-byte mutation.",
+    "Entry R2 source delta from R1 is limited to the opaque metadata descriptors/classifier/snapshot handling and the one R15 closure transform. Existing R1 map/count/origin/alias/thread/scope/profiler/ledger/cleanup/coverage source gates are unchanged in the source diff; this component review does not exercise them end-to-end.",
+    "Bridge R2 retains Bridge R1 logic while rebinding the exact Entry R2 path, digest, module names, and schema. Its component test invokes the transform and compiles the generated public Entry source; it does not execute the transformed Entry or full child chain."
+  ],
+  "qa": {
+    "interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+    "flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-X",
+      "utf8"
+    ],
+    "plugin_autoload": "disabled",
+    "PYTHONPATH": "removed",
+    "pytest_plugins": [
+      "no:asyncio",
+      "no:cacheprovider"
+    ],
+    "basetemp": "D:/source_code/backtrader/.codex-tmp/o16r2-review-20261009-a7c9",
+    "result": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0,
+      "elapsed_seconds": 1.25
+    },
+    "warning": "One existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope.",
+    "command": "$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'\nRemove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue\n$base = 'D:/source_code/backtrader/.codex-tmp/o16r2-review-20261009-a7c9'\nif (Test-Path -LiteralPath $base) { throw 'basetemp_exists' }\n$python = 'D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe'\n$packet = 'D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata'\n$site = 'D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages'\n$test1 = \"$packet/tests/unit/scripts/test_iteration41_optional16_r33_root_held_entry_r2_source_fake.py\"\n$test2 = \"$packet/tests/unit/scripts/test_iteration41_optional16_r33_r5_same_child_composition_r2_source_fake.py\"\n& $python -I -S -B -X utf8 -c \"import sys; sys.path[:0]=[r'$packet',r'$site']; import pytest; raise SystemExit(pytest.main([r'$test1',r'$test2','-q','--tb=short','-p','no:asyncio','-p','no:cacheprovider',r'--basetemp=$base']))\""
+  },
+  "observed_positive_boundary": "8 focused metadata-only sourcefake tests passed. No opaque payload bytes were included or read; tests exercised the real R2 snapshot methods with metadata-only fake scope and source-checked the bridge/R15 AST transforms.",
+  "limitations": [
+    "Full Entry/R5/R27/V3 composition remains UNVERIFIED; the packet does not include or run the full production dependency closure.",
+    "Production V3 verify_pin reads and hashes held opaque handles. That production verifier was not invoked under this no-payload-read component review.",
+    "V3/V4 profiler verification and R29 marshal/compile proof were not invoked; no production validator was replaced.",
+    "No actual Root authority, provider, native, WinAPI, process, or network operation occurred.",
+    "The frozen R1 Root driver review validator still pins R1 sources and is not compatible with this R2 component review; this verdict grants no driver or activation authorization.",
+    "Formal Optional16 remains 0/16."
+  ],
+  "actual_optional16": "UNACCEPTED_0_OF_16",
+  "activation_authorization": false
+}

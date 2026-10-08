@@ -1,0 +1,69 @@
+{
+  "schema": "iteration41.optional16.r33.root-held-entry.opaque-metadata-component.checkpoint.r1",
+  "freeze_date": "2026-10-09",
+  "classification": "SOURCE_FAKE_COMPONENT_ONLY",
+  "members": [
+    {
+      "path": "README.md",
+      "size_bytes": 2072,
+      "sha256": "24dd22087f8becb3d52a5209b3d5056fbb9d820ea86aed9631cccc5514312713"
+    },
+    {
+      "path": "index.json",
+      "size_bytes": 3582,
+      "sha256": "97c2fb2e63493744d0ffec2bc512d58d508821917f9e8292bdc22500bfdd86b0"
+    },
+    {
+      "path": "qa-summary.json",
+      "size_bytes": 1982,
+      "sha256": "34223425f844e48a0905e5153d8167d0674cb6547128d3988bc2e2c435567d2c"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_entry_r2.py",
+      "size_bytes": 108188,
+      "sha256": "80295025d0145893f4f63745182042812284434e4e7e5b4388b89d82623c2ead"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_child_bridge_r2.py",
+      "size_bytes": 40283,
+      "sha256": "da4c5c24cadc0bc768c43533d64cd0159d062bca19fbf9f3a122c9d84720556b"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_held_glue_r15.py",
+      "size_bytes": 17658,
+      "sha256": "f9c9a5332a9d2456db8179d7a7e63103269c16feb2712a2b039479d97fe2dd98"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_held_entry_r2_source_fake.py",
+      "size_bytes": 8399,
+      "sha256": "e3b2edac19ca7fdef881dc2962833672758982849a0ac9ece46d7c12fc2ca792"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_r5_same_child_composition_r2_source_fake.py",
+      "size_bytes": 8662,
+      "sha256": "cad6cb3fd3bdd8f44a5b6521fd54a663a7a5f1c564e5d1ee00e15f9ae6643876"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-stdlib-opaque-snapshot-r1-2026-10-08/index.json",
+      "size_bytes": 991,
+      "sha256": "b6c355a4f3b5befe33f9fe0cc5880dfcbde711879d546c876c9b48d2013b1dec"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-public-profiler-cache-opaque-snapshot-r1-2026-10-08/index.json",
+      "size_bytes": 1418,
+      "sha256": "9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0"
+    }
+  ],
+  "scope": [
+    "Entry R2 metadata component only",
+    "Bridge R2 source transform",
+    "R15 closure transform source anchor",
+    "two metadata-only source-fake tests",
+    "two public JSON metadata indexes"
+  ],
+  "limits": [
+    "no opaque payload bytes included or read",
+    "full Entry/R5/R27/V3/V4/R29 composition not accepted or tested",
+    "no actual Root authority or provider/native operation"
+  ]
+}

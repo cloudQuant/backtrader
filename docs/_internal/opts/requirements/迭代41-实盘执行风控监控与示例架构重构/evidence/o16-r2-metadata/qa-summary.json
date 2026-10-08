@@ -1,0 +1,19 @@
+{
+  "schema": "iteration41.optional16.r33.root-held-entry.opaque-metadata-component.qa.r1",
+  "observed_result": "8 passed, 0 failed, 0 skipped",
+  "exit_code": 0,
+  "warning": "one existing PytestConfigWarning: unknown asyncio_default_fixture_loop_scope",
+  "command": "$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'; Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue; & 'D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe' -I -S -B -X utf8 -c \"import sys; sys.path[:0]=[r'D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata',r'D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages']; import pytest; raise SystemExit(pytest.main([r'D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata/tests/unit/scripts/test_iteration41_optional16_r33_root_held_entry_r2_source_fake.py',r'D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/o16-r2-metadata/tests/unit/scripts/test_iteration41_optional16_r33_r5_same_child_composition_r2_source_fake.py','-q','--tb=short','-p','no:asyncio','-p','no:cacheprovider',r'--basetemp=D:/source_code/backtrader/.codex-tmp/o16r2-final-packet-focus-20261009-53a8']))\"",
+  "tests": [
+    "tests/unit/scripts/test_iteration41_optional16_r33_root_held_entry_r2_source_fake.py",
+    "tests/unit/scripts/test_iteration41_optional16_r33_r5_same_child_composition_r2_source_fake.py"
+  ],
+  "isolation": {
+    "interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+    "flags": "-I -S -B -X utf8",
+    "plugin_autoload": "disabled",
+    "PYTHONPATH": "removed",
+    "pytest_plugins": "no:asyncio, no:cacheprovider"
+  },
+  "result_scope": "source-fake metadata component only; V3, V4, R29 and full production composition were not invoked"
+}
