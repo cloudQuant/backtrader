@@ -1,0 +1,133 @@
+{
+  "schema": "iteration41.okx.m01.protected_rebind_helper_delivery_whitelist.v1",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "base_head": "9de5439cf3daadd42b96915b94e3c9b6e7a0e1cc",
+  "source_round_scope": "ROOT_PROTECTED_METADATA_ONLY_SOURCE_HELPER",
+  "actual_operation_scope": "PROTECTED_METADATA_ADMISSION_RELEASE_ONLY",
+  "formal_m01_pass_count": 0,
+  "proposed_stage_count": 15,
+  "stage_groups": {
+    "helper_and_test": 2,
+    "independent_review_files": 3,
+    "actual_archive_files": 7,
+    "round_plan_files": 3
+  },
+  "helper_and_test": [
+    {
+      "path": "scripts/iteration41_okx_m01_v3_protected_rebind_r1.py",
+      "bytes": 26554,
+      "sha256": "772157d54079f3e0900caee75e9be78632084b32a729b15abaee4529e010a296"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r1.py",
+      "bytes": 25909,
+      "sha256": "4880f722fb9cbaf7cba09d0917a3b6b40f9095fffc1c89abcdfb2ce536e61c46"
+    }
+  ],
+  "independent_review_decision": "GO_ROOT_PROTECTED_METADATA_ONLY",
+  "independent_review_result": "14 passed, 0 failed, exit 0, no warnings",
+  "independent_review_files": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/review.json",
+      "bytes": 7507,
+      "sha256": "f19e6086d9473a3914dce13809b43d38a82693322005298371ac9dd8cb6227de"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/README.md",
+      "bytes": 2795,
+      "sha256": "e09d4daa948088b5fb95032eadcd78e46135c439189e946475e26e01adc8d412"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/qa-command.txt",
+      "bytes": 940,
+      "sha256": "2ce1a6623a516bb5201b3f69da4882af41eb6243d153b680ceb745be5e106c18"
+    }
+  ],
+  "actual_archive": {
+    "directory": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09",
+    "files": [
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/observation.json",
+        "bytes": 862,
+        "sha256": "13eced1ab0ce7389fd7c3fadb19d41d2b295121bf87f80a26605d758c9430a62"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/host-pre-exit.json",
+        "bytes": 269,
+        "sha256": "a72528bc73329631ad17a9ff0b8217b4c92730110349aefc5f2ffb1acab47677"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-rebind.py",
+        "bytes": 12115,
+        "sha256": "ce33952692a1600b6b17eb8615b176847abad624416cbfb8cfc3f6fe2d16927a"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-host-exit.json",
+        "bytes": 1685,
+        "sha256": "de5a873aecefdc4dd4b47acfbd23b673a9ea9bb266b462bdfe80a43fb2efbca5"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json",
+        "bytes": 12803,
+        "sha256": "23ddf5bf0d451797c9d38cb03cff80e697964678ecd1945860243ba38fa1f039"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/README.md",
+        "bytes": 1950,
+        "sha256": "97c98404359a42b617087f45f90dbb04b98f98def8a58559043e0cbf054d1aa0"
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/archive-pins.json",
+        "bytes": 1415,
+        "sha256": "da7e623efc780579cf60ecbfd9d2eaba1fedc2598f82358e0b518909602a3101"
+      }
+    ],
+    "scope": "PROTECTED_METADATA_ADMISSION_RELEASE_ONLY",
+    "root_actual_tool_result": "99b114",
+    "host_exit_tool_result": "e9cec2",
+    "host_exit_code": 0,
+    "sha256_manifest": "da7e623efc780579cf60ecbfd9d2eaba1fedc2598f82358e0b518909602a3101"
+  },
+  "all_stage_paths": [
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/delivery-whitelist.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/plan-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/round-record.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/qa-command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/review.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/archive-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/host-pre-exit.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/observation.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-host-exit.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-rebind.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json",
+    "scripts/iteration41_okx_m01_v3_protected_rebind_r1.py",
+    "tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r1.py"
+  ],
+  "proposed_exact_path_scoped_text_rules": [
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/delivery-whitelist.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/plan-pins.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/round-record.md -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/README.md -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/qa-command.txt -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/review.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/README.md -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/archive-pins.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/host-pre-exit.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/observation.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-host-exit.json -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-rebind.py -text",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json -text",
+    "scripts/iteration41_okx_m01_v3_protected_rebind_r1.py -text",
+    "tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r1.py -text"
+  ],
+  "proposed_attributes_applied": false,
+  "source_pin_manifest_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json",
+  "source_pin_manifest_public_mapping_count": 30,
+  "source_pin_manifest_software_reference_count": 3,
+  "existing_accepted_r2_runtime_map_unchanged": true,
+  "host90344_touched": false,
+  "provider_account_websocket_native_or_c01_calls": false
+}

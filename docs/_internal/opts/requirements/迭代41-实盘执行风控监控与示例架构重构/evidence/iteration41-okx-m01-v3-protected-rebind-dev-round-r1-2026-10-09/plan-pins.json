@@ -1,0 +1,19 @@
+{
+  "schema": "iteration41.okx.m01.protected_rebind_delivery_plan_pins.v1",
+  "scope": "Exact byte pins for the concise helper-round plan files; manifest excludes itself.",
+  "base_head": "9de5439cf3daadd42b96915b94e3c9b6e7a0e1cc",
+  "branch": "dev",
+  "proposed_stage_count": 15,
+  "files": [
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/round-record.md",
+      "bytes": 5889,
+      "sha256": "99d9261e0643d11477d5ba46b9134569cbc609976acbb19dad972c433fac691e"
+    },
+    {
+      "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/delivery-whitelist.json",
+      "bytes": 10709,
+      "sha256": "0fb1dc95eb92b9bb7cd8b428cf570165e7aeca4fbbe5ad02ef8202ff3521ebfe"
+    }
+  ]
+}

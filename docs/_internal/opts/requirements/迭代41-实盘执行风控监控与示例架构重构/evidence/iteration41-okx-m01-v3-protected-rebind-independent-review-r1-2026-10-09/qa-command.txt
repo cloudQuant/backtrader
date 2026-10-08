@@ -1,0 +1,21 @@
+PowerShell working directory: D:\source_code\backtrader
+
+$script = @'
+import os, sys
+os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+sys.path.insert(0, r"D:\source_code\backtrader")
+sys.path.insert(1, r"D:\temp\iteration41-main-source-qa-20260926\venv\Lib\site-packages")
+import pytest
+raise SystemExit(pytest.main([
+    "-q",
+    "-p", "no:asyncio",
+    "-p", "no:cacheprovider",
+    "-c", "NUL",
+    r"D:\source_code\backtrader\tests\unit\scripts\test_iteration41_okx_m01_v3_protected_rebind_r1.py",
+]))
+'@
+& 'D:\temp\iteration41-main-source-qa-20260926\venv\Scripts\python.exe' -I -S -B -X utf8 -c $script
+
+Result: 14 passed in 0.64s, exit 0, no warnings.
+
+Isolation: Python -I -S ignores ambient Python path/site settings; the script prepends only the repository and designated QA venv site-packages, disables pytest plugin autoload, and uses the Windows NUL pytest config target. Bytecode and pytest cache generation were disabled.

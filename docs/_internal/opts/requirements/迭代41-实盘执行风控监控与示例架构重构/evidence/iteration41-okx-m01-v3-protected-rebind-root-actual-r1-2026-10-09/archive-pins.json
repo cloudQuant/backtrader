@@ -1,0 +1,44 @@
+{
+  "schema": "iteration41.okx.m01.protected_rebind_actual_archive_pins.v1",
+  "scope": "Exact byte pins for the seven-file public actual archive; manifest excludes itself.",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "base_head": "9de5439cf3daadd42b96915b94e3c9b6e7a0e1cc",
+  "actual_tool_result": "99b114",
+  "host_session_id": 48777,
+  "host_exit_tool_result": "e9cec2",
+  "host_exit_code": 0,
+  "scope_label": "PROTECTED_METADATA_ADMISSION_RELEASE_ONLY",
+  "files": [
+    {
+      "path": "observation.json",
+      "bytes": 862,
+      "sha256": "13eced1ab0ce7389fd7c3fadb19d41d2b295121bf87f80a26605d758c9430a62"
+    },
+    {
+      "path": "host-pre-exit.json",
+      "bytes": 269,
+      "sha256": "a72528bc73329631ad17a9ff0b8217b4c92730110349aefc5f2ffb1acab47677"
+    },
+    {
+      "path": "root-rebind.py",
+      "bytes": 12115,
+      "sha256": "ce33952692a1600b6b17eb8615b176847abad624416cbfb8cfc3f6fe2d16927a"
+    },
+    {
+      "path": "root-host-exit.json",
+      "bytes": 1685,
+      "sha256": "de5a873aecefdc4dd4b47acfbd23b673a9ea9bb266b462bdfe80a43fb2efbca5"
+    },
+    {
+      "path": "root-source-pin-manifest.json",
+      "bytes": 12803,
+      "sha256": "23ddf5bf0d451797c9d38cb03cff80e697964678ecd1945860243ba38fa1f039"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1950,
+      "sha256": "97c98404359a42b617087f45f90dbb04b98f98def8a58559043e0cbf054d1aa0"
+    }
+  ]
+}

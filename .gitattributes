@@ -223,3 +223,20 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "examples/000_live_certification/okx_penetration/evidence/okx-m01-readonly-monitor-v3-source-candidate-r1-2026-10-03/checkpoint.json" -text
 "examples/000_live_certification/okx_penetration/evidence/okx-m01-readonly-monitor-v3-source-candidate-r1-2026-10-03/source.zip" -text
 "tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py" -text
+
+# Exact checkout bytes for the accepted OKX M01 protected metadata round.
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/delivery-whitelist.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/plan-pins.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-dev-round-r1-2026-10-09/round-record.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/qa-command.txt" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-independent-review-r1-2026-10-09/review.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/archive-pins.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/host-pre-exit.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/observation.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-host-exit.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-rebind.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-root-actual-r1-2026-10-09/root-source-pin-manifest.json" -text
+"scripts/iteration41_okx_m01_v3_protected_rebind_r1.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r1.py" -text
