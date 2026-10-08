@@ -1,0 +1,22 @@
+{
+  "schema": "iteration41.binance.th01.fixed-get-component.root-source-qa.v1",
+  "tool_chunk_id": "8e438e",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "base_commit": "551132d45847cc4d0c4d48f0f6e92da6b88a00ed",
+  "interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+  "interpreter_flags": ["-I", "-B"],
+  "pytest_plugin_autoload_disabled": true,
+  "pytest_args": ["-p", "no:asyncio", "-p", "no:cacheprovider", "tests/unit/live_certification/test_binance_th01_fixed_get_transport_component_r1.py", "-q", "--tb=short", "--basetemp=D:/temp/th01-root-comp-oct9"],
+  "passed": 3,
+  "exit_code": 0,
+  "warnings": ["Existing PytestConfigWarning: unknown asyncio_default_fixture_loop_scope configuration option"],
+  "owner_sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f",
+  "test_sha256": "795d418e16480bda858376d1bd514343806c204712a77d1f84aa8c8bd1b4c326",
+  "owner_prepost_pin_match": true,
+  "test_prepost_pin_match": true,
+  "actual_invocation_repeated": false,
+  "evidence_level": "SOURCE_FAKE_ONLY",
+  "full_owner_entry_accepted": false,
+  "formal_case_pass_added": false
+}

@@ -125,3 +125,21 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/root-orchestrator.py -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r33-r24-r7-root-actual-cleanup-r1-2026-10-09/root-owner-bootstrap.py -text
 /docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-m01-r24-r7-cleanup-dev-round-2026-10-09.md -text
+
+# Preserve accepted Binance TH01 fixed-GET transport component bytes.
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/README.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/observation.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/readback.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/root-real-pipe-gate-observation.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/root-real-pipe-gate.py -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-source-review-r8-2026-10-09/independent-review-r8-2026-10-09.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09.md -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/command-dev.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/command-selected-source.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/result-dev.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/result-selected-source.txt -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/root-observation.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/source-pins.json -text
+/docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-independent-review-2026-10-09.md -text
+/examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py -text
+/tests/unit/live_certification/test_binance_th01_fixed_get_transport_component_r1.py -text

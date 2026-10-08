@@ -1,0 +1,21 @@
+{
+  "schema": "iteration41.binance.th01.r8.root-real-pipe-transcript-record.v1",
+  "record_basis": "Root tool 099653 result recorded in the calling task; this archive is a transcript-backed summary, not a new invocation or raw stdout capture",
+  "tool_chunk_id": "099653",
+  "exit_code": 0,
+  "owner_sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f",
+  "checks": {
+    "valid": true,
+    "second_frame": true,
+    "no_eof": true
+  },
+  "all_connections_closed": true,
+  "all_fake_processes_closed": true,
+  "active_workers_zero": true,
+  "source_prepost_pin_match": true,
+  "private_input_read": false,
+  "provider_call": false,
+  "process_spawned": false,
+  "evidence_level": "ROOT_LOCAL_CREDENTIAL_FREE_PIPE_ONLY",
+  "formal_case_pass_added": false
+}

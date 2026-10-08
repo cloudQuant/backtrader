@@ -1,0 +1,60 @@
+{
+  "schema": "iteration41.binance.th01.demo-shape.root-actual.r8.v1",
+  "status": "BLOCKED_ACCOUNT_SNAPSHOT",
+  "actual_invocations": 1,
+  "exit_code": 0,
+  "elapsed_seconds": 7.687000000005355,
+  "public_readback_sha256": "e5619c1c3157fd17ca884fef0cecff61a18c75f8b58e175b70aaacbdd37d0117",
+  "public_projection_completed": true,
+  "completed_routes_count": 7,
+  "provider_dispatch_evidence": "UNOBSERVED",
+  "provider_response_evidence": "COMPLETED_ROUTE_OBSERVATIONS_ONLY",
+  "false_route_meaning": "no_completed_route_observation",
+  "formal_th01_pass": false,
+  "strict_cases_passed": 0,
+  "late_private_capture_read": false,
+  "original_unknown_order_query_or_retry": false,
+  "evidence_level": "ROOT_ACTUAL_BLOCKED_PROBE_ONLY",
+  "full_round_acceptance": "UNACCEPTED",
+  "public_result": {
+    "result": "BLOCKED_ACCOUNT_SNAPSHOT",
+    "snapshot_ready": false,
+    "route_results": [
+      [
+        "account_configuration",
+        true
+      ],
+      [
+        "account_v2",
+        true
+      ],
+      [
+        "standard_open_orders",
+        true
+      ],
+      [
+        "algo_open_orders",
+        true
+      ],
+      [
+        "all_orders_in_window",
+        true
+      ],
+      [
+        "user_trades_in_window",
+        true
+      ],
+      [
+        "income_in_window",
+        true
+      ]
+    ],
+    "first_failure": null,
+    "transport_diagnostic": null,
+    "account_configuration_schema": true,
+    "account_v2_schema": true,
+    "pagination_exhaustion": true,
+    "no_silent_truncation": true,
+    "source_sha256": "8b249e3d484e4d02f973db71df428690dc24615bd685ae127781f2b94c66c70e"
+  }
+}

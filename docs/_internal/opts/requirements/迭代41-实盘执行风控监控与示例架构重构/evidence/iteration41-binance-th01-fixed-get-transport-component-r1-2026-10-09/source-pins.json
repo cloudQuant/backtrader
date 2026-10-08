@@ -1,0 +1,119 @@
+{
+  "schema": "iteration41.binance.th01.fixed_get_transport_component_pins.v1",
+  "date": "2026-10-09",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "inspected_base_commit": "551132d45847cc4d0c4d48f0f6e92da6b88a00ed",
+  "scope": "internal unregistered fixed-GET transport component; not formal TH01 acceptance",
+  "files": [
+    {
+      "path": "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py",
+      "bytes": 92566,
+      "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f",
+      "role": "byte-frozen component source"
+    },
+    {
+      "path": "tests/unit/live_certification/test_binance_th01_fixed_get_transport_component_r1.py",
+      "bytes": 11117,
+      "sha256": "795d418e16480bda858376d1bd514343806c204712a77d1f84aa8c8bd1b4c326",
+      "role": "standalone source-fake transport tests"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/observation.json",
+      "bytes": 1612,
+      "sha256": "eb36cfdee9e98fb6167fd4997be1d11e0c69843c29479542ba629332fb1bb1ac",
+      "role": "Root-sanitized R8 actual observation"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/readback.json",
+      "bytes": 3476,
+      "sha256": "e5619c1c3157fd17ca884fef0cecff61a18c75f8b58e175b70aaacbdd37d0117",
+      "role": "Root-sanitized R8 public readback"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/README.md",
+      "bytes": 2429,
+      "sha256": "83a65acf96d6531c1b6bdb03527b446f23e54e9e77d753348de206c104c385d3",
+      "role": "Root R8 actual invocation record"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/root-real-pipe-gate.py",
+      "bytes": 5542,
+      "sha256": "6e89b966d3f072c9606c3638e5998603e6b4e3fe1dc51b3159b00f3480991e20",
+      "role": "Root-owned credential-free local Pipe gate script"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-root-actual-r8-2026-10-09/root-real-pipe-gate-observation.json",
+      "bytes": 779,
+      "sha256": "a2aff54d9bf47954463e39117cae0f9ab6ee601cb2368e88db776a1f84192d9b",
+      "role": "transcript-backed finite summary; not raw stdout or a new call"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-source-review-r8-2026-10-09/independent-review-r8-2026-10-09.md",
+      "bytes": 3612,
+      "sha256": "c3325d9fa948e2614831cc69f6598ee275401d97cadb9f005d98efaff6883231",
+      "role": "public R8 sourcefake review; actual provider outcome is in the separate R8 observation"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09.md",
+      "bytes": 10567,
+      "sha256": "1593b6ce9a0f95f0716ec53c21e10991eb57473e9e7f1931df86857ceed4dd3f",
+      "role": "component round record"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-independent-review-2026-10-09.md",
+      "bytes": 3387,
+      "sha256": "b708d93fefa14cc6865b8520513595c4fe33f08ee7fc341197a68f7f55553f0a",
+      "role": "independent GO_COMPONENT_SOURCE_FAKE_ONLY review"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/root-observation.json",
+      "bytes": 1155,
+      "sha256": "20a66cc86d9a0a56c6fd52a0a116aac7a4a9848e0f026f085996dc2ecba22c19",
+      "role": "Root source-fake gate; 3 passed, source-only"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/command-dev.txt",
+      "bytes": 129,
+      "sha256": "9786e43cb61dc48dce1522af735f97affc4b18f7fa159d03ec7a9057fbe2c450",
+      "role": "author source-fake QA command"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/result-dev.txt",
+      "bytes": 534,
+      "sha256": "d654766fbd81f653c02634ff227163add6581bd575b1b1ef655491c3c4249e9f",
+      "role": "author source-fake QA result"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/command-selected-source.txt",
+      "bytes": 454,
+      "sha256": "a2f6ef02081373266c11b3c0fffa8df987ca6d8606c240a26cf37268ffa05dcb",
+      "role": "selected-source QA command and environment"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-fixed-get-transport-component-r1-2026-10-09/qa/result-selected-source.txt",
+      "bytes": 877,
+      "sha256": "dfe59757b9d0c3395cbff40dcb470cfc7f9a815eebfcfaa42de3c13bab5dc89e",
+      "role": "selected-source inventory and result"
+    }
+  ],
+  "preserved_context_not_in_commit_whitelist": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-th01-demo-shape-source-review-r8-2026-10-09.md",
+      "bytes": 5970,
+      "sha256": "511452d758e7cadda09d31edcba9b54a94e00eda212379add35744e859c7cd6a",
+      "reason": "preserve the historical R8 packet bytes; its pre-actual status text is stale, so the current result is recorded in the R8 actual dossier"
+    }
+  ],
+  "acceptance": {
+    "component_status": "accepted for internal fixed-GET transport scope",
+    "root_actual_result": "BLOCKED_ACCOUNT_SNAPSHOT",
+    "root_actual_routes_completed": 7,
+    "snapshot_ready": false,
+    "formal_th01_pass": false,
+    "component_review": "GO_COMPONENT_SOURCE_FAKE_ONLY",
+    "root_source_fake_gate": "3 passed, exit 0; pre/post owner and test pins matched",
+    "root_local_pipe_gate": "three credential-free local Pipe cases passed; no provider operation",
+    "files_staged_or_committed_by_this_agent": false
+  }
+}
