@@ -27,3 +27,29 @@ examples/000_live_certification/simnow_penetration/common/certification.py text 
 examples/000_live_certification/simnow_penetration/common/completion_invariants.py text eol=crlf
 examples/000_live_certification/simnow_penetration/common/decision_engine.py text eol=crlf
 tests/unit/live_certification/test_simnow_read_only_case_strategies.py text eol=crlf
+# Exact checkout bytes for the accepted V12 R2 diagnostic integration.
+backtrader_runtime/certification_binance_roundtrip_r3_cli.py text eol=lf
+backtrader_runtime/certification_roundtrip_private.py text eol=lf
+backtrader_runtime/certification_simnow_c01_dependencies_v1.json text eol=lf
+backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py text eol=lf
+backtrader_runtime/certification_simnow_c01_native_td_read_v12.admission.schema.json text eol=lf
+backtrader_runtime/certification_simnow_c01_native_v2.py text eol=lf
+backtrader_runtime/certification_simnow_c01_v2_contract.py text eol=lf
+backtrader_runtime/certification_simnow_c01_v2_protocol.py text eol=lf
+backtrader_runtime/certification_simnow_c01_v3_supervisor.py text eol=lf
+backtrader_runtime/certification_simnow_c01_v4_owner.py text eol=lf
+examples/000_live_certification/simnow_penetration/case_contracts/C01.yaml text eol=crlf
+examples/000_live_certification/simnow_penetration/config.private.yaml.template text eol=lf
+scripts/ctp_000_front_handoff.py text eol=lf
+scripts/ctp_000_render_config.py text eol=lf
+backtrader_runtime/certification_simnow_c01_native_td_read_v12.sources.json text eol=lf
+backtrader_runtime/certification_simnow_c01_native_td_read_v12.py -text
+examples/000_live_certification/simnow_penetration/cases/C01/run_v12.py text eol=lf
+scripts/run_simnow_c01_native_td_read_v12_root_activation_r1.py text eol=lf
+tests/unit/runtime/test_certification_simnow_c01_v3_supervisor_reconcile.py text eol=lf
+backtrader_runtime/certification_simnow_c01_front_transport_v7.py text eol=lf
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v12-job-reconciliation-front-loader-r2-2026-10-08/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v12-job-reconciliation-front-loader-r2-2026-10-08/payload-pins.json text eol=crlf
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v12-job-reconciliation-front-loader-r2-independent-review-2026-10-08.md text eol=lf
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v12-r2-root-actual-r1-2026-10-08/observation.json text eol=lf
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v12-r2-diagnostic-dev-round-2026-10-08.md text eol=lf
