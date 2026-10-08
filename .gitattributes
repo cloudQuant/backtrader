@@ -53,3 +53,31 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v12-job-reconciliation-front-loader-r2-independent-review-2026-10-08.md text eol=lf
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v12-r2-root-actual-r1-2026-10-08/observation.json text eol=lf
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v12-r2-diagnostic-dev-round-2026-10-08.md text eol=lf
+
+# Exact checkout bytes for the accepted V19 readonly repair round.
+backtrader_runtime/certification_simnow_c01_front_transport_v13.py -text
+backtrader_runtime/certification_simnow_c01_native_td_read_v19.admission.schema.json -text
+backtrader_runtime/certification_simnow_c01_native_td_read_v19.py -text
+backtrader_runtime/certification_simnow_c01_native_td_read_v19.sources.json -text
+backtrader_runtime/certification_simnow_c01_native_v4.py -text
+backtrader_runtime/certification_simnow_c01_v3_contract.py -text
+backtrader_runtime/certification_simnow_c01_v3_protocol.py -text
+backtrader_runtime/certification_simnow_c01_v4_supervisor.py -text
+backtrader_runtime/certification_simnow_c01_v7_owner.py -text
+examples/000_live_certification/simnow_penetration/cases/C01/run_v19.py -text
+scripts/run_simnow_c01_native_td_read_v19_root_activation_r1.py -text
+tests/unit/runtime/test_certification_simnow_c01_v19_admission_rewind_contract.py -text
+backtrader_runtime/certification_simnow_c01_native_td_read_v17.py -text
+scripts/run_simnow_c01_native_td_read_v17_root_activation_r1.py -text
+examples/000_live_certification/simnow_penetration/cases/C01/run_v17.py -text
+scripts/ctp_i13_i15_outer_watchdog.py text eol=crlf
+scripts/ctp_i13_i15_windows_job_backend.py text eol=crlf
+
+# Exact checkout bytes for the V19 public round records.
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v19-admission-rewind-source-r2-2026-10-08/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v19-admission-rewind-source-r2-2026-10-08/payload-pins.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v19-admission-rewind-independent-review-r1-2026-10-08.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v19-r1-root-actual-r1-2026-10-08/observation.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v19-r1-root-tool-observed-host-exit-r1-2026-10-08/observation.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v19-r1-root-tool-observed-host-exit-r1-2026-10-08/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v19-r2-readonly-repair-dev-round-2026-10-08.md -text

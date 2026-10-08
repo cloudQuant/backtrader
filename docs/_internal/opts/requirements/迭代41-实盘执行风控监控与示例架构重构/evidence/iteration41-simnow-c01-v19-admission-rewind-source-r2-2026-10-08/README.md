@@ -1,0 +1,9 @@
+# SimNow C01 V19 admission lease rewind — source-fake candidate R2
+
+R2 preserves the V19 production sources and R1 packet unchanged. It changes only the focused test and packet metadata after independent review found that the V17 baseline used for the EOF reproduction was loaded without exact source pins. The test now verifies the V17 issuer, Root wrapper, and runner byte counts and SHA-256 values before loading them. `fixture-support.zip` contains those three public test-only files. R2 also records the exact valid isolated QA command.
+
+V19 remains an additive source generation based on V17. Its lease revalidation rechecks each retained admission, consumed-marker, and claim-file handle identity and ACL, resets that same handle to offset zero using checked local `SetFilePointerEx(FILE_BEGIN)`, then uses the existing bounded reader and compares full bytes. The shared private helper, CLI reader, NativeV4 worker, V17 and V18 sources remain unchanged.
+
+Focused isolated QA passed 8 tests with one existing pytest configuration warning. It called the exact public bounded reader with cursor-backed fake `ReadFile` and fake `SetFilePointerEx` leaves. It reproduced V17's EOF reread failure; checked V19's three handle rereads; and verified failed seeks and content changes for each file fail closed. Source pins across V19 issuer, manifest, schema, front loader, Root wrapper, and runner also matched.
+
+This is source-fake evidence only. V19 remains unregistered and default closed; Root activation requires its exact wrapper hash and explicit activation flags. It does not establish actual SimNow behavior or C01 certification. Official C01 PASS remains 0.
