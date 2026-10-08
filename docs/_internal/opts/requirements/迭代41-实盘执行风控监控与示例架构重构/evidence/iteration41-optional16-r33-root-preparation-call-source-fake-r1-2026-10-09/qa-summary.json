@@ -1,0 +1,34 @@
+{
+  "schema": "iteration41.optional16.r33.root-preparation-call.qa.v1",
+  "status": "SOURCE_FAKE_ONLY_PASS",
+  "date": "2026-10-09",
+  "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; PYTHONPATH unset; D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe -I -S -B -X utf8 -c \"import sys; sys.path[:0]=[r'D:/source_code/backtrader',r'D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages']; import pytest; raise SystemExit(pytest.main([r'D:/source_code/backtrader/tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r1_source_fake.py','-q','--tb=short','-p','no:asyncio','-p','no:cacheprovider','--basetemp=D:/source_code/backtrader/.codex-tmp/m01-preparation-call-r1-finalfocus-20261009-bd15']))\"",
+  "result": {
+    "exit_code": 0,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": [
+      "Existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope"
+    ]
+  },
+  "isolation": {
+    "interpreter_mode": "-I -S -B -X utf8",
+    "pytest_plugin_autoload": "disabled",
+    "pythonpath": "unset",
+    "pytest_plugins": ["no:asyncio", "no:cacheprovider"],
+    "basetemp": "D:/source_code/backtrader/.codex-tmp/m01-preparation-call-r1-finalfocus-20261009-bd15",
+    "approved_qa_runtime": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe"
+  },
+  "scope": {
+    "tests": "public sourcefake module binding and bounded call-order checks",
+    "opaque_cache_payload_read": false,
+    "opaque_cache_payload_fabricated": false,
+    "v4_r29_proof_executed": false,
+    "production_scope_created": false,
+    "entry_successful_production_prefix_executed": false,
+    "worker_installer_or_child_started": false,
+    "provider_sdk_native_process_or_network": false,
+    "account_or_optional16_acceptance": false
+  }
+}

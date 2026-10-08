@@ -1,0 +1,25 @@
+{
+  "schema": "iteration41.optional16.r33.root-preparation.qa.v1",
+  "status": "SOURCE_FAKE_BOUNDARY_ONLY",
+  "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1; clear Env:PYTHONPATH; D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe -I -S -B -X utf8 -c \"import sys; sys.path[:0]=[r'D:/source_code/backtrader',r'D:/temp/iteration41-main-source-qa-20260926/venv/Lib/site-packages']; import pytest; raise SystemExit(pytest.main([r'D:/source_code/backtrader/tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_r1_source_fake.py','-q','--tb=short','-p','no:asyncio','-p','no:cacheprovider','--basetemp=D:/source_code/backtrader/.codex-tmp/m01-preparation-r1-focus-20261009-1f64']))\"",
+  "result": {
+    "exit_code": 0,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": ["existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope"],
+    "isolated_process": true,
+    "unique_repository_basetemp": ".codex-tmp/m01-preparation-r1-focus-20261009-1f64"
+  },
+  "coverage": [
+    "exact Entry R2 bytes and preinstaller AST boundary",
+    "Entry source one-byte mutation rejection",
+    "default request is closed and touches no scope",
+    "exact V4 type with test_only scope rejected before source reads"
+  ],
+  "not_tested": [
+    "successful production V4/R29 proof over opaque profiler cache bytes",
+    "Root actual held-map construction, custody, or software identity",
+    "worker installation, control/claim, child, SDK, provider, account, native, WinAPI, or network"
+  ]
+}

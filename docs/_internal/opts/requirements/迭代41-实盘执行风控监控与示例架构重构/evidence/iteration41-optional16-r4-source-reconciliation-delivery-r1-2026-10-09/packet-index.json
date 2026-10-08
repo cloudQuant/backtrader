@@ -1,0 +1,66 @@
+{
+  "artifacts": [
+    {
+      "bytes": 4101,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/README.md",
+      "sha256": "492464ae988e6197f5e90178d7eb1e0889c3962931a9e4de2cf9e87f29ce85ce"
+    },
+    {
+      "bytes": 78291,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/delivery-manifest.json",
+      "sha256": "d2cedaa8040e217e0ffce6416151dc09f39b1d39e2602e57a3205b6be6332f9f"
+    },
+    {
+      "bytes": 3535,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/proposed-closure-whitelist.txt",
+      "sha256": "44993fa8b7d6176ac2b3d695fc822903a78415d0d8a15668c75bf679fe0b3abd"
+    },
+    {
+      "bytes": 735,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/proposed-attribute-rule.txt",
+      "sha256": "ba6e2704710d1433baa3db7a8afd686da7ba3917af8f74e44f2f4e39811b3ba9"
+    },
+    {
+      "bytes": 6078,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/proposed-delivery-whitelist.txt",
+      "sha256": "a23d08bb650aac6e92b9dd00817b93b6963214440b52f9d185945fdb593d3e87"
+    },
+    {
+      "bytes": 64868,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/optional16_r4_sourcefake_guarded_r2.py",
+      "sha256": "a037a10753262527985e887d8354d2a5bc55b75b41dc87724bf386fccb3fada4"
+    },
+    {
+      "bytes": 68351,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/sourcefake-result.json",
+      "sha256": "cb366f766fdcf0bed400bd892acf82a5395e143c22e63d425d5068cb45814ff7"
+    },
+    {
+      "bytes": 1494,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/runner-diagnostic.json",
+      "sha256": "695f52358695e65f7f16d1441ffa23b48897792e1528784870b9d530852ff536"
+    },
+    {
+      "bytes": 100,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/pytest-stdout.txt",
+      "sha256": "6351467dc2ebb651a2815672bf5b16a9b4c46368174a59e26f5221777082b7fd"
+    },
+    {
+      "bytes": 0,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/pytest-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5448,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/root-delivery-precheck-r2.py",
+      "sha256": "8b78f3aefc238e1633f7a65a9794c3a425e41181f387d1e156dd177949c94d53"
+    },
+    {
+      "bytes": 27443,
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-source-reconciliation-delivery-r1-2026-10-09/qa/root-delivery-precheck-r2.json",
+      "sha256": "b1ce5871216685e0c237abd73211f0e13713944f7514fccb1311abdbdbefa16d"
+    }
+  ],
+  "schema": "iteration41.optional16.r4.delivery-packet-index.r1",
+  "self_pin_note": "This index does not recursively pin itself; its size and SHA-256 are in .codex-tmp/optional16_r4_delivery_packet_receipt.json."
+}

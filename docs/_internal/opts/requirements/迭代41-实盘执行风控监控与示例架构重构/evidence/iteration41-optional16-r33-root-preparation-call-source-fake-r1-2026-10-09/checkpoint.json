@@ -1,0 +1,28 @@
+{
+  "schema": "iteration41.optional16.r33.root-preparation-call.checkpoint.v1",
+  "status": "FROZEN_SOURCE_FAKE_CANDIDATE",
+  "candidate_sources": [
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_call_r1.py",
+      "bytes": 22428,
+      "sha256": "762cf58ed2d9d4e2eed2c089a967946610ba660854327d7786c63f463ae4ef8e"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r1_source_fake.py",
+      "bytes": 9903,
+      "sha256": "ef2ff7c1995f0e789489f914b42a342581ea1f7c0ea4d3605d7607f690aae7d6"
+    }
+  ],
+  "packet_files": [
+    {"path": "README.md", "bytes": 5031, "sha256": "169aac92b31cc27cce5844add4ceb009471d56776f3d39b84e44685e0662eba2"},
+    {"path": "source-index.json", "bytes": 10861, "sha256": "f8f620ee880820142c521ad74ffa195e948c9b48445639e32281d1d0ff326cff"},
+    {"path": "qa-summary.json", "bytes": 1816, "sha256": "828a934e7fb9f14a33eb150dc2fd3186518da26f436b3c13ad35aeaa45594de9"},
+    {"path": "source-packet.zip", "bytes": 9112, "sha256": "2dfd4becf9a8b1d19c008b0db3efd943cb543c5fc88e178d56dc04f1b904aa51"}
+  ],
+  "source_packet_members": [
+    "scripts/iteration41_optional16_r33_root_preparation_call_r1.py",
+    "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r1_source_fake.py"
+  ],
+  "authority": "NONE",
+  "actual_preparation_or_activation": false
+}

@@ -1,0 +1,8 @@
+PROPOSAL ONLY — do not apply from this packet without review.
+Target file: .gitattributes
+Exact proposed rule: tests/__init__.py -text
+Current .gitattributes base: 53683 bytes, SHA-256 3c31648a8b4263428e36cd3184f37c6ad3323f2ba0217819dfdcb93d1e27e713
+Current core.autocrlf: true
+Current tests/__init__.py worktree: 30 bytes, SHA-256 512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458
+Current HEAD blob: 29 bytes, SHA-256 96d7eb2609e7fb710e7eb652fbdde61366a110254c79d0f6f6aece9963619fa4
+The rule would disable text normalization only for this pinned support file; staged blob must be the exact 30-byte worktree content and match the pinned SHA-256. No .gitattributes or index change was made while preparing this packet.
