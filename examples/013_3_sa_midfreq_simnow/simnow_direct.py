@@ -320,6 +320,84 @@ class RegisteredSimWrapper(_CTP_WRAPPER_BASE):
         # summary the strategy requires at startup (stock wrapper never
         # prunes its pending map).
         self._order_state: Dict[str, str] = {}
+        # Optional per-instrument arm templates for multi-leg strategies (one
+        # SDK admission authorizes exactly one instrument at a time).
+        self._registered_sim_arm_templates: Dict[tuple, Dict[str, Any]] = {}
+        self._registered_sim_armed_key: Optional[tuple] = None
+        self._registered_sim_arm_history: List[Dict[str, Any]] = []
+
+    # ------------------------------------------------- multi-leg arm control
+    def configure_registered_sim_arm_templates(self, templates: Mapping) -> None:
+        """Install per-instrument arm templates for multi-instrument runs.
+
+        Each key is an ``(instrument, exchange)`` pair; each value carries the
+        exact ``md_front`` / ``strategy_identity_sha256`` / ``execution_cycle_id``
+        / ``preflight_sha256`` this run bound for that leg.  Installing
+        templates opts the wrapper into per-write arm management: before a
+        native order (or cancel) leaves for instrument X, the single-
+        instrument gate must hold an arm for exactly X.
+        """
+        prepared: Dict[tuple, Dict[str, Any]] = {}
+        for raw_key, raw_value in dict(templates).items():
+            instrument, exchange = raw_key
+            key = (str(instrument).upper(), str(exchange).upper())
+            prepared[key] = dict(raw_value)
+        self._registered_sim_arm_templates = prepared
+        self._registered_sim_armed_key = None
+
+    def ensure_registered_sim_arm_for(self, instrument: Any, exchange: Any) -> Dict[str, Any]:
+        """Arm the gate for the exact instrument under the wrapper lock.
+
+        One SDK admission authorizes one instrument, so switching legs first
+        revokes (disarm) and then arms the target with its own bound
+        preflight identity, strictly between writes.  The switch is a no-op
+        while the current arm already covers the requested instrument.
+        """
+        key = (str(instrument or "").upper(), str(exchange or "").upper())
+        with self._registered_sim_lock:
+            if not self._registered_sim_arm_templates:
+                raise BtApiStoreError("registered-sim arm templates are not configured")
+            template = self._registered_sim_arm_templates.get(key)
+            if template is None:
+                raise BtApiStoreError(
+                    f"registered-sim arm template is missing for {key[0] or 'unknown'}"
+                )
+            if (
+                self._registered_sim_capability is not None
+                and self._registered_sim_armed_key == key
+            ):
+                return {"armed": True, "instrument": key[0], "switched": False}
+            if self._registered_sim_capability is not None:
+                self.disarm_registered_sim_execution("registered_sim_instrument_switch")
+            result = self.arm_registered_sim_execution(
+                key[0],
+                key[1],
+                md_front=str(template.get("md_front") or ""),
+                strategy_identity_sha256=str(template.get("strategy_identity_sha256") or ""),
+                execution_cycle_id=str(template.get("execution_cycle_id") or ""),
+                preflight_sha256=str(template.get("preflight_sha256") or ""),
+            )
+            self._registered_sim_armed_key = key
+            self._registered_sim_arm_history.append(
+                {
+                    "instrument": key[0],
+                    "exchange": key[1],
+                    "at_epoch": time.time(),
+                }
+            )
+            return {**dict(result or {}), "switched": True}
+
+    def registered_sim_arm_history(self) -> List[Dict[str, Any]]:
+        """Return one value-free record per arm switch performed by this run."""
+        return [dict(item) for item in self._registered_sim_arm_history]
+
+    def _registered_sim_prepare_dispatch(self, field: Any) -> None:
+        """Switch the single-instrument gate to the exact outbound instrument."""
+        if not self._registered_sim_arm_templates:
+            return
+        self.ensure_registered_sim_arm_for(
+            getattr(field, "InstrumentID", ""), getattr(field, "ExchangeID", "")
+        )
 
     # ------------------------------------------------------------- admission
     def arm_registered_sim_execution(
@@ -385,6 +463,7 @@ class RegisteredSimWrapper(_CTP_WRAPPER_BASE):
         return capability
 
     def _send_native_order_insert(self, field, req_id):
+        self._registered_sim_prepare_dispatch(field)
         capability = self._registered_sim_capability_required()
         ret = self.trader_client.submit_order_insert(
             field, req_id, execution_capability=capability
@@ -396,6 +475,7 @@ class RegisteredSimWrapper(_CTP_WRAPPER_BASE):
         return ret
 
     def _send_native_order_action(self, field, req_id):
+        self._registered_sim_prepare_dispatch(field)
         capability = self._registered_sim_capability_required()
         return self.trader_client.submit_order_action(
             field, req_id, execution_capability=capability
@@ -517,6 +597,28 @@ class RegisteredSimStore(BtApiStore):
                 {"armed": False, "frozen": True, "reason": str(reason)}
             )
             return {"frozen": True, "reason": str(reason)}
+
+    def registered_sim_configure_arm_templates(self, templates: Mapping) -> None:
+        """Install per-instrument arm templates on the wrapper (multi-leg runs)."""
+        api = self._ensure_api_ready()
+        method = getattr(api, "configure_registered_sim_arm_templates", None)
+        if not callable(method):
+            raise BtApiStoreError("registered-sim multi-leg arm control is unavailable")
+        method(templates)
+
+    def registered_sim_ensure_arm(self, instrument: str, exchange: str) -> Dict[str, Any]:
+        """Arm the wrapper gate for an exact instrument (multi-leg runs)."""
+        api = self._ensure_api_ready()
+        method = getattr(api, "ensure_registered_sim_arm_for", None)
+        if not callable(method):
+            raise BtApiStoreError("registered-sim multi-leg arm control is unavailable")
+        return dict(method(instrument, exchange))
+
+    def registered_sim_arm_history(self) -> list:
+        """Return the wrapper's per-switch arm history (value-free)."""
+        api = self._api
+        method = getattr(api, "registered_sim_arm_history", None) if api is not None else None
+        return list(method()) if callable(method) else []
 
     def registered_sim_status(self) -> Dict[str, Any]:
         with self._registered_sim_gate_lock:

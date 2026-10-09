@@ -1,6 +1,16 @@
-# 迭代42 R1 进度与现场记录（2026-10-10）
+# 迭代42 R1/R2 进度与现场记录（2026-10-10）
 
-状态：R1（013_3 试点）实现完成，真实验收 run 在途；本文件为现场进度备忘（非最终证据）。
+状态（2026-10-10 更新）：R1 实现轮已提交（`eb3da84f3`），真实成交往返待周一 CZCE 时段；
+R2 实现轮已提交（`7cfad68bc`），Demo 成交往返证据化 BLOCKED（资格工件窗口过期，翻转路径见 r2 记录）；
+R3（012_2）已提交（`90cf8914a`），结构性 BLOCKED（HFT 未准入，见 r3 记录）；
+R4（013_1）实现+离线验收完成（见 r4 记录），真实成交往返同样待周一 DCE/CZCE 时段。
+本文件为现场进度备忘。
+
+## 提交
+
+- R1（013_3 四件套+SimNow registered-sim 管线）：`eb3da84f3`（18 文件）。
+- R2（012_1 四件套+双所 Demo 门）：`7cfad68bc`（17 文件）。
+- 工作树保留无关既有修改（backtrader_runtime/*、tests/unit/runtime 某测试、`0` 删除等），未提交。
 
 ## R0 决定（已完成，写入计划 §5.1）
 
@@ -88,11 +98,18 @@ R2 环境核查：checkout 根 `.env` 中 OKX/Binance Demo 五个凭据名齐全
 
 ## 下一步（R1 收尾）
 
-1. 读取验收 run 证据；若 PASS → 写 `docs/.../迭代42-.../evidence/r1-*.md` 验收记录 + tracker 行；
-   若失败/阻断 → 继续本轮修复。
-2. 提交白名单（backtrader dev）：013_3 目录全部变更 + 两测试文件 + btapistore 增量 + 计划/证据文档。
-   保留工作树中既有无关修改（backtrader_runtime/*、runtime 测试等）不提交。
-3. 进入 R2（012_1 双所 Demo）。
+1. ~~读取验收 run 证据~~ → 已完成：实现轮提交 **eb3da84f3**（dev）；真实成交往返验收待周一 CZCE 时段
+   （2026-10-12 09:00 北京）用标准前置重跑 drill；当日补记验收结果。
+2. 提交白名单（backtrader dev）：已完成（18 文件）；保留工作树中既有无关修改不提交。
+3. 进入 R2（012_1 双所 Demo）。**进行中（2026-10-10）**：
+   - 已改名：`strategy.py` → `cross_exchange_strategy.py`（导入修正）；`run.py` → `legacy_runner.py`
+     （旧引擎；`load_config` 允许新 `entry` 段）；新标准 `run.py` 待写；
+   - 已侦查：`_run_network_impl(mode="demo", demo_execution_smoke=True, allow_rejected_demo_simulation=True,
+     manifest_path=REPO_CANONICAL_MANIFEST)` 为验收通道；报告状态 `MECHANICAL_DEMO_SMOKE_PASS/INCOMPLETE`；
+     demo 依赖 `operator_override` 与 canonical manifest 路径；
+   - 待办：新 run.py（dry/replay/live+证据+退出码）、config.yaml 加 `entry` 段、
+     canonical/local manifest 刷新（strategy_module/hashes/candidate_sha256）、
+     `.gitattributes` 改路径、测试更新、demo 真实验收。
 
 ## R2 设计要点（侦查已完成，待 R1 提交后执行）
 

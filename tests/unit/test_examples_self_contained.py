@@ -88,6 +88,9 @@ VENDORED_COPIES = {
     / "013_2_highfreq_calendar_arbitrage"
     / "ctp_example_support.py": (EXAMPLES / "007_ctp" / "ctp_example_support.py"),
     EXAMPLES
+    / "013_1_midfreq_cross_arbitrage"
+    / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
+    EXAMPLES
     / "010_live_examples"
     / "fake_btapi.py": (ROOT / "tests" / "fixtures" / "fake_btapi.py"),
     EXAMPLES

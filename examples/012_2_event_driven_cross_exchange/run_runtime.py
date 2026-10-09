@@ -36,10 +36,10 @@ def runtime_registry() -> RuntimeRegistry:
 def _load_replay_runner():
     """Import the candidate runner only after the runtime contract is accepted."""
     if __package__:
-        from . import run
+        from . import legacy_runner
     else:
-        import run
-    return run
+        import legacy_runner
+    return legacy_runner
 
 
 def run_runtime(

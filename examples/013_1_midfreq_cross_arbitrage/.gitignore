@@ -1,3 +1,6 @@
 .env
 reports/
 __pycache__/
+
+# 迭代42 标准入口证据目录（不入库）
+/evidence/

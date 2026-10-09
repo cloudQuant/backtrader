@@ -1,8 +1,9 @@
 """013_1/013_2 CTP pair arbitrage examples: strategy + yaml + run.py coverage.
 
 The two examples are loaded with unique module names (spec_from_file_location)
-so their identical ``strategy.py``/``run.py`` basenames never collide inside
-one pytest process.
+so their identically-named strategy/runner modules never collide inside one
+pytest process.  The standard entry (``run.py``) delegates to
+``legacy_runner.py``, so the replay-facing fixtures load the legacy engine.
 """
 
 import copy
@@ -18,13 +19,20 @@ REPO = Path(__file__).resolve().parents[2]
 EX1 = REPO / "examples" / "013_1_midfreq_cross_arbitrage"
 EX2 = REPO / "examples" / "013_2_highfreq_calendar_arbitrage"
 
+# 013_1 was migrated to its descriptive four-file strategy name and a
+# legacy_runner module; 013_2 keeps the historical layout until its own
+# migration round.
+STRATEGY_FILES = {EX1: "pair_arbitrage_strategy.py", EX2: "strategy.py"}
+LEGACY_RUNNERS = {EX1: "legacy_runner.py", EX2: "run.py"}
+
 
 def load_module(directory, filename, name):
     """Load one example module from ``directory`` under a caller-chosen name."""
-    # Example runners import a top-level ``strategy`` module from their own
+    # Example runners import a top-level strategy module from their own
     # directory; clear any cached one so the two example families never
     # cross-contaminate inside a single pytest process.
-    sys.modules.pop("strategy", None)
+    for module_name in ("strategy", "pair_arbitrage_strategy", "calendar_arbitrage_strategy"):
+        sys.modules.pop(module_name, None)
     sys.path.insert(0, str(directory))
     try:
         spec = importlib.util.spec_from_file_location(name, directory / filename)
@@ -42,31 +50,32 @@ def load_module(directory, filename, name):
 @pytest.fixture(scope="module")
 def ex1():
     """Return example 013_1's strategy module (module-scoped fixture)."""
-    return load_module(EX1, "strategy.py", "ex013_1_strategy")
+    return load_module(EX1, STRATEGY_FILES[EX1], "ex013_1_strategy")
 
 
 @pytest.fixture(scope="module")
 def ex2():
     """Return example 013_2's strategy module (module-scoped fixture)."""
-    return load_module(EX2, "strategy.py", "ex013_2_strategy")
+    return load_module(EX2, STRATEGY_FILES[EX2], "ex013_2_strategy")
 
 
 @pytest.fixture(scope="module")
 def run1():
-    """Return example 013_1's runner module (module-scoped fixture)."""
-    return load_module(EX1, "run.py", "ex013_1_run")
+    """Return example 013_1's legacy engine module (module-scoped fixture)."""
+    return load_module(EX1, LEGACY_RUNNERS[EX1], "ex013_1_run")
 
 
 @pytest.fixture(scope="module")
 def run2():
-    """Return example 013_2's runner module (module-scoped fixture)."""
-    return load_module(EX2, "run.py", "ex013_2_run")
+    """Return example 013_2's legacy engine module (module-scoped fixture)."""
+    return load_module(EX2, LEGACY_RUNNERS[EX2], "ex013_2_run")
 
 
-def test_each_example_has_the_three_required_files():
+def test_each_example_has_the_required_files():
     for directory in (EX1, EX2):
-        assert (directory / "strategy.py").is_file()
+        assert (directory / STRATEGY_FILES[directory]).is_file()
         assert (directory / "run.py").is_file()
+        assert (directory / LEGACY_RUNNERS[directory]).is_file()
         assert list(directory.glob("*.yaml")), f"missing yaml config in {directory}"
 
 
@@ -124,10 +133,63 @@ def test_runner_resolves_symbols_with_product_calendars(run1, run2):
     assert run1.resolve_symbols(today) == ["m2611", "RM611"]
 
 
+def test_pair_limit_refuses_without_an_executable_book(ex1):
+    """A missing one-level book refuses pricing instead of faking a close."""
+    strategy_class = ex1.PairArbitrageStrategy
+    holder = SimpleNamespace(
+        _quotes={}, p=SimpleNamespace(slippage_ticks=2.0, tick_size=1.0)
+    )
+    assert strategy_class._limit(holder, "m2612", "buy") is None
+    holder._quotes["m2612"] = (100.0, 101.0)
+    assert strategy_class._limit(holder, "m2612", "buy") == 103.0
+    assert strategy_class._limit(holder, "m2612", "sell") == 98.0
+
+
+def test_pair_engineering_trigger_requires_an_active_window(ex1):
+    import time as _time
+
+    strategy_class = ex1.PairArbitrageStrategy
+    holder = SimpleNamespace(_engineering_trigger_fired=False)
+    now = _time.time()
+    holder.p = SimpleNamespace(
+        engineering_trigger={
+            "side": "long",
+            "not_before_epoch": now - 5.0,
+            "not_after_epoch": now + 5.0,
+        }
+    )
+    assert strategy_class._engineering_trigger_side(holder) == "long"
+    holder.p.engineering_trigger = {
+        "side": "short",
+        "not_before_epoch": now + 60.0,
+        "not_after_epoch": now + 120.0,
+    }
+    assert strategy_class._engineering_trigger_side(holder) is None
+    holder.p.engineering_trigger = {
+        "side": "north",
+        "not_before_epoch": now - 5.0,
+        "not_after_epoch": now + 5.0,
+    }
+    assert strategy_class._engineering_trigger_side(holder) is None
+    holder.p.engineering_trigger = {
+        "side": "long",
+        "not_before_epoch": now - 5.0,
+        "not_after_epoch": now + 5.0,
+    }
+    holder._engineering_trigger_fired = True
+    assert strategy_class._engineering_trigger_side(holder) is None
+
+
 def test_runner_close_offset_follows_exchange_rules(run1, run2):
     assert run2.close_offset("rb2701") == "close_today"
     assert run1.close_offset("m2611") == "close"
     assert run1.close_offset("RM611") == "close"
+    # The standard entries derive the offset from the real exchange metadata
+    # instead of the product-prefix heuristic.
+    assert run1.close_offset_for_exchange("DCE") == "close"
+    assert run1.close_offset_for_exchange("CZCE") == "close"
+    assert run1.close_offset_for_exchange("SHFE") == "close_today"
+    assert run1.close_offset_for_exchange("INE") == "close_today"
 
 
 def _replay(run_module, scenario):
@@ -332,6 +394,7 @@ def test_pair_report_context_uses_cached_state_only(request, strategy_fixture):
         pending_order=None,
         active_pair=None,
         stage=None,
+        _engineering_trigger_fired=False,
     )
     holder._finite_float = strategy_class._finite_float
     holder._cached_position_size = strategy_class._cached_position_size

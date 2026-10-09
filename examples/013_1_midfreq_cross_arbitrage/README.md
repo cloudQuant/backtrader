@@ -1,59 +1,67 @@
-# 013_1 中低频跨品种套利（豆粕 m / 菜粕 RM）
+# 013_1 — 中低频跨品种套利 m/RM（迭代42 标准四件套）
 
-> **历史 direct SimNow 已退役**：`run.py` 现在是 config-first 兼容入口；不带参数时只会转到本目录已登记的
-> `runtime/config.yaml` replay 路径，缺配置返回 `CONFIG_REQUIRED`。历史 `--replay`、`--config`、
-> `--mode` 等参数一律以 `legacy_cli_arguments_not_supported` 拒绝，`run_live()` 也以
-> `legacy_direct_live_not_supported` fail-closed。它们均不构成 SimNow、live 或受管执行入口。
-> 原 runner 的已知缺陷仍见迭代23 基线 B03（`_limit()` 盘口缺失回退 close、按品种前缀猜平仓 offset、
-> 订单超时依赖数据时钟）与迭代26 验收报告 A8/A10；处置决策见
-> [ADR-013-legacy-reference](../../docs/_internal/opts/requirements/迭代26-迭代20-21-22验收/ADR-013-legacy-reference.md)。
+本目录是"豆粕 m × 菜粕 RM"中低频跨品种价差套利示例，按迭代42 标准形态交付：
+**README.md + config.yaml + pair_arbitrage_strategy.py + run.py**（唯一运行入口），
+另含运行必需的内部模块（下表）。本示例证明的是技术贯通，不是收益或策略有效性结论；
+合成回放不构成未来盈利保证，真实 SimNow 运行也不证明可持续盈利。
 
-## 迭代 41：最简且受控的本地回放
+## 运行方式
 
-从仓库根目录操作。推荐的首次创建与运行路径只有两条命令：
+实时 SimNow 路径要求 CPython 3.11（例如 `C:/anaconda3/python.exe`）与
+dev 版 SDK 源码（`BT_API_PY_ROOT`，默认 `D:/bt_api_py`）：
+
+```text
+python run.py                        # 干跑自检：仅校验配置结构与凭据 env 名（不联网）
+python run.py --replay               # 离线回放：本地冻结 fixture，零网络零写入
+python run.py --live --allow-write   # SimNow 模拟账户：m/RM 双腿有界真实成交往返
+```
+
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
+- 每次 replay/live 运行在 `evidence/<run_id>/` 写 JSON 证据（git-ignored）。
+- 凭据只按名从 checkout 根 `.env` 读取（`CTP_BROKER_ID` 等）；config.yaml 不含任何密钥。
+
+也可从仓库根目录经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
 
 ```powershell
-bt-runtime bootstrap --strategy-dir examples/013_1_midfreq_cross_arbitrage/runtime
 bt-runtime run --strategy-dir examples/013_1_midfreq_cross_arbitrage/runtime
 ```
 
-`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。
+## live 语义（要点）
 
-`runtime/config.yaml` 是必填的 schema-v4 启动合同；缺失时会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、
-当前目录或父目录回退读取。当前受审核的代码清单只为本目录登记
-`runtime.mode: simulation` 与 `runtime.preset: replay`，并只允许 `parameters.scenario`。模式和预设由
-该文件及中央代码清单共同封存，命令行、环境变量和旧配置都不能覆盖它们。
+- **写准入**：仅经 SDK 窄口径 registered-sim 准入（精确 SimNow 前置白名单、一次性武装、
+  逐笔 capability 传递）；Store/managed/production 写路线保持关闭。
+- **双腿武装**：一次准入只授权一个合约，m 腿与 RM 腿在每次真实写入之前按自身
+  preflight 身份切换武装（先解除、再武装，绝不在写入之后切换前端），
+  `arm_history` 记录每次切换；准入阶段对两条腿分别演练武装后才开始运行。
+- **前端选择**：1–8 组完整 MD/TD pair；TCP 探测仅作候选筛选（每端 ≥1/3 成功）；
+  时段内优先 standard、时段外优先 7x24；按最大成功中位延迟排序；准入按序逐对尝试
+  （每次全新会话，只在任何写入之前）；一旦武装成功不再切换环境。
+- **账户前置**：试点要求账户无持仓、无活动委托（不满足即 BLOCKED）；两条腿的合约
+  元数据（tick/乘数）逐项与 `instrument_metadata` 核对。
+- **执行修复（迭代42 §4 三类缺陷）**：平仓 offset 由交易所元数据推导
+  （SHFE/INE=`close_today`，DCE/CZCE=`close`，品种前缀启发仅保留为离线回放默认）；
+  一档盘口缺失时拒绝下单并 halt（不再回退 close 价盲发）；订单超时/持有计时改用
+  本机单调时钟（不再依赖数据时钟）。
+- **触发来源**：`--drill` 为工程演练窗口（一次性显式触发、`max_pairs=1`、按
+  `drill.hold_seconds` 确定性平仓、缩小 z-score 观察周期）；自然信号运行不加演练。
+- **MD 兼容**：本账号所用 SimNow 前置以请求编号 0 回应 MD 登录
+  （`live_market_data.allow_zero_login_response=true`，仅开放行情订阅身份；
+  TD 身份仍严格校验）。
+- 离线回放与 live 的证据层级严格分开；replay 不能替代真实账户验收。
 
-该入口执行 code-owned `run_runtime.py`，定向测试证明本地 replay 不访问网络、不构造 provider、也不产生
-外部订单写入。它只是 `LOCAL_REPLAY_ONLY` 的合成 tick 回放，不是 SimNow、实盘、受管执行、成交或盈利准入。
+## 内部模块（运行必需，非第二入口）
 
-日常请使用上述 `bt-runtime` 命令。为了防止旧自动化的无参数调用直接进入 SimNow，`python run.py`
-只会转到同一个已登记的 config-v4 replay 路径；它读取 `runtime/config.yaml`，不读取旧根目录
-`config.yaml`，也不接受历史 CLI 参数。受控壳在配置检查通过后才复用冻结的本地 replay fixture。
+| 文件 | 职责 |
+| --- | --- |
+| `simnow_direct.py` | 直连 registered-sim 执行层（013_3 同源字节副本）：前端选择、Store/包装器子类、准入/冻结/解除、双腿武装模板 |
+| `legacy_runner.py` | 冻结回放引擎与 `--replay` 实现（原 `run.py` 内容）；另被 `run_runtime.py` 复用 |
+| `ctp_example_support.py` | 007 同源字节副本（历史支持模块；仅 `legacy_runner` 复用其配置读取） |
+| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
-## 历史策略说明（非 Iteration 41 启动指南）
+## 证据与边界
 
-留档的历史三件套为 `strategy.py`（策略逻辑）+ 根目录 `config.yaml`（旧参数）+ `run.py`（现为安全
-兼容壳）。根目录参数文件不是 Iteration 41 启动合同，不能选择运行模式、凭据或写入权限。
-策略信号完全复用 Backtrader 框架能力：`bt.indicators.SpreadZScore`
-（本迭代新增于 `backtrader/indicators/spread.py`）在 `next()` 中给出双腿价差
-z-score；限价参考 `notify_tick` 缓存的买卖一档。已退役的历史 SimNow 接线曾复用
-`examples/007_ctp/ctp_example_support.py`，不属于当前可执行路径。
-
-- 标的：m 主力 × RM 主力（`run.py` 按交割月历自动识别，郑商所三位代码如 `RM701`；
-  `--symbols` 或 yaml `symbols` 可覆盖）
-- 信号：价差 z-score 突破 ±2σ 开仓（三次确认、间隔 5s），回归 0.5σ/超时 30min/亏损平仓
-- 执行：逐腿顺序限价 IOC；先空腿、按第一腿实际成交量提交多腿；裸腿立即反向平掉；
-  平仓 offset 按交易所规则（上期所 `close_today`，大商所/郑商所 `close`）
-
-历史 `run.py` 的 replay/SimNow 命令及其参数不再是可执行接口；它们会在配置加载、框架或 provider 导入前
-被拒绝，不能作为 Iteration 41 的模式控制或写入保障证据。
-
-每次运行都会挂载通用的 `bt.observers.TradeLogger`：它实时汇总订单、成交、持仓、资金和
-事件计数，并在结束时冻结报告；本策略只以 `pair_arbitrage` 扩展补充配对状态、风控和业务
-字段。运行中可调用 `strategy.stats.trade_logger.snapshot()` 查看该扩展；策略只从 broker 的
-本地 `get_cached_report_state()` 读取持仓和资金，不会因生成报告刷新 CTP 账户。最终 JSON 同时
-保留完整 `trade_logger` 遥测，并给出排除该易变遥测和进程全局订单引用的
-`business_summary` 与 `business_summary_hash`，可用于等价 replay 的稳定比对。发布失败后重试按
-最近一次尝试的 tick 水位节流；若停止时最后成功快照之后仍有发布失败，runner 会拒绝该陈旧扩展。
-报告写入 stdout；合成回放不构成盈利证据，历史 SimNow 记录也不能构成盈利或准入证据。
+- 现场证据：各 `evidence/<run_id>/`（run.json：准入/预检/订单/对账/诊断）。
+- 边界标签：回放=`SYNTHETIC_REPLAY_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE`；
+  live=真实 SimNow 模拟账户、有界写入、非盈利/非生产结论。
+- 成交判定按会话归属（仅统计本次运行订单对应的 trades 行），并要求双腿
+  entry/close 均补齐、终态无持仓、无活动委托。
