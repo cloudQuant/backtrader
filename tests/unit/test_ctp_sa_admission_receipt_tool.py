@@ -34,7 +34,7 @@ def _load_example_package() -> None:
 
 
 _load_example_package()
-runner = importlib.import_module(f"{PACKAGE}.run")
+runner = importlib.import_module(f"{PACKAGE}.legacy_runner")
 tool = importlib.import_module(f"{PACKAGE}.admission_receipt_tool")
 
 

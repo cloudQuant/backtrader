@@ -46,10 +46,10 @@ def runtime_registry() -> RuntimeRegistry:
 def _load_replay_runner():
     """Delay Backtrader, Store, and example imports until policy acceptance."""
     if __package__:
-        from . import run
+        from . import legacy_runner
     else:
-        import run
-    return run
+        import legacy_runner
+    return legacy_runner
 
 
 def _legacy_replay_config(legacy):

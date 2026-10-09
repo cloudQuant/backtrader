@@ -1,9 +1,22 @@
+# 013_3 — SA 中频 SimNow 示例（迭代42 标准四件套配置）
+#
+# 运行方式（见 README.md）：
+#   python run.py                       # 干跑自检：仅校验配置结构与凭据 env 名（不联网）
+#   python run.py --replay              # 离线回放：本地冻结 fixture，零网络零写入
+#   python run.py --live --allow-write  # 真实 SimNow 模拟账户：有界成交往返
+#
+# 凭据只按名从 checkout 根 .env 读取；本文件不含任何密钥。
+# 上半部分（mode 至 replay）是冻结的 iter22-sa-v0 候选参数，迭代内先于迁移与回归冻结；
+# 下半部分（schema_version/venue/credentials/fronts/policy/timeouts）为迭代42 新增的
+# 标准入口段，仅被 run.py 的 dry/--live 使用。
+
 mode: shadow
 environment: simnow_first_group1
 candidate_id: iter22-sa-v0
 instrument: null
 timezone: Asia/Shanghai
 
+# 冻结 profile 表（legacy 校验合同；--live 的实际前端选择用下方 fronts.pairs 的 env 名）。
 profiles:
   simnow_first_group1:
     kind: simnow
@@ -34,10 +47,6 @@ contract_selection:
 
 # Required for both automatic expiry gating and a manual frozen month. The
 # artifact must follow iter22.czce-trading-calendar.v1; null fails closed.
-# 2026-09-12 迭代26 T2 接线：artifact 为本地受控生成物（位于 gitignored 的 state/
-# 目录，hash 与 state/iter22-sa610-manual-firstset-20260910.yaml 中的
-# manual_trading_days_evidence_sha256 一致）。缺失时 runner 按设计 fail-closed。
-# 手工冻结月份（SA610）运行请改用 --config state/iter22-sa610-manual-firstset-20260910.yaml。
 trading_calendar:
   artifact: state/iter22-czce-2026-calendar-20260910.json
   sha256: 2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7
@@ -138,3 +147,53 @@ replay:
   scenario: no_signal
   hypothetical_fills: false
   starting_cash: 1000000
+
+# ---------------------------------------------------------------------------
+# 迭代42 标准入口段（dry / --live 使用；--replay 走冻结 fixture 不读此段）
+# ---------------------------------------------------------------------------
+schema_version: 2
+venue: simnow
+credentials:
+  broker_id_env: CTP_BROKER_ID
+  user_id_env: CTP_USER_ID
+  password_env: CTP_PASSWORD
+  app_id_env: CTP_APP_ID
+  auth_code_env: CTP_AUTH_CODE
+# live 合约：字面值或 {env: NAME}；默认从 .env 解析（与 000 认证套件同命名）。
+live_contract:
+  instrument: {env: CTP_INSTRUMENT}
+  exchange: {env: CTP_EXCHANGE}
+  hedge_flag: {env: CTP_HEDGE_FLAG}
+# 1–8 组完整 MD/TD pair（env 名）。选择规则见 simnow_direct.select_front_pair：
+# 每端 ≥1/3 探测成功即可选；按 max(成功中位延迟) 排序、配置序破平；
+# 自动选择/回退只发生在首次写入之前。
+fronts:
+  pairs:
+    - {td_env: CTP_TD_FRONT, md_env: CTP_MD_FRONT, kind: standard}
+    - {td_env: CTP_SET1_TD_FRONT_1, md_env: CTP_SET1_MD_FRONT_1, kind: standard}
+    - {td_env: CTP_SET1_TD_FRONT_2, md_env: CTP_SET1_MD_FRONT_2, kind: standard}
+    - {td_env: CTP_SET1_TD_FRONT_3, md_env: CTP_SET1_MD_FRONT_3, kind: standard}
+    - {td_env: CTP_SET2_TD_FRONT, md_env: CTP_SET2_MD_FRONT, kind: 7x24}
+# MD 登录兼容：本账号所用 SimNow 前置以请求编号 0 + 空身份字段回应登录
+# （行情采集兼容形态，仅开放行情订阅身份，不产生执行身份）；TD 身份仍严格校验。
+live_market_data:
+  allow_zero_login_response: true
+policy:
+  # 配置不能自我授权写入；--allow-write 必须在命令行显式给出。
+  allow_write: false
+  max_actions: 60            # 报单+撤单尝试次数上限（每次请求消耗预算）
+  max_position_lots: 1
+  max_fill_round_trips: 1    # 本轮验收允许的成交往返轮数
+  cleanup_reserve_actions: 20
+timeouts:
+  login_seconds: 30
+  query_seconds: 8
+  stop_seconds: 12
+  run_seconds: 540           # live 运行窗口（单调时钟）
+  warmup_seconds: 90         # 有效 quote 预热等待上限
+  signal_deadline_seconds: 300   # 预热后自然信号截止；超时且无未决单可进入 drill
+  drain_seconds: 120
+# drill（受控演练单）：仅当自然窗口结束、无自然订单尝试、无未决/UNKNOWN 且预检通过时允许。
+drill:
+  enabled: true
+  max_round_trips: 1

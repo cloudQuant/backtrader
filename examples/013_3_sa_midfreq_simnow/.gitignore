@@ -1,5 +1,4 @@
-.env
-reports/
-state/
-__pycache__/
-*.pyc
+# 迭代42 标准入口产物目录（不入库）
+/evidence/
+/reports/
+/state/

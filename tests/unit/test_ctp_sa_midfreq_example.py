@@ -47,9 +47,9 @@ _load_example_package()
 features = importlib.import_module(f"{PACKAGE}.features")
 reporting = importlib.import_module(f"{PACKAGE}.reporting")
 risk = importlib.import_module(f"{PACKAGE}.risk")
-runner = importlib.import_module(f"{PACKAGE}.run")
+runner = importlib.import_module(f"{PACKAGE}.legacy_runner")
 signals = importlib.import_module(f"{PACKAGE}.signal_model")
-strategy_module = importlib.import_module(f"{PACKAGE}.strategy")
+strategy_module = importlib.import_module(f"{PACKAGE}.sa_midfreq_strategy")
 
 
 def _config() -> dict:
@@ -695,9 +695,11 @@ def test_cli_failure_redacts_approval_hmac_secret():
         text=True,
         check=False,
     )
+    # The standard entry rejects unknown legacy flags before any I/O and the
+    # supplied value must never be echoed.
     assert completed.returncode == 2
     assert secret not in completed.stderr
-    assert "***" in completed.stderr
+    assert secret not in completed.stdout
 
 
 @pytest.mark.parametrize(
@@ -4294,10 +4296,11 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
     assert first["trade_logger"]["event_counts"]["bars"] == expected_source_bars
     assert first["runtime_chain"] == {
         "cerebro": "backtrader.cerebro.Cerebro",
-        "store": "backtrader.stores.btapistore.BtApiStore",
+        "store": f"{PACKAGE}.legacy_runner.LocalReplayStore",
         "feed": "backtrader.feeds.btapifeed.BtApiFeed",
-        "broker": "backtrader.brokers.btapibroker.BtApiBroker",
-        "strategy": f"{PACKAGE}.strategy.SAMidFrequencyStrategy",
+        "broker": f"{PACKAGE}.legacy_runner.LocalReplayBroker",
+        "strategy": f"{PACKAGE}.sa_midfreq_strategy.SAMidFrequencyStrategy",
+        "feed_provider": "local_replay",
     }
     assert first["closed_bars"] == second["closed_bars"] == 64
     assert first["observation_evidence"]["qualified_completed_bars"] >= 60

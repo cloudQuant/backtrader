@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 try:
-    from . import run as runner
+    from . import legacy_runner as runner
 except ImportError:  # Direct execution from this example directory.
     import run as runner
 

@@ -1854,6 +1854,12 @@ def _create_ctp_wrapper_class():
             self.password = kwargs.get("password", "")
             self.app_id = kwargs.get("app_id", "simnow_client_test")
             self.auth_code = kwargs.get("auth_code", "0000000000000000")
+            # Opt-in compatibility for MD fronts that answer login with request
+            # ID zero and empty identity fields: subscription-only market data,
+            # never an execution identity.  Default stays strict.
+            self.allow_zero_login_response = bool(
+                kwargs.get("allow_zero_login_response", False)
+            )
             # Settlement confirmation is a terminal write.  The legacy
             # direct CTP wrapper is used for observation and typed query
             # preflights too, so an omitted setting must stay read-only.  A
@@ -1934,6 +1940,7 @@ def _create_ctp_wrapper_class():
                 broker_id=self.broker_id,
                 user_id=self.user_id,
                 password=self.password,
+                allow_zero_login_response=self.allow_zero_login_response,
             )
             self.md_client.on_tick = self._handle_md_tick
             self.md_client.on_error = self._handle_md_error
