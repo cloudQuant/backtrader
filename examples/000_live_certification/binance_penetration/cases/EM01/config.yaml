@@ -13,6 +13,12 @@ environment:
 credentials:
   api_key_env: BINANCE_DEMO_API_KEY
   secret_env: BINANCE_DEMO_SECRET
+  # Optional restricted-permission demo key (both names must resolve from the
+  # checkout-root .env). When both values are present, EM01 probes the toggle
+  # with this key and expects a venue refusal; when absent, the case falls back
+  # to the primary demo key above (current behaviour).
+  restricted_api_key_env: BINANCE_DEMO_RESTRICTED_API_KEY
+  restricted_secret_env: BINANCE_DEMO_RESTRICTED_SECRET
 policy:
   allow_write: true           # the probe is a signed POST; it is refused or restored within the case
   allow_dangerous: false

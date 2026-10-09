@@ -68,6 +68,14 @@ def _env_names(config: dict) -> list:
     return [name for name in names if name]
 
 
+def _optional_env_names(config: dict) -> list:
+    """Names loaded when present but not required to run (e.g. restricted keys)."""
+    section = config.get("credentials", {})
+    required = set(_env_names(config))
+    names = [section.get("restricted_api_key_env"), section.get("restricted_secret_env")]
+    return [name for name in names if name and name not in required]
+
+
 def _topology(config: dict, args) -> dict:
     base = dict(config.get("topology", {}) or {})
     effective = {
@@ -121,7 +129,9 @@ def main_case(argv=None):
     strategy, risk = _load_strategy(case_dir, case_id)
     topology = _topology(config, args)
     env_names = _env_names(config)
-    env_values, env_missing = envfile.load_env(env_names)
+    optional_names = [n for n in _optional_env_names(config) if n not in env_names]
+    env_values, env_missing = envfile.load_env(env_names + optional_names)
+    required_missing = [name for name in env_missing if name in env_names]
 
     plan = {
         "case": case_id,
@@ -131,15 +141,16 @@ def main_case(argv=None):
         "topology": topology,
         "scenario": config.get("scenario", {}),
         "env_keys": env_names,
-        "env_keys_missing": env_missing,
+        "env_keys_missing": required_missing,
+        "env_keys_optional_missing": [n for n in env_missing if n in optional_names],
     }
 
     if not args.live:
         plan["status"] = "DRY"
         print(json.dumps(plan, indent=2, ensure_ascii=False, default=str))
-        return 0 if not env_missing else 2
+        return 0 if not required_missing else 2
 
-    if env_missing:
+    if required_missing:
         print(json.dumps({**plan, "status": "BLOCKED", "reason": "credential_env_missing"}))
         return 2
     if RISK_LEVEL.get(risk, 0) >= 1 and not args.allow_write:
@@ -160,6 +171,9 @@ def main_case(argv=None):
             venue=venue, case_id=case_id, config=config, topology=topology,
             client=client, evidence_dir=evidence_dir, live=True,
         )
+        # Internal only: optional credentials (e.g. a restricted-permission key)
+        # stay available to strategies without being serialized into evidence.
+        ctx._env_values = dict(env_values)
         connect_fact = client.connect()
         ctx.log(f"connected {connect_fact['host']} offset_ms={connect_fact['time_offset_ms']}")
         result = strategy.run(ctx)
