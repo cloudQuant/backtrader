@@ -1,0 +1,30 @@
+# L04 — local validation rejection with no venue dispatch.
+#
+# This directory is self-contained: config.yaml + L04_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: L04
+venue: binance
+description: "Local validation rejects a deliberately misaligned price tick with no venue order dispatch."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: false
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

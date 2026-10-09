@@ -1,0 +1,41 @@
+# EM02 — strategy pause / resume around a terminal-canceled order cycle.
+#
+# This directory is self-contained: config.yaml + EM02_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: EM02
+venue: binance
+description: "Local operator write-pause must refuse the guarded order before dispatch (open orders unchanged); after resume a resting LIMIT order is placed, canceled, and reaches terminal CANCELED with no residual."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  operator_ref: operator-cert-em02
+  authorization_ref: auth-cert-em02
+  pause_reason: operator_pause
+  symbol: BTCUSDT
+  side: BUY
+  position_side: LONG
+  quantity: "0.001"
+  price_offset_bps: 200       # buy 2% below mark: rests inside the venue ±5% price band
+  order_type: LIMIT
+  time_in_force: GTC
+  accept_timeout_ms: 8000
+  cancel_confirm_timeout_ms: 8000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

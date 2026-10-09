@@ -1,0 +1,32 @@
+# EM03 — forced logout via the user-data-stream listenKey (session-only).
+#
+# This directory is self-contained: config.yaml + EM03_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: EM03
+venue: binance
+description: "Operator deletes the session listenKey server-side; the session's next renew must fail (forced logout), then a fresh key must start and renew before being deleted."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true           # the case manages listenKeys (POST/PUT/DELETE /fapi/v1/listenKey)
+  allow_dangerous: false
+  max_orders: 0
+  max_notional_usdt: 0
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  operator_ref: operator-cert-em03
+  authorization_ref: auth-cert-em03
+  rule: forced_logout_via_listenkey_delete
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

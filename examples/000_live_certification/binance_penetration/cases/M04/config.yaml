@@ -1,0 +1,38 @@
+# M04 — the local monitor records the order submission.
+#
+# This directory is self-contained: config.yaml + M04_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: M04
+venue: binance
+description: "Monitor observes the order submission: place one resting LIMIT order, require the case-local monitor to record an order_insert event for it, then cancel it to terminal."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  side: BUY
+  position_side: LONG
+  quantity: "0.001"
+  price_offset_bps: 200        # buy 2% below mark: rests inside the venue ±5% price band
+  order_type: LIMIT
+  time_in_force: GTC
+  accept_timeout_ms: 8000
+  cancel_timeout_ms: 8000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

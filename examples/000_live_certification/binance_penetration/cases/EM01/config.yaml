@@ -1,0 +1,34 @@
+# EM01 — operator permission restriction probe at the API-key capability boundary.
+#
+# This directory is self-contained: config.yaml + EM01_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: EM01
+venue: binance
+description: "Operator permission restriction probe: attempt the signed position-mode toggle (POST /fapi/v1/positionSide/dual, dualSidePosition=false); a venue rejection code/message is recorded as the restriction (PASS). If the demo key holds the permission, hedge mode is immediately restored, verified, and the case returns BLOCKED."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true           # the probe is a signed POST; it is refused or restored within the case
+  allow_dangerous: false
+  max_orders: 0
+  max_notional_usdt: 0
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  operator_ref: operator-cert-em01
+  authorization_ref: auth-cert-em01
+  probe_path: /fapi/v1/positionSide/dual
+  probe_value: "false"        # requested one-way mode; hedge mode true is restored if this is accepted
+  rule: position_mode_toggle_requires_permission
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

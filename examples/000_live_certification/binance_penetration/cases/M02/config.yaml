@@ -1,0 +1,30 @@
+# M02 — user-data-stream disconnect observation.
+#
+# This directory is self-contained: config.yaml + M02_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: M02
+venue: binance
+description: "User-data-stream disconnect observation: an operator-invalidated listen key refuses renewal within the bounded window."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: false
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

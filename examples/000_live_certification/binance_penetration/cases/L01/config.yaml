@@ -1,0 +1,35 @@
+# L01 — real fill correlated in the venue trade log, then flattened.
+#
+# This directory is self-contained: config.yaml + L01_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: L01
+venue: binance
+description: "Crossing MARKET BUY fill matched by a userTrades row (trade id/price/quantity), then MARKET SELL flatten back to a flat position."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 2
+  max_notional_usdt: 200
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  quantity: "0.001"
+  fill_timeout_ms: 15000
+  trade_timeout_ms: 20000
+  flatten_timeout_ms: 15000
+  position_settle_timeout_ms: 5000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

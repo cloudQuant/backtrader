@@ -1,0 +1,37 @@
+# O02 — resting non-crossing reduce order accepted (NEW) and finally canceled.
+#
+# This directory is self-contained: config.yaml + O02_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: O02
+venue: binance
+description: "Open a LONG position, submit a non-crossing resting reduce SELL LIMIT (NEW), cancel it to CANCELED, then flatten back to flat."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: true
+  max_orders: 3
+  max_notional_usdt: 200
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  quantity: "0.001"
+  reduce_price_offset_bps: 200 # sell 2% above mark: rests inside the venue ±5% price band
+  open_timeout_ms: 15000
+  accept_timeout_ms: 8000
+  cancel_confirm_timeout_ms: 8000
+  position_reflect_timeout_ms: 5000
+  flatten_timeout_ms: 15000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

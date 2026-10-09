@@ -1,0 +1,39 @@
+# E02 — venue rejection: close direction with no position.
+#
+# This directory is self-contained: config.yaml + E02_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: E02
+venue: binance
+description: "After confirming the symbol has no open position, submit one SELL close-direction LIMIT order (positionSide LONG) and record the venue rejection code/message; no order may remain."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  side: SELL
+  position_side: LONG
+  quantity: "0.001"
+  price_offset_bps: 200       # sell 2% above mark: inside the venue ±5% band so only the missing position can reject
+  order_type: LIMIT
+  time_in_force: GTC
+  expect: close_without_position
+  expect_codes: [-2022, -4164, -1106]
+  cancel_confirm_timeout_ms: 8000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

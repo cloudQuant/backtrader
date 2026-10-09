@@ -1,0 +1,39 @@
+# E03 — venue rejection: limit price outside the venue price band.
+#
+# This directory is self-contained: config.yaml + E03_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: E03
+venue: binance
+description: "Submit one BUY LIMIT order priced deliberately outside the venue ±5% PERCENT_PRICE band and record the venue rejection code/message; no order may be created and no residual may remain."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  side: BUY
+  position_side: LONG
+  quantity: "0.001"
+  band_multiplier: 1.10       # mark x 1.10 is above the venue multiplierUp 1.05 band: venue must reject
+  order_type: LIMIT
+  time_in_force: GTC
+  expect: price_outside_band
+  expect_codes: [-4131]
+  cancel_confirm_timeout_ms: 8000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

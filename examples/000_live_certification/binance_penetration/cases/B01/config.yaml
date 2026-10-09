@@ -1,0 +1,37 @@
+# B01 — resting orders above the top of book: partial fill, cancel, flatten.
+#
+# This directory is self-contained: config.yaml + B01_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: B01
+venue: binance
+description: "Two-order batch: a crossing order fills and a resting order is finally canceled (partial fills not producible on this engine)."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: true
+  max_orders: 2
+  max_notional_usdt: 2000
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  order_volume: "0.01"
+  order_count: 2
+  order_interval_ms: 800
+  price_offset_bps: 200        # buy 2% below mark: rests inside the venue ±5% price band
+  fill_poll_timeout_ms: 20000
+  cancel_confirm_timeout_ms: 8000
+  flatten_timeout_ms: 15000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

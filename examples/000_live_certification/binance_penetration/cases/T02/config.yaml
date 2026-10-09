@@ -1,0 +1,35 @@
+# T02 — open-then-close with real fills; final position query must be flat.
+#
+# This directory is self-contained: config.yaml + T02_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: T02
+venue: binance
+description: "Crossing MARKET BUY open followed by a MARKET SELL close: both orders must reach FILLED and the final position query must be flat."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 2
+  max_notional_usdt: 200
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  quantity: "0.001"
+  open_timeout_ms: 15000
+  close_timeout_ms: 15000
+  position_reflect_timeout_ms: 5000
+  position_settle_timeout_ms: 5000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false

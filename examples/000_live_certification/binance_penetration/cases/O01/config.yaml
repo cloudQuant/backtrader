@@ -1,0 +1,40 @@
+# O01 — repeated open submissions are monitored one-for-one.
+#
+# This directory is self-contained: config.yaml + O01_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: O01
+venue: binance
+description: "Repeated open submissions: place several resting LIMIT orders and require exactly one monitor order_insert event per submission, then cancel all to terminal."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: demo-fapi.binance.com
+credentials:
+  api_key_env: BINANCE_DEMO_API_KEY
+  secret_env: BINANCE_DEMO_SECRET
+policy:
+  allow_write: true
+  allow_dangerous: true
+  max_orders: 3
+  max_notional_usdt: 150
+  symbol_allowlist: [BTCUSDT]
+timeouts:
+  request_seconds: 10
+scenario:
+  symbol: BTCUSDT
+  side: BUY
+  position_side: LONG
+  quantity: "0.001"
+  price_offset_bps: 200        # buy 2% below mark: rests inside the venue ±5% price band
+  order_type: LIMIT
+  time_in_force: GTC
+  repeat_count: 3
+  order_interval_ms: 800
+  accept_timeout_ms: 8000
+  cancel_timeout_ms: 8000
+topology:
+  transport: direct           # direct | gateway_zmq
+  execution: false            # optional components
+  risk: false
+  monitor: false
