@@ -43,10 +43,16 @@
 | 项 | 结果 |
 | --- | --- |
 | 打标字段测试 | `tests/unit/test_iteration42_live_tick_provenance.py` 3 passed（含 feed 读取面逐项对齐；默认关不变） |
+| **组合链（打标 tick → 真实 feed 密封 → provider 握手）** | `tests/unit/test_iteration42_options_live_chain.py` **2 passed**：wrapper 队列 → `_prepare_tick`/`_ingest_tick`（与生产 poll 路径同序）→ 桶密封 → 示例 provider 构造 `BarEvidence` → feed 侧身份校验全部通过（域/代次/rules/session/candidate/序列/桶边界逐项断言，09:15 桶外 tick 不泄漏）；**负例**：未打标 tick 在密封时按 provenance 合同 ValueError 拒绝 |
 | 014_1 dry / replay | exit 0 / eligible+no_edge `LOCAL_REPLAY_PASS`（live 段经 legacy 剥离） |
 | option + iteration42 单测 | **640 passed**（含 583 option、组件边界/挂载、provenance） |
 | btapistore 回归 | `tests/unit/stores` 710 passed / 13 skipped |
 | Lint | ruff 全部改动文件 clean |
+
+打标 lane 说明：真实直连 CTP tick 不带 `ctp.quote.v2` schema/时钟质量声明，打标后走
+feed 的 legacy 质量 lane（不伪造 v2 上游执行资格/新鲜度声明）；密封证据的
+`rules_hash`/`session_segment`/`clock_domain` 由 caller 身份保证，feed 质量旗标为空、
+`complete=True`（组合链测试已证）。策略侧另有自身质量与证据门。
 
 ## 翻转后的真实验收（Monday）
 
