@@ -1,0 +1,125 @@
+{
+  "schema": "iteration41.okx.m01.protected_rebind_r2_dev_delivery_proposal.v1",
+  "status": "SOURCE_FAKE_COMPONENT_ONLY_PROPOSED",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "base_head_reported_by_root": "dc8f (short prefix; refresh full hash before staging)",
+  "index_state_reported_by_root": "empty",
+  "scope": "ONE_FIXED_PATH_UNREGISTERED_METADATA_REBIND_HELPER_AND_FAITHFUL_FAKE_OS_TESTS",
+  "proposed_file_count": 10,
+  "files": [
+    {
+      "path": "scripts/iteration41_okx_m01_v3_protected_rebind_r2.py",
+      "bytes": 28418,
+      "sha256": "0baa2191b8d5b99b42e7a13ddc217f0d90291db8279b20f74a3d92c676649810",
+      "role": "unregistered fixed-path helper"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r2.py",
+      "bytes": 23557,
+      "sha256": "4268d340cae45dbcf7574c38f98f2546df78f9a7ff82049f0baecad2904b5eea",
+      "role": "focused fake-OS tests"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-source-candidate-r1-2026-10-09/README.md",
+      "bytes": 4183,
+      "sha256": "f474779d3dda9b88568fc35a6cc2faccff9765fbed9ef23783a0f6fc9b94ca37",
+      "role": "candidate scope and limitations"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-source-candidate-r1-2026-10-09/candidate-pins.json",
+      "bytes": 2165,
+      "sha256": "dad69ff22275926d824b895a60b59995ecd7e8659f223c88d852cb01a6394043",
+      "role": "candidate and inherited source dependency pins"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-require-binding-independent-review-r1-2026-10-09/review.md",
+      "bytes": 1834,
+      "sha256": "fe530a9e8323a5ee492c1d7b1fc80028423df70ad5fd032143ce1790c965f2d4",
+      "role": "independent static review of reader _require binding correction"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-dev-delivery-proposal-r1-2026-10-09/root-source-qa.py",
+      "bytes": 7952,
+      "sha256": "54540781820cab39cdfd3ce2f62b7fc2be4688bffec5a72e0fa7881a411fe583",
+      "role": "exact copy of Root R2 focused source-fake QA driver"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-dev-delivery-proposal-r1-2026-10-09/root-source-qa-result.json",
+      "bytes": 6751,
+      "sha256": "e08ca3aac8f6479117c0066b741ad557ff4d24cfb9da556785a6eaa3af7d1744",
+      "role": "exact copy of Root R2 source-fake QA result"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-dev-delivery-proposal-r1-2026-10-09/round-record.md",
+      "bytes": 3701,
+      "sha256": "5fb5978f3c92f081287f303465d8d0bf3bd5106564001ca44dc560371cb6fd60",
+      "role": "round scope and evidence record"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r2-dev-delivery-proposal-r1-2026-10-09/byte-preservation-rules-proposal.txt",
+      "bytes": 1776,
+      "sha256": "92ca84e2c3d3d11222ccc5ba4837f7ca1225d7a481320cff1fddf3b3cf27bc39",
+      "role": "proposed exact -text rules; does not modify .gitattributes"
+    }
+  ],
+  "delivery_manifest_self_pin": "EXCLUDED",
+  "inherited_dependencies_not_repeated": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-map.json",
+      "bytes": 2877,
+      "sha256": "07f0eb60d60f37919c75cc3ec6833b41653fdbc9952c8478dbbc36ba0cda1ff3",
+      "rows": 19
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-independent-review-r1-2026-10-09-oct7f/README.md",
+      "bytes": 3820,
+      "sha256": "c09eb8be009567b70d50a063e042ef7d75af8ce8d2368fd568bdb4b82e38263b"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py",
+      "bytes": 9809,
+      "sha256": "21d43a5e8d1c517c2ffaa147c96f58343fb188432d4fae47717a5b68b6ec040d"
+    },
+    {
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "bytes": 68215,
+      "sha256": "5a8fd479c999279d9efde625cac1938d794201f04e1beaa6f3663b267d7a7ebc"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py",
+      "bytes": 5952,
+      "sha256": "e0613b66fa54d5ea155da263d1e901e8ada78adf7d83a7e1c8dc5430ea440d1e"
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/run.py",
+      "bytes": 1992,
+      "sha256": "d498e32fcb573781a3eec25eff4c7ba98bfe2c8d4d94f9e5a9b078ab4074641e"
+    }
+  ],
+  "metadata_state": {
+    "accepted_current_old_map_sha256": "db7b351656a0e26aac3778332ed7eb838a92a73605a5bb3604cb4b770c06ebe3",
+    "consumed_backup_child": "r2-20261009-preservation",
+    "target_map_sha256": "07f0eb60d60f37919c75cc3ec6833b41653fdbc9952c8478dbbc36ba0cda1ff3",
+    "fresh_backup_child": "r3-20261009-preservation",
+    "protected_metadata_invocation_in_this_round": false
+  },
+  "acceptance": {
+    "root_qa_status": "SOURCE_FAKE_COMPONENT_ONLY",
+    "pytest_exit": 0,
+    "passed": 11,
+    "guard_selfchecks": 4,
+    "candidate_blocked_categories": [],
+    "all_27_input_pins_unchanged": true,
+    "live_helper_reader_function_identity_code_globals_preserved": true,
+    "formal_m01_passes": 0,
+    "provider_account_acceptance": false
+  },
+  "staging_scope": "PROPOSED_ONLY_NOT_STAGED",
+  "commit": "NONE"
+}
