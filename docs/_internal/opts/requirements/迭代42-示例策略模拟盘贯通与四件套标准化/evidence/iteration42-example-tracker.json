@@ -51,7 +51,7 @@
       "trigger": "none"
     },
     {
-      "commit": "0150641a3",
+      "commit": "adb1fb7a9",
       "dry": "PASS",
       "env_scope": "SimNow standard fronts (m/RM legs)",
       "example": "013_1_midfreq_cross_arbitrage",
@@ -69,26 +69,26 @@
         "tier": null,
         "trigger": "natural"
       },
-      "note": "per-leg registered-sim arm switching; defect fixes per plan §4",
+      "note": "per-leg registered-sim arm switching; defect fixes per plan §4; interpreter guard; drill awaiting session",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\013_1_midfreq_cross_arbitrage\\run.py",
       "tier": "pending",
       "trigger": "drill"
     },
     {
-      "commit": "e91e3638b",
+      "commit": "adb1fb7a9",
       "dry": "PASS",
       "env_scope": "SimNow standard fronts (rb calendar legs)",
       "example": "013_2_highfreq_calendar_arbitrage",
       "live": "PENDING_SESSION",
-      "note": "same-exchange calendar spread; HFT status stays FAIL/NOT_ADMITTED",
+      "note": "same-exchange calendar spread; HFT status stays FAIL/NOT_ADMITTED; drill awaiting session",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\013_2_highfreq_calendar_arbitrage\\run.py",
       "tier": "pending",
       "trigger": "drill"
     },
     {
-      "commit": "eb3da84f3",
+      "commit": "adb1fb7a9",
       "dry": "PASS",
       "env_scope": "SimNow standard fronts (1-8 MD/TD pairs)",
       "example": "013_3_sa_midfreq_simnow",
@@ -106,49 +106,75 @@
         "tier": "lifecycle_only",
         "trigger": "drill"
       },
-      "note": "first-ever Store/Broker registered-sim arming recorded; drill awaiting session",
+      "note": "first Store/Broker registered-sim arming; interpreter guard + dev-SDK preload; drill awaiting session",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\013_3_sa_midfreq_simnow\\run.py",
       "tier": "lifecycle_only",
       "trigger": "drill"
     },
     {
-      "commit": "e7dc0e4a6",
+      "commit": "adb1fb7a9",
       "dry": "PASS",
-      "env_scope": "SimNow options (SA C/P/F) - adapter not integrated",
+      "env_scope": "SimNow options (SA C/P/F, real mapping)",
       "example": "014_1_ctp_options_lowfreq",
-      "live": "BLOCKED",
-      "note": "strict feed-sealed evidence adapter round required (plan R6-R8 scope revision)",
+      "live": "PENDING_SESSION",
+      "note": "strict feed-sealed live adapter integrated (R6): run-scoped ClockMapping, sealed BarEvidence, three-leg arm switching, drill; awaiting session",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\014_1_ctp_options_lowfreq\\run.py",
-      "tier": "self_check_only",
-      "trigger": "none"
+      "tier": "pending",
+      "trigger": "drill"
     },
     {
-      "commit": "e7dc0e4a6",
+      "commit": "adb1fb7a9",
       "dry": "PASS",
-      "env_scope": "SimNow options (F_LOCAL fixture) - adapter not integrated",
+      "env_scope": "SimNow options (SA C/P/F, real mapping)",
       "example": "014_2_ctp_options_midfreq",
-      "live": "BLOCKED",
-      "note": "needs real contract mapping plus the strict evidence adapter round",
+      "live": "PENDING_SESSION",
+      "live_evidence": {
+        "active_orders": null,
+        "close_fills": null,
+        "entry_fills": null,
+        "open_position_rows": null,
+        "reason": "live_event_clock_outside_run_mapping",
+        "run_json": "D:\\source_code\\backtrader\\examples\\014_2_ctp_options_midfreq\\evidence\\live-20261009T210412Z-cd972471\\run.json",
+        "seconds": 145.141,
+        "sha256": "c2a2609b35fba4c31c8a3e575e6108866d5bf8bdf1edf9ec85afce6b6b146681",
+        "status": "BLOCKED",
+        "tier": "observation_only_feed_sealed",
+        "trigger": "observation"
+      },
+      "note": "decision-only observation tier (zero write); real chain reached sealed bars, 7x24 event clock stale (~47.9h) -> BLOCKED live_event_clock_outside_run_mapping; awaiting session window",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\014_2_ctp_options_midfreq\\run.py",
-      "tier": "self_check_only",
-      "trigger": "none"
+      "tier": "observation",
+      "trigger": "observation"
     },
     {
-      "commit": "e7dc0e4a6",
+      "commit": "c13177459",
       "dry": "PASS",
-      "env_scope": "SimNow options tick (cohort fixture) - adapter not integrated",
+      "env_scope": "SimNow options tick (FG C/P/F, real mapping)",
       "example": "015_ctp_options_highfreq",
-      "live": "BLOCKED",
-      "note": "HFT latency conclusion excluded (FAIL/NOT_ADMITTED)",
+      "live": "PASS",
+      "live_evidence": {
+        "active_orders": null,
+        "close_fills": null,
+        "entry_fills": null,
+        "open_position_rows": null,
+        "reason": null,
+        "run_json": "D:\\source_code\\backtrader\\examples\\015_ctp_options_highfreq\\evidence\\live-20261009T213253Z-39d69fb7\\run.json",
+        "seconds": 240.312,
+        "sha256": "446c6b52e28735ef9403bdea6b1c0d5e50c87f2c1ca005a10a7e9c71334ded17",
+        "status": "OBSERVATION_PASS",
+        "tier": "observation_only_tick_arrival",
+        "trigger": "observation"
+      },
+      "note": "tick-arrival observation PASS (real ticks per leg, zero write); cohort admission stays FAIL/NOT_ADMITTED (no ctp.quote.v2 attestation on the direct lane); HFT latency conclusion excluded",
       "replay": "PASS",
       "run_py": "D:\\source_code\\backtrader\\examples\\015_ctp_options_highfreq\\run.py",
-      "tier": "self_check_only",
-      "trigger": "none"
+      "tier": "observation",
+      "trigger": "observation"
     }
   ],
-  "generated_utc": "2026-10-09T20:08:59.512548+00:00",
+  "generated_utc": "2026-10-09T21:43:08.304677+00:00",
   "schema": "iteration42-tracker-v1"
 }
