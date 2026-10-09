@@ -1,0 +1,17 @@
+{
+  "schema": "iteration41.okx.m01.r5.root-host-exit.v1",
+  "host_id": 39102,
+  "actual_invocation_tool": "f6d251",
+  "outside_git_postverification_tool": "fcc52b",
+  "live_pre_exit_verification_tool": "7a0de1",
+  "normal_host_exit_tool": "a5d7a6",
+  "normal_host_exit_code": 0,
+  "exit_method": "sys.exit(0)",
+  "original_root_receipt_preserved": true,
+  "old_retained_hosts_exit_attempted": false,
+  "manual_native_release_or_termination_attempted": false,
+  "accepted_test_suite_repeated": false,
+  "evidence_level": "ROOT_ACTUAL_CREDENTIAL_FREE_LOCAL_LIFECYCLE_ONLY",
+  "provider_account_acceptance": false,
+  "formal_m01_pass_count": 0
+}

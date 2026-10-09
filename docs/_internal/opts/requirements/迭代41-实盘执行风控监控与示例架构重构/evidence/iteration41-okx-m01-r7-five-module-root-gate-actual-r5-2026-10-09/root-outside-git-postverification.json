@@ -1,0 +1,17 @@
+{
+  "account_provider_acceptance": false,
+  "driver_pin_verified": true,
+  "formal_m01_pass_count": 0,
+  "git": {
+    "branch": "dev",
+    "head": "e0b45398f7f7ff8fcae7931b1fbb28886ee05d7b",
+    "index_empty": true
+  },
+  "git_pre_post_equal": true,
+  "host_id": 39102,
+  "host_state_checked_by_this_tool": false,
+  "normal_host_exit_pending_live_binding_check": true,
+  "public_pins_verified": 31,
+  "root_receipt_sha256": "c3e3f36358dabe335039f19dfe9b62ea23b42823d2b86f883ec9c150a6b19dc2",
+  "status": "OUTSIDE_HOST_GIT_POSTVERIFIED"
+}

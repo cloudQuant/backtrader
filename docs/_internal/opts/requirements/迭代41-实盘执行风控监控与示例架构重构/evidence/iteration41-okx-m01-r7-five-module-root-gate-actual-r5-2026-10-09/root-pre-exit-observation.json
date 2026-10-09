@@ -1,0 +1,15 @@
+{
+  "caller_bindings_preserved": true,
+  "caller_registry_empty": true,
+  "formal_m01_pass_count": 0,
+  "host_exit_already_occurred": false,
+  "host_id": 39102,
+  "job_zero_and_all_observed_handles_closed": true,
+  "normal_host_exit_permitted": true,
+  "original_root_receipt_preserved": true,
+  "outside_git_postverified": true,
+  "public_pins_checked": 31,
+  "root_function_bindings_checked": 11,
+  "source_scope_closed": true,
+  "status": "LIVE_BINDINGS_AND_CLEAN_CUSTODY_VERIFIED"
+}

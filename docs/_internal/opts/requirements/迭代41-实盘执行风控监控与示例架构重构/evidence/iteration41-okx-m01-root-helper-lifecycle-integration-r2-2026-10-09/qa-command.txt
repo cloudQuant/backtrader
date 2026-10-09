@@ -1,0 +1,1 @@
+D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe -m pytest -q -c NUL -p no:asyncio --noconftest tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r8.py tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r5_source_fake.py
