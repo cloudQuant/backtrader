@@ -9,19 +9,31 @@
 ```text
 python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
 python run.py --replay [--scenario S]  # 离线一分钟 FQ2 fixture 回放（零网络零写入）
-python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
+python run.py --live                   # live 观察层（零写；需 Python 3.11，见下）
+python run.py --live --allow-write     # 显式 BLOCKED：本策略无下单路径
 ```
 
-- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放证据写入 `evidence/<run_id>/`（git-ignored）。
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放/观察证据写入 `evidence/<run_id>/`（git-ignored）。
 - 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
   `bt-runtime run --strategy-dir examples/014_2_ctp_options_midfreq/runtime`。
 
-## live 层状态（BLOCKED，非降级伪装）
+## live 层（观察，零写）
 
-与 014_1 相同的 feed 密封证据/时钟域合同 + 真实合约映射 + 写能力 adapter 尚未集成；
-`--live` 在任何网络、凭据或 provider 之前 fail-closed 并输出集成需求与翻转路径：
-真实 SA/FG 三腿合约映射、feed 密封 `BarEvidence`/`ClockMapping`、三腿武装模板、
-策略 live 参数与一次性 drill 触发、合约只读回读。不会静默降级为 raw-line 回放合同。
+本策略按合同为**决策专用**（token 结果 `ENGINEERING_WRITE_DISABLED` / `REPLAY_WRITE_DISABLED`，
+不存在下单路径），因此 live 层采用 R7/R8 计划修正案的**观察层**：真实直连
+registered-sim（SimNow）链——front 选择 → Store 登录与账户/持仓/合约元数据只读查询 →
+3 × `BtApiFeed` 分钟桶（`closed_bar_quote_capture`）→ 策略在 feed 密封的
+`BarEvidence`（live 时钟域、非 synthetic `ClockMapping`）上计算 FQ2 特征与决策。
+零写：不 arm、不下单；`--allow-write` 明确 BLOCKED
+（`write_tier_not_implemented_for_decision_only_strategy`）。
+
+- 环境要求：Python 3.11（`C:/anaconda3/python.exe`）+ dev SDK `D:/bt_api_py`；其他解释器
+  fail-closed `live_tier_requires_python_3_11`（dry/replay 不受限）。
+- PASS = 观察窗内 ≥1 个完成分钟特征窗（`WARMUP`/`ORDINARY_DECISION`）且
+  `feed_evidence_fault=null`、`order_write=0`；证据 `evidence/live-*/run.json`。
+- 已知环境事实：7x24 前置报价事件钟可能陈旧（曾观测 ~47.9h），无法满足 live 时钟域时
+  以 `BLOCKED / live_event_clock_outside_run_mapping`（含可用年龄秒数）知会；标准前置
+  交易时段内正常；不会降级为伪造证据。
 
 ## 内部模块（运行必需，非第二入口）
 

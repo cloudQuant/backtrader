@@ -9,7 +9,8 @@
 | --- | --- | --- | --- |
 | 1 | 013_3 SA | 09:00 开盘后即启动（日盘 09:00–11:30） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
 | 2 | 013_1 m/RM | 13:35 启动（午后盘 13:30–15:00；m/RM 日盘） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 600 --drill-window-seconds 900 --drill-warmup-bars 8` |
-| 3 | 013_2 rb | 21:05 启动（夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 1800 --drill-delay-seconds 600 --drill-window-seconds 600 --drill-warmup-bars 8` |
+| 3 | 014_2 SA 期权（观察层，零写） | 13:30 与 013_1 同窗口，随后串行执行 | `python run.py --live --run-seconds 3000` |
+| 4 | 013_2 rb | 21:05 启动（夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 1800 --drill-delay-seconds 600 --drill-window-seconds 600 --drill-warmup-bars 8` |
 
 - 每次 run 结束（含 drain）后再启动下一个；同一账户串行。
 - 标准前置仅交易时段 TCP 可达；选择器会先 7x24 后 standard（时段外）。若首轮
@@ -23,6 +24,11 @@
 - 013_1/013_2：会话归属 trades 中**每条腿** entry>0 且各腿 close>=entry（`entry_by_symbol`/
   `close_by_symbol`）、终态 flat、无活动单、无 UNKNOWN；`arm_history` 反映写入前腿部切换
   （013_1 应出现 m↔RM 切换；013_2 为 rb2701↔rb2705）。
+- 014_2（观察层）：标准前置在时段内应选出 whitelisted standard pair；PASS = `status=OBSERVATION_PASS`
+  且 `observation.feature_minutes>=1`（WARMUP/ORDINARY_DECISION 来自真实封存 BarEvidence）、
+  `feed_evidence_fault=null`、`order_write=0`。若出现 `live_event_clock_outside_run_mapping`（事件钟
+  与运行映射不匹配，7x24 环境曾观测到 ~47.9h 陈旧钟），说明该前置报价钟不满足 live 证据链，换时段
+  或前置复跑，不降级判定。
 - 证据：各目录 `evidence/live-*/run.json`（git-ignored）；随后把脱敏摘要 + SHA-256 归档到
   迭代42 evidence 目录，并在 `r1-live-run-progress` 备忘补记数值。
 

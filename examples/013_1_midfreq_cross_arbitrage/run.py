@@ -518,6 +518,17 @@ def run_live(args) -> int:
             }
         )
         return EXIT_BLOCKED
+    if sys.version_info[:2] != (3, 11):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "live_tier_requires_python_3_11",
+                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
+                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
+            }
+        )
+        return EXIT_BLOCKED
     try:
         config, config_path = _load_config()
     except Exception as exc:

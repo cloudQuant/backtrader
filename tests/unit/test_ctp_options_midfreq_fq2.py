@@ -37,7 +37,11 @@ ReplayQuoteProducer = fixture_module.ReplayQuoteProducer
 @pytest.fixture(scope="module")
 def config() -> dict:
     """Return the validated 014_2 replay config."""
-    return validate_config(yaml.safe_load((EXAMPLE / "config.yaml").read_text(encoding="utf-8")))
+    raw = yaml.safe_load((EXAMPLE / "config.yaml").read_text(encoding="utf-8"))
+    # The live-only adapter section is consumed by the standard run.py live
+    # tier and stripped by the replay loader.
+    raw.pop("live_adapter", None)
+    return validate_config(raw)
 
 
 def _producer(config: dict, scenario: str = "edge") -> ReplayQuoteProducer:

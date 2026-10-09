@@ -91,7 +91,9 @@ def test_runtime_import_graph_has_no_other_example_dependency_and_a_pre_framewor
     assert all(
         module != "examples" and not module.startswith("examples.") for module in entry_imports
     )
-    assert "importlib" not in entry_text
+    # The standard entry may consult importlib.util.find_spec for its strict
+    # dev-SDK origin check; it never loads modules dynamically.
+    assert "importlib.import_module" not in entry_text
     assert "pkgutil" not in entry_text
     assert 'if __name__ == "__main__":' in entry_text
 
@@ -144,6 +146,9 @@ def test_fixed_budget_boundaries_and_timezone_qualified_ticks_fail_closed(tmp_pa
         ("recovery_reserve_cny", 1999, "RECOVERY_RESERVE"),
     ):
         invalid = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+        # The live-only adapter section is consumed by the standard run.py
+        # live tier and stripped by the replay loader.
+        invalid.pop("live_adapter", None)
         invalid["budget"][field] = value
         with pytest.raises(module.ConfigurationError) as captured:
             module.validate_config(invalid)

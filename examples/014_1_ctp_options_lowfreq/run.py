@@ -40,6 +40,12 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 CHECKOUT_ROOT = HERE.parents[1]
 
+# Canonical example fence: a direct ``python run.py`` must bind the checkout
+# copy of framework/SDK packages, never an installed one.
+for _bootstrap_path in (str(HERE), str(REPO_ROOT)):
+    if _bootstrap_path not in sys.path:
+        sys.path.insert(0, _bootstrap_path)
+
 EXIT_PASS, EXIT_FAIL, EXIT_BLOCKED, EXIT_UNKNOWN = 0, 1, 2, 3
 STRATEGY_ID = "ctp_options_lowfreq"
 LIVE_ADAPTER_KEY = "live_adapter"
@@ -496,15 +502,46 @@ class _LiveEvidenceProvider:
         from backtrader.feeds import BarEvidence
 
         seal_received_at = bar.available_at
+        # A live environment whose quote timestamps cannot satisfy the
+        # run-scoped mapping (e.g. an always-on simulation replaying a stale
+        # trading day) is a bounded precondition failure, not an internal
+        # fault: classify it before BarEvidence construction instead of
+        # crashing the run.
+        try:
+            seal_received_mono_ns = self.mapping.map_wall_to_mono_ns(seal_received_at)
+            self.mapping.validate_pair(
+                seal_received_at, seal_received_mono_ns / 1_000_000_000.0
+            )
+        except ValueError as exc:
+            age_seconds = None
+            try:
+                wall = seal_received_at
+                if wall.tzinfo is None:
+                    wall = wall.replace(tzinfo=datetime.timezone.utc)
+                age_seconds = round(
+                    (
+                        datetime.datetime.now(datetime.timezone.utc)
+                        - wall.astimezone(datetime.timezone.utc)
+                    ).total_seconds(),
+                    3,
+                )
+            except Exception:
+                pass
+            raise LiveRejected(
+                "live_event_clock_outside_run_mapping",
+                {
+                    "symbol": str(getattr(bar, "symbol", "") or ""),
+                    "available_age_seconds": age_seconds,
+                    "error": str(exc),
+                },
+            ) from exc
         return BarEvidence(
             symbol=bar.symbol,
             exchange=bar.exchange,
             bucket_start=bar.bucket_start,
             bucket_end=bar.bucket_end,
             available_at=bar.available_at,
-            seal_received_mono=(
-                self.mapping.map_wall_to_mono_ns(seal_received_at) / 1_000_000_000.0
-            ),
+            seal_received_mono=seal_received_mono_ns / 1_000_000_000.0,
             seal_received_at=seal_received_at,
             trading_day=bar.trading_day,
             generation=bar.connection_generation,
@@ -575,12 +612,6 @@ def _fee_schedule_from(commission: Mapping[str, Any], future_price: float, multi
 
 
 def run_live(args) -> int:
-    import backtrader as bt
-
-    import legacy_runner
-    import simnow_direct
-    from backtrader.brokers.btapibroker import BtApiBroker
-
     if not args.allow_write:
         _json_print(
             {
@@ -591,6 +622,31 @@ def run_live(args) -> int:
             }
         )
         return EXIT_BLOCKED
+    if sys.version_info[:2] != (3, 11):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "live_tier_requires_python_3_11",
+                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
+                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
+            }
+        )
+        return EXIT_BLOCKED
+
+    # The dev SDK source paths must precede any bt_api_ctp import: importing
+    # simnow_direct eagerly builds the CTP wrapper class, and an installed
+    # site-packages bt_api_ctp must never be bound.  The strict origin check
+    # below still fails closed if this preload was skipped or defeated.
+    _ensure_dev_sdk_path()
+
+    # Import order matters: legacy_runner's iteration-41 fence puts the
+    # checkout root on sys.path before anything binds ``backtrader``.
+    import legacy_runner
+    import simnow_direct
+
+    import backtrader as bt
+    from backtrader.brokers.btapibroker import BtApiBroker
     try:
         raw_config = _load_raw_config()
         legacy_config = legacy_runner.load_config()
@@ -1109,8 +1165,11 @@ def run_live(args) -> int:
         summary["status"] = "RUNNING"
         _write_summary()
         run_error = None
+        scope_fault: Optional[LiveRejected] = None
         try:
             cerebro.run()
+        except LiveRejected as exc:
+            scope_fault = exc
         except Exception as exc:
             run_error = f"{type(exc).__name__}: {exc}"
         finally:
@@ -1202,7 +1261,12 @@ def run_live(args) -> int:
         )
         entry_complete = all(entry_by_leg[item[0]] > 0 for item in legs)
         close_complete = all(close_by_leg[item[0]] >= entry_by_leg[item[0]] for item in legs)
-        if run_error is not None:
+        if scope_fault is not None:
+            summary["status"] = "BLOCKED"
+            summary["reason"] = scope_fault.reason
+            summary["details"] = dict(scope_fault.details)
+            code_exit = EXIT_BLOCKED
+        elif run_error is not None:
             summary["status"] = "UNKNOWN"
             code_exit = EXIT_UNKNOWN
         elif residual_open or residual_active:

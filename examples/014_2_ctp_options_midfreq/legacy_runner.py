@@ -104,7 +104,12 @@ def _contained_config_path(path: Path | str) -> Path:
 
 
 def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any]:
-    """Load the contained YAML config as a mapping; reject anything else."""
+    """Load the contained YAML config as a mapping; reject anything else.
+
+    The optional iteration-42 ``live_adapter`` section is consumed by the
+    standard ``run.py`` live tier only and is stripped here so the frozen
+    replay contract keeps its strict key set.
+    """
 
     try:
         loaded = yaml.safe_load(_contained_config_path(path).read_text(encoding="utf-8"))
@@ -114,6 +119,8 @@ def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any
         raise ConfigurationError("CONFIG_YAML", f"invalid yaml: {error}") from error
     if not isinstance(loaded, dict):
         raise ConfigurationError("CONFIG_SCHEMA", "config root must be a mapping")
+    if "live_adapter" in loaded:
+        loaded = {key: value for key, value in loaded.items() if key != "live_adapter"}
     return loaded
 
 

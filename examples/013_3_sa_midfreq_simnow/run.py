@@ -470,6 +470,24 @@ def _preflight_fee(store, instrument: str, exchange: str, config: Mapping[str, A
 
 
 def run_live(args) -> int:
+    if sys.version_info[:2] != (3, 11):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "live_tier_requires_python_3_11",
+                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
+                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
+            }
+        )
+        return EXIT_BLOCKED
+
+    # The dev SDK source paths must precede any bt_api_ctp import: importing
+    # simnow_direct eagerly builds the CTP wrapper class, and an installed
+    # site-packages bt_api_ctp must never be bound.  The strict origin check
+    # below still fails closed if this preload was skipped or defeated.
+    _ensure_dev_sdk_path()
+
     import backtrader as bt
 
     import legacy_runner

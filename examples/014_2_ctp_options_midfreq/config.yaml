@@ -54,3 +54,53 @@ timing:
   maximum_hold_seconds: 900
   idle_interval_ms: 250
   history_capacity: 128
+
+# ---------------------------------------------------------------------------
+# 迭代42 live 观测层（仅 run.py 的 dry/--live 使用；legacy_runner 读取时剥离本段）。
+# 决策-only 策略（无下单路径），live 层零写入；不含密钥，仅引用 env 名。
+# ---------------------------------------------------------------------------
+live_adapter:
+  schema_version: 1
+  venue: simnow
+  credentials:
+    broker_id_env: CTP_BROKER_ID
+    user_id_env: CTP_USER_ID
+    password_env: CTP_PASSWORD
+    app_id_env: CTP_APP_ID
+    auth_code_env: CTP_AUTH_CODE
+  fronts:
+    pairs:
+      - {td_env: CTP_TD_FRONT, md_env: CTP_MD_FRONT, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_1, md_env: CTP_SET1_MD_FRONT_1, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_2, md_env: CTP_SET1_MD_FRONT_2, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_3, md_env: CTP_SET1_MD_FRONT_3, kind: standard}
+      - {td_env: CTP_SET2_TD_FRONT, md_env: CTP_SET2_MD_FRONT, kind: 7x24}
+  live_market_data:
+    allow_zero_login_response: true
+  # 真实合约映射（替换 F_LOCAL fixture；SA701 平价期权系列）。
+  live_candidate:
+    exchange: CZCE
+    contracts: {future: CZCE.SA701, call: CZCE.SA701C1080, put: CZCE.SA701P1080}
+    strike: 1080
+    multiplier: 20
+    discount_factor: 1
+    option_style: European
+    quantities: {future: 1, call: 1, put: 1}
+    price_ticks: {future: 1.0, call: 0.5, put: 0.5}
+    # Live basket residual floor = one-tick bound = 20 x (1.0 + 0.5 + 0.5).
+    signal: {residual_floor_cny: 40}
+  instrument_metadata:
+    CZCE.SA701: {price_tick: 1.0, volume_multiple: 20}
+    CZCE.SA701C1080: {price_tick: 0.5, volume_multiple: 20}
+    CZCE.SA701P1080: {price_tick: 0.5, volume_multiple: 20}
+  policy:
+    allow_write: false
+  timeouts:
+    login_seconds: 30
+    query_seconds: 8
+    stop_seconds: 12
+    run_seconds: 4200
+    drain_seconds: 120
+  observation:
+    max_pending_decisions: 8
+    quote_limit: 240
