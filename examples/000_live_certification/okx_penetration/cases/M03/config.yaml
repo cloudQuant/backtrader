@@ -1,0 +1,28 @@
+schema_version: 1
+case_id: M03
+venue: okx
+description: "Session recovery: after the auth-loss observation the same credentials read the account again."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: www.okx.com
+  simulated: true
+credentials:
+  api_key_env: OKX_DEMO_API_KEY
+  secret_env: OKX_DEMO_SECRET
+  passphrase_env: OKX_DEMO_PASSPHRASE
+policy:
+  allow_write: false
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 1200
+  symbol_allowlist: [BTC-USDT-SWAP]
+timeouts:
+  request_seconds: 10
+scenario:
+  expect: session_recovery
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false

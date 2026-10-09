@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: TH05
+venue: okx
+description: "Threshold configuration snapshot: repeated-submit window captured with a stable 16-character snapshot id."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: www.okx.com
+  simulated: true
+credentials:
+  api_key_env: OKX_DEMO_API_KEY
+  secret_env: OKX_DEMO_SECRET
+  passphrase_env: OKX_DEMO_PASSPHRASE
+policy:
+  allow_write: false
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 1200
+  symbol_allowlist: [BTC-USDT-SWAP]
+timeouts:
+  request_seconds: 10
+scenario:
+  monitor:
+    repeated_threshold: 3
+    window_seconds: 60
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false

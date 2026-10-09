@@ -169,7 +169,14 @@ class OkxDemoClient:
                 code = str(envelope.get("code", ""))
                 if code == "0":
                     return envelope
-                raise OkxApiError(code, envelope.get("msg", ""), status=status, method=method, path=path)
+                detail = envelope.get("msg", "")
+                items = envelope.get("data") or []
+                if items and isinstance(items[0], dict):
+                    sub_code = str(items[0].get("sCode") or "")
+                    sub_msg = str(items[0].get("sMsg") or "")
+                    if sub_code and sub_code != "0":
+                        detail = f"{detail}: {sub_code} {sub_msg}".strip()
+                raise OkxApiError(code, detail, status=status, method=method, path=path)
 
             try:
                 envelope = json.loads(raw)
@@ -269,13 +276,32 @@ class OkxDemoClient:
         if cl_ord_id is None:
             cl_ord_id = "cert" + "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
         body["clOrdId"] = cl_ord_id
-        envelope = self._request("POST", "/api/v5/trade/order", body=body, is_write=True)
-        item = (envelope.get("data") or [{}])[0]
-        s_code = str(item.get("sCode", "0"))
-        if s_code != "0":
-            raise OkxApiError(s_code, item.get("sMsg", ""), method="POST", path="/api/v5/trade/order")
-        item["_cl_ord_id"] = cl_ord_id
-        return item
+        attempts = 0
+        while True:
+            attempts += 1
+            try:
+                envelope = self._request("POST", "/api/v5/trade/order", body=body, is_write=True)
+                item = (envelope.get("data") or [{}])[0]
+                s_code = str(item.get("sCode", "0"))
+                if s_code != "0":
+                    raise OkxApiError(s_code, item.get("sMsg", ""), method="POST", path="/api/v5/trade/order")
+                item["_cl_ord_id"] = cl_ord_id
+                return item
+            except OkxApiError as exc:
+                code = str(exc.code)
+                # 50013 "systems busy" precedes order creation; retry with the
+                # SAME clOrdId so a lost reply can never duplicate the order.
+                if code == "50013" and attempts < 6:
+                    time.sleep(min(2.0 * attempts, 8.0))
+                    continue
+                if code == "51016":  # clOrdId already exists: the order landed
+                    rows = self.order_details(inst_id, cl_ord_id=cl_ord_id)
+                    if rows:
+                        item = dict(rows[0])
+                        item["_cl_ord_id"] = cl_ord_id
+                        item["_dedupe"] = True
+                        return item
+                raise
 
     def cancel_order(self, inst_id, *, ord_id=None, cl_ord_id=None):
         body = {"instId": inst_id}

@@ -1,0 +1,31 @@
+schema_version: 1
+case_id: T01
+venue: okx
+description: "Bounded resting LIMIT order is accepted and finally canceled."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: www.okx.com
+  simulated: true
+credentials:
+  api_key_env: OKX_DEMO_API_KEY
+  secret_env: OKX_DEMO_SECRET
+  passphrase_env: OKX_DEMO_PASSPHRASE
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 1200
+  symbol_allowlist: [BTC-USDT-SWAP]
+timeouts:
+  request_seconds: 10
+scenario:
+  inst_id: BTC-USDT-SWAP
+  side: buy
+  size: "1"
+  price_offset_bps: 200
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false

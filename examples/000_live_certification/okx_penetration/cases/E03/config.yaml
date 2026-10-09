@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: E03
+venue: okx
+description: "Genuine venue rejection: BUY limit price above the venue price band."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: www.okx.com
+  simulated: true
+credentials:
+  api_key_env: OKX_DEMO_API_KEY
+  secret_env: OKX_DEMO_SECRET
+  passphrase_env: OKX_DEMO_PASSPHRASE
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 2
+  max_notional_usdt: 1200
+  symbol_allowlist: [BTC-USDT-SWAP]
+timeouts:
+  request_seconds: 10
+scenario:
+  inst_id: BTC-USDT-SWAP
+  size: "1"
+  band_breach_bps: 200
+  cancel_timeout_ms: 10000
+  fill_timeout_ms: 15000
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false

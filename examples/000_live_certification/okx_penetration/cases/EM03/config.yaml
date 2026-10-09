@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: EM03
+venue: okx
+description: "Operator key revocation observed; healthy context reads keep working (read-only)."
+environment:
+  name: demo
+  kind: sandbox
+  base_url: www.okx.com
+  simulated: true
+credentials:
+  api_key_env: OKX_DEMO_API_KEY
+  secret_env: OKX_DEMO_SECRET
+  passphrase_env: OKX_DEMO_PASSPHRASE
+policy:
+  allow_write: true
+  allow_dangerous: false
+  max_orders: 1
+  max_notional_usdt: 0
+  symbol_allowlist: [BTC-USDT-SWAP]
+timeouts:
+  request_seconds: 10
+scenario:
+  inst_id: BTC-USDT-SWAP
+  operator_ref: operator-cert-em03
+  authorization_ref: auth-cert-em03
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false
