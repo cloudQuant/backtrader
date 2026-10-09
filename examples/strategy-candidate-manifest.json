@@ -7,7 +7,7 @@
       "strategy_id": "012_1_midfreq_cross_exchange",
       "resolved_example_path": "012_1_midfreq_cross_exchange",
       "entrypoint": "run.py",
-      "strategy_module": "strategy.py",
+      "strategy_module": "cross_exchange_strategy.py",
       "strategy_class": "CrossExchangeArbitrageStrategy",
       "candidate_type": "robust_executable_basis_mean_reversion",
       "hft_label": "not_applicable",
@@ -68,10 +68,10 @@
         "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
-      "runner_sha256": "fedd8e09246190bb6555bb6f3ed896567ff4291193a0bbbaf6f69b34489e8f72",
-      "strategy_sha256": "e6546c426aeebfa3668ff37f09c9379d7fc8e43ff1267a163211d4fd91207895",
-      "config_sha256": "efd7c84c0df9ec86b5f31bd41b1d3c2f9d41c7a046b72737b723feadd89812ca",
-      "candidate_sha256": "f12b7bdb58ed6a9ccfd8ab8a20be9ac159f61490b29103f3c51c2044855fb349",
+      "runner_sha256": "e5183319a78c45ac99a207f3ba0d6364ea86b5dbfccff6ea4d315440ce85d481",
+      "strategy_sha256": "a6c69a5f0a22b6d856d21805432cd57439f78bc33403529301f3363bce789ed0",
+      "config_sha256": "82fa5771d05ebab3a2a3a7dd76bac611254bb0c9a3cde7d3c8b91dcc04069c0d",
+      "candidate_sha256": "c925bbdeb0c4f8d8af7fa81abb75da8e73dbdd84cfde0daeb778019e651c4e17",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,

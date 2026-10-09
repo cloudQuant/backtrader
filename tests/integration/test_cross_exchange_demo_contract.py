@@ -47,7 +47,11 @@ NOW = datetime(2026, 9, 8, 4, 0, tzinfo=timezone.utc)
 def _runtime_runner(runner):
     """Load the SDK only for tests exercising the real example entry point."""
     optional_sdk()
-    return importlib.import_module(f"examples.{runner.STRATEGY_ID}.run")
+    try:
+        return importlib.import_module(f"examples.{runner.STRATEGY_ID}.legacy_runner")
+    except ModuleNotFoundError:
+        # Folders not yet migrated to the standard layout keep the legacy run.py.
+        return importlib.import_module(f"examples.{runner.STRATEGY_ID}.run")
 
 
 def test_012_1_backtrader_bootstrap_reuses_checkout_and_rejects_foreign_module(monkeypatch):
@@ -854,9 +858,11 @@ def test_candidate_source_or_config_tamper_stops_before_store(
     )
     resolved = Path(runner.__file__).parent
     candidate["resolved_example_path"] = str(resolved)
-    candidate["runner_sha256"] = hashlib.sha256(Path(runner.__file__).read_bytes()).hexdigest()
+    candidate["runner_sha256"] = hashlib.sha256(
+        (resolved / candidate["entrypoint"]).read_bytes()
+    ).hexdigest()
     candidate["strategy_sha256"] = hashlib.sha256(
-        (resolved / "strategy.py").read_bytes()
+        (resolved / candidate["strategy_module"]).read_bytes()
     ).hexdigest()
     candidate["config_sha256"] = hashlib.sha256((resolved / "config.yaml").read_bytes()).hexdigest()
     candidate[field] = "0" * 64

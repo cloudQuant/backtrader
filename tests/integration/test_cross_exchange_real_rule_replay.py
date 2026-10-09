@@ -32,7 +32,7 @@ MANIFEST = ROOT / "examples" / "strategy-candidate-manifest.json"
 SNAPSHOT = ROOT / "tests" / "fixtures" / "cross_exchange_rules" / "p2_6_public_rule_snapshot.json"
 RUNNERS = (
     pytest.param(
-        import_module("examples.012_1_midfreq_cross_exchange.run"),
+        import_module("examples.012_1_midfreq_cross_exchange.legacy_runner"),
         id="mid-frequency",
     ),
     pytest.param(

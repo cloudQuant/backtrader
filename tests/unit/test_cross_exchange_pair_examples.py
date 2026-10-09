@@ -20,8 +20,12 @@ MID = EXAMPLES / "012_1_midfreq_cross_exchange"
 EVENT = EXAMPLES / "012_2_event_driven_cross_exchange"
 MANIFEST = EXAMPLES / "strategy-candidate-manifest.json"
 MODULES = {
-    "012_1_midfreq_cross_exchange": "examples.012_1_midfreq_cross_exchange.run",
+    "012_1_midfreq_cross_exchange": "examples.012_1_midfreq_cross_exchange.legacy_runner",
     "012_2_event_driven_cross_exchange": "examples.012_2_event_driven_cross_exchange.run",
+}
+STRATEGY_FILES = {
+    MID: "cross_exchange_strategy.py",
+    EVENT: "strategy.py",
 }
 
 
@@ -84,7 +88,7 @@ def imports(path):
 def test_examples_are_source_self_contained_and_only_bootstrap_paths_for_direct_cli():
     forbidden = ("cross_exchange_arbitrage_support", "012_1_midfreq", "_btapi_")
     for directory in (MID, EVENT):
-        for filename in ("run.py", "strategy.py"):
+        for filename in ("run.py", STRATEGY_FILES[directory]):
             path = directory / filename
             names, tree = imports(path)
             assert not any(token in name for name in names for token in forbidden)
@@ -133,7 +137,11 @@ def test_cross_venue_planning_and_candidate_policy_do_not_live_in_backtrader_uti
     assert not (ROOT / "backtrader" / "utils" / "demo_approval.py").exists()
     for directory in (MID, EVENT):
         runner_source = (directory / "run.py").read_text(encoding="utf-8")
-        strategy_source = (directory / "strategy.py").read_text(encoding="utf-8")
+        legacy_path = directory / "legacy_runner.py"
+        if legacy_path.is_file():
+            # Standard layout: the SDK-facing engine lives in legacy_runner.py.
+            runner_source = runner_source + "\n" + legacy_path.read_text(encoding="utf-8")
+        strategy_source = (directory / STRATEGY_FILES[directory]).read_text(encoding="utf-8")
         assert "bt_api_py" in runner_source
         # Iteration 30: the admission policy is vendored beside the runner so the
         # folder is self-contained; it still must never live in the framework.
@@ -231,10 +239,11 @@ def test_demo_requires_the_repository_canonical_manifest(strategy_id, monkeypatc
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 def test_runner_and_strategy_import_normally_without_dynamic_loader(strategy_id):
     runner = _runner(strategy_id)
-    strategy = importlib.import_module(f"examples.{strategy_id}.strategy")
+    strategy_stem = Path(STRATEGY_FILES[EXAMPLES / strategy_id]).stem
+    strategy = importlib.import_module(f"examples.{strategy_id}.{strategy_stem}")
 
     assert strategy_id == runner.STRATEGY_ID
-    assert strategy.CrossExchangeArbitrageStrategy.__module__.endswith(".strategy")
+    assert strategy.CrossExchangeArbitrageStrategy.__module__.endswith(f".{strategy_stem}")
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
@@ -459,8 +468,8 @@ def test_readme_disclaims_profit_and_never_points_credentials_to_support(directo
 
 
 def test_frozen_configs_match_iteration_21_preregistration():
-    mid = yaml.safe_load((MID / "config.yaml").read_text())["strategy_params"]
-    event = yaml.safe_load((EVENT / "config.yaml").read_text())["strategy_params"]
+    mid = yaml.safe_load((MID / "config.yaml").read_text(encoding="utf-8"))["strategy_params"]
+    event = yaml.safe_load((EVENT / "config.yaml").read_text(encoding="utf-8"))["strategy_params"]
     assert (mid["zscore_window"], mid["entry_zscore"], mid["confirmations"]) == (120, "3.0", 3)
     assert (mid["exit_zscore"], mid["maximum_holding_seconds"]) == ("0.5", "300.0")
     assert (mid["minimum_net_edge_bps"], mid["quantity_base"]) == ("1.0", "0.01")

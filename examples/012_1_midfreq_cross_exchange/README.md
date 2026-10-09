@@ -1,145 +1,52 @@
-# 012_1 中低频跨所永续合约套利
+# 012_1 — 跨所永续合约中频均值回归（OKX + Binance Demo）
 
-## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+独立候选 `robust_executable_basis_mean_reversion`（OKX `BTC-USDT-SWAP` × Binance `BTCUSDT`，
+中频稳健基差均值回归）。研究状态为 **RESEARCH_REJECTED**（迭代21经济筛选未通过，
+`qualification-v3.json` 校准窗口已于 2026-10-07 到期）；本目录提供的是
+**技术贯通验收路径**，不产生研究/盈利结论。
 
-新入口 `run_runtime.py` 必须读取本目录下 `runtime/config.yaml`（schema v4），仅支持
-`simulation/replay`。在仓库根目录、已安装本地 Backtrader/SDK 的环境中依次执行：
+## 运行方式（迭代42 标准四件套）
 
-```powershell
-bt-runtime bootstrap --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
-bt-runtime run --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
+```
+README.md + config.yaml + cross_exchange_strategy.py + run.py
 ```
 
-`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。唯一可选参数是 `parameters.scenario`：
-`profitable/loss/no_edge/partial/unknown/gap`，默认 `no_edge`。这些名称仅表示合成公式
-分支；报告保留 `R0_FORMULA_FIXTURE`、零订单/成交及无盈利结论，不属于原生执行链验收。
-
-缺配置（`CONFIG_REQUIRED`）、错误 mode/preset、未登记目录及 CLI 模式覆盖会在加载旧策略前拒绝。
-复制 runtime 或整个示例目录不会自动取得登记，需部署阶段独立评审中央 inventory。
-新入口不读取凭据，不支持 shadow、paper、sandbox 或 live；外部网络和 provider 写入均为零。
-原有 tracked `config.yaml` 仍是 hash-bound 研究参数，不再选择执行模式。旧 `run.py` 的
-`--mode shadow/demo`、直接导入的 `main()` 和公开 `run_network()` 现已封闭；无参数调用只转发到
-已登记的 replay runtime。只读 shadow 暂不可直接运行，恢复前需要独立评审并登记 v4
-`simulation/shadow` runtime。
-
-兼容边界：直接执行旧 `run.py` 时，历史参数会在导入策略、Backtrader 和 SDK 前拒绝；通过
-Python 导入 `run.py` 仍会在模块加载期间导入 Backtrader 和 SDK，只有调用 `main()`、
-`run_network()` 或 `build_store()` 时才由旧入口拒绝。请用 `run_runtime.py` 作为配置优先入口。
-下文 `.env`、shadow 和 demo 的操作细节仅记录历史实现，不代表当前可运行入口。
-
-本例独立实现 OKX `BTC-USDT-SWAP` 与 Binance `BTCUSDT` 的中低频均值回归策略。
-行情和订单只通过 `BtApiStore.getdata()`、`BtApiFeed`、`bt.Strategy.buy/sell` 与
-`BtApiBroker` 进入 `bt_api_py` 公共接口；本目录不包含交易所私有请求映射，也不依赖
-其他 example。
-
-策略先把两所 L2 盘口按接收时间、时钟域和 sequence 对齐，再以共同 BTC 数量格点计算
-多档可执行 VWAP。滚动 median/MAD 模型只用历史样本计算当前偏离。候选必须同时通过
-`entry_zscore=3`、3 次持续确认和严格大于 1 bp 的完整往返净边际。成本报告包含四笔
-taker fee、退出执行预留、有符号资金费、延迟、失败腿和模型误差预留；entry VWAP 已含
-spread 与深度冲击，审计字段不会再次扣费。
-`qualification-v3.json` 从旧公开 L2 训练窗口生成，分别绑定 `okx->binance` 和
-`binance->okx` 的 rules、risk、basis 定义和统计置信度。它只允许启动当前模型观察，角色是
-训练校准，不能替代新的样本外结论或 demo 准入。V3 在运行配置新增动态资金费率 TTL 后
-重新绑定了完整配置哈希；alpha 参数、样本和方向模型没有因此重估。
-replay、shadow 和 paper 研究在 G5A 账户费率校准前固定使用每笔 6 bps 的
-`conservative_bound`；demo 则必须取得可用且未陈旧的账户 `FeeSchedule`。报告逐所记录
-`fee_source` 和实际采用的每笔费率。
-
-网络模式的资金费率来自 `BtApiStore` 的独立只读刷新通道。Store 合并重复请求并维护带
-TTL 的本地缓存；策略在每次盘口事件、开仓确认和每条腿提交前重新读取两所快照。任一快照
-缺失、陈旧、结算时间已过或周期与合约规则不一致时，策略禁止开仓；已有挂单先撤单，已有
-确认暴露立即进入 reduce-only 补偿。中低频持仓在不利资金费率即将结算时提前退出。
-
-冻结参数是 120 个样本窗口、`exit_zscore=0.5`、最大持仓 300 秒和 `0.01 BTC` 基础量。
-收敛、继续发散、持仓超时、陈旧盘口、保证金或损失门会触发 reduce-only 平仓。逐腿 IOC
-只按已确认成交量对冲；拒单或部分成交会把所有已确认暴露有界平掉。无法确定远端状态时
-停止新订单并标记 `reconciliation_required`，由 SDK 的持久执行会话完成查询与对账。
-
-历史网络运行细节记录策略实现背景，不是可用入口。当前只能通过 Iteration 41 v4 replay
-runtime 运行；旧 shadow、demo 和 paper-live 入口均已关闭。
-
-## Windows 验收
-
-当前冻结候选是 `RESEARCH_REJECTED`。已登记的 v4 runtime 只开放 `replay`；旧只读 `shadow`
-暂停，直到完成独立的 v4 shadow 注册和验收。`paper-live` 与 demo 下单也没有当前运行入口。
-
-首次在 Windows 上使用时，从两个源码目录安装并确认本地 manifest 与源码绑定一致：
-
-```powershell
-Set-Location D:\bt_api_py
-python -m pip install -e .
-Set-Location D:\source_code\backtrader
-python -m pip install -e .
-python scripts/refresh_cross_exchange_local_manifests.py --check
+```text
+python run.py                       # 干跑自检：候选配置 + entry 段 + 凭据 env 名（不联网）
+python run.py --replay [--scenario profitable]   # 离线公式 fixture（0 网络 / 0 写单）
+python run.py --live --allow-write --mechanical-smoke [--run-seconds 600]
+                                    # OKX+Binance Demo 有界机械配对（技术验收；
+                                    # 观测时长需 ≥435s，上限 600s）
 ```
 
-`replay` 是无网络、零订单的公式/拒绝分支检查：
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
+- 证据写入 `evidence/<run_id>/`（run.json + report.json，git-ignored）；
+  报告带 `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH` 边界标记。
+- 凭据只按名从 checkout 根 `.env` 读取（`OKX_DEMO_*` / `BINANCE_DEMO_*`）；
+  config.yaml 只含 env 名称，不含密钥。**不把 `.env` 注入进程环境**（避免其中
+  的代理提示影响 SDK 的 HTTP 层；代理如确需使用，请在宿主机层面配置）。
 
-```powershell
-bt-runtime run --strategy-dir examples/012_1_midfreq_cross_exchange/runtime
-```
+## Demo 准入语义
 
-shadow 的持续观测步骤当前不可执行。未来恢复时必须由独立评审的 v4
-`simulation/shadow` 注册提供配置入口，并验证零订单、零成交、零 PnL 和安全停机。
+- 候选为 RESEARCH_REJECTED 且无签名 demo 审批租约 → 仅开放
+  `--mechanical-smoke`（operator 确认的**本地有界 Demo 机械配对**：
+  单轮、有界数量/名义、场内侧受理与独立查询对账）；
+- 无 `--allow-write` / 无 `--mechanical-smoke` 一律 fail-closed；
+- 命令运行限定在仓库内（demo 需 canonical manifest 绑定），不复制目录运行。
 
-策略的完整决策链是：接收两所 L2 盘口 → sequence/时钟/陈旧度对齐 → 同数量格点的多档
-可执行 VWAP → 仅历史样本的 median/MAD z-score → 连续三次确认 → 扣除四次 taker fee、深度、
-延迟、失败腿、模型与资金费预留后的净边际门 → 风险/资金费/保证金门。若任何数据或风控门
-不完整就不产生意图；如果未来重新研究并获准执行，逐腿 IOC 也只会按已确认成交量对冲，拒单、
-部分成交或未知远端状态都会停止开新仓并进入 reduce-only 补偿/对账。
+## 内部模块（运行必需，非第二入口）
 
-复制本目录 `.env.example` 为被忽略的 `.env` 后，在本地填写两所模拟合约 API 凭据。
-`config.yaml` 的 `okx_api_region` 是非敏感站点配置：在 `www.okx.com`/Global 创建的
-账户使用 `global`，在 `my.okx.com` 创建的 EEA 账户使用 `eea`，在 `app.okx.com`
-创建的 US 账户使用 `us`。SDK 会同时选择并校验对应的 REST、公开 WS、私有 WS 和业务
-WS；不接受跨区混搭。`tr` 当前只支持 production，因缺少已验证的 TR demo 端点组而关闭。
-源码、配置、manifest、报告与订单记录都不得保存凭据。账户身份、单写者锁、订单 journal
-和账户级风险账本由 `bt_api_py` 按 provider、environment 与非秘密 credential fingerprint
-统一维护；runner 不生成账户 ID，也不保存 API key。真正的 `demo` 下单还要求
-`examples/strategy-candidate-manifest.json` 中唯一候选绑定一份 Ed25519 签名的
-`STRATEGY_APPROVED_FOR_DEMO` 收据。运行时只信任版本库中的
-`examples/demo-approval-trust-root.pem`，签名私钥不进入源码或运行环境。收据同时绑定候选、
-配置、两仓 commit、OOS 数据与报告、G4/G5A 收据和排除 `demo_approval` 指针后的完整
-manifest；临时 manifest、普通 SHA 收据、过期或证据不完整的收据都会在构建 store 和任何
-订单写入前退出。该签名收据仍是 `PASS` 候选的 demo 准入路径。当前
-`RESEARCH_REJECTED` 候选另有明确的 operator 模拟账户路径：使用 canonical manifest 并显式传入
-`--mode demo --allow-rejected-demo-simulation`。它创建单次本地 lease，数量受当前 risk 配置约束，
-运行时长受 `run_timeout_seconds` 约束，最多 8 个订单操作且 lease 最长 900 秒。这个 flag 不会
-改变研究状态、经济筛查或盈利结论；paper-live 仍被禁止。两条路径都保留 demo 账户、双向持仓、
-风险账本、资金费、对账与停机检查。签名验证依赖 `cryptography`，源码安装可使用
-`pip install -e '.[live]'`；依赖缺失时 `PASS` 候选的签名 demo 路径保持关闭。
-`012_1` 还提供一个更窄的显式 `--demo-execution-smoke` 请求：它要求上述 rejected-candidate
-operator acknowledgement、`--mode demo`，且不能与 `--preflight` 合用；只在两所盘口均新鲜且健康、
-实时资金费/账户风险/深度与共同数量格点等门全部通过后，先发 OKX short IOC，再仅在第一腿 broker
-状态为 `Completed` 后发 Binance long IOC。开仓最多两笔，之后只走既有 reduce-only 平仓、对账与
-lease 限制；任何未知或非 Completed 状态都不会触发第二腿。报告以
-`mechanical_demo_smoke_requested` 和 `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH` 标记该路径，不使用
-normal alpha 的 `intent_history`，也不作策略盈利声明。该 smoke 仅证明一次受限的真实 demo 模拟
-账户执行链路，不是 paper-live 撮合、样本外验证、策略准入或实盘盈利证据；缺少 event-path models
-的 `012_2` 不受此开关影响，仍会被其独立技术门拒绝。
-账户必须是模拟环境、具有交易权限、使用双向持仓模式，并在开始时无仓位和挂单。
-当前冻结候选为 `RESEARCH_REJECTED`：旧 15 分钟公开 L2 训练窗口产生 149,387 个因果
-可执行往返评估，在每腿 6 bps、四次 taker 成交的乐观成本屏中，费用后为正的样本为 0；
-最佳结果仍为 `-1.14246520` USDT，且尚未加入资金费、网络延迟与失败腿损失。该结果在
-训练期已经否决当前参数，因此不消耗 holdout。只开放 replay/shadow，以及显式 operator 授权的
-demo 模拟账户订单路径；只读 `demo --preflight` 只检查平台和账户前置条件，不构成策略准入。
+| 文件 | 职责 |
+| --- | --- |
+| `cross_exchange_strategy.py` | 候选策略与引擎（基差/资格/风险/执行状态机；`CrossExchangeArbitrageStrategy`） |
+| `legacy_runner.py` | 旧引擎入口（dry 校验、`run_replay`、`_run_network_impl` demo/shadow 网络路径） |
+| `strategy_candidate_approval.py` + `demo-approval-trust-root.pem` | Vendored 准入策略与审批信任根（字节一致副本） |
+| `strategy-candidate-manifest.json` + `qualification-v3.json` | 候选清单/资格工件（哈希绑定；刷新脚本：`scripts/refresh_cross_exchange_local_manifests.py`） |
+| `runtime/` + `run_runtime.py` | 迭代41 LOCAL_REPLAY_ONLY bt-runtime 登记路径（保留至收尾轮统一处置） |
 
-这些 replay 名称只是历史分支标签。replay 不下单、不模拟成交、不计算 PnL，只检查公式和
-拒绝分支可复现；`FORMULA_CHECK_PASS` 不是交易链路或盈利验收。shadow、paper 与 demo 结果
-也不构成未来盈利保证。网络报告只有在 Store 停机守恒通过后才可为 `SHADOW_PASS`；paper
-和 demo 还必须证明账户风险账本、确认成交经济、对账和平仓终态完整。
-如以后提出新的经济假设，必须使用新的 candidate ID、重新预注册并保留独立 holdout；不能
-通过降低成本或改写当前候选状态恢复准入。
+## 边界
 
-经过 `Cerebro` 的网络运行会挂载命名为 `trade_logger` 的通用
-`bt.observers.TradeLogger`。它实时汇总订单、成交、持仓、资金和事件计数，并在停止后冻结
-通用报告；本策略只通过 `extensions.cross_venue` 补充模型、逐腿确认成交、资金费、风险和
-对账证据。公式 replay 没有 `Cerebro` 生命周期，因此只导出引擎领域 `snapshot()`，不会伪造
-Observer 报告。
-
-策略按本地轻量状态签名把 `cross_venue` 扩展发布到运行中的 `TradeLogger.snapshot()`；相同签名的
-高频盘口最多每秒刷新一次，因此非签名明细最多约一秒后可见。完整网络报告保留 Observer 的
-`run_id`、时间戳和监控遥测，同时提供排除这些易变字段的 `business_summary` 与
-`business_summary_hash`，用于确定性公式 replay 的可重复业务核验。若未来 demo 在 Observer 冻结后
-才完成远端对账，输出会写入带前后扩展及哈希的 `post_run_reconciliation` 修订证据，不会改写冻结的
-`trade_logger.extensions.cross_venue`。
+- 真实成交往返验收 = Demo 机械配对的技术贯通证据；不构成策略有效性、盈利、
+  生产或 HFT 结论（本候选 `hft_label=not_applicable`）。
+- 历史冻结记录（迭代21/26/30）不被本迭代改写；接口差异以本 README 与
+  `docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/迭代计划.md` 为准。

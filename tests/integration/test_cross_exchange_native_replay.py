@@ -21,8 +21,8 @@ optional_sdk(allow_module_level=True)
 
 EXAMPLES = (
     pytest.param(
-        import_module("examples.012_1_midfreq_cross_exchange.run"),
-        import_module("examples.012_1_midfreq_cross_exchange.strategy"),
+        import_module("examples.012_1_midfreq_cross_exchange.legacy_runner"),
+        import_module("examples.012_1_midfreq_cross_exchange.cross_exchange_strategy"),
         id="mid-frequency",
     ),
     pytest.param(

@@ -280,7 +280,7 @@ def test_signed_funding_uses_side_and_exact_settlement_count():
 
 
 def test_ac_cost_001_both_strategies_call_same_oracle_for_same_fixture():
-    mid = import_module("examples.012_1_midfreq_cross_exchange.strategy")
+    mid = import_module("examples.012_1_midfreq_cross_exchange.cross_exchange_strategy")
     hft = import_module("examples.012_2_event_driven_cross_exchange.strategy")
     venue_rules = {
         "okx": _rule(".01", "1", "1"),
@@ -360,7 +360,7 @@ def test_ac_cost_001_both_strategies_call_same_oracle_for_same_fixture():
 
 
 def test_strategy_exit_cost_counts_only_projected_exit_half_spread_and_depth():
-    mid = import_module("examples.012_1_midfreq_cross_exchange.strategy")
+    mid = import_module("examples.012_1_midfreq_cross_exchange.cross_exchange_strategy")
     event = import_module("examples.012_2_event_driven_cross_exchange.strategy")
     venue_rules = {
         "okx": _rule(".01", "1", "1"),

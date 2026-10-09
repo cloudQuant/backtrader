@@ -20,7 +20,7 @@ FeeSchedule, Freshness = sdk.FeeSchedule, sdk.Freshness
 FundingSnapshot, InstrumentSpec = sdk.FundingSnapshot, sdk.InstrumentSpec
 
 RUNNERS = [
-    importlib.import_module("examples.012_1_midfreq_cross_exchange.run"),
+    importlib.import_module("examples.012_1_midfreq_cross_exchange.legacy_runner"),
     importlib.import_module("examples.012_2_event_driven_cross_exchange.run"),
 ]
 
