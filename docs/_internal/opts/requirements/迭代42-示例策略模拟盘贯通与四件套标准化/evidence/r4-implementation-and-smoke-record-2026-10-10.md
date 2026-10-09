@@ -82,5 +82,11 @@ fail-closed 观察；不构成账户、provider 或成交结论。周一 live �
 伪 z 自然尝试消耗唯一额度（attempts=1、`engineering_trigger_fired=false`、6789 tick 零开仓）。
 同源代码的 013_1 具相同竞态。修复：`_try_open` 在"trigger 存在且未触发"期间抑制自然开仓
 （`_natural_open_suppressed`），drill 成为唯一开仓路径；非 drill（回放/无 trigger）行为不变。
-回归：`tests/unit/test_ctp_pair_examples.py` 新增参数化测试 ×2（36 passed）。Monday 013_1
-窗口放宽为 delay 1200 / window 1200。
+回归：`tests/unit/test_ctp_pair_examples.py` 新增 helper 参数化测试 ×2 与策略级顺序测试 ×2
+（38 passed：窗口前自然信号零开仓、窗口开启即按 long 方向开双腿并标记 engineering_trigger）。
+Monday 013_1 窗口放宽为 delay 1200 / window 1200。
+
+**同类竞态审计（同轮完成，四写入口闭环）**：013_3 `purpose=engineering_smoke` 分支
+drill-only（窗外一律 `engineering_trigger_not_reached`，无自然路径）✓ 无竞态；014_1 自然
+z/score 门要求 `len(history) ≥ window` 根 15 分钟 bar（live 单会话不可能满足）→ drill 是
+唯一可行入口 ✓ 无竞态；014_2/015 观察层无订单。仅 013_1/013_2 存在并被修复。
