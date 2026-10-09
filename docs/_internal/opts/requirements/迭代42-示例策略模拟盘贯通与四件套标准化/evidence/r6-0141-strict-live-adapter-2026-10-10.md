@@ -65,3 +65,18 @@ close ≥ entry；终态无持仓、无活动单；策略状态非 HALTED/RECOVE
 
 本记录为**离线/源码级**证据；不构成账户、provider 或成交结论。014_2/015 的
 同模式移植在 014_1 实盘 drill 通过后进行（其策略共享同一架构）。
+
+## 014_2/015 移植预侦察（2026-10-10，供 014_1 实盘验证后的 adapter 轮）
+
+- **014_2**：策略拥有 `require_feed_bar_evidence` + `notify_bar` 同一 seam，但其
+  FQ2 分钟特征消费 5s/60s **quote 窗口**；两者的互斥契约（有生产者则必须
+  require=False）表明 live 需要 **feed 侧逐桶 quote 事件捕获**：stock `BtApiFeed`
+  目前不保留 tick 历史、`BarEvidence.quote_events` 无生产者。翻转工作量 =
+  btapifeed 附加式 `closed_bar_quote_capture`（桶内采样/逐步追加 + 密封事件附带
+  quote_events）+ 014_2 run.py 复用 014_1 的 `_LiveClock`/`_LiveEvidenceProvider`
+  并把 quote_events 传入 BarEvidence（provider 已留字段）+ 真实合约映射（F_LOCAL→SA）。
+- **015**：tick-only cohort 路径（`CtpCohortNow`）语义在 store 的 SDK-event 管线；
+  live 需把已打标 tick（本轮 `live_tick_provenance`）接入其 cohort/证据面，并在
+  015 run.py 复用同一 `_LiveClock`/provider 结构；HFT 延迟结论保持排除。
+- 两者均共享本轮的主仓打标与 `simnow_direct.configure_live_tick_provenance`，
+  无需再次改动 CTP 路由本身。
