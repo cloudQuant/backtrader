@@ -19,6 +19,17 @@ keeping the case-facing surface unchanged: ``connect``, ``account_config``,
                    append + acknowledge per operation plus a signed
                    ``ReadOnlyEventService`` readback of the acknowledged page.
 
+The same mounts accept the OKX v5 client surface as well
+(``place_order(inst_id, side, sz=..., px=..., ord_type=..., pos_side=...)`` and
+``cancel_order(inst_id, ord_id=..., cl_ord_id=...)``): ``sz``/``px``/
+``ord_type`` are read as the quantity/price/order-type aliases for the mount's
+own notional and intent math and the native tracking keyword (``cl_ord_id``)
+takes the place of ``client_order_id``, while the provider dispatch always
+receives the caller's own arguments.  ``policy.quantity_multiplier`` (contract
+or maker multiplier, default 1) converts the venue quantity into notional and
+the execution/risk scope's provider label comes from ``config["venue"]``
+(default ``binance``).
+
 Rules and dev-SDK snapshot limits (the README.md documents them in full):
 a disabled component's package is never imported (``describe()`` reports the
 ``sys.modules`` delta); only real published SDK entry points are used and the
@@ -37,6 +48,7 @@ identity it must cancel.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import os
 import re
 import sys
@@ -56,6 +68,9 @@ _SCOPE, _CONSUMER = "optional16", "optional16-matrix"
 _READBACK_TYPES = ("connect", "place_order", "cancel_order", "query_order")
 _PLACE_POSITIONAL = ("order_type", "quantity", "price", "position_side", "time_in_force",
                      "reduce_only", "client_order_id", "close_position", "working_type")
+_PLACE_ALIASES = (("sz", "quantity"), ("px", "price"), ("ord_type", "order_type"),
+                  ("cl_ord_id", "client_order_id"))
+_ALIAS_KEYS = ("sz", "px", "ord_type", "pos_side", "td_mode", "cl_ord_id")
 _VENUE_REJECT_RE = re.compile(r"code=-?\d+")
 
 
@@ -83,11 +98,12 @@ def _env_name(config):
     return str(section.get("name") or "demo") if isinstance(section, Mapping) else "demo"
 
 
-def _account_ref(config):
+def _account_ref(config, provider="binance"):
     """Synthetic per-config account reference from public fields only (never credentials)."""
     section = config.get("environment") or {}
     host = str(section.get("base_url") or "") if isinstance(section, Mapping) else ""
-    return "o16-" + hashlib.sha256(("binance|" + host + "|" + _env_name(config)).encode()).hexdigest()[:16]
+    seed = str(provider) + "|" + host + "|" + _env_name(config)
+    return "o16-" + hashlib.sha256(seed.encode()).hexdigest()[:16]
 
 
 def _run_dir(env):
@@ -123,6 +139,62 @@ def _decimal(value):
         return None
 
 
+def _first_present(mapping, *names):
+    for name in names:
+        value = mapping.get(name)
+        if value is not None:
+            return value
+    return None
+
+
+def _inspection_view(merged):
+    """Canonical alias view of one call for the mount's own math.
+
+    The view is never forwarded to the base client: the dispatch always keeps
+    the caller's own keyword names (``sz``/``px``/``ord_type`` stay ``sz``/
+    ``px``/``ord_type``; nothing is rewritten into binance naming).
+    """
+    view = dict(merged)
+    for alias, canonical in _PLACE_ALIASES:
+        if view.get(canonical) is None and alias in merged:
+            view[canonical] = merged[alias]
+    return view
+
+
+def _quantity_multiplier(config):
+    """Contract/maker multiplier from ``policy.quantity_multiplier`` (default 1).
+
+    Accepted as int/float/str and must be strictly positive; anything else
+    (including ``bool`` and ``None``) fails closed before any mount is built.
+    """
+    policy = config.get("policy") if isinstance(config, Mapping) else None
+    if not isinstance(policy, Mapping) or "quantity_multiplier" not in policy:
+        return Decimal(1)
+    value = _decimal(policy.get("quantity_multiplier"))
+    if value is None or value <= 0:
+        raise ComponentError("policy_quantity_multiplier_invalid")
+    return value
+
+
+def _client_id_param(client):
+    """Native client-order-id keyword of the base ``place_order`` (or None)."""
+    try:
+        params = inspect.signature(client.place_order).parameters
+    except (TypeError, ValueError):
+        return None
+    if "cl_ord_id" in params:
+        return "cl_ord_id"  # OKX v5 surface
+    if "client_order_id" in params:
+        return "client_order_id"  # binance surface
+    return None
+
+
+def _reply_order_id(reply):
+    """Provider order id from either venue reply shape (``orderId``/``ordId``)."""
+    value = _first_present(reply, "orderId", "ordId") if isinstance(reply, Mapping) else None
+    return None if value is None else str(value)
+
+
 def _code(exc):
     code = getattr(exc, "code", None)
     return code if isinstance(code, str) and code else type(exc).__name__
@@ -146,7 +218,7 @@ def _cid():
 # ----------------------------------------------------------------- risk mount
 class _RiskMount:
     """Smallest honest mount over the real ``bt_api_risk`` durable gate."""
-    def __init__(self, run_dir, config, notes):
+    def __init__(self, run_dir, config, notes, provider="binance"):
         from bt_api_risk.core.admission import AccountScope, DurableRiskGate, RiskPolicy
 
         policy = config.get("policy") or {}
@@ -157,7 +229,8 @@ class _RiskMount:
                                  max_increase_notional=_decimal(policy.get("max_notional_usdt")) or Decimal("0"),
                                  max_increase_count=int(max_orders) if isinstance(max_orders, int) and max_orders >= 0 else 1)
         self.gate = DurableRiskGate(self.gate_db, self.policy)
-        self.account = AccountScope(provider="binance", account_id=_account_ref(config), environment=_env_name(config))
+        self.account = AccountScope(provider=provider, account_id=_account_ref(config, provider),
+                                    environment=_env_name(config))
         self.counts = {"reserved": 0, "claimed": 0, "settled": 0, "dispatch_unknown": 0}
         self.denials, self.last_denial = {}, ""
         notes.append("risk policy from case config: max_orders=%d max_notional_usdt=%s"
@@ -284,7 +357,7 @@ class _RiskCancelGate:
 # -------------------------------------------------------------- execution mount
 class _ExecutionMount:
     """Real managed execution/cancellation facades over a per-run SQLite store."""
-    def __init__(self, run_dir, config, risk, notes):
+    def __init__(self, run_dir, config, risk, notes, provider="binance", qty_multiplier=None):
         from bt_api_execution import (AdmissionDenied, ExecutionScope, ManagedCancellationFacade,
                                       ManagedExecutionFacade, SharedRiskAdmissionAdapter,
                                       SqliteExecutionStore)
@@ -292,8 +365,9 @@ class _ExecutionMount:
         self.store_db = Path(run_dir) / "execution.sqlite"
         self.store = SqliteExecutionStore(str(self.store_db))
         case_id = _case_id(config)
-        self.scope = ExecutionScope(provider="binance", environment=_env_name(config),
-                                    account_ref=_account_ref(config), strategy_id=case_id)
+        self.qty_multiplier = Decimal(1) if qty_multiplier is None else qty_multiplier
+        self.scope = ExecutionScope(provider=provider, environment=_env_name(config),
+                                    account_ref=_account_ref(config, provider), strategy_id=case_id)
         self.risk, self.counts, self.last_record, self.notes = risk, {}, {}, []
         if risk is not None:
             # The risk package is imported only when the risk mount is active.
@@ -318,7 +392,8 @@ class _ExecutionMount:
 
         return RiskIntent(intent_id=order_intent.intent_id, scope=self.risk.account,
                           action=IntentAction.INCREASE,
-                          notional=(order_intent.price or Decimal("0")) * order_intent.quantity,
+                          notional=((order_intent.price or Decimal("0")) * order_intent.quantity
+                                    * self.qty_multiplier),
                           payload_fingerprint=order_intent.fingerprint)
     def count(self, name):
         self.counts[name] = self.counts.get(name, 0) + 1
