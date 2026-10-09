@@ -630,3 +630,17 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/delivery-manifest.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/round-record.md -text
+.codex-tmp/okx_m01_metadata_r3_root_external_precheck_20261009.json -text
+.codex-tmp/okx_m01_metadata_r3_root_external_precheck_20261009.py -text
+.codex-tmp/okx_m01_protected_rebind_r3_root_actual_candidate_20261009.py -text
+.codex-tmp/okx_m01_r3_normal_cu_close_helper_20261009.py -text
+tests/unit/scripts/test_iteration41_okx_m01_r3_normal_cu_close_source_fake.py -text
+.codex-tmp/okx_m01_protected_rebind_r4_root_actual_candidate_20261009.py -text
+tests/unit/scripts/test_iteration41_okx_m01_v3_protected_rebind_r4_source_fake.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v3-protected-rebind-r4-repr-binding-review-correction-r1-2026-10-09/review.md -text
+.codex-tmp/okx_m01_rebind_r2_root_postcommit_20261009.json -text
+.codex-tmp/okx_m01_r3_normal_cu_close_root_source_qa_r9_20261009.py -text
+.codex-tmp/okx_m01_r3_normal_cu_close_root_source_qa_r9_20261009.json -text
+.codex-tmp/okx_m01_r9_independent_review_root_record_20261009.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-binder-r9-source-support-dev-round-r1-2026-10-09/round-record.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-binder-r9-source-support-dev-round-r1-2026-10-09/delivery-manifest.json -text
