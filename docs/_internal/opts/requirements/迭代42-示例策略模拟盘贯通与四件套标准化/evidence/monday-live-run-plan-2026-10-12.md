@@ -5,13 +5,16 @@
 
 ## 时段与顺序
 
+所有步骤串行（同一账户；每步等上一步进程完全退出后再启动）。观察层步骤零写，但仍串行。
+
 | 序 | 示例 | 建议窗口（北京） | 命令（示例目录内执行） |
 | --- | --- | --- | --- |
-| 1 | 013_3 SA | 09:00 开盘后即启动（日盘 09:00–11:30） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
-| 2 | 013_1 m/RM | 13:35 启动（午后盘 13:30–15:00；m/RM 日盘） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 600 --drill-window-seconds 900 --drill-warmup-bars 8` |
-| 3 | 014_2 SA 期权（观察层，零写） | 13:30 与 013_1 同窗口，随后串行执行 | `python run.py --live --run-seconds 3000` |
-| 4 | 015 FG 期权 tick 高频（观察层，零写） | 13:45 与 014_2 串行 | `python run.py --live --run-seconds 300` |
-| 5 | 013_2 rb | 21:05 启动（夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 1800 --drill-delay-seconds 600 --drill-window-seconds 600 --drill-warmup-bars 8` |
+| 1 | 013_3 SA 写 drill | 09:00 开盘后立即启动（CZCE 日盘 09:00–11:30） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
+| 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `python run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 300 --drill-window-seconds 900` |
+| 3 | 014_2 SA 期权观察（零写） | 10:50 起（上午盘内，900s 窗口） | `python run.py --live --run-seconds 900` |
+| 4 | 015 FG 期权观察（零写） | 11:10 起（上午盘内，300s 窗口） | `python run.py --live --run-seconds 300` |
+| 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 600 --drill-window-seconds 900 --drill-warmup-bars 8` |
+| 6 | 013_2 rb 写 drill | 21:05 启动（SHFE 夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 1800 --drill-delay-seconds 600 --drill-window-seconds 600 --drill-warmup-bars 8` |
 
 - 每次 run 结束（含 drain）后再启动下一个；同一账户串行。
 - 标准前置仅交易时段 TCP 可达；选择器会先 7x24 后 standard（时段外）。若首轮
@@ -43,6 +46,11 @@
 
 - `no_admissible_front_pair` → 记录 attempts（含 error_details），确认标准前置可达后重试一次；
   仍失败则当日按证据化 BLOCKED 记录并说明。
+- 时段内若选择器按延迟选中 **7x24**（其报价事件钟曾观测 ~47.9h 陈旧）：封存证据类策略
+  （013_x/014_x）会以 `live_event_clock_outside_run_mapping` 等 fail-closed；014_2 观察层同样。
+  此时记录 attempts 与选择结果，核对标准 pair 探测样本，必要时由操作员临时把标准 pair
+  移到 fronts 列表首位并复跑（选择器仅按延迟排序，配置顺序仅作 tie-break；运行后恢复）。
+  015 观察层对前置不敏感（仅到达级观察）。
 - 腿成交不齐（partial_round_trip）→ 不重跑覆盖；保留证据，人工核对残余敞口（run.py 已冻结
   gate 不会继续写）。
 - 任何 UNKNOWN → 停止后续 run，先对账（README/§2 层级）。

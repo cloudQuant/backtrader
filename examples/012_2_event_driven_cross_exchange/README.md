@@ -24,6 +24,10 @@ python -m examples.012_2_event_driven_cross_exchange.run --live --allow-write --
 ```
 
 - 本示例只提供技术贯通验收，不构成未来盈利保证，也不证明可持续盈利。
+
+- 解释器要求：本示例的 dry/`--replay` 亦会加载 dev SDK（`bt_api_py` umbrella），请使用
+  `C:/anaconda3/python.exe`（3.11，dev SDK 已接入）；系统默认 `python`（3.14）会解析到
+  旧 site-packages 副本并在导入期报错。live 层同此解释器。
 - 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
 - 证据写入 `evidence/<run_id>/`（run.json + report.json，git-ignored）；
   报告带 `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH` 边界标记。
