@@ -1,0 +1,21 @@
+{
+  "schema": "iteration41.okx.m01.r7.r3.root-source-close.v1",
+  "status": "SOURCE_SCOPE_NORMAL_CLOSE_RETURNED",
+  "caller_failure_reason": "cuv2_source_pin_mismatch",
+  "caller_failure_phase": "source_custody",
+  "public_pins_rechecked_by_close_helper": 31,
+  "software_pins_rechecked_by_close_helper": 3,
+  "held_source_sha256_pins_rechecked_by_close_helper": 34,
+  "software_raw_entries_returned_in_original_held_tuple": 3,
+  "normal_postverify_and_close": true,
+  "generator_closed": true,
+  "original_reference_and_result_preserved": true,
+  "retained_python_row_preserved": true,
+  "original_caller_invocation_consumed": true,
+  "gate_invocations": 0,
+  "production_gate_or_modules_loaded": false,
+  "provider_account_acceptance": false,
+  "private_inputs_read": false,
+  "formal_m01_pass_count": 0,
+  "host_exit_permitted_by_this_receipt": false
+}
