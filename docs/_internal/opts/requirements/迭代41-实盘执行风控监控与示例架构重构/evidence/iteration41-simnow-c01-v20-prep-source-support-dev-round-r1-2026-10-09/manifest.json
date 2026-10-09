@@ -1,0 +1,779 @@
+{
+  "schema": "iteration41.simnow.c01.v20.root-preparation-source-support-dev-delivery.r1",
+  "status": "FROZEN_MINIMAL_SCOPE_PROPOSAL_FOR_ROOT_STAGE",
+  "evidence_level": "SOURCE_FAKE_PREPARATION_SUPPORT_ONLY",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "delivery_parent": "5b8f9f10f063ddb7b68b29e57b6f55fbd545aec2",
+  "qa_source_checkpoint": {
+    "branch": "refs/heads/dev",
+    "head": "902d55daa397d601a947141b6a87eb1ca1df4d0a",
+    "head_file_sha256": "bda77d7d12a90332080071375095fb080d8cd2a6702e6ee44552863a0ca4317e",
+    "raw_index_bytes": 2863553,
+    "raw_index_entry_count": 13505,
+    "raw_index_sha256": "b555903584c1b95e5f0da20fcef2fe87095bf608cd12a97e8b5e45b2af5a189b",
+    "cached_diff_was_empty": true,
+    "qa_was_not_repeated_after_parent_advanced": true
+  },
+  "acceptance": {
+    "root_run_id": "e670c46189d64a81a6be0bb86eed27a8",
+    "root_tool": "c4119c",
+    "result_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/qa/root-r6-result.json",
+    "result_bytes": 20242,
+    "result_sha256": "108a9e98eecf2038f289f4cef2f012bb75fc52a41c6ab371bc72595c3c329fd2",
+    "root_readback_reference": "f9f415",
+    "status": "PASS_SOURCE_FAKE_ONLY",
+    "collected": 12,
+    "passed": 12,
+    "pytest_exit": 0,
+    "warning_count": 0,
+    "source_input_row_count": 42,
+    "source_pin_pre_post_equal": true,
+    "qa_packet_pre_post_equal": true,
+    "repository_head_and_index_unchanged": true,
+    "actual_gate_invoked": false,
+    "candidate_process_created": false,
+    "software_payload_read": false,
+    "candidate_private_software_native_sdk_network_access_completed": false,
+    "official_c01_pass_count": 0,
+    "independent_review_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-independent-static-review-2026-10-09/README.md",
+    "independent_review_bytes": 3415,
+    "independent_review_sha256": "e7fb96fc1c33439b1e4dbc9dcbaeae8c5762dd87e8dfd12eaac6c52746e9fa59"
+  },
+  "packet_physical_file_count": 29,
+  "packet_manifests": [
+    {
+      "packet_root": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "artifact_count": 8,
+      "artifact_pins_sha256": "6e512153dfecc182a2fe772f4b4be445b7dc7702a329e321825167e88346fe2b",
+      "artifact_pins_bytes": 1394,
+      "pinned_artifacts": [
+        {
+          "path": "README.md",
+          "bytes": 3094,
+          "sha256": "2336a00fc10f7c44d34cab419aa2737cd3b9e851c0ad3c00f3e2145346e19101"
+        },
+        {
+          "path": "inputs/r5-artifact-pins.json",
+          "bytes": 1437,
+          "sha256": "62ddd86cc141a4b94dbe5eee6736c7b13099133f890e77a0f931f90d31bfef16"
+        },
+        {
+          "path": "inputs/r5-independent-static-review.md",
+          "bytes": 2519,
+          "sha256": "4dd6725c42dfc2b8f8ef6a2d8cb7952f4bde27a7995fb867fd6e916eab6fbfba"
+        },
+        {
+          "path": "inputs/r5-runtime-source-pins.json",
+          "bytes": 9069,
+          "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+        },
+        {
+          "path": "pytest.ini",
+          "bytes": 9,
+          "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+        },
+        {
+          "path": "qa/command.txt",
+          "bytes": 508,
+          "sha256": "f7a76223c2bd82f443415e3b8192ed08bbea0629c7eb68c4c018802bd282d919"
+        },
+        {
+          "path": "result-schema.json",
+          "bytes": 1488,
+          "sha256": "94c2f614116caba893f8e3c1402171dcf376f2a0bff1ae461995ac5f8efeae46"
+        },
+        {
+          "path": "run_root_preparation_source_qa.py",
+          "bytes": 23968,
+          "sha256": "22a3f2ee7abfc3aff772e5d0fe6a56739084a7e871919a0ecdf87906d3265f14"
+        }
+      ]
+    },
+    {
+      "packet_root": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "artifact_count": 8,
+      "artifact_pins_sha256": "62ddd86cc141a4b94dbe5eee6736c7b13099133f890e77a0f931f90d31bfef16",
+      "artifact_pins_bytes": 1437,
+      "pinned_artifacts": [
+        {
+          "path": "README.md",
+          "bytes": 5155,
+          "sha256": "f4f381c1706fae919056636e0147d6fbcf86ed91fd253ed585f35cad6bd2d8eb"
+        },
+        {
+          "path": "prepare_root_gate_host.py",
+          "bytes": 22526,
+          "sha256": "720c9e559100196211d7c10d68a5c33d2b9167bcba48ad3e4ecf14641e2fb6b0"
+        },
+        {
+          "path": "test_root_gate_host_preparation_source_fake.py",
+          "bytes": 16604,
+          "sha256": "6c91b361346cbe3ff1ac34125f0831fed70c128a081c13645b6cba437d8f76e2"
+        },
+        {
+          "path": "references/r2-caller-artifact-pins.json",
+          "bytes": 1297,
+          "sha256": "704d34e8abc5f318790fb7b076189441b0ad7c9b39d582dbe0e822aca0767036"
+        },
+        {
+          "path": "references/r2-precheck-artifact-pins.json",
+          "bytes": 1108,
+          "sha256": "ccd9a6cbdb2187a4d6b7a82f856e4c0ff44c2a316f2983f98d45fcb9fbfdf43d"
+        },
+        {
+          "path": "references/runtime-source-pins.json",
+          "bytes": 9069,
+          "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+        },
+        {
+          "path": "qa/command.txt",
+          "bytes": 750,
+          "sha256": "1725f620e773f40dc7a38a2fd4dc2ccb7b5b119d3f094e09435bd4a8c7362fea"
+        },
+        {
+          "path": "qa/result.txt",
+          "bytes": 488,
+          "sha256": "2daad2dee03e0bc11979e5053d9a44497efbc2ea2d91c91edb037560dfc9baa3"
+        }
+      ]
+    },
+    {
+      "packet_root": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09",
+      "artifact_count": 10,
+      "artifact_pins_sha256": "8e6b330737dbc19e52723b553c75eddb1b1cdcf859599d853122ed65c7a64499",
+      "artifact_pins_bytes": 1788,
+      "pinned_artifacts": [
+        {
+          "path": "README.md",
+          "bytes": 4688,
+          "sha256": "5de0954cb8aef9008117fbd6411cea2e4ee972e8d098f5d52cf94089bd792d06"
+        },
+        {
+          "path": "inputs/r1-artifact-pins.json",
+          "bytes": 1394,
+          "sha256": "6e512153dfecc182a2fe772f4b4be445b7dc7702a329e321825167e88346fe2b"
+        },
+        {
+          "path": "inputs/r1-independent-static-review.md",
+          "bytes": 3542,
+          "sha256": "a0969324876b9bf3cbe9f005a70300dc568719517b5165e743d88d3f2d5b39aa"
+        },
+        {
+          "path": "inputs/r5-artifact-pins.json",
+          "bytes": 1437,
+          "sha256": "62ddd86cc141a4b94dbe5eee6736c7b13099133f890e77a0f931f90d31bfef16"
+        },
+        {
+          "path": "inputs/r5-independent-static-review.md",
+          "bytes": 2519,
+          "sha256": "4dd6725c42dfc2b8f8ef6a2d8cb7952f4bde27a7995fb867fd6e916eab6fbfba"
+        },
+        {
+          "path": "inputs/r5-runtime-source-pins.json",
+          "bytes": 9069,
+          "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+        },
+        {
+          "path": "pytest.ini",
+          "bytes": 9,
+          "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+        },
+        {
+          "path": "qa/command.txt",
+          "bytes": 1007,
+          "sha256": "030080c186423b337269a000b10ace34846c649a9cf792e87a78a3e3d3978849"
+        },
+        {
+          "path": "result-schema.json",
+          "bytes": 7596,
+          "sha256": "4d7317d7d066021bd5b04d43eb4dcb58bbbd3dd7245d917b404ccf14eb38612d"
+        },
+        {
+          "path": "run_root_preparation_source_qa.py",
+          "bytes": 57775,
+          "sha256": "9c94763b52404802bcf63a3d2056a037ab6f4a6d47487a55e0b1924d677d173d"
+        }
+      ]
+    }
+  ],
+  "source_input_rows": [
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "README.md",
+      "bytes": 3094,
+      "sha256": "2336a00fc10f7c44d34cab419aa2737cd3b9e851c0ad3c00f3e2145346e19101",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "inputs/r5-artifact-pins.json",
+      "bytes": 1437,
+      "sha256": "62ddd86cc141a4b94dbe5eee6736c7b13099133f890e77a0f931f90d31bfef16",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "inputs/r5-independent-static-review.md",
+      "bytes": 2519,
+      "sha256": "4dd6725c42dfc2b8f8ef6a2d8cb7952f4bde27a7995fb867fd6e916eab6fbfba",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "inputs/r5-runtime-source-pins.json",
+      "bytes": 9069,
+      "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "pytest.ini",
+      "bytes": 9,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "qa/command.txt",
+      "bytes": 508,
+      "sha256": "f7a76223c2bd82f443415e3b8192ed08bbea0629c7eb68c4c018802bd282d919",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "result-schema.json",
+      "bytes": 1488,
+      "sha256": "94c2f614116caba893f8e3c1402171dcf376f2a0bff1ae461995ac5f8efeae46",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r1_qa_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09",
+      "path": "run_root_preparation_source_qa.py",
+      "bytes": 23968,
+      "sha256": "22a3f2ee7abfc3aff772e5d0fe6a56739084a7e871919a0ecdf87906d3265f14",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "README.md",
+      "bytes": 5155,
+      "sha256": "f4f381c1706fae919056636e0147d6fbcf86ed91fd253ed585f35cad6bd2d8eb",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "prepare_root_gate_host.py",
+      "bytes": 22526,
+      "sha256": "720c9e559100196211d7c10d68a5c33d2b9167bcba48ad3e4ecf14641e2fb6b0",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "test_root_gate_host_preparation_source_fake.py",
+      "bytes": 16604,
+      "sha256": "6c91b361346cbe3ff1ac34125f0831fed70c128a081c13645b6cba437d8f76e2",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "references/r2-caller-artifact-pins.json",
+      "bytes": 1297,
+      "sha256": "704d34e8abc5f318790fb7b076189441b0ad7c9b39d582dbe0e822aca0767036",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "references/r2-precheck-artifact-pins.json",
+      "bytes": 1108,
+      "sha256": "ccd9a6cbdb2187a4d6b7a82f856e4c0ff44c2a316f2983f98d45fcb9fbfdf43d",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "references/runtime-source-pins.json",
+      "bytes": 9069,
+      "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "qa/command.txt",
+      "bytes": 750,
+      "sha256": "1725f620e773f40dc7a38a2fd4dc2ccb7b5b119d3f094e09435bd4a8c7362fea",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "r5_packet",
+      "packet_root": "iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09",
+      "path": "qa/result.txt",
+      "bytes": 488,
+      "sha256": "2daad2dee03e0bc11979e5053d9a44497efbc2ea2d91c91edb037560dfc9baa3",
+      "classification": "selected-qa-packet-input-included",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+      "bytes": 33887,
+      "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_front_transport_v14.py",
+      "bytes": 9970,
+      "sha256": "aa281e122ae4c1e79022dd5b1a9fcbc0afd51f0282aa0e6587671b0d15f8b3a8",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py",
+      "bytes": 7700,
+      "sha256": "a38d00ecfbc7a777edab4b9d090be49ef03a94e7c23340dfe95366bacfd05494",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v19.py",
+      "bytes": 191555,
+      "sha256": "3de1024b233a0eee55fba7c30df69f04afa38746c9a0e88996e0db7df283fd40",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v20.py",
+      "bytes": 200314,
+      "sha256": "7118ed43cdc012181546f54f7b302ee51d3704860c5746807217c35087257f71",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_native_v4.py",
+      "bytes": 199788,
+      "sha256": "66666d2addc3bddbf0f13a9a30fab9fea83479d7cac7328879552e13baea5a66",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_root_custody_v17.py",
+      "bytes": 8702,
+      "sha256": "8ea25c42a834085c54c87df9b24cb7a1876cf361cd6ca20323f4c5993a59816e",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_root_v17.py",
+      "bytes": 95395,
+      "sha256": "5fc2f7acd7ca0c2e107f846d637a6716c000b61d0b211ec9a2f21651025b7481",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_rootseal_custody_v1.py",
+      "bytes": 52738,
+      "sha256": "653dd1227902bce3f0e27330833b672d07771f05f3f4d2b1b15e83c8f13e40e7",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_contract.py",
+      "bytes": 59663,
+      "sha256": "19d8b13bda11e54a5ca037387b6abc884035ec02c05fb099f2398b99319d8fb0",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_protocol.py",
+      "bytes": 80745,
+      "sha256": "c48b41272ae6378060b0b65188b56ef613f001b53d13db7aceaf13489d398160",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_v4_supervisor.py",
+      "bytes": 54026,
+      "sha256": "daf2cf99cbc5d977e27f59efb0f27087abdf3493c9d959d5c3d253744f869da1",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_v7_owner.py",
+      "bytes": 36778,
+      "sha256": "ee492f115c60ca14f770a055061014f30b7b9cc1cecdfd09cae17f75aabf55e9",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/ctp_front_pair_probe.py",
+      "bytes": 24442,
+      "sha256": "d6f92c7d2f6df13480cebcee2c7f864ac305d34d4cda37d1a22c466932d2905f",
+      "classification": "tracked-clean-crlf-checkout-normalizes-to-head-inherited",
+      "normalized_head_bytes": 23819,
+      "normalized_head_sha256": "fe634001c7467aede16c38f0b4062c6617206358fcb4ca2e193c16ddc1d996de"
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "examples/000_live_certification/simnow_penetration/cases/C01/run_v20.py",
+      "bytes": 12723,
+      "sha256": "a2fed5ca72c61ab03795963f3d08f0575972d571fc4ddca7e7f1f79f9645926b",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "examples/000_live_certification/simnow_penetration/common/c01_root_ledger_v1.py",
+      "bytes": 70205,
+      "sha256": "4cbe8465c9b2854d2913de03d4e7a12f020debc8723d6c63539314d2ba7f424a",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/ctp_000_front_handoff.py",
+      "bytes": 10157,
+      "sha256": "b08e70e723a5d31f18809129387455dfee3645e6ad9f2b516d7aa2789ffd19f7",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/ctp_000_paired_front_selector.py",
+      "bytes": 11099,
+      "sha256": "08d4025684503ba89c286699ad0511793c536e09af58333963cbecb40ad49ebb",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/ctp_000_render_config.py",
+      "bytes": 23998,
+      "sha256": "34bf2a99872f43f0d915bafcb0284827a8ac0c4baf70a2ce5f1046888223eac9",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+      "bytes": 25363,
+      "sha256": "31c945c77c7e147a296e66f4f1ec075e0a23f1a88b94fd339884268e79ca251c",
+      "classification": "tracked-clean-crlf-checkout-normalizes-to-head-inherited",
+      "normalized_head_bytes": 24746,
+      "normalized_head_sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+      "bytes": 47251,
+      "sha256": "2566dd55d1a96285473850b1e2c63174696347da56e07d69fb72aa3a6285e381",
+      "classification": "tracked-clean-crlf-checkout-normalizes-to-head-inherited",
+      "normalized_head_bytes": 46080,
+      "normalized_head_sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py",
+      "bytes": 55511,
+      "sha256": "6323c537f852838cdd40f1f92482eb9fd9c57a994cd296074b6e18246badeadd",
+      "classification": "included-source-binding-dependency-not-gate-acceptance",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+      "bytes": 158926,
+      "sha256": "4f05194dea1a029a0950dba69e3644ce5e518253aa0d8a727687d707fed0b963",
+      "classification": "included-source-binding-dependency-not-gate-acceptance",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "backtrader_runtime/certification_simnow_c01_root_formal_adjudicator_v1.py",
+      "bytes": 37080,
+      "sha256": "743e9507157092d7f3c9b284e5775d895cbe42c1caf1da6fb9e1cbb8e1eb2db7",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    },
+    {
+      "kind": "public_source",
+      "packet_root": "",
+      "path": "examples/000_live_certification/simnow_penetration/common/c01_root_completion_v1.py",
+      "bytes": 12308,
+      "sha256": "1d5e1183368b5bb1c4363056673a483d21e6e02b1bf342b6ac69b12a9b891f90",
+      "classification": "tracked-exact-head-inherited",
+      "normalized_head_bytes": null,
+      "normalized_head_sha256": null
+    }
+  ],
+  "direct_source_dependencies": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-public-precheck-r2-bounded-2026-10-09/prepare_root_precheck.py",
+      "role": "required-bounded-precheck-source-dependency",
+      "bytes": 27892,
+      "sha256": "3f14a1ae6033717a8d05a90d7bade9ca0c96c6f7cfbea22c9f3176397fe066f6",
+      "r5_source_test_binding": "PRECHECK_RELATIVE/PRECHECK_BYTES/PRECHECK_SHA256; exercised via R5 preparation tests"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/run_root_credential_free_gate.py",
+      "role": "required-credential-free-caller-source-dependency",
+      "bytes": 16708,
+      "sha256": "00c1485a89d91ade093ee353cf1dfd709026f83bcb8c1c4342161b5d22b4e5a4",
+      "r5_source_test_binding": "CALLER_RELATIVE/CALLER_BYTES/CALLER_SHA256; exercised via R5 preparation tests"
+    },
+    {
+      "path": "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+      "role": "source-binding-dependency-not-gate-acceptance",
+      "bytes": 158926,
+      "sha256": "4f05194dea1a029a0950dba69e3644ce5e518253aa0d8a727687d707fed0b963",
+      "r5_source_test_binding": "one of 26 lease-bound public sources; exact source bytes loaded by the composition test"
+    },
+    {
+      "path": "scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py",
+      "role": "source-binding-dependency-not-gate-acceptance",
+      "bytes": 55511,
+      "sha256": "6323c537f852838cdd40f1f92482eb9fd9c57a994cd296074b6e18246badeadd",
+      "r5_source_test_binding": "one of 26 lease-bound public sources; exact source bytes loaded by the composition test"
+    }
+  ],
+  "tracked_checkout_normalization_exceptions": [
+    {
+      "path": "backtrader_runtime/ctp_front_pair_probe.py",
+      "checkout_bytes": 24442,
+      "checkout_sha256": "d6f92c7d2f6df13480cebcee2c7f864ac305d34d4cda37d1a22c466932d2905f",
+      "head_bytes": 23819,
+      "head_sha256": "fe634001c7467aede16c38f0b4062c6617206358fcb4ca2e193c16ddc1d996de"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+      "checkout_bytes": 25363,
+      "checkout_sha256": "31c945c77c7e147a296e66f4f1ec075e0a23f1a88b94fd339884268e79ca251c",
+      "head_bytes": 24746,
+      "head_sha256": "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+    },
+    {
+      "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+      "checkout_bytes": 47251,
+      "checkout_sha256": "2566dd55d1a96285473850b1e2c63174696347da56e07d69fb72aa3a6285e381",
+      "head_bytes": 46080,
+      "head_sha256": "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+    }
+  ],
+  "payload_file_count": 35,
+  "proposed_total_changed_path_count": 38,
+  "proposed_scope_paths": [
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/pytest.ini",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/result-schema.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/run_root_preparation_source_qa.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/prepare_root_gate_host.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/test_root_gate_host_preparation_source_fake.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/r2-caller-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/r2-precheck-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/qa/result.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r1-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r1-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/pytest.ini",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/result-schema.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/run_root_preparation_source_qa.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-public-precheck-r2-bounded-2026-10-09/prepare_root_precheck.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/run_root_credential_free_gate.py",
+    "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+    "scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-independent-static-review-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/qa/root-r6-result.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/manifest.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/round-record.md",
+    ".gitattributes"
+  ],
+  "scoped_text_unset_rule_paths": [
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/inputs/r5-runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/pytest.ini",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/result-schema.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/run_root_preparation_source_qa.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/prepare_root_gate_host.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/test_root_gate_host_preparation_source_fake.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/r2-caller-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/r2-precheck-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/references/runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/qa/result.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r5-test-alias-cleanup-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r1-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r1-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-independent-static-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/inputs/r5-runtime-source-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/pytest.ini",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/qa/command.txt",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/result-schema.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/run_root_preparation_source_qa.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-2026-10-09/artifact-pins.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-public-precheck-r2-bounded-2026-10-09/prepare_root_precheck.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/run_root_credential_free_gate.py",
+    "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+    "scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r6-independent-static-review-2026-10-09/README.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/qa/root-r6-result.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/manifest.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-prep-source-support-dev-round-r1-2026-10-09/round-record.md"
+  ],
+  "exclusions": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/prepare_root_gate_host.py",
+      "reason": "Historical R2 preparation helper has an independently reviewed driver-alias HOLD; R5 preparation source supersedes it."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/test_root_gate_host_preparation_source_fake.py",
+      "reason": "Historical R2 preparation test belongs to the superseded helper; R5 composition test is the accepted source-fake suite."
+    },
+    {
+      "path": "all other unselected R1-R5 failure-history packets",
+      "reason": "Not a dependency of the exact R6 QA or R5 preparation source closure."
+    },
+    {
+      "path": "private inputs, software payloads, real configs, native/provider/account artifacts",
+      "reason": "Excluded; R6 result confirms software_payload_read=false and no gate/account operation."
+    }
+  ],
+  "limits": [
+    "The R6 runner/result are bound to dev HEAD 902d55 and the recorded raw index; this is historical source-fake evidence after the OKX delivery advanced dev to 5b8f9f.",
+    "The two Root scripts are included only as exact source-binding dependencies for the 26-row source map, not as accepted Gate/account activation code.",
+    "This round does not accept a credential-free Gate invocation, actual preparation, provider/account behavior, or formal C01 PASS."
+  ]
+}

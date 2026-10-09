@@ -1,0 +1,36 @@
+{
+  "schema": "iteration41-simnow-c01-v20-root-public-precheck-artifact-pins-v2",
+  "artifact_count": 6,
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 1489,
+      "sha256": "b0f869977c5e8e47677fa08621f4df360d47db6d837791573e8aadb55a2436cf"
+    },
+    {
+      "path": "prepare_root_precheck.py",
+      "bytes": 27892,
+      "sha256": "3f14a1ae6033717a8d05a90d7bade9ca0c96c6f7cfbea22c9f3176397fe066f6"
+    },
+    {
+      "path": "test_prepare_root_precheck_source_fake.py",
+      "bytes": 6209,
+      "sha256": "9bb78e49816f83bc1291d412b9324d197e9103e20ec04a8a7c89c4f534cecdf2"
+    },
+    {
+      "path": "references/runtime-source-pins.json",
+      "bytes": 9069,
+      "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+    },
+    {
+      "path": "qa/command.txt",
+      "bytes": 232,
+      "sha256": "4a610bd5f04adb79f033298fdb651d2cd68ed88d306e5df17b76bc6914a92cc9"
+    },
+    {
+      "path": "qa/result.txt",
+      "bytes": 542,
+      "sha256": "f41fb1893260e31068d0fcf10894999e9c4dd3bea7ae535035fa5f47558011ce"
+    }
+  ]
+}

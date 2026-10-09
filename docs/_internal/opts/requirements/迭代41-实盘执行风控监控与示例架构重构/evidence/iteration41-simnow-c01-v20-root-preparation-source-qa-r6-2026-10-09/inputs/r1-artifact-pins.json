@@ -1,0 +1,46 @@
+{
+  "schema": "iteration41.simnow.c01.v20.root-preparation-source-qa-artifact-pins.r1",
+  "artifact_count": 8,
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 3094,
+      "sha256": "2336a00fc10f7c44d34cab419aa2737cd3b9e851c0ad3c00f3e2145346e19101"
+    },
+    {
+      "path": "inputs/r5-artifact-pins.json",
+      "bytes": 1437,
+      "sha256": "62ddd86cc141a4b94dbe5eee6736c7b13099133f890e77a0f931f90d31bfef16"
+    },
+    {
+      "path": "inputs/r5-independent-static-review.md",
+      "bytes": 2519,
+      "sha256": "4dd6725c42dfc2b8f8ef6a2d8cb7952f4bde27a7995fb867fd6e916eab6fbfba"
+    },
+    {
+      "path": "inputs/r5-runtime-source-pins.json",
+      "bytes": 9069,
+      "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+    },
+    {
+      "path": "pytest.ini",
+      "bytes": 9,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+    },
+    {
+      "path": "qa/command.txt",
+      "bytes": 508,
+      "sha256": "f7a76223c2bd82f443415e3b8192ed08bbea0629c7eb68c4c018802bd282d919"
+    },
+    {
+      "path": "result-schema.json",
+      "bytes": 1488,
+      "sha256": "94c2f614116caba893f8e3c1402171dcf376f2a0bff1ae461995ac5f8efeae46"
+    },
+    {
+      "path": "run_root_preparation_source_qa.py",
+      "bytes": 23968,
+      "sha256": "22a3f2ee7abfc3aff772e5d0fe6a56739084a7e871919a0ecdf87906d3265f14"
+    }
+  ]
+}

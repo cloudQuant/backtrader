@@ -1,0 +1,46 @@
+{
+  "schema": "iteration41-simnow-c01-v20-root-preparation-composition-artifact-pins-r2",
+  "artifact_count": 8,
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 5155,
+      "sha256": "f4f381c1706fae919056636e0147d6fbcf86ed91fd253ed585f35cad6bd2d8eb"
+    },
+    {
+      "path": "prepare_root_gate_host.py",
+      "bytes": 22526,
+      "sha256": "720c9e559100196211d7c10d68a5c33d2b9167bcba48ad3e4ecf14641e2fb6b0"
+    },
+    {
+      "path": "test_root_gate_host_preparation_source_fake.py",
+      "bytes": 16604,
+      "sha256": "6c91b361346cbe3ff1ac34125f0831fed70c128a081c13645b6cba437d8f76e2"
+    },
+    {
+      "path": "references/r2-caller-artifact-pins.json",
+      "bytes": 1297,
+      "sha256": "704d34e8abc5f318790fb7b076189441b0ad7c9b39d582dbe0e822aca0767036"
+    },
+    {
+      "path": "references/r2-precheck-artifact-pins.json",
+      "bytes": 1108,
+      "sha256": "ccd9a6cbdb2187a4d6b7a82f856e4c0ff44c2a316f2983f98d45fcb9fbfdf43d"
+    },
+    {
+      "path": "references/runtime-source-pins.json",
+      "bytes": 9069,
+      "sha256": "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+    },
+    {
+      "path": "qa/command.txt",
+      "bytes": 750,
+      "sha256": "1725f620e773f40dc7a38a2fd4dc2ccb7b5b119d3f094e09435bd4a8c7362fea"
+    },
+    {
+      "path": "qa/result.txt",
+      "bytes": 488,
+      "sha256": "2daad2dee03e0bc11979e5053d9a44497efbc2ea2d91c91edb037560dfc9baa3"
+    }
+  ]
+}
