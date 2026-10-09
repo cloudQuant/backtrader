@@ -1,430 +1,210 @@
 #!/usr/bin/env python
-"""Retained 014_2 local replay fixture with a config-first script fence.
+"""014_2 standard entry — dry self-check / offline replay / SimNow live tier.
 
-Import-level fixture functions remain available to regression tests.  Direct
-script execution can only enter the reviewed Iteration 41 replay runtime.
+Usage (Python 3.11 for any future live tier; dry/replay need only the core):
+
+    python run.py                          # dry: config + live-readiness report (no network)
+    python run.py --replay [--scenario S]  # offline frozen-fixture replay (0 network, 0 writes)
+    python run.py --live --allow-write     # live tier: evidence-backed BLOCKED (see below)
+
+Exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
+
+Live tier status: this example shares the C/P/F strict live contracts (feed-
+sealed ``BarEvidence`` + run-scoped ``ClockMapping`` + candidate/rules/domain
+scoping) and its real contract mapping is still the local ``F_LOCAL`` fixture.
+The write-capable adapter is **not integrated yet**, so ``--live`` fails
+closed with the exact integration requirements instead of silently degrading
+to the raw-line replay contract.  Offline replay and the read-only
+engineering seams (``legacy_runner``) remain unchanged.
 """
 
 from __future__ import annotations
 
-# ruff: noqa: E402
-# This fence must remain before every legacy framework, CTP, or provider import.
-import sys as _iteration41_sys
-from pathlib import Path as _Iteration41Path
+import argparse
+import datetime
+import json
+import uuid
+from pathlib import Path
+from typing import Any, Dict, Mapping, Optional
 
-_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parent / "runtime"
-_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
-if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
-    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+HERE = Path(__file__).resolve().parent
 
-from backtrader_runtime.legacy import (  # noqa: E402
-    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
-    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+EXIT_PASS, EXIT_FAIL, EXIT_BLOCKED, EXIT_UNKNOWN = 0, 1, 2, 3
+STRATEGY_ID = "ctp_options_midfreq"
+
+LIVE_INTEGRATION_REQUIREMENTS = (
+    "feed-sealed closed-bar evidence provider per leg (BarEvidence with clock_mapping, "
+    "candidate_id, rules_hash and clock_domain bound to the frozen store event)",
+    "run-scoped non-synthetic ClockMapping + clock_provider covering the whole live window",
+    "real contract mapping (the replay fixture's F_LOCAL legs must be replaced by verified "
+    "SA/FG future + call + put contracts and strikes)",
+    "RegisteredSimStore three-leg arm templates with per-leg preflight identity",
+    "strategy live params: require_feed_bar_evidence=True, bar_evidence_clock_mode='live', "
+    "bar_evidence_clock_domain=<run domain>, clock_provider=<calibrated provider>",
+    "one-shot engineering drill trigger (natural entry needs a full warmup window)",
 )
+LIVE_FLIP_PATH = (
+    "assemble the strict live adapter round: real contract mapping + ctp cohort/evidence path + "
+    "caller clock mapping + registered-sim write bridge + drill trigger, then re-run dry/--replay "
+    "and a bounded drill live acceptance in a SimNow session"
+)
+REQUIRED_LIVE_ENV_NAMES = ("CTP_BROKER_ID", "CTP_USER_ID", "CTP_PASSWORD", "CTP_APP_ID", "CTP_AUTH_CODE")
 
 
-def _run_config_first_cli(argv=None) -> int:
-    """Route the retired script through its fixed registered replay runtime."""
+def _load_legacy():
+    """Return the folder-local legacy engine (package import or direct script)."""
+    if __package__:
+        from . import legacy_runner
+    else:
+        import legacy_runner
+    return legacy_runner
 
-    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+def _json_print(payload: Mapping[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
+
+
+def _candidate_summary(config: Mapping[str, Any]) -> Dict[str, Any]:
+    candidate = config.get("candidate") or {}
+    if not isinstance(candidate, Mapping):
+        return {}
+    return {
+        str(key): value
+        for key, value in candidate.items()
+        if isinstance(value, (str, int, float, bool))
+    }
+
+
+def run_dry() -> int:
+    legacy = _load_legacy()
+
+    errors: list = []
+    config: Dict[str, Any] = {}
+    try:
+        config = legacy.load_config()
+    except Exception as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+    report = {
+        "status": "DRY" if not errors else "REJECTED",
+        "mode": "dry",
+        "strategy_id": STRATEGY_ID,
+        "candidate": _candidate_summary(config),
+        "live_tier": {
+            "status": "BLOCKED_PENDING_LIVE_ADAPTER",
+            "reason": "live_adapter_not_integrated",
+            "integration_requirements": list(LIVE_INTEGRATION_REQUIREMENTS),
+            "required_env_names": list(REQUIRED_LIVE_ENV_NAMES),
+        },
+        "network": 0,
+        "provider_sessions": 0,
+        "errors": errors,
+    }
+    _json_print(report)
+    return EXIT_PASS if not errors else EXIT_BLOCKED
+
+
+def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
+    legacy = _load_legacy()
+
+    chosen = str(scenario or "")
+    run_id = (
+        f"replay-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f"-{uuid.uuid4().hex[:8]}"
+    )
+    output_directory = Path(evidence_dir) if evidence_dir else (HERE / "evidence" / run_id)
+    output_directory.mkdir(parents=True, exist_ok=True)
+    try:
+        config = legacy.load_config()
+        report = legacy.run_replay(config, scenario=(chosen or None))
+    except Exception as exc:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "mode": "replay",
+                "run_id": run_id,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        return EXIT_BLOCKED
+    (output_directory / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, sort_keys=True, default=str, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    status = str(report.get("status") or "")
+    ok = status == "LOCAL_REPLAY_PASS"
+    summary = {
+        "status": status or "UNKNOWN",
+        "mode": "replay",
+        "run_id": run_id,
+        "scenario": chosen or (config.get("replay") or {}).get("scenario"),
+        "evidence_directory": str(output_directory),
+        "external_request_counts": {"network": 0, "order_write": 0},
+        "boundary": "SYNTHETIC_REPLAY_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE",
+    }
+    _json_print(summary)
+    return EXIT_PASS if ok else EXIT_FAIL
+
+
+def run_live(args) -> int:
+    if not args.allow_write:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "mode": "live",
+                "error": "write_consent_missing",
+                "hint": "live C/P/F acceptance would require an explicit --allow-write grant",
+            }
+        )
+        return EXIT_BLOCKED
+    _json_print(
+        {
+            "status": "BLOCKED",
+            "mode": "live",
+            "strategy_id": STRATEGY_ID,
+            "reason": "live_adapter_not_integrated",
+            "integration_requirements": list(LIVE_INTEGRATION_REQUIREMENTS),
+            "flip_path": LIVE_FLIP_PATH,
+            "external_request_counts": {"network": 0, "order_write": 0},
+            "boundary": (
+                "NO_PROVIDER_SESSION_NO_WRITE: the strict feed-sealed evidence adapter is not "
+                "integrated; this entry never degrades to the raw-line replay contract live"
+            ),
+        }
+    )
+    return EXIT_BLOCKED
 
 
 def main(argv=None) -> int:
-    """Public legacy entrypoint retained only as a config-first convenience alias."""
-
-    return _run_config_first_cli(argv)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--replay", action="store_true", help="offline frozen-fixture replay")
+    mode.add_argument("--live", action="store_true", help="live tier (currently evidence-backed BLOCKED)")
+    parser.add_argument("--allow-write", action="store_true", help="grant bounded real write actions")
+    parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
+    parser.add_argument("--scenario", default=None, help="replay scenario name")
+    parser.add_argument("--evidence-dir", default=None)
+    # ``parse_known_args`` keeps unknown values out of any echoed error text.
+    args, unknown = parser.parse_known_args(argv)
+    if unknown:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "error": "unknown_arguments_rejected",
+                "unknown_count": len(unknown),
+            }
+        )
+        return EXIT_BLOCKED
+    if args.allow_dangerous:
+        _json_print({"status": "REJECTED", "error": "no_dangerous_actions_defined"})
+        return EXIT_BLOCKED
+    if args.live:
+        return run_live(args)
+    if args.replay:
+        return run_replay(args.scenario, Path(args.evidence_dir) if args.evidence_dir else None)
+    return run_dry()
 
 
 if __name__ == "__main__":
-    raise SystemExit(_run_config_first_cli())
-
-import argparse
-import copy
-import hashlib
-import json
-from datetime import timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import backtrader as bt
-import pandas as pd
-import yaml
-
-try:
-    from .ctp_options_midfreq_strategy import (
-        CTPOptionsMidFrequencyStrategy,
-        ConfigurationError,
-        validate_config,
-    )
-    from .execution_fixture import (
-        TimingFixtureFeed,
-        build_normal_exit_fixture,
-        build_timing_fixture,
-    )
-    from .fq2_fixture import REPLAY_BASE, ReplayQuoteProducer
-except ImportError:  # Direct execution through this directory's run.py.
-    from ctp_options_midfreq_strategy import (
-        CTPOptionsMidFrequencyStrategy,
-        ConfigurationError,
-        validate_config,
-    )
-    from execution_fixture import (
-        TimingFixtureFeed,
-        build_normal_exit_fixture,
-        build_timing_fixture,
-    )
-    from fq2_fixture import REPLAY_BASE, ReplayQuoteProducer
-
-EXAMPLE_DIR = Path(__file__).resolve().parent
-
-
-def _canonical_config_hash(raw_config: Dict[str, Any]) -> str:
-    encoded = json.dumps(
-        raw_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _contained_config_path(path: Path | str) -> Path:
-    """Resolve a config only when it remains inside this strategy directory."""
-
-    requested = Path(path).expanduser()
-    resolved = (requested if requested.is_absolute() else EXAMPLE_DIR / requested).resolve()
-    try:
-        resolved.relative_to(EXAMPLE_DIR)
-    except ValueError as error:
-        raise ConfigurationError(
-            "CONFIG_PATH", "config must remain inside this example directory"
-        ) from error
-    if not resolved.is_file():
-        raise ConfigurationError(
-            "CONFIG_PATH", "config does not exist inside this example directory"
-        )
-    return resolved
-
-
-def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any]:
-    """Load the contained YAML config as a mapping; reject anything else."""
-
-    try:
-        loaded = yaml.safe_load(_contained_config_path(path).read_text(encoding="utf-8"))
-    except OSError as error:
-        raise ConfigurationError("CONFIG_READ", f"unable to read config: {error}") from error
-    except yaml.YAMLError as error:
-        raise ConfigurationError("CONFIG_YAML", f"invalid yaml: {error}") from error
-    if not isinstance(loaded, dict):
-        raise ConfigurationError("CONFIG_SCHEMA", "config root must be a mapping")
-    return loaded
-
-
-def _minute_rows(config: Dict[str, Any], scenario: str) -> Dict[str, pd.DataFrame]:
-    """Build three aligned local minute feeds without opening a market connection."""
-
-    if scenario == "no_edge":
-        residuals = [0] * 61
-    elif scenario == "edge":
-        residuals = [10 if index % 2 == 0 else -10 for index in range(60)] + [80]
-    else:
-        raise ConfigurationError("REPLAY_SCENARIO", f"unknown local scenario {scenario!r}")
-
-    candidate = config["candidate"]
-    multiplier = float(candidate["multiplier"])
-    strike = float(candidate["strike"])
-    discount_factor = float(candidate["discount_factor"])
-    start = REPLAY_BASE.replace(tzinfo=None) + timedelta(minutes=1)
-    futures: List[Dict[str, Any]] = []
-    calls: List[Dict[str, Any]] = []
-    puts: List[Dict[str, Any]] = []
-    for offset, residual_cny in enumerate(residuals):
-        timestamp = start + timedelta(minutes=offset)
-        future = strike
-        put = 9.5
-        call = put + discount_factor * (future - strike) + (float(residual_cny) / multiplier)
-        for target, close in ((futures, future), (calls, call), (puts, put)):
-            target.append(
-                {
-                    "datetime": timestamp,
-                    "open": close,
-                    "high": close,
-                    "low": close,
-                    "close": close,
-                    "volume": 1.0,
-                    "openinterest": 0.0,
-                }
-            )
-
-    def frame(rows: List[Dict[str, Any]]) -> pd.DataFrame:
-        return pd.DataFrame(rows).set_index("datetime")
-
-    return {"future": frame(futures), "call": frame(calls), "put": frame(puts)}
-
-
-def _producer_for(config: Dict[str, Any]) -> ReplayQuoteProducer:
-    candidate = config["candidate"]
-    return ReplayQuoteProducer(
-        candidate_id=candidate["candidate_id"],
-        exchange=candidate["exchange"],
-        rules_hash=candidate["rules_hash"],
-        contracts=candidate["contracts"],
-        scenario=config["replay"]["scenario"],
-        strike=candidate["strike"],
-        multiplier=candidate["multiplier"],
-        discount_factor=candidate["discount_factor"],
-    )
-
-
-def run_replay(
-    raw_config: Dict[str, Any],
-    scenario: Optional[str] = None,
-    inject_cutoff_tick: bool = False,
-    inject_at_cutoff_tick: bool = False,
-) -> Dict[str, Any]:
-    """Run explicit local evidence through actual Cerebro and BackBroker."""
-
-    effective = copy.deepcopy(raw_config)
-    if scenario is not None:
-        replay = effective.get("replay")
-        if isinstance(replay, dict):
-            replay["scenario"] = scenario
-    config = validate_config(effective)
-    if config["mode"] != "replay":
-        raise ConfigurationError(
-            "ENGINEERING_OBSERVATION_API_ONLY",
-            "engineering observation must use the injected live Store/Feed/Cerebro entry point",
-        )
-    producer = _producer_for(config)
-    frames = _minute_rows(config, config["replay"]["scenario"])
-
-    cerebro = bt.Cerebro(stdstats=False, runonce=False)
-    cerebro.broker.setcash(float(config["replay"]["initial_cash_cny"]))
-    for name in ("future", "call", "put"):
-        cerebro.adddata(
-            bt.feeds.PandasData(
-                dataname=frames[name],
-                timeframe=bt.TimeFrame.Minutes,
-                compression=config["signal"]["bar_minutes"],
-            ),
-            name=name,
-        )
-    cerebro.addstrategy(
-        CTPOptionsMidFrequencyStrategy,
-        config=config,
-        quote_producer=producer,
-    )
-    strategies = cerebro.run()
-    strategy = strategies[0]
-
-    decisions_before_tick = strategy.build_report()["ordinary_decision_count"]
-    if inject_cutoff_tick or inject_at_cutoff_tick:
-        if strategy.last_closed_minute is None:
-            raise RuntimeError("fixture did not close any minute")
-        tick = producer.tick_for(
-            60,
-            symbol=config["candidate"]["contracts"]["future"],
-            at_cutoff=inject_at_cutoff_tick,
-        )
-        strategy.notify_tick(tick)
-    report = strategy.build_report()
-    report["ordinary_decision_count_before_tick"] = decisions_before_tick
-    report["config_sha256"] = _canonical_config_hash(effective)
-    report["synthetic_scenario"] = config["replay"]["scenario"]
-    report["cerebro"] = {
-        "strategy": CTPOptionsMidFrequencyStrategy.__name__,
-        "feed_count": len(cerebro.datas),
-        "broker_class": type(cerebro.broker).__name__,
-    }
-    report["self_contained_runtime"] = True
-    return report
-
-
-def run_timing_replay(
-    raw_config: Dict[str, Any], *, normal_exit_fixture: bool = False
-) -> Dict[str, Any]:
-    """Run the MF-T1 projector through real Cerebro ``next`` and idle hooks."""
-
-    config = validate_config(copy.deepcopy(raw_config))
-    if config["mode"] != "replay":
-        raise ConfigurationError(
-            "ENGINEERING_OBSERVATION_API_ONLY",
-            "engineering observation cannot run a local timing replay fixture",
-        )
-    provider = build_normal_exit_fixture() if normal_exit_fixture else build_timing_fixture()
-    feed = TimingFixtureFeed(
-        idle_polls=provider.idle_count,
-        bar_count=2 if normal_exit_fixture else 1,
-    )
-    cerebro = bt.Cerebro(stdstats=False, runonce=False, quicknotify=True)
-    cerebro.adddata(feed, name="mf-t1-timing-feed")
-    cerebro.addstrategy(
-        CTPOptionsMidFrequencyStrategy,
-        config=config,
-        timing_provider=provider,
-    )
-    strategies = cerebro.run(runonce=False, preload=False)
-    strategy = strategies[0]
-    report = strategy.build_report()
-    report["config_sha256"] = _canonical_config_hash(raw_config)
-    report["cerebro"] = {
-        "strategy": CTPOptionsMidFrequencyStrategy.__name__,
-        "feed_count": len(cerebro.datas),
-        "broker_class": type(cerebro.broker).__name__,
-        "actual_next_callback": True,
-        "actual_notify_idle_callback": strategy.build_report()["timing"]["idle_callback_count"] > 0,
-        "feed_returned_none": feed.idle_returns > 0,
-    }
-    report["external_network_requests"] = 0
-    report["external_trade_writes"] = 0
-    report["execution_permission"] = "NOT_PROVEN"
-    return report
-
-
-def run_engineering_smoke(raw_config: Dict[str, Any], *, api: Any = None) -> Dict[str, Any]:
-    """Build the real Store/Feed/Broker/Cerebro chain without starting it.
-
-    A production caller must inject an already-authenticated SDK object.  The
-    command-line path intentionally supplies none, so it fails closed before
-    any transport, subscription, order, or credential lookup can occur.
-    """
-
-    smoke_config = copy.deepcopy(raw_config)
-    # The replay schema validates the candidate/risk contract; the adapter
-    # owns the live-mode admission and still requires an explicit SDK object.
-    smoke_config["mode"] = "replay"
-    config = validate_config(smoke_config)
-    try:
-        from .simnow_adapter import build_engineering_smoke
-    except ImportError:
-        from simnow_adapter import build_engineering_smoke
-    return build_engineering_smoke(config=config, api=api)
-
-
-def run_engineering_observation(
-    raw_config: Dict[str, Any],
-    *,
-    api: Any = None,
-    store: Any = None,
-    store_ownership: Any = None,
-    environment_profile: str,
-    run_seconds: float,
-    feed_clock: Any,
-    clock_mapping: Any,
-    closed_bar_evidence_provider: Any,
-) -> Dict[str, Any]:
-    """Run the explicit, bounded Set-2 zero-write strategy observation.
-
-    This does not load ``.env``, choose an SDK, or expose a CLI path that could
-    accidentally connect with ambient credentials.  Callers may inject either
-    an API object or one governed Store whose lifecycle they explicitly
-    transfer; the adapter rejects mixed ownership.  Its runtime mode is
-    explicit and distinct from the local replay fixture, while the outer
-    report remains a ``shadow`` observation so it cannot be confused with
-    G3/G4 execution.
-    """
-
-    if not isinstance(raw_config, dict) or raw_config.get("mode") not in {
-        "replay",
-        "engineering_observation",
-    }:
-        raise ConfigurationError(
-            "ENGINEERING_OBSERVATION_MODE",
-            "engineering observation accepts only the frozen replay template or explicit runtime mode",
-        )
-    runtime_config = copy.deepcopy(raw_config)
-    runtime_config["mode"] = "engineering_observation"
-    config = validate_config(runtime_config)
-    try:
-        from .simnow_adapter import run_engineering_observation as _run_observation
-    except ImportError:
-        from simnow_adapter import run_engineering_observation as _run_observation
-    return _run_observation(
-        config=config,
-        api=api,
-        store=store,
-        store_ownership=store_ownership,
-        environment_profile=environment_profile,
-        run_seconds=run_seconds,
-        feed_clock=feed_clock,
-        clock_mapping=clock_mapping,
-        closed_bar_evidence_provider=closed_bar_evidence_provider,
-    )
-
-
-def _arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=EXAMPLE_DIR / "config.yaml")
-    parser.add_argument("--mode", choices=("replay", "shadow", "simnow", "production"))
-    parser.add_argument(
-        "--purpose",
-        choices=("engineering_smoke",),
-        help="build the injected, fail-closed SimNow engineering chain without starting it",
-    )
-    parser.add_argument("--scenario", choices=("no_edge", "edge"))
-    parser.add_argument(
-        "--timing",
-        action="store_true",
-        help="run the local MF-T1 execution timing projection through Cerebro idle callbacks",
-    )
-    parser.add_argument(
-        "--timing-normal-exit",
-        action="store_true",
-        help="run the local actual-Cerebro two-minute normal-exit fixture",
-    )
-    parser.add_argument(
-        "--inject-cutoff-tick",
-        action="store_true",
-        help="replay-test only: validate one explicit quote after the ordinary next decision",
-    )
-    parser.add_argument(
-        "--inject-at-cutoff-tick",
-        action="store_true",
-        help="replay-test only: prove a receive timestamp at the cutoff is rejected",
-    )
-    return parser.parse_args()
-
-
-def _legacy_main() -> int:
-    """Dispatch the offline CLI, print one JSON report, and return exit status."""
-    raise _iteration41_legacy_direct_execution_error("examples/014_2_ctp_options_midfreq/run.py")
-
-    args = _arguments()
-    try:
-        raw_config = load_config(args.config)
-        if args.mode is not None:
-            raw_config["mode"] = args.mode
-        if args.purpose == "engineering_smoke":
-            if args.mode != "simnow":
-                raise ConfigurationError(
-                    "ENGINEERING_SMOKE_MODE", "engineering_smoke requires --mode simnow"
-                )
-            # No API factory, environment lookup, or .env loading is allowed
-            # in this entry point.  Tests and a separately governed launcher
-            # may call run_engineering_smoke(..., api=explicit_api).
-            raise ConfigurationError(
-                "SDK_NOT_INJECTED",
-                "engineering_smoke requires an explicit injected SDK object; CLI performs no connection",
-            )
-        if args.timing or args.timing_normal_exit:
-            if args.scenario or args.inject_cutoff_tick or args.inject_at_cutoff_tick:
-                raise ConfigurationError(
-                    "TIMING_ARGUMENTS", "timing replay cannot be combined with FQ2 tick arguments"
-                )
-            report = run_timing_replay(raw_config, normal_exit_fixture=args.timing_normal_exit)
-        else:
-            report = run_replay(
-                raw_config,
-                args.scenario,
-                args.inject_cutoff_tick,
-                args.inject_at_cutoff_tick,
-            )
-    except ConfigurationError as error:
-        report = {
-            "status": "REJECTED",
-            "error_code": error.code,
-            "message": str(error),
-            "external_network_requests": 0,
-            "external_trade_writes": 0,
-        }
-        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-        return 2
-    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-    return 0
+    # Script execution keeps this directory importable; the entry imports the
+    # legacy engine lazily inside its functions only.
+    raise SystemExit(main())

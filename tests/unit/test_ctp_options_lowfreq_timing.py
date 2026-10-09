@@ -22,7 +22,7 @@ def strategy_runner():
 
     example = Path(__file__).resolve().parents[2] / "examples/014_1_ctp_options_lowfreq"
     assert example.is_dir()
-    return importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    return importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 
 
 def test_bar_envelope_and_strict_economic_score(timing):
@@ -552,7 +552,7 @@ def test_actual_cerebro_no_bar_dispatches_notify_idle_without_bar_time_fallback(
     import backtrader as bt
     import importlib
 
-    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 
     class IdleFeed(bt.feed.DataBase):
         params = (("qcheck", 0.0),)
@@ -621,7 +621,7 @@ def test_actual_cerebro_confirmed_legs_use_frozen_holds_and_fresh_exit_window():
     import backtrader as bt
     import importlib
 
-    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 
     config = runner.load_config()
     candidate = config["candidate"]
@@ -803,7 +803,7 @@ def test_actual_foreign_fact_cannot_authorize_next_protection_leg(field, value, 
     import backtrader as bt
     import importlib
 
-    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 
     config = runner.load_config()
     candidate = config["candidate"]

@@ -549,7 +549,7 @@ def test_calendar_is_explicit_and_common_cutoffs_are_intersected():
 
 
 def test_actual_cerebro_timing_runner_consumes_none_feed_and_never_writes():
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_timing_replay(runner.load_config())
     assert report["status"] == "LOCAL_TIMING_REPLAY_PASS"
     assert report["cerebro"]["actual_next_callback"] is True
@@ -1103,7 +1103,7 @@ def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> Non
     fixture_module = __import__(
         "examples.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
     )
-    runner = __import__("examples.014_2_ctp_options_midfreq.run", fromlist=["*"])
+    runner = __import__("examples.014_2_ctp_options_midfreq.legacy_runner", fromlist=["*"])
     provider = fixture_module.build_normal_exit_fixture()
     provider._calendar = None  # Explicitly model unavailable calendar evidence.
     feed = fixture_module.TimingFixtureFeed(idle_polls=provider.idle_count, bar_count=2)
@@ -1129,7 +1129,7 @@ def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> Non
 
 
 def test_actual_cerebro_two_minute_fixture_reaches_normal_exit_and_idle_stays_risk_only():
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_timing_replay(runner.load_config(), normal_exit_fixture=True)
     results = report["timing"]["results"]
     assert any(item["reason"] == "NORMAL_EXIT_PROPOSAL" for item in results)

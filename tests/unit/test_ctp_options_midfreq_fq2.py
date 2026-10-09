@@ -248,7 +248,7 @@ def _short_schedule(decision_input, producer: ReplayQuoteProducer, *, gap: bool)
 
 
 def test_public_edge_replay_matches_independent_feature_oracle_shape() -> None:
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_replay(runner.load_config(), scenario="edge")
     decision = report["ordinary_decisions"][0]
     feature = report["feature_history"][-1]
@@ -299,7 +299,7 @@ def test_public_edge_replay_matches_independent_feature_oracle_shape() -> None:
 
 
 def test_in_process_cerebro_consumes_both_replay_scenarios() -> None:
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
 
     raw = runner.load_config()
     edge = runner.run_replay(raw, scenario="edge", inject_cutoff_tick=True)

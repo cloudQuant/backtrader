@@ -9,7 +9,7 @@ import importlib
 import pytest
 
 
-run_module = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+run_module = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
 adapter = importlib.import_module("examples.014_2_ctp_options_midfreq.simnow_adapter")
 
 ROOT = Path(__file__).resolve().parents[2]

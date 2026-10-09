@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 import pytest
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.run")
+runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
 adapter = importlib.import_module("examples.015_ctp_options_highfreq.engineering_smoke")
 
 RAW_CONFIG, _ = runner.load_config()

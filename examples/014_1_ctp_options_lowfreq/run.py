@@ -1,552 +1,203 @@
 #!/usr/bin/env python
-"""Retained 014_1 local replay fixture with a config-first script fence.
+"""014_1 standard entry — dry self-check / offline replay / SimNow live tier.
 
-Import-level fixture functions remain available to regression tests.  Direct
-script execution can only enter the reviewed Iteration 41 replay runtime.
+Usage (Python 3.11 for any future live tier; dry/replay need only the core):
+
+    python run.py                          # dry: config + live-readiness report (no network)
+    python run.py --replay [--scenario S]  # offline frozen-fixture replay (0 network, 0 writes)
+    python run.py --live --allow-write     # live tier: evidence-backed BLOCKED (see below)
+
+Exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
+
+Live tier status: this example's strategy enforces feed-sealed closed-bar
+evidence (``BarEvidence`` + a run-scoped non-synthetic ``ClockMapping`` +
+candidate/rules/clock-domain scoping) and a write-capable registered-sim
+adapter for its C/P/F legs.  That adapter is **not integrated yet**, so
+``--live`` fails closed with the exact integration requirements instead of
+silently degrading to the raw-line replay contract.  Offline replay and the
+read-only engineering seams (``legacy_runner``) remain unchanged.
 """
 
 from __future__ import annotations
 
-# ruff: noqa: E402
-# This fence must remain before every legacy framework, CTP, or provider import.
-import sys as _iteration41_sys
-from pathlib import Path as _Iteration41Path
+import argparse
+import datetime
+import json
+import uuid
+from pathlib import Path
+from typing import Any, Dict, Mapping, Optional
 
-_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parent / "runtime"
-_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
-if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
-    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+HERE = Path(__file__).resolve().parent
 
-from backtrader_runtime.legacy import (  # noqa: E402
-    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
-    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+EXIT_PASS, EXIT_FAIL, EXIT_BLOCKED, EXIT_UNKNOWN = 0, 1, 2, 3
+STRATEGY_ID = "ctp_options_lowfreq"
+
+LIVE_INTEGRATION_REQUIREMENTS = (
+    "feed-sealed closed-bar evidence provider per leg (BarEvidence with clock_mapping, "
+    "candidate_id, rules_hash and clock_domain bound to the frozen store event)",
+    "run-scoped non-synthetic ClockMapping + clock_provider covering the whole live window",
+    "RegisteredSimStore three-leg arm templates (future + call + put) with per-leg preflight identity",
+    "strategy live params: require_feed_bar_evidence=True, bar_evidence_clock_mode='live', "
+    "bar_evidence_clock_domain=<run domain>, clock_provider=<calibrated provider>",
+    "one-shot engineering drill trigger (natural entry needs a full 40-bar 15-minute window)",
+    "SA/FG option contract + strike readback (C/P/F availability, tick, limits) before any write",
 )
+LIVE_FLIP_PATH = (
+    "assemble the strict live adapter round: ctp cohort/evidence path + caller clock mapping + "
+    "registered-sim write bridge + drill trigger, then re-run dry/--replay and a bounded drill "
+    "live acceptance in a SimNow session"
+)
+REQUIRED_LIVE_ENV_NAMES = ("CTP_BROKER_ID", "CTP_USER_ID", "CTP_PASSWORD", "CTP_APP_ID", "CTP_AUTH_CODE")
+REPLAY_SCENARIOS = ("eligible", "no_edge", "budget_reject", "misaligned")
 
 
-def _run_config_first_cli(argv=None) -> int:
-    """Route the retired script through its fixed registered replay runtime."""
+def _load_legacy():
+    """Return the folder-local legacy engine (package import or direct script)."""
+    if __package__:
+        from . import legacy_runner
+    else:
+        import legacy_runner
+    return legacy_runner
 
-    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+def _json_print(payload: Mapping[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
+
+
+def run_dry() -> int:
+    legacy = _load_legacy()
+
+    errors: list = []
+    config: Dict[str, Any] = {}
+    try:
+        config = legacy.load_config()
+    except Exception as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+    candidate = dict(config.get("candidate") or {})
+    report = {
+        "status": "DRY" if not errors else "REJECTED",
+        "mode": "dry",
+        "strategy_id": STRATEGY_ID,
+        "candidate_legs": [candidate.get(name) for name in ("future", "call", "put")],
+        "replay_scenarios": list(REPLAY_SCENARIOS),
+        "live_tier": {
+            "status": "BLOCKED_PENDING_LIVE_ADAPTER",
+            "reason": "live_adapter_not_integrated",
+            "integration_requirements": list(LIVE_INTEGRATION_REQUIREMENTS),
+            "required_env_names": list(REQUIRED_LIVE_ENV_NAMES),
+        },
+        "network": 0,
+        "provider_sessions": 0,
+        "errors": errors,
+    }
+    _json_print(report)
+    return EXIT_PASS if not errors else EXIT_BLOCKED
+
+
+def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
+    legacy = _load_legacy()
+
+    chosen = str(scenario or "eligible")
+    if chosen not in REPLAY_SCENARIOS:
+        _json_print({"status": "REJECTED", "mode": "replay", "error": "unsupported_replay_scenario"})
+        return EXIT_BLOCKED
+    run_id = (
+        f"replay-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f"-{uuid.uuid4().hex[:8]}"
+    )
+    output_directory = Path(evidence_dir) if evidence_dir else (HERE / "evidence" / run_id)
+    output_directory.mkdir(parents=True, exist_ok=True)
+    try:
+        config = legacy.load_config()
+        report = legacy.run_replay(config, chosen)
+    except Exception as exc:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "mode": "replay",
+                "run_id": run_id,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        return EXIT_BLOCKED
+    (output_directory / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, sort_keys=True, default=str, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    ok = report.get("status") == "LOCAL_REPLAY_PASS"
+    summary = {
+        "status": report.get("status"),
+        "mode": "replay",
+        "run_id": run_id,
+        "scenario": chosen,
+        "evidence_directory": str(output_directory),
+        "external_request_counts": {"network": 0, "order_write": 0},
+        "boundary": "SYNTHETIC_REPLAY_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE",
+    }
+    _json_print(summary)
+    return EXIT_PASS if ok else EXIT_FAIL
+
+
+def run_live(args) -> int:
+    if not args.allow_write:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "mode": "live",
+                "error": "write_consent_missing",
+                "hint": "live C/P/F acceptance would require an explicit --allow-write grant",
+            }
+        )
+        return EXIT_BLOCKED
+    _json_print(
+        {
+            "status": "BLOCKED",
+            "mode": "live",
+            "strategy_id": STRATEGY_ID,
+            "reason": "live_adapter_not_integrated",
+            "integration_requirements": list(LIVE_INTEGRATION_REQUIREMENTS),
+            "flip_path": LIVE_FLIP_PATH,
+            "external_request_counts": {"network": 0, "order_write": 0},
+            "boundary": (
+                "NO_PROVIDER_SESSION_NO_WRITE: the strict feed-sealed evidence adapter is not "
+                "integrated; this entry never degrades to the raw-line replay contract live"
+            ),
+        }
+    )
+    return EXIT_BLOCKED
 
 
 def main(argv=None) -> int:
-    """Public legacy entrypoint retained only as a config-first convenience alias."""
-
-    return _run_config_first_cli(argv)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--replay", action="store_true", help="offline frozen-fixture replay")
+    mode.add_argument("--live", action="store_true", help="live tier (currently evidence-backed BLOCKED)")
+    parser.add_argument("--allow-write", action="store_true", help="grant bounded real write actions")
+    parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
+    parser.add_argument("--scenario", default=None, help="replay scenario name")
+    parser.add_argument("--evidence-dir", default=None)
+    # ``parse_known_args`` keeps unknown values out of any echoed error text.
+    args, unknown = parser.parse_known_args(argv)
+    if unknown:
+        _json_print(
+            {
+                "status": "REJECTED",
+                "error": "unknown_arguments_rejected",
+                "unknown_count": len(unknown),
+            }
+        )
+        return EXIT_BLOCKED
+    if args.allow_dangerous:
+        _json_print({"status": "REJECTED", "error": "no_dangerous_actions_defined"})
+        return EXIT_BLOCKED
+    if args.live:
+        return run_live(args)
+    if args.replay:
+        return run_replay(args.scenario, Path(args.evidence_dir) if args.evidence_dir else None)
+    return run_dry()
 
 
 if __name__ == "__main__":
-    raise SystemExit(_run_config_first_cli())
-
-import argparse
-from datetime import datetime, timedelta
-import hashlib
-import json
-import math
-from copy import deepcopy
-from pathlib import Path
-from typing import Any, Mapping
-
-import backtrader as bt
-import pandas as pd
-import yaml
-
-try:
-    from .ctp_options_lowfreq_strategy import CtpOptionsLowfreqStrategy
-except ImportError:  # Direct execution through this directory's run.py.
-    from ctp_options_lowfreq_strategy import CtpOptionsLowfreqStrategy
-
-HERE = Path(__file__).resolve().parent
-DEFAULT_CONFIG = HERE / "config.yaml"
-STRATEGY_ID = "ctp_options_lowfreq"
-MODES = frozenset({"replay", "shadow", "simnow", "production"})
-
-try:
-    from .simnow_adapter import SimNowBlocked, SimNowOptionsAdapter
-except ImportError:  # Direct execution through this directory's run.py.
-    from simnow_adapter import SimNowBlocked, SimNowOptionsAdapter
-
-
-class RunnerConfigurationError(ValueError):
-    """Raised before a strategy or any external client can be constructed."""
-
-
-def _canonical_hash(value: Mapping[str, Any]) -> str:
-    payload = json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _finite_number(value: Any, name: str, *, positive: bool = False) -> float:
-    if isinstance(value, bool):
-        raise RunnerConfigurationError(f"{name} must be a number")
-    try:
-        number = float(value)
-    except (TypeError, ValueError) as exc:
-        raise RunnerConfigurationError(f"{name} must be a number") from exc
-    if not math.isfinite(number) or (positive and number <= 0):
-        raise RunnerConfigurationError(
-            f"{name} must be finite{' and positive' if positive else ''}"
-        )
-    return number
-
-
-def _contained_config_path(path: Path | str) -> Path:
-    """Resolve a config only when it remains inside this strategy directory."""
-
-    requested = Path(path).expanduser()
-    resolved = (requested if requested.is_absolute() else HERE / requested).resolve()
-    try:
-        resolved.relative_to(HERE)
-    except ValueError as exc:
-        raise RunnerConfigurationError("config must remain inside this example directory") from exc
-    if not resolved.is_file():
-        raise RunnerConfigurationError("config does not exist inside this example directory")
-    return resolved
-
-
-def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
-    """Read and validate the contained local YAML configuration file."""
-
-    try:
-        with _contained_config_path(path).open("r", encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle)
-    except OSError as exc:
-        raise RunnerConfigurationError("unable to read local config") from exc
-    except yaml.YAMLError as exc:
-        raise RunnerConfigurationError("invalid local config YAML") from exc
-    return validate_config(raw)
-
-
-def validate_config(raw: Any) -> dict[str, Any]:
-    """Validate the complete fixed schema after its path has been contained."""
-
-    if not isinstance(raw, dict):
-        raise RunnerConfigurationError("configuration must be a mapping")
-    expected = {
-        "schema_version",
-        "strategy_id",
-        "mode",
-        "candidate",
-        "budget",
-        "strategy_params",
-        "timing",
-    }
-    if set(raw) != expected:
-        raise RunnerConfigurationError("configuration fields are not the declared schema")
-    if raw["schema_version"] != 1 or raw["strategy_id"] != STRATEGY_ID:
-        raise RunnerConfigurationError("configuration does not identify this strategy")
-    if raw["mode"] not in MODES:
-        raise RunnerConfigurationError("unsupported mode")
-    candidate = raw["candidate"]
-    budget = raw["budget"]
-    params = raw["strategy_params"]
-    timing = raw["timing"]
-    if (
-        not isinstance(candidate, dict)
-        or not isinstance(budget, dict)
-        or not isinstance(params, dict)
-        or not isinstance(timing, dict)
-    ):
-        raise RunnerConfigurationError(
-            "candidate, budget, strategy_params and timing must be mappings"
-        )
-    if set(candidate) != {"future", "call", "put", "strike", "multiplier", "discount"}:
-        raise RunnerConfigurationError("candidate fields are not the declared schema")
-    symbols = (candidate["future"], candidate["call"], candidate["put"])
-    if (
-        any(not isinstance(symbol, str) or not symbol.strip() for symbol in symbols)
-        or len(set(symbols)) != 3
-    ):
-        raise RunnerConfigurationError("candidate requires three distinct non-empty leg symbols")
-    for name in ("strike", "multiplier", "discount"):
-        candidate[name] = _finite_number(candidate[name], f"candidate.{name}", positive=True)
-    if set(budget) != {"capital_limit", "ordinary_limit", "recovery_reserve"}:
-        raise RunnerConfigurationError("budget fields are not the declared schema")
-    for name in budget:
-        budget[name] = _finite_number(budget[name], f"budget.{name}")
-    if budget["capital_limit"] != 10000:
-        raise RunnerConfigurationError("capital_limit must equal the CNY 10000 strategy cap")
-    if budget["ordinary_limit"] > 8000:
-        raise RunnerConfigurationError("ordinary_limit must not exceed the CNY 8000 ordinary cap")
-    if budget["recovery_reserve"] < 2000:
-        raise RunnerConfigurationError("recovery_reserve must be at least CNY 2000")
-    if budget["ordinary_limit"] + budget["recovery_reserve"] > budget["capital_limit"]:
-        raise RunnerConfigurationError("ordinary plus recovery budget exceeds capital limit")
-    allowed_params = {
-        "window",
-        "entry_z",
-        "exit_z",
-        "minimum_score",
-        "round_trip_cost",
-        "projected_entry_capital",
-        "price_tick",
-        "bar_minutes",
-        "confirmation_bars",
-        "minimum_holding_minutes",
-        "max_holding_bars",
-    }
-    if set(params) != allowed_params:
-        raise RunnerConfigurationError("strategy_params fields are not the declared schema")
-    integer_params = {
-        "window",
-        "bar_minutes",
-        "confirmation_bars",
-        "minimum_holding_minutes",
-        "max_holding_bars",
-    }
-    for name in allowed_params - integer_params:
-        params[name] = _finite_number(
-            params[name], f"strategy_params.{name}", positive=name != "minimum_score"
-        )
-    for name in integer_params:
-        if (
-            isinstance(params[name], bool)
-            or int(params[name]) != params[name]
-            or int(params[name]) <= 0
-        ):
-            raise RunnerConfigurationError(f"strategy_params.{name} must be a positive integer")
-        params[name] = int(params[name])
-    if params["bar_minutes"] != 15:
-        raise RunnerConfigurationError("strategy_params.bar_minutes must be 15")
-    if params["confirmation_bars"] != 2:
-        raise RunnerConfigurationError("strategy_params.confirmation_bars must be 2")
-    if params["entry_z"] < 2.5:
-        raise RunnerConfigurationError("strategy_params.entry_z must be at least 2.5")
-    if params["minimum_score"] < 20.0:
-        raise RunnerConfigurationError("strategy_params.minimum_score must be at least 20")
-    if params["minimum_holding_minutes"] < 30:
-        raise RunnerConfigurationError(
-            "strategy_params.minimum_holding_minutes must be at least 30"
-        )
-    if params["max_holding_bars"] * params["bar_minutes"] < params["minimum_holding_minutes"]:
-        raise RunnerConfigurationError(
-            "maximum holding duration must cover the minimum holding duration"
-        )
-    if params["projected_entry_capital"] > budget["ordinary_limit"]:
-        raise RunnerConfigurationError("projected entry capital exceeds the ordinary budget")
-    if params["projected_entry_capital"] + budget["recovery_reserve"] > budget["capital_limit"]:
-        raise RunnerConfigurationError(
-            "projected entry plus recovery reserve exceeds capital limit"
-        )
-    expected_timing = {
-        "first_send_seconds",
-        "completion_seconds",
-        "minimum_hold_seconds",
-        "maximum_hold_seconds",
-        "risk_bar_max_age_seconds",
-        "session_stop_entry_seconds",
-        "session_exit_seconds",
-        "session_handover_seconds",
-    }
-    if set(timing) != expected_timing:
-        raise RunnerConfigurationError("timing fields are not the declared schema")
-    for name in expected_timing:
-        if (
-            isinstance(timing[name], bool)
-            or int(timing[name]) != timing[name]
-            or int(timing[name]) <= 0
-        ):
-            raise RunnerConfigurationError(f"timing.{name} must be a positive integer")
-        timing[name] = int(timing[name])
-    if timing["first_send_seconds"] != 1:
-        raise RunnerConfigurationError("timing.first_send_seconds must be 1")
-    if timing["completion_seconds"] != 60:
-        raise RunnerConfigurationError("timing.completion_seconds must be 60")
-    if timing["minimum_hold_seconds"] < 1800:
-        raise RunnerConfigurationError("timing.minimum_hold_seconds must be at least 1800")
-    if timing["maximum_hold_seconds"] > 7200:
-        raise RunnerConfigurationError("timing.maximum_hold_seconds must be at most 7200")
-    if timing["maximum_hold_seconds"] < timing["minimum_hold_seconds"]:
-        raise RunnerConfigurationError("timing maximum hold cannot be below minimum hold")
-    if timing["minimum_hold_seconds"] < params["minimum_holding_minutes"] * 60:
-        raise RunnerConfigurationError("minimum holding seconds cannot weaken minutes setting")
-    if timing["maximum_hold_seconds"] > params["max_holding_bars"] * params["bar_minutes"] * 60:
-        raise RunnerConfigurationError("maximum holding bars cannot weaken timing maximum")
-    if timing["risk_bar_max_age_seconds"] > 910:
-        raise RunnerConfigurationError("timing.risk_bar_max_age_seconds must be at most 910")
-    if timing["session_stop_entry_seconds"] < 1800:
-        raise RunnerConfigurationError("timing.session_stop_entry_seconds must be at least 1800")
-    if timing["session_exit_seconds"] < 600:
-        raise RunnerConfigurationError("timing.session_exit_seconds must be at least 600")
-    if timing["session_handover_seconds"] < 180:
-        raise RunnerConfigurationError("timing.session_handover_seconds must be at least 180")
-    if timing["session_handover_seconds"] > timing["session_exit_seconds"]:
-        raise RunnerConfigurationError("timing handover window must fit inside exit window")
-    return raw
-
-
-def _bar(close: float) -> dict[str, float]:
-    return {
-        "open": close,
-        "high": close + 10.0,
-        "low": max(1.0, close - 10.0),
-        "close": close,
-        "volume": 100.0,
-        "openinterest": 0.0,
-    }
-
-
-def replay_bars(candidate: Mapping[str, Any], scenario: str) -> dict[str, list[dict[str, float]]]:
-    """Generate the synthetic closed 15-minute C/P/F bars for a named scenario.
-
-    Unknown scenario names are rejected before any bar is produced; the wide
-    synthetic call ranges only let staged local orders cross and invent no
-    tick or depth evidence.
-    """
-    if scenario not in {"eligible", "no_edge", "budget_reject", "misaligned"}:
-        raise RunnerConfigurationError("unsupported replay scenario")
-    result = {candidate["future"]: [], candidate["call"]: [], candidate["put"]: []}
-    start = datetime(2026, 9, 10, 9, 0)
-    for index in range(40):
-        residual = 1.0 if index % 2 else -1.0
-        values = (1000.0, 30.0 + residual, 30.0)
-        for symbol, close in zip(result, values):
-            result[symbol].append(
-                {"datetime": start + timedelta(minutes=15 * index), **_bar(close)}
-            )
-    if scenario == "no_edge":
-        tail = [(1000.0, 30.0, 30.0)] * 12
-    else:
-        tail = [(1000.0, 140.0, 40.0)] * 2 + [(1000.0, 30.0, 30.0)] * 11
-    for offset, values in enumerate(tail, start=40):
-        for symbol, close in zip(result, values):
-            result[symbol].append(
-                {"datetime": start + timedelta(minutes=15 * offset), **_bar(close)}
-            )
-    if scenario != "no_edge":
-        # The local broker evaluates an order against the next bar.  Preserve
-        # a deliberately wide *synthetic* call-bar range while the staged
-        # entry/exit orders cross it; the close remains the same closed-bar
-        # research input and no tick/depth evidence is invented.
-        for index in range(41, min(47, len(result[candidate["call"]]))):
-            result[candidate["call"]][index]["high"] = 136.0
-            result[candidate["call"]][index]["low"] = 20.0
-    if scenario == "misaligned":
-        result[candidate["call"]][41]["datetime"] += timedelta(minutes=1)
-    return result
-
-
-def _feed(rows: list[dict[str, float]]):
-    frame = pd.DataFrame(rows).set_index("datetime")
-    return bt.feeds.PandasData(dataname=frame)
-
-
-def run_replay(
-    config: Mapping[str, Any],
-    scenario: str = "eligible",
-    *,
-    synthetic_execution_facts: list[Mapping[str, Any]] | None = None,
-    idle_now: Any = None,
-    invoke_idle_probe: bool = False,
-) -> dict[str, Any]:
-    """Run only the explicit offline replay contract.
-
-    Callers may use this function outside the CLI, so the mode fence must live
-    here rather than relying on ``main()`` to reject shadow/SimNow/production.
-    """
-    if not isinstance(config, Mapping) or config.get("mode") != "replay":
-        raise RunnerConfigurationError("REPLAY_MODE_REQUIRED")
-    candidate = config["candidate"]
-    params = dict(config["strategy_params"])
-    if scenario == "budget_reject":
-        params["projected_entry_capital"] = config["budget"]["ordinary_limit"] + 1.0
-    params.update(
-        candidate_id=f"{STRATEGY_ID}-replay-v1",
-        future_symbol=candidate["future"],
-        call_symbol=candidate["call"],
-        put_symbol=candidate["put"],
-        strike=candidate["strike"],
-        multiplier=candidate["multiplier"],
-        discount=candidate["discount"],
-        capital_limit=config["budget"]["capital_limit"],
-        ordinary_limit=config["budget"]["ordinary_limit"],
-        recovery_reserve=config["budget"]["recovery_reserve"],
-        first_send_seconds=config["timing"]["first_send_seconds"],
-        completion_seconds=config["timing"]["completion_seconds"],
-        minimum_hold_seconds=config["timing"]["minimum_hold_seconds"],
-        maximum_hold_seconds=config["timing"]["maximum_hold_seconds"],
-        risk_bar_max_age_seconds=config["timing"]["risk_bar_max_age_seconds"],
-        session_stop_entry_seconds=config["timing"]["session_stop_entry_seconds"],
-        session_exit_seconds=config["timing"]["session_exit_seconds"],
-        session_handover_seconds=config["timing"]["session_handover_seconds"],
-    )
-    symbols = (candidate["future"], candidate["call"], candidate["put"])
-    # These are explicit replay-only reference limits.  They make the local
-    # price consumer structurally complete while remaining clearly synthetic;
-    # they are never treated as CTP instrument or account evidence.
-    params["price_ticks"] = dict.fromkeys(symbols, params["price_tick"])
-    params["exchange_limits"] = {
-        symbol: {
-            "lower": 0.01,
-            "upper": 10_000_000.0,
-            "source": "synthetic-replay-price-limit-fixture",
-        }
-        for symbol in symbols
-    }
-    synthetic_fee = float(params["round_trip_cost"]) / 6.0
-    params["fee_schedule"] = dict.fromkeys(
-        (
-            "open_buy",
-            "open_sell",
-            "close_buy",
-            "close_sell",
-            "close_today_buy",
-            "close_today_sell",
-        ),
-        synthetic_fee,
-    )
-    params["exit_reserve"] = 0.0
-    params["financing_reserve"] = 0.0
-    params["model_reserve"] = 0.0
-    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-    cerebro.broker.setcash(config["budget"]["capital_limit"])
-    for symbol, rows in replay_bars(candidate, scenario).items():
-        cerebro.adddata(_feed(rows), name=symbol)
-    cerebro.addstrategy(CtpOptionsLowfreqStrategy, **params)
-    strategy = cerebro.run(runonce=False)[0]
-    if synthetic_execution_facts:
-        for fact in synthetic_execution_facts:
-            strategy.record_execution_fact(fact)
-    if idle_now is not None:
-        strategy.notify_idle(idle_now)
-    elif invoke_idle_probe:
-        strategy.notify_idle()
-    report = strategy.report()
-    report.update(
-        status="LOCAL_REPLAY_PASS",
-        mode="replay",
-        scenario=scenario,
-        config_sha256=_canonical_hash(config),
-        direct_entrypoint=str(HERE / "run.py"),
-    )
-    report["evidence_package_sha256"] = _canonical_hash(report["evidence_package"])
-    return report
-
-
-def _blocked_report(mode: str, config: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "mode": mode,
-        "status": "BLOCKED",
-        "reason": "CTP_OPTION_BUNDLE_AUTHORIZATION_AND_LIVE_PREFLIGHT_REQUIRED",
-        "config_sha256": _canonical_hash(config),
-        "external_request_counts": {"network": 0, "order_write": 0},
-    }
-
-
-def run_simnow_engineering_smoke(config: Mapping[str, Any], *, api: Any = None) -> dict[str, Any]:
-    """Run the injected, read-only SimNow engineering smoke path.
-
-    A real native API must be supplied by the SDK-owned launcher.  This
-    example never loads credentials or creates that client itself.
-    """
-
-    if not isinstance(config, Mapping) or config.get("mode") != "simnow":
-        raise RunnerConfigurationError("SIMNOW_MODE_REQUIRED")
-    try:
-        adapter = SimNowOptionsAdapter(config, api=api)
-        return adapter.run_engineering_smoke()
-    except SimNowBlocked as exc:
-        if api is None or bool(getattr(api, "iter23_pure_mock", False)):
-            request_counts = {"network": 0, "order_write": 0}
-        else:
-            request_counts = {"network": "NOT_OBSERVED", "order_write": "NOT_OBSERVED"}
-        return {
-            "mode": "simnow",
-            "purpose": "engineering_smoke",
-            "status": "BLOCKED",
-            "reason": str(exc),
-            "external_request_counts": request_counts,
-        }
-
-
-def run_engineering_observation(
-    config: Mapping[str, Any],
-    *,
-    environment_profile: str,
-    run_seconds: float,
-    feed_clock: Any,
-    clock_mapping: Any,
-    closed_bar_evidence_provider: Any,
-    api: Any = None,
-    store: Any = None,
-    store_ownership: str | None = None,
-) -> dict[str, Any]:
-    """Run the explicit Set-2 zero-write observation seam.
-
-    This function intentionally has no CLI equivalent: the operator must
-    inject exactly one lifecycle root (an API or a Store transferred with
-    ``store_ownership=\"transfer\"``), a calibrated clock mapping and Feed-owned
-    closed-bar evidence provider.  The local replay template is copied solely
-    for its frozen candidate/risk schema and then relabelled ``shadow`` for
-    the bounded engineering observation.
-    """
-
-    if not isinstance(config, Mapping) or config.get("mode") not in {"replay", "shadow"}:
-        raise RunnerConfigurationError("ENGINEERING_OBSERVATION_MODE")
-    runtime_config = deepcopy(config)
-    runtime_config["mode"] = "shadow"
-    validated = validate_config(runtime_config)
-    try:
-        from .simnow_adapter import run_engineering_observation as _run_observation
-    except ImportError:  # Direct execution through this directory's run.py.
-        from simnow_adapter import run_engineering_observation as _run_observation
-    return _run_observation(
-        config=validated,
-        environment_profile=environment_profile,
-        run_seconds=run_seconds,
-        feed_clock=feed_clock,
-        clock_mapping=clock_mapping,
-        closed_bar_evidence_provider=closed_bar_evidence_provider,
-        api=api,
-        store=store,
-        store_ownership=store_ownership,
-    )
-
-
-def _legacy_main(argv: list[str] | None = None) -> int:
-    """Parse CLI arguments, dispatch exactly one mode, and print the JSON report.
-
-    Returns 0 only for a completed replay and 2 for any rejected or
-    non-replay mode, after emitting a fail-closed report.
-    """
-    raise _iteration41_legacy_direct_execution_error("examples/014_1_ctp_options_lowfreq/run.py")
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--mode", choices=sorted(MODES))
-    parser.add_argument("--purpose", choices=("engineering_smoke",), default=None)
-    parser.add_argument(
-        "--scenario",
-        choices=("eligible", "no_edge", "budget_reject", "misaligned"),
-        default="eligible",
-    )
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args(argv)
-    try:
-        config = load_config(args.config)
-        mode = args.mode or config["mode"]
-        report = (
-            run_replay(config, args.scenario)
-            if mode == "replay"
-            else (
-                run_simnow_engineering_smoke({**deepcopy(config), "mode": mode})
-                if mode == "simnow" and args.purpose == "engineering_smoke"
-                else _blocked_report(mode, config)
-            )
-        )
-    except RunnerConfigurationError as exc:
-        report = {
-            "status": "REJECTED",
-            "reason": str(exc),
-            "external_request_counts": {"network": 0, "order_write": 0},
-        }
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-        return 2
-    text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text + "\n", encoding="utf-8")
-    print(text)
-    return 0 if mode == "replay" else 2
+    # Script execution keeps this directory importable; the entry imports the
+    # legacy engine lazily inside its functions only.
+    raise SystemExit(main())

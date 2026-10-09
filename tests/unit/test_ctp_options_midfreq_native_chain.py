@@ -24,7 +24,7 @@ from backtrader.feeds import BarEvidence, ClockMapping
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
-runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
 strategy_module = importlib.import_module(
     "examples.014_2_ctp_options_midfreq.ctp_options_midfreq_strategy"
 )

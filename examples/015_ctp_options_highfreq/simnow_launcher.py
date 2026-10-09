@@ -50,9 +50,9 @@ _ENDPOINT_ENV_KEYS = ("CTP_TD_FRONT", "CTP_MD_FRONT", "CTP_ENV_PROFILE")
 ARTIFACT_OVERRIDE_ENV = "ITER30_ALLOW_EXTERNAL_BACKTRADER"
 
 try:
-    from . import run as run
+    from . import legacy_runner as run
 except ImportError:  # Direct execution from this example directory.
-    import run as run
+    import legacy_runner as run
 
 
 def require_runtime_artifact() -> dict[str, Any]:

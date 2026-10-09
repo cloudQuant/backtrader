@@ -20,7 +20,7 @@ EXAMPLE = REPO / "examples" / "014_1_ctp_options_lowfreq"
 
 def _load_runner():
     """Return the imported 014_1 low-frequency replay-runner module."""
-    return importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    return importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 
 
 @pytest.fixture(scope="module")
@@ -42,9 +42,13 @@ def test_example_packages_keep_same_named_modules_isolated():
 
 
 def test_directory_is_a_direct_self_contained_strategy_entrypoint():
-    required = {"config.yaml", "run.py", "ctp_options_lowfreq_strategy.py", "README.md"}
+    required = {"config.yaml", "run.py", "legacy_runner.py", "ctp_options_lowfreq_strategy.py", "README.md"}
     assert required.issubset({path.name for path in EXAMPLE.iterdir()})
-    for source in (EXAMPLE / "run.py", EXAMPLE / "ctp_options_lowfreq_strategy.py"):
+    for source in (
+        EXAMPLE / "run.py",
+        EXAMPLE / "legacy_runner.py",
+        EXAMPLE / "ctp_options_lowfreq_strategy.py",
+    ):
         tree = ast.parse(source.read_text(encoding="utf-8"))
         imported = []
         for node in ast.walk(tree):
@@ -56,11 +60,13 @@ def test_directory_is_a_direct_self_contained_strategy_entrypoint():
         source_text = source.read_text(encoding="utf-8")
         assert "importlib" not in source_text
         assert "pkgutil" not in source_text
-        if source.name == "run.py":
+        if source.name == "legacy_runner.py":
             assert "backtrader_runtime.legacy" in source_text
             assert source_text.index('if __name__ == "__main__":') < source_text.index(
                 "import backtrader"
             )
+        elif source.name == "run.py":
+            assert 'if __name__ == "__main__":' in source_text
         else:
             assert "sys.path" not in source_text
 
@@ -426,9 +432,11 @@ def test_legacy_cli_flags_are_rejected_before_any_external_client_is_constructed
         text=True,
     )
     assert completed.returncode == 2
-    error = json.loads(completed.stderr)
-    assert error["error_code"] == "PRESET_POLICY_VIOLATION"
-    assert error["reason"] == "legacy_cli_arguments_not_supported"
+    # The standard entry rejects every unknown/legacy argument before any
+    # framework, credential or provider import.
+    error = json.loads(completed.stdout)
+    assert error["status"] == "REJECTED"
+    assert error["error"] == "unknown_arguments_rejected"
 
 
 def test_public_legacy_main_delegates_only_to_the_config_first_cli(monkeypatch, runner):

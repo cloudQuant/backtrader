@@ -36,7 +36,9 @@ def _load_example_package() -> None:
 
 
 _load_example_package()
-runner = importlib.import_module(f"{PACKAGE}.run")
+# The standard four-file entry delegates to the legacy engine; the frozen
+# fixture/runner surface lives in legacy_runner.
+runner = importlib.import_module(f"{PACKAGE}.legacy_runner")
 strategy_module = importlib.import_module(f"{PACKAGE}.ctp_options_highfreq_strategy")
 timing_module = importlib.import_module(f"{PACKAGE}.execution_timing")
 
@@ -733,13 +735,10 @@ def test_direct_runner_is_self_contained_and_writes_only_requested_report(tmp_pa
         [
             sys.executable,
             str(EXAMPLE / "run.py"),
-            "--mode",
-            "replay",
-            "--purpose",
-            "formula",
+            "--replay",
             "--scenario",
             "valid_cohort",
-            "--output-dir",
+            "--evidence-dir",
             str(output),
         ],
         cwd=EXAMPLE,
@@ -753,14 +752,13 @@ def test_direct_runner_is_self_contained_and_writes_only_requested_report(tmp_pa
         "Direct execution requires the installed backtrader package to expose "
         "backtrader.feeds.CtpQuoteCohortValidator and CtpCohortNow.\n" + completed.stderr
     )
-    report = json.loads(completed.stdout)
-    assert report["ordinary_intent_count"] == 1
-    assert report["external_network_requests"] == 0
+    summary = json.loads(completed.stdout)
+    assert summary["status"] == "LOCAL_REPLAY_PASS"
     assert (output / "report.json").is_file()
     assert (output / "run_manifest.json").is_file()
 
 
-def test_direct_runner_uses_the_safe_local_replay_default_without_arguments():
+def test_direct_runner_uses_the_safe_dry_default_without_arguments():
     """A copied strategy directory is runnable without selecting an unsafe mode."""
 
     env = dict(os.environ)
@@ -776,10 +774,9 @@ def test_direct_runner_uses_the_safe_local_replay_default_without_arguments():
 
     assert completed.returncode == 0, completed.stderr
     report = json.loads(completed.stdout)
-    assert report["status"] == "LOCAL_REPLAY_PASS"
-    assert report["ordinary_intent_count"] == 1
-    assert report["external_network_requests"] == 0
-    assert report["external_write_requests"] == 0
+    assert report["status"] == "DRY"
+    assert report["network"] == 0
+    assert report["live_tier"]["status"] == "BLOCKED_PENDING_LIVE_ADAPTER"
 
 
 def test_python_sources_do_not_import_or_read_another_example_directory():

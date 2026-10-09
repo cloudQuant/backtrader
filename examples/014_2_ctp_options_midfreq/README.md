@@ -1,36 +1,42 @@
-# CTP 期权/期货中频 C/P/F：离线一分钟 FQ2 回放
+# 014_2 — CTP 期权/期货中频 C/P/F 套利（迭代42 标准四件套）
 
-这是迭代 24 保留的单策略 replay fixture。它仅使用本目录的
-`config.yaml`、`run.py`、`fq2_fixture.py`、`features.py`、
-`ctp_options_midfreq_strategy.py`、标准库和 `backtrader`/Pandas/YAML；运行时不导入、
-不扫描、也不依赖任何其它 `examples/` 目录或 `examples` 公共包。
+本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_midfreq_strategy.py
++ run.py**（唯一运行入口），另含运行必需的内部模块（下表）。当前合约映射仍为本地
+`F_LOCAL` fixture；回放与工程观察均不构成盈利或真实成交证据。
 
-## Iteration 41：最简且受控的本地回放
+## 运行方式
 
-从仓库根目录首次运行时，先用下面两条命令创建并执行唯一的 Iteration 41 配置：
-
-```powershell
-bt-runtime bootstrap --strategy-dir examples/014_2_ctp_options_midfreq/runtime
-bt-runtime run --strategy-dir examples/014_2_ctp_options_midfreq/runtime
+```text
+python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
+python run.py --replay [--scenario S]  # 离线一分钟 FQ2 fixture 回放（零网络零写入）
+python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
 ```
 
-`bootstrap` 只在目标不存在时原子创建被忽略的 `runtime/config.yaml`；已有配置会以
-`CONFIG_EXISTS` 拒绝，绝不覆盖。`runtime/config.yaml` 是 schema-v4 的必填启动合同；缺失时
-`run` 会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、当前目录或父目录回退。
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放证据写入 `evidence/<run_id>/`（git-ignored）。
+- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
+  `bt-runtime run --strategy-dir examples/014_2_ctp_options_midfreq/runtime`。
 
-首次建立配置始终使用上述 `bt-runtime bootstrap` 命令；受版本控制的 `runtime/config.example.yaml` 只供审阅，不能作为手工复制的启动替代。
+## live 层状态（BLOCKED，非降级伪装）
 
-这个入口只接受 `simulation/replay` 和 `parameters.scenario`，报告固定标记
-`LOCAL_REPLAY_ONLY`。它只运行 synthetic C/P/F fixture，不加载 SimNow adapter、账户、凭据或
-工程观察，也不建立网络或写订单。根目录 `run.py` 与 `simnow_launcher.py` 已封口：无参数只会进入
-这个固定 runtime，任何历史 CLI 参数都会在导入 Backtrader、CTP 或 provider 前拒绝；它们不能得到
-Iteration 41 以外的运行，也不能启动历史 SimNow 链路。
+与 014_1 相同的 feed 密封证据/时钟域合同 + 真实合约映射 + 写能力 adapter 尚未集成；
+`--live` 在任何网络、凭据或 provider 之前 fail-closed 并输出集成需求与翻转路径：
+真实 SA/FG 三腿合约映射、feed 密封 `BarEvidence`/`ClockMapping`、三腿武装模板、
+策略 live 参数与一次性 drill 触发、合约只读回读。不会静默降级为 raw-line 回放合同。
+
+## 内部模块（运行必需，非第二入口）
+
+| 文件 | 职责 |
+| --- | --- |
+| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
+| `fq2_fixture.py` / `features.py` | 冻结 FQ2 分钟 fixture 与特征积分 |
+| `execution_timing.py` / `execution_fixture.py` | 时钟/证据/执行窗口合同与执行 fixture |
+| `simnow_adapter.py` / `simnow_launcher.py` | 历史 SimNow 工程观察/启动器（只读、注入式；`run_live` 固定拒绝） |
+| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
 ## 迭代 24 历史离线 runner（不属于 Iteration 41 受控入口）
 
 以下内容描述迭代 24 保留的 import-level replay、timing 和 engineering fixture。它们只由回归测试或
-受治理的代码调用；`python run.py` 与 `python simnow_launcher.py` 不会执行这些历史路径。无参数调用会
-进入固定 runtime 并要求 `runtime/config.yaml`，任何参数都会以 `legacy_cli_arguments_not_supported` 拒绝。
+受治理的代码调用；`python run.py` 执行上面四个标准模式，历史 CLI 参数会被拒绝。
 
 `fq2_fixture.py` 先明确生成 synthetic clock mapping、三腿 bar seal 和每腿 60
 个一秒 quote 状态，策略只消费 barrier 冻结的 `MinuteDecisionInput`。

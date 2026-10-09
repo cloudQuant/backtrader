@@ -25,7 +25,7 @@ from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 from tests.test_utils.optional_sdk import optional_sdk
 
-runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
 adapter = importlib.import_module("examples.014_1_ctp_options_lowfreq.simnow_adapter")
 
 CONFIG = runner.load_config()

@@ -13,14 +13,17 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
-RUNNER = EXAMPLE / "run.py"
+# The standard four-file entry delegates to the legacy engine; the frozen
+# fence/import-contract assertions below cover the legacy engine module.
+RUNNER = EXAMPLE / "legacy_runner.py"
+ENTRY = EXAMPLE / "run.py"
 CONFIG = EXAMPLE / "config.yaml"
 
 
 def _runner():
     """Load the retained fixture API without invoking its retired script CLI."""
 
-    return importlib.import_module("examples.014_2_ctp_options_midfreq.run")
+    return importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
 
 
 def test_imported_replay_fixture_runs_actual_cerebro_with_no_external_side_effects() -> None:
@@ -76,6 +79,21 @@ def test_runtime_import_graph_has_no_other_example_dependency_and_a_pre_framewor
             )
         else:
             assert "sys.path" not in source_text
+
+    entry_text = ENTRY.read_text(encoding="utf-8")
+    entry_tree = ast.parse(entry_text, filename=str(ENTRY))
+    entry_imports = []
+    for node in ast.walk(entry_tree):
+        if isinstance(node, ast.Import):
+            entry_imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            entry_imports.append(node.module)
+    assert all(
+        module != "examples" and not module.startswith("examples.") for module in entry_imports
+    )
+    assert "importlib" not in entry_text
+    assert "pkgutil" not in entry_text
+    assert 'if __name__ == "__main__":' in entry_text
 
     runner = _runner()
     report = runner.run_replay(runner.load_config(), scenario="edge")

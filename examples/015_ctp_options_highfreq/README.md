@@ -1,7 +1,38 @@
-# 迭代 25：CTP 期权期货 tick 回放候选
+# 015 — CTP 期权期货 tick 高频 C/P/F（迭代42 标准四件套）
 
-这是一个独立的 C/P/F 三腿 tick-only 回放示例。它只依赖本目录、标准库和公开的
-`backtrader` 接口；不会 import、读取或通过路径注入依赖其它 `examples/` 目录。
+本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_highfreq_strategy.py
++ run.py**（唯一运行入口），另含运行必需的内部模块（下表）。这是一个独立的 C/P/F
+三腿 tick-only 示例；HFT 标注保持 **`FAIL/NOT_ADMITTED`**（本迭代不做 HFT 延迟认证）。
+
+## 运行方式
+
+```text
+python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
+python run.py --replay [--scenario S]  # 离线冻结 cohort/tick fixture 回放（零网络零写入）
+python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
+```
+
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放证据写入 `evidence/<run_id>/`（git-ignored）。
+- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
+  `bt-runtime run --strategy-dir examples/015_ctp_options_highfreq/runtime`。
+
+## live 层状态（BLOCKED，非降级伪装）
+
+真实 tick 数据路径（store SDK-event provenance：clock_domain_id、序列、连续性）与
+feed 密封证据/时钟域合同 + 写能力 adapter 尚未集成；`--live` 在任何网络、凭据或
+provider 之前 fail-closed 并输出集成需求与翻转路径（tick cohort 路径、run 级
+`ClockMapping`、三腿武装模板、策略 live 参数与一次性 drill 触发）。不会静默降级为
+raw-line 回放合同；HFT 延迟结论保持排除。
+
+## 内部模块（运行必需，非第二入口）
+
+| 文件 | 职责 |
+| --- | --- |
+| `legacy_runner.py` | 冻结 tick/cohort 回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
+| `engineering_smoke.py` | 只读工程观察 adapter（注入式、零写；`run_live` 固定拒绝） |
+| `execution_timing.py` | 时钟/证据/执行窗口合同 |
+| `fixtures/` | 冻结 cohort fixture 数据 |
+| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
 ## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
 

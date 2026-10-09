@@ -1,29 +1,46 @@
-# CTP 期权期货低频套利（离线回放）
+# 014_1 — CTP 期权期货低频 C/P/F 套利（迭代42 标准四件套）
 
-## 迭代 41：最简且受控的本地回放
+本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_lowfreq_strategy.py
++ run.py**（唯一运行入口），另含运行必需的内部模块（下表）。策略信号基于
+call/put/future 转换-反转平价的结构化残差 z-score；研究状态不变，回放与工程观察
+均不构成盈利或真实成交证据。
 
-从仓库根目录操作。推荐的首次创建与运行路径只有两条命令：
+## 运行方式
 
-```powershell
-bt-runtime bootstrap --strategy-dir examples/014_1_ctp_options_lowfreq/runtime
-bt-runtime run --strategy-dir examples/014_1_ctp_options_lowfreq/runtime
+```text
+python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
+python run.py --replay [--scenario S]  # 离线冻结 fixture 回放（零网络零写入）
+python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
 ```
 
-`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录；受版本控制的 `runtime/config.example.yaml` 只供审阅，不是运行时回退来源。
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
+- 回放证据写入 `evidence/<run_id>/`（git-ignored）。
+- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
+  `bt-runtime run --strategy-dir examples/014_1_ctp_options_lowfreq/runtime`。
 
-`runtime/config.yaml` 是必填的 schema-v4 启动合同；缺失时会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、
-当前目录或父目录回退读取。当前受审核的代码清单只为本目录登记
-`runtime.mode: simulation` 与 `runtime.preset: replay`，并只允许 `parameters.scenario`。模式和预设由
-该文件及中央代码清单共同封存，命令行、环境变量和旧配置都不能覆盖它们。
+## live 层状态（BLOCKED，非降级伪装）
 
-该入口执行 code-owned `run_runtime.py`。定向测试证明它只运行本地 replay，网络和外部订单写入均为零；它的
-`LOCAL_REPLAY_ONLY` 标记不构成 SimNow、实盘、受管执行、成交、PnL 或盈利准入。
+本策略的 live 合同要求 **feed 密封的 closed-bar 证据**（`BarEvidence` + 运行域内
+非合成 `ClockMapping` + candidate/rules/clock-domain 绑定）与写能力 adapter；
+该 adapter 本迭代未集成。`--live` 因此在任何网络、凭据或 provider 之前
+fail-closed，输出精确的集成需求清单与翻转路径；**不会**静默降级为 raw-line
+回放合同。翻转工作项（实现轮）包括：
 
-历史 `run.py` 与 `simnow_launcher.py` 现都先进入同一个固定、已登记的 runtime：无参数只能执行上述
-`simulation/replay` 路径，任何旧 flag 都会在导入 Backtrader、CTP 或 provider 前以
-`legacy_cli_arguments_not_supported` 拒绝。两个 launcher 的 `run_live`（包括保留的私有名称）也固定返回
-`legacy_direct_execution_not_supported`。保留的纯 `run_replay` fixture 与注入式 adapter 只供源代码审阅和
-回归测试，不是操作者入口，也不在 runtime inventory 中登记为 SimNow 或 live 路径。
+1. feed 密封证据 provider（逐腿 `BarEvidence`，绑定 store 事件的 clock domain/
+   rules/candidate 与 run 级 clock mapping）；
+2. 运行域 `clock_provider`（非合成、覆盖整个有界窗口）；
+3. `RegisteredSimStore` 三腿武装模板（future + call + put，逐腿 preflight 身份）；
+4. 策略 live 参数（`require_feed_bar_evidence=True` 等）与一次性 drill 触发；
+5. SA/FG 期权合约与行权价只读回读（C/P/F 可用性、tick、涨跌停）后才允许写入。
+
+## 内部模块（运行必需，非第二入口）
+
+| 文件 | 职责 |
+| --- | --- |
+| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
+| `simnow_adapter.py` / `simnow_launcher.py` | 历史 SimNow 工程观察/启动器（只读、注入式；`run_live` 固定拒绝） |
+| `execution_timing.py` | 时钟/证据/执行窗口/持有投影合同 |
+| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
 ## 历史本地回放说明（非 Iteration 41 启动指南）
 

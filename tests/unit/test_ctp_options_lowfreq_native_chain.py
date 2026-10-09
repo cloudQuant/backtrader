@@ -150,7 +150,7 @@ def _tick_at(symbol, price, ingest_seq, timestamp):
 def _eligible_candidate_ticks():
     """Turn the synthetic local 014_1 eligible fixture into sealed Feed input."""
 
-    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
     config = runner.load_config()
     candidate = config["candidate"]
     assert (candidate["future"], candidate["call"], candidate["put"]) == (FUTURE, CALL, PUT)

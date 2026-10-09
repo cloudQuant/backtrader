@@ -68,11 +68,11 @@ def _load_replay_runner():
     """Delay legacy strategy and adapter imports until the v4 contract is sealed."""
 
     if __package__:
-        from . import run
+        from . import legacy_runner
     else:
-        import run
+        import legacy_runner
 
-    return run
+    return legacy_runner
 
 
 def _require_offline_environment() -> None:
