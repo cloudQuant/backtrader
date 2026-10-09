@@ -1,0 +1,296 @@
+{
+  "schema": "iteration41.okx.m01.r7_five_module_root_gate_preparation_pins.v2",
+  "evidence_level": "ROOT_CALLER_SOURCE_FAKE_PREPARATION_ONLY",
+  "repository": {
+    "branch": "dev",
+    "head": "8598c2decdff92085a48bc2b89856926a1051670",
+    "parent": "16d49d3ee40f9628ae461a38117201e90ee1483d",
+    "staging_index_empty": true
+  },
+  "source_inventory": {
+    "runtime_map_rows": 19,
+    "source_index_rows": 26,
+    "source_index_archive_member_count": 26,
+    "root_public_pin_count": 31,
+    "source_map_bytes": 2877,
+    "source_map_sha256": "07f0eb60d60f37919c75cc3ec6833b41653fdbc9952c8478dbbc36ba0cda1ff3",
+    "source_index_bytes": 9970,
+    "source_index_sha256": "8cd0360bb9519daf785412a6176091d2ca0ff4471e2bf65aba011aeec3444564",
+    "index_row_pins_match": true
+  },
+  "canonical_modules": [
+    {
+      "module": "reader",
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "bytes": 68215,
+      "sha256": "5a8fd479c999279d9efde625cac1938d794201f04e1beaa6f3663b267d7a7ebc"
+    },
+    {
+      "module": "supervisor",
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/job_supervisor.py",
+      "bytes": 71188,
+      "sha256": "188b929b4e74b6e16a54d21093b6d52a7471849b161b2777945561e6d8d62e82"
+    },
+    {
+      "module": "worker",
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/worker.py",
+      "bytes": 60000,
+      "sha256": "aea9651c571d4bbd93592ccbd06c630a2a73df8286e9425a357433d598ca4f41"
+    },
+    {
+      "module": "current_types",
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/current_types.py",
+      "bytes": 7364,
+      "sha256": "cd896051b0580195baa569989622c18fec594afc3772e7ea4af9e4cf226778ea"
+    },
+    {
+      "module": "contract",
+      "path": "examples/000_live_certification/okx_penetration/_certification/m01_private_monitor_v2.py",
+      "bytes": 25108,
+      "sha256": "1c319502dcec4da91a7166ad1a532e4610319ca837ac93f2391f21fda87ae1db"
+    }
+  ],
+  "public_pins": [
+    {
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/__init__.py",
+      "bytes": 66,
+      "sha256": "a55f2a221bc45d1b840c15ca9ec8e5f46579e011728ec9e7c3b0748eacc7f7dc",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/cases.py",
+      "bytes": 5569,
+      "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/config.py",
+      "bytes": 19369,
+      "sha256": "3b5141a3c903e8c7eb0388d2907906c06c54ac41657e32fb9f11360e7efdeae3",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/evidence.py",
+      "bytes": 5491,
+      "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/fixed_owner_routes.py",
+      "bytes": 2152,
+      "sha256": "fe22dfca3b902c0b04855acd89f947d5d8de72a2475090ea92179eb415dad401",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/m01_private_monitor_v2.py",
+      "bytes": 25108,
+      "sha256": "1c319502dcec4da91a7166ad1a532e4610319ca837ac93f2391f21fda87ae1db",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/models.py",
+      "bytes": 6526,
+      "sha256": "f6db3e492fb8681bb156a577515b73e9966142e447f9d857ad4ec8a024389362",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_certification/runner.py",
+      "bytes": 83470,
+      "sha256": "b25dbccd2ea745433d1f646d217c98d970207a6e861f9da45b9c0d40a0b340e5",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/__init__.py",
+      "bytes": 56,
+      "sha256": "d7cbd961ed06466f6bd2388d44a5951f92b0bb9f61d930cc9d26ec21be8d1a5c",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/current_types.py",
+      "bytes": 7364,
+      "sha256": "cd896051b0580195baa569989622c18fec594afc3772e7ea4af9e4cf226778ea",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/job_supervisor.py",
+      "bytes": 71188,
+      "sha256": "188b929b4e74b6e16a54d21093b6d52a7471849b161b2777945561e6d8d62e82",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v2/worker.py",
+      "bytes": 60000,
+      "sha256": "aea9651c571d4bbd93592ccbd06c630a2a73df8286e9425a357433d598ca4f41",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/__init__.py",
+      "bytes": 50,
+      "sha256": "ae66c18bb4d289dd2e09e9ac637af8a6ef017f4f6cc5edec4a23ee23d7e560e6",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py",
+      "bytes": 68215,
+      "sha256": "5a8fd479c999279d9efde625cac1938d794201f04e1beaa6f3663b267d7a7ebc",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py",
+      "bytes": 5952,
+      "sha256": "e0613b66fa54d5ea155da263d1e901e8ada78adf7d83a7e1c8dc5430ea440d1e",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/issuer.py",
+      "bytes": 43112,
+      "sha256": "afdfb863dc8917ef07dbf844183b6216df578a85d3477dda1c32c9226cdb9ad8",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/M01_strategy.py",
+      "bytes": 480,
+      "sha256": "2ce73442c1e1ed0be95b3065e5434fb95b16d2b6026ed86e20b07a8e6ba97afc",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "examples/000_live_certification/okx_penetration/cases/M01/run.py",
+      "bytes": 1992,
+      "sha256": "d498e32fcb573781a3eec25eff4c7ba98bfe2c8d4d94f9e5a9b078ab4074641e",
+      "role": "runtime_source",
+      "source_index_member": true
+    },
+    {
+      "path": "scripts/iteration41_okx_m01_local_source_lease_reconciliation_r7.py",
+      "bytes": 67503,
+      "sha256": "8e7e3fb7e9b0e51968e6d8a3bdc47793c7ca276e55eb9cfd60367270aa8ebef5",
+      "role": "frozen_source_close_reconciler",
+      "source_index_member": true
+    },
+    {
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+      "bytes": 75271,
+      "sha256": "43e2b3cee8da9f1ebcf148992160512893615bfa15fc118ced491b04dd05ac72",
+      "role": "reviewed_lifecycle_gate_source",
+      "source_index_member": true
+    },
+    {
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_patch_r2.py",
+      "bytes": 13625,
+      "sha256": "c53833b20238cb82d491bf7972508a604e56c8ad3158cada7060f9910629a78e",
+      "role": "reviewed_reader_transform_source",
+      "source_index_member": true
+    },
+    {
+      "path": "tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py",
+      "bytes": 32737,
+      "sha256": "9d66d25310f5ee1b29943b222854e2a9d9b8ba48adcfe9848037f7afcb297a0d",
+      "role": "canonical_source_fake_test",
+      "source_index_member": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py",
+      "bytes": 9809,
+      "sha256": "21d43a5e8d1c517c2ffaa147c96f58343fb188432d4fae47717a5b68b6ec040d",
+      "role": "historical_source_fake_integration_test",
+      "source_index_member": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r2.py",
+      "bytes": 20224,
+      "sha256": "d6df3de0af5695d6842c711597dddd998dc3f394144be89d720c851e1c600848",
+      "role": "reviewed_transform_fake_test",
+      "source_index_member": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+      "bytes": 27576,
+      "sha256": "73fd436e5de9327f0d02f59baab66b60b1887bf1bf0d27ceeaca7a5c018b3038",
+      "role": "reviewed_lifecycle_gate_fake_test",
+      "source_index_member": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-map.json",
+      "bytes": 2877,
+      "sha256": "07f0eb60d60f37919c75cc3ec6833b41653fdbc9952c8478dbbc36ba0cda1ff3",
+      "source_index_member": false
+    },
+    {
+      "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/iteration41-okx-m01-root-helper-lifecycle-integration-r1-2026-10-09/source-index.json",
+      "bytes": 9970,
+      "sha256": "8cd0360bb9519daf785412a6176091d2ca0ff4471e2bf65aba011aeec3444564",
+      "source_index_member": false
+    },
+    {
+      "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/iteration41-cuv2-public-source-snapshot-r1-2026-10-08/cuv2-source.py",
+      "bytes": 2344,
+      "sha256": "e856be8e4056835d4a7e54f5c6b449c69ab3f1c2ebb049bcbcc1c95a9ad3f246",
+      "source_index_member": false
+    },
+    {
+      "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2.py",
+      "bytes": 70462,
+      "sha256": "0c5673dfa71cb083a59b15852f087991519bf520c1384392453bac55878cd200",
+      "source_index_member": false
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2_source_fake.py",
+      "bytes": 25413,
+      "sha256": "2a49a7b8102dfa3fe4541d7a9815ca1c761c557f36a69ddc169fe7ffbac9c01f",
+      "source_index_member": false
+    }
+  ],
+  "cuv2_public_source": {
+    "path": "docs/_internal/opts/requirements/\u8fed\u4ee341-\u5b9e\u76d8\u6267\u884c\u98ce\u63a7\u76d1\u63a7\u4e0e\u793a\u4f8b\u67b6\u6784\u91cd\u6784/evidence/iteration41-cuv2-public-source-snapshot-r1-2026-10-08/cuv2-source.py",
+    "bytes": 2344,
+    "sha256": "e856be8e4056835d4a7e54f5c6b449c69ab3f1c2ebb049bcbcc1c95a9ad3f246",
+    "role": "public_custody_source_snapshot"
+  },
+  "actual_gate": {
+    "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+    "bytes": 75271,
+    "sha256": "43e2b3cee8da9f1ebcf148992160512893615bfa15fc118ced491b04dd05ac72",
+    "test_path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_gate_r7.py",
+    "test_bytes": 27576,
+    "test_sha256": "73fd436e5de9327f0d02f59baab66b60b1887bf1bf0d27ceeaca7a5c018b3038"
+  },
+  "caller": {
+    "path": "scripts/iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2.py",
+    "bytes": 70462,
+    "sha256": "0c5673dfa71cb083a59b15852f087991519bf520c1384392453bac55878cd200",
+    "test_path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2_source_fake.py",
+    "test_bytes": 25413,
+    "test_sha256": "2a49a7b8102dfa3fe4541d7a9815ca1c761c557f36a69ddc169fe7ffbac9c01f"
+  },
+  "software_payload_policy": "Root supplies the previously authorized hashes for the three fixed CUv2 software keys. This caller and preparation do not read executable or DLL bytes.",
+  "historical_source_zip": "Not read or treated as runtime, lifecycle, cleanup, or account evidence.",
+  "software_source_binding": {
+    "key": "D:/temp/iteration41-root-public-custody-v2.py",
+    "required_sha256": "e856be8e4056835d4a7e54f5c6b449c69ab3f1c2ebb049bcbcc1c95a9ad3f246",
+    "rule": "the CUv2 software-path pin must equal the exact public source snapshot digest used for module code binding"
+  }
+}

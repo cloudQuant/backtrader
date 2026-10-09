@@ -506,3 +506,28 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-r3-source-scope-normal-close-support-r1-2026-10-09/archive-manifest.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-r3-source-scope-normal-close-support-r1-2026-10-09/reviews/delivery-static-review-r1.md" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-r3-source-scope-normal-close-support-r1-2026-10-09/root-dev-delivery-record.md" -text
+
+# OKX M01 R4 normal source-close support delivery
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/README.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/caller-r4-independent-review.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/caller-r4-source-fake-test.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/caller-r4-source.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/candidate-manifest-r2.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/delivery-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/delivery-scope.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/fixed-stdout-windows-reproduction.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/fixed-stdout-windows-reproduction.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/independent-review.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-attestation-after-close.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-attestation-before-close-r2-preserved.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-attestation-before-close-r3.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-attester-r2.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-attester-r3.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/outside-git-postverification.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/root-actual-driver-r4.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/root-actual-observation-r4.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/root-dev-delivery-record.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/root-source-close-helper.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/root-source-close-receipt.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-2026-10-09/round-record.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r4-source-close-support-dev-round-r1-independent-review-oct7f-2026-10-09/review.md" -text
