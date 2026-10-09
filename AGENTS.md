@@ -3743,12 +3743,14 @@ M01 R20 was invoked once by Root. The actual returned finite diagnosis changed f
 + monitor/validation），替代此前逐案例 Bespoke 候选管线；旧候选代码（binance `_certification/` 等）仍在树中
 但不再被新流程引用。
 
-**真实结果**：三场所 96 PASS / 3 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
+**真实结果**：三场所 97 PASS / 2 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
 （docs/.../evidence/iteration41-three-venue-99-case-acceptance-tracking-r21-2026-10-09.{json,md}，每例证据
-SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `d3ebad4b`（后更新至 `fadcfb81`）、
-bt_api_ctp dev `a497bab`。3 处 BLOCKED 均为场所机制性不可达、带完整尝试证据：SimNow E01（7x24 引擎实测
-不冻结挂单保证金、不校验资金；5×1000 手尝试均被接受）、SimNow EM03（实测允许并发会话，无服务端强制登出）、
-Binance EM01（Demo 密钥具备持仓模式权限；如提供受限权限密钥可翻转）。
+SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `9ce049ea`、bt_api_ctp dev `a497bab`
+（另含 SDK 父仓 gitlink `7312e718`）。2 处 BLOCKED 均为场所机制性不可达、带完整尝试证据：SimNow E01
+（7x24 引擎实测不冻结挂单保证金、不校验资金；5×1000 手尝试均被接受）、Binance EM01（Demo 密钥具备持仓
+模式权限；加入 `.env` 的 `BINANCE_DEMO_RESTRICTED_*` 受限密钥即翻 PASS，代码路径已就绪）。EM03 已通过
+"操作员授权场方登出"（ReqUserLogout→连接终止→幽灵会话查询失败→新会话恢复）实跑翻为 PASS，语义边界
+（非券商管理端踢线）随证据 scope_note 记录；严格外部踢线观测保留于 hold 模式。
 
 **可选组件 16 拓扑全通过**：`examples/000_live_certification/optional16/`（spec/gateway_server/gateway_client/
 components/run_matrix + README）。真实矩阵 binance C01+T03 × 16 组合全 PASS（`acceptance-matrix.json`）；
@@ -3765,6 +3767,7 @@ Systems busy 时段（同 clOrdId 幂等重试、51016 即已受理）、错误�
 时钟慢约 8.8s（服务器时偏补偿必需）、双向持仓模式。
 
 **提交链**（dev）：SDK `a497bab`；主仓 `285aac68`（v2 方案）、`8f668fca`/`595daa04`/`8f721384`（SimNow）、
-`3bf6a37d`（Binance）、`b8d492f5`（OKX）、`fadcfb81`（optional16）、`d3ebad4b`（r21 快照）。SDK 父仓 gitlink
-更新、遗留旧代码清理（用例目录版本碎片被旧测试引用，需测试同步改造）、以及 okx/simnow 的网关泛化为后续
-独立轮次事项。
+`3bf6a37d`（Binance）、`b8d492f5`（OKX）、`fadcfb81`（optional16）、`d3ebad4b`/`3f017017`（r21 快照与记录）、
+`b89539a5`（EM01 受限密钥就绪）、`9ce049ea`（EM03 场方登出）；SDK 父仓 gitlink `7312e718`。遗留旧代码清理
+（用例目录版本碎片被旧测试按字节断言引用，属历史证据工件，移动会破坏历史可验证性）与 okx/simnow 的网关
+泛化为后续独立轮次事项。

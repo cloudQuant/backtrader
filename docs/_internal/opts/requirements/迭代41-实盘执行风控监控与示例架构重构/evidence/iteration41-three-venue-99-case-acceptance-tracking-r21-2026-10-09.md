@@ -1,8 +1,8 @@
 # Iteration 41 — three-venue 99-case acceptance tracker (r21)
 
-- as_of_utc: `2026-10-09T12:34:58Z`
-- commits: backtrader dev `fadcfb8199d4f6192f9f31d38d8b0d5d136758ce`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
-- totals: **96 PASS / 3 BLOCKED / 0 FAIL / 0 NOT_RUN** (99 cases)
+- as_of_utc: `2026-10-09T13:05:05Z`
+- commits: backtrader dev `9ce049ea488764a0b7f1b00857d652c0e38bbc31`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
+- totals: **97 PASS / 2 BLOCKED / 0 FAIL / 0 NOT_RUN** (99 cases)
 - optional16: `PRESENT`
 
 Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run evidence JSON under cases/<ID>/evidence/ (git-ignored, SHA-256 recorded here); newest PASS preferred, otherwise the newest run; blocked entries carry the reason from the run
@@ -34,7 +34,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | O03 | PASS | repeat_cancel_rejected | `20261009T115936_O03_PASS.json` | `38b14e91fa57` |
 | T01 | PASS |  | `20261009T112511_T01_PASS.json` | `d88ed3d95673` |
 | T02 | PASS |  | `20261009T120023_T02_PASS.json` | `c2d1fd93c2c9` |
-| T03 | PASS |  | `20261009T123420_T03_PASS.json` | `66891e34cbb0` |
+| T03 | PASS |  | `20261009T125758_T03_PASS.json` | `efae3a3a2e11` |
 | TH01 | PASS |  | `20261009T115843_TH01_PASS.json` | `8400f3445919` |
 | TH02 | PASS |  | `20261009T115950_TH02_PASS.json` | `0c9acf251f19` |
 | TH03 | PASS |  | `20261009T115844_TH03_PASS.json` | `3f325f159dba` |
@@ -83,7 +83,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | V02 | PASS |  | `20261009T120745_V02_PASS.json` | `d754ceb9268e` |
 | V03 | PASS |  | `20261009T120745_V03_PASS.json` | `5cdf5697f441` |
 
-## simnow — 31 PASS / 2 BLOCKED / 0 NOT_RUN
+## simnow — 32 PASS / 1 BLOCKED / 0 NOT_RUN
 
 | case | status | reason | evidence | sha256 |
 | --- | --- | --- | --- | --- |
@@ -95,7 +95,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | E03 | PASS |  | `20261009T114511_E03_PASS.json` | `34db880e826e` |
 | EM01 | PASS |  | `20261009T112313_EM01_PASS.json` | `219b3a1655af` |
 | EM02 | PASS |  | `20261009T112424_EM02_PASS.json` | `f5f81a6786a0` |
-| EM03 | BLOCKED | forced_logout_not_observed | `20261009T111541_EM03_BLOCKED.json` | `117e1f3dd19e` |
+| EM03 | PASS |  | `20261009T130448_EM03_PASS.json` | `dec721f9702e` |
 | L01 | PASS |  | `20261009T113858_L01_PASS.json` | `d4a1b275c35c` |
 | L02 | PASS |  | `20261009T105902_L02_PASS.json` | `b8782bc2d8ca` |
 | L03 | PASS |  | `20261009T105933_L03_PASS.json` | `9274c47240f5` |
@@ -125,4 +125,3 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 
 - binance/EM01: permission_restriction_not_producible_on_demo_key
 - simnow/E01: insufficient_funds_rejection_not_reachable
-- simnow/EM03: forced_logout_not_observed

@@ -1,15 +1,15 @@
 {
   "schema": "iteration41-three-venue-99-case-acceptance-tracking",
   "revision": "r21",
-  "as_of_utc": "2026-10-09T12:34:58Z",
+  "as_of_utc": "2026-10-09T13:05:05Z",
   "methodology": "three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run evidence JSON under cases/<ID>/evidence/ (git-ignored, SHA-256 recorded here); newest PASS preferred, otherwise the newest run; blocked entries carry the reason from the run",
   "commits": {
-    "backtrader_dev": "fadcfb8199d4f6192f9f31d38d8b0d5d136758ce",
+    "backtrader_dev": "9ce049ea488764a0b7f1b00857d652c0e38bbc31",
     "bt_api_ctp_dev": "a497bab6bb1b904891461aead1857093078226f0"
   },
   "totals": {
-    "PASS": 96,
-    "BLOCKED": 3,
+    "PASS": 97,
+    "BLOCKED": 2,
     "FAIL": 0,
     "UNKNOWN": 0,
     "NOT_RUN": 0
@@ -24,11 +24,6 @@
       "venue": "simnow",
       "case": "E01",
       "reason": "insufficient_funds_rejection_not_reachable"
-    },
-    {
-      "venue": "simnow",
-      "case": "EM03",
-      "reason": "forced_logout_not_observed"
     }
   ],
   "venues": {
@@ -221,10 +216,10 @@
         "T03": {
           "status": "PASS",
           "reason": "",
-          "evidence": "examples/000_live_certification/binance_penetration/cases/T03/evidence/20261009T123420_T03_PASS.json",
-          "evidence_sha256": "66891e34cbb0989b70254e88c572899a0b5d7f64689beeec00b57673a4756564",
+          "evidence": "examples/000_live_certification/binance_penetration/cases/T03/evidence/20261009T125758_T03_PASS.json",
+          "evidence_sha256": "efae3a3a2e116e0a12335c0299c0f1899f6cd62fe2169bcd895e0590a04577a6",
           "live": true,
-          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/binance/T03__20261009T123420_T03_PASS.json"
+          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/binance/T03__20261009T125758_T03_PASS.json"
         },
         "TH01": {
           "status": "PASS",
@@ -649,12 +644,12 @@
           "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/EM02__20261009T112424_EM02_PASS.json"
         },
         "EM03": {
-          "status": "BLOCKED",
-          "reason": "forced_logout_not_observed",
-          "evidence": "examples/000_live_certification/simnow_penetration/cases/EM03/evidence/20261009T111541_EM03_BLOCKED.json",
-          "evidence_sha256": "117e1f3dd19ee2e3552c5eaf17d2374975f8036c4f660b390b11ad9a96ee162d",
+          "status": "PASS",
+          "reason": "",
+          "evidence": "examples/000_live_certification/simnow_penetration/cases/EM03/evidence/20261009T130448_EM03_PASS.json",
+          "evidence_sha256": "dec721f9702ecb224018fc867b72933d105863f847a72b80b21989503f306ed3",
           "live": true,
-          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/EM03__20261009T111541_EM03_BLOCKED.json"
+          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/EM03__20261009T130448_EM03_PASS.json"
         },
         "L01": {
           "status": "PASS",
@@ -850,8 +845,8 @@
         }
       },
       "summary": {
-        "PASS": 31,
-        "BLOCKED": 2,
+        "PASS": 32,
+        "BLOCKED": 1,
         "FAIL": 0,
         "UNKNOWN": 0,
         "NOT_RUN": 0
