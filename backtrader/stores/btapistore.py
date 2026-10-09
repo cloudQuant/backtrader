@@ -1860,6 +1860,16 @@ def _create_ctp_wrapper_class():
             self.allow_zero_login_response = bool(
                 kwargs.get("allow_zero_login_response", False)
             )
+            # Optional live tick provenance stamping for the strict
+            # feed-sealed closed-bar evidence path (iteration-42 options
+            # adapters).  The caller owns the run-scoped clock identity and
+            # passes it here; default off keeps the CTP direct tick objects
+            # exactly as the native callbacks provide them.
+            provenance = kwargs.get("live_tick_provenance")
+            self.live_tick_provenance = (
+                dict(provenance) if isinstance(provenance, Mapping) else None
+            )
+            self._live_tick_provenance_seq = 0
             # Settlement confirmation is a terminal write.  The legacy
             # direct CTP wrapper is used for observation and typed query
             # preflights too, so an omitted setting must stay read-only.  A
@@ -2856,6 +2866,10 @@ def _create_ctp_wrapper_class():
             self._last_tick_price[instrument] = last_price
 
             aliases = tuple(self._instrument_aliases.get(instrument) or (instrument,))
+            provenance_seq = None
+            if self.live_tick_provenance is not None:
+                self._live_tick_provenance_seq += 1
+                provenance_seq = self._live_tick_provenance_seq
             for alias in aliases:
                 event = TickEvent(
                     timestamp=tick_dt.timestamp(),
@@ -2884,7 +2898,48 @@ def _create_ctp_wrapper_class():
                 event.action_day = str(getattr(payload, "ActionDay", "") or "")
                 event.update_time = str(getattr(payload, "UpdateTime", "") or "")
                 event.update_millisec = _coerce_int(getattr(payload, "UpdateMillisec", 0), 0)
+                if provenance_seq is not None:
+                    self._stamp_live_tick_provenance(event, provenance_seq)
                 self._tick_queues[alias].append(event)
+
+        def _stamp_live_tick_provenance(self, event, sequence):
+            """Attach caller-owned live clock provenance to one market tick.
+
+            The iteration-42 options adapter owns the run-scoped clock
+            identity (clock domain, rules hash, session segment, connection
+            generation) and passes it via ``live_tick_provenance``.  Stamping
+            here lets the feed's sealed closed-bar evidence carry exactly the
+            identity the caller's ``ClockMapping`` and evidence provider use;
+            every value is attached, never inferred from the venue payload.
+            """
+            provenance = self.live_tick_provenance or {}
+            now_ns = time.monotonic_ns()
+            event.clock_domain_id = str(provenance.get("clock_domain_id") or "")
+            event.rules_hash = str(provenance.get("rules_hash") or "")
+            event.session_segment = str(provenance.get("session_segment") or "")
+            generation = provenance.get("generation")
+            if generation is not None:
+                event.connection_generation = int(generation)
+                event.stream_generation = int(generation)
+            event.ingest_seq = sequence
+            event.sequence = sequence
+            event.previous_sequence = sequence - 1 if sequence > 1 else None
+            event.snapshot_or_delta = "snapshot"
+            event.continuity_status = "continuous"
+            event.stale = False
+            event.stale_reason = ""
+            event.source = str(provenance.get("source") or "ctp-native-live")
+            event.event_id = f"ctp-{getattr(event, 'instrument_id', '')}-{sequence}"
+            event.coalesced_count = 1
+            event.received_monotonic_ns = now_ns
+            event.recv_monotonic_ns = now_ns
+            event.received_wall_time = time.time()
+            event.exchange_time = float(event.timestamp or 0.0)
+            # CTP quotes carry cumulative volume; queue the derived delta so
+            # the bar builder's ``delta_volume`` read stays truthful.
+            event.delta_volume = float(event.volume or 0.0)
+            event.volume_semantics = "delta"
+            event.volume_complete = True
 
         def _handle_md_error(self, payload):
             """Capture market-data-side runtime errors."""

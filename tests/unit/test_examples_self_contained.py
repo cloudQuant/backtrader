@@ -94,6 +94,9 @@ VENDORED_COPIES = {
     / "013_2_highfreq_calendar_arbitrage"
     / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
     EXAMPLES
+    / "014_1_ctp_options_lowfreq"
+    / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
+    EXAMPLES
     / "010_live_examples"
     / "fake_btapi.py": (ROOT / "tests" / "fixtures" / "fake_btapi.py"),
     EXAMPLES

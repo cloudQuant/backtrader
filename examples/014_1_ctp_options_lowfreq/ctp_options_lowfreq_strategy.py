@@ -8,6 +8,7 @@ not evidence of a CTP write, a fill, or economic profitability.
 from __future__ import annotations
 
 import math
+import time
 from collections import deque
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
@@ -120,6 +121,12 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         ("bar_evidence_clock_domain", "iter23-replay-clock"),
         ("bar_evidence_clock_mode", "replay"),
         ("max_pending_feed_decisions", 1),
+        # Iteration-42 standard-entry additions (defaults preserve the frozen
+        # replay contract; the live adapter overrides them explicitly).
+        ("broker_position_mode", "net"),
+        ("entry_offset", None),
+        ("exit_offset", None),
+        ("engineering_trigger", None),
     )
 
     def __init__(self):
@@ -246,6 +253,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         self._bar_cohort_evidence: list[dict[str, object]] = []
         self._indicative_score_evidence: list[dict[str, object]] = []
         self._replay_clock_mapping: ClockMapping | None = None
+        self._engineering_trigger_fired = False
         self._max_pending_feed_decisions = max_pending_feed_decisions
         self._pending_feed_decision_inputs = deque()
         self._last_price_envelopes: dict[str, BarPriceEnvelope] = {}
@@ -578,6 +586,29 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         ):
             return False
         return projected <= ordinary and projected + reserve <= capital
+
+    def _engineering_trigger_direction(self) -> str | None:
+        """Return the one-shot drill direction while its window is active.
+
+        The bounded engineering drill is the sanctioned fallback when no
+        natural signal qualifies; it only replaces the z-score/score gate.
+        """
+
+        trigger = self.p.engineering_trigger
+        if self._engineering_trigger_fired or not isinstance(trigger, Mapping):
+            return None
+        direction = str(trigger.get("direction") or "").strip().lower()
+        if direction not in {"conversion", "reversal"}:
+            return None
+        try:
+            not_before = float(trigger.get("not_before_epoch"))
+            not_after = float(trigger.get("not_after_epoch"))
+        except (TypeError, ValueError):
+            return None
+        moment = time.time()
+        if not (not_before <= moment <= not_after):
+            return None
+        return direction
 
     def _latch_clock_rejection(self, reason: str) -> None:
         self._clock_rejection_latched = True
@@ -1050,6 +1081,14 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         self._record_possible_exposure(leg)
         data = self._data_by_symbol[str(leg["symbol"])]
         submit = self.buy if leg["side"] == "buy" else self.sell
+        order_kwargs: dict[str, Any] = {}
+        if str(self.p.broker_position_mode) == "dual_side":
+            # CTP positions are directional; the exact leg must be declared
+            # explicitly for every order under a dual-side ledger.
+            order_kwargs["position_side"] = "long" if leg["side"] == "buy" else "short"
+        offset = self.p.exit_offset if self._state == "EXITING" else self.p.entry_offset
+        if offset:
+            order_kwargs["offset"] = str(offset)
         submitted_leg_index = self._leg_index
         self._submission_in_flight = True
         try:
@@ -1058,6 +1097,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                 size=int(leg["size"]),
                 exectype=bt.Order.Limit,
                 price=float(leg["price"]),
+                **order_kwargs,
             )
         except Exception:
             order = None
@@ -1486,17 +1526,30 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                         held_minutes,
                     )
                 return
-            if zscore is None or abs(zscore) < self.p.entry_z:
-                self._reset_entry_confirmation("ENTRY_SIGNAL_NOT_QUALIFIED")
-                return
-            direction = "conversion" if zscore > 0 else "reversal"
-            try:
-                score = self._score(direction, limits)
-            except (TimingContractError, ValueError) as exc:
-                self._reset_entry_confirmation("INCOMPLETE_COST_EVIDENCE")
-                self._rejections.append("INCOMPLETE_COST_EVIDENCE")
-                self._record("rejected", reason="INCOMPLETE_COST_EVIDENCE", detail=str(exc))
-                return
+            trigger_direction = self._engineering_trigger_direction()
+            if trigger_direction is not None:
+                # The bounded engineering drill replaces only the z/score
+                # qualification; confirmation, budget, token and
+                # execution-window fences still run unchanged.
+                direction = trigger_direction
+                score = float(self.p.minimum_score) + 1.0
+                self._record(
+                    "engineering_trigger_qualified",
+                    direction=direction,
+                    bar_timestamp=timestamp.isoformat(),
+                )
+            else:
+                if zscore is None or abs(zscore) < self.p.entry_z:
+                    self._reset_entry_confirmation("ENTRY_SIGNAL_NOT_QUALIFIED")
+                    return
+                direction = "conversion" if zscore > 0 else "reversal"
+                try:
+                    score = self._score(direction, limits)
+                except (TimingContractError, ValueError) as exc:
+                    self._reset_entry_confirmation("INCOMPLETE_COST_EVIDENCE")
+                    self._rejections.append("INCOMPLETE_COST_EVIDENCE")
+                    self._record("rejected", reason="INCOMPLETE_COST_EVIDENCE", detail=str(exc))
+                    return
             self._indicative_score_evidence.append(
                 {
                     "candidate_id": self.p.candidate_id,
@@ -1511,7 +1564,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                     "source": "closed_bar_envelope_only",
                 }
             )
-            if score <= self.p.minimum_score:
+            if trigger_direction is None and score <= self.p.minimum_score:
                 self._reset_entry_confirmation("INDICATIVE_SCORE_TOO_SMALL")
                 self._rejections.append("INDICATIVE_SCORE_TOO_SMALL")
                 self._record("rejected", reason="INDICATIVE_SCORE_TOO_SMALL", score=round(score, 6))
@@ -1528,6 +1581,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                 return
             if self._ordinary_action_allowed(timestamp):
                 self._start_entry(direction, limits, score, timestamp)
+                if trigger_direction is not None:
+                    self._engineering_trigger_fired = True
         finally:
             # The current synchronized closed bar is appended only after its decision.
             self._history.append(residual)

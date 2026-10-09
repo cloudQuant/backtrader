@@ -620,6 +620,20 @@ class RegisteredSimStore(BtApiStore):
         method = getattr(api, "registered_sim_arm_history", None) if api is not None else None
         return list(method()) if callable(method) else []
 
+    def configure_live_tick_provenance(self, provenance: Mapping) -> None:
+        """Install caller-owned live clock provenance on the CTP wrapper.
+
+        The strict feed-sealed evidence adapters (iteration 42 options) own a
+        run-scoped clock identity: the same domain / rules hash / session
+        segment / connection generation they use for their ``ClockMapping``
+        and sealed-bar provider is stamped onto every queued TickEvent so the
+        feed's closed-bar evidence carries exactly that identity.  Must be
+        called after login facts exist and before market-data subscription.
+        """
+        api = self._ensure_api_ready()
+        api.live_tick_provenance = dict(provenance)
+        api._live_tick_provenance_seq = 0
+
     def registered_sim_status(self) -> Dict[str, Any]:
         with self._registered_sim_gate_lock:
             return dict(self._registered_sim_gate)

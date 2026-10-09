@@ -107,7 +107,12 @@ def _contained_config_path(path: Path | str) -> Path:
 
 
 def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
-    """Read and validate the contained local YAML configuration file."""
+    """Read and validate the contained local YAML configuration file.
+
+    The optional ``live_adapter`` section is consumed by the standard
+    ``run.py`` live tier only; the frozen replay contract validates the
+    remainder exactly as before.
+    """
 
     try:
         with _contained_config_path(path).open("r", encoding="utf-8") as handle:
@@ -116,6 +121,8 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
         raise RunnerConfigurationError("unable to read local config") from exc
     except yaml.YAMLError as exc:
         raise RunnerConfigurationError("invalid local config YAML") from exc
+    if isinstance(raw, dict) and "live_adapter" in raw:
+        raw = {key: value for key, value in raw.items() if key != "live_adapter"}
     return validate_config(raw)
 
 

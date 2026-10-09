@@ -58,16 +58,19 @@ def test_directory_is_a_direct_self_contained_strategy_entrypoint():
                 imported.append(node.module)
         assert not any(name == "examples" or name.startswith("examples.") for name in imported)
         source_text = source.read_text(encoding="utf-8")
-        assert "importlib" not in source_text
         assert "pkgutil" not in source_text
         if source.name == "legacy_runner.py":
+            assert "importlib" not in source_text
             assert "backtrader_runtime.legacy" in source_text
             assert source_text.index('if __name__ == "__main__":') < source_text.index(
                 "import backtrader"
             )
         elif source.name == "run.py":
+            # The standard entry may consult importlib.util.find_spec for its
+            # strict dev-SDK origin check; it never loads modules dynamically.
             assert 'if __name__ == "__main__":' in source_text
         else:
+            assert "importlib" not in source_text
             assert "sys.path" not in source_text
 
 

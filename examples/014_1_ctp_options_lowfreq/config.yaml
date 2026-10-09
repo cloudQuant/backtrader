@@ -33,3 +33,45 @@ timing:
   session_stop_entry_seconds: 1800
   session_exit_seconds: 600
   session_handover_seconds: 180
+
+# ---------------------------------------------------------------------------
+# 迭代42 live 层（仅 run.py 的 dry/--live 使用；--replay 经 legacy_runner
+# 读取时会剥离本段，冻结回放合同不受影响）——不含任何密钥，只引用 env 名。
+# ---------------------------------------------------------------------------
+live_adapter:
+  schema_version: 1
+  venue: simnow
+  credentials:
+    broker_id_env: CTP_BROKER_ID
+    user_id_env: CTP_USER_ID
+    password_env: CTP_PASSWORD
+    app_id_env: CTP_APP_ID
+    auth_code_env: CTP_AUTH_CODE
+  # 1–8 组完整 MD/TD pair（env 名）；选择规则见 simnow_direct.select_front_pair。
+  fronts:
+    pairs:
+      - {td_env: CTP_TD_FRONT, md_env: CTP_MD_FRONT, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_1, md_env: CTP_SET1_MD_FRONT_1, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_2, md_env: CTP_SET1_MD_FRONT_2, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_3, md_env: CTP_SET1_MD_FRONT_3, kind: standard}
+      - {td_env: CTP_SET2_TD_FRONT, md_env: CTP_SET2_MD_FRONT, kind: 7x24}
+  live_market_data:
+    allow_zero_login_response: true
+  # 逐腿合约元数据期望（真实 instruments 查询逐项核对；options 腿 tick=0.5）。
+  instrument_metadata:
+    CZCE.SA701: {price_tick: 1.0, volume_multiple: 20}
+    CZCE.SA701C1080: {price_tick: 0.5, volume_multiple: 20}
+    CZCE.SA701P1080: {price_tick: 0.5, volume_multiple: 20}
+  policy:
+    allow_write: false
+    max_actions: 24
+  timeouts:
+    login_seconds: 30
+    query_seconds: 8
+    stop_seconds: 12
+    run_seconds: 7200
+    drain_seconds: 120
+  drill:
+    enabled: true
+    direction: conversion
+    max_holding_bars: 2
