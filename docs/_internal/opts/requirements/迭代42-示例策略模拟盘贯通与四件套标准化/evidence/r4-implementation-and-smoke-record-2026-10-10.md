@@ -75,3 +75,12 @@ orders/trades/account 权威回读）通过。drill 兜底满足 §2 门控（�
 
 本记录为**离线/源码级**证据：dry、回放、聚焦测试、fake 双臂测试与周六冒烟的
 fail-closed 观察；不构成账户、provider 或成交结论。周一 live 结果将另起记录追加。
+
+## 周一前修复：drill 自然路径竞态（2026-10-10，经 013_2 首跑彩排发现）
+
+013_2 的首次真实 live 彩排（7x24，周一命令）实录：`max_pairs=1`（drill 分支）+ warmup 期
+伪 z 自然尝试消耗唯一额度（attempts=1、`engineering_trigger_fired=false`、6789 tick 零开仓）。
+同源代码的 013_1 具相同竞态。修复：`_try_open` 在"trigger 存在且未触发"期间抑制自然开仓
+（`_natural_open_suppressed`），drill 成为唯一开仓路径；非 drill（回放/无 trigger）行为不变。
+回归：`tests/unit/test_ctp_pair_examples.py` 新增参数化测试 ×2（36 passed）。Monday 013_1
+窗口放宽为 delay 1200 / window 1200。

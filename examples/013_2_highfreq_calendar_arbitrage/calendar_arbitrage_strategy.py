@@ -215,6 +215,12 @@ class PairArbitrageStrategy(bt.Strategy):
             return
         trigger_side = self._engineering_trigger_side()
         if trigger_side is None:
+            if self._natural_open_suppressed():
+                # Drill-mode run: the bounded drill is the only sanctioned
+                # open path while its trigger is pending; an immature natural
+                # signal must not consume the single drill attempt before the
+                # trigger window opens.
+                return
             if now - self._last_evaluation < self.p.min_interval:
                 return
             if self.broker.getvalue() <= self.initial_value - self.p.max_loss:
@@ -274,6 +280,15 @@ class PairArbitrageStrategy(bt.Strategy):
             return None
         moment = time.time()
         return side if not_before <= moment <= not_after else None
+
+
+    def _natural_open_suppressed(self) -> bool:
+        """True while a pending drill trigger makes the drill the only open path."""
+
+        return (
+            isinstance(self.p.engineering_trigger, Mapping)
+            and not self._engineering_trigger_fired
+        )
 
     def _manage_open_pair(self, now):
         pair = self.active_pair

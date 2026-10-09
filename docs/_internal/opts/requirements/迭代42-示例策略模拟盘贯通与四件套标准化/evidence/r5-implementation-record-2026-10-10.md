@@ -53,3 +53,15 @@ close ≥ entry；终态无持仓、无活动委托、无 UNKNOWN；`arm_history
 
 本记录为**离线/源码级**证据：dry、回放、登记回放、聚焦测试与同源守卫；
 不构成账户、provider 或成交结论。周一 live 结果另起记录追加。
+
+## 首跑彩排与修复（2026-10-10 凌晨，7x24）
+
+013_2 首次真实 live 执行（命令与周一一致）：front 选择（7x24 唯一 eligible）→ 双臂
+**首次真实武装**（rb2701+rb2705，`set2_7x24_4000x`，managed+proof）→ RUNNING（6789 真实
+tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null、终态 flat、
+`session_order_refs=0`、`open_position_rows=0`）。
+
+归因（源码+诊断）：drill 分支 `max_pairs=1`，而 warmup 未成熟期的自然 z 尝试先消耗了唯一
+额度（attempts=1 / fired=false），此后 `_try_open` 永久短路 → drill 永不触发。修复与回归
+见 R4 记录同节；Monday 013_2 窗口放宽为 delay 1200 / window 1200（[20,40] 分钟）。
+彩排同时验证：选择/登录/查询/双臂武装/证据落盘/有界清理全链真实可用。

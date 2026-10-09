@@ -179,6 +179,27 @@ def test_pair_engineering_trigger_requires_an_active_window(ex1):
     assert strategy_class._engineering_trigger_side(holder) is None
 
 
+@pytest.mark.parametrize("fixture_name", ("ex1", "ex2"))
+def test_pair_pending_drill_suppresses_natural_opens(request, fixture_name):
+    """A pending drill trigger makes the bounded drill the only open path.
+
+    Regression: a live rehearsal showed an immature natural z-signal consuming
+    the single drill attempt before its trigger window opened, after which the
+    drill could never fire (max_pairs=1).
+    """
+
+    module = request.getfixturevalue(fixture_name)
+    strategy_class = module.PairArbitrageStrategy
+    holder = SimpleNamespace(_engineering_trigger_fired=False)
+    holder.p = SimpleNamespace(engineering_trigger={"side": "long"})
+    assert strategy_class._natural_open_suppressed(holder) is True
+    holder._engineering_trigger_fired = True
+    assert strategy_class._natural_open_suppressed(holder) is False
+    holder.p.engineering_trigger = None
+    holder._engineering_trigger_fired = False
+    assert strategy_class._natural_open_suppressed(holder) is False
+
+
 def test_runner_close_offset_follows_exchange_rules(run1, run2):
     assert run2.close_offset("rb2701") == "close_today"
     assert run1.close_offset("m2611") == "close"

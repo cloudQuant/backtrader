@@ -13,8 +13,8 @@
 | 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `python run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 300 --drill-window-seconds 900` |
 | 3 | 014_2 SA 期权观察（零写） | 10:50 起（上午盘内，900s 窗口） | `python run.py --live --run-seconds 900` |
 | 4 | 015 FG 期权观察（零写） | 11:10 起（上午盘内，300s 窗口） | `python run.py --live --run-seconds 300` |
-| 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 600 --drill-window-seconds 900 --drill-warmup-bars 8` |
-| 6 | 013_2 rb 写 drill | 21:05 启动（SHFE 夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 1800 --drill-delay-seconds 600 --drill-window-seconds 600 --drill-warmup-bars 8` |
+| 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
+| 6 | 013_2 rb 写 drill | 21:05 启动（SHFE 夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
 
 - 每次 run 结束（含 drain）后再启动下一个；同一账户串行。
 - 标准前置仅交易时段 TCP 可达；选择器会先 7x24 后 standard（时段外）。若首轮
@@ -50,6 +50,13 @@
   **交易所涨跌停价闸门**干净拒绝（`exchange_limits_unavailable`，7x24 无涨跌停价；拒绝
   发生在三腿武装之前，零写入）；014_2 观察层真实链走到密封分钟桶后因陈旧事件钟 BLOCKED。
   → 写 drill 的唯一可验收路径=**时段内标准前置**；7x24 只用于观察层。
+- **013_2 首跑彩排发现并修复 drill 竞态**：`--drill` 运行把 `max_pairs=1`，而自然路径在
+  warmup 未成熟期（`--drill-warmup-bars 8`）可用伪 z 消耗唯一尝试额度（彩排实录
+  attempts=1/fired=false，随后 `_try_open` 永久短路，6789 tick 无一开仓）→ 策略新增
+  "存在未触发 drill 时抑制自然开仓"门（`_natural_open_suppressed`，013_1/013_2 同源修复，
+  回归测试 +2）。013_1/013_2 周一参数相应放宽为 `--drill-delay-seconds 1200
+  --drill-window-seconds 1200`（窗口 [20,40] 分钟，容 warmup+就绪）；013_3 设计不同
+  （显式 warmup 门+触发分离），未受影响。
 - 选择器排序确认：**standard kind 优先，其次延迟**（`_kind_rank`；配置顺序仅 tie-break），
   标准前置仅在全部端口探测失败时才落入 7x24。时段内若仍落入 7x24（标准 pair 全不可达，
   其报价钟曾观测 ~47.9h 陈旧）：封存证据类策略（013_x/014_x）会以
