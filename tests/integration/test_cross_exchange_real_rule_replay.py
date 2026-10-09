@@ -36,7 +36,7 @@ RUNNERS = (
         id="mid-frequency",
     ),
     pytest.param(
-        import_module("examples.012_2_event_driven_cross_exchange.run"),
+        import_module("examples.012_2_event_driven_cross_exchange.legacy_runner"),
         id="event-driven",
     ),
 )

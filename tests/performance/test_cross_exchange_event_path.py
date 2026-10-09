@@ -16,7 +16,7 @@ from tests.test_utils.optional_sdk import optional_sdk
 
 InstrumentRule = optional_sdk(allow_module_level=True).CrossVenueLeg
 
-event_strategy = import_module("examples.012_2_event_driven_cross_exchange.strategy")
+event_strategy = import_module("examples.012_2_event_driven_cross_exchange.event_driven_strategy")
 D = Decimal
 EVENT_COUNT = 100_000
 P99_LIMIT_NS = 5_000_000

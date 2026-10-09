@@ -21,11 +21,11 @@ EVENT = EXAMPLES / "012_2_event_driven_cross_exchange"
 MANIFEST = EXAMPLES / "strategy-candidate-manifest.json"
 MODULES = {
     "012_1_midfreq_cross_exchange": "examples.012_1_midfreq_cross_exchange.legacy_runner",
-    "012_2_event_driven_cross_exchange": "examples.012_2_event_driven_cross_exchange.run",
+    "012_2_event_driven_cross_exchange": "examples.012_2_event_driven_cross_exchange.legacy_runner",
 }
 STRATEGY_FILES = {
     MID: "cross_exchange_strategy.py",
-    EVENT: "strategy.py",
+    EVENT: "event_driven_strategy.py",
 }
 
 
@@ -153,7 +153,7 @@ def test_cross_venue_planning_and_candidate_policy_do_not_live_in_backtrader_uti
 
 
 def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
-    names, tree = imports(EVENT / "strategy.py")
+    names, tree = imports(EVENT / STRATEGY_FILES[EVENT])
     assert not any("012_1" in name for name in names)
     classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
     hft_strategy = classes["CrossExchangeArbitrageStrategy"]

@@ -39,3 +39,25 @@ strategy_params:
   markout_tolerance_seconds: "0.010"
   minimum_markout_samples: 21
   maximum_markout_miss_ratio: "0.25"
+
+# ---------------------------------------------------------------------------
+# 迭代42 标准入口段（dry / --live 使用；候选绑定的既有字段与本段互相独立）
+# 凭据只按名从 checkout 根 .env 读取；本文件不含任何密钥。
+# ---------------------------------------------------------------------------
+entry:
+  venue: [okx, binance]
+  credentials:
+    okx_api_key_env: OKX_DEMO_API_KEY
+    okx_secret_env: OKX_DEMO_SECRET
+    okx_passphrase_env: OKX_DEMO_PASSPHRASE
+    binance_api_key_env: BINANCE_DEMO_API_KEY
+    binance_secret_env: BINANCE_DEMO_SECRET
+  policy:
+    max_actions: 40
+    max_order_notional_usdt: "100"
+    max_round_trips: 1
+  timeouts:
+    run_seconds: 180
+    stop_seconds: 30
+  # 技术贯通验收边界（非研究/非盈利结论；HFT 证据级 HFT_FAILED 不变）
+  evidence_boundary: MECHANICAL_DEMO_SMOKE_NOT_RESEARCH

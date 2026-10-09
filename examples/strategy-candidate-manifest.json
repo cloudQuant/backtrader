@@ -82,7 +82,7 @@
       "strategy_id": "012_2_event_driven_cross_exchange",
       "resolved_example_path": "012_2_event_driven_cross_exchange",
       "entrypoint": "run.py",
-      "strategy_module": "strategy.py",
+      "strategy_module": "event_driven_strategy.py",
       "strategy_class": "CrossExchangeArbitrageStrategy",
       "candidate_type": "taker_taker_ioc_event_arbitrage",
       "hft_label": "event_driven",
@@ -148,10 +148,10 @@
         "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
-      "runner_sha256": "c767b606bf376e186f4cd86f7f499174a0d7f4b77b199dcf55965392f508fe11",
-      "strategy_sha256": "d6eb8708d8083ef1cfb34f0a600b636cde380ef709781d97a04ac5d1c304fb03",
-      "config_sha256": "9d3321b50a663ad9219465180dd4143351a6de544f022cdc359622357df7d2aa",
-      "candidate_sha256": "3c728168878e25e49527771f843f2a3ec52921bf2378cf855032785e0c74e488",
+      "runner_sha256": "d60aebb5b358b235480fb8eab1015376b051ea47b88d5f8291c7d57e95d2e1c7",
+      "strategy_sha256": "edbdf1f2c3df64106b5a2acec5e1f300b3c6daec58115a87754ec88fb82ad0db",
+      "config_sha256": "eaea93b75bcfc35320254bebc042d9e8f0c11e2ff6f708aa49c3ef028bb2c50a",
+      "candidate_sha256": "ee89816c266d4a539f5a0735bb1bec97097c4631afb241a5fcaba03b1e868513",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,

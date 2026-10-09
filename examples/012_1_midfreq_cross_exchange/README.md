@@ -17,7 +17,13 @@ python run.py --replay [--scenario profitable]   # 离线公式 fixture（0 网�
 python run.py --live --allow-write --mechanical-smoke [--run-seconds 600]
                                     # OKX+Binance Demo 有界机械配对（技术验收；
                                     # 观测时长需 ≥435s，上限 600s）
+
+# 等价的模块调用形式（从仓库根目录）：
+python -m examples.012_1_midfreq_cross_exchange.run --replay
+python -m examples.012_1_midfreq_cross_exchange.run --live --allow-write --mechanical-smoke
 ```
+
+- 本示例只提供技术贯通验收，不构成未来盈利保证，也不证明可持续盈利。
 
 - 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
 - 证据写入 `evidence/<run_id>/`（run.json + report.json，git-ignored）；
