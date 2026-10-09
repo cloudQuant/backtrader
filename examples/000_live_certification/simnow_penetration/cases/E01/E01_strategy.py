@@ -1,13 +1,20 @@
-"""E01 — genuine venue rejection: insufficient funds (deliberately oversized).
+"""E01 — insufficient-funds rejection: SAFE bounded attempt, honest BLOCKED.
 
-The case intentionally bypasses local validation — the oversized volume is
-never pre-checked locally, because the point is to let the venue itself reject
-the request.  One order is submitted once; its rejection is recorded, or the
-resting order is canceled to terminal state 5 and the case fails
-(``no_rejection_observed``).  No in-queue row may remain for this OrderRef.
+Live SimNow 7x24 observation: the engine does not enforce funds within the
+reachable order sizes — the single-order cap (``MaxLimitOrderVolume``) keeps
+the margin well below the account's Available balance, and oversized
+accumulation crosses and fills instantly — so an insufficient-funds rejection
+is NOT producible within bounded safety.
 
-Success condition: the venue rejects the insert with error detail recorded
-(native insert evidence or a venue order-query row) and no residual remains.
+The case therefore runs one SAFE bounded attempt: ONE buy for
+``scenario.attempt_volume`` (clamped to the instrument cap) at a NON-crossing
+resting price (``lower + tick``), which queues without fill churn, is recorded
+and then canceled to terminal state 5.  The PASS path is unchanged for
+environments that DO reject: the venue's insert evidence or the venue-query
+canceled-without-trade row is recorded.  Otherwise the case returns
+BLOCKED(``insufficient_funds_rejection_not_reachable``) with the queried
+account funds row (Balance/Available/CurrMargin), the attempt details and the
+engine observations.  No in-queue row may remain for this OrderRef.
 """
 
 from __future__ import annotations
@@ -79,6 +86,78 @@ def _residual(client, instrument, order_ref):
     return ([_snapshot(row) for row in rows
              if str(row.get("OrderRef")) == str(order_ref)
              and str(row.get("OrderStatus") or "") in _IN_QUEUE], None)
+
+
+def _account_funds(ctx):
+    """Balance/Available/CurrMargin from the account query; {} when unchecked."""
+    try:
+        rows = ctx.client.query_account()["rows"]
+    except SimNowSessionError as exc:
+        return {"error": str(exc.reason)}
+    row = dict(rows[0]) if rows else {}
+    funds = {k: row.get(k) for k in ("Balance", "Available", "CurrMargin")}
+    funds["row_count"] = len(rows)
+    return funds
+
+
+def _flatten_position(ctx):
+    """Best-effort bounded flatten of any position the attempt opened.
+
+    The bounded attempt rests at the band floor, so a fill is not expected;
+    this guard only matters on engines that fill it anyway.  Never raises.
+    """
+    client = ctx.client
+    instrument = ctx.contract["instrument"]
+    exchange = ctx.contract["exchange"]
+    hedge_flag = ctx.contract.get("hedge_flag") or "1"
+    timeout = max(float(ctx.scenario().get("reject_timeout_ms") or 15000) / 1000.0, 20.0)
+    try:
+        rows = client.query_positions(instrument_id=instrument)["rows"]
+    except SimNowSessionError as exc:
+        return {"position_check_error": str(exc.reason)}
+    long_qty = sum(int(float(r.get("Position") or 0)) for r in rows
+                   if str(r.get("PosiDirection")) == "2")
+    short_qty = sum(int(float(r.get("Position") or 0)) for r in rows
+                    if str(r.get("PosiDirection")) == "3")
+    facts = {"long": long_qty, "short": short_qty}
+    if long_qty <= 0 and short_qty <= 0:
+        facts["skipped"] = "no_position"
+        return facts
+    depth = _row_of(client.query_depth_market_data(instrument), instrument)
+    if depth is None:
+        facts["error"] = "no_book"
+        return facts
+    if long_qty > 0:
+        direction, level, volume = "1", float(depth.get("BidPrice1") or 0), long_qty
+    else:
+        direction, level, volume = "0", float(depth.get("AskPrice1") or 0), short_qty
+    if level <= 0:
+        facts["error"] = "no_book"
+        return facts
+    facts.update({"direction": direction, "offset_flag": "1",
+                  "price": level, "volume": volume})
+    try:
+        placement = client.place_limit_order(
+            instrument_id=instrument, exchange_id=exchange, direction=direction,
+            offset_flag="1", price=level, volume=volume, hedge_flag=hedge_flag)
+        ctx.track_order(instrument, placement["order_ref"], exchange_id=exchange)
+        final = _poll(client, instrument, placement["order_ref"], timeout, {"0", "2", "4", "5"})
+        status = str((final or {}).get("OrderStatus") or "")
+        facts.update({"order_ref": placement["order_ref"], "status": status or "not_visible",
+                      "volume_traded": (final or {}).get("VolumeTraded")})
+        if status in {"0", "2", "4", "5"}:
+            ctx.mark_order_closed(placement["order_ref"])
+            client.mark_order_state(placement["order_ref"], "closed",
+                                    str((final or {}).get("OrderSysID") or ""))
+    except SimNowSessionError as exc:
+        facts["error"] = str(exc.reason)
+    try:
+        rows_after = client.query_positions(instrument_id=instrument)["rows"]
+        facts["position_after"] = sum(int(float(r.get("Position") or 0)) for r in rows_after
+                                      if str(r.get("PosiDirection")) in ("2", "3"))
+    except SimNowSessionError as exc:
+        facts["position_after_error"] = str(exc.reason)
+    return facts
 
 
 def _native_result(ctx, facts, record):
@@ -181,14 +260,37 @@ def _rejection_probe(ctx, *, rule, direction, offset_flag, price, volume, extra)
     if row is None:
         return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
     if status in _IN_QUEUE:
-        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", facts)
+        # The bounded resting attempt was accepted and canceled without any
+        # venue funds rejection: the rejection is not reachable this way.
+        facts.update({"accepted_without_rejection": True, "attempt_status": status,
+                      "attempt_volume_traded": traded,
+                      "cancel_terminal_status": str(
+                          (facts.get("cancel") or {}).get("final_status") or "")})
+        facts["engine_observations"] = {
+            **facts.get("engine_observations", {}),
+            "outcome": "accepted_without_funds_rejection"}
+        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
     if status == "5" and traded == 0:
         facts.update({"rejection_source": "venue_query",
                       "evidence_status": "canceled_without_trade", "error_code": None,
                       "error_message": str(row.get("StatusMsg") or "").strip()[:160]})
         return CaseResult(CASE_ID, "PASS", "", facts)
-    if traded > 0 or status in {"2", "4"}:
-        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", facts)
+    if traded > 0:
+        # An unexpected fill on the resting price: flatten it before reporting.
+        facts.update({"accepted_without_rejection": True, "attempt_status": status,
+                      "attempt_volume_traded": traded,
+                      "flatten": _flatten_position(ctx)})
+        facts["engine_observations"] = {
+            **facts.get("engine_observations", {}),
+            "outcome": "filled_without_funds_rejection"}
+        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
+    if status in {"2", "4"}:
+        facts.update({"accepted_without_rejection": True, "attempt_status": status,
+                      "attempt_volume_traded": traded})
+        facts["engine_observations"] = {
+            **facts.get("engine_observations", {}),
+            "outcome": "accepted_without_funds_rejection"}
+        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
     return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
 
 
@@ -204,16 +306,35 @@ class E01Strategy:
         if last <= 0:
             return CaseResult(CASE_ID, "BLOCKED", "last_price_unavailable", {"last_price": last})
 
-        # Deliberately invalid-for-funds request: a valid in-band price
-        # (LastPrice rounded to tick) with an oversized volume and no local
-        # margin check, so any rejection must come from the venue itself.
-        price = round(last / tick) * tick if tick > 0 else last
-        price = round(max(lower, min(upper, price)), 6)
-        cap = int(float(scenario.get("volume_cap") or 500))
-        volume = min(int(row.get("MaxLimitOrderVolume") or cap), cap) or cap
+        # SAFE bounded attempt: the live engine draws no funds rejection inside
+        # the reachable order size (the single-order cap keeps the margin well
+        # below Available; oversized accumulation fills instantly).  The ONE
+        # buy is sized to the attempt volume (clamped to the instrument cap)
+        # and rests at a NON-crossing price (lower band + one tick): it draws a
+        # genuine venue rejection when one exists (PASS, unchanged), otherwise
+        # it queues without fill churn until canceled and the case reports an
+        # honest BLOCKED with the observed account funds and engine facts.
+        attempt_volume = int(float(scenario.get("attempt_volume") or 1000))
+        max_volume = int(float(row.get("MaxLimitOrderVolume") or 0))
+        volume = min(attempt_volume, max_volume) if max_volume > 0 else attempt_volume
+        price = round(lower + tick, 6)
+        multiple = float(row.get("VolumeMultiple") or 0)
+        observations = {
+            "single_order_cap_lots": max_volume or None,
+            "attempt_volume_requested": attempt_volume,
+            "attempt_volume_placed": volume,
+            "attempt_notional_yuan": (round(price * multiple * volume, 2)
+                                      if multiple > 0 else None),
+            "funds_enforcement": "not_observed",
+            "note": ("single-order cap bounds the attempt; acceptance without a funds "
+                     "rejection is recorded when observed"),
+        }
 
         return _rejection_probe(
             ctx, rule="insufficient_funds", direction="0", offset_flag="0",
             price=price, volume=volume,
             extra={"price_band": {"lower": lower, "upper": upper}, "last_price": last,
-                   "max_limit_order_volume": row.get("MaxLimitOrderVolume")})
+                   "max_limit_order_volume": row.get("MaxLimitOrderVolume"),
+                   "attempt_volume": attempt_volume, "attempt_price": price,
+                   "account_funds": _account_funds(ctx),
+                   "engine_observations": observations})

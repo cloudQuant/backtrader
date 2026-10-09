@@ -5,7 +5,7 @@
 schema_version: 1
 case_id: E01
 venue: simnow
-description: "Deliberately oversized WRITE order at a valid in-band price: expect a genuine venue funds rejection with error evidence, no fills, and no residual order."
+description: "Safe bounded WRITE attempt (attempt volume at a non-crossing resting price): expect a genuine venue funds rejection when one is reachable; on the live engine no funds rejection is producible, so the canceled attempt is reported as an honest BLOCKED with account funds and engine observations."
 environment:
   name: simnow
   kind: simulation
@@ -38,7 +38,7 @@ policy:
   allow_dangerous: false
 scenario:
   expect: insufficient_funds
-  volume_cap: 500
+  attempt_volume: 1000
   reject_timeout_ms: 15000
 topology:
   transport: direct

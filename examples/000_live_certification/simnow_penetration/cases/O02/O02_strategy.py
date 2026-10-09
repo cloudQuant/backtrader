@@ -1,9 +1,15 @@
 """O02 — reduce order final state: resting non-crossing reduce, accepted then canceled.
 
 PASS: the crossing BUY open fills and the long position is visible, the
-offset-1 SELL reduce is placed at a non-crossing resting price inside the
-band, the venue accepts it into the queue, a cancel drives it to the terminal
-canceled state (5), and the position is then flattened back to zero.
+offset-1 SELL reduce rests ABOVE the market (``min(upper - tick, ask + N
+ticks)``), the venue accepts it into the queue, a cancel drives it to the
+terminal canceled state (5), and the position is then flattened back to zero.
+
+Live SimNow 7x24 observation drove this rule: a reduce SELL placed at/under the
+market bid crosses and fills instantly (the previous below-bid resting price
+filled instead of queueing).  A resting SELL must therefore sit above the ask,
+``scenario.rest_ticks`` (default 20) above it and capped one tick under the
+band ceiling.
 """
 
 from __future__ import annotations
@@ -201,22 +207,30 @@ class O02Strategy:
 
         fresh = _depth_row(client, instrument)
         rest_bid = float(fresh.get("BidPrice1") or 0.0) if fresh else 0.0
-        if rest_bid <= 0:
+        rest_ask = float(fresh.get("AskPrice1") or 0.0) if fresh else 0.0
+        if rest_ask <= 0:
+            rest_last = float(fresh.get("LastPrice") or 0.0) if fresh else 0.0
+            rest_ask = round(rest_last + rest_ticks * tick, 6) if rest_last > 0 else 0.0
+        if rest_ask <= 0:
             return CaseResult(CASE_ID, "FAIL", "reduce_no_book", {
                 "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
                          "volume_traded": open_filled},
                 "position_after_open": long_now,
                 "flatten": flatten_now(long_now, flatten_timeout)})
-        rest_price = round(max(lower + tick, rest_bid - rest_ticks * tick), 6)
-        if rest_price >= rest_bid:
+        # A resting SELL must sit ABOVE the market: selling at/under the bid
+        # crosses and fills instantly (observed live), so rest above the ask
+        # and cap one tick under the band ceiling.
+        rest_price = round(min(upper - tick, rest_ask + rest_ticks * tick), 6)
+        if rest_bid > 0 and rest_price <= rest_bid:
             return CaseResult(CASE_ID, "BLOCKED", "no_resting_price_available", {
-                "bid": rest_bid, "lower": lower, "tick": tick, "rest_price": rest_price,
+                "bid": rest_bid, "ask": rest_ask, "lower": lower, "upper": upper,
+                "tick": tick, "rest_price": rest_price,
                 "position_after_open": long_now,
                 "flatten": flatten_now(long_now, flatten_timeout)})
 
         reduce_volume = long_now  # reduce the visible position
         ctx.log(f"resting reduce SELL {reduce_volume}@{rest_price} "
-                f"(offset 1, {rest_ticks} ticks under bid)")
+                f"(offset 1, {rest_ticks} ticks above ask)")
         try:
             reducing = _place(client, ctx, instrument=instrument, exchange=exchange,
                               direction="1", offset_flag="1", price=rest_price,
@@ -268,7 +282,8 @@ class O02Strategy:
                      "volume_traded": open_filled, "price": ask},
             "position_before": position_before, "position_after_open": long_now,
             "reduce": {"order_ref": reduce_ref, "order_sys_id": accept_sys_id,
-                       "price": rest_price, "bid": rest_bid, "volume": reduce_volume,
+                       "price": rest_price, "bid": rest_bid, "ask": rest_ask,
+                       "volume": reduce_volume,
                        "accept_status": accept_status, "terminal_status": reduce_terminal,
                        "cancel": cancel_facts},
             "flatten": flat, "position_after": position_after, "position_rows": rows_after,

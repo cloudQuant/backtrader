@@ -4,9 +4,15 @@ The case intentionally bypasses local validation — a close-direction order is
 submitted although the pre-flight query first confirms there is no open
 position, because the point is to let the venue itself reject the request (and
 to prove no remainder is left behind).  One order is submitted once; its
-rejection is recorded, or the resting order is canceled to terminal state 5
-and the case fails (``no_rejection_observed``).  No in-queue row may remain for
+rejection is recorded (PASS), or the accepted outcome is resolved bounded and
+the case fails (``no_rejection_observed``).  No in-queue row may remain for
 this OrderRef.
+
+On engines without the position check the insert is accepted, and the
+bid-priced close can even fill; that accepted/filled path now flattens any
+resulting position back to zero (crossing opposite direction, offset 1,
+bounded, marked closed) and reports the position after cleanup before
+returning FAIL.
 
 Success condition: the venue rejects the insert with error detail recorded
 (native insert evidence or a venue order-query row) and no residual remains.
@@ -81,6 +87,84 @@ def _residual(client, instrument, order_ref):
     return ([_snapshot(row) for row in rows
              if str(row.get("OrderRef")) == str(order_ref)
              and str(row.get("OrderStatus") or "") in _IN_QUEUE], None)
+
+
+def _position_breakdown(client, instrument):
+    """(long, short, rows) for the instrument; raises SimNowSessionError."""
+    rows = client.query_positions(instrument_id=instrument)["rows"]
+    long_qty = sum(int(float(r.get("Position") or 0)) for r in rows
+                   if str(r.get("PosiDirection")) == "2")
+    short_qty = sum(int(float(r.get("Position") or 0)) for r in rows
+                    if str(r.get("PosiDirection")) == "3")
+    return long_qty, short_qty, rows
+
+
+def _flatten_position(ctx):
+    """Bounded flatten of any position the accepted attempt left behind.
+
+    If long: crossing SELL (offset 1) at BidPrice1; if short: crossing BUY
+    (offset 1) at AskPrice1, for the full position size.  Waits terminal,
+    marks the order closed and confirms Position == 0.  Never raises.
+    """
+    client = ctx.client
+    instrument = ctx.contract["instrument"]
+    exchange = ctx.contract["exchange"]
+    hedge_flag = ctx.contract.get("hedge_flag") or "1"
+    timeout = max(float(ctx.scenario().get("reject_timeout_ms") or 15000) / 1000.0, 20.0)
+    try:
+        long_qty, short_qty, _rows = _position_breakdown(client, instrument)
+    except SimNowSessionError as exc:
+        return {"position_check_error": str(exc.reason)}
+    facts = {"long": long_qty, "short": short_qty}
+    if long_qty <= 0 and short_qty <= 0:
+        facts["skipped"] = "no_position"
+        return facts
+    depth = _row_of(client.query_depth_market_data(instrument), instrument)
+    if depth is None:
+        facts["error"] = "no_book"
+        return facts
+    if long_qty > 0:
+        direction, level, volume = "1", float(depth.get("BidPrice1") or 0), long_qty
+    else:
+        direction, level, volume = "0", float(depth.get("AskPrice1") or 0), short_qty
+    if level <= 0:
+        facts["error"] = "no_book"
+        return facts
+    facts.update({"direction": direction, "offset_flag": "1",
+                  "price": level, "volume": volume})
+    try:
+        placement = client.place_limit_order(
+            instrument_id=instrument, exchange_id=exchange, direction=direction,
+            offset_flag="1", price=level, volume=volume, hedge_flag=hedge_flag)
+        ctx.track_order(instrument, placement["order_ref"], exchange_id=exchange)
+        final = _poll(client, instrument, placement["order_ref"], timeout, {"0", "2", "4", "5"})
+        status = str((final or {}).get("OrderStatus") or "")
+        facts.update({"order_ref": placement["order_ref"], "status": status or "not_visible",
+                      "volume_traded": (final or {}).get("VolumeTraded")})
+        if status in {"0", "2", "4", "5"}:
+            ctx.mark_order_closed(placement["order_ref"])
+            client.mark_order_state(placement["order_ref"], "closed",
+                                    str((final or {}).get("OrderSysID") or ""))
+    except SimNowSessionError as exc:
+        facts["error"] = str(exc.reason)
+    try:
+        long_after, short_after, _rows_after = _position_breakdown(client, instrument)
+        facts["position_after"] = {"long": long_after, "short": short_after}
+        facts["position_flat"] = long_after == 0 and short_after == 0
+    except SimNowSessionError as exc:
+        facts["position_after_error"] = str(exc.reason)
+    return facts
+
+
+def _cleanup_facts(ctx, facts):
+    """Attach the bounded flatten + the post-cleanup position to facts."""
+    facts["flatten"] = _flatten_position(ctx)
+    try:
+        long_qty, short_qty, _rows = _position_breakdown(ctx.client, ctx.contract["instrument"])
+        facts["position_after_cleanup"] = {"long": long_qty, "short": short_qty}
+    except SimNowSessionError as exc:
+        facts["position_after_cleanup_error"] = str(exc.reason)
+    return facts
 
 
 def _native_result(ctx, facts, record):
@@ -183,14 +267,16 @@ def _rejection_probe(ctx, *, rule, direction, offset_flag, price, volume, extra)
     if row is None:
         return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
     if status in _IN_QUEUE:
-        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", facts)
+        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", _cleanup_facts(ctx, facts))
     if status == "5" and traded == 0:
         facts.update({"rejection_source": "venue_query",
                       "evidence_status": "canceled_without_trade", "error_code": None,
                       "error_message": str(row.get("StatusMsg") or "").strip()[:160]})
         return CaseResult(CASE_ID, "PASS", "", facts)
     if traded > 0 or status in {"2", "4"}:
-        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", facts)
+        # The accepted attempt opened a position (unexpected without the
+        # position check): flatten it before returning FAIL.
+        return CaseResult(CASE_ID, "FAIL", "no_rejection_observed", _cleanup_facts(ctx, facts))
     return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
 
 
