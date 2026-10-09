@@ -776,13 +776,13 @@ def test_direct_runner_uses_the_safe_dry_default_without_arguments():
     report = json.loads(completed.stdout)
     assert report["status"] == "DRY"
     assert report["network"] == 0
-    assert report["live_tier"]["status"] == "BLOCKED_PENDING_LIVE_ADAPTER"
+    assert report["live_tier"]["status"] == "OBSERVATION_ONLY"
+    assert report["live_tier"]["write_tier"] == "NOT_IMPLEMENTED_DECISION_ONLY_STRATEGY"
 
 
 def test_python_sources_do_not_import_or_read_another_example_directory():
     source_files = [
         EXAMPLE / "__init__.py",
-        EXAMPLE / "run.py",
         EXAMPLE / "ctp_options_highfreq_strategy.py",
         EXAMPLE / "execution_timing.py",
     ]
@@ -792,7 +792,12 @@ def test_python_sources_do_not_import_or_read_another_example_directory():
     assert "ctp_options_common" not in source
     assert "strategy_candidate_approval" not in source
     assert "sys.path" not in source
-    assert "importlib" not in (EXAMPLE / "run.py").read_text(encoding="utf-8")
+    entry_text = (EXAMPLE / "run.py").read_text(encoding="utf-8")
+    # The standard entry may carry the canonical checkout fence and consult
+    # importlib.util.find_spec for its strict dev-SDK origin check; it never
+    # loads modules dynamically.
+    assert "importlib.import_module" not in entry_text
+    assert "pkgutil" not in entry_text
     assert "CtpQuoteCohortValidator" in (EXAMPLE / "ctp_options_highfreq_strategy.py").read_text(
         encoding="utf-8"
     )

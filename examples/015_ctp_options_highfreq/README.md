@@ -9,20 +9,30 @@
 ```text
 python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
 python run.py --replay [--scenario S]  # 离线冻结 cohort/tick fixture 回放（零网络零写入）
-python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
+python run.py --live                   # live 观察层（零写；需 Python 3.11，见下）
+python run.py --live --allow-write     # 显式 BLOCKED：本策略无下单路径
 ```
 
-- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放证据写入 `evidence/<run_id>/`（git-ignored）。
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放/观察证据写入 `evidence/<run_id>/`（git-ignored）。
 - 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
   `bt-runtime run --strategy-dir examples/015_ctp_options_highfreq/runtime`。
 
-## live 层状态（BLOCKED，非降级伪装）
+## live 层（观察，零写）
 
-真实 tick 数据路径（store SDK-event provenance：clock_domain_id、序列、连续性）与
-feed 密封证据/时钟域合同 + 写能力 adapter 尚未集成；`--live` 在任何网络、凭据或
-provider 之前 fail-closed 并输出集成需求与翻转路径（tick cohort 路径、run 级
-`ClockMapping`、三腿武装模板、策略 live 参数与一次性 drill 触发）。不会静默降级为
-raw-line 回放合同；HFT 延迟结论保持排除。
+本策略按合同为**决策专用**（普通意图只记录、从不提交订单），因此 live 层采用
+R7/R8 计划修正案的**观察层**：真实直连 registered-sim（SimNow）链——front 选择 →
+Store 登录与账户/持仓/合约元数据只读查询 → 3 × `BtApiFeed` tick 分发
+（`dispatch_ticks=True`）→ 真实 cohort 策略消费真实 tick。零写：不 arm、不下单；
+`--allow-write` 明确 BLOCKED（`write_tier_not_implemented_for_decision_only_strategy`）。
+
+- 环境要求：Python 3.11（`C:/anaconda3/python.exe`）+ dev SDK `D:/bt_api_py`；其他解释器
+  fail-closed（dry/replay 不受限）。
+- PASS = 观察窗内每条腿 ≥1 个真实 tick 经标准入口进入策略且零写入；证据
+  `evidence/live-*/run.json` + `strategy_report.json`（tick/拒绝计数为事实字段）。
+- **准入边界（诚实标注）**：cohort 资格要求 `ctp.quote.v2` 证据 + 同一时钟域决策边界
+  时间（`cohort_decision_now_*`）；直连 CTP tick 源尚不产出该证明，策略会把 tick 记为
+  `TRUSTED_NOW_INVALID` 等拒绝事实而**不会**被伪造成合格 cohort。HFT 结论保持
+  `FAIL/NOT_ADMITTED`；翻转 = 生产 v2 证明的专用适配轮（本迭代不做）。
 
 ## 内部模块（运行必需，非第二入口）
 

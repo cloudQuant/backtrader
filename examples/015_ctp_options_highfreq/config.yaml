@@ -69,3 +69,47 @@ replay:
   fixture: fixtures/three_leg_tick_cohorts_v1.json
   scenario: valid_cohort
   starting_cash: 100000
+
+# ---------------------------------------------------------------------------
+# Iteration-42 live observation adapter (consumed by the standard run.py live
+# tier only; legacy_runner.load_config strips this section so the frozen
+# replay contract keeps its strict key set).
+live_adapter:
+  schema_version: 1
+  venue: simnow
+  credentials:
+    broker_id_env: CTP_BROKER_ID
+    user_id_env: CTP_USER_ID
+    password_env: CTP_PASSWORD
+    app_id_env: CTP_APP_ID
+    auth_code_env: CTP_AUTH_CODE
+  fronts:
+    # Ordered whole MD/TD candidate pairs probed credential-free for
+    # reachability; the first eligible pair is selected and passed unchanged.
+    pairs:
+      - {td_env: CTP_TD_FRONT, md_env: CTP_MD_FRONT, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_1, md_env: CTP_SET1_MD_FRONT_1, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_2, md_env: CTP_SET1_MD_FRONT_2, kind: standard}
+      - {td_env: CTP_SET1_TD_FRONT_3, md_env: CTP_SET1_MD_FRONT_3, kind: standard}
+      - {td_env: CTP_SET2_TD_FRONT, md_env: CTP_SET2_MD_FRONT, kind: 7x24}
+  live_market_data:
+    allow_zero_login_response: true
+  # Real contract identities (FG701 C/P970, matching the frozen fixture
+  # bundle); identities only, no fabricated evidence.
+  live_candidate:
+    exchange: CZCE
+    contracts: {future: CZCE.FG701, call: CZCE.FG701C970, put: CZCE.FG701P970}
+  instrument_metadata:
+    CZCE.FG701: {price_tick: 1.0, volume_multiple: 20}
+    CZCE.FG701C970: {price_tick: 0.5, volume_multiple: 20}
+    CZCE.FG701P970: {price_tick: 0.5, volume_multiple: 20}
+  policy:
+    allow_write: false
+  timeouts:
+    login_seconds: 30
+    query_seconds: 8
+    stop_seconds: 12
+    run_seconds: 600
+    drain_seconds: 120
+  observation:
+    min_ticks_per_leg: 1

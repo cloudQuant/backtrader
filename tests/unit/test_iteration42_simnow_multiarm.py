@@ -21,6 +21,7 @@ VENDORED = REPO / "examples" / "013_1_midfreq_cross_arbitrage" / "simnow_direct.
 VENDORED_RB = REPO / "examples" / "013_2_highfreq_calendar_arbitrage" / "simnow_direct.py"
 VENDORED_OPTIONS_LOW = REPO / "examples" / "014_1_ctp_options_lowfreq" / "simnow_direct.py"
 VENDORED_OPTIONS_MID = REPO / "examples" / "014_2_ctp_options_midfreq" / "simnow_direct.py"
+VENDORED_OPTIONS_HF = REPO / "examples" / "015_ctp_options_highfreq" / "simnow_direct.py"
 
 
 def _load_module(path: Path, name: str):
@@ -110,6 +111,7 @@ def test_vendored_copy_is_byte_identical():
     assert VENDORED_RB.read_bytes() == CANONICAL.read_bytes()
     assert VENDORED_OPTIONS_LOW.read_bytes() == CANONICAL.read_bytes()
     assert VENDORED_OPTIONS_MID.read_bytes() == CANONICAL.read_bytes()
+    assert VENDORED_OPTIONS_HF.read_bytes() == CANONICAL.read_bytes()
 
 
 def test_ensure_arm_is_idempotent_for_the_same_instrument(simnow_direct):

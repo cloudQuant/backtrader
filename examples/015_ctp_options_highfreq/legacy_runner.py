@@ -645,6 +645,11 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> tuple[dict[str, Any], Path
         raise RunnerConfigurationError(f"config does not exist: {config_path}")
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     config = _mapping(raw, "config root")
+    # The optional iteration-42 ``live_adapter`` section is consumed by the
+    # standard ``run.py`` live tier only; the frozen replay contract keeps
+    # its strict key set.
+    if "live_adapter" in config:
+        config = {key: value for key, value in config.items() if key != "live_adapter"}
     validate_config(config)
     return config, config_path.resolve()
 
