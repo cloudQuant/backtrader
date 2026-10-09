@@ -1,0 +1,89 @@
+{
+  "schema": "iteration41.okx.r3_close_wrapper_support.root_qa_config.v1",
+  "evidence_level": "SOURCE_FAKE_ROOT_CLOSE_WRAPPER_ONLY",
+  "repository_root": "D:/source_code/backtrader",
+  "expected_branch": "dev",
+  "expected_head_cli_required": true,
+  "expected_parent_cli_required": true,
+  "public_dependency_manifest": {
+    "path": ".codex-tmp/okx_full_close_r2_public_dependency_manifest_r1_20261009.json",
+    "size": 11176,
+    "sha256": "38afededf245978ae0617298c79d98eaf1434c3a6e2cb2acd23b4140f6d9146c",
+    "input_count": 36
+  },
+  "public_dependency_head_classification": {
+    "path": ".codex-tmp/okx_full_close_r2_public_dependency_head_classification_r1_20261009.json",
+    "size": 19324,
+    "sha256": "85d89673562f08150a987f0f15bf3437a3940746ff353d41325a686a0e4d1bd0",
+    "classification_head": "a17c49d19efbed72c61225c77ae42e4e51050281",
+    "head_matched_inputs": 34,
+    "new_untracked_inputs": 2
+  },
+  "focused_test": {
+    "path": "tests/unit/scripts/test_iteration41_okx_m01_r3_normal_cu_close_root_actual_r2_source_fake.py",
+    "size": 13856,
+    "sha256": "386bff884a77a425b90f6cd7c040e565e69392e4c46db57865a0ac76070d2931"
+  },
+  "root_wrapper": {
+    "path": ".codex-tmp/okx_m01_r3_normal_cu_close_root_actual_r2_20261009.py",
+    "size": 36419,
+    "sha256": "e314606fce79a5c536749c16d8cc2b446a5fc01db72cea9a154b4a08d8058d3e"
+  },
+  "fixed_cases": [
+    {
+      "function": "test_root_wrapper_closes_only_the_original_scope_once_and_preserves_result",
+      "tamper": null
+    },
+    {
+      "function": "test_root_wrapper_blocks_tampered_original_caller_before_close",
+      "tamper": "filename"
+    },
+    {
+      "function": "test_root_wrapper_blocks_tampered_original_caller_before_close",
+      "tamper": "nested_constant"
+    }
+  ],
+  "runner": {
+    "parent_process": "read-only Git metadata and bounded public source pins, before and after one child",
+    "child_count": 1,
+    "child_execution": "direct calls to the three fixed test functions",
+    "pytest_main_called": false,
+    "pytest_collection_claimed": false,
+    "candidate_modules_preloaded": false,
+    "child_import_prelude": [
+      "pytest",
+      "unittest.mock",
+      "asyncio",
+      "subprocess",
+      "multiprocessing",
+      "multiprocessing.connection",
+      "multiprocessing.popen_spawn_win32",
+      "ctypes",
+      "ssl",
+      "socket",
+      "http.client",
+      "urllib.request",
+      "_winapi",
+      "colorama"
+    ],
+    "result_path": "D:/temp/okx_r3_close_wrapper_support_root_qa_r1_20261009/result.json",
+    "basetemp_path": "D:/temp/okx_r3_close_wrapper_support_root_qa_r1_20261009/basetemp",
+    "output_must_be_absent_before_run": true
+  },
+  "guard_requirements": [
+    "fixed-public-file-allowlist",
+    "bounded-public-file-reads",
+    "no-private-or-config-read",
+    "no-software-payload-read",
+    "no-external-custody-source-read",
+    "no-native-call-or-load-after-child-guard",
+    "no-network-call-after-child-guard",
+    "no-candidate-process-operation",
+    "no-repository-write",
+    "guard-selfchecks-before-tests",
+    "exact-test-wrapper-caller-helper-source-origins"
+  ],
+  "host_47595_status": "NOT_CHECKED_BY_SOURCE_QA",
+  "actual_host_close_performed": false,
+  "provider_or_account_operation_performed": false
+}

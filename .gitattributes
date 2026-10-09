@@ -705,3 +705,13 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-credential-free-job-channel-r3-2026-10-09/runtime-source-pins.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-contextmanager-r6-caller-r2-source-dev-round-r1-2026-10-09/manifest.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-contextmanager-r6-caller-r2-source-dev-round-r1-2026-10-09/round-record.md -text
+".codex-tmp/okx_m01_r3_normal_cu_close_root_actual_r2_20261009.py" -text
+"tests/unit/scripts/test_iteration41_okx_m01_r3_normal_cu_close_root_actual_r2_source_fake.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/reviews/independent-review.md" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/inputs/public-dependency-manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/inputs/public-dependency-head-classification.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/qa/root-source-qa.py" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/qa/root-source-qa-config.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/qa/root-source-qa-result.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/manifest.json" -text
+"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-r3-close-wrapper-source-support-dev-round-r1-2026-10-09/round-record.md" -text
