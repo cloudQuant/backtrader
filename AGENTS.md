@@ -3743,7 +3743,9 @@ M01 R20 was invoked once by Root. The actual returned finite diagnosis changed f
 + monitor/validation），替代此前逐案例 Bespoke 候选管线；旧候选代码（binance `_certification/` 等）仍在树中
 但不再被新流程引用。
 
-**真实结果**：三场所 98 PASS / 1 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
+**真实结果**：三场所 98 PASS / 1 BLOCKED / 0 FAIL / 0 NOT_RUN。**用户于 2026-10-09 明确接受 98/99 作为
+最终交付**（最终交付记录：evidence/iteration41-000-three-venue-certification-final-delivery-2026-10-09.md）；
+EM01 受限密钥路径保留为将来可选翻转。r21 快照
 （docs/.../evidence/iteration41-three-venue-99-case-acceptance-tracking-r21-2026-10-09.{json,md}，每例证据
 SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `1048cdd4`、bt_api_ctp dev `a497bab`
 （另含 SDK 父仓 gitlink `7312e718`）。仅余 1 处 BLOCKED：Binance EM01（Demo 密钥具备持仓模式权限；加入
