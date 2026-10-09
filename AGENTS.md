@@ -3743,14 +3743,15 @@ M01 R20 was invoked once by Root. The actual returned finite diagnosis changed f
 + monitor/validation），替代此前逐案例 Bespoke 候选管线；旧候选代码（binance `_certification/` 等）仍在树中
 但不再被新流程引用。
 
-**真实结果**：三场所 97 PASS / 2 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
+**真实结果**：三场所 98 PASS / 1 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
 （docs/.../evidence/iteration41-three-venue-99-case-acceptance-tracking-r21-2026-10-09.{json,md}，每例证据
-SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `9ce049ea`、bt_api_ctp dev `a497bab`
-（另含 SDK 父仓 gitlink `7312e718`）。2 处 BLOCKED 均为场所机制性不可达、带完整尝试证据：SimNow E01
-（7x24 引擎实测不冻结挂单保证金、不校验资金；5×1000 手尝试均被接受）、Binance EM01（Demo 密钥具备持仓
-模式权限；加入 `.env` 的 `BINANCE_DEMO_RESTRICTED_*` 受限密钥即翻 PASS，代码路径已就绪）。EM03 已通过
-"操作员授权场方登出"（ReqUserLogout→连接终止→幽灵会话查询失败→新会话恢复）实跑翻为 PASS，语义边界
-（非券商管理端踢线）随证据 scope_note 记录；严格外部踢线观测保留于 hold 模式。
+SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `1048cdd4`、bt_api_ctp dev `a497bab`
+（另含 SDK 父仓 gitlink `7312e718`）。仅余 1 处 BLOCKED：Binance EM01（Demo 密钥具备持仓模式权限；加入
+`.env` 的 `BINANCE_DEMO_RESTRICTED_*` 受限密钥即翻 PASS，代码路径已就绪）。EM03 已通过"操作员授权场方
+登出"（ReqUserLogout→连接终止→幽灵会话查询失败→新会话恢复）实跑翻为 PASS；E01 已通过**标准引擎**在夜盘
+时段实跑翻为 PASS（真实 CTP 资金拒绝 error 31，合约缺少资金 2035244.51；前三笔驻留冻结保证金）。运维要点：
+SimNow 标准前置（3000x）仅在交易时段（如夜盘 21:00–23:00 北京时间）TCP 可达，7x24 前置常时可达，用例
+自动落到先可达的完整 pair。
 
 **可选组件 16 拓扑全通过**：`examples/000_live_certification/optional16/`（spec/gateway_server/gateway_client/
 components/run_matrix + README）。真实矩阵 binance C01+T03 × 16 组合全 PASS（`acceptance-matrix.json`）；

@@ -1,8 +1,8 @@
 # Iteration 41 — three-venue 99-case acceptance tracker (r21)
 
-- as_of_utc: `2026-10-09T13:05:05Z`
-- commits: backtrader dev `9ce049ea488764a0b7f1b00857d652c0e38bbc31`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
-- totals: **97 PASS / 2 BLOCKED / 0 FAIL / 0 NOT_RUN** (99 cases)
+- as_of_utc: `2026-10-09T13:09:26Z`
+- commits: backtrader dev `1048cdd4121c96eb5c58fdb89646cf54af6b2181`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
+- totals: **98 PASS / 1 BLOCKED / 0 FAIL / 0 NOT_RUN** (99 cases)
 - optional16: `PRESENT`
 
 Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run evidence JSON under cases/<ID>/evidence/ (git-ignored, SHA-256 recorded here); newest PASS preferred, otherwise the newest run; blocked entries carry the reason from the run
@@ -83,14 +83,14 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | V02 | PASS |  | `20261009T120745_V02_PASS.json` | `d754ceb9268e` |
 | V03 | PASS |  | `20261009T120745_V03_PASS.json` | `5cdf5697f441` |
 
-## simnow — 32 PASS / 1 BLOCKED / 0 NOT_RUN
+## simnow — 33 PASS / 0 BLOCKED / 0 NOT_RUN
 
 | case | status | reason | evidence | sha256 |
 | --- | --- | --- | --- | --- |
 | B01 | PASS |  | `20261009T115628_B01_PASS.json` | `ba56c9064e2b` |
 | B02 | PASS |  | `20261009T110524_B02_PASS.json` | `4e750a611211` |
 | C01 | PASS |  | `20261009T103922_C01_PASS.json` | `b4b7c639b29e` |
-| E01 | BLOCKED | insufficient_funds_rejection_not_reachable | `20261009T123336_E01_BLOCKED.json` | `c245b395f2b8` |
+| E01 | PASS |  | `20261009T130838_E01_PASS.json` | `83002ad4692d` |
 | E02 | PASS |  | `20261009T115710_E02_PASS.json` | `31b8a91c1954` |
 | E03 | PASS |  | `20261009T114511_E03_PASS.json` | `34db880e826e` |
 | EM01 | PASS |  | `20261009T112313_EM01_PASS.json` | `219b3a1655af` |
@@ -124,4 +124,3 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 ## Blocked cases (evidence-backed)
 
 - binance/EM01: permission_restriction_not_producible_on_demo_key
-- simnow/E01: insufficient_funds_rejection_not_reachable

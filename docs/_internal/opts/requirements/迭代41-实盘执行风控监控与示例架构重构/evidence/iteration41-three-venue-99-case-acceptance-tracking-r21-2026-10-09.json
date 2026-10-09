@@ -1,15 +1,15 @@
 {
   "schema": "iteration41-three-venue-99-case-acceptance-tracking",
   "revision": "r21",
-  "as_of_utc": "2026-10-09T13:05:05Z",
+  "as_of_utc": "2026-10-09T13:09:26Z",
   "methodology": "three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run evidence JSON under cases/<ID>/evidence/ (git-ignored, SHA-256 recorded here); newest PASS preferred, otherwise the newest run; blocked entries carry the reason from the run",
   "commits": {
-    "backtrader_dev": "9ce049ea488764a0b7f1b00857d652c0e38bbc31",
+    "backtrader_dev": "1048cdd4121c96eb5c58fdb89646cf54af6b2181",
     "bt_api_ctp_dev": "a497bab6bb1b904891461aead1857093078226f0"
   },
   "totals": {
-    "PASS": 97,
-    "BLOCKED": 2,
+    "PASS": 98,
+    "BLOCKED": 1,
     "FAIL": 0,
     "UNKNOWN": 0,
     "NOT_RUN": 0
@@ -19,11 +19,6 @@
       "venue": "binance",
       "case": "EM01",
       "reason": "permission_restriction_not_producible_on_demo_key"
-    },
-    {
-      "venue": "simnow",
-      "case": "E01",
-      "reason": "insufficient_funds_rejection_not_reachable"
     }
   ],
   "venues": {
@@ -604,12 +599,12 @@
           "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/C01__20261009T103922_C01_PASS.json"
         },
         "E01": {
-          "status": "BLOCKED",
-          "reason": "insufficient_funds_rejection_not_reachable",
-          "evidence": "examples/000_live_certification/simnow_penetration/cases/E01/evidence/20261009T123336_E01_BLOCKED.json",
-          "evidence_sha256": "c245b395f2b8f4a369597e8916a961904c939724fb4a454dfb2961170a210693",
+          "status": "PASS",
+          "reason": "",
+          "evidence": "examples/000_live_certification/simnow_penetration/cases/E01/evidence/20261009T130838_E01_PASS.json",
+          "evidence_sha256": "83002ad4692d8f821bacef58bf00dd9193ba696847efd091fc1f33d57eafaf78",
           "live": true,
-          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/E01__20261009T123336_E01_BLOCKED.json"
+          "archived_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/r21-case-evidence/simnow/E01__20261009T130838_E01_PASS.json"
         },
         "E02": {
           "status": "PASS",
@@ -845,8 +840,8 @@
         }
       },
       "summary": {
-        "PASS": 32,
-        "BLOCKED": 1,
+        "PASS": 33,
+        "BLOCKED": 0,
         "FAIL": 0,
         "UNKNOWN": 0,
         "NOT_RUN": 0
