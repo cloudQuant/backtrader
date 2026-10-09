@@ -43,7 +43,8 @@
 | 项 | 结果 |
 | --- | --- |
 | 打标字段测试 | `tests/unit/test_iteration42_live_tick_provenance.py` 3 passed（含 feed 读取面逐项对齐；默认关不变） |
-| **组合链（打标 tick → 真实 feed 密封 → provider 握手）** | `tests/unit/test_iteration42_options_live_chain.py` **2 passed**：wrapper 队列 → `_prepare_tick`/`_ingest_tick`（与生产 poll 路径同序）→ 桶密封 → 示例 provider 构造 `BarEvidence` → feed 侧身份校验全部通过（域/代次/rules/session/candidate/序列/桶边界逐项断言，09:15 桶外 tick 不泄漏）；**负例**：未打标 tick 在密封时按 provenance 合同 ValueError 拒绝 |
+| **组合链（打标 tick → 真实 feed 密封 → provider 握手）** | `tests/unit/test_iteration42_options_live_chain.py` **4 passed**：wrapper 队列 → `_prepare_tick`/`_ingest_tick`（与生产 poll 路径同序）→ 桶密封 → 示例 provider 构造 `BarEvidence` → feed 侧身份校验全部通过（域/代次/rules/session/candidate/序列/桶边界逐项断言，桶外 tick 不泄漏）；**负例**：未打标 tick 在密封时按 provenance 合同 ValueError 拒绝 |
+| **quote 捕获（014_2 前置原语）** | 主仓附加式 `closed_bar_quote_capture`（默认关、上限可配、溢出丢最旧+旗标）：captured quotes 全部通过**真实 `validate_quote_against_bar`**（身份/域/代次/质量/窗口逐项）；limit=1 溢出时 `complete=False`；`tests/unit/feeds` + 相关聚合 **914 passed** |
 | 014_1 dry / replay | exit 0 / eligible+no_edge `LOCAL_REPLAY_PASS`（live 段经 legacy 剥离） |
 | option + iteration42 单测 | **640 passed**（含 583 option、组件边界/挂载、provenance） |
 | btapistore 回归 | `tests/unit/stores` 710 passed / 13 skipped |
@@ -75,12 +76,14 @@ close ≥ entry；终态无持仓、无活动单；策略状态非 HALTED/RECOVE
 ## 014_2/015 移植预侦察（2026-10-10，供 014_1 实盘验证后的 adapter 轮）
 
 - **014_2**：策略拥有 `require_feed_bar_evidence` + `notify_bar` 同一 seam，但其
-  FQ2 分钟特征消费 5s/60s **quote 窗口**；两者的互斥契约（有生产者则必须
-  require=False）表明 live 需要 **feed 侧逐桶 quote 事件捕获**：stock `BtApiFeed`
-  目前不保留 tick 历史、`BarEvidence.quote_events` 无生产者。翻转工作量 =
-  btapifeed 附加式 `closed_bar_quote_capture`（桶内采样/逐步追加 + 密封事件附带
-  quote_events）+ 014_2 run.py 复用 014_1 的 `_LiveClock`/`_LiveEvidenceProvider`
-  并把 quote_events 传入 BarEvidence（provider 已留字段）+ 真实合约映射（F_LOCAL→SA）。
+  FQ2 分钟特征消费 5s/60s **quote 窗口**（barrier 以 `BarEvidence.quote_events` 经
+  `_quote_filter` 构造 `accepted_quotes`）。**feed 侧逐桶 quote 捕获已实现并离线验收**
+  （见下）；剩余= 014_2 run.py 复用 014_1 的 `_LiveClock`/provider 结构 + quote_events
+  候选注入 + 真实合约映射（F_LOCAL→SA）。
+  - **关键运维事实**：CTP `UpdateTime` 为秒级，水印=max(事件秒)+摄取耗时，会使密封
+    时刻相对真实时钟**回拨最多约 1 秒**；因此每桶末尾 ≤1s 的 quote 会按因果规则被
+    `QUOTE_AFTER_SEAL` 拒绝（属设计内因果截断）。014_2 的 5s/60s 窗口完整性约束
+    （每段 ≤2s 缺口）在此尾部损失下仍可满足；窗口设计须按 ≥58s 有效覆盖评估。
 - **015**：tick-only cohort 路径（`CtpCohortNow`）语义在 store 的 SDK-event 管线；
   live 需把已打标 tick（本轮 `live_tick_provenance`）接入其 cohort/证据面，并在
   015 run.py 复用同一 `_LiveClock`/provider 结构；HFT 延迟结论保持排除。

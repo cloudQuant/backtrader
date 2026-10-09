@@ -209,6 +209,13 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ("receive_time_max_age", 2.0),
         ("price_tick", None),
         ("clock", None),
+        # Optional bounded per-bucket quote capture for the strict options
+        # adapters: each prepared tick inside a bucket is frozen (with its
+        # stamped provenance) onto the sealed bar event's ``quote_events`` so
+        # examples can build minute quote windows without inventing them.
+        # Default off; overflow drops the oldest record and flags the bucket.
+        ("closed_bar_quote_capture", False),
+        ("closed_bar_quote_limit", 240),
         # A caller-owned, calibrated provider invoked at the synchronous
         # strategy-dispatch boundary for strict ctp.quote.v2 ticks.  It must
         # return CtpCohortNow in the event's exact monotonic clock domain.
@@ -729,6 +736,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         current = self._bar_builders.get(bucket_start)
         if current is None:
             current = self._new_bar_builder(bucket_start, tick, price, volume, openinterest)
+            self._capture_quote(current, tick)
             self._bar_builders[bucket_start] = current
             self._bar_builders.move_to_end(bucket_start)
             self._bar_builder = current
@@ -754,6 +762,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 if value != current[field]:
                     current["quality_flags"].add(mismatch_flag)
             current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
+            self._capture_quote(current, tick)
             return
 
     def _new_bar_builder(self, bucket_start, tick, price, volume, openinterest):
@@ -773,6 +782,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "exchange": _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
             "asset_type": _tick_value(tick, "asset_type", "assetType", default="futures"),
             "trading_day": _tick_value(tick, "trading_day", "TradingDay", default=""),
+            "quote_events": [],
             "action_day": _tick_value(tick, "action_day", "ActionDay", default=""),
             "rules_hash": _tick_value(tick, "rules_hash", default=None),
             "session_segment": _tick_value(tick, "session_segment", default=None),
@@ -784,6 +794,93 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "trade_count": 1,
             "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
             "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
+        }
+
+    def _capture_quote(self, builder, tick):
+        """Freeze one prepared tick into the bucket's bounded quote window."""
+        if not bool(self.p.closed_bar_quote_capture):
+            return
+        mapping = self._quote_capture_mapping(tick)
+        if mapping is None:
+            return
+        events = builder.get("quote_events")
+        if events is None:
+            events = builder["quote_events"] = []
+        limit = int(self.p.closed_bar_quote_limit or 0)
+        if limit > 0 and len(events) >= limit:
+            builder["quality_flags"].add("QUOTE_CAPTURE_OVERFLOW")
+            events.pop(0)
+        events.append(mapping)
+
+    def _quote_capture_mapping(self, tick):
+        """Freeze a prepared tick as a live bar-bound quote record.
+
+        Every identity field comes from the tick's own (possibly stamped)
+        provenance; there is deliberately no process-state fallback.  The
+        caller-owned evidence provider may add its candidate id on hand-off.
+        """
+        raw_event = _tick_value(tick, "event_time_utc", default=None)
+        event_time = _as_utc_datetime(
+            raw_event
+            if raw_event not in (None, "")
+            else _tick_value(tick, "timestamp", "datetime", default=None)
+        )
+        if event_time is None:
+            return None
+        raw_receive = _tick_value(tick, "recv_time_utc", default=None)
+        receive_time = _as_utc_datetime(raw_receive) if raw_receive not in (None, "") else None
+        if receive_time is None:
+            wall = _finite_market_number(
+                _tick_value(tick, "received_wall_time", "local_time", default=None)
+            )
+            if wall is not None:
+                receive_time = _dt.datetime.fromtimestamp(wall, _UTC)
+        if receive_time is None:
+            return None
+        received_mono = _tick_value(tick, "recv_monotonic_ns", default=None)
+        if received_mono in (None, ""):
+            received_mono = _tick_value(tick, "received_monotonic_ns", default=None)
+        if not isinstance(received_mono, int) or received_mono <= 0:
+            return None
+        return {
+            "symbol": self._dataname,
+            "exchange": str(
+                _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default="") or ""
+            ),
+            "event_time": event_time,
+            "received_at": receive_time,
+            "received_monotonic_ns": received_mono,
+            "ingest_seq": _tick_value(tick, "ingest_seq", "sequence", default=None),
+            "generation": _tick_value(
+                tick, "connection_generation", "stream_generation", default=None
+            ),
+            "trading_day": str(_tick_value(tick, "trading_day", "TradingDay", default="") or ""),
+            "action_day": str(_tick_value(tick, "action_day", "ActionDay", default="") or ""),
+            "session_segment": str(_tick_value(tick, "session_segment", default="") or ""),
+            "rules_hash": str(_tick_value(tick, "rules_hash", default="") or ""),
+            "clock_domain": str(_tick_value(tick, "clock_domain_id", default="") or ""),
+            "clock_mode": "live",
+            "quality": str(_tick_value(tick, "quality", default="") or ""),
+            "volume_complete": bool(_tick_value(tick, "volume_complete", default=False)),
+            "bid": _finite_market_number(
+                _tick_value(tick, "bid_price", "bid", "BidPrice1", default=None)
+            ),
+            "ask": _finite_market_number(
+                _tick_value(tick, "ask_price", "ask", "AskPrice1", default=None)
+            ),
+            "bid_qty": _finite_market_number(
+                _tick_value(tick, "bid_volume", "bid_size", "BidVolume1", default=None)
+            ),
+            "ask_qty": _finite_market_number(
+                _tick_value(tick, "ask_volume", "ask_size", "AskVolume1", default=None)
+            ),
+            "last": _finite_market_number(
+                _tick_value(tick, "price", "last_price", "LastPrice", default=None)
+            ),
+            "source": str(_tick_value(tick, "source", default="") or ""),
+            "event_time_source": str(
+                _tick_value(tick, "event_time_source", default="") or "ctp-action-day-update-time"
+            ),
         }
 
     def _attach_closed_bar_evidence(self, bar_event):
@@ -1348,6 +1445,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 "watermark": _dt.datetime.fromtimestamp(watermark or available_ts, _UTC),
                 "max_event_time": _dt.datetime.fromtimestamp(current["last_timestamp"], _UTC),
             }
+            if bool(self.p.closed_bar_quote_capture):
+                extensions["quote_events"] = tuple(current.get("quote_events") or ())
             for name, value in extensions.items():
                 setattr(completed, name, value)
             self._attach_closed_bar_evidence(completed)
