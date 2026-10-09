@@ -1,0 +1,47 @@
+{
+  "check": "optional16-gateway-capability",
+  "started_utc": "2026-10-09T12:21:00Z",
+  "server": {
+    "endpoint": "tcp://127.0.0.1:51691",
+    "transport_impl": "zmq",
+    "token_present": true
+  },
+  "client_a_connect": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791548469020,
+    "time_offset_ms": 8746
+  },
+  "shared_server": {
+    "b_connect_host": "demo-fapi.binance.com",
+    "a_pid": 36972,
+    "b_pid": 36972,
+    "a_pid_equals_b_pid": true
+  },
+  "attribution": {
+    "order_id": 28624476301,
+    "seen_by_b": true,
+    "status_observed_by_b": "NEW"
+  },
+  "cancel_status": "CANCELED",
+  "wrong_token": {
+    "rejected": true,
+    "error": "GatewayRejected",
+    "text": "transport_rejected:TRANSPORT_SECURITY_REJECTED"
+  },
+  "stopped_server_write": {
+    "type": "GatewayCommandUncertain",
+    "text": "CommandOutcomeUnknownError: no correlated reply for place_order within 15000ms (request_id=83ef02b6b19c467f8ca0c4890166e"
+  },
+  "venue_orders_after_stopped_write": 0,
+  "no_order_created": true,
+  "journal": {
+    "dir": "D:\\source_code\\backtrader\\examples\\000_live_certification\\optional16\\gateway-capability-journal",
+    "entries": 10
+  },
+  "status": "PASS",
+  "limits": [
+    "uncertain-outcome (frame sent, no reply) staged in the package offline smoke, not live",
+    "no request-id dedup/anti-replay cache in this snapshot",
+    "localhost-only transport with per-run token; not a remote deployment control"
+  ]
+}

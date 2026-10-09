@@ -1,20 +1,20 @@
-"""E01 — insufficient-funds rejection: SAFE bounded attempt, honest BLOCKED.
+"""E01 — insufficient-funds rejection: bounded multi-attempt resting probe.
 
-Live SimNow 7x24 observation: the engine does not enforce funds within the
-reachable order sizes — the single-order cap (``MaxLimitOrderVolume``) keeps
-the margin well below the account's Available balance, and oversized
-accumulation crosses and fills instantly — so an insufficient-funds rejection
-is NOT producible within bounded safety.
+Funds are enforced only once accumulated resting margin exceeds Available,
+so one resting buy (clamped to the instrument cap) can never provoke the
+rejection: this case places up to ``scenario.max_attempts`` buys at a
+strictly NON-crossing price inside the band (``lower + tick``) until the
+venue rejects the insert (the genuine insufficient-funds rejection, PASS).
 
-The case therefore runs one SAFE bounded attempt: ONE buy for
-``scenario.attempt_volume`` (clamped to the instrument cap) at a NON-crossing
-resting price (``lower + tick``), which queues without fill churn, is recorded
-and then canceled to terminal state 5.  The PASS path is unchanged for
-environments that DO reject: the venue's insert evidence or the venue-query
-canceled-without-trade row is recorded.  Otherwise the case returns
-BLOCKED(``insufficient_funds_rejection_not_reachable``) with the queried
-account funds row (Balance/Available/CurrMargin), the attempt details and the
-engine observations.  No in-queue row may remain for this OrderRef.
+Attempts classify as rejected (native evidence → PASS), accepted in-queue
+(continue) or not visible in the accept window (recorded, continue);
+accepted orders are tracked immediately, all are canceled to terminal state
+5, and a residual sweep runs before returning.  If all bounded attempts are
+accepted — no rejection surfaced — the case returns an honest
+BLOCKED(``insufficient_funds_rejection_not_reachable``) with account funds,
+per-attempt notional observations (price*volume*ct_multiplier when known)
+and the attempt list; facts never carry broker/user/account identity
+strings.
 """
 
 from __future__ import annotations
@@ -30,7 +30,8 @@ CASE_ID = "E01"
 RISK = "WRITE"
 
 _IN_QUEUE = {"1", "3"}  # partial/no trade, still resting in the venue queue
-_SETTLED = _IN_QUEUE | {"2", "4", "5"}
+_FINISHED = {"0", "2", "4", "5"}  # traded out, canceled, or no longer queueing
+_SETTLED = _IN_QUEUE | _FINISHED
 
 
 def _row_of(result, instrument):
@@ -77,14 +78,18 @@ def _poll(client, instrument, order_ref, timeout, statuses):
     return latest
 
 
-def _residual(client, instrument, order_ref):
-    """In-queue venue rows for our OrderRef; ``(None, error)`` if unchecked."""
+def _residual(client, instrument, order_refs):
+    """In-queue venue rows for the given OrderRef(s); ``(None, error)`` when
+    the venue query itself failed."""
+    refs = {str(r) for r in ([order_refs] if isinstance(order_refs, str) else order_refs) if r}
+    if not refs:
+        return [], None
     try:
         rows = client.query_orders(instrument_id=instrument)["rows"]
     except SimNowSessionError as exc:
         return None, str(exc.reason)
     return ([_snapshot(row) for row in rows
-             if str(row.get("OrderRef")) == str(order_ref)
+             if str(row.get("OrderRef")) in refs
              and str(row.get("OrderStatus") or "") in _IN_QUEUE], None)
 
 
@@ -95,21 +100,14 @@ def _account_funds(ctx):
     except SimNowSessionError as exc:
         return {"error": str(exc.reason)}
     row = dict(rows[0]) if rows else {}
-    funds = {k: row.get(k) for k in ("Balance", "Available", "CurrMargin")}
-    funds["row_count"] = len(rows)
-    return funds
+    return {**{k: row.get(k) for k in ("Balance", "Available", "CurrMargin")},
+            "row_count": len(rows)}
 
 
 def _flatten_position(ctx):
-    """Best-effort bounded flatten of any position the attempt opened.
-
-    The bounded attempt rests at the band floor, so a fill is not expected;
-    this guard only matters on engines that fill it anyway.  Never raises.
-    """
-    client = ctx.client
-    instrument = ctx.contract["instrument"]
+    """Best-effort bounded flatten of any position the attempts opened."""
+    client, instrument = ctx.client, ctx.contract["instrument"]
     exchange = ctx.contract["exchange"]
-    hedge_flag = ctx.contract.get("hedge_flag") or "1"
     timeout = max(float(ctx.scenario().get("reject_timeout_ms") or 15000) / 1000.0, 20.0)
     try:
         rows = client.query_positions(instrument_id=instrument)["rows"]
@@ -121,39 +119,33 @@ def _flatten_position(ctx):
                     if str(r.get("PosiDirection")) == "3")
     facts = {"long": long_qty, "short": short_qty}
     if long_qty <= 0 and short_qty <= 0:
-        facts["skipped"] = "no_position"
-        return facts
-    depth = _row_of(client.query_depth_market_data(instrument), instrument)
-    if depth is None:
-        facts["error"] = "no_book"
-        return facts
-    if long_qty > 0:
-        direction, level, volume = "1", float(depth.get("BidPrice1") or 0), long_qty
-    else:
-        direction, level, volume = "0", float(depth.get("AskPrice1") or 0), short_qty
+        return {**facts, "skipped": "no_position"}
+    depth = _row_of(client.query_depth_market_data(instrument), instrument) or {}
+    direction = "1" if long_qty > 0 else "0"
+    level = float(depth.get("BidPrice1" if long_qty > 0 else "AskPrice1") or 0)
+    volume = long_qty or short_qty
     if level <= 0:
-        facts["error"] = "no_book"
-        return facts
-    facts.update({"direction": direction, "offset_flag": "1",
-                  "price": level, "volume": volume})
+        return {**facts, "error": "no_book"}
+    facts.update({"direction": direction, "offset_flag": "1", "price": level, "volume": volume})
     try:
         placement = client.place_limit_order(
             instrument_id=instrument, exchange_id=exchange, direction=direction,
-            offset_flag="1", price=level, volume=volume, hedge_flag=hedge_flag)
+            offset_flag="1", price=level, volume=volume,
+            hedge_flag=ctx.contract.get("hedge_flag") or "1")
         ctx.track_order(instrument, placement["order_ref"], exchange_id=exchange)
-        final = _poll(client, instrument, placement["order_ref"], timeout, {"0", "2", "4", "5"})
+        final = _poll(client, instrument, placement["order_ref"], timeout, _FINISHED)
         status = str((final or {}).get("OrderStatus") or "")
         facts.update({"order_ref": placement["order_ref"], "status": status or "not_visible",
                       "volume_traded": (final or {}).get("VolumeTraded")})
-        if status in {"0", "2", "4", "5"}:
+        if status in _FINISHED:
             ctx.mark_order_closed(placement["order_ref"])
             client.mark_order_state(placement["order_ref"], "closed",
                                     str((final or {}).get("OrderSysID") or ""))
     except SimNowSessionError as exc:
         facts["error"] = str(exc.reason)
     try:
-        rows_after = client.query_positions(instrument_id=instrument)["rows"]
-        facts["position_after"] = sum(int(float(r.get("Position") or 0)) for r in rows_after
+        after = client.query_positions(instrument_id=instrument)["rows"]
+        facts["position_after"] = sum(int(float(r.get("Position") or 0)) for r in after
                                       if str(r.get("PosiDirection")) in ("2", "3"))
     except SimNowSessionError as exc:
         facts["position_after_error"] = str(exc.reason)
@@ -183,16 +175,10 @@ def _native_result(ctx, facts, record):
     return CaseResult(CASE_ID, "PASS", "", facts)
 
 
-def _rejection_probe(ctx, *, rule, direction, offset_flag, price, volume, extra):
-    """Arm, submit exactly once, and resolve the venue outcome of that order."""
+def _arm(ctx):
+    """Arm once for the whole probe: the engine allows one arm per instrument."""
     client = ctx.client
-    instrument = ctx.contract["instrument"]
-    exchange = ctx.contract["exchange"]
-    timeout = float(ctx.scenario().get("reject_timeout_ms") or 15000) / 1000.0
-    facts = dict(extra)
-    facts.update({"rule": rule, "direction": direction, "offset_flag": offset_flag,
-                  "price": float(price), "volume": int(volume), "dispatch_absent": False})
-
+    instrument, exchange = ctx.contract["instrument"], ctx.contract["exchange"]
     identity = hashlib.sha256(
         (CASE_ID + json.dumps(ctx.config, sort_keys=True, default=str)).encode()).hexdigest()
     scope = {"case": CASE_ID, "instrument": instrument, "exchange": exchange,
@@ -200,98 +186,106 @@ def _rejection_probe(ctx, *, rule, direction, offset_flag, price, volume, extra)
              "generation": client.login_facts.get("connection_generation"),
              "trading_day": client.login_facts.get("trading_day")}
     preflight = hashlib.sha256(json.dumps(scope, sort_keys=True).encode()).hexdigest()
-    client.arm(instrument_id=instrument, exchange_id=exchange, strategy_identity_sha256=identity,
-               execution_cycle_id=f"{CASE_ID}-{int(time.time())}", preflight_sha256=preflight)
-    ctx.log(f"armed; submitting one {direction}/{offset_flag} {volume}@{price}")
+    return client.arm(instrument_id=instrument, exchange_id=exchange,
+                      strategy_identity_sha256=identity,
+                      execution_cycle_id=f"{CASE_ID}-{int(time.time())}",
+                      preflight_sha256=preflight)
 
+
+def _submit_attempt(ctx, price, volume, timeout):
+    """Place ONE resting buy; returns ``(entry, rejection)`` (record or None)."""
+    client, instrument = ctx.client, ctx.contract["instrument"]
+    exchange = ctx.contract["exchange"]
+    entry = {"submit_code": None, "evidence_status": "none", "error_code": None,
+             "error_message": "", "order_ref": "", "venue_status": "not_visible",
+             "outcome": "not_visible"}
     try:
         placement = client.place_limit_order(
-            instrument_id=instrument, exchange_id=exchange, direction=direction,
-            offset_flag=offset_flag, price=price, volume=volume,
+            instrument_id=instrument, exchange_id=exchange, direction="0",
+            offset_flag="0", price=price, volume=volume,
             hedge_flag=ctx.contract.get("hedge_flag") or "1")
     except SimNowSessionError as exc:
         if exc.reason == "order_rejected":
-            return _native_result(ctx, facts, dict(exc.facts))
+            record = dict(exc.facts)
+            evidence = record.get("evidence") or {}
+            entry.update({"submit_code": record.get("submit_code"),
+                          "evidence_status": str(evidence.get("status") or ""),
+                          "error_code": evidence.get("error_code"),
+                          "error_message": str(evidence.get("error_message") or "").strip()[:160],
+                          "order_ref": str(record.get("order_ref") or ""),
+                          "venue_status": "rejected", "outcome": "rejected"})
+            return entry, record
         if exc.reason != "order_outcome_unknown":
             raise
-        facts["place_error"] = str(exc.reason)
+        entry["place_error"] = str(exc.reason)
         order_ref = str(exc.facts.get("order_ref") or "")
         if not order_ref:
-            return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
+            entry["outcome"] = "order_outcome_unknown"
+            return entry, None
     else:
         order_ref = str(placement.get("order_ref") or "")
-        facts["submit_code"] = placement.get("submit_code")
-        if str((placement.get("evidence") or {}).get("status") or "") == "rejected":
-            return _native_result(ctx, facts, dict(placement))
-    facts["order_ref"] = order_ref
+        evidence = placement.get("evidence") or {}
+        entry.update({"submit_code": placement.get("submit_code"),
+                      "evidence_status": str(evidence.get("status") or "")})
+        if entry["evidence_status"] == "rejected":
+            entry.update({"error_code": evidence.get("error_code"),
+                          "error_message": str(evidence.get("error_message") or "").strip()[:160],
+                          "order_ref": order_ref, "venue_status": "rejected",
+                          "outcome": "rejected"})
+            return entry, dict(placement)
+    entry["order_ref"] = order_ref
+    # Track accepted orders immediately; a resting order must be cancelable.
     ctx.track_order(instrument, order_ref, exchange_id=exchange)
-    ctx.log(f"order {order_ref} was not deterministically rejected; confirming at the venue")
-
     row = _poll(client, instrument, order_ref, timeout, _SETTLED)
-    status = str((row or {}).get("OrderStatus") or "")
-    facts["venue_status"] = status or "not_visible"
-    if row is not None:
-        facts["venue_row"] = _snapshot(row)
-    order_sys_id = str((row or {}).get("OrderSysID") or "")
-    terminal = status in {"2", "4", "5"}
-    if row is not None and status in _IN_QUEUE:
-        cancel = {"order_sys_id": order_sys_id}
-        try:
-            reply = client.cancel_order(instrument_id=instrument, exchange_id=exchange,
-                                        order_ref=order_ref, order_sys_id=order_sys_id)
-            cancel["submit_code"] = reply.get("submit_code")
-            final = _poll(client, instrument, order_ref, max(timeout, 20.0), {"2", "4", "5"})
-            final_status = str((final or {}).get("OrderStatus") or "")
-            cancel["final_status"] = final_status or "timeout"
-            terminal = final_status in {"2", "4", "5"}
-        except SimNowSessionError as exc:
-            cancel["error"] = str(exc.reason)
-        facts["cancel"] = cancel
-    traded = int(float((row or {}).get("VolumeTraded") or 0))
-    residual, residual_error = _residual(client, instrument, order_ref)
-    facts["residual_in_queue"] = None if residual_error else residual
-    if residual_error:
-        facts["residual_check_error"] = residual_error
-    if residual:
-        return CaseResult(CASE_ID, "FAIL", "cancel_residual_open", facts)
-    if terminal:
-        ctx.mark_order_closed(order_ref)
-        client.mark_order_state(order_ref, "closed", order_sys_id)
     if row is None:
-        return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
+        entry["outcome"] = "not_visible"
+        return entry, None
+    status = str(row.get("OrderStatus") or "")
+    traded = int(float(row.get("VolumeTraded") or 0))
+    entry.update({"venue_status": status, "volume_traded": traded,
+                  "order_sys_id": str(row.get("OrderSysID") or "")})
     if status in _IN_QUEUE:
-        # The bounded resting attempt was accepted and canceled without any
-        # venue funds rejection: the rejection is not reachable this way.
-        facts.update({"accepted_without_rejection": True, "attempt_status": status,
-                      "attempt_volume_traded": traded,
-                      "cancel_terminal_status": str(
-                          (facts.get("cancel") or {}).get("final_status") or "")})
-        facts["engine_observations"] = {
-            **facts.get("engine_observations", {}),
-            "outcome": "accepted_without_funds_rejection"}
-        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
-    if status == "5" and traded == 0:
-        facts.update({"rejection_source": "venue_query",
-                      "evidence_status": "canceled_without_trade", "error_code": None,
-                      "error_message": str(row.get("StatusMsg") or "").strip()[:160]})
-        return CaseResult(CASE_ID, "PASS", "", facts)
-    if traded > 0:
-        # An unexpected fill on the resting price: flatten it before reporting.
-        facts.update({"accepted_without_rejection": True, "attempt_status": status,
-                      "attempt_volume_traded": traded,
-                      "flatten": _flatten_position(ctx)})
-        facts["engine_observations"] = {
-            **facts.get("engine_observations", {}),
-            "outcome": "filled_without_funds_rejection"}
-        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
-    if status in {"2", "4"}:
-        facts.update({"accepted_without_rejection": True, "attempt_status": status,
-                      "attempt_volume_traded": traded})
-        facts["engine_observations"] = {
-            **facts.get("engine_observations", {}),
-            "outcome": "accepted_without_funds_rejection"}
-        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)
-    return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
+        entry["outcome"] = "accepted"
+    else:
+        entry["outcome"] = "accepted_filled" if traded > 0 else "terminal_without_trade"
+        ctx.mark_order_closed(order_ref)
+        client.mark_order_state(order_ref, "closed", entry["order_sys_id"])
+    return entry, None
+
+
+def _cancel_accepted(ctx, facts, attempts, timeout):
+    """Cancel every non-terminal attempt order to terminal state, then sweep."""
+    client, instrument = ctx.client, ctx.contract["instrument"]
+    exchange = ctx.contract["exchange"]
+    results = []
+    for entry in attempts:
+        if entry.get("outcome") not in ("accepted", "not_visible"):
+            continue
+        order_ref = str(entry.get("order_ref") or "")
+        if not order_ref:
+            continue
+        item = {"order_ref": order_ref, "venue_status": entry.get("venue_status")}
+        try:
+            reply = client.cancel_order(
+                instrument_id=instrument, exchange_id=exchange, order_ref=order_ref,
+                order_sys_id=str(entry.get("order_sys_id") or ""))
+            item["submit_code"] = reply.get("submit_code")
+            final = _poll(client, instrument, order_ref, timeout, _FINISHED)
+            status = str((final or {}).get("OrderStatus") or "")
+            item["final_status"] = status or "timeout"
+            if status in _FINISHED:
+                ctx.mark_order_closed(order_ref)
+                client.mark_order_state(order_ref, "closed",
+                                        str((final or {}).get("OrderSysID") or ""))
+        except SimNowSessionError as exc:
+            item["error"] = str(exc.reason)
+        results.append(item)
+    facts["canceled_accepted"] = results
+    residual, error = _residual(client, instrument, [e.get("order_ref") for e in attempts])
+    facts["accepted_residual_in_queue"] = None if error else residual
+    if error:
+        facts["accepted_residual_check_error"] = error
+    return residual
 
 
 class E01Strategy:
@@ -306,35 +300,65 @@ class E01Strategy:
         if last <= 0:
             return CaseResult(CASE_ID, "BLOCKED", "last_price_unavailable", {"last_price": last})
 
-        # SAFE bounded attempt: the live engine draws no funds rejection inside
-        # the reachable order size (the single-order cap keeps the margin well
-        # below Available; oversized accumulation fills instantly).  The ONE
-        # buy is sized to the attempt volume (clamped to the instrument cap)
-        # and rests at a NON-crossing price (lower band + one tick): it draws a
-        # genuine venue rejection when one exists (PASS, unchanged), otherwise
-        # it queues without fill churn until canceled and the case reports an
-        # honest BLOCKED with the observed account funds and engine facts.
         attempt_volume = int(float(scenario.get("attempt_volume") or 1000))
+        max_attempts = int(scenario.get("max_attempts", 5))
         max_volume = int(float(row.get("MaxLimitOrderVolume") or 0))
         volume = min(attempt_volume, max_volume) if max_volume > 0 else attempt_volume
         price = round(lower + tick, 6)
         multiple = float(row.get("VolumeMultiple") or 0)
-        observations = {
-            "single_order_cap_lots": max_volume or None,
-            "attempt_volume_requested": attempt_volume,
-            "attempt_volume_placed": volume,
-            "attempt_notional_yuan": (round(price * multiple * volume, 2)
-                                      if multiple > 0 else None),
-            "funds_enforcement": "not_observed",
-            "note": ("single-order cap bounds the attempt; acceptance without a funds "
-                     "rejection is recorded when observed"),
-        }
+        timeout = float(scenario.get("reject_timeout_ms") or 15000) / 1000.0
+        unit_notional = round(price * (multiple if multiple > 0 else 1) * volume, 2)
+        facts = {
+            "rule": "insufficient_funds", "direction": "0", "offset_flag": "0",
+            "dispatch_absent": False, "price_band": {"lower": lower, "upper": upper},
+            "last_price": last, "max_limit_order_volume": row.get("MaxLimitOrderVolume"),
+            "attempt_volume": attempt_volume, "attempt_price": price,
+            "attempt_volume_placed": volume, "volume": volume, "price": price,
+            "max_attempts": max_attempts, "ct_multiplier": multiple or None,
+            "engine_observations": {
+                "single_order_cap_lots": max_volume or None,
+                "attempt_volume_requested": attempt_volume, "attempt_volume_placed": volume,
+                "attempt_notional_yuan": unit_notional, "funds_enforcement": "not_observed",
+                "note": "funds enforced only after accumulated resting margin exceeds Available"}}
+        _arm(ctx)
+        ctx.log(f"armed; up to {max_attempts} resting buys of {volume}@{price}")
 
-        return _rejection_probe(
-            ctx, rule="insufficient_funds", direction="0", offset_flag="0",
-            price=price, volume=volume,
-            extra={"price_band": {"lower": lower, "upper": upper}, "last_price": last,
-                   "max_limit_order_volume": row.get("MaxLimitOrderVolume"),
-                   "attempt_volume": attempt_volume, "attempt_price": price,
-                   "account_funds": _account_funds(ctx),
-                   "engine_observations": observations})
+        # Bounded probe: each accepted resting buy locks more margin; the
+        # venue rejects the insert once Available is exhausted.
+        attempts, available = [], []
+        for index in range(1, max_attempts + 1):
+            funds = _account_funds(ctx)
+            available.append(funds)
+            ctx.log(f"attempt {index}/{max_attempts}: funds={funds}")
+            entry, rejection = _submit_attempt(ctx, price, volume, timeout)
+            entry.update({"attempt": index, "available_before": funds,
+                          "notional_yuan": unit_notional})
+            attempts.append(entry)
+            facts.update({"attempts": attempts, "available_before": available,
+                          "attempts_used": len(attempts)})
+            if rejection is not None:
+                facts["rejection_attempt_index"] = index
+                facts["engine_observations"].update({"funds_enforcement": "rejection_observed",
+                                                     "outcome": "funds_rejection_reached"})
+                ctx.log(f"attempt {index}: venue rejected the insert; canceling accepted orders")
+                if _cancel_accepted(ctx, facts, attempts, timeout):
+                    return CaseResult(CASE_ID, "FAIL", "cancel_residual_open", facts)
+                if any(e.get("outcome") == "accepted_filled" for e in attempts):
+                    facts["flatten"] = _flatten_position(ctx)  # fill safety guard
+                return _native_result(ctx, facts, rejection)
+            if entry["outcome"] == "order_outcome_unknown":
+                _cancel_accepted(ctx, facts, attempts, timeout)
+                return CaseResult(CASE_ID, "UNKNOWN", "order_outcome_unknown", facts)
+            ctx.log(f"attempt {index}: {entry['outcome']} status={entry['venue_status']}")
+
+        # Every bounded attempt was accepted: the probe accumulated the whole
+        # allowed resting margin and the engine never surfaced a rejection.
+        if _cancel_accepted(ctx, facts, attempts, timeout):
+            return CaseResult(CASE_ID, "FAIL", "cancel_residual_open", facts)
+        accepted = [e for e in attempts if e.get("outcome") == "accepted"]
+        facts.update({"accepted_without_rejection": True, "account_funds": _account_funds(ctx),
+                      "accepted_resting_orders": len(accepted), "flatten": _flatten_position(ctx),
+                      "accepted_notional_yuan": round(unit_notional * len(accepted), 2)})
+        facts["engine_observations"].update({"outcome": "accepted_without_funds_rejection",
+                                             "funds_enforcement": "not_observed_bounded"})
+        return CaseResult(CASE_ID, "BLOCKED", "insufficient_funds_rejection_not_reachable", facts)

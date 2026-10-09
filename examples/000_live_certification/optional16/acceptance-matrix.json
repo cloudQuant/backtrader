@@ -1,0 +1,1277 @@
+{
+  "schema": "optional16-acceptance-matrix/1",
+  "run_id": "6a2b7c8299d8468189911e4275b30b21",
+  "mode": "live",
+  "dry": false,
+  "python": "C:\\anaconda3\\python.exe",
+  "repo_root": "D:\\source_code\\backtrader",
+  "cert_root": "D:\\source_code\\backtrader\\examples\\000_live_certification",
+  "case_root": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration",
+  "cases": [
+    "C01",
+    "T03"
+  ],
+  "spec_source": "optional16.spec",
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": false
+  },
+  "started_utc": "2026-10-09T12:32:21.680322Z",
+  "finished_utc": "2026-10-09T12:34:20.516666Z",
+  "commands": [
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --risk --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --monitor --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --risk --live --allow-write",
+    "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --risk --monitor --live --allow-write"
+  ],
+  "combos": [
+    {
+      "combo_id": "direct-e0-r0-m0",
+      "transport": "direct",
+      "flags": {
+        "execution": false,
+        "risk": false,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:32:21.681325Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --live --allow-write",
+          "started_utc": "2026-10-09T12:32:21.681325Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123223_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123223_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549150885,
+              "time_offset_ms": 8814,
+              "rtt_ms": 417,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123223_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549150885, \"time_offset_ms\": 8814, \"rtt_ms\": 417, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:23.412873Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --live --allow-write",
+          "started_utc": "2026-10-09T12:32:23.412873Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123228_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123228_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484149,
+              "clientOrderId": "certo8b53fxvp9jm",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81439.0,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": "\"PASS\", \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123228_T03_PASS.json\", \"facts\": {\"orderId\": 28624484149, \"clientOrderId\": \"certo8b53fxvp9jm\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81439.0, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:28.278114Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:32:28.278114Z"
+    },
+    {
+      "combo_id": "direct-e0-r0-m1",
+      "transport": "direct",
+      "flags": {
+        "execution": false,
+        "risk": false,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:32:28.278114Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:28.278114Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123230_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123230_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549157847,
+              "time_offset_ms": 8747,
+              "rtt_ms": 288,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123230_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549157847, \"time_offset_ms\": 8747, \"rtt_ms\": 288, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:30.440187Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:30.440187Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123235_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123235_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484224,
+              "clientOrderId": "certt227lvn8jxmk",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81414.1,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": "\"PASS\", \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123235_T03_PASS.json\", \"facts\": {\"orderId\": 28624484224, \"clientOrderId\": \"certt227lvn8jxmk\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81414.1, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:35.679981Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:32:35.679981Z"
+    },
+    {
+      "combo_id": "direct-e0-r1-m0",
+      "transport": "direct",
+      "flags": {
+        "execution": false,
+        "risk": true,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:32:35.679981Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:32:35.679981Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123237_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123237_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549164987,
+              "time_offset_ms": 8749,
+              "rtt_ms": 297,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123237_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549164987, \"time_offset_ms\": 8749, \"rtt_ms\": 297, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:37.551838Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:32:37.551838Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123242_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123242_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484295,
+              "clientOrderId": "o163c8a69feeb474b5092b4",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81415.0,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123242_T03_PASS.json\", \"facts\": {\"orderId\": 28624484295, \"clientOrderId\": \"o163c8a69feeb474b5092b4\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81415.0, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:42.254072Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:32:42.254072Z"
+    },
+    {
+      "combo_id": "direct-e0-r1-m1",
+      "transport": "direct",
+      "flags": {
+        "execution": false,
+        "risk": true,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:32:42.254072Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:42.254072Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123244_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123244_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549171880,
+              "time_offset_ms": 8741,
+              "rtt_ms": 274,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123244_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549171880, \"time_offset_ms\": 8741, \"rtt_ms\": 274, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:44.442196Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:44.442196Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123249_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123249_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484345,
+              "clientOrderId": "o16586404b6325949ac97b5",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81399.5,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123249_T03_PASS.json\", \"facts\": {\"orderId\": 28624484345, \"clientOrderId\": \"o16586404b6325949ac97b5\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81399.5, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:49.712912Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:32:49.712912Z"
+    },
+    {
+      "combo_id": "direct-e1-r0-m0",
+      "transport": "direct",
+      "flags": {
+        "execution": true,
+        "risk": false,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:32:49.712912Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --live --allow-write",
+          "started_utc": "2026-10-09T12:32:49.713922Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123251_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123251_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549179018,
+              "time_offset_ms": 8770,
+              "rtt_ms": 336,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123251_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549179018, \"time_offset_ms\": 8770, \"rtt_ms\": 336, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:51.515463Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --live --allow-write",
+          "started_utc": "2026-10-09T12:32:51.515463Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123256_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123256_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484415,
+              "clientOrderId": "o163a6ac3fb4f7f410e9ff2",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81394.5,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123256_T03_PASS.json\", \"facts\": {\"orderId\": 28624484415, \"clientOrderId\": \"o163a6ac3fb4f7f410e9ff2\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81394.5, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:56.080673Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:32:56.080673Z"
+    },
+    {
+      "combo_id": "direct-e1-r0-m1",
+      "transport": "direct",
+      "flags": {
+        "execution": true,
+        "risk": false,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:32:56.080673Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:56.080673Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123258_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123258_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549185737,
+              "time_offset_ms": 8747,
+              "rtt_ms": 291,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123258_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549185737, \"time_offset_ms\": 8747, \"rtt_ms\": 291, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:32:58.274347Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:32:58.274347Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123303_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123303_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484504,
+              "clientOrderId": "o1634e180e6df7d44cdb9d2",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81408.1,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123303_T03_PASS.json\", \"facts\": {\"orderId\": 28624484504, \"clientOrderId\": \"o1634e180e6df7d44cdb9d2\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81408.1, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:03.954293Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:03.954293Z"
+    },
+    {
+      "combo_id": "direct-e1-r1-m0",
+      "transport": "direct",
+      "flags": {
+        "execution": true,
+        "risk": true,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:33:03.954293Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:33:03.954293Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123305_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123305_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549193323,
+              "time_offset_ms": 8753,
+              "rtt_ms": 295,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123305_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549193323, \"time_offset_ms\": 8753, \"rtt_ms\": 295, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:05.860117Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:33:05.861121Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123310_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123310_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484572,
+              "clientOrderId": "o16982354ca8b734399ab90",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81410.2,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123310_T03_PASS.json\", \"facts\": {\"orderId\": 28624484572, \"clientOrderId\": \"o16982354ca8b734399ab90\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81410.2, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:10.810112Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:10.810112Z"
+    },
+    {
+      "combo_id": "direct-e1-r1-m1",
+      "transport": "direct",
+      "flags": {
+        "execution": true,
+        "risk": true,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:33:10.810112Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport direct --execution --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:10.810112Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123313_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123313_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549200572,
+              "time_offset_ms": 8746,
+              "rtt_ms": 284,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123313_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549200572, \"time_offset_ms\": 8746, \"rtt_ms\": 284, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:13.180927Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport direct --execution --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:13.180927Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123318_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123318_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484655,
+              "clientOrderId": "o1661754d0965144a019e60",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81423.8,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123318_T03_PASS.json\", \"facts\": {\"orderId\": 28624484655, \"clientOrderId\": \"o1661754d0965144a019e60\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81423.8, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:18.828509Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:18.828509Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e0-r0-m0",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": false,
+        "risk": false,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:33:18.828509Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --live --allow-write",
+          "started_utc": "2026-10-09T12:33:18.828509Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123320_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123320_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549208076,
+              "time_offset_ms": 8739,
+              "rtt_ms": 266,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123320_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549208076, \"time_offset_ms\": 8739, \"rtt_ms\": 266, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:20.720618Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --live --allow-write",
+          "started_utc": "2026-10-09T12:33:20.721618Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123326_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123326_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484760,
+              "clientOrderId": "cert5eh2wz9r8foq",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81433.3,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": "\"PASS\", \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123326_T03_PASS.json\", \"facts\": {\"orderId\": 28624484760, \"clientOrderId\": \"cert5eh2wz9r8foq\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81433.3, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:26.361817Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:26.361817Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e0-r0-m1",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": false,
+        "risk": false,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:33:26.361817Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:26.363041Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123328_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123328_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549216185,
+              "time_offset_ms": 8739,
+              "rtt_ms": 298,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123328_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549216185, \"time_offset_ms\": 8739, \"rtt_ms\": 298, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:28.903302Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:28.903302Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123334_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123334_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484884,
+              "clientOrderId": "certfj0far8cv5r7",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81431.5,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": "\"PASS\", \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123334_T03_PASS.json\", \"facts\": {\"orderId\": 28624484884, \"clientOrderId\": \"certfj0far8cv5r7\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81431.5, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:34.486106Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:34.486106Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e0-r1-m0",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": false,
+        "risk": true,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:33:34.486106Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:33:34.486106Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123336_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123336_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549223871,
+              "time_offset_ms": 8742,
+              "rtt_ms": 279,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123336_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549223871, \"time_offset_ms\": 8742, \"rtt_ms\": 279, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:36.768109Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:33:36.768109Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123341_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123341_T03_PASS.json",
+            "facts": {
+              "orderId": 28624484961,
+              "clientOrderId": "o16a4d0ac257afd4851bd9d",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81425.1,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123341_T03_PASS.json\", \"facts\": {\"orderId\": 28624484961, \"clientOrderId\": \"o16a4d0ac257afd4851bd9d\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81425.1, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:41.818091Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:41.818091Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e0-r1-m1",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": false,
+        "risk": true,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:33:41.818091Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:41.818091Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123344_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123344_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549231737,
+              "time_offset_ms": 8743,
+              "rtt_ms": 283,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123344_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549231737, \"time_offset_ms\": 8743, \"rtt_ms\": 283, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:44.558310Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:44.559312Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123350_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123350_T03_PASS.json",
+            "facts": {
+              "orderId": 28624485041,
+              "clientOrderId": "o16bf6ea26ca2b940749ca0",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81426.4,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123350_T03_PASS.json\", \"facts\": {\"orderId\": 28624485041, \"clientOrderId\": \"o16bf6ea26ca2b940749ca0\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81426.4, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:50.359505Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:50.359505Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e1-r0-m0",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": true,
+        "risk": false,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:33:50.359505Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --live --allow-write",
+          "started_utc": "2026-10-09T12:33:50.359505Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123352_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123352_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549239734,
+              "time_offset_ms": 8743,
+              "rtt_ms": 275,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123352_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549239734, \"time_offset_ms\": 8743, \"rtt_ms\": 275, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:52.425137Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --live --allow-write",
+          "started_utc": "2026-10-09T12:33:52.425137Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123357_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123357_T03_PASS.json",
+            "facts": {
+              "orderId": 28624485117,
+              "clientOrderId": "o16bc1a26686f4e40dbb8a3",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81423.9,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123357_T03_PASS.json\", \"facts\": {\"orderId\": 28624485117, \"clientOrderId\": \"o16bc1a26686f4e40dbb8a3\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81423.9, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:57.468974Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:33:57.468974Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e1-r0-m1",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": true,
+        "risk": false,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:33:57.468974Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:57.468974Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123359_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123359_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549247178,
+              "time_offset_ms": 8739,
+              "rtt_ms": 270,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123359_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549247178, \"time_offset_ms\": 8739, \"rtt_ms\": 270, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:33:59.907202Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:33:59.907202Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123405_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123405_T03_PASS.json",
+            "facts": {
+              "orderId": 28624485194,
+              "clientOrderId": "o160de9055420ab40ac82bc",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81423.9,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123405_T03_PASS.json\", \"facts\": {\"orderId\": 28624485194, \"clientOrderId\": \"o160de9055420ab40ac82bc\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81423.9, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:34:05.131216Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:34:05.131216Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e1-r1-m0",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": true,
+        "risk": true,
+        "monitor": false
+      },
+      "started_utc": "2026-10-09T12:34:05.131216Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:34:05.131216Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123407_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123407_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549254668,
+              "time_offset_ms": 8748,
+              "rtt_ms": 285,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123407_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549254668, \"time_offset_ms\": 8748, \"rtt_ms\": 285, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:34:07.323977Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --risk --live --allow-write",
+          "started_utc": "2026-10-09T12:34:07.323977Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123412_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123412_T03_PASS.json",
+            "facts": {
+              "orderId": 28624485237,
+              "clientOrderId": "o163470f112d2ed4c75b7aa",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81423.9,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123412_T03_PASS.json\", \"facts\": {\"orderId\": 28624485237, \"clientOrderId\": \"o163470f112d2ed4c75b7aa\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81423.9, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:34:12.271277Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:34:12.271277Z"
+    },
+    {
+      "combo_id": "gateway_zmq-e1-r1-m1",
+      "transport": "gateway_zmq",
+      "flags": {
+        "execution": true,
+        "risk": true,
+        "monitor": true
+      },
+      "started_utc": "2026-10-09T12:34:12.271277Z",
+      "cases": {
+        "C01": {
+          "case": "C01",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\run.py --transport gateway_zmq --execution --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:34:12.271277Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123415_C01_PASS.json",
+          "summary": {
+            "case": "C01",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\C01\\evidence\\20261009T123415_C01_PASS.json",
+            "facts": {
+              "host": "demo-fapi.binance.com",
+              "server_time_ms": 1791549262067,
+              "time_offset_ms": 8703,
+              "rtt_ms": 370,
+              "symbol": "BTCUSDT",
+              "can_trade": true,
+              "can_deposit": true,
+              "can_withdraw": true,
+              "dual_side_position": true,
+              "balance_rows": 8,
+              "position_rows": 2,
+              "open_order_rows": 0
+            }
+          },
+          "stdout_tail": "r\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\C01\\\\evidence\\\\20261009T123415_C01_PASS.json\", \"facts\": {\"host\": \"demo-fapi.binance.com\", \"server_time_ms\": 1791549262067, \"time_offset_ms\": 8703, \"rtt_ms\": 370, \"symbol\": \"BTCUSDT\", \"can_trade\": true, \"can_deposit\": true, \"can_withdraw\": true, \"dual_side_position\": true, \"balance_rows\": 8, \"position_rows\": 2, \"open_order_rows\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:34:15.117892Z"
+        },
+        "T03": {
+          "case": "T03",
+          "command": "C:\\anaconda3\\python.exe D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\run.py --transport gateway_zmq --execution --risk --monitor --live --allow-write",
+          "started_utc": "2026-10-09T12:34:15.117892Z",
+          "exit_code": 0,
+          "status": "PASS",
+          "reason": "",
+          "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123420_T03_PASS.json",
+          "summary": {
+            "case": "T03",
+            "venue": "binance",
+            "status": "PASS",
+            "reason": "",
+            "evidence": "D:\\source_code\\backtrader\\examples\\000_live_certification\\binance_penetration\\cases\\T03\\evidence\\20261009T123420_T03_PASS.json",
+            "facts": {
+              "orderId": 28624485329,
+              "clientOrderId": "o167769850f053e40bf87a2",
+              "status": "CANCELED",
+              "executedQty": "0.0000",
+              "avgPrice": "0.00",
+              "price": 81432.6,
+              "quantity": 0.001,
+              "baseline_open_orders": 0,
+              "final_open_orders": 0
+            }
+          },
+          "stdout_tail": " \"reason\": \"\", \"evidence\": \"D:\\\\source_code\\\\backtrader\\\\examples\\\\000_live_certification\\\\binance_penetration\\\\cases\\\\T03\\\\evidence\\\\20261009T123420_T03_PASS.json\", \"facts\": {\"orderId\": 28624485329, \"clientOrderId\": \"o167769850f053e40bf87a2\", \"status\": \"CANCELED\", \"executedQty\": \"0.0000\", \"avgPrice\": \"0.00\", \"price\": 81432.6, \"quantity\": 0.001, \"baseline_open_orders\": 0, \"final_open_orders\": 0}}\n",
+          "stderr_tail": "",
+          "finished_utc": "2026-10-09T12:34:20.516666Z"
+        }
+      },
+      "finished_utc": "2026-10-09T12:34:20.516666Z"
+    }
+  ],
+  "totals": {
+    "PASS:C01": 16,
+    "PASS:T03": 16
+  }
+}
