@@ -3781,29 +3781,53 @@ Plan and evidence live under `docs/_internal/opts/requirements/迭代42-示例�
 (迭代计划.md + evidence/). Every example directory converges to the standard four-file form
 (`README.md` + `config.yaml` + `<name>_strategy.py` + `run.py`) with `run.py` supporting
 dry / `--replay` / `--live` and exit codes 0/1/2/3; evidence JSON is written to each directory's
-git-ignored `evidence/`.
+git-ignored `evidence/`. The all-eight dry/replay sweep and the registered offline smoke are green
+(report/evidence: `evidence/r9-offline-sweep-2026-10-10.md`).
 
 Commit chain on `dev`: `eb3da84f3` (R1 013_3 + SimNow registered-sim chain; `backtrader/stores/btapistore.py`
 gains the additive `allow_zero_login_response` passthrough, default off), `7cfad68bc` (R2 012_1),
-`90cf8914a` (R3 012_2), `0150641a3` (R4 013_1), `e91e3638b` (R5 013_2), `e7dc0e4a6` (R6–R8 options).
+`90cf8914a` (R3 012_2), `0150641a3` (R4 013_1), `e91e3638b` (R5 013_2), `8c067982b` (R6 014_1 strict
+feed-sealed live adapter) + `8c5414496` (bounded feed quote capture) + `a7d2cfc52` (R7/R8 observation-tier
+amendment), `adb1fb7a9` (R7 014_2 observation tier + live-entry hardening), `c13177459` (R8 015 tick
+observation tier + watchdog stop-loss fix), `972a183b2`/`7b68e19be`/`41929f556`/`92d5a3378` (R9 offline:
+sweep record, tracker refresh, Monday argv pre-flight, first-run rehearsal records).
 
 - SimNow execution for this iteration goes exclusively through the direct registered-sim narrow admission
-  (`simnow_direct.py`, vendored byte-identical from the 013_3 canonical copy with drift guards; the Store/
+  (`simnow_direct.py`, vendored byte-identical in five example copies with drift guards; the Store/
   managed/production write routes stay closed per plan §5.1). One SDK admission authorizes one instrument;
   cross-leg strategies switch the arm (disarm → arm) strictly between writes and record `arm_history`.
+- Live entry hardening (R7/R8): canonical checkout `sys.path` fence, Python 3.11 interpreter guard
+  (`live_tier_requires_python_3_11`), dev-SDK source preload before any `bt_api_ctp` binding (importing
+  `simnow_direct` eagerly builds the CTP wrapper class), evidence scope-fault classification
+  (`BLOCKED / live_event_clock_outside_run_mapping` instead of an UNKNOWN crash), and the R8 watchdog
+  stop-loss fix (persistent `cerebro.runstop` press plus the pre-run budget check
+  `observation_window_exhausted_before_run`).
 - R4 registered the §4 defect fixes for 013_1/013_2: exchange-metadata close offsets (`close_offsets`
   param), refusal instead of blind close-price pricing when the one-book is missing, and a monotonic
   `deadline_clock` for live order/holding deadlines. `run_runtime.py`/launchers of 012_x/013_x/014_x/015
   were rebound to `legacy_runner` so the registered LOCAL_REPLAY_ONLY routes keep working after the renames.
-- Live acceptance for 013_3/013_1/013_2 (SimNow drills) is pending a trading session; R2/R3 crypto demo
-  round trips stay evidence-backed BLOCKED (expired qualification window / HFT admission) with zero-code
-  and process flip paths recorded.
-- Options 014_1/014_2/015 are four-file standardized with their live tier **evidence-backed BLOCKED**
-  (`live_adapter_not_integrated`): the strategies require feed-sealed `BarEvidence` + a run-scoped
-  non-synthetic `ClockMapping` + a write-capable registered-sim adapter, which is a dedicated adapter
-  round; the entries print the exact integration requirements and never degrade to the raw-line replay
-  contract live. 583 option unit tests pass; native-broker-chain integration failures are byte-identical
-  to the pre-existing baseline.
+- Options live tiers (R6–R8): 014_1 is a strict feed-sealed **write** drill (run-scoped non-synthetic
+  `ClockMapping`, sealed `BarEvidence` + bounded quote capture, per-leg arm switching, one-shot drill);
+  its first real pre-write chain ran 2026-10-10 05:44 Beijing on 7x24 and was cleanly BLOCKED at the
+  exchange-limits gate with zero write. 014_2 and 015 are decision-only **observation** tiers per the
+  R7/R8 amendment (014_2 seals real minute bars with captured quote windows; 015 streams real ticks into
+  the cohort strategy); `--allow-write` is explicitly BLOCKED on both. The 015 observation PASSed for
+  real (ticks on all three FG legs, zero write; cohort admission stays `FAIL/NOT_ADMITTED` because the
+  direct CTP lane carries no `ctp.quote.v2` attestation, which this iteration never fabricates). 014_2's
+  real chain reached sealed bars but the 7x24 environment's event clock is ~47.9h stale →
+  `live_event_clock_outside_run_mapping`; the standard-front session window is its acceptance path.
+- Acceptance status: 015 observation PASS recorded; 013_3/013_1/013_2/014_1 (write drills) and 014_2
+  (observation) await the Monday 2026-10-12 session windows per the committed
+  `evidence/monday-live-run-plan-2026-10-12.md` (six serial steps, each command argv-pre-flighted).
+  R2/R3 crypto demo round trips stay evidence-backed BLOCKED (expired qualification window / HFT
+  admission) with zero-code and process flip paths recorded.
+- Operational traps recorded during the iteration: the 7x24 SimNow front streams real quotes with a
+  ~47.9h-stale event clock and has no daily price limits (write drills reject there); the front selector
+  ranks standard-kind pairs first and falls back to 7x24 only when every standard pair is unreachable;
+  SimNow standard fronts are TCP-reachable only inside trading sessions; the live tier requires the
+  reviewed `C:/anaconda3/python.exe` (3.11) plus the dev-SDK preload; every example's dry/replay works
+  on a core interpreter except 012_x, whose dry/replay also need the 3.11 dev environment (documented
+  in its README).
 - Component boundary: `tests/unit/test_iteration42_component_boundaries.py` pins that no standard entry
   imports `bt_api_gateway/bt_api_risk/bt_api_monitor/bt_api_execution` and that component-mount-shaped flags
   are rejected; the optional16 dry matrix re-runs green (32/32 DRY) and all four component packages import
