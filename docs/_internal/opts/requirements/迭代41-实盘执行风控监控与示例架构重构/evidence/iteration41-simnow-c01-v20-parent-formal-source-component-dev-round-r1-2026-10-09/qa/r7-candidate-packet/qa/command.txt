@@ -1,0 +1,1 @@
+D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe .codex-tmp/iteration41-simnow-c01-v20-parent-formal-root-qa-r7/root_qa_harness.py

@@ -1,0 +1,758 @@
+{
+  "basetemp": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-basetemp",
+  "child_environment_excluded_keys": [
+    "PYTEST_ADDOPTS",
+    "PYTEST_PLUGINS",
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "all_other_inherited_variables_including_credentials"
+  ],
+  "child_environment_keys": [
+    "PATH",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONIOENCODING",
+    "PYTHONNOUSERSITE",
+    "PYTHONUTF8",
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+    "WINDIR"
+  ],
+  "child_output_gate_ok": true,
+  "child_output_summary_path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration41-simnow-c01-v20-parent-formal-root-qa-r9\\child-output-summary.json",
+  "child_returncode": 0,
+  "command": [
+    "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Scripts\\python.exe",
+    "D:\\source_code\\backtrader\\.codex-tmp\\iteration41-simnow-c01-v20-parent-formal-root-qa-r9\\root_qa_harness.py",
+    "--child",
+    "--basetemp",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-basetemp",
+    "--stdout-log",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-child-stdout.txt",
+    "--stderr-log",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-child-stderr.txt",
+    "--pytest-config",
+    "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest.ini"
+  ],
+  "derived_pytest_config": {
+    "addopts": [],
+    "inicfg": {},
+    "inipath": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest.ini",
+    "python_classes": [
+      "Test"
+    ],
+    "python_files": [
+      "test_*.py",
+      "*_test.py"
+    ],
+    "python_functions": [
+      "test"
+    ],
+    "testpaths": [],
+    "usefixtures": [],
+    "xfail_strict": false
+  },
+  "evidence_limit": "SOURCE_FAKE_ONLY; no Root activation, native or WinAPI call, SDK operation, real provider/account request, network access, or candidate process/Pipe operation.",
+  "excluded_runtime_source_metadata": {
+    "all_tracked_head_clean_after": false,
+    "all_tracked_head_clean_before": false,
+    "paths": [
+      "backtrader_runtime/__init__.py",
+      "backtrader_runtime/config.py",
+      "backtrader_runtime/errors.py",
+      "backtrader_runtime/policy.py",
+      "backtrader_runtime/managed_execution.py",
+      "backtrader_runtime/inventory.py",
+      "backtrader_runtime/registry.py",
+      "backtrader_runtime/provider_preflight.py",
+      "backtrader_runtime/test_execution_profile.py",
+      "backtrader_runtime/review_evidence.py",
+      "backtrader_runtime/framework_projection.py",
+      "backtrader_runtime/provider_deployment.py",
+      "backtrader_runtime/ctp_simnow_operator.py"
+    ],
+    "scope": "Read-only Git metadata only; these runtime initializer support sources are not pinned, compiled, imported, or part of the selected-source test closure.",
+    "state_after": {
+      "backtrader_runtime/__init__.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "0432bf11c7a5a1f66ed8a162f460e320dec6ef8f",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/config.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "39634d924eaa8ae20b8e8e2931cbf71fffe7781d",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/ctp_simnow_operator.py": {
+        "classification": "DIRTY_OR_HEAD_MISMATCH",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": false,
+        "head_blob_sha1": "824e97c40d0db96c68ce82badb74f12c57863e90",
+        "porcelain_status": "M backtrader_runtime/ctp_simnow_operator.py",
+        "tracked": true
+      },
+      "backtrader_runtime/errors.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "14723eb1e437c94ad65de066ebd2897a0e2c7606",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/framework_projection.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "a511e4155ffef0bc96d4cdbd69d6ac6ee8ac41e8",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/inventory.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "7007d53b6e21a5f747700f1951b6422d845d1564",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/managed_execution.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "0215f2ac8f5fd842c3bbfd3ac4ba8d5d51fb202b",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/policy.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "29cfc8ccc36dd523fb940a7dfc08440e8467acee",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/provider_deployment.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "95ec880a010611e5267e90edc48d10874b47126d",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/provider_preflight.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "cb505a6e3d906d9806ad72bd32591b016ba8bcbf",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/registry.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "ef3fa2dfa184fa733e7b85960499a2181054f132",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/review_evidence.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "2c29f7dd00382546f8cb3f002b46316b5498d8b5",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/test_execution_profile.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "d2c26621a90cde168f23e9fec5fc459e5d7886e0",
+        "porcelain_status": "",
+        "tracked": true
+      }
+    },
+    "state_before": {
+      "backtrader_runtime/__init__.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "0432bf11c7a5a1f66ed8a162f460e320dec6ef8f",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/config.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "39634d924eaa8ae20b8e8e2931cbf71fffe7781d",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/ctp_simnow_operator.py": {
+        "classification": "DIRTY_OR_HEAD_MISMATCH",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": false,
+        "head_blob_sha1": "824e97c40d0db96c68ce82badb74f12c57863e90",
+        "porcelain_status": "M backtrader_runtime/ctp_simnow_operator.py",
+        "tracked": true
+      },
+      "backtrader_runtime/errors.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "14723eb1e437c94ad65de066ebd2897a0e2c7606",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/framework_projection.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "a511e4155ffef0bc96d4cdbd69d6ac6ee8ac41e8",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/inventory.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "7007d53b6e21a5f747700f1951b6422d845d1564",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/managed_execution.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "0215f2ac8f5fd842c3bbfd3ac4ba8d5d51fb202b",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/policy.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "29cfc8ccc36dd523fb940a7dfc08440e8467acee",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/provider_deployment.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "95ec880a010611e5267e90edc48d10874b47126d",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/provider_preflight.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "cb505a6e3d906d9806ad72bd32591b016ba8bcbf",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/registry.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "ef3fa2dfa184fa733e7b85960499a2181054f132",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/review_evidence.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "2c29f7dd00382546f8cb3f002b46316b5498d8b5",
+        "porcelain_status": "",
+        "tracked": true
+      },
+      "backtrader_runtime/test_execution_profile.py": {
+        "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+        "git_command_exit_codes": {
+          "head": 0,
+          "status": 0,
+          "tracked": 0
+        },
+        "git_status_clean_against_head": true,
+        "head_blob_sha1": "d2c26621a90cde168f23e9fec5fc459e5d7886e0",
+        "porcelain_status": "",
+        "tracked": true
+      }
+    },
+    "state_unchanged": true
+  },
+  "expected_test_count": 118,
+  "external_pytest_artifact_root": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z",
+  "external_pytest_config_after": {
+    "bytes": 9,
+    "content": "[pytest]\n",
+    "origin_is_external": true,
+    "path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest.ini",
+    "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+  },
+  "external_pytest_config_before": {
+    "bytes": 9,
+    "content": "[pytest]\n",
+    "origin_is_external": true,
+    "path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest.ini",
+    "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+  },
+  "external_pytest_config_post_error": null,
+  "focused_test_input_count": 8,
+  "git_after": {
+    "branch": "dev",
+    "branch_exit": 0,
+    "head": "8598c2decdff92085a48bc2b89856926a1051670",
+    "head_exit": 0,
+    "index_empty": true,
+    "index_exit": 0
+  },
+  "git_before": {
+    "branch": "dev",
+    "branch_exit": 0,
+    "head": "8598c2decdff92085a48bc2b89856926a1051670",
+    "head_exit": 0,
+    "index_empty": true,
+    "index_exit": 0
+  },
+  "metadata_probe_scope_limit": "Fixed-suite source-fake guard only. Metadata-only stat, lstat, access, and readlink operations are outside this guard boundary; this result is not a generalized filesystem security boundary.",
+  "packet_artifact_count": 6,
+  "post_input_error": null,
+  "pytest_log_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest.log",
+  "schema": "iteration41-simnow-c01-v20-parent-formal-root-qa-result-r7",
+  "selected_package_namespace_mode": "SOURCE_FAKE_SELECTED_MODULE_NAMESPACE_ONLY",
+  "source_input_count": 26,
+  "status": "PASS_SOURCE_FAKE_ONLY",
+  "stderr_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-child-stderr.txt",
+  "stdlib_temp_directory": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\stdlib-temp",
+  "stdout_path": "C:\\Users\\yunji\\AppData\\Local\\Temp\\iteration41-c01-v20-parent-formal-root-qa-r9-ly2z5a9z\\pytest-child-stdout.txt",
+  "support_source_git_state_after": {
+    "backtrader_runtime/__init__.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "0432bf11c7a5a1f66ed8a162f460e320dec6ef8f",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/config.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "39634d924eaa8ae20b8e8e2931cbf71fffe7781d",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/ctp_simnow_operator.py": {
+      "classification": "DIRTY_OR_HEAD_MISMATCH",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": false,
+      "head_blob_sha1": "824e97c40d0db96c68ce82badb74f12c57863e90",
+      "porcelain_status": "M backtrader_runtime/ctp_simnow_operator.py",
+      "tracked": true
+    },
+    "backtrader_runtime/errors.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "14723eb1e437c94ad65de066ebd2897a0e2c7606",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/framework_projection.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "a511e4155ffef0bc96d4cdbd69d6ac6ee8ac41e8",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/inventory.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "7007d53b6e21a5f747700f1951b6422d845d1564",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/managed_execution.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "0215f2ac8f5fd842c3bbfd3ac4ba8d5d51fb202b",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/policy.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "29cfc8ccc36dd523fb940a7dfc08440e8467acee",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/provider_deployment.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "95ec880a010611e5267e90edc48d10874b47126d",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/provider_preflight.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "cb505a6e3d906d9806ad72bd32591b016ba8bcbf",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/registry.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "ef3fa2dfa184fa733e7b85960499a2181054f132",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/review_evidence.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "2c29f7dd00382546f8cb3f002b46316b5498d8b5",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/test_execution_profile.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "d2c26621a90cde168f23e9fec5fc459e5d7886e0",
+      "porcelain_status": "",
+      "tracked": true
+    }
+  },
+  "support_source_git_state_before": {
+    "backtrader_runtime/__init__.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "0432bf11c7a5a1f66ed8a162f460e320dec6ef8f",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/config.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "39634d924eaa8ae20b8e8e2931cbf71fffe7781d",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/ctp_simnow_operator.py": {
+      "classification": "DIRTY_OR_HEAD_MISMATCH",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": false,
+      "head_blob_sha1": "824e97c40d0db96c68ce82badb74f12c57863e90",
+      "porcelain_status": "M backtrader_runtime/ctp_simnow_operator.py",
+      "tracked": true
+    },
+    "backtrader_runtime/errors.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "14723eb1e437c94ad65de066ebd2897a0e2c7606",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/framework_projection.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "a511e4155ffef0bc96d4cdbd69d6ac6ee8ac41e8",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/inventory.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "7007d53b6e21a5f747700f1951b6422d845d1564",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/managed_execution.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "0215f2ac8f5fd842c3bbfd3ac4ba8d5d51fb202b",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/policy.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "29cfc8ccc36dd523fb940a7dfc08440e8467acee",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/provider_deployment.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "95ec880a010611e5267e90edc48d10874b47126d",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/provider_preflight.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "cb505a6e3d906d9806ad72bd32591b016ba8bcbf",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/registry.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "ef3fa2dfa184fa733e7b85960499a2181054f132",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/review_evidence.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "2c29f7dd00382546f8cb3f002b46316b5498d8b5",
+      "porcelain_status": "",
+      "tracked": true
+    },
+    "backtrader_runtime/test_execution_profile.py": {
+      "classification": "TRACKED_HEAD_CLEAN_EQUAL",
+      "git_command_exit_codes": {
+        "head": 0,
+        "status": 0,
+        "tracked": 0
+      },
+      "git_status_clean_against_head": true,
+      "head_blob_sha1": "d2c26621a90cde168f23e9fec5fc459e5d7886e0",
+      "porcelain_status": "",
+      "tracked": true
+    }
+  },
+  "support_source_head_clean_after": false,
+  "support_source_head_clean_before": false,
+  "support_source_state_unchanged": true
+}

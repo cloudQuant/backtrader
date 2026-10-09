@@ -1,0 +1,507 @@
+{
+  "schema": "iteration41-simnow-c01-v20-parent-formal-root-qa-input-inventory-r9",
+  "repository": {
+    "path": "D:\\source_code\\backtrader",
+    "branch_required": "dev",
+    "head_binding": "capture_at_run_start_and_require_unchanged_at_end",
+    "staged_index_required": "empty_before_and_after"
+  },
+  "candidate_packet": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09",
+    "candidate_pins": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/candidate-pins.json",
+      "bytes": 11822,
+      "sha256": "dfc523215960b8d279b3ad68fc81a91b0fc196941fdbcf573b3a5f06009798af"
+    },
+    "artifact_pins": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/artifact-pins.json",
+      "bytes": 1014,
+      "sha256": "8cae29ebc204fecf43650844c67a78bb5ba5153f57c7cbe160d5218b05290b02"
+    }
+  },
+  "independent_review": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-independent-review-r1-2026-10-09/README.md",
+    "bytes": 4296,
+    "sha256": "97c770970de8102e5cc7a2b4e0799387913771afd3dd2e3fd5528309b48f78d8"
+  },
+  "source_rows": [
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_binance_roundtrip_r3_cli.py",
+      "bytes": 33887,
+      "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_roundtrip_private.py",
+      "bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_front_transport_v14.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_front_transport_v14.py",
+      "bytes": 9970,
+      "sha256": "aa281e122ae4c1e79022dd5b1a9fcbc0afd51f0282aa0e6587671b0d15f8b3a8"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_interpreter_binding_v1.py",
+      "bytes": 7700,
+      "sha256": "a38d00ecfbc7a777edab4b9d090be49ef03a94e7c23340dfe95366bacfd05494"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v19.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_native_td_read_v19.py",
+      "bytes": 191555,
+      "sha256": "3de1024b233a0eee55fba7c30df69f04afa38746c9a0e88996e0db7df283fd40"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v20.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_native_td_read_v20.py",
+      "bytes": 200314,
+      "sha256": "7118ed43cdc012181546f54f7b302ee51d3704860c5746807217c35087257f71"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_native_v4.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_native_v4.py",
+      "bytes": 199788,
+      "sha256": "66666d2addc3bddbf0f13a9a30fab9fea83479d7cac7328879552e13baea5a66"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_root_custody_v17.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_root_custody_v17.py",
+      "bytes": 8702,
+      "sha256": "8ea25c42a834085c54c87df9b24cb7a1876cf361cd6ca20323f4c5993a59816e"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_root_v17.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_root_v17.py",
+      "bytes": 95395,
+      "sha256": "5fc2f7acd7ca0c2e107f846d637a6716c000b61d0b211ec9a2f21651025b7481"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_rootseal_custody_v1.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_rootseal_custody_v1.py",
+      "bytes": 52738,
+      "sha256": "653dd1227902bce3f0e27330833b672d07771f05f3f4d2b1b15e83c8f13e40e7"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_contract.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_v3_contract.py",
+      "bytes": 59663,
+      "sha256": "19d8b13bda11e54a5ca037387b6abc884035ec02c05fb099f2398b99319d8fb0"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_protocol.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_v3_protocol.py",
+      "bytes": 80745,
+      "sha256": "c48b41272ae6378060b0b65188b56ef613f001b53d13db7aceaf13489d398160"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_v4_supervisor.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_v4_supervisor.py",
+      "bytes": 54026,
+      "sha256": "daf2cf99cbc5d977e27f59efb0f27087abdf3493c9d959d5c3d253744f869da1"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/certification_simnow_c01_v7_owner.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_v7_owner.py",
+      "bytes": 36778,
+      "sha256": "ee492f115c60ca14f770a055061014f30b7b9cc1cecdfd09cae17f75aabf55e9"
+    },
+    {
+      "group": "child_frame",
+      "path": "backtrader_runtime/ctp_front_pair_probe.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\ctp_front_pair_probe.py",
+      "bytes": 24442,
+      "sha256": "d6f92c7d2f6df13480cebcee2c7f864ac305d34d4cda37d1a22c466932d2905f"
+    },
+    {
+      "group": "child_frame",
+      "path": "examples/000_live_certification/simnow_penetration/cases/C01/run_v20.py",
+      "origin": "D:\\source_code\\backtrader\\examples\\000_live_certification\\simnow_penetration\\cases\\C01\\run_v20.py",
+      "bytes": 12723,
+      "sha256": "a2fed5ca72c61ab03795963f3d08f0575972d571fc4ddca7e7f1f79f9645926b"
+    },
+    {
+      "group": "child_frame",
+      "path": "examples/000_live_certification/simnow_penetration/common/c01_root_ledger_v1.py",
+      "origin": "D:\\source_code\\backtrader\\examples\\000_live_certification\\simnow_penetration\\common\\c01_root_ledger_v1.py",
+      "bytes": 70205,
+      "sha256": "4cbe8465c9b2854d2913de03d4e7a12f020debc8723d6c63539314d2ba7f424a"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/ctp_000_front_handoff.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\ctp_000_front_handoff.py",
+      "bytes": 10157,
+      "sha256": "b08e70e723a5d31f18809129387455dfee3645e6ad9f2b516d7aa2789ffd19f7"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/ctp_000_paired_front_selector.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\ctp_000_paired_front_selector.py",
+      "bytes": 11099,
+      "sha256": "08d4025684503ba89c286699ad0511793c536e09af58333963cbecb40ad49ebb"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/ctp_000_render_config.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\ctp_000_render_config.py",
+      "bytes": 23998,
+      "sha256": "34bf2a99872f43f0d915bafcb0284827a8ac0c4baf70a2ce5f1046888223eac9"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\ctp_i13_i15_outer_watchdog.py",
+      "bytes": 25363,
+      "sha256": "31c945c77c7e147a296e66f4f1ec075e0a23f1a88b94fd339884268e79ca251c"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\ctp_i13_i15_windows_job_backend.py",
+      "bytes": 47251,
+      "sha256": "2566dd55d1a96285473850b1e2c63174696347da56e07d69fb72aa3a6285e381"
+    },
+    {
+      "group": "child_frame",
+      "path": "scripts/run_simnow_c01_native_td_read_v20_root_activation_r1.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\run_simnow_c01_native_td_read_v20_root_activation_r1.py",
+      "bytes": 45417,
+      "sha256": "752e59c2bb8bbbe4f26930182cb22d638a2747e5122fed3215bf7e0f9f3a8be6"
+    },
+    {
+      "group": "parent_only",
+      "path": "scripts/iteration41_simnow_c01_v20_root_actual_driver_r1.py",
+      "origin": "D:\\source_code\\backtrader\\scripts\\iteration41_simnow_c01_v20_root_actual_driver_r1.py",
+      "bytes": 128200,
+      "sha256": "e955b7887df5a6a975c8bf7ae264c4696d0dc09e25c2d98ddce0195f5fa210e8"
+    },
+    {
+      "group": "parent_only",
+      "path": "backtrader_runtime/certification_simnow_c01_root_formal_adjudicator_v1.py",
+      "origin": "D:\\source_code\\backtrader\\backtrader_runtime\\certification_simnow_c01_root_formal_adjudicator_v1.py",
+      "bytes": 37080,
+      "sha256": "743e9507157092d7f3c9b284e5775d895cbe42c1caf1da6fb9e1cbb8e1eb2db7"
+    },
+    {
+      "group": "parent_only",
+      "path": "examples/000_live_certification/simnow_penetration/common/c01_root_completion_v1.py",
+      "origin": "D:\\source_code\\backtrader\\examples\\000_live_certification\\simnow_penetration\\common\\c01_root_completion_v1.py",
+      "bytes": 12308,
+      "sha256": "1d5e1183368b5bb1c4363056673a483d21e6e02b1bf342b6ac69b12a9b891f90"
+    }
+  ],
+  "focused_test_rows": [
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_root_v17_ownership_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_certification_simnow_c01_root_v17_ownership_source_fake.py",
+      "bytes": 30262,
+      "sha256": "172d21f451298604c2c8554fb6c22e54426912f339fec30c06aaa57ad36a62d7"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_native_td_read_v20_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_certification_simnow_c01_native_td_read_v20_source_fake.py",
+      "bytes": 35987,
+      "sha256": "522a42ae435f624c2d5519144670ce73faa663b0c32e5ef206f20968da292843"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_iteration41_simnow_c01_v20_root_actual_driver_r1_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_iteration41_simnow_c01_v20_root_actual_driver_r1_source_fake.py",
+      "bytes": 41742,
+      "sha256": "50decb9072ab4fedad22a53958b38b3b4a795a75f2bcf706530cb616e405d12f"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_root_formal_adjudicator_v1_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_certification_simnow_c01_root_formal_adjudicator_v1_source_fake.py",
+      "bytes": 6367,
+      "sha256": "a3965953a9191113047d9adaead232bcb3f677e9393213f2d9920d0f089faf7b"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_c01_root_completion_v1_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_c01_root_completion_v1_source_fake.py",
+      "bytes": 5796,
+      "sha256": "3b2dd0daf86e79f0ba26ac130eea106c366d0efacc8a2c9257a7cfc4de1502ff"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_rootseal_custody_v1_source_fake.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_certification_simnow_c01_rootseal_custody_v1_source_fake.py",
+      "bytes": 23802,
+      "sha256": "2a3c087dc4c037d77d06cbf4b5ebe34386a939ed82636384a161eccc95550e99",
+      "working_tree_state": "untracked_candidate_fixture_restore_r7"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/live_certification/test_simnow_c01_root_ledger_v1.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\live_certification\\test_simnow_c01_root_ledger_v1.py",
+      "bytes": 21733,
+      "sha256": "a4f4d643fc3ca12c6e162e418312ec5b97291effaebefbf6f55573ef593fc88d"
+    },
+    {
+      "group": "focused_test",
+      "path": "tests/unit/runtime/test_certification_simnow_c01_interpreter_binding_v1.py",
+      "origin": "D:\\source_code\\backtrader\\tests\\unit\\runtime\\test_certification_simnow_c01_interpreter_binding_v1.py",
+      "bytes": 4081,
+      "sha256": "b54b75c4f419e2e80ed1bb228f57f6bac2f46ac21aea0846d73a9d3391db2071"
+    }
+  ],
+  "packet_artifacts": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/README.md",
+      "bytes": 2383,
+      "sha256": "1dfeb34bb663a0e7f81d2976b78636d76a9e6b5a3dcc1887fc2113c701719b3a"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/candidate-pins.json",
+      "bytes": 11822,
+      "sha256": "dfc523215960b8d279b3ad68fc81a91b0fc196941fdbcf573b3a5f06009798af"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/qa/command.txt",
+      "bytes": 150,
+      "sha256": "7c24bef9abeaa171075af3f91b9f50a73609e6e7bf8daa45691050f4f4d3c643"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/qa/result.txt",
+      "bytes": 305,
+      "sha256": "32619e1af941f3523eb2af301677d8844bdb20870aea67c7a29702a98b2462b4"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/qa/composition-command.txt",
+      "bytes": 208,
+      "sha256": "4fb9908e05d46edad85e299905cc41cce474ec14ffbe70bd97ed2592b9c0ae1c"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-parent-formal-composition-r7-2026-10-09/qa/composition-result.txt",
+      "bytes": 194,
+      "sha256": "fc09228d66459b82bb3ca8c92d199d820bd60fd0ee2ca1f972c8ac81696c94fa"
+    }
+  ],
+  "test_contract": {
+    "expected_test_count": 118,
+    "separate_composition_test": "tests/unit/runtime/test_certification_simnow_c01_native_td_read_v20_source_fake.py::test_loaded_issuer_stages_and_root_seals_synthetic_worker_without_spawn_or_network",
+    "source_qa_interpreter": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe",
+    "environment": {
+      "child_allowlist": [
+        "SYSTEMROOT",
+        "WINDIR",
+        "PATH",
+        "TEMP",
+        "TMP",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+        "PYTHONDONTWRITEBYTECODE",
+        "PYTHONNOUSERSITE",
+        "PYTHONUTF8",
+        "PYTHONIOENCODING"
+      ],
+      "excluded": [
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "all_other_inherited_variables_including_credentials"
+      ],
+      "plugin_autoload": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1"
+    },
+    "pytest_plugin": "-p no:asyncio",
+    "network_native_process_pipe_private_input": "denied_before_candidate_imports",
+    "pytest_arguments": [
+      "--noconftest",
+      "--collect-in-virtualenv",
+      "-c <fresh external QA artifact directory>/pytest.ini",
+      "--assert=plain",
+      "-p no:asyncio",
+      "-p no:cacheprovider",
+      "-o addopts=",
+      "-o log_file=<fresh external QA artifact directory>/pytest.log",
+      "-o log_file_level=CRITICAL",
+      "-s",
+      "--tb=short",
+      "explicitly pinned eight test paths only"
+    ],
+    "external_pytest_config": {
+      "path": "<fresh external QA artifact directory>/pytest.ini",
+      "content": "[pytest]\n",
+      "bytes": 9,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4",
+      "capture_post_derived_config": "pytest_configure and post-session module/config checks"
+    },
+    "external_pytest_artifact_layout": {
+      "artifact_root": "fresh_external_temp_parent",
+      "pytest_config": "pytest.ini",
+      "pytest_log": "pytest.log",
+      "child_stdout_log": "pytest-child-stdout.txt",
+      "child_stderr_log": "pytest-child-stderr.txt",
+      "stdlib_temp_directory": "stdlib-temp",
+      "stdlib_temp_directory_created_before_child": true,
+      "temp_environment_directory": "stdlib-temp",
+      "tempfile_default_directory": "stdlib-temp",
+      "pytest_basetemp": "pytest-basetemp",
+      "pytest_basetemp_initially_absent": true,
+      "pytest_clears_only_nested_basetemp": true,
+      "child_guard_read_write_scope": "fresh_external_artifact_parent_and_its_two_temp_directories"
+    },
+    "child_output_writer_lifecycle": {
+      "close_is_idempotent": true,
+      "flush_after_close": "no_op",
+      "atexit_closes_both_writers": true
+    },
+    "parent_console_summary": {
+      "mode": "compact_status_counts_paths_only",
+      "full_finite_result_file": "root-qa-result.json",
+      "full_result_written_before_console_summary": true
+    },
+    "report_outcome_gate": {
+      "collected_items": 118,
+      "passed_call_reports": 118,
+      "passed_setup_reports": 118,
+      "passed_teardown_reports": 118,
+      "zero_failures_skips_xfails_xpasses_unexpected_reports_collection_errors": true,
+      "zero_unexpected_collection_outcomes": true,
+      "zero_warnings": true,
+      "wasxfail_classification": "skipped reports are xfail; passed or failed reports are xpass; all are rejected"
+    },
+    "windows_pytest_startup_preload": {
+      "phase": "before_colorama_pytest_candidate_imports_and_before_hard_denials",
+      "modules": [
+        "traceback",
+        "warnings",
+        "asyncio",
+        "unittest.mock",
+        "builtins",
+        "ctypes.util",
+        "ctypes.wintypes",
+        "contextlib",
+        "importlib.machinery",
+        "inspect",
+        "math",
+        "multiprocessing",
+        "multiprocessing.connection",
+        "ntpath",
+        "re",
+        "socket",
+        "threading",
+        "subprocess",
+        "types",
+        "zipfile",
+        "colorama",
+        "colorama.ansi",
+        "colorama.ansitowin32",
+        "colorama.initialise",
+        "colorama.win32",
+        "colorama.winterm",
+        "pytest"
+      ],
+      "inert_facade": "false_result_facade_for_ctypes_console_library_access",
+      "faked_ctypes_entries": [
+        "CDLL",
+        "WinDLL",
+        "OleDLL",
+        "PyDLL",
+        "cdll",
+        "windll",
+        "oledll"
+      ],
+      "candidate_runtime_or_test_modules_absent_before_and_after": true,
+      "preloaded_module_origins": "standard_library_or_source_qa_venv_site_packages_only",
+      "hard_denials_installed_after_preload": true,
+      "preload_warnings_must_be_zero": true
+    },
+    "guard_counter_delta_gate": {
+      "baseline_phase": "after_guard_selfchecks_before_pytest_main",
+      "forbidden_operation_deltas_must_be_zero": true,
+      "permitted_delta_counters": [
+        "test_fixture_source_compile"
+      ],
+      "all_other_guard_counters_remain_at_baseline": true
+    },
+    "metadata_probe_scope_limit": "Fixed-suite source-fake guard only. Metadata-only stat, lstat, access, and readlink operations are outside this guard boundary; this is not a generalized filesystem security boundary."
+  },
+  "metadata_only_excluded_runtime_source_paths": [
+    "backtrader_runtime/__init__.py",
+    "backtrader_runtime/config.py",
+    "backtrader_runtime/errors.py",
+    "backtrader_runtime/policy.py",
+    "backtrader_runtime/managed_execution.py",
+    "backtrader_runtime/inventory.py",
+    "backtrader_runtime/registry.py",
+    "backtrader_runtime/provider_preflight.py",
+    "backtrader_runtime/test_execution_profile.py",
+    "backtrader_runtime/review_evidence.py",
+    "backtrader_runtime/framework_projection.py",
+    "backtrader_runtime/provider_deployment.py",
+    "backtrader_runtime/ctp_simnow_operator.py"
+  ],
+  "selected_package_namespace": {
+    "mode": "SOURCE_FAKE_SELECTED_MODULE_NAMESPACE_ONLY",
+    "package_name": "backtrader_runtime",
+    "canonical_package_path": "D:\\source_code\\backtrader\\backtrader_runtime",
+    "initializer_executed": false,
+    "allowed_submodules": "candidate_packet.source_rows_under_backtrader_runtime_only"
+  },
+  "excluded_runtime_source_metadata_scope": "Read-only Git metadata only (tracked status, HEAD blob ID, and porcelain status); source bytes are not pinned, read, compiled, imported, or part of the selected-source closure.",
+  "persistent_canonical_runtime_modules": [
+    {
+      "module_name": "backtrader_runtime.certification_simnow_c01_interpreter_binding_v1",
+      "path": "backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py"
+    },
+    {
+      "module_name": "backtrader_runtime.certification_simnow_c01_native_v4",
+      "path": "backtrader_runtime/certification_simnow_c01_native_v4.py"
+    },
+    {
+      "module_name": "backtrader_runtime.certification_simnow_c01_v3_protocol",
+      "path": "backtrader_runtime/certification_simnow_c01_v3_protocol.py"
+    }
+  ],
+  "ephemeral_runtime_module_absence_contract": [
+    "backtrader_runtime.unpinned_extra_source_fake"
+  ],
+  "ephemeral_selected_source_alias_derivation": "All selected backtrader_runtime source module names and declared import aliases except the three persistent canonical aliases and package namespace must be absent at collection capture and after the test suite.",
+  "independent_review_scope_limit": "The pinned R1 independent review is a baseline only. The R7 rootseal fixture teardown edit is awaiting a separate exact-byte independent static review.",
+  "r7_fixture_lifetime_delta": {
+    "changed_source_test": "tests/unit/runtime/test_certification_simnow_c01_rootseal_custody_v1_source_fake.py",
+    "change": "The function-scoped env fixture snapshots all seven sys.modules names before loading, yields inside try/finally, and restores prior bindings or removes names originally absent, including setup-error paths.",
+    "production_source_rows_unchanged": 26,
+    "focused_test_rows": 8,
+    "expected_pytest_calls": 118,
+    "r6_prior_result": "All 118 pytest calls passed with zero skip/xfail/xpass/fail/warnings, but parent QA failed because root_v17 and root_custody_v17 fixture aliases remained in sys.modules.",
+    "r7_status": "CANDIDATE_ONLY_PENDING_INDEPENDENT_STATIC_REVIEW_AND_ROOT_GUARDED_QA; no QA or actual activation was run while preparing this packet."
+  },
+  "r8_delta": {
+    "based_on": "frozen R7 harness/inventory and unchanged R7 source/test packet",
+    "static_review_finding": "R7 harness carried R1 candidate-pins and artifact-pins constants, causing deterministic packet_pin_file_mismatch before QA.",
+    "fix": "R8 EXPECTED_CANDIDATE_PINS and EXPECTED_ARTIFACT_PINS now match the R7 packet files exactly; packet rows and all 34 source/test pins are unchanged.",
+    "qa_status": "NOT_RUN; awaiting independent static review."
+  },
+  "qa_execution_command": "D:/temp/iteration41-main-source-qa-20260926/venv/Scripts/python.exe .codex-tmp/iteration41-simnow-c01-v20-parent-formal-root-qa-r9/root_qa_harness.py",
+  "r9_delta": {
+    "based_on": "frozen R8 harness/inventory and unchanged R7 source/test packet",
+    "static_review_finding": "R8 EXPECTED_INVENTORY_SHA256 was a two-item tuple (byte count, hash), while the harness compares the computed SHA-256 string.",
+    "fix": "R9 stores EXPECTED_INVENTORY_BYTES separately and EXPECTED_INVENTORY_SHA256 as a parenthesized string literal with no comma.",
+    "source_test_rows_and_packet": "unchanged from R8/R7; 26 production rows, 8 focused tests, 34 exact input rows.",
+    "qa_status": "NOT_RUN; awaiting independent static review."
+  }
+}

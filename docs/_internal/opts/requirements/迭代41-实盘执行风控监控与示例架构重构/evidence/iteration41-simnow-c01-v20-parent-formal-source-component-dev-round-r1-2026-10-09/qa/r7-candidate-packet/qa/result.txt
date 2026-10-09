@@ -1,0 +1,3 @@
+NOT RUN
+Expected source-fake outcome: 118 passed; zero failed, skipped, xfailed, xpassed, warnings, or collection errors; exit 0.
+Pending independent static review and Root guarded QA. No native, WinAPI, SDK, process, Pipe, network, provider, account, or actual activation was run by the packet preparer.

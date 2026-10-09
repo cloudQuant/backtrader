@@ -1,0 +1,5 @@
+exit_code=0
+result=1 passed, 6 deselected, 0 failed
+elapsed=80.92 seconds
+warnings=1 existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope
+scope=SOURCE_FAKE_ONLY

@@ -1,0 +1,1 @@
+python -m pytest -p no:asyncio tests/unit/runtime/test_certification_simnow_c01_native_td_read_v20_source_fake.py -k loaded_issuer_stages_and_root_seals_synthetic_worker_without_spawn_or_network -q --tb=short
