@@ -1,0 +1,17 @@
+{
+  "schema": "iteration41.okx.m01.r7.r2.root-source-close.v1",
+  "status": "SOURCE_SCOPE_NORMAL_CLOSE_RETURNED",
+  "public_pins": 31,
+  "software_pins": 3,
+  "normal_postverify_and_close": true,
+  "generator_closed": true,
+  "original_reference_and_result_preserved": true,
+  "original_caller_invocation_consumed": true,
+  "gate_invocations": 0,
+  "provider_account_acceptance": false,
+  "formal_m01_pass_count": 0,
+  "retained_python_row_preserved": true,
+  "host_exit_permitted_by_this_receipt": false,
+  "software_raw_entries_returned_in_original_held_tuple": 3,
+  "original_false_payload_return_flag_superseded_by_this_observation": true
+}

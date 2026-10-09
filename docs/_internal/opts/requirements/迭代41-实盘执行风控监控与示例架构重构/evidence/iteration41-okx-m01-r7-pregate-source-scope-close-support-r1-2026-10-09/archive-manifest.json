@@ -1,0 +1,166 @@
+{
+  "schema": "iteration41.okx.m01.r7.pregate-source-scope-close-support.r1",
+  "status": "PUBLIC_SUPPORT_EVIDENCE_ARCHIVED",
+  "acceptance_level": "SOURCE_SCOPE_NORMAL_CLOSE_ONLY",
+  "baseline": {
+    "branch": "dev",
+    "head": "8598c2decdff92085a48bc2b89856926a1051670",
+    "index_empty": true,
+    "gitattributes_bytes": 60765,
+    "gitattributes_sha256": "7974caca8b60eb9e0829f6e857b736278691f1ad7613f938cde0699864358797",
+    "gitattributes_worktree_status": ""
+  },
+  "expected_total_file_count": 13,
+  "payload_files": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/root-caller-r2-driver.py",
+      "bytes": 13004,
+      "sha256": "0e88307e24e2e685e2ed72bc0696ab55aac8c5e7dc1de258f491c009892a16ee",
+      "classification": "executed-root-support-script",
+      "source_path": ".codex-tmp/okx_m01_r7_r2_root_actual_20261009.py"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/root-caller-r2-result.json",
+      "bytes": 1969,
+      "sha256": "b4bf2f6cb74903aaa69d55d68b714f8481c0612dfcba179d115fc28f453f7bb8",
+      "classification": "sanitized-root-result",
+      "source_path": ".codex-tmp/okx_m01_r7_r2_root_actual_20261009.json"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/source-scope-normal-close-helper.py",
+      "bytes": 5957,
+      "sha256": "9310f3c38f32a0f71264b0bc855a9ab7dc55645d812834a2a96bafa946343c1f",
+      "classification": "executed-root-support-helper",
+      "source_path": ".codex-tmp/okx_m01_r7_r2_source_scope_normal_close_root_20261009.py"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/historical-r2/caller-source-fixture.py",
+      "bytes": 70462,
+      "sha256": "0c5673dfa71cb083a59b15852f087991519bf520c1384392453bac55878cd200",
+      "classification": "historical-source-fixture-only",
+      "source_path": "scripts/iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2.py"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/historical-r2/caller-source-fake-test-fixture.py",
+      "bytes": 25413,
+      "sha256": "2a49a7b8102dfa3fe4541d7a9815ca1c761c557f36a69ddc169fe7ffbac9c01f",
+      "classification": "historical-test-fixture-only",
+      "source_path": "tests/unit/scripts/test_iteration41_okx_m01_root_helper_lifecycle_r7_root_caller_r2_source_fake.py"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-candidate-pins.json",
+      "bytes": 12994,
+      "sha256": "8a84e0bb29e2aabf3338078b66e3e44ef13428b3c334c505300cbf1334486e12",
+      "classification": "frozen-public-source-pin-map",
+      "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-five-module-root-gate-preparation-r2-2026-10-09/candidate-pins.json"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-caller-source-fake-independent-review.md",
+      "bytes": 3451,
+      "sha256": "0fe0582ddbd634972cffdbde3eafd81981823974a3b2a9c809f96d07795b6c91",
+      "classification": "pinned-source-fake-review",
+      "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-five-module-root-gate-preparation-r2-independent-review-r1-2026-10-09/README.md"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/original-r2-blocked-observation.json",
+      "bytes": 1216,
+      "sha256": "5a19895ae24eb834a286ed8e539da4e41014f947c92d695cd24d2f187dc84f47",
+      "classification": "sanitized-root-observation",
+      "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-five-module-root-gate-actual-r2-2026-10-09/observation.json"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/source-scope-close-observation.json",
+      "bytes": 662,
+      "sha256": "9fe9a3a67ad9d1d10174c1021a8311554853e05f6555b29214b5c0bc777d5196",
+      "classification": "sanitized-source-scope-close-observation",
+      "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-five-module-root-gate-actual-r2-2026-10-09/root-source-close-observation.json"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-pregate-source-scope-close-independent-review.md",
+      "bytes": 3397,
+      "sha256": "c4a8d337715da85cfa42c45cbd20358b85a83b2b2fba37e6170136bd506f49ba",
+      "classification": "independent-source-scope-close-review",
+      "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-r2-pregate-source-scope-close-independent-review-r1-2026-10-09/README.md"
+    }
+  ],
+  "authored_records": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/README.md",
+      "bytes": 2126,
+      "sha256": "559ea59202422558bd9678c46e22e455e979429076ca149726cda111a427073f"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/round-record.md",
+      "bytes": 2410,
+      "sha256": "4dfe7622b3f126ec25f84f7e725dddfbcc9eb0afab144df08bc9a09cc2a153b2"
+    }
+  ],
+  "lineage_reference": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-candidate-pins.json",
+    "source_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-five-module-root-gate-preparation-r2-2026-10-09/candidate-pins.json",
+    "bytes": 12994,
+    "sha256": "8a84e0bb29e2aabf3338078b66e3e44ef13428b3c334c505300cbf1334486e12",
+    "public_pin_count": 31,
+    "software_pin_descriptor_count": 3,
+    "held_source_map_entry_count": 34,
+    "inherited_source_snapshots_duplicated": false
+  },
+  "review": {
+    "artifact_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-pregate-source-scope-close-independent-review.md",
+    "verdict": "GO_FOR_THIS_ONE_SHOT_PRE_GATE_NORMAL_SOURCE_SCOPE_CLOSE_ONLY",
+    "bytes": 3397,
+    "sha256": "c4a8d337715da85cfa42c45cbd20358b85a83b2b2fba37e6170136bd506f49ba",
+    "reviewer_accessed_host_or_opaque_payloads": false,
+    "host_exit_clearance": false,
+    "reviewer_ran_runtime_tools_or_tests": false,
+    "static_readonly_source_review_performed": true
+  },
+  "root_results": {
+    "caller_attempt_tool": "0054ac",
+    "source_scope_close_tool": "e50603",
+    "pin_check_tool": "cec72c",
+    "host_id": 91482,
+    "original_caller_status": "BLOCKED",
+    "original_caller_reason": "cuv2_source_set_mismatch",
+    "original_gate_invocations": 0,
+    "caller_result_source_count": 0,
+    "source_count_semantics": "initialized default; assignment follows the mismatch path",
+    "yielded_source_map_entries": 34,
+    "yielded_public_pins": 31,
+    "yielded_software_pin_descriptors": 3,
+    "software_raw_entries_in_original_held_tuple": 3,
+    "normal_close_status": "SOURCE_SCOPE_NORMAL_CLOSE_RETURNED",
+    "context_manager_exit_result": false,
+    "generator_closed": true,
+    "original_result_and_retained_row_preserved": true,
+    "caller_retained_reference_count": 1,
+    "registry_length": 1,
+    "caller_global_identity_postcheck": true,
+    "host_alive_reported": true,
+    "host_exit_permitted": false,
+    "account_provider_acceptance": false,
+    "formal_m01_pass_count": 0
+  },
+  "scope_limits": [
+    "Evidence and support only; the historical caller and source-fake test are fixtures, not newly approved runtime code.",
+    "The caller result source_count of zero is an early-return default and does not describe the yielded map.",
+    "One pre-gate normal source-scope close was reported; no Gate invocation, native-child lifecycle acceptance, account/provider acceptance, or formal M01 pass is established.",
+    "The 31 public rows and 3 software pin descriptors are referenced through candidate-pins.json; inherited source snapshots and software payload bytes are not copied.",
+    "Host 91482 remains alive; no host exit clearance is recorded."
+  ],
+  "preservation_snapshot": {
+    "path": ".codex-tmp/okx_m01_r7_source_scope_close_support_r1_pre_review_snapshot",
+    "file_count": 12,
+    "purpose": "byte-preserving copy of the initial 12-file packet before review addition and record correction"
+  },
+  "manifest_self_hash": "reported out-of-band after file creation",
+  "delivery": {
+    "branch": "dev",
+    "parent": "8598c2decdff92085a48bc2b89856926a1051670",
+    "scope_files": 14,
+    "text_unset_rules": 13,
+    "classification": "SOURCE_SCOPE_NORMAL_CLOSE_ONLY",
+    "original_runtime_and_case_acceptance": false,
+    "retained_host_91482_exit_permitted": false
+  }
+}

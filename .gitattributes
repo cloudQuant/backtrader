@@ -431,3 +431,16 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "tests/unit/scripts/test_iteration41_optional16_r33_activation_r27_source_fake.py" -text
 "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_driver_r1_source_fake.py" -text
 "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_r1_source_fake.py" -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/root-caller-r2-driver.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/root-caller-r2-result.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/source-scope-normal-close-helper.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/historical-r2/caller-source-fixture.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/historical-r2/caller-source-fake-test-fixture.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-candidate-pins.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-caller-source-fake-independent-review.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/original-r2-blocked-observation.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/actual/source-scope-close-observation.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/references/r2-pregate-source-scope-close-independent-review.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/README.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/round-record.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r7-pregate-source-scope-close-support-r1-2026-10-09/archive-manifest.json -text
