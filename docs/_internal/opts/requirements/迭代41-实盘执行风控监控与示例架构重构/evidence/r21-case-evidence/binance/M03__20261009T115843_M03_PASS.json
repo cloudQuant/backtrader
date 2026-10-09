@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "M03",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "created": true,
+    "key_chars": 64,
+    "renew_ok": true,
+    "renew_error": "",
+    "cleaned": true,
+    "cleanup_error": "",
+    "monitor_event_kinds": [
+      "fresh_session_ready",
+      "recovery_verified"
+    ]
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:58:42.264015Z",
+  "finished_utc": "2026-10-09T11:58:43.346947Z",
+  "config_sha256": "20c4cde39de30f7a3968edaeecf07e5533787b654d13f279d099d8a6209194a3",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547131165,
+    "time_offset_ms": 8754,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 3
+  },
+  "calls": [
+    {
+      "t_ms": 1791547122829,
+      "method": "POST",
+      "path": "/fapi/v1/listenKey",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547131312,
+        "recvWindow": 60000
+      },
+      "body": "{\"listenKey\":\"Ay1IpYkVnoe2ZPOg8o6NEBpWix4uB2UILyCFPoV3aP64OAABbS4MVssRGPHPUiwI\"}",
+      "body_sha256": "076b5a361df56d5ade32bee60b9e0c7afcc2f7df2aa387b4e72dc8a6b17671f2"
+    },
+    {
+      "t_ms": 1791547123091,
+      "method": "PUT",
+      "path": "/fapi/v1/listenKey",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547131583,
+        "recvWindow": 60000
+      },
+      "body": "{\"listenKey\":\"Ay1IpYkVnoe2ZPOg8o6NEBpWix4uB2UILyCFPoV3aP64OAABbS4MVssRGPHPUiwI\"}",
+      "body_sha256": "076b5a361df56d5ade32bee60b9e0c7afcc2f7df2aa387b4e72dc8a6b17671f2"
+    },
+    {
+      "t_ms": 1791547123346,
+      "method": "DELETE",
+      "path": "/fapi/v1/listenKey",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547131845,
+        "recvWindow": 60000
+      },
+      "body": "{}",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:58:42.558752Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8754"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {},
+      "config_snapshot_id": "44136fa355b3678a",
+      "events": [
+        {
+          "t": 0.282,
+          "kind": "fresh_session_ready",
+          "created": true,
+          "key_chars": 64
+        },
+        {
+          "t": 0.797,
+          "kind": "recovery_verified",
+          "renew_ok": true,
+          "cleaned": true
+        }
+      ],
+      "alerts": []
+    }
+  }
+}

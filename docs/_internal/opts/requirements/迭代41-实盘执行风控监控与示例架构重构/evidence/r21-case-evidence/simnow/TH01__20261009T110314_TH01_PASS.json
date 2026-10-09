@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "TH01",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "snapshot_id": "85b14ce3b98106ff",
+    "thresholds": {
+      "submit_threshold": 5
+    },
+    "native_stop": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:02:46.095603Z",
+  "finished_utc": "2026-10-09T11:03:14.072636Z",
+  "config_sha256": "8c05dbd8ddf53435445960bdd5bccb7927b372bf66d307e5600c0d5927e59a98",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 4,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 2,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791543782067,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -907272133,
+      "trading_day": "20261008",
+      "connection_generation": 1,
+      "login_seconds": 3.016
+    },
+    {
+      "t_ms": 1791543794072,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:03:02.067471Z",
+      "note": "logged in trading_day=20261008 generation=1 pair_index=4"
+    }
+  ],
+  "artifacts": {
+    "threshold_snapshot": {
+      "config": {
+        "submit_threshold": 5
+      },
+      "config_snapshot_id": "85b14ce3b98106ff"
+    }
+  },
+  "front_selection": [
+    {
+      "index": 0,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 1,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 2,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 3,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 4,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}

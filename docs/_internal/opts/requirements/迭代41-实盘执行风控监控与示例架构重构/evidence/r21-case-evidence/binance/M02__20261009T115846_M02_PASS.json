@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "M02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "created": true,
+    "key_chars": 64,
+    "delete_error": "",
+    "renew_succeeded": false,
+    "renew_error": "-1125:This listenKey does not exist.",
+    "monitor_event_kinds": [
+      "listen_key_active",
+      "listen_key_invalidated",
+      "disconnect_observed"
+    ]
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:58:45.162188Z",
+  "finished_utc": "2026-10-09T11:58:46.294626Z",
+  "config_sha256": "4e8cd2ffaa3184fd719b985a255d3afc9b675bd4718bc4e1340f473e18d9985a",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547134058,
+    "time_offset_ms": 8750,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 3
+  },
+  "calls": [
+    {
+      "t_ms": 1791547125752,
+      "method": "POST",
+      "path": "/fapi/v1/listenKey",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547134204,
+        "recvWindow": 60000
+      },
+      "body": "{\"listenKey\":\"OyAcaotFdhPLiHeTA2KXR6SAitqES7XFhZs0z7d2n0ib9LJbzLXXgzPWJDgzlCAN\"}",
+      "body_sha256": "1c11634ff76e916efeebba21a96833aa59d3b5e122e2c297cb23b24869fa5404"
+    },
+    {
+      "t_ms": 1791547126041,
+      "method": "DELETE",
+      "path": "/fapi/v1/listenKey",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547134502,
+        "recvWindow": 60000
+      },
+      "body": "{}",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "t_ms": 1791547126294,
+      "method": "PUT",
+      "path": "/fapi/v1/listenKey",
+      "status": 400,
+      "params": {
+        "timestamp": 1791547134793,
+        "recvWindow": 60000
+      },
+      "body": "{\"code\":-1125,\"msg\":\"This listenKey does not exist.\"}",
+      "body_sha256": "6628758ed9c0b0479acd2f838a7e2059594f50ef692310183ff08168267f59bd"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:58:45.454250Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8750"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {},
+      "config_snapshot_id": "44136fa355b3678a",
+      "events": [
+        {
+          "t": 0.297,
+          "kind": "listen_key_active",
+          "created": true,
+          "key_chars": 64
+        },
+        {
+          "t": 0.578,
+          "kind": "listen_key_invalidated",
+          "delete_error": ""
+        },
+        {
+          "t": 0.828,
+          "kind": "disconnect_observed",
+          "created": true,
+          "renew_failed": true
+        }
+      ],
+      "alerts": []
+    }
+  }
+}

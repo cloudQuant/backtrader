@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "venue": "okx",
+  "case_id": "M02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "signal": "auth_rejected",
+    "broken_code": "50105",
+    "broken_msg": "Request header OK-ACCESS-PASSPHRASE incorrect.",
+    "broken_call_count": 2,
+    "healthy_ok": true,
+    "healthy_reason": "",
+    "operator_ref": "operator-cert-m02",
+    "authorization_ref": "auth-cert-m02",
+    "monitor_event_kinds": [
+      "disconnect_observed"
+    ]
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:07:50.486740Z",
+  "finished_utc": "2026-10-09T12:07:51.307033Z",
+  "config_sha256": "2975f9472de72bb4e78b8906446ae124ee8f3bde2db0ffc8bc95453127c5cd6a",
+  "env_keys_present": [
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_PASSPHRASE",
+    "OKX_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "www.okx.com",
+    "server_time_ms": 1791547679282,
+    "time_offset_ms": 8601,
+    "pos_mode": "long_short_mode",
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 3
+  },
+  "calls": [
+    {
+      "t_ms": 1791547670681,
+      "method": "GET",
+      "path": "/api/v5/public/time",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"ts\":\"1791547679282\"}],\"msg\":\"\"}",
+      "body_sha256": "13faa373f77aa0d1b68a2901f477459eb3341fd078321640954e04fb4c953774"
+    },
+    {
+      "t_ms": 1791547670848,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    },
+    {
+      "t_ms": 1791547671306,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:07:50.848705Z",
+      "note": "connected www.okx.com offset_ms=8601"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {},
+      "config_snapshot_id": "44136fa355b3678a",
+      "events": [
+        {
+          "t": 0.0,
+          "kind": "disconnect_observed",
+          "auth_loss": true,
+          "broken_code": "50105",
+          "operator_ref": "operator-cert-m02"
+        }
+      ],
+      "alerts": []
+    }
+  }
+}

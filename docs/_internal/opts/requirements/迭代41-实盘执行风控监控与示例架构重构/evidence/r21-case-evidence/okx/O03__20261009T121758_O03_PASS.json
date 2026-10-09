@@ -1,0 +1,185 @@
+{
+  "schema": 1,
+  "venue": "okx",
+  "case_id": "O03",
+  "status": "PASS",
+  "reason": "repeat_cancel_rejected",
+  "facts": {
+    "order_count": 2,
+    "orders": [
+      {
+        "ordId": "3994517031529033729",
+        "clOrdId": "certg4gzttprk8",
+        "live_state": "live",
+        "state": "canceled"
+      },
+      {
+        "ordId": "3994517068539572225",
+        "clOrdId": "certknk5lcr98f",
+        "live_state": "live",
+        "state": "canceled"
+      }
+    ],
+    "terminal_count": 2,
+    "repeat_cancel_outcome": "repeat_cancel_rejected",
+    "first_ordId": "3994517031529033729",
+    "price": 81537.27,
+    "size": 1.0,
+    "repeat_sCode": "1",
+    "repeat_sMsg": "All operations failed"
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:17:54.888901Z",
+  "finished_utc": "2026-10-09T12:17:58.194231Z",
+  "config_sha256": "4284aaeb8c62d1bc4657845b53b19fc137e42db3d902ab5ee63221c8cc3cb99e",
+  "env_keys_present": [
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_PASSPHRASE",
+    "OKX_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "www.okx.com",
+    "server_time_ms": 1791548283684,
+    "time_offset_ms": 8588,
+    "pos_mode": "long_short_mode",
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 14
+  },
+  "calls": [
+    {
+      "t_ms": 1791548275096,
+      "method": "GET",
+      "path": "/api/v5/public/time",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"ts\":\"1791548283684\"}],\"msg\":\"\"}",
+      "body_sha256": "9bb215f8a8f60d217b671b9ffee0b27c2a4ce9af7ebb2afa3db029c2956ceb86"
+    },
+    {
+      "t_ms": 1791548275252,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    },
+    {
+      "t_ms": 1791548275429,
+      "method": "GET",
+      "path": "/api/v5/public/instruments",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"alias\":\"\",\"auctionEndTime\":\"\",\"baseCcy\":\"\",\"category\":\"1\",\"contTdSwTime\":\"\",\"ctMult\":\"1\",\"ctType\":\"linear\",\"ctVal\":\"0.01\",\"ctValCcy\":\"BTC\",\"expTime\":\"\",\"floatPxLmtPct\":\"0.005\",\"freq\":\"\",\"futureSettlement\":false,\"groupId\":\"4\",\"initPxLmtPct\":\"0.02\",\"instCategory\":\"1\",\"instFamily\":\"BTC-USDT\",\"instId\":\"BTC-USDT-SWAP\",\"instIdCode\":2021032601102993,\"instType\":\"SWAP\",\"lever\":\"100\",\"listTime\":\"1605101026077\",\"longPosRemainingQuota\":\"\",\"lotSz\":\"0.01\",\"maxIcebergSz\":\"100000000.0000000000000000\",\"maxLmtAmt\":\"20000000\",\"maxLmtSz\":\"100000000\",\"maxMktAmt\":\"\",\"maxMktSz\":\"35000\",\"maxPlatOICoinLmt\":\"\",\"maxPlatOILmt\":\"\",\"maxPxLmtPct\":\"0.01\",\"maxStopSz\":\"35000\",\"maxTriggerSz\":\"100000000.0000000000000000\",\"maxTwapSz\":\"100000000.0000000000000000\",\"method\":\"\",\"minSz\":\"0.01\",\"openType\":\"fix_price\",\"optType\":\"\",\"posLmtAmt\":\"350000\",\"posLmtPct\":\"35\",\"preMktSwTime\":\"\",\"quoteCcy\":\"\",\"rpiMinLevel\":\"4\",\"rpiMinPxBand\":\"20\",\"ruleType\":\"normal\",\"seriesId\":\"\",\"settleCcy\":\"USDT\",\"shortPosRemainingQuota\":\"\",\"state\":\"live\",\"stk\":\"\",\"tickSz\":\"0.01\",\"tradeQuoteCcyList\":[],\"uly\":\"BTC-USDT\",\"upcChg\":[]}],\"msg\":\"\"}",
+      "body_sha256": "c6a7ec870b61a212835bddc83ed945216a0b0837200cb138cbe9835849434aee"
+    },
+    {
+      "t_ms": 1791548275579,
+      "method": "GET",
+      "path": "/api/v5/market/ticker",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"instType\":\"SWAP\",\"instId\":\"BTC-USDT-SWAP\",\"last\":\"83201.3\",\"lastSz\":\"0.03\",\"askPx\":\"83200.8\",\"askSz\":\"178.5\",\"bidPx\":\"83200.64\",\"bidSz\":\"180\",\"open24h\":\"82340.43\",\"high24h\":\"83739.2\",\"low24h\":\"79943.37\",\"volCcy24h\":\"1345441.711\",\"vol24h\":\"134544171.1\",\"ts\":\"1791548283265\",\"sodUtc0\":\"81714.8\",\"sodUtc8\":\"81011.25\"}],\"msg\":\"\"}",
+      "body_sha256": "da44ee558ed6be0f8691bf0e65eec2ab901af1d1c84ac001fd0a9c51748ccb93"
+    },
+    {
+      "t_ms": 1791548275756,
+      "method": "POST",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"certg4gzttprk8\",\"ordId\":\"3994517031529033729\",\"sCode\":\"0\",\"sMsg\":\"Order placed\",\"subCode\":\"\",\"tag\":\"\",\"ts\":\"1791548284356\"}],\"inTime\":\"1791548284355739\",\"msg\":\"\",\"outTime\":\"1791548284358492\"}",
+      "body_sha256": "7b142bb0922d3bd411c30659ca9c297bc6600af0cfbc414142e31d276716730d"
+    },
+    {
+      "t_ms": 1791548275907,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"0\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"\",\"cTime\":\"1791548284356\",\"cancelSource\":\"\",\"cancelSourceReason\":\"\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"certg4gzttprk8\",\"fee\":\"0\",\"feeCcy\":\"USDT\",\"fillPx\":\"\",\"fillSz\":\"0\",\"fillTime\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994517031529033729\",\"ordType\":\"limit\",\"outcome\":\"\",\"pnl\":\"0\",\"posSide\":\"long\",\"px\":\"81537.27\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"false\",\"side\":\"buy\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"live\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548284356\"}],\"msg\":\"\"}",
+      "body_sha256": "923af097103376b4260ddedacb717ce9bf3354a62de886ad7129b4cb4a22caf6"
+    },
+    {
+      "t_ms": 1791548276858,
+      "method": "POST",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"certknk5lcr98f\",\"ordId\":\"3994517068539572225\",\"sCode\":\"0\",\"sMsg\":\"Order placed\",\"subCode\":\"\",\"tag\":\"\",\"ts\":\"1791548285459\"}],\"inTime\":\"1791548285458327\",\"msg\":\"\",\"outTime\":\"1791548285461180\"}",
+      "body_sha256": "4346d912295f8362249c98ec3c73f23b127862be56d6be1f5d8ce0c5c34f0996"
+    },
+    {
+      "t_ms": 1791548277026,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"0\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"\",\"cTime\":\"1791548285459\",\"cancelSource\":\"\",\"cancelSourceReason\":\"\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"certknk5lcr98f\",\"fee\":\"0\",\"feeCcy\":\"USDT\",\"fillPx\":\"\",\"fillSz\":\"0\",\"fillTime\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994517068539572225\",\"ordType\":\"limit\",\"outcome\":\"\",\"pnl\":\"0\",\"posSide\":\"long\",\"px\":\"81537.27\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"false\",\"side\":\"buy\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"live\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548285459\"}],\"msg\":\"\"}",
+      "body_sha256": "be0de42610831da59bf40ca9b2c7736832725e6b0b1998e13de80b5844de824b"
+    },
+    {
+      "t_ms": 1791548277237,
+      "method": "POST",
+      "path": "/api/v5/trade/cancel-order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"certg4gzttprk8\",\"ordId\":\"3994517031529033729\",\"sCode\":\"0\",\"sMsg\":\"\",\"ts\":\"1791548285829\"}],\"inTime\":\"1791548285828843\",\"msg\":\"\",\"outTime\":\"1791548285831327\"}",
+      "body_sha256": "81cb7adff36422f33956ce830df6ad5636b2c5ba2e929f33b7b1123fb87bfda7"
+    },
+    {
+      "t_ms": 1791548277433,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"0\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"\",\"cTime\":\"1791548284356\",\"cancelSource\":\"1\",\"cancelSourceReason\":\"Order was canceled by you.\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"certg4gzttprk8\",\"fee\":\"0\",\"feeCcy\":\"USDT\",\"fillPx\":\"\",\"fillSz\":\"0\",\"fillTime\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994517031529033729\",\"ordType\":\"limit\",\"outcome\":\"\",\"pnl\":\"0\",\"posSide\":\"long\",\"px\":\"81537.27\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"false\",\"side\":\"buy\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"canceled\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548285830\"}],\"msg\":\"\"}",
+      "body_sha256": "2a9b497a978a802d1ff720ff4cb3ea23f6ec38a34c7f28af261dde434cf45933"
+    },
+    {
+      "t_ms": 1791548277658,
+      "method": "POST",
+      "path": "/api/v5/trade/cancel-order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"certknk5lcr98f\",\"ordId\":\"3994517068539572225\",\"sCode\":\"0\",\"sMsg\":\"\",\"ts\":\"1791548286242\"}],\"inTime\":\"1791548286241396\",\"msg\":\"\",\"outTime\":\"1791548286243590\"}",
+      "body_sha256": "0ff480882315ba0a676ce90652afc9cd0ed179b5f64708ee032fbf3209c5bec1"
+    },
+    {
+      "t_ms": 1791548277843,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"0\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"\",\"cTime\":\"1791548285459\",\"cancelSource\":\"1\",\"cancelSourceReason\":\"Order was canceled by you.\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"certknk5lcr98f\",\"fee\":\"0\",\"feeCcy\":\"USDT\",\"fillPx\":\"\",\"fillSz\":\"0\",\"fillTime\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994517068539572225\",\"ordType\":\"limit\",\"outcome\":\"\",\"pnl\":\"0\",\"posSide\":\"long\",\"px\":\"81537.27\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"false\",\"side\":\"buy\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"canceled\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548286242\"}],\"msg\":\"\"}",
+      "body_sha256": "470144ab466d67e1f092ea657696d4deaa5e6308879fe28fdfdb51789c22c41c"
+    },
+    {
+      "t_ms": 1791548278040,
+      "method": "POST",
+      "path": "/api/v5/trade/cancel-order",
+      "status": 200,
+      "body": "{\"code\":\"1\",\"data\":[{\"clOrdId\":\"\",\"ordId\":\"3994517031529033729\",\"sCode\":\"51400\",\"sMsg\":\"Order cancellation failed as the order has been filled, canceled or does not exist.\",\"ts\":\"1791548286618\"}],\"inTime\":\"1791548286617202\",\"msg\":\"All operations failed\",\"outTime\":\"1791548286619345\"}",
+      "body_sha256": "d09c124f203ac188701212510fdfc1376ad1ef152589896080f13d2426d842d4"
+    },
+    {
+      "t_ms": 1791548278194,
+      "method": "GET",
+      "path": "/api/v5/trade/orders-pending",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[],\"msg\":\"\"}",
+      "body_sha256": "fc24d69479edbb84f22c7d5bd4525349734056ad3baf7a5adf7e553f68c06a3a"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:17:55.253214Z",
+      "note": "connected www.okx.com offset_ms=8588"
+    },
+    {
+      "utc": "2026-10-09T12:17:55.580202Z",
+      "note": "placing 2 resting orders then repeat-canceling the first"
+    }
+  ],
+  "artifacts": {}
+}

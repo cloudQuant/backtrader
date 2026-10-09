@@ -1,0 +1,464 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "O02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "open": {
+      "order_ref": "179154684901",
+      "order_sys_id": "        6010",
+      "volume_traded": 1,
+      "price": 993.0
+    },
+    "position_before": 0,
+    "position_after_open": 1,
+    "reduce": {
+      "order_ref": "179154686202",
+      "order_sys_id": "        6011",
+      "price": 1013.0,
+      "bid": 992.0,
+      "ask": 993.0,
+      "volume": 1,
+      "accept_status": "3",
+      "terminal_status": "5",
+      "cancel": {
+        "order_ref": "179154686202",
+        "cancel": {
+          "order_ref": "179154686202",
+          "request_id": 16,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        "status": "5",
+        "volume_traded": 0,
+        "order_sys_id": "        6011"
+      }
+    },
+    "flatten": {
+      "volume": 1,
+      "price": 992.0,
+      "order_ref": "179154687903",
+      "status": "0",
+      "order_sys_id": "        6013",
+      "volume_traded": 1
+    },
+    "position_after": 0,
+    "position_rows": [
+      {
+        "InstrumentID": "SA701",
+        "ExchangeID": "CZCE",
+        "PosiDirection": "2",
+        "Position": 0,
+        "YdPosition": 0,
+        "TodayPosition": 0,
+        "OpenCost": 0.0,
+        "UseMargin": 0.0,
+        "PositionProfit": 0.0
+      }
+    ],
+    "price_band": {
+      "lower": 916.0,
+      "upper": 1098.0
+    },
+    "insert_evidence": {
+      "open": {
+        "status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "callback_received": false,
+        "evidence_received": false,
+        "submit_code": 0,
+        "reason": "awaiting_native_callback"
+      },
+      "reduce": {
+        "status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "callback_received": false,
+        "evidence_received": false,
+        "submit_code": 0,
+        "reason": "awaiting_native_callback"
+      }
+    },
+    "position_flat": true,
+    "position_rows_before": [
+      {
+        "InstrumentID": "SA701",
+        "ExchangeID": "CZCE",
+        "PosiDirection": "2",
+        "Position": 0,
+        "YdPosition": 0,
+        "TodayPosition": 0,
+        "OpenCost": 0.0,
+        "UseMargin": 0.0,
+        "PositionProfit": 0.0
+      }
+    ],
+    "position_rows_remainder": [
+      {
+        "InstrumentID": "SA701",
+        "ExchangeID": "CZCE",
+        "PosiDirection": "2",
+        "Position": 1,
+        "YdPosition": 0,
+        "TodayPosition": 1,
+        "OpenCost": 19860.0,
+        "UseMargin": 3177.6,
+        "PositionProfit": -20.0
+      }
+    ],
+    "native_stop": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:53:17.135313Z",
+  "finished_utc": "2026-10-09T11:55:01.365193Z",
+  "config_sha256": "cf13a08e130789557c023c1237514d621a77b65b2b554152272e391178680bbd",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 4,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 22,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791546815632,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -708695976,
+      "trading_day": "20261008",
+      "connection_generation": 1,
+      "login_seconds": 5.516
+    },
+    {
+      "t_ms": 1791546819658,
+      "kind": "query",
+      "family": "instruments",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 3,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546831659,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": false,
+      "timed_out": true,
+      "error_code": null,
+      "record_count": 0,
+      "request_id": 4,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546834160,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": false,
+      "timed_out": false,
+      "error_code": -2,
+      "record_count": 0,
+      "request_id": 5,
+      "connection_generation": 1,
+      "attempt": 2
+    },
+    {
+      "t_ms": 1791546844880,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 6,
+      "connection_generation": 1,
+      "attempt": 3
+    },
+    {
+      "t_ms": 1791546846828,
+      "kind": "query",
+      "family": "positions",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 7,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546849183,
+      "kind": "arm",
+      "armed": true,
+      "environment_profile": "set2_7x24_4000x",
+      "connection_generation": 1,
+      "trading_day": "20261008"
+    },
+    {
+      "t_ms": 1791546857195,
+      "kind": "order_insert",
+      "order_ref": "179154684901",
+      "request_id": 10,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 993.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791546859366,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 41,
+      "request_id": 11,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546859786,
+      "kind": "query",
+      "family": "positions",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 12,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546862392,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 13,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546870404,
+      "kind": "order_insert",
+      "order_ref": "179154686202",
+      "request_id": 14,
+      "direction": "1",
+      "offset_flag": "1",
+      "price": 1013.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791546872837,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 42,
+      "request_id": 15,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546872838,
+      "kind": "order_action",
+      "order_ref": "179154686202",
+      "request_id": 16,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791546873259,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 42,
+      "request_id": 17,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546874712,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 42,
+      "request_id": 18,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546875341,
+      "kind": "query",
+      "family": "positions",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 19,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546879869,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 20,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546887882,
+      "kind": "order_insert",
+      "order_ref": "179154687903",
+      "request_id": 21,
+      "direction": "1",
+      "offset_flag": "1",
+      "price": 992.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791546888311,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 43,
+      "request_id": 22,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546889362,
+      "kind": "query",
+      "family": "positions",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 23,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546901365,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:53:35.632096Z",
+      "note": "logged in trading_day=20261008 generation=1 pair_index=4"
+    },
+    {
+      "utc": "2026-10-09T11:54:09.183632Z",
+      "note": "armed; crossing BUY open 1@993.0 (SA701.CZCE)"
+    },
+    {
+      "utc": "2026-10-09T11:54:22.393061Z",
+      "note": "resting reduce SELL 1@1013.0 (offset 1, 20 ticks above ask)"
+    }
+  ],
+  "artifacts": {},
+  "front_selection": [
+    {
+      "index": 0,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 1,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 2,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 3,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 4,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "venue": "okx",
+  "case_id": "T02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "open": {
+      "ordId": "3994518171607969793",
+      "state": "filled",
+      "accFillSz": "1",
+      "avgPx": "83201.092",
+      "fee": "-0.41600546"
+    },
+    "position_after_open": 1.0,
+    "close": {
+      "ordId": "3994518191841292289",
+      "state": "filled",
+      "accFillSz": "1",
+      "avgPx": "83197.5",
+      "fee": "-0.4159875"
+    },
+    "position_before": 0.0,
+    "position_after": 0.0,
+    "position_rows": [],
+    "flat": true
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:18:28.777488Z",
+  "finished_utc": "2026-10-09T12:18:30.688600Z",
+  "config_sha256": "c996619ac3c4638a26eaf7008661dfc557226dd5b41cdb9a3b123b1c5252af8f",
+  "env_keys_present": [
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_PASSPHRASE",
+    "OKX_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "www.okx.com",
+    "server_time_ms": 1791548317583,
+    "time_offset_ms": 8582,
+    "pos_mode": "long_short_mode",
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 10
+  },
+  "calls": [
+    {
+      "t_ms": 1791548309001,
+      "method": "GET",
+      "path": "/api/v5/public/time",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"ts\":\"1791548317583\"}],\"msg\":\"\"}",
+      "body_sha256": "c4fd52d45e44c6cb13ac0387cf17d85056354f447c938de164b74f3c6e835d97"
+    },
+    {
+      "t_ms": 1791548309172,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    },
+    {
+      "t_ms": 1791548309372,
+      "method": "GET",
+      "path": "/api/v5/public/instruments",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"alias\":\"\",\"auctionEndTime\":\"\",\"baseCcy\":\"\",\"category\":\"1\",\"contTdSwTime\":\"\",\"ctMult\":\"1\",\"ctType\":\"linear\",\"ctVal\":\"0.01\",\"ctValCcy\":\"BTC\",\"expTime\":\"\",\"floatPxLmtPct\":\"0.005\",\"freq\":\"\",\"futureSettlement\":false,\"groupId\":\"4\",\"initPxLmtPct\":\"0.02\",\"instCategory\":\"1\",\"instFamily\":\"BTC-USDT\",\"instId\":\"BTC-USDT-SWAP\",\"instIdCode\":2021032601102993,\"instType\":\"SWAP\",\"lever\":\"100\",\"listTime\":\"1605101026077\",\"longPosRemainingQuota\":\"\",\"lotSz\":\"0.01\",\"maxIcebergSz\":\"100000000.0000000000000000\",\"maxLmtAmt\":\"20000000\",\"maxLmtSz\":\"100000000\",\"maxMktAmt\":\"\",\"maxMktSz\":\"35000\",\"maxPlatOICoinLmt\":\"\",\"maxPlatOILmt\":\"\",\"maxPxLmtPct\":\"0.01\",\"maxStopSz\":\"35000\",\"maxTriggerSz\":\"100000000.0000000000000000\",\"maxTwapSz\":\"100000000.0000000000000000\",\"method\":\"\",\"minSz\":\"0.01\",\"openType\":\"fix_price\",\"optType\":\"\",\"posLmtAmt\":\"350000\",\"posLmtPct\":\"35\",\"preMktSwTime\":\"\",\"quoteCcy\":\"\",\"rpiMinLevel\":\"4\",\"rpiMinPxBand\":\"20\",\"ruleType\":\"normal\",\"seriesId\":\"\",\"settleCcy\":\"USDT\",\"shortPosRemainingQuota\":\"\",\"state\":\"live\",\"stk\":\"\",\"tickSz\":\"0.01\",\"tradeQuoteCcyList\":[],\"uly\":\"BTC-USDT\",\"upcChg\":[]}],\"msg\":\"\"}",
+      "body_sha256": "c6a7ec870b61a212835bddc83ed945216a0b0837200cb138cbe9835849434aee"
+    },
+    {
+      "t_ms": 1791548309546,
+      "method": "GET",
+      "path": "/api/v5/account/positions",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[],\"msg\":\"\"}",
+      "body_sha256": "fc24d69479edbb84f22c7d5bd4525349734056ad3baf7a5adf7e553f68c06a3a"
+    },
+    {
+      "t_ms": 1791548309735,
+      "method": "POST",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"cert85yxhpx169\",\"ordId\":\"3994518171607969793\",\"sCode\":\"0\",\"sMsg\":\"Order placed\",\"subCode\":\"\",\"tag\":\"\",\"ts\":\"1791548318333\"}],\"inTime\":\"1791548318332750\",\"msg\":\"\",\"outTime\":\"1791548318335051\"}",
+      "body_sha256": "a9648cd3aa1d01c27328f645e25236fec44c64df1b8850b8bcf01c9d7aeadff1"
+    },
+    {
+      "t_ms": 1791548309930,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"1\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"83201.092\",\"cTime\":\"1791548318333\",\"cancelSource\":\"\",\"cancelSourceReason\":\"\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"cert85yxhpx169\",\"fee\":\"-0.41600546\",\"feeCcy\":\"USDT\",\"fillPx\":\"83201.1\",\"fillSz\":\"0.97\",\"fillTime\":\"1791548318334\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994518171607969793\",\"ordType\":\"market\",\"outcome\":\"\",\"pnl\":\"0\",\"posSide\":\"long\",\"px\":\"\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"false\",\"side\":\"buy\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"filled\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"4491673687\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548318334\"}],\"msg\":\"\"}",
+      "body_sha256": "c8a32db0ff0c7cbe230b125f22e85a5b7a24a6096d1f4fbd46bdabc7621b487d"
+    },
+    {
+      "t_ms": 1791548310137,
+      "method": "GET",
+      "path": "/api/v5/account/positions",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"adl\":\"1\",\"availPos\":\"1\",\"avgPx\":\"83201.092\",\"baseBal\":\"\",\"baseBorrowed\":\"\",\"baseInterest\":\"\",\"bePx\":\"83284.33471335669\",\"bizRefId\":\"\",\"bizRefType\":\"\",\"cTime\":\"1791548318334\",\"ccy\":\"USDT\",\"clSpotInUseAmt\":\"\",\"closeAllFlag\":\"0\",\"closeOrderAlgo\":[],\"deltaBS\":\"\",\"deltaPA\":\"\",\"estMaxWin\":\"\",\"fee\":\"-0.41600546\",\"fundingFee\":\"0\",\"gammaBS\":\"\",\"gammaPA\":\"\",\"hedgedPos\":\"\",\"idxPx\":\"83237\",\"imr\":\"277.3387\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"interest\":\"\",\"last\":\"83201.1\",\"lever\":\"3\",\"liab\":\"\",\"liabCcy\":\"\",\"liqPenalty\":\"0\",\"liqPx\":\"\",\"margin\":\"\",\"markPx\":\"83201.61\",\"maxSpotInUseAmt\":\"\",\"mgnMode\":\"cross\",\"mgnRatio\":\"1335.334516440781\",\"mmr\":\"3.3280644\",\"nonSettleAvgPx\":\"\",\"notionalUsd\":\"831.258965349\",\"optVal\":\"\",\"pendingCloseOrdLiabVal\":\"\",\"pnl\":\"0\",\"pos\":\"1\",\"posCcy\":\"\",\"posId\":\"3994518171641524225\",\"posSide\":\"long\",\"quoteBal\":\"\",\"quoteBorrowed\":\"\",\"quoteInterest\":\"\",\"realizedPnl\":\"-0.41600546\",\"ruleType\":\"normal\",\"settledPnl\":\"\",\"spotInUseAmt\":\"\",\"spotInUseCcy\":\"\",\"thetaBS\":\"\",\"thetaPA\":\"\",\"tradeId\":\"4491673687\",\"uTime\":\"1791548318334\",\"upl\":\"0.0051799999999639\",\"uplLastPx\":\"0.0000800000000163\",\"uplRatio\":\"0.0000186776394711\",\"uplRatioLastPx\":\"0.0000002884577524\",\"usdPx\":\"0.99909\",\"vegaBS\":\"\",\"vegaPA\":\"\"}],\"msg\":\"\"}",
+      "body_sha256": "81d83db1ab21fdde23a3ff7a1077424e14340ca324f7e72055ac86690f0a3016"
+    },
+    {
+      "t_ms": 1791548310353,
+      "method": "POST",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"clOrdId\":\"cert5rvz5mw3ew\",\"ordId\":\"3994518191841292289\",\"sCode\":\"0\",\"sMsg\":\"Order placed\",\"subCode\":\"\",\"tag\":\"\",\"ts\":\"1791548318936\"}],\"inTime\":\"1791548318934879\",\"msg\":\"\",\"outTime\":\"1791548318937416\"}",
+      "body_sha256": "2682747843d144264842a394b89e89f0ab47e06812df4d8d56872adffdd60c1d"
+    },
+    {
+      "t_ms": 1791548310526,
+      "method": "GET",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"accFillSz\":\"1\",\"algoClOrdId\":\"\",\"algoId\":\"\",\"attachAlgoClOrdId\":\"\",\"attachAlgoOrds\":[],\"avgPx\":\"83197.5\",\"cTime\":\"1791548318936\",\"cancelSource\":\"\",\"cancelSourceReason\":\"\",\"category\":\"normal\",\"ccy\":\"USDT\",\"clOrdId\":\"cert5rvz5mw3ew\",\"fee\":\"-0.4159875\",\"feeCcy\":\"USDT\",\"fillPx\":\"83197.5\",\"fillSz\":\"1\",\"fillTime\":\"1791548318936\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"isTpLimit\":\"false\",\"lever\":\"3\",\"linkedAlgoOrd\":{\"algoId\":\"\"},\"ordId\":\"3994518191841292289\",\"ordType\":\"market\",\"outcome\":\"\",\"pnl\":\"-0.03592\",\"posSide\":\"long\",\"px\":\"\",\"pxType\":\"\",\"pxUsd\":\"\",\"pxVol\":\"\",\"quickMgnType\":\"\",\"rebate\":\"0\",\"rebateCcy\":\"USDT\",\"reduceOnly\":\"true\",\"side\":\"sell\",\"slOrdPx\":\"\",\"slTriggerPx\":\"\",\"slTriggerPxType\":\"\",\"slippage\":\"0\",\"source\":\"\",\"state\":\"filled\",\"stpId\":\"\",\"stpMode\":\"cancel_maker\",\"sz\":\"1\",\"tag\":\"\",\"tdMode\":\"cross\",\"tgtCcy\":\"\",\"tpOrdPx\":\"\",\"tpTriggerPx\":\"\",\"tpTriggerPxType\":\"\",\"tradeId\":\"4491673694\",\"tradeQuoteCcy\":\"\",\"uTime\":\"1791548318936\"}],\"msg\":\"\"}",
+      "body_sha256": "ace7ac2644a4167d7289b96331f15e1d51588bd98621384c0f710ec952c77052"
+    },
+    {
+      "t_ms": 1791548310688,
+      "method": "GET",
+      "path": "/api/v5/account/positions",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"adl\":\"\",\"availPos\":\"\",\"avgPx\":\"\",\"baseBal\":\"\",\"baseBorrowed\":\"\",\"baseInterest\":\"\",\"bePx\":\"\",\"bizRefId\":\"\",\"bizRefType\":\"\",\"cTime\":\"1791548318334\",\"ccy\":\"USDT\",\"clSpotInUseAmt\":\"\",\"closeAllFlag\":\"0\",\"closeOrderAlgo\":[],\"deltaBS\":\"\",\"deltaPA\":\"\",\"estMaxWin\":\"\",\"fee\":\"\",\"fundingFee\":\"\",\"gammaBS\":\"\",\"gammaPA\":\"\",\"hedgedPos\":\"\",\"idxPx\":\"\",\"imr\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"interest\":\"\",\"last\":\"\",\"lever\":\"\",\"liab\":\"\",\"liabCcy\":\"\",\"liqPenalty\":\"\",\"liqPx\":\"\",\"margin\":\"\",\"markPx\":\"\",\"maxSpotInUseAmt\":\"\",\"mgnMode\":\"cross\",\"mgnRatio\":\"\",\"mmr\":\"0\",\"nonSettleAvgPx\":\"\",\"notionalUsd\":\"\",\"optVal\":\"\",\"pendingCloseOrdLiabVal\":\"\",\"pnl\":\"\",\"pos\":\"0\",\"posCcy\":\"\",\"posId\":\"3994518171641524225\",\"posSide\":\"long\",\"quoteBal\":\"\",\"quoteBorrowed\":\"\",\"quoteInterest\":\"\",\"realizedPnl\":\"\",\"ruleType\":\"normal\",\"settledPnl\":\"\",\"spotInUseAmt\":\"\",\"spotInUseCcy\":\"\",\"thetaBS\":\"\",\"thetaPA\":\"\",\"tradeId\":\"4491673694\",\"uTime\":\"1791548318936\",\"upl\":\"\",\"uplLastPx\":\"\",\"uplRatio\":\"\",\"uplRatioLastPx\":\"\",\"usdPx\":\"\",\"vegaBS\":\"\",\"vegaPA\":\"\"}],\"msg\":\"\"}",
+      "body_sha256": "4b989ae250fbd2c5d63eb499a47e8f3a648cabf0774e685052a630e10a84b6d7"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:18:29.172347Z",
+      "note": "connected www.okx.com offset_ms=8582"
+    },
+    {
+      "utc": "2026-10-09T12:18:29.546851Z",
+      "note": "flat account; crossing MARKET BUY open 1.0 BTC-USDT-SWAP"
+    },
+    {
+      "utc": "2026-10-09T12:18:30.137676Z",
+      "note": "long position 1.0 observed; crossing MARKET SELL close 1.0"
+    }
+  ],
+  "artifacts": {}
+}

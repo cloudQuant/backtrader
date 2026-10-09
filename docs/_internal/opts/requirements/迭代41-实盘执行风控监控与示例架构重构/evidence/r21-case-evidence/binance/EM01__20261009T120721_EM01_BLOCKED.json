@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "EM01",
+  "status": "BLOCKED",
+  "reason": "permission_restriction_not_producible_on_demo_key",
+  "facts": {
+    "rule": "position_mode_restriction",
+    "operator_ref": "operator-cert-em01",
+    "authorization_ref": "auth-cert-em01",
+    "probe_path": "/fapi/v1/positionSide/dual",
+    "probe_value": "false",
+    "toggle_succeeded": true,
+    "restored": true,
+    "dual_side_position_after": true
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:07:20.508487Z",
+  "finished_utc": "2026-10-09T12:07:21.885153Z",
+  "config_sha256": "fcb235c19ce4b10cfabb7be0e1a9b44fda2f18fe93d9bdd3bf53d43f94bc9400",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547649391,
+    "time_offset_ms": 8746,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 4
+  },
+  "calls": [
+    {
+      "t_ms": 1791547641044,
+      "method": "GET",
+      "path": "/fapi/v1/accountConfig",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547649529,
+        "recvWindow": 60000
+      },
+      "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791547315985,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+      "body_sha256": "0b5564495735282545eb9fcfadab5d5fb768339749bb6151df605ba9ac6dfb9b"
+    },
+    {
+      "t_ms": 1791547641304,
+      "method": "POST",
+      "path": "/fapi/v1/positionSide/dual",
+      "status": 200,
+      "params": {
+        "dualSidePosition": "false",
+        "timestamp": 1791547649791,
+        "recvWindow": 60000
+      },
+      "body": "{\"code\":200,\"msg\":\"success\"}",
+      "body_sha256": "c50a23b91060220f815d679d522f8764db4759ba9ffe29f02b3fcbcb52e16024"
+    },
+    {
+      "t_ms": 1791547641619,
+      "method": "POST",
+      "path": "/fapi/v1/positionSide/dual",
+      "status": 200,
+      "params": {
+        "dualSidePosition": "true",
+        "timestamp": 1791547650052,
+        "recvWindow": 60000
+      },
+      "body": "{\"code\":200,\"msg\":\"success\"}",
+      "body_sha256": "c50a23b91060220f815d679d522f8764db4759ba9ffe29f02b3fcbcb52e16024"
+    },
+    {
+      "t_ms": 1791547641885,
+      "method": "GET",
+      "path": "/fapi/v1/accountConfig",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547650365,
+        "recvWindow": 60000
+      },
+      "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791547650231,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+      "body_sha256": "d9c2e08695f67131f2c470a5378d9f4826b71939c6783303758700ee5f72e546"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:07:20.783382Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8746"
+    },
+    {
+      "utc": "2026-10-09T12:07:21.045161Z",
+      "note": "operator operator-cert-em01 probes the restricted position-mode toggle"
+    },
+    {
+      "utc": "2026-10-09T12:07:21.304866Z",
+      "note": "probe accepted; restoring hedge mode (dualSidePosition=true)"
+    }
+  ],
+  "artifacts": {}
+}

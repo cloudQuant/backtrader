@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "venue": "okx",
+  "case_id": "V02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "inst_id": "BTC-USDT-SWAP",
+    "rule": "price_tick_mismatch",
+    "price": 83300.91500000001,
+    "tick": 0.01,
+    "last_price": 83300.91,
+    "dispatch_absent": true
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:07:44.299449Z",
+  "finished_utc": "2026-10-09T12:07:45.019755Z",
+  "config_sha256": "e6704c37e662592b9f0ea9dab25726f426df910050a8954764d9a3095dad7053",
+  "env_keys_present": [
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_PASSPHRASE",
+    "OKX_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "www.okx.com",
+    "server_time_ms": 1791547673118,
+    "time_offset_ms": 8593,
+    "pos_mode": "long_short_mode",
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 4
+  },
+  "calls": [
+    {
+      "t_ms": 1791547664525,
+      "method": "GET",
+      "path": "/api/v5/public/time",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"ts\":\"1791547673118\"}],\"msg\":\"\"}",
+      "body_sha256": "a3ae471d3d9e10aeda755e4f8734c880ba48ea537f9ba14480e934ceba76a5ca"
+    },
+    {
+      "t_ms": 1791547664692,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    },
+    {
+      "t_ms": 1791547664874,
+      "method": "GET",
+      "path": "/api/v5/public/instruments",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"alias\":\"\",\"auctionEndTime\":\"\",\"baseCcy\":\"\",\"category\":\"1\",\"contTdSwTime\":\"\",\"ctMult\":\"1\",\"ctType\":\"linear\",\"ctVal\":\"0.01\",\"ctValCcy\":\"BTC\",\"expTime\":\"\",\"floatPxLmtPct\":\"0.005\",\"freq\":\"\",\"futureSettlement\":false,\"groupId\":\"4\",\"initPxLmtPct\":\"0.02\",\"instCategory\":\"1\",\"instFamily\":\"BTC-USDT\",\"instId\":\"BTC-USDT-SWAP\",\"instIdCode\":2021032601102993,\"instType\":\"SWAP\",\"lever\":\"100\",\"listTime\":\"1605101026077\",\"longPosRemainingQuota\":\"\",\"lotSz\":\"0.01\",\"maxIcebergSz\":\"100000000.0000000000000000\",\"maxLmtAmt\":\"20000000\",\"maxLmtSz\":\"100000000\",\"maxMktAmt\":\"\",\"maxMktSz\":\"35000\",\"maxPlatOICoinLmt\":\"\",\"maxPlatOILmt\":\"\",\"maxPxLmtPct\":\"0.01\",\"maxStopSz\":\"35000\",\"maxTriggerSz\":\"100000000.0000000000000000\",\"maxTwapSz\":\"100000000.0000000000000000\",\"method\":\"\",\"minSz\":\"0.01\",\"openType\":\"fix_price\",\"optType\":\"\",\"posLmtAmt\":\"350000\",\"posLmtPct\":\"35\",\"preMktSwTime\":\"\",\"quoteCcy\":\"\",\"rpiMinLevel\":\"4\",\"rpiMinPxBand\":\"20\",\"ruleType\":\"normal\",\"seriesId\":\"\",\"settleCcy\":\"USDT\",\"shortPosRemainingQuota\":\"\",\"state\":\"live\",\"stk\":\"\",\"tickSz\":\"0.01\",\"tradeQuoteCcyList\":[],\"uly\":\"BTC-USDT\",\"upcChg\":[]}],\"msg\":\"\"}",
+      "body_sha256": "c6a7ec870b61a212835bddc83ed945216a0b0837200cb138cbe9835849434aee"
+    },
+    {
+      "t_ms": 1791547665019,
+      "method": "GET",
+      "path": "/api/v5/market/ticker",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"instType\":\"SWAP\",\"instId\":\"BTC-USDT-SWAP\",\"last\":\"83300.91\",\"lastSz\":\"283.1\",\"askPx\":\"83298.7\",\"askSz\":\"0.24\",\"bidPx\":\"83294.8\",\"bidSz\":\"0.03\",\"open24h\":\"82327.98\",\"high24h\":\"83739.2\",\"low24h\":\"79943.37\",\"volCcy24h\":\"1347153.1555\",\"vol24h\":\"134715315.55\",\"ts\":\"1791547673369\",\"sodUtc0\":\"81714.8\",\"sodUtc8\":\"81011.25\"}],\"msg\":\"\"}",
+      "body_sha256": "33e025adc4ef4431a013588f1b8534d918382326d9ff26f002a2b7673a6c85b1"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:07:44.692624Z",
+      "note": "connected www.okx.com offset_ms=8593"
+    }
+  ],
+  "artifacts": {}
+}

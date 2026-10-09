@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "TH03",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "snapshot_id": "7ca7a3b71a313c5f",
+    "thresholds": {
+      "combined_threshold": 10
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:58:44.148479Z",
+  "finished_utc": "2026-10-09T11:58:44.436852Z",
+  "config_sha256": "6b285db5a814378fc49999c234a9e004aa722325c1ec0f5cb42a2df77bf0161c",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547133047,
+    "time_offset_ms": 8743,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 0
+  },
+  "calls": [],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:58:44.436852Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8743"
+    }
+  ],
+  "artifacts": {
+    "threshold_snapshot": {
+      "config": {
+        "combined_threshold": 10
+      },
+      "config_snapshot_id": "7ca7a3b71a313c5f"
+    }
+  }
+}

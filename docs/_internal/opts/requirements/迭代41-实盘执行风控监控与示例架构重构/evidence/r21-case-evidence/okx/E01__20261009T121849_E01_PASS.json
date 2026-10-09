@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "venue": "okx",
+  "case_id": "E01",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "rejection_source": "api_error",
+    "error_code": "1",
+    "error_message": "All operations failed",
+    "clOrdId": "cert98850bf9b81546ca",
+    "px": 81558.25,
+    "sz": 5000.0,
+    "pending_after": 0,
+    "residual": [],
+    "position_after": 0.0,
+    "position_rows": []
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:18:47.812853Z",
+  "finished_utc": "2026-10-09T12:18:49.133692Z",
+  "config_sha256": "0062bd74ae1949a71a4c8b310dc2047b1de06bde75fdcfc4057a6514e4b3049f",
+  "env_keys_present": [
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_PASSPHRASE",
+    "OKX_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "www.okx.com",
+    "server_time_ms": 1791548336646,
+    "time_offset_ms": 8583,
+    "pos_mode": "long_short_mode",
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 7
+  },
+  "calls": [
+    {
+      "t_ms": 1791548328063,
+      "method": "GET",
+      "path": "/api/v5/public/time",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"ts\":\"1791548336646\"}],\"msg\":\"\"}",
+      "body_sha256": "efe1010c778118a94029e4c785f2bc74d629f40464459d963759462b5106c21f"
+    },
+    {
+      "t_ms": 1791548328220,
+      "method": "GET",
+      "path": "/api/v5/account/config",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"acctLv\":\"2\",\"acctStpMode\":\"cancel_maker\",\"autoLoan\":false,\"ctIsoMode\":\"default_isolated_mode\",\"enableSpotBorrow\":false,\"feeType\":\"0\",\"greeksType\":\"PA\",\"ip\":\"\",\"kycLv\":\"2\",\"label\":\"test_demo_01\",\"level\":\"Lv1\",\"levelTmp\":\"\",\"liquidationGear\":\"-1\",\"mainUid\":\"211800678841061376\",\"mgnIsoMode\":\"auto_transfers_ccy\",\"opAuth\":\"0\",\"perm\":\"read_only,withdraw,trade\",\"posMode\":\"long_short_mode\",\"roleType\":\"0\",\"settleCcy\":\"USDC\",\"settleCcyList\":[\"USDC\",\"USDG\"],\"spotBorrowAutoRepay\":false,\"spotOffsetType\":\"\",\"spotRoleType\":\"0\",\"spotTraderInsts\":[],\"stgyType\":\"0\",\"traderInsts\":[],\"type\":\"0\",\"uid\":\"211800678841061376\"}],\"msg\":\"\"}",
+      "body_sha256": "4dcaac1e50b543bbe3ec38b6fc677ba79c6ccd2114ff1ccffa7a582ac340d3af"
+    },
+    {
+      "t_ms": 1791548328384,
+      "method": "GET",
+      "path": "/api/v5/public/instruments",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"alias\":\"\",\"auctionEndTime\":\"\",\"baseCcy\":\"\",\"category\":\"1\",\"contTdSwTime\":\"\",\"ctMult\":\"1\",\"ctType\":\"linear\",\"ctVal\":\"0.01\",\"ctValCcy\":\"BTC\",\"expTime\":\"\",\"floatPxLmtPct\":\"0.005\",\"freq\":\"\",\"futureSettlement\":false,\"groupId\":\"4\",\"initPxLmtPct\":\"0.02\",\"instCategory\":\"1\",\"instFamily\":\"BTC-USDT\",\"instId\":\"BTC-USDT-SWAP\",\"instIdCode\":2021032601102993,\"instType\":\"SWAP\",\"lever\":\"100\",\"listTime\":\"1605101026077\",\"longPosRemainingQuota\":\"\",\"lotSz\":\"0.01\",\"maxIcebergSz\":\"100000000.0000000000000000\",\"maxLmtAmt\":\"20000000\",\"maxLmtSz\":\"100000000\",\"maxMktAmt\":\"\",\"maxMktSz\":\"35000\",\"maxPlatOICoinLmt\":\"\",\"maxPlatOILmt\":\"\",\"maxPxLmtPct\":\"0.01\",\"maxStopSz\":\"35000\",\"maxTriggerSz\":\"100000000.0000000000000000\",\"maxTwapSz\":\"100000000.0000000000000000\",\"method\":\"\",\"minSz\":\"0.01\",\"openType\":\"fix_price\",\"optType\":\"\",\"posLmtAmt\":\"350000\",\"posLmtPct\":\"35\",\"preMktSwTime\":\"\",\"quoteCcy\":\"\",\"rpiMinLevel\":\"4\",\"rpiMinPxBand\":\"20\",\"ruleType\":\"normal\",\"seriesId\":\"\",\"settleCcy\":\"USDT\",\"shortPosRemainingQuota\":\"\",\"state\":\"live\",\"stk\":\"\",\"tickSz\":\"0.01\",\"tradeQuoteCcyList\":[],\"uly\":\"BTC-USDT\",\"upcChg\":[]}],\"msg\":\"\"}",
+      "body_sha256": "c6a7ec870b61a212835bddc83ed945216a0b0837200cb138cbe9835849434aee"
+    },
+    {
+      "t_ms": 1791548328551,
+      "method": "GET",
+      "path": "/api/v5/market/ticker",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"instType\":\"SWAP\",\"instId\":\"BTC-USDT-SWAP\",\"last\":\"83222.7\",\"lastSz\":\"0.12\",\"askPx\":\"83224.7\",\"askSz\":\"180\",\"bidPx\":\"83223.5\",\"bidSz\":\"180\",\"open24h\":\"82340.43\",\"high24h\":\"83739.2\",\"low24h\":\"79943.37\",\"volCcy24h\":\"1345802.5904\",\"vol24h\":\"134580259.04\",\"ts\":\"1791548336368\",\"sodUtc0\":\"81714.8\",\"sodUtc8\":\"81011.25\"}],\"msg\":\"\"}",
+      "body_sha256": "22018215d3ddc02a0fd541256ca180f8a20641fa56f0fcb54aa5b22f11569f9f"
+    },
+    {
+      "t_ms": 1791548328803,
+      "method": "POST",
+      "path": "/api/v5/trade/order",
+      "status": 200,
+      "body": "{\"code\":\"1\",\"data\":[{\"clOrdId\":\"cert98850bf9b81546ca\",\"ordId\":\"\",\"sCode\":\"51008\",\"sMsg\":\"Order failed. Insufficient USDT margin in account \",\"subCode\":\"1001\",\"tag\":\"\",\"ts\":\"1791548337374\"}],\"inTime\":\"1791548337372768\",\"msg\":\"All operations failed\",\"outTime\":\"1791548337375229\"}",
+      "body_sha256": "1b300e6e0d716c01e2ecc13cafa12df13c36d0c57f1ba1d5df01ce67b33bbad6"
+    },
+    {
+      "t_ms": 1791548328972,
+      "method": "GET",
+      "path": "/api/v5/trade/orders-pending",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[],\"msg\":\"\"}",
+      "body_sha256": "fc24d69479edbb84f22c7d5bd4525349734056ad3baf7a5adf7e553f68c06a3a"
+    },
+    {
+      "t_ms": 1791548329133,
+      "method": "GET",
+      "path": "/api/v5/account/positions",
+      "status": 200,
+      "body": "{\"code\":\"0\",\"data\":[{\"adl\":\"\",\"availPos\":\"\",\"avgPx\":\"\",\"baseBal\":\"\",\"baseBorrowed\":\"\",\"baseInterest\":\"\",\"bePx\":\"\",\"bizRefId\":\"\",\"bizRefType\":\"\",\"cTime\":\"1791548331983\",\"ccy\":\"USDT\",\"clSpotInUseAmt\":\"\",\"closeAllFlag\":\"0\",\"closeOrderAlgo\":[],\"deltaBS\":\"\",\"deltaPA\":\"\",\"estMaxWin\":\"\",\"fee\":\"\",\"fundingFee\":\"\",\"gammaBS\":\"\",\"gammaPA\":\"\",\"hedgedPos\":\"\",\"idxPx\":\"\",\"imr\":\"\",\"instId\":\"BTC-USDT-SWAP\",\"instType\":\"SWAP\",\"interest\":\"\",\"last\":\"\",\"lever\":\"\",\"liab\":\"\",\"liabCcy\":\"\",\"liqPenalty\":\"\",\"liqPx\":\"\",\"margin\":\"\",\"markPx\":\"\",\"maxSpotInUseAmt\":\"\",\"mgnMode\":\"cross\",\"mgnRatio\":\"\",\"mmr\":\"0\",\"nonSettleAvgPx\":\"\",\"notionalUsd\":\"\",\"optVal\":\"\",\"pendingCloseOrdLiabVal\":\"\",\"pnl\":\"\",\"pos\":\"0\",\"posCcy\":\"\",\"posId\":\"3994518171641524225\",\"posSide\":\"long\",\"quoteBal\":\"\",\"quoteBorrowed\":\"\",\"quoteInterest\":\"\",\"realizedPnl\":\"\",\"ruleType\":\"normal\",\"settledPnl\":\"\",\"spotInUseAmt\":\"\",\"spotInUseCcy\":\"\",\"thetaBS\":\"\",\"thetaPA\":\"\",\"tradeId\":\"4491673748\",\"uTime\":\"1791548333583\",\"upl\":\"\",\"uplLastPx\":\"\",\"uplRatio\":\"\",\"uplRatioLastPx\":\"\",\"usdPx\":\"\",\"vegaBS\":\"\",\"vegaPA\":\"\"}],\"msg\":\"\"}",
+      "body_sha256": "dcd2c86bb6d671fb1003032f623c6e8bb0937b4b313c1be6092257040cd72eb8"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:18:48.220994Z",
+      "note": "connected www.okx.com offset_ms=8583"
+    },
+    {
+      "utc": "2026-10-09T12:18:48.551115Z",
+      "note": "submitting deliberately oversized BUY 5000.0@81558.25 (no local check)"
+    }
+  ],
+  "artifacts": {}
+}

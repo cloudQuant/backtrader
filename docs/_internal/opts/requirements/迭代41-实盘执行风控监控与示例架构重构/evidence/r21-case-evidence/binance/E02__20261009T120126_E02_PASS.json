@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "E02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "rule": "close_without_position",
+    "clientOrderId": "E02-1791547285466",
+    "symbol": "BTCUSDT",
+    "mark_price": 83223.0409058,
+    "limit_price": 84887.5,
+    "quantity": "0.001",
+    "position_rows": 2,
+    "baseline_open_orders": 0,
+    "expected_codes": [
+      -2022,
+      -4164,
+      -1106
+    ],
+    "rejection_source": "venue_error",
+    "code": -2022,
+    "msg": "ReduceOnly Order is rejected.",
+    "residual_open_orders": 0
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:01:22.721385Z",
+  "finished_utc": "2026-10-09T12:01:26.289264Z",
+  "config_sha256": "c734a24af44d87cdb6c131c68a90c15a5750391a957a4d2cf20b7e358923b3b2",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547291615,
+    "time_offset_ms": 8750,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 7
+  },
+  "calls": [
+    {
+      "t_ms": 1791547283400,
+      "method": "GET",
+      "path": "/fapi/v1/accountConfig",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547291759,
+        "recvWindow": 60000
+      },
+      "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791260311581,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+      "body_sha256": "ba43007438f3d4660be42c2ed8a134e0104b7856dd5afac7217d3dc6a2f54e78"
+    },
+    {
+      "t_ms": 1791547284895,
+      "method": "GET",
+      "path": "/fapi/v1/exchangeInfo",
+      "status": 200,
+      "params": {},
+      "body": "{\"timezone\":\"UTC\",\"serverTime\":1791527047799,\"futuresType\":\"U_MARGINED\",\"rateLimits\":[{\"rateLimitType\":\"REQUEST_WEIGHT\",\"interval\":\"MINUTE\",\"intervalNum\":1,\"limit\":6000},{\"rateLimitType\":\"ORDERS\",\"interval\":\"MINUTE\",\"intervalNum\":1,\"limit\":1200},{\"rateLimitType\":\"ORDERS\",\"interval\":\"SECOND\",\"intervalNum\":10,\"limit\":300}],\"exchangeFilters\":[],\"assets\":[{\"asset\":\"USDT\",\"marginAvailable\":true,\"autoAssetExchange\":\"-100\"},{\"asset\":\"BTC\",\"marginAvailable\":true,\"autoAssetExchange\":\"-0.00100000\"},{\"asset\":\"BNB\",\"marginAvailable\":true,\"autoAssetExchange\":\"-0.00100000\"},{\"asset\":\"ETH\",\"marginAvailable\":true,\"autoAssetExchange\":\"-0.00100000\"},{\"asset\":\"USDC\",\"marginAvailable\":true,\"autoAssetExchange\":\"-0.10000000\"},{\"asset\":\"FDUSD\",\"marginAvailable\":true,\"autoAssetExchange\":\"0\"},{\"asset\":\"BNFCR\",\"marginAvailable\":true,\"autoAssetExchange\":\"-5000\"},{\"asset\":\"BFUSD\",\"marginAvailable\":true,\"autoAssetExchange\":\"0\"},{\"asset\":\"PIPPIN\",\"marginAvailable\":true,\"autoAssetExchange\":\"0\"},{\"asset\":\"B2\",\"marginAvailable\":true,\"autoAssetExchange\":\"0\"},{\"asset\":\"USD1\",\"marginAvailable\":true,\"autoAssetExchange\":\"-1001\"},{\"asset\":\"U\",\"marginAvailable\":true,\"autoAssetExchange\":\"-5000\"}],\"symbols\":[{\"symbol\":\"BTCUSDT\",\"pair\":\"BTCUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":4133404802000,\"onboardDate\":1569398400000,\"status\":\"TRADING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"BTC\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":2,\"quantityPrecision\":4,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.020000\",\"marketTakeBound\":\"0.30\",\"maxMoveOrderLimit\":1000,\"filters\":[{\"filterType\":\"PRICE_FILTER\",\"minPrice\":\"261.10\",\"tickSize\":\"0.10\",\"maxPrice\":\"809484\"},{\"filterType\":\"LOT_SIZE\",\"maxQty\":\"1000\",\"minQty\":\"0.0001\",\"stepSize\":\"0.0001\"},{\"stepSize\":\"0.0001\",\"maxQty\":\"120\",\"minQty\":\"0.0001\",\"filterType\":\"MARKET_LOT_SIZE\"},{\"filterType\":\"MAX_NUM_ORDERS\",\"limit\":10000},{\"filterType\":\"MIN_NOTIONAL\",\"notional\":\"50\"},{\"multiplierDecimal\":\"4\",\"filterType\":\"PERCENT_PRICE\",\"multiplierDown\":\"0.9500\",\"multiplierUp\":\"1.0500\"},{\"filterType\":\"POSITION_RISK_CONTROL\",\"positionControlSide\":\"NONE\"}],\"orderTypes\":[\"LIMIT\",\"MARKET\",\"STOP\",\"STOP_MARKET\",\"TAKE_PROFIT\",\"TAKE_PROFIT_MARKET\",\"TRAILING_STOP_MARKET\"],\"timeInForce\":[\"GTC\",\"IOC\",\"FOK\",\"GTX\",\"GTD\"],\"permissionSets\":[\"GRID\",\"COPY\",\"RPI\"]},{\"symbol\":\"ETHUSDT\",\"pair\":\"ETHUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":4133404800000,\"onboardDate\":1569398400000,\"status\":\"TRADING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"ETH\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":2,\"quantityPrecision\":3,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.020000\",\"marketTakeBound\":\"0.10\",\"maxMoveOrderLimit\":10000,\"filters\":[{\"minPrice\":\"39.86\",\"filterType\":\"PRICE_FILTER\",\"maxPrice\":\"306177\",\"tickSize\":\"0.01\"},{\"stepSize\":\"0.001\",\"maxQty\":\"10000\",\"minQty\":\"0.001\",\"filterType\":\"LOT_SIZE\"},{\"maxQty\":\"10000\",\"stepSize\":\"0.001\",\"filterType\":\"MARKET_LOT_SIZE\",\"minQty\":\"0.001\"},{\"filterType\":\"MAX_NUM_ORDERS\",\"limit\":10000},{\"filterType\":\"MIN_NOTIONAL\",\"notional\":\"20\"},{\"multiplierUp\":\"1.0500\",\"filterType\":\"PERCENT_PRICE\",\"multiplierDecimal\":\"4\",\"multiplierDown\":\"0.9500\"},{\"positionControlSide\":\"NONE\",\"filterType\":\"POSITION_RISK_CONTROL\"}],\"orderTypes\":[\"LIMIT\",\"MARKET\",\"STOP\",\"STOP_MARKET\",\"TAKE_PROFIT\",\"TAKE_PROFIT_MARKET\",\"TRAILING_STOP_MARKET\"],\"timeInForce\":[\"GTC\",\"IOC\",\"FOK\",\"GTX\",\"GTD\"],\"permissionSets\":[\"GRID\",\"COPY\"]},{\"symbol\":\"BCHUSDT\",\"pair\":\"BCHUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":4133404800000,\"onboardDate\":1569398400000,\"status\":\"TRADING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"BCH\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":2,\"quantityPrecision\":3,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.015000\",\"marketTakeBound\":\"0.10\",\"maxMoveOrderLimit\":10000,\"filters\":[{\"minPrice\":\"13.93\",\"filterType\":\"PRICE_FILTER\",\"maxPrice\":\"100000\",\"tickSize\":\"0.01\"},{\"minQty\":\"0.001\",\"maxQty\":\"10000\",\"stepSize\":\"0.001\",\"filterType\":\"LOT_SIZE\"},{\"filterType\":\"MARKET_LOT_SIZE\",\"minQty\":\"0.001\",\"maxQty\":\"10000\",\"stepSize\":\"0.001\"},{\"limit\":200,\"filterType\":\"MAX_NUM_ORDERS\"},{\"filterType\":\"MIN_NOTIONAL\",\"notional\":\"5\"},{\"multiplierUp\":\"1.0500\",\"multiplierDown\":\"0.9500\",\"multiplierDecimal\":\"4\",\"filterType\":\"PERCENT_PRICE\"},{\"filterType\":\"POSITION_RISK_CONTROL\",\"positionControlSide\":\"NONE\"}],\"orderTypes\":[\"LIMIT\",\"MARKET\",\"STOP\",\"STOP_MARKET\",\"TAKE_PROFIT\",\"TAKE_PROFIT_MARKET\",\"TRAILING_STOP_MARKET\"],\"timeInForce\":[\"GTC\",\"IOC\",\"FOK\",\"GTX\",\"GTD\"],\"permissionSets\":[\"GRID\",\"COPY\",\"DCA\"]},{\"symbol\":\"XRPUSDT\",\"pair\":\"XRPUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":4133404800000,\"onboardDate\":1569398400000,\"status\":\"TRADING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"XRP\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":4,\"quantityPrecision\":1,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.020000\",\"marketTakeBound\":\"0.10\",\"maxMoveOrderLimit\":10000,\"filters\":[{\"maxPrice\":\"100000\",\"tickSize\":\"0.0001\",\"filterType\":\"PRICE_FILTER\",\"minPrice\":\"0.0143\"},{\"stepSize\":\"0.1\",\"minQty\":\"0.1\",\"filterType\":\"LOT_SIZE\",\"maxQty\":\"1000000\"},{\"filterType\":\"MARKET_LOT_SIZE\",\"minQty\":\"0.1\",\"maxQty\":\"1000000\",\"stepSize\":\"0.1\"},{\"limit\":200,\"filterType\":\"MAX_NUM_ORDERS\"},{\"notional\":\"5\",\"filterType\":\"MIN_NOTIONAL\"},{\"multiplierDown\":\"0.9500\",\"multiplierUp\":\"1.0500\",\"multiplierDecimal\":\"4\",\"filterType\":\"PERCENT_PRICE\"},{\"positionControlSide\":\"NONE\",\"filterType\":\"POSITION_RISK_CONTROL\"}],\"orderTypes\":[\"LIMIT\",\"MARKET\",\"STOP\",\"STOP_MARKET\",\"TAKE_PROFIT\",\"TAKE_PROFIT_MARKET\",\"TRAILING_STOP_MARKET\"],\"timeInForce\":[\"GTC\",\"IOC\",\"FOK\",\"GTX\",\"GTD\"],\"permissionSets\":[\"GRID\",\"COPY\",\"DCA\"]},{\"symbol\":\"EOSUSDT\",\"pair\":\"EOSUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":1747814400000,\"onboardDate\":1569398400000,\"status\":\"SETTLING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"EOS\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":3,\"quantityPrecision\":1,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.015000\",\"marketTakeBound\":\"0.10\",\"maxMoveOrderLimit\":10000,\"filters\":[{\"maxPrice\":\"36.061\",\"minPrice\":\"0.021\",\"filterType\":\"PRICE_FILTER\",\"tickSize\":\"0.001\"},{\"filterType\":\"LOT_SIZE\",\"maxQty\":\"1000000\",\"stepSize\":\"0.1\",\"minQty\":\"0.1\"},{\"filterType\":\"MARKET_LOT_SIZE\",\"minQty\":\"0.1\",\"stepSize\":\"0.1\",\"maxQty\":\"10000000\"},{\"limit\":200,\"filterType\":\"MAX_NUM_ORDERS\"},{\"filterType\":\"MIN_NOTIONAL\",\"notional\":\"5\"},{\"multiplierUp\":\"1.1000\",\"multiplierDown\":\"0.9000\",\"multiplierDecimal\":\"4\",\"filterType\":\"PERCENT_PRICE\"},{\"filterType\":\"POSITION_RISK_CONTROL\",\"positionControlSide\":\"NONE\"}],\"orderTypes\":[\"LIMIT\",\"MARKET\",\"STOP\",\"STOP_MARKET\",\"TAKE_PROFIT\",\"TAKE_PROFIT_MARKET\",\"TRAILING_STOP_MARKET\"],\"timeInForce\":[\"GTC\",\"IOC\",\"FOK\",\"GTX\",\"GTD\"],\"permissionSets\":[\"GRID\",\"COPY\",\"DCA\"]},{\"symbol\":\"LTCUSDT\",\"pair\":\"LTCUSDT\",\"contractType\":\"PERPETUAL\",\"deliveryDate\":4133404800000,\"onboardDate\":1569398400000,\"status\":\"TRADING\",\"maintMarginPercent\":\"2.5000\",\"requiredMarginPercent\":\"5.0000\",\"baseAsset\":\"LTC\",\"quoteAsset\":\"USDT\",\"marginAsset\":\"USDT\",\"pricePrecision\":2,\"quantityPrecision\":3,\"baseAssetPrecision\":8,\"quotePrecision\":8,\"underlyingType\":\"COIN\",\"underlyingSubType\":[],\"triggerProtect\":\"0.0500\",\"liquidationFee\":\"0.015000\",\"marketTakeBound\":\"0.10\",\"maxMoveOrderLimit\":10000,\"filters\":[{\"minPrice\":\"3.61\",\"tickSize\":\"0.01\",\"maxPrice\":\"100000\",\"filterType\":\"PRICE_FILTER\"},{\"minQty\":\"0.001\",\"stepSize\":\"0.001\",\"filterType\":\"LOT_SIZE\",\"maxQty\":\"10000\"},{\"minQty\":\"0.001\",\"maxQty\":\"10000\",\"filter",
+      "body_sha256": "2dbdb00f1f17eb627770200c928825e57be8388f3f0667767b2153bd634f2fd0"
+    },
+    {
+      "t_ms": 1791547285195,
+      "method": "GET",
+      "path": "/fapi/v2/positionRisk",
+      "status": 200,
+      "params": {
+        "symbol": "BTCUSDT",
+        "timestamp": 1791547293659,
+        "recvWindow": 60000
+      },
+      "body": "[{\"symbol\":\"BTCUSDT\",\"positionAmt\":\"0.0000\",\"entryPrice\":\"0.0\",\"breakEvenPrice\":\"0.0\",\"markPrice\":\"83223.04090580\",\"unRealizedProfit\":\"0.00000000\",\"liquidationPrice\":\"0\",\"leverage\":\"20\",\"maxNotionalValue\":\"20000000\",\"marginType\":\"cross\",\"isolatedMargin\":\"0.00000000\",\"isAutoAddMargin\":\"false\",\"positionSide\":\"LONG\",\"notional\":\"0\",\"isolatedWallet\":\"0\",\"updateTime\":1791547282360,\"isolated\":false,\"adlQuantile\":0},{\"symbol\":\"BTCUSDT\",\"positionAmt\":\"0.0000\",\"entryPrice\":\"0.0\",\"breakEvenPrice\":\"0.0\",\"markPrice\":\"83223.04090580\",\"unRealizedProfit\":\"0.00000000\",\"liquidationPrice\":\"0\",\"leverage\":\"20\",\"maxNotionalValue\":\"20000000\",\"marginType\":\"cross\",\"isolatedMargin\":\"0.00000000\",\"isAutoAddMargin\":\"false\",\"positionSide\":\"SHORT\",\"notional\":\"0\",\"isolatedWallet\":\"0\",\"updateTime\":0,\"isolated\":false,\"adlQuantile\":0}]",
+      "body_sha256": "85c95d89049a596b76c3cb37394cb16f9d8b8b19701bbea5f403c69e44a9fb20"
+    },
+    {
+      "t_ms": 1791547285466,
+      "method": "GET",
+      "path": "/fapi/v1/premiumIndex",
+      "status": 200,
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "body": "{\"symbol\":\"BTCUSDT\",\"markPrice\":\"83223.04090580\",\"indexPrice\":\"83255.20913043\",\"estimatedSettlePrice\":\"83103.66185894\",\"lastFundingRate\":\"0.00000762\",\"interestRate\":\"0.00010000\",\"nextFundingTime\":1791561600000,\"time\":1791547294000}",
+      "body_sha256": "df3cf26f154dbbfec6ae4f4390e5b4990fda99054c5b2514575fc810566ad1d6"
+    },
+    {
+      "t_ms": 1791547285728,
+      "method": "GET",
+      "path": "/fapi/v1/openOrders",
+      "status": 200,
+      "params": {
+        "symbol": "BTCUSDT",
+        "timestamp": 1791547294216,
+        "recvWindow": 60000
+      },
+      "body": "[]",
+      "body_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "t_ms": 1791547286017,
+      "method": "POST",
+      "path": "/fapi/v1/order",
+      "status": 400,
+      "params": {
+        "symbol": "BTCUSDT",
+        "side": "SELL",
+        "type": "LIMIT",
+        "quantity": "0.001",
+        "price": "84887.5",
+        "positionSide": "LONG",
+        "timeInForce": "GTC",
+        "newClientOrderId": "E02-1791547285466",
+        "timestamp": 1791547294478,
+        "recvWindow": 60000
+      },
+      "body": "{\"code\":-2022,\"msg\":\"ReduceOnly Order is rejected.\"}",
+      "body_sha256": "afdaa54d7e5bfc6642aea2d8a0f8c38ad08609609aa7534334be69e01a0d83d3"
+    },
+    {
+      "t_ms": 1791547286289,
+      "method": "GET",
+      "path": "/fapi/v1/openOrders",
+      "status": 200,
+      "params": {
+        "symbol": "BTCUSDT",
+        "timestamp": 1791547294767,
+        "recvWindow": 60000
+      },
+      "body": "[]",
+      "body_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:01:23.009518Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8750"
+    },
+    {
+      "utc": "2026-10-09T12:01:25.728566Z",
+      "note": "baseline_open_orders=0 positions=2 mark=83223.0409058 submitting close-side 0.001@84887.5"
+    }
+  ],
+  "artifacts": {}
+}

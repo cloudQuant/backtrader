@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "L03",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "hook_attached": false,
+    "event_count": 3,
+    "event_kinds": [
+      "monitor_start",
+      "query",
+      "query"
+    ],
+    "config_snapshot_id": "44136fa355b3678a",
+    "symbol": "BTCUSDT",
+    "can_trade": true,
+    "mark_price": "83192.10000000"
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:58:34.252433Z",
+  "finished_utc": "2026-10-09T11:58:35.071809Z",
+  "config_sha256": "d8bab9c1134806a297f14ed31fc66fadec9ec173cbbc83b365058d006d2a3875",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547123126,
+    "time_offset_ms": 8742,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 2
+  },
+  "calls": [
+    {
+      "t_ms": 1791547114797,
+      "method": "GET",
+      "path": "/fapi/v1/accountConfig",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547123258,
+        "recvWindow": 60000
+      },
+      "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791260311581,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+      "body_sha256": "ba43007438f3d4660be42c2ed8a134e0104b7856dd5afac7217d3dc6a2f54e78"
+    },
+    {
+      "t_ms": 1791547115071,
+      "method": "GET",
+      "path": "/fapi/v1/premiumIndex",
+      "status": 200,
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "body": "{\"symbol\":\"BTCUSDT\",\"markPrice\":\"83192.10000000\",\"indexPrice\":\"83196.18673913\",\"estimatedSettlePrice\":\"83043.90068440\",\"lastFundingRate\":\"0.00000630\",\"interestRate\":\"0.00010000\",\"nextFundingTime\":1791561600000,\"time\":1791547123000}",
+      "body_sha256": "b3c02754e584cf277f2adf7415c327ced91d3e120624cec3de9effeaac686da0"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:58:34.516316Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8742"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {},
+      "config_snapshot_id": "44136fa355b3678a",
+      "events": [
+        {
+          "t": 0.0,
+          "kind": "monitor_start",
+          "case": "L03"
+        },
+        {
+          "t": 0.281,
+          "kind": "query",
+          "family": "account_config"
+        },
+        {
+          "t": 0.547,
+          "kind": "query",
+          "family": "mark_price"
+        }
+      ],
+      "alerts": []
+    }
+  }
+}

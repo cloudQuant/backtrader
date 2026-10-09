@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "M02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "operator_ref": "operator-cert-m02",
+    "authorization_ref": "auth-cert-m02",
+    "signal": "controlled_stop",
+    "seconds": 12.016,
+    "observed_generation": 1,
+    "hook_registered": false,
+    "hook_fired": false,
+    "post_connected": false,
+    "post_readonly_ready": false,
+    "stop_receipt": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    },
+    "monitor_event_kinds": [
+      "native_stop",
+      "disconnect_observed"
+    ],
+    "native_stop": {
+      "attempted": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:21:51.456733Z",
+  "finished_utc": "2026-10-09T11:22:19.638302Z",
+  "config_sha256": "76fcf494c7e479b8b975245e179b094b02242289290d41f99afb4fff80884ab7",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 4,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 3,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791544927623,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -832232650,
+      "trading_day": "20261008",
+      "connection_generation": 1,
+      "login_seconds": 3.203
+    },
+    {
+      "t_ms": 1791544939638,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    },
+    {
+      "t_ms": 1791544939638,
+      "kind": "native_stop",
+      "attempted": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:22:07.623517Z",
+      "note": "logged in trading_day=20261008 generation=1 pair_index=4"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {},
+      "config_snapshot_id": "44136fa355b3678a",
+      "events": [
+        {
+          "t": 12.016,
+          "kind": "native_stop",
+          "attempted": true,
+          "join_required": true,
+          "join_completed": false,
+          "native_released": false,
+          "thread_alive": true,
+          "timed_out": true,
+          "complete": false
+        },
+        {
+          "t": 12.016,
+          "kind": "disconnect_observed",
+          "generation": 1,
+          "join_completed": false,
+          "timed_out": true,
+          "operator_ref": "operator-cert-m02"
+        }
+      ],
+      "alerts": []
+    }
+  },
+  "front_selection": [
+    {
+      "index": 0,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 1,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 2,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 3,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 4,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}

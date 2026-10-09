@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "L02",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "total_calls": 1,
+    "call_counts": {
+      "GET": 1
+    },
+    "connect_events": 1,
+    "read_events": 1,
+    "write_events": 0,
+    "server_time_ms": 1791547122359,
+    "can_trade": true
+  },
+  "live": true,
+  "grants": {
+    "allow_write": false,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:58:33.442608Z",
+  "finished_utc": "2026-10-09T11:58:34.043642Z",
+  "config_sha256": "8403ec772d645242770567eda03e448541695076e0df615ed928c7462fe3d739",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791547122359,
+    "time_offset_ms": 8751,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 1
+  },
+  "calls": [
+    {
+      "t_ms": 1791547114043,
+      "method": "GET",
+      "path": "/fapi/v1/accountConfig",
+      "status": 200,
+      "params": {
+        "timestamp": 1791547122502,
+        "recvWindow": 60000
+      },
+      "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791260311581,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+      "body_sha256": "ba43007438f3d4660be42c2ed8a134e0104b7856dd5afac7217d3dc6a2f54e78"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:58:33.751330Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8751"
+    }
+  ],
+  "artifacts": {
+    "session_log": [
+      {
+        "t_ms": 1791547114043,
+        "method": "GET",
+        "path": "/fapi/v1/accountConfig",
+        "status": 200,
+        "params": {
+          "timestamp": 1791547122502,
+          "recvWindow": 60000
+        },
+        "body": "{\"feeTier\":0,\"canTrade\":true,\"canDeposit\":true,\"canWithdraw\":true,\"dualSidePosition\":true,\"updateTime\":1791260311581,\"multiAssetsMargin\":false,\"tradeGroupId\":-1}",
+        "body_sha256": "ba43007438f3d4660be42c2ed8a134e0104b7856dd5afac7217d3dc6a2f54e78"
+      }
+    ]
+  }
+}

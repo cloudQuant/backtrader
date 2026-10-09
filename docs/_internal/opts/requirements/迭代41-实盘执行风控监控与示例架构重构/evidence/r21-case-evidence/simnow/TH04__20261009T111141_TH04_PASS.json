@@ -1,0 +1,727 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "TH04",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "config": {
+      "combined_threshold": 10
+    },
+    "config_snapshot_id": "7ca7a3b71a313c5f",
+    "alerts": [
+      {
+        "t": 61.172,
+        "alert": "combined_threshold",
+        "count": 10
+      }
+    ],
+    "submits": 5,
+    "cancels": 5,
+    "combined_events": 10,
+    "order_refs": [
+      "179154422501",
+      "179154423402",
+      "179154424403",
+      "179154425404",
+      "179154426405"
+    ],
+    "terminal_count": 5,
+    "native_stop": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:10:06.009243Z",
+  "finished_utc": "2026-10-09T11:11:41.098643Z",
+  "config_sha256": "1dbca5d19f97c77cdb4a76aaf1cca597d6bb611c7a19f2f591c8724c904212cb",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 4,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 31,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791544222155,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -878501553,
+      "trading_day": "20261008",
+      "connection_generation": 1,
+      "login_seconds": 3.219
+    },
+    {
+      "t_ms": 1791544222590,
+      "kind": "query",
+      "family": "instruments",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 3,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544224223,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 4,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544225049,
+      "kind": "arm",
+      "armed": true,
+      "environment_profile": "set2_7x24_4000x",
+      "connection_generation": 1,
+      "trading_day": "20261008"
+    },
+    {
+      "t_ms": 1791544233059,
+      "kind": "order_insert",
+      "order_ref": "179154422501",
+      "request_id": 7,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 917.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544233460,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 13,
+      "request_id": 8,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544242671,
+      "kind": "order_insert",
+      "order_ref": "179154423402",
+      "request_id": 9,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 917.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544243085,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 14,
+      "request_id": 10,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544252297,
+      "kind": "order_insert",
+      "order_ref": "179154424403",
+      "request_id": 11,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 917.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544253193,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 15,
+      "request_id": 12,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544262405,
+      "kind": "order_insert",
+      "order_ref": "179154425404",
+      "request_id": 13,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 917.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544262801,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 16,
+      "request_id": 14,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544272015,
+      "kind": "order_insert",
+      "order_ref": "179154426405",
+      "request_id": 15,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 917.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544272930,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 16,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544274131,
+      "kind": "order_action",
+      "order_ref": "179154422501",
+      "request_id": 17,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544274547,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 18,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544276271,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 19,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544277472,
+      "kind": "order_action",
+      "order_ref": "179154423402",
+      "request_id": 20,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544277885,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 21,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544279053,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 22,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544280254,
+      "kind": "order_action",
+      "order_ref": "179154424403",
+      "request_id": 23,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544281438,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 24,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544282369,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 25,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544283570,
+      "kind": "order_action",
+      "order_ref": "179154425404",
+      "request_id": 26,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544283994,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 27,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544285028,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 28,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544286229,
+      "kind": "order_action",
+      "order_ref": "179154426405",
+      "request_id": 29,
+      "action_flag": "0",
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791544286645,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 30,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544288672,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 31,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544289093,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 17,
+      "request_id": 32,
+      "connection_generation": 1
+    },
+    {
+      "t_ms": 1791544301098,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:10:22.155919Z",
+      "note": "logged in trading_day=20261008 generation=1 pair_index=4"
+    },
+    {
+      "utc": "2026-10-09T11:10:25.049206Z",
+      "note": "armed; placing+canceling 5 orders for combined_threshold=10"
+    }
+  ],
+  "artifacts": {
+    "monitor": {
+      "config": {
+        "combined_threshold": 10
+      },
+      "config_snapshot_id": "7ca7a3b71a313c5f",
+      "events": [
+        {
+          "t": 8.0,
+          "kind": "order_insert",
+          "order_ref": "179154422501",
+          "request_id": 7,
+          "direction": "0",
+          "offset_flag": "0",
+          "price": 917.0,
+          "volume": 1,
+          "submit_code": 0
+        },
+        {
+          "t": 8.407,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 13,
+          "request_id": 8,
+          "connection_generation": 1
+        },
+        {
+          "t": 17.625,
+          "kind": "order_insert",
+          "order_ref": "179154423402",
+          "request_id": 9,
+          "direction": "0",
+          "offset_flag": "0",
+          "price": 917.0,
+          "volume": 1,
+          "submit_code": 0
+        },
+        {
+          "t": 18.032,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 14,
+          "request_id": 10,
+          "connection_generation": 1
+        },
+        {
+          "t": 27.25,
+          "kind": "order_insert",
+          "order_ref": "179154424403",
+          "request_id": 11,
+          "direction": "0",
+          "offset_flag": "0",
+          "price": 917.0,
+          "volume": 1,
+          "submit_code": 0
+        },
+        {
+          "t": 28.141,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 15,
+          "request_id": 12,
+          "connection_generation": 1
+        },
+        {
+          "t": 37.36,
+          "kind": "order_insert",
+          "order_ref": "179154425404",
+          "request_id": 13,
+          "direction": "0",
+          "offset_flag": "0",
+          "price": 917.0,
+          "volume": 1,
+          "submit_code": 0
+        },
+        {
+          "t": 37.75,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 16,
+          "request_id": 14,
+          "connection_generation": 1
+        },
+        {
+          "t": 46.969,
+          "kind": "order_insert",
+          "order_ref": "179154426405",
+          "request_id": 15,
+          "direction": "0",
+          "offset_flag": "0",
+          "price": 917.0,
+          "volume": 1,
+          "submit_code": 0
+        },
+        {
+          "t": 47.875,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 16,
+          "connection_generation": 1
+        },
+        {
+          "t": 49.079,
+          "kind": "order_action",
+          "order_ref": "179154422501",
+          "request_id": 17,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        {
+          "t": 49.5,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 18,
+          "connection_generation": 1
+        },
+        {
+          "t": 51.219,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 19,
+          "connection_generation": 1
+        },
+        {
+          "t": 52.422,
+          "kind": "order_action",
+          "order_ref": "179154423402",
+          "request_id": 20,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        {
+          "t": 52.829,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 21,
+          "connection_generation": 1
+        },
+        {
+          "t": 54.0,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 22,
+          "connection_generation": 1
+        },
+        {
+          "t": 55.204,
+          "kind": "order_action",
+          "order_ref": "179154424403",
+          "request_id": 23,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        {
+          "t": 56.391,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 24,
+          "connection_generation": 1
+        },
+        {
+          "t": 57.313,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 25,
+          "connection_generation": 1
+        },
+        {
+          "t": 58.516,
+          "kind": "order_action",
+          "order_ref": "179154425404",
+          "request_id": 26,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        {
+          "t": 58.938,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 27,
+          "connection_generation": 1
+        },
+        {
+          "t": 59.969,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 28,
+          "connection_generation": 1
+        },
+        {
+          "t": 61.172,
+          "kind": "order_action",
+          "order_ref": "179154426405",
+          "request_id": 29,
+          "action_flag": "0",
+          "submit_code": 0
+        },
+        {
+          "t": 61.594,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 30,
+          "connection_generation": 1
+        },
+        {
+          "t": 63.625,
+          "kind": "query",
+          "family": "orders",
+          "complete": true,
+          "timed_out": false,
+          "error_code": null,
+          "record_count": 17,
+          "request_id": 31,
+          "connection_generation": 1
+        }
+      ],
+      "alerts": [
+        {
+          "t": 61.172,
+          "alert": "combined_threshold",
+          "count": 10
+        }
+      ]
+    }
+  },
+  "front_selection": [
+    {
+      "index": 0,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 1,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 2,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 3,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 4,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}

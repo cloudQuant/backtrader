@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "E03",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "price_band": {
+      "lower": 916.0,
+      "upper": 1098.0
+    },
+    "band_breach_ticks": 10,
+    "rule": "price_outside_band",
+    "direction": "0",
+    "offset_flag": "0",
+    "price": 1108.0,
+    "volume": 1,
+    "dispatch_absent": false,
+    "submit_code": 0,
+    "order_ref": "179154629001",
+    "venue_status": "5",
+    "venue_row": {
+      "OrderStatus": "5",
+      "VolumeTraded": 0,
+      "VolumeTotal": 1,
+      "LimitPrice": 1108.0,
+      "VolumeTotalOriginal": 1,
+      "StatusMsg": "49:已撤单报单被拒绝CZCE:价格超出涨停板"
+    },
+    "residual_in_queue": [],
+    "rejection_source": "venue_query",
+    "evidence_status": "canceled_without_trade",
+    "error_code": null,
+    "error_message": "49:已撤单报单被拒绝CZCE:价格超出涨停板",
+    "native_stop": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": true
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T11:44:28.378341Z",
+  "finished_utc": "2026-10-09T11:45:11.999276Z",
+  "config_sha256": "95e32abb8986366cb6e19acaa006e0d5854ec870253bf593128c0d854a1eef5d",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 4,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 8,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791546286654,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -743364869,
+      "trading_day": "20261008",
+      "connection_generation": 1,
+      "login_seconds": 4.312
+    },
+    {
+      "t_ms": 1791546287465,
+      "kind": "query",
+      "family": "instruments",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 3,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546289110,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 4,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546290508,
+      "kind": "arm",
+      "armed": true,
+      "environment_profile": "set2_7x24_4000x",
+      "connection_generation": 1,
+      "trading_day": "20261008"
+    },
+    {
+      "t_ms": 1791546298521,
+      "kind": "order_insert",
+      "order_ref": "179154629001",
+      "request_id": 7,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 1108.0,
+      "volume": 1,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791546298930,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 39,
+      "request_id": 8,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546299986,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 39,
+      "request_id": 9,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791546311999,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T11:44:46.654975Z",
+      "note": "logged in trading_day=20261008 generation=1 pair_index=4"
+    },
+    {
+      "utc": "2026-10-09T11:44:50.508230Z",
+      "note": "armed; submitting one 0/0 1@1108.0"
+    },
+    {
+      "utc": "2026-10-09T11:44:58.521619Z",
+      "note": "order 179154629001 was not deterministically rejected; confirming at the venue"
+    }
+  ],
+  "artifacts": {},
+  "front_selection": [
+    {
+      "index": 0,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 1,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 2,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 3,
+      "td": false,
+      "md": false
+    },
+    {
+      "index": 4,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}
