@@ -10,7 +10,7 @@
 | 序 | 示例 | 建议窗口（北京） | 命令（示例目录内执行） |
 | --- | --- | --- | --- |
 | 1 | 013_3 SA 写 drill | 09:00 开盘后立即启动（CZCE 日盘 09:00–11:30） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
-| 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `python run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 300 --drill-window-seconds 900` |
+| 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `python run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 120 --drill-window-seconds 1500` |
 | 3 | 014_2 SA 期权观察（零写） | 10:50 起（上午盘内，900s 窗口） | `python run.py --live --run-seconds 900` |
 | 4 | 015 FG 期权观察（零写） | 11:10 起（上午盘内，300s 窗口） | `python run.py --live --run-seconds 300` |
 | 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
@@ -57,6 +57,10 @@
   回归测试 +2）。013_1/013_2 周一参数相应放宽为 `--drill-delay-seconds 1200
   --drill-window-seconds 1200`（窗口 [20,40] 分钟，容 warmup+就绪）；013_3 设计不同
   （显式 warmup 门+触发分离），未受影响。
+- **014_1 窗口网格分析（2026-10-10 复核）**：014_1 为 15 分钟 bar 决策（tick 不产生普通决策），
+  触发仅在各 bar 网格点检查 → 900s 窗口可能只覆盖一个网格点且余量仅 ~20–30s。已调整为首个
+  决策点（约 10:00:01）前的 delay 120s + window 1500s（[~09:57, ~10:22]），覆盖 10:00/10:15
+  两个网格决策点，双机会触发；`--run-seconds 3000` 覆盖至 10:45。
 - 选择器排序确认：**standard kind 优先，其次延迟**（`_kind_rank`；配置顺序仅 tie-break），
   标准前置仅在全部端口探测失败时才落入 7x24。时段内若仍落入 7x24（标准 pair 全不可达，
   其报价钟曾观测 ~47.9h 陈旧）：封存证据类策略（013_x/014_x）会以
