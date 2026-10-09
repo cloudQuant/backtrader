@@ -580,6 +580,79 @@ class SimNowSession:
         self._record("order_action", **record)
         return record
 
+    # ---------------------------------------------------------------- logout
+    def request_logout(self, *, timeout=15.0) -> dict:
+        """Operator-authorized venue logout through the native ``ReqUserLogout``.
+
+        A disconnect observer is registered on the native client *before* the
+        request; the first termination signal (hook, connected flag, or
+        read-only readiness) is polled within ``timeout``.  A single account
+        query then distinguishes a ghost session (expected) from a session
+        that survived the logout.  Nothing here stops or closes the native
+        client: the runner's ``close()`` remains the only closer.
+        """
+        from bt_api_ctp.ctp.ctp_structs_common import CThostFtdcUserLogoutField
+
+        client = self._require_client()
+        field = CThostFtdcUserLogoutField()
+        field.BrokerID = self.broker_id
+        field.UserID = self._user_id
+        hook = {"fired": False, "reason": None}
+
+        def _on_disconnect(reason):
+            hook["fired"] = True
+            hook["reason"] = str(reason)
+
+        try:
+            client.on_disconnect = _on_disconnect
+        except Exception:
+            pass  # the attribute exists on the dev SDK; never fail the request on this
+
+        request_id = client._next_request_id()
+        try:
+            return_code = client._api.ReqUserLogout(field, request_id)
+        except Exception as exc:
+            raise SimNowSessionError(
+                "logout_request_failed",
+                {"request_id": request_id, "error": f"{type(exc).__name__}: {exc}"[:200]},
+            ) from exc
+
+        started = time.monotonic()
+        deadline = started + float(timeout)
+        signal = ""
+        while time.monotonic() < deadline:
+            if hook["fired"]:
+                signal = "on_disconnect_hook"
+            elif getattr(client, "_connected", True) is False:
+                signal = "native_connected_flag"
+            elif client.is_read_only_ready is False:
+                signal = "readonly_ready_flag"
+            if signal:
+                break
+            time.sleep(0.5)
+        seconds = round(time.monotonic() - started, 3)
+
+        # Ghost-session check: the logout must leave the session unusable.
+        session_unusable = False
+        unusable_reason = ""
+        try:
+            self.query_account()
+        except SimNowSessionError as exc:
+            session_unusable = True
+            unusable_reason = exc.reason
+        facts = {
+            "request_return_code": return_code,
+            "request_id": request_id,
+            "signal": signal,
+            "hook_reason": hook["reason"],
+            "session_unusable": session_unusable,
+            "unusable_reason": unusable_reason,
+            "session_still_usable": not session_unusable,
+            "seconds": seconds,
+        }
+        self._record("logout", **facts)
+        return facts
+
     # ----------------------------------------------------------------- close
     def _require_client(self):
         if self._client is None:

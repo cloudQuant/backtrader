@@ -5,7 +5,7 @@
 schema_version: 1
 case_id: EM03
 venue: simnow
-description: "External forced logout: an operator-authorized competing login makes the observed session show a native disconnect within the bounded window."
+description: "External operator logout: the operator-authorized venue logout API (scenario logout_mode: venue_api, default) issues ReqUserLogout, requires an observed termination signal plus a ghost session, and restores a fresh session afterwards; a competing login (any other logout_mode) or a human-triggered server-side forced logout during the operator-assist hold window (scenario hold_seconds > 0, or BT_CERT_EM03_HOLD_SECONDS while hold_seconds is 0) remain available. Read-only; no write action is used."
 environment:
   name: simnow
   kind: simulation
@@ -40,7 +40,14 @@ scenario:
   expect: forced_logout
   operator_ref: operator-cert-em03
   authorization_ref: auth-cert-em03
+  # venue_api = operator-authorized ReqUserLogout on the observed session
+  # (the certification default); any other value keeps the competing-login
+  # quick path.
+  logout_mode: venue_api
   disconnect_timeout_ms: 20000
+  # Operator-assist hold window in seconds (0 = competing-login probe only;
+  # clamped to [0, 1800]; BT_CERT_EM03_HOLD_SECONDS overrides a 0 here).
+  hold_seconds: 0
 topology:
   transport: direct
   execution: false
