@@ -728,3 +728,16 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-root-prep-caller-r3-source-fake-dev-delivery-r1-2026-10-09/root-outside-post-r3.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-root-prep-caller-r3-source-fake-dev-delivery-r1-2026-10-09/root-outside-pre-r3.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-root-prep-caller-r3-source-fake-dev-delivery-r1-2026-10-09/round-record.md -text
+.codex-tmp/simnow_v20_r2_normal_source_close_root_20261009.py -text
+.codex-tmp/simnow_v20_r2_normal_source_close_root_test_20261009.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/independent-review.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/manifest.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-acceptance-receipt-r1.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-harness-r1.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-result-r1.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-git-attester-r1.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-post-r1.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-pre-r1.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/round-record.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-helper.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-test.py -text

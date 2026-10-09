@@ -1,0 +1,607 @@
+{
+  "schema": "iteration41.simnow.v20.r2.normal_source_close.dev_delivery_manifest.v1",
+  "status": "READY_FOR_ROOT_STAGE",
+  "evidence_level": "SOURCE_FAKE_NORMAL_SOURCE_CLOSE_ONLY",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "delivery_parent": "a95b0287ec9ff318e3e08883bce7216ea0f5b895",
+  "qa_execution_parent": "a95b0287ec9ff318e3e08883bce7216ea0f5b895",
+  "payload_count": 13,
+  "payload_paths": [
+    ".codex-tmp/simnow_v20_r2_normal_source_close_root_20261009.py",
+    ".codex-tmp/simnow_v20_r2_normal_source_close_root_test_20261009.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/independent-review.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/manifest.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-acceptance-receipt-r1.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-harness-r1.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-result-r1.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-git-attester-r1.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-post-r1.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-pre-r1.json",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/round-record.md",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-helper.py",
+    "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-test.py"
+  ],
+  "accepted_source_files": [
+    {
+      "path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_20261009.py",
+      "pin": [
+        35246,
+        "a42726bab6052e537e27df3349b1ac562138368190ebcf0646e15989c37a109e"
+      ],
+      "role": "canonical_root_normal_source_close_helper"
+    },
+    {
+      "path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_test_20261009.py",
+      "pin": [
+        26165,
+        "7978e86158ef8443915556dc0fa9b93d6b737e23ecb1f33115515aec0ba0e959"
+      ],
+      "role": "focused_source_fake_fixture"
+    }
+  ],
+  "archived_evidence": [
+    {
+      "source_path": ".codex-tmp/simnow_v20_r2_normal_source_close_independent_review_r1_20261009.md",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/independent-review.md",
+      "bytes": 3843,
+      "sha256": "0ee97d829536d41e43f2855ef02a902c4f9cfcbb71445c324267e4ac9c585103"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_r2_close_root_source_acceptance_receipt_r1_20261009.json",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-acceptance-receipt-r1.json",
+      "bytes": 7365,
+      "sha256": "abcc3927525dbcd00fce7787543438fb7a3b97be266cf28e21fcc3478a6506b6"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_focused_qa_r1_20261009.py",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-harness-r1.py",
+      "bytes": 39370,
+      "sha256": "a0c762bd73343af49e180c5ee88889c61999c7455f8b22d495860bc0617d36fc"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_focused_qa_r1_result_20261009.json",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-focused-qa-result-r1.json",
+      "bytes": 10748,
+      "sha256": "ef336054de653e482d2dc735b3bc1e40b1d2216fe0534a39394e930af6981d17"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_r2_close_root_outside_git_attestation_r1_20261009.py",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-git-attester-r1.py",
+      "bytes": 5557,
+      "sha256": "6a6d57f291fe9038fff0c1cbe4a91030a31a9f3ce1bf074b5639ecbd2aca428b"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_r2_close_root_source_qa_r1_20261009_outside_post.json",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-post-r1.json",
+      "bytes": 7334,
+      "sha256": "afca3fcdb2138a9c76876e947942676bcd0b0b0ccd0af61d23c3b64edb6b8769"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_r2_close_root_source_qa_r1_20261009_outside_pre.json",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/root-outside-pre-r1.json",
+      "bytes": 7333,
+      "sha256": "e4fee3edefef064f63a14a9a05d3c3a78ed9ec92b2ca6a1eff080fa2954a0917"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_20261009.py",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-helper.py",
+      "bytes": 35246,
+      "sha256": "a42726bab6052e537e27df3349b1ac562138368190ebcf0646e15989c37a109e"
+    },
+    {
+      "source_path": ".codex-tmp/simnow_v20_r2_normal_source_close_root_test_20261009.py",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-v20-r2-normal-source-close-sourcefake-dev-round-r1-2026-10-09/source-close-test.py",
+      "bytes": 26165,
+      "sha256": "7978e86158ef8443915556dc0fa9b93d6b737e23ecb1f33115515aec0ba0e959"
+    }
+  ],
+  "root_source_qa": {
+    "status": "PASS_ROOT_FOCUSED_SOURCE_FAKE_ONLY",
+    "schema": "iteration41-simnow-v20-r2-normal-source-close-root-focused-qa-r1",
+    "root_result_pin": [
+      10748,
+      "ef336054de653e482d2dc735b3bc1e40b1d2216fe0534a39394e930af6981d17"
+    ],
+    "root_harness_pin": [
+      39370,
+      "a0c762bd73343af49e180c5ee88889c61999c7455f8b22d495860bc0617d36fc"
+    ],
+    "aggregate_receipt_pin": [
+      7365,
+      "abcc3927525dbcd00fce7787543438fb7a3b97be266cf28e21fcc3478a6506b6"
+    ],
+    "facts": {
+      "test_exit": 0,
+      "executed_cases": 3,
+      "passed": 3,
+      "warnings": 0,
+      "errors": 0,
+      "denials": {},
+      "guard_selfchecks": 14,
+      "origin_verified": true,
+      "provider_import_absent": true,
+      "runner_error": null
+    },
+    "all_34_public_input_pins_unchanged": true,
+    "input_status_and_index_unchanged": true,
+    "outside_pre_pin": [
+      7333,
+      "e4fee3edefef064f63a14a9a05d3c3a78ed9ec92b2ca6a1eff080fa2954a0917"
+    ],
+    "outside_post_pin": [
+      7334,
+      "afca3fcdb2138a9c76876e947942676bcd0b0b0ccd0af61d23c3b64edb6b8769"
+    ]
+  },
+  "source_input_closure": {
+    "public_input_count": 34,
+    "newly_delivered_source_count": 2,
+    "inherited_tracked_source_count": 32,
+    "inherited_dependencies": [
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_actual_caller_r2_20261009.py",
+        "checkout_pin": [
+          24722,
+          "359fd47ec9bb9e516b73b51465b675c977ae045167580ebb0ed0cb3b846c8ad0"
+        ],
+        "raw_head_pin": [
+          24722,
+          "359fd47ec9bb9e516b73b51465b675c977ae045167580ebb0ed0cb3b846c8ad0"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_host_r6_20261009.py",
+        "checkout_pin": [
+          24159,
+          "02ac13bfd45c6ad94e0c8666bca4e05182a727eaf2449a1b21cb6b7b72be581f"
+        ],
+        "raw_head_pin": [
+          24159,
+          "02ac13bfd45c6ad94e0c8666bca4e05182a727eaf2449a1b21cb6b7b72be581f"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_launch_r2_20261009.py",
+        "checkout_pin": [
+          5782,
+          "9af785b32f1a807867789f70268c2580b43c032bcf2f7857ef4231a6a5ec7429"
+        ],
+        "raw_head_pin": [
+          5782,
+          "9af785b32f1a807867789f70268c2580b43c032bcf2f7857ef4231a6a5ec7429"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+        "checkout_pin": [
+          33887,
+          "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+        ],
+        "raw_head_pin": [
+          33887,
+          "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_roundtrip_private.py",
+        "checkout_pin": [
+          17537,
+          "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+        ],
+        "raw_head_pin": [
+          17537,
+          "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_front_transport_v14.py",
+        "checkout_pin": [
+          9970,
+          "aa281e122ae4c1e79022dd5b1a9fcbc0afd51f0282aa0e6587671b0d15f8b3a8"
+        ],
+        "raw_head_pin": [
+          9970,
+          "aa281e122ae4c1e79022dd5b1a9fcbc0afd51f0282aa0e6587671b0d15f8b3a8"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_interpreter_binding_v1.py",
+        "checkout_pin": [
+          7700,
+          "a38d00ecfbc7a777edab4b9d090be49ef03a94e7c23340dfe95366bacfd05494"
+        ],
+        "raw_head_pin": [
+          7700,
+          "a38d00ecfbc7a777edab4b9d090be49ef03a94e7c23340dfe95366bacfd05494"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v19.py",
+        "checkout_pin": [
+          191555,
+          "3de1024b233a0eee55fba7c30df69f04afa38746c9a0e88996e0db7df283fd40"
+        ],
+        "raw_head_pin": [
+          191555,
+          "3de1024b233a0eee55fba7c30df69f04afa38746c9a0e88996e0db7df283fd40"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_native_td_read_v20.py",
+        "checkout_pin": [
+          200314,
+          "7118ed43cdc012181546f54f7b302ee51d3704860c5746807217c35087257f71"
+        ],
+        "raw_head_pin": [
+          200314,
+          "7118ed43cdc012181546f54f7b302ee51d3704860c5746807217c35087257f71"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_native_v4.py",
+        "checkout_pin": [
+          199788,
+          "66666d2addc3bddbf0f13a9a30fab9fea83479d7cac7328879552e13baea5a66"
+        ],
+        "raw_head_pin": [
+          199788,
+          "66666d2addc3bddbf0f13a9a30fab9fea83479d7cac7328879552e13baea5a66"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_root_custody_v17.py",
+        "checkout_pin": [
+          8702,
+          "8ea25c42a834085c54c87df9b24cb7a1876cf361cd6ca20323f4c5993a59816e"
+        ],
+        "raw_head_pin": [
+          8702,
+          "8ea25c42a834085c54c87df9b24cb7a1876cf361cd6ca20323f4c5993a59816e"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_root_formal_adjudicator_v1.py",
+        "checkout_pin": [
+          37080,
+          "743e9507157092d7f3c9b284e5775d895cbe42c1caf1da6fb9e1cbb8e1eb2db7"
+        ],
+        "raw_head_pin": [
+          37080,
+          "743e9507157092d7f3c9b284e5775d895cbe42c1caf1da6fb9e1cbb8e1eb2db7"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_root_v17.py",
+        "checkout_pin": [
+          95395,
+          "5fc2f7acd7ca0c2e107f846d637a6716c000b61d0b211ec9a2f21651025b7481"
+        ],
+        "raw_head_pin": [
+          95395,
+          "5fc2f7acd7ca0c2e107f846d637a6716c000b61d0b211ec9a2f21651025b7481"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_rootseal_custody_v1.py",
+        "checkout_pin": [
+          52738,
+          "653dd1227902bce3f0e27330833b672d07771f05f3f4d2b1b15e83c8f13e40e7"
+        ],
+        "raw_head_pin": [
+          52738,
+          "653dd1227902bce3f0e27330833b672d07771f05f3f4d2b1b15e83c8f13e40e7"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_v3_contract.py",
+        "checkout_pin": [
+          59663,
+          "19d8b13bda11e54a5ca037387b6abc884035ec02c05fb099f2398b99319d8fb0"
+        ],
+        "raw_head_pin": [
+          59663,
+          "19d8b13bda11e54a5ca037387b6abc884035ec02c05fb099f2398b99319d8fb0"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_v3_protocol.py",
+        "checkout_pin": [
+          80745,
+          "c48b41272ae6378060b0b65188b56ef613f001b53d13db7aceaf13489d398160"
+        ],
+        "raw_head_pin": [
+          80745,
+          "c48b41272ae6378060b0b65188b56ef613f001b53d13db7aceaf13489d398160"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_v4_supervisor.py",
+        "checkout_pin": [
+          54026,
+          "daf2cf99cbc5d977e27f59efb0f27087abdf3493c9d959d5c3d253744f869da1"
+        ],
+        "raw_head_pin": [
+          54026,
+          "daf2cf99cbc5d977e27f59efb0f27087abdf3493c9d959d5c3d253744f869da1"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/certification_simnow_c01_v7_owner.py",
+        "checkout_pin": [
+          36778,
+          "ee492f115c60ca14f770a055061014f30b7b9cc1cecdfd09cae17f75aabf55e9"
+        ],
+        "raw_head_pin": [
+          36778,
+          "ee492f115c60ca14f770a055061014f30b7b9cc1cecdfd09cae17f75aabf55e9"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "backtrader_runtime/ctp_front_pair_probe.py",
+        "checkout_pin": [
+          24442,
+          "d6f92c7d2f6df13480cebcee2c7f864ac305d34d4cda37d1a22c466932d2905f"
+        ],
+        "raw_head_pin": [
+          23819,
+          "fe634001c7467aede16c38f0b4062c6617206358fcb4ca2e193c16ddc1d996de"
+        ],
+        "classification": "TRACKED_CLEAN_CRLF_NORMALIZATION_EXCEPTION",
+        "checkout_crlf_normalizes_to_raw_head": true
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-credential-free-job-channel-r3-2026-10-09/runtime-source-pins.json",
+        "checkout_pin": [
+          9069,
+          "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+        ],
+        "raw_head_pin": [
+          9069,
+          "e3e6940ba4799b6e783ef4227a07dd43d628ba74b96e5e958a6c7ffec3a6e387"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-credential-free-caller-r2-bounded-precheck-2026-10-09/run_root_credential_free_gate.py",
+        "checkout_pin": [
+          16708,
+          "00c1485a89d91ade093ee353cf1dfd709026f83bcb8c1c4342161b5d22b4e5a4"
+        ],
+        "raw_head_pin": [
+          16708,
+          "00c1485a89d91ade093ee353cf1dfd709026f83bcb8c1c4342161b5d22b4e5a4"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-public-precheck-r2-bounded-2026-10-09/prepare_root_precheck.py",
+        "checkout_pin": [
+          27892,
+          "3f14a1ae6033717a8d05a90d7bade9ca0c96c6f7cfbea22c9f3176397fe066f6"
+        ],
+        "raw_head_pin": [
+          27892,
+          "3f14a1ae6033717a8d05a90d7bade9ca0c96c6f7cfbea22c9f3176397fe066f6"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "examples/000_live_certification/simnow_penetration/cases/C01/run_v20.py",
+        "checkout_pin": [
+          12723,
+          "a2fed5ca72c61ab03795963f3d08f0575972d571fc4ddca7e7f1f79f9645926b"
+        ],
+        "raw_head_pin": [
+          12723,
+          "a2fed5ca72c61ab03795963f3d08f0575972d571fc4ddca7e7f1f79f9645926b"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "examples/000_live_certification/simnow_penetration/common/c01_root_completion_v1.py",
+        "checkout_pin": [
+          12308,
+          "1d5e1183368b5bb1c4363056673a483d21e6e02b1bf342b6ac69b12a9b891f90"
+        ],
+        "raw_head_pin": [
+          12308,
+          "1d5e1183368b5bb1c4363056673a483d21e6e02b1bf342b6ac69b12a9b891f90"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "examples/000_live_certification/simnow_penetration/common/c01_root_ledger_v1.py",
+        "checkout_pin": [
+          70205,
+          "4cbe8465c9b2854d2913de03d4e7a12f020debc8723d6c63539314d2ba7f424a"
+        ],
+        "raw_head_pin": [
+          70205,
+          "4cbe8465c9b2854d2913de03d4e7a12f020debc8723d6c63539314d2ba7f424a"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "scripts/ctp_000_front_handoff.py",
+        "checkout_pin": [
+          10157,
+          "b08e70e723a5d31f18809129387455dfee3645e6ad9f2b516d7aa2789ffd19f7"
+        ],
+        "raw_head_pin": [
+          10157,
+          "b08e70e723a5d31f18809129387455dfee3645e6ad9f2b516d7aa2789ffd19f7"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "scripts/ctp_000_paired_front_selector.py",
+        "checkout_pin": [
+          11099,
+          "08d4025684503ba89c286699ad0511793c536e09af58333963cbecb40ad49ebb"
+        ],
+        "raw_head_pin": [
+          11099,
+          "08d4025684503ba89c286699ad0511793c536e09af58333963cbecb40ad49ebb"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "scripts/ctp_000_render_config.py",
+        "checkout_pin": [
+          23998,
+          "34bf2a99872f43f0d915bafcb0284827a8ac0c4baf70a2ce5f1046888223eac9"
+        ],
+        "raw_head_pin": [
+          23998,
+          "34bf2a99872f43f0d915bafcb0284827a8ac0c4baf70a2ce5f1046888223eac9"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "scripts/ctp_i13_i15_outer_watchdog.py",
+        "checkout_pin": [
+          25363,
+          "31c945c77c7e147a296e66f4f1ec075e0a23f1a88b94fd339884268e79ca251c"
+        ],
+        "raw_head_pin": [
+          24746,
+          "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+        ],
+        "classification": "TRACKED_CLEAN_CRLF_NORMALIZATION_EXCEPTION",
+        "checkout_crlf_normalizes_to_raw_head": true
+      },
+      {
+        "path": "scripts/ctp_i13_i15_windows_job_backend.py",
+        "checkout_pin": [
+          47251,
+          "2566dd55d1a96285473850b1e2c63174696347da56e07d69fb72aa3a6285e381"
+        ],
+        "raw_head_pin": [
+          46080,
+          "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+        ],
+        "classification": "TRACKED_CLEAN_CRLF_NORMALIZATION_EXCEPTION",
+        "checkout_crlf_normalizes_to_raw_head": true
+      },
+      {
+        "path": "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+        "checkout_pin": [
+          158926,
+          "4f05194dea1a029a0950dba69e3644ce5e518253aa0d8a727687d707fed0b963"
+        ],
+        "raw_head_pin": [
+          158926,
+          "4f05194dea1a029a0950dba69e3644ce5e518253aa0d8a727687d707fed0b963"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      },
+      {
+        "path": "scripts/run_simnow_c01_native_td_read_v20_root_activation_r2.py",
+        "checkout_pin": [
+          55511,
+          "6323c537f852838cdd40f1f92482eb9fd9c57a994cd296074b6e18246badeadd"
+        ],
+        "raw_head_pin": [
+          55511,
+          "6323c537f852838cdd40f1f92482eb9fd9c57a994cd296074b6e18246badeadd"
+        ],
+        "classification": "TRACKED_CLEAN_EXACT_RAW_HEAD",
+        "checkout_crlf_normalizes_to_raw_head": false
+      }
+    ],
+    "critical_source_binding_dependencies": [
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_actual_caller_r2_20261009.py",
+        "role": "SOURCE_BINDING_DEPENDENCY_NOT_ACTUAL_PREPARATION_ACCEPTANCE"
+      },
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_host_r6_20261009.py",
+        "role": "SOURCE_BINDING_DEPENDENCY_NOT_ACTUAL_PREPARATION_ACCEPTANCE"
+      },
+      {
+        "path": ".codex-tmp/simnow_v20_root_preparation_launch_r2_20261009.py",
+        "role": "SOURCE_BINDING_DEPENDENCY_NOT_ACTUAL_PREPARATION_ACCEPTANCE"
+      },
+      {
+        "path": "scripts/iteration41_simnow_c01_v20_root_actual_driver_r3.py",
+        "role": "SOURCE_BINDING_DEPENDENCY_NOT_ACTUAL_PREPARATION_ACCEPTANCE"
+      }
+    ],
+    "raw_head_crlf_exception_count": 3,
+    "raw_head_crlf_exceptions": {
+      "backtrader_runtime/ctp_front_pair_probe.py": [
+        23819,
+        "fe634001c7467aede16c38f0b4062c6617206358fcb4ca2e193c16ddc1d996de"
+      ],
+      "scripts/ctp_i13_i15_outer_watchdog.py": [
+        24746,
+        "f738f5deac1e7e5a7db101b72343677bb299f49451a8325cf1defe1305799a79"
+      ],
+      "scripts/ctp_i13_i15_windows_job_backend.py": [
+        46080,
+        "c1e83f7075f48fa16f5db862d0ef95aec1eed2e8551464c9e990dbb3ecd324fd"
+      ]
+    }
+  },
+  "historical_excluded": [
+    "SimNow R2 source-close author QA history",
+    "SimNow R1/R2 actual caller HOLD history"
+  ],
+  "operation_boundary": {
+    "synthetic_source_close_cases_passed": 3,
+    "actual_preparation": false,
+    "actual_retained_source_close": false,
+    "credential_free_gate_invoked": false,
+    "provider_or_account_action_or_acceptance": false,
+    "formal_c01_pass": false,
+    "retained_host_state_checked": false
+  },
+  "delivery_note": "All nine QA/review/attestation/receipt archives are exact byte copies. The packet and config do not edit .gitattributes or the Git index; the Root stager derives one exact -text rule per payload."
+}
