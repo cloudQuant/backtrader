@@ -688,3 +688,10 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-full-close-r2-source-dev-round-r1-2026-10-09/reviews/r2-source-review.md" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-full-close-r2-source-dev-round-r1-2026-10-09/delivery-manifest.json" -text
 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-full-close-r2-source-dev-round-r1-2026-10-09/round-record.md" -text
+scripts/iteration41_optional16_r33_root_preparation_driver_r3.py -text
+tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_driver_r3_source_fake.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/qa/root-focused-qa-r1.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/qa/root-focused-qa-result-r1.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/reviews/independent-review-transcript.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/delivery-manifest.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/round-record.md -text
