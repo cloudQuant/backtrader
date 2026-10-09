@@ -3774,3 +3774,38 @@ Systems busy 时段（同 clOrdId 幂等重试、51016 即已受理）、错误�
 `b89539a5`（EM01 受限密钥就绪）、`9ce049ea`（EM03 场方登出）；SDK 父仓 gitlink `7312e718`。遗留旧代码清理
 （用例目录版本碎片被旧测试按字节断言引用，属历史证据工件，移动会破坏历史可验证性）与 okx/simnow 的网关
 泛化为后续独立轮次事项。
+
+## Iteration 42 — examples 012–015 four-file standard and simulation penetration (2026-10-10, in progress)
+
+Plan and evidence live under `docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/`
+(迭代计划.md + evidence/). Every example directory converges to the standard four-file form
+(`README.md` + `config.yaml` + `<name>_strategy.py` + `run.py`) with `run.py` supporting
+dry / `--replay` / `--live` and exit codes 0/1/2/3; evidence JSON is written to each directory's
+git-ignored `evidence/`.
+
+Commit chain on `dev`: `eb3da84f3` (R1 013_3 + SimNow registered-sim chain; `backtrader/stores/btapistore.py`
+gains the additive `allow_zero_login_response` passthrough, default off), `7cfad68bc` (R2 012_1),
+`90cf8914a` (R3 012_2), `0150641a3` (R4 013_1), `e91e3638b` (R5 013_2), `e7dc0e4a6` (R6–R8 options).
+
+- SimNow execution for this iteration goes exclusively through the direct registered-sim narrow admission
+  (`simnow_direct.py`, vendored byte-identical from the 013_3 canonical copy with drift guards; the Store/
+  managed/production write routes stay closed per plan §5.1). One SDK admission authorizes one instrument;
+  cross-leg strategies switch the arm (disarm → arm) strictly between writes and record `arm_history`.
+- R4 registered the §4 defect fixes for 013_1/013_2: exchange-metadata close offsets (`close_offsets`
+  param), refusal instead of blind close-price pricing when the one-book is missing, and a monotonic
+  `deadline_clock` for live order/holding deadlines. `run_runtime.py`/launchers of 012_x/013_x/014_x/015
+  were rebound to `legacy_runner` so the registered LOCAL_REPLAY_ONLY routes keep working after the renames.
+- Live acceptance for 013_3/013_1/013_2 (SimNow drills) is pending a trading session; R2/R3 crypto demo
+  round trips stay evidence-backed BLOCKED (expired qualification window / HFT admission) with zero-code
+  and process flip paths recorded.
+- Options 014_1/014_2/015 are four-file standardized with their live tier **evidence-backed BLOCKED**
+  (`live_adapter_not_integrated`): the strategies require feed-sealed `BarEvidence` + a run-scoped
+  non-synthetic `ClockMapping` + a write-capable registered-sim adapter, which is a dedicated adapter
+  round; the entries print the exact integration requirements and never degrade to the raw-line replay
+  contract live. 583 option unit tests pass; native-broker-chain integration failures are byte-identical
+  to the pre-existing baseline.
+- Component boundary: `tests/unit/test_iteration42_component_boundaries.py` pins that no standard entry
+  imports `bt_api_gateway/bt_api_risk/bt_api_monitor/bt_api_execution` and that component-mount-shaped flags
+  are rejected; the optional16 dry matrix re-runs green (32/32 DRY) and all four component packages import
+  cleanly from the dev tree. The component-positive acceptance remains the iteration-41 optional16 real
+  matrix (binance C01+T03 × 16).
