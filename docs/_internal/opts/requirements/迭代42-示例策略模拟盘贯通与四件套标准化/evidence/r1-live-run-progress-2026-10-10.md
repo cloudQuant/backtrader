@@ -99,6 +99,9 @@ R2 环境核查：checkout 根 `.env` 中 OKX/Binance Demo 五个凭据名齐全
 
 ## 下一步（R1 收尾）
 
+周一执行计划（命令/窗口/判据/收尾步骤）见同目录 `monday-live-run-plan-2026-10-12.md`；
+逐示例 tracker 由 `scripts/generate_iteration42_tracker.py` 生成（JSON+MD）。
+
 1. ~~读取验收 run 证据~~ → 已完成：实现轮提交 **eb3da84f3**（dev）；真实成交往返验收待周一 CZCE 时段
    （2026-10-12 09:00 北京）用标准前置重跑 drill；当日补记验收结果。
 2. 提交白名单（backtrader dev）：已完成（18 文件）；保留工作树中既有无关修改不提交。
