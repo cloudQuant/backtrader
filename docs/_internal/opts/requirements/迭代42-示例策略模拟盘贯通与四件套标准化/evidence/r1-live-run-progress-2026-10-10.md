@@ -133,3 +133,12 @@ R2 环境核查：checkout 根 `.env` 中 OKX/Binance Demo 五个凭据名齐全
 - 双所 demo 写与幂等：按迭代42 §5.3（OKX 50013 同 clOrdId；超时先查询）。
 - 清单/字节绑定：manifest 刷新 + `.gitattributes` 六路径 LF 规则核对（012_1/012_2 各
   run/strategy/config 三文件）。
+
+## 7x24 夜跑"零下单"根因（2026-10-10 复核，非缺陷）
+
+013_3 历史夜间 live 运行（12 次）全部 `session_order_refs=0`、`no_fill_round_trip`。源码复核
+根因：`_engineering_trigger_direction` 以 **`quote.event_time`** 对 trigger 的墙钟窗口
+（`not_before_utc`/`not_after_utc`）比较；7x24 环境报价事件钟陈旧 ~47.9h → 永不落入窗口 →
+`engineering_trigger_not_reached` 持续阻断，drill 从未发出订单。**在时段内标准前置上
+quote.event_time ≈ 墙钟**，窗口按设计生效——周一 09:00 drill 不受此影响。今晚以周一逐字命令
+复跑 013_3 彩排（编辑后首跑）预期同样零单，仅用于验证编辑后入口与武装链路的真实可用性。
