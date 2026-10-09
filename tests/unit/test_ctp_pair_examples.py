@@ -200,6 +200,77 @@ def test_pair_pending_drill_suppresses_natural_opens(request, fixture_name):
     assert strategy_class._natural_open_suppressed(holder) is False
 
 
+@pytest.mark.parametrize("strategy_fixture", ("ex1", "ex2"))
+def test_pair_drill_run_suppresses_natural_then_fires_in_window(
+    request, strategy_fixture
+):
+    """A qualifying natural signal cannot open before the drill window; the
+    drill itself fires on the first evaluation once the window opens."""
+
+    import time as _time
+
+    strategy_class = request.getfixturevalue(strategy_fixture).PairArbitrageStrategy
+    now = _time.time()
+    calls = []
+
+    class _Broker:
+        def getvalue(self):
+            return 1000.0
+
+    holder = SimpleNamespace(
+        broker=_Broker(),
+        initial_value=100.0,
+        open_attempts=0,
+        _engineering_trigger_fired=False,
+        _direction=None,
+        _confirmations=0,
+        _last_evaluation=0.0,
+        symbols=("first", "second"),
+    )
+    holder.p = SimpleNamespace(
+        max_pairs=1,
+        min_interval=0.0,
+        entry_z=1.5,
+        confirmations=1,
+        max_loss=50.0,
+        order_lots=1,
+        engineering_trigger={
+            "side": "long",
+            "not_before_epoch": now + 3600.0,
+            "not_after_epoch": now + 7200.0,
+        },
+    )
+    holder._zscore = lambda: 9.9
+    holder._mark_trade_logger_context_dirty = lambda: None
+    holder.current_pair = None
+
+    def _record_begin_legs(legs, action):
+        calls.append((legs, action))
+        holder.current_pair = {"legs": legs, "action": action, "reason": None}
+
+    holder._begin_legs = _record_begin_legs
+    holder._engineering_trigger_side = lambda: strategy_class._engineering_trigger_side(holder)
+    holder._natural_open_suppressed = lambda: strategy_class._natural_open_suppressed(holder)
+
+    strategy_class._try_open(holder, now)
+    assert holder.open_attempts == 0
+    assert calls == []
+
+    holder.p.engineering_trigger = {
+        "side": "long",
+        "not_before_epoch": now - 5.0,
+        "not_after_epoch": now + 300.0,
+    }
+    strategy_class._try_open(holder, now)
+    assert holder._engineering_trigger_fired is True
+    assert holder.open_attempts == 1
+    assert calls and calls[0][1] == "open"
+    legs = calls[0][0]
+    assert legs[0]["symbol"] == "second" and legs[0]["side"] == "sell"
+    assert legs[1]["symbol"] == "first" and legs[1]["side"] == "buy"
+    assert legs[0]["lots"] == 1 and legs[1]["lots"] == 1
+
+
 def test_runner_close_offset_follows_exchange_rules(run1, run2):
     assert run2.close_offset("rb2701") == "close_today"
     assert run1.close_offset("m2611") == "close"
