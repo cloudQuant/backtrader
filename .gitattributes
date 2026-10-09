@@ -621,3 +621,12 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py" -text
 "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py" -text
 "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py" -text
+scripts/iteration41_optional16_r33_root_preparation_call_r3.py -text
+tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r3_original_audit_source_fake.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-r11.py -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-result-r11.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r6-static-guard-source-review.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r11-static-hold-review.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/delivery-manifest.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/round-record.md -text

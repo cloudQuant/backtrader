@@ -1,0 +1,36 @@
+{
+  "schema": "iteration41.optional16.call-r3.independent-static-review.r1",
+  "date": "2026-10-09",
+  "verdict": "GO_STATIC_DESIGN_ONLY",
+  "scope": "Public-source static review only. No harness or test execution, QA-path probe, actual preparation, protected input, native, SDK, provider, network, process, or Git operation.",
+  "artifacts": [
+    {
+      "sha256": "8c8f49335d759a918c1c9141c9b414c2a677913b5b4422939c204a62a6b37d75",
+      "size_bytes": 43680,
+      "path": ".codex-tmp/optional16_call_r3_root_focused_qa_r6_20261009.py"
+    },
+    {
+      "sha256": "b35d33af5fdb752dde37228e13736a5515f427001b1e3c8d9f73615c09783f4e",
+      "size_bytes": 11442,
+      "path": ".codex-tmp/optional16_call_r3_source_closure_inventory_r6_20261009.json"
+    },
+    {
+      "sha256": "cf1c7ca98fe9dac67c8b424e88200dd06c7f6450d399d9bac01f9842543dbe40",
+      "size_bytes": 7181,
+      "path": ".codex-tmp/optional16_call_r3_root_focused_qa_r6_delta_20261009.json"
+    }
+  ],
+  "source_closure_check": "All eight indexed public source rows independently matched stated size and SHA-256.",
+  "findings": [
+    "Popen guard requires exactly one event with exact executable, full list2cmdline command, repository cwd, and sanitized child environment.",
+    "The sole subsequent CreateProcess allowance requires parent mode, the pending Popen token, one exact executable/cwd and a one-character command projection; it consumes the token once. Out-of-order, malformed, duplicate, and unrelated process/native events are denied.",
+    "The projection is only the observed one-character audit shape and does not attest the full command; the exact preceding Popen event binds the full command.",
+    "The 12 guard selfchecks call the audit function directly and do not launch a process.",
+    "The finally path attempts source postverification after launch exceptions and retains the original launch failure phase.",
+    "pinned_r1_helper_called=false precisely reports that the fixed test-only case does not reach the pinned R1 helper; it does not claim the Call R3 preparation method was never entered."
+  ],
+  "limitations": [
+    "R6 is unexecuted; this review does not establish runtime behavior or Optional16 acceptance.",
+    "The fixed case refuses the test_only scope before the pinned R1 preparation helper; formal Optional16 remains 0/16."
+  ]
+}

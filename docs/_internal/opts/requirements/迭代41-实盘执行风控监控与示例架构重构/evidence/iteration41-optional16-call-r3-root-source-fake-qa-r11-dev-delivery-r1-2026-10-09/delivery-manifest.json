@@ -1,0 +1,254 @@
+{
+  "schema": "iteration41.optional16.call-r3.root-source-fake-qa-dev-delivery.r1",
+  "status": "FROZEN_READY_FOR_INDEPENDENT_DELIVERY_REVIEW_AND_ROOT_STAGE",
+  "date": "2026-10-09",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "expected_parent_head": "5a4b3c0e2664875f8609137b3cf3530e651d8cf8",
+  "evidence_scope": "SOURCE_FAKE_ORIGINAL_AUDIT_REFERENCE_BINDING_WITH_PINNED_PUBLIC_HELPER_BOOTSTRAP_ONLY",
+  "delivery_scope": {
+    "total_paths_including_gitattributes": 10,
+    "payload_count": 9,
+    "exact_text_unset_rule_count": 9,
+    "new_candidate_source_payloads": 2,
+    "inherited_source_dependencies_not_payloads": 8,
+    "payload_paths": [
+      "scripts/iteration41_optional16_r33_root_preparation_call_r3.py",
+      "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r3_original_audit_source_fake.py",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-r11.py",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-result-r11.json",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r6-static-guard-source-review.json",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r11-static-hold-review.json",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/delivery-manifest.json",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/round-record.md"
+    ],
+    "gitattributes_path": ".gitattributes",
+    "proposed_exact_gitattributes_rules": [
+      "scripts/iteration41_optional16_r33_root_preparation_call_r3.py -text",
+      "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r3_original_audit_source_fake.py -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-r11.py -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-result-r11.json -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r6-static-guard-source-review.json -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r11-static-hold-review.json -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/delivery-manifest.json -text",
+      "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/round-record.md -text"
+    ]
+  },
+  "qa": {
+    "root_executed_harness": {
+      "original_path": ".codex-tmp/optional16_call_r3_root_focused_qa_r11_20261009.py",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-r11.py",
+      "size_bytes": 56323,
+      "sha256": "1593318fa2c9505220cf0891ca29b8e5a8a97828519963e0c20b5499af3be2cd",
+      "copied_byte_for_byte": true
+    },
+    "result": {
+      "original_path": ".codex-tmp/optional16_call_r3_root_focused_qa_result_r11_20261009.json",
+      "archive_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-result-r11.json",
+      "size_bytes": 8417,
+      "sha256": "b47caa0f378ad2a3f16444ed47fd3342598f8ce5c7f124136d99b2891ae407aa",
+      "status": "PASS_SOURCE_FAKE_ORIGINAL_AUDIT_REFERENCE_BINDING_WITH_PINNED_PUBLIC_HELPER_BOOTSTRAP_ONLY",
+      "python_exit_code": 0,
+      "root_tool": "8e1c50",
+      "readback": "eaec21",
+      "invocation_count": 1,
+      "copied_byte_for_byte": true
+    },
+    "result_facts": {
+      "source_input_count": 10,
+      "source_inputs_pre_post_verified": true,
+      "guard_contract_synthetic_cases": 19,
+      "exact_popen_events": 1,
+      "exact_createprocess_events": 1,
+      "child_status": "completed",
+      "child_return_code": 0,
+      "child_stderr_byte_count": 0,
+      "child_completed": true,
+      "qa_origin_verified": true,
+      "parent_source_preverify": "passed",
+      "parent_source_postverify": "passed",
+      "candidate_guard_denials": 0,
+      "pinned_r1_helper_called": false
+    },
+    "root_invocation": "$python = 'C:/anaconda3/python.exe'\n$script = 'D:/source_code/backtrader/.codex-tmp/optional16_call_r3_root_focused_qa_r11_20261009.py'\n& $python -I -S -B -X utf8 $script\n$pythonExit = $LASTEXITCODE\n\"ROOT_PYTHON_EXIT=$pythonExit\"\nexit $pythonExit",
+    "result_sha256_source_of_truth": "Root readback of the public result file; archived copy is byte-identical."
+  },
+  "source_closure": [
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_call_r3.py",
+      "role": "candidate_caller",
+      "size_bytes": 26388,
+      "sha256": "fe3a4548ff05bce6beb3b504b9dcbc71fa9a5e5e91be0f154882a9bb50c1b324",
+      "delivery_payload": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r3_original_audit_source_fake.py",
+      "role": "focused_source_fake_regression",
+      "size_bytes": 9124,
+      "sha256": "76eff7d694257f776afe2498ab33f5be35872cb7ff826ae7933868bf69b21f81",
+      "delivery_payload": true
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_call_r2.py",
+      "role": "frozen_comparison_caller_loaded_by_regression",
+      "size_bytes": 26580,
+      "sha256": "f569bf401ee164758000f49bd3c98c0bafd67beda3d3fed05b91fd76c1faf5b2",
+      "delivery_payload": false,
+      "head_blob_oid": "5b4b238bc92eb2a56851935fc5eac41f421a3185",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r2_source_fake.py",
+      "role": "tracked_fake_scope_and_file_handle_fixture_dependency",
+      "size_bytes": 12998,
+      "sha256": "f4b3bcb2bbf951c2df2b9c37d414bad1aeaa270813b95a98c7db3e3c95690300",
+      "delivery_payload": false,
+      "head_blob_oid": "5b17f696ae84be27922a04fa2c0f098be5369735",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_r1.py",
+      "role": "pinned_public_source_bytes_read_before_test_only_refusal",
+      "size_bytes": 18324,
+      "sha256": "a626001a9f80bee26996a0fd3effb0e670c96ffd7a167ba154d23521eca64aa4",
+      "delivery_payload": false,
+      "head_blob_oid": "c54bfb116a74eede7d5306716ba4170a635d556f",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "scripts/iteration41_root_held_source_scope_v3.py",
+      "role": "pinned_public_v3_source_reference",
+      "size_bytes": 42252,
+      "sha256": "f3270495d3ddb046f8617d689510d4ae6ee700d639e0db769c518a15099a7677",
+      "delivery_payload": false,
+      "head_blob_oid": "ec8f061bf5172021ecd1529c0fe22ba1cd9fb945",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "scripts/iteration41_root_held_source_scope_v4.py",
+      "role": "pinned_public_v4_source_under_original_root_audit",
+      "size_bytes": 31692,
+      "sha256": "138c86e21de773822eceac07034e113e0adb5ea5d9056fcc16cee10a75c0e830",
+      "delivery_payload": false,
+      "head_blob_oid": "9350b7dddf23665072ed79d4aa5e83da221671f5",
+      "checkout_matches_head": true
+    },
+    {
+      "path": ".codex-tmp/optional16_root_preparation_actual_20261009.py",
+      "role": "public_root_runner_source_for_original_audit",
+      "size_bytes": 9404,
+      "sha256": "5fb9fb55fbfbfda43687b6020d40db9653269a422dae5478dc7ede3ee8f7dd35",
+      "delivery_payload": false,
+      "head_blob_oid": "bedbe59423d56e00e7fc6b725f9b4b0791b65e2b",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "backtrader_runtime/certification_roundtrip_private.py",
+      "role": "tracked_public_helper_source_read_by_exact_v3_bootstrap",
+      "size_bytes": 17537,
+      "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd",
+      "delivery_payload": false,
+      "head_blob_oid": "f2d269667b9907bd7f8991999c4770fe7b33a820",
+      "checkout_matches_head": true
+    },
+    {
+      "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+      "role": "tracked_public_cli_helper_source_read_by_exact_v3_bootstrap",
+      "size_bytes": 33887,
+      "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76",
+      "delivery_payload": false,
+      "head_blob_oid": "311e16521f8cf2757efc1706c0fb098496f5c422",
+      "checkout_matches_head": true
+    }
+  ],
+  "review_history": [
+    {
+      "label": "R6 static guard/source design review",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r6-static-guard-source-review.json",
+      "size_bytes": 2378,
+      "sha256": "42493233da298760c0213d61d96e0243080985477c40517043b21a6558d48717",
+      "verdict": "GO_STATIC_DESIGN_ONLY",
+      "scope_note": "Static design only; no QA execution."
+    },
+    {
+      "label": "R11 exact harness review",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r11-static-hold-review.json",
+      "size_bytes": 2851,
+      "sha256": "b6ca37668d3791c428312337d1b4e50905c45ddbefc03b065b25b52795fb960a",
+      "verdict": "HOLD_PIN_TRANSCRIPTION_MISMATCH",
+      "resolution": "The separate R12 review records the narrow metadata correction; R11 harness/source code remained unchanged, and Root later executed that exact frozen R11 harness successfully."
+    },
+    {
+      "label": "R12 narrow pin correction review",
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json",
+      "size_bytes": 2698,
+      "sha256": "307c57b6b0e6b69925978364e03dc6478e9c084ef0905a682016dee5f08521f1",
+      "verdict": "GO_METADATA_CORRECTION_ONLY",
+      "scope_note": "Review checked only metadata pin/reference correction and unchanged ten-row source closure; no suite rerun."
+    }
+  ],
+  "limits": [
+    "This is source-fake evidence for original-audit reference binding and pinned public helper bootstrap only.",
+    "The focused child intentionally stops at the test-only scope reread refusal; pinned R1 preparation helper was not called.",
+    "No actual preparation, account/provider operation, installer, worker, protected software payload, native SDK, network, or retained-host operation occurred.",
+    "Formal Optional16 remains 0/16.",
+    "R12-R15 inventory/delta clerical drafts are excluded because they are not runtime or QA dependencies."
+  ],
+  "payload_pins": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-r11.py",
+      "size_bytes": 56323,
+      "sha256": "1593318fa2c9505220cf0891ca29b8e5a8a97828519963e0c20b5499af3be2cd",
+      "origin_path": ".codex-tmp/optional16_call_r3_root_focused_qa_r11_20261009.py",
+      "origin_matches": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/qa/root-focused-qa-result-r11.json",
+      "size_bytes": 8417,
+      "sha256": "b47caa0f378ad2a3f16444ed47fd3342598f8ce5c7f124136d99b2891ae407aa",
+      "origin_path": ".codex-tmp/optional16_call_r3_root_focused_qa_result_r11_20261009.json",
+      "origin_matches": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r6-static-guard-source-review.json",
+      "size_bytes": 2378,
+      "sha256": "42493233da298760c0213d61d96e0243080985477c40517043b21a6558d48717",
+      "origin_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-call-r3-source-fake-root-original-audit-reference-binding-r6-2026-10-09/independent-review-r1.json",
+      "origin_matches": true,
+      "review_label": "R6 static guard/source design review"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r11-static-hold-review.json",
+      "size_bytes": 2851,
+      "sha256": "b6ca37668d3791c428312337d1b4e50905c45ddbefc03b065b25b52795fb960a",
+      "origin_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-call-r3-source-fake-root-original-audit-reference-binding-r11-2026-10-09/independent-review-r1.json",
+      "origin_matches": true,
+      "review_label": "R11 exact harness review (pin transcription HOLD)"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-call-r3-root-source-fake-qa-r11-dev-delivery-r1-2026-10-09/reviews/r12-pin-correction-review.json",
+      "size_bytes": 2698,
+      "sha256": "307c57b6b0e6b69925978364e03dc6478e9c084ef0905a682016dee5f08521f1",
+      "origin_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-call-r3-source-fake-root-original-audit-reference-binding-r12-pin-correction-2026-10-09/independent-review-r1.json",
+      "origin_matches": true,
+      "review_label": "R12 narrow pin-correction review"
+    },
+    {
+      "path": "scripts/iteration41_optional16_r33_root_preparation_call_r3.py",
+      "size_bytes": 26388,
+      "sha256": "fe3a4548ff05bce6beb3b504b9dcbc71fa9a5e5e91be0f154882a9bb50c1b324",
+      "source_role": "candidate_caller",
+      "origin_matches": true
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_r33_root_preparation_call_r3_original_audit_source_fake.py",
+      "size_bytes": 9124,
+      "sha256": "76eff7d694257f776afe2498ab33f5be35872cb7ff826ae7933868bf69b21f81",
+      "source_role": "focused_source_fake_regression",
+      "origin_matches": true
+    }
+  ],
+  "payload_pin_note": "Pins cover the two candidate files, exact archived R11 harness/result and three copied review records. Manifest and round-record are listed in exact scope; their final pins are recorded by Root during staging/postcommit."
+}
