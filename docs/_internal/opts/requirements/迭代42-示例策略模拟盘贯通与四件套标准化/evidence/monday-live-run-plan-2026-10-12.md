@@ -46,11 +46,15 @@
 
 - `no_admissible_front_pair` → 记录 attempts（含 error_details），确认标准前置可达后重试一次；
   仍失败则当日按证据化 BLOCKED 记录并说明。
-- 时段内若选择器按延迟选中 **7x24**（其报价事件钟曾观测 ~47.9h 陈旧）：封存证据类策略
-  （013_x/014_x）会以 `live_event_clock_outside_run_mapping` 等 fail-closed；014_2 观察层同样。
-  此时记录 attempts 与选择结果，核对标准 pair 探测样本，必要时由操作员临时把标准 pair
-  移到 fronts 列表首位并复跑（选择器仅按延迟排序，配置顺序仅作 tie-break；运行后恢复）。
-  015 观察层对前置不敏感（仅到达级观察）。
+- **首跑彩排事实（2026-10-10 凌晨，7x24）**：014_1 首次 live 执行（周一同命令）在
+  **交易所涨跌停价闸门**干净拒绝（`exchange_limits_unavailable`，7x24 无涨跌停价；拒绝
+  发生在三腿武装之前，零写入）；014_2 观察层真实链走到密封分钟桶后因陈旧事件钟 BLOCKED。
+  → 写 drill 的唯一可验收路径=**时段内标准前置**；7x24 只用于观察层。
+- 选择器排序确认：**standard kind 优先，其次延迟**（`_kind_rank`；配置顺序仅 tie-break），
+  标准前置仅在全部端口探测失败时才落入 7x24。时段内若仍落入 7x24（标准 pair 全不可达，
+  其报价钟曾观测 ~47.9h 陈旧）：封存证据类策略（013_x/014_x）会以
+  `live_event_clock_outside_run_mapping` 等 fail-closed；014_2 观察层同样。此时记录 attempts
+  与标准 pair 探测样本，确认标准前置可达后复跑。015 观察层对前置不敏感（仅到达级观察）。
 - 腿成交不齐（partial_round_trip）→ 不重跑覆盖；保留证据，人工核对残余敞口（run.py 已冻结
   gate 不会继续写）。
 - 任何 UNKNOWN → 停止后续 run，先对账（README/§2 层级）。

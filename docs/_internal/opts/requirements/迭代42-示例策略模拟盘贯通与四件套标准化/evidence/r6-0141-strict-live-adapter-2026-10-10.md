@@ -89,3 +89,21 @@ close ≥ entry；终态无持仓、无活动单；策略状态非 HALTED/RECOVE
   015 run.py 复用同一 `_LiveClock`/provider 结构；HFT 延迟结论保持排除。
 - 两者均共享本轮的主仓打标与 `simnow_direct.configure_live_tick_provenance`，
   无需再次改动 CTP 路由本身。
+
+## 首跑彩排（2026-10-10 05:44 北京，7x24；与周一命令逐字一致）
+
+014_1 的 live 写 drill 此前 0 次真实执行；本次以 Monday 计划同一条命令首跑：
+`--live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 300
+--drill-window-seconds 900`。
+
+链路实际走到：front 选择（index 4，7x24 唯一 eligible，whitelisted）→ Store 启动与登录
+（read_only_ready）→ 账户/持仓/合约元数据查询 → **交易所涨跌停价闸门**：
+`BLOCKED / no_admissible_front_pair`（attempts.details: `exchange_limits_unavailable`,
+symbol `CZCE.SA701`；7x24 环境无涨跌停价，与 014_2 同日预检事实一致），exit 2。
+
+零写入：拒绝发生在三腿武装之前（run.json 无 arm/orders/写计数字段），无任何订单动作。
+证据：`examples/014_1_ctp_options_lowfreq/evidence/live-20261009T214444Z-5a848a7f/`。
+
+判定：写 drill 验收路径 = **时段内标准前置**（周一 09:55，计划不变）；本次彩排验证了
+入口从选择、登录、查询到涨跌停价闸门的完整 fail-closed 行为，并确认 7x24 前置不会
+被误用作写路径（干净、快速、有据可查的拒绝）。
