@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "C01",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791549262067,
+    "time_offset_ms": 8703,
+    "rtt_ms": 370,
+    "symbol": "BTCUSDT",
+    "can_trade": true,
+    "can_deposit": true,
+    "can_withdraw": true,
+    "dual_side_position": true,
+    "balance_rows": 8,
+    "position_rows": 2,
+    "open_order_rows": 0
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "gateway_zmq",
+    "execution": true,
+    "risk": true,
+    "monitor": true
+  },
+  "started_utc": "2026-10-09T12:34:12.416384Z",
+  "finished_utc": "2026-10-09T12:34:15.047747Z",
+  "config_sha256": "0e156cc76fdc2f9f7d7bdf2a6eeafee066b0a861f4589696aa5f3d5de117bd62",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "transport": "gateway_zmq",
+    "gateway_host": "127.0.0.1",
+    "gateway_port": 62870,
+    "gateway_closed": true,
+    "gateway_server": {
+      "commands_served": 4,
+      "endpoint": "tcp://127.0.0.1:62870",
+      "host": "127.0.0.1",
+      "journal": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-cert-gateway-journal-405i_3rq\\commands.jsonl",
+      "journal_lines": 5,
+      "name": "optional16",
+      "pid": 34172,
+      "port": 62870,
+      "provider": {
+        "call_count": 4,
+        "frozen": false,
+        "frozen_reason": "",
+        "host": "demo-fapi.binance.com",
+        "recv_window_ms": 60000,
+        "server_time_ms": 1791549262067,
+        "time_offset_ms": 8703
+      },
+      "started": true,
+      "transport": "gateway_zmq",
+      "transport_impl": "zmq"
+    },
+    "endpoint": "tcp://127.0.0.1:62870",
+    "journal": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-cert-gateway-journal-405i_3rq\\commands.jsonl",
+    "commands_served": 4,
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791549262067,
+    "time_offset_ms": 8703,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 5,
+    "provider_call_count": 4,
+    "wrapper": "optional16.components",
+    "active_components": [
+      "execution",
+      "risk",
+      "monitor"
+    ],
+    "run_dir": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-l0ujmxqe",
+    "imports_observed": {
+      "before": [],
+      "after": [
+        "bt_api_execution",
+        "bt_api_monitor",
+        "bt_api_risk"
+      ],
+      "delta": [
+        "bt_api_execution",
+        "bt_api_monitor",
+        "bt_api_risk"
+      ]
+    },
+    "components": {
+      "risk": {
+        "active": true,
+        "package": "bt_api_risk",
+        "policy_id": "optional16-C01",
+        "max_increase_count": 1,
+        "max_increase_notional": "150",
+        "gate_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-l0ujmxqe\\risk.sqlite",
+        "counts": {
+          "reserved": 0,
+          "claimed": 0,
+          "settled": 0,
+          "dispatch_unknown": 0
+        },
+        "denials": {},
+        "last_denial": "",
+        "snapshot": {
+          "active_freeze_reasons": [],
+          "increase_count": 0,
+          "increase_notional": "0",
+          "policy_fingerprint": "942e757d79a430bc9f0dc927406fce4a514d860ba8f603a2818287f055eb2cb3"
+        }
+      },
+      "execution": {
+        "active": true,
+        "package": "bt_api_execution",
+        "store_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-l0ujmxqe\\execution.sqlite",
+        "admission_gate": "SharedRiskAdmissionAdapter(DurableRiskGate)",
+        "scope": {
+          "provider": "binance",
+          "environment": "demo",
+          "strategy_id": "C01",
+          "account_ref_source": "synthetic-config-digest"
+        },
+        "counts": {},
+        "last_record": {},
+        "notes": []
+      },
+      "monitor": {
+        "active": true,
+        "package": "bt_api_monitor",
+        "outbox_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-l0ujmxqe\\monitor.sqlite",
+        "counts": {
+          "appended": 1,
+          "acknowledged": 1
+        },
+        "checkpoint": 1,
+        "events": [
+          {
+            "sequence": 1,
+            "kind": "connect",
+            "status": "ok"
+          }
+        ],
+        "readback": {
+          "attempted": false,
+          "ok": true,
+          "events": 1,
+          "cursor": 1,
+          "has_more": false
+        }
+      }
+    },
+    "adapter_notes": [
+      "risk policy from case config: max_orders=1 max_notional_usdt=150",
+      "the gate's dispatch-inflight latch has no resolver here: one INCREASE order per run"
+    ]
+  },
+  "calls": [
+    {
+      "t_ms": 1791549253552,
+      "command": "connect",
+      "params": {},
+      "request_id": "6869cb2dd44d46c0941474ae545b358b",
+      "duration_ms": 375.0,
+      "ok": true,
+      "result": {
+        "host": "demo-fapi.binance.com",
+        "rtt_ms": 370,
+        "server_time_ms": 1791549262067,
+        "time_offset_ms": 8703
+      },
+      "result_sha256": "c1f16718a129170a18d287b101c7b61e91b03590a292837b425466f1523a0f9a"
+    },
+    {
+      "t_ms": 1791549254078,
+      "command": "account_config",
+      "params": {},
+      "request_id": "baefd05136c34c51924b6e66863f4632",
+      "duration_ms": 516.0,
+      "ok": true,
+      "result": {
+        "canDeposit": true,
+        "canTrade": true,
+        "canWithdraw": true,
+        "dualSidePosition": true,
+        "feeTier": 0,
+        "multiAssetsMargin": false,
+        "tradeGroupId": -1,
+        "updateTime": 1791547650231
+      },
+      "result_sha256": "c68d6ff547217ce6d47d53ddb4393881f40fa1b46631db2be62bded78c341043"
+    },
+    {
+      "t_ms": 1791549254382,
+      "command": "balances",
+      "params": {},
+      "request_id": "534302b986c44cec8341aed7c1d181c7",
+      "duration_ms": 297.0,
+      "ok": true,
+      "result": [
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "FDUSD",
+          "availableBalance": "0.00000000",
+          "balance": "0.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.00000000",
+          "updateTime": 0
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "U",
+          "availableBalance": "0.00000000",
+          "balance": "0.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.00000000",
+          "updateTime": 0
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "BNB",
+          "availableBalance": "0.00000000",
+          "balance": "0.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.00000000",
+          "updateTime": 0
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "ETH",
+          "availableBalance": "0.00000000",
+          "balance": "0.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.00000000",
+          "updateTime": 0
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "BTC",
+          "availableBalance": "0.01000000",
+          "balance": "0.01000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.01000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.01000000",
+          "updateTime": 1788616974285
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "USDT",
+          "availableBalance": "4998.96465188",
+          "balance": "4998.96465188",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "4998.96465188",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "4998.96465188",
+          "updateTime": 1791547647418
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "USD1",
+          "availableBalance": "0.00000000",
+          "balance": "0.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "0.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "0.00000000",
+          "updateTime": 0
+        },
+        {
+          "accountAlias": "TiuXsRTimYAuFz",
+          "asset": "USDC",
+          "availableBalance": "5000.00000000",
+          "balance": "5000.00000000",
+          "crossUnPnl": "0.00000000",
+          "crossWalletBalance": "5000.00000000",
+          "marginAvailable": true,
+          "maxWithdrawAmount": "5000.00000000",
+          "updateTime": 1788616973989
+        }
+      ],
+      "result_sha256": "ad1d29c70e4d55d1fa11cf0cbf3553409e406889b686066a56f7d4dbf9833231"
+    },
+    {
+      "t_ms": 1791549254668,
+      "command": "position_risk",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "864a10cf50464a1d8c2df234fc8d6fc6",
+      "duration_ms": 281.0,
+      "ok": true,
+      "result": [
+        {
+          "adlQuantile": 0,
+          "breakEvenPrice": "0.0",
+          "entryPrice": "0.0",
+          "isAutoAddMargin": "false",
+          "isolated": false,
+          "isolatedMargin": "0.00000000",
+          "isolatedWallet": "0",
+          "leverage": "20",
+          "liquidationPrice": "0",
+          "marginType": "cross",
+          "markPrice": "83094.50000000",
+          "maxNotionalValue": "20000000",
+          "notional": "0",
+          "positionAmt": "0.0000",
+          "positionSide": "LONG",
+          "symbol": "BTCUSDT",
+          "unRealizedProfit": "0.00000000",
+          "updateTime": 1791547647418
+        },
+        {
+          "adlQuantile": 0,
+          "breakEvenPrice": "0.0",
+          "entryPrice": "0.0",
+          "isAutoAddMargin": "false",
+          "isolated": false,
+          "isolatedMargin": "0.00000000",
+          "isolatedWallet": "0",
+          "leverage": "20",
+          "liquidationPrice": "0",
+          "marginType": "cross",
+          "markPrice": "83094.50000000",
+          "maxNotionalValue": "20000000",
+          "notional": "0",
+          "positionAmt": "0.0000",
+          "positionSide": "SHORT",
+          "symbol": "BTCUSDT",
+          "unRealizedProfit": "0.00000000",
+          "updateTime": 0
+        }
+      ],
+      "result_sha256": "d3302c37f123b6c143a0da6ace1de729dc9c3254254cbaeb7c95287788e306a9"
+    },
+    {
+      "t_ms": 1791549254945,
+      "command": "open_orders",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "88a1a903d0c64ec0b9de3a528e908c2c",
+      "duration_ms": 281.0,
+      "ok": true,
+      "result": [],
+      "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:34:13.574950Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8703"
+    }
+  ],
+  "artifacts": {}
+}

@@ -1,9 +1,9 @@
 # Iteration 41 — three-venue 99-case acceptance tracker (r21)
 
-- as_of_utc: `2026-10-09T12:20:09Z`
-- commits: backtrader dev `b8d492f500fa01c5ca93efbad8cd01eb43f8cb4b`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
+- as_of_utc: `2026-10-09T12:34:58Z`
+- commits: backtrader dev `fadcfb8199d4f6192f9f31d38d8b0d5d136758ce`, bt_api_ctp dev `a497bab6bb1b904891461aead1857093078226f0`
 - totals: **96 PASS / 3 BLOCKED / 0 FAIL / 0 NOT_RUN** (99 cases)
-- optional16: `PENDING_BUILD_OR_RUN`
+- optional16: `PRESENT`
 
 Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run evidence JSON under cases/<ID>/evidence/ (git-ignored, SHA-256 recorded here); newest PASS preferred, otherwise the newest run; blocked entries carry the reason from the run
 
@@ -13,7 +13,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | --- | --- | --- | --- | --- |
 | B01 | PASS |  | `20261009T120720_B01_PASS.json` | `d79006d518b3` |
 | B02 | PASS |  | `20261009T115904_B02_PASS.json` | `218f9b5e2b11` |
-| C01 | PASS |  | `20261009T115833_C01_PASS.json` | `92fe9e5348e3` |
+| C01 | PASS |  | `20261009T123415_C01_PASS.json` | `0ecf6dd5e003` |
 | E01 | PASS |  | `20261009T120120_E01_PASS.json` | `31e579f9a798` |
 | E02 | PASS |  | `20261009T120126_E02_PASS.json` | `df7b06192767` |
 | E03 | PASS |  | `20261009T120132_E03_PASS.json` | `d3b8950bac3b` |
@@ -34,7 +34,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | O03 | PASS | repeat_cancel_rejected | `20261009T115936_O03_PASS.json` | `38b14e91fa57` |
 | T01 | PASS |  | `20261009T112511_T01_PASS.json` | `d88ed3d95673` |
 | T02 | PASS |  | `20261009T120023_T02_PASS.json` | `c2d1fd93c2c9` |
-| T03 | PASS |  | `20261009T115854_T03_PASS.json` | `de61cf56248f` |
+| T03 | PASS |  | `20261009T123420_T03_PASS.json` | `66891e34cbb0` |
 | TH01 | PASS |  | `20261009T115843_TH01_PASS.json` | `8400f3445919` |
 | TH02 | PASS |  | `20261009T115950_TH02_PASS.json` | `0c9acf251f19` |
 | TH03 | PASS |  | `20261009T115844_TH03_PASS.json` | `3f325f159dba` |
@@ -90,7 +90,7 @@ Methodology: three-file cases (config.yaml + <ID>_strategy.py + run.py); per-run
 | B01 | PASS |  | `20261009T115628_B01_PASS.json` | `ba56c9064e2b` |
 | B02 | PASS |  | `20261009T110524_B02_PASS.json` | `4e750a611211` |
 | C01 | PASS |  | `20261009T103922_C01_PASS.json` | `b4b7c639b29e` |
-| E01 | BLOCKED | insufficient_funds_rejection_not_reachable | `20261009T115805_E01_BLOCKED.json` | `e974b5464eed` |
+| E01 | BLOCKED | insufficient_funds_rejection_not_reachable | `20261009T123336_E01_BLOCKED.json` | `c245b395f2b8` |
 | E02 | PASS |  | `20261009T115710_E02_PASS.json` | `31b8a91c1954` |
 | E03 | PASS |  | `20261009T114511_E03_PASS.json` | `34db880e826e` |
 | EM01 | PASS |  | `20261009T112313_EM01_PASS.json` | `219b3a1655af` |

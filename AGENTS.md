@@ -9,6 +9,13 @@
 - 对历史工作区中的相关修改逐项登记、核对和归并，避免已完成代码遗留在其他工作区造成重复开发。
 - 每轮记录范围、验收结果、仓库/分支及提交哈希，后续从已提交状态继续。
 
+## Subagent model preference
+
+When spawning a collaboration subagent, explicitly use `model="gpt-6-luna"`
+and `reasoning_effort="max"`, with `fork_turns="none"` or a supported positive
+integer and the context needed for the delegated task. Preserve the main
+agent's model unless the user explicitly requests a change.
+
 This file guides Codex (Codex.ai/code) when working in this repository.
 It is kept deliberately factual — every claim below was verified against the
 source tree. When you change something structural, update this file.
@@ -47,6 +54,17 @@ branches; do not target them unless asked.
 > **Do not push directly to `master` or `development`.** Push to `dev`. `git
 > push` is configured to push to both GitHub (`cloudQuant/backtrader`) and Gitee
 > (`yunjinqi/backtrader`) remotes.
+
+## Private-input handling for source and evidence reviews
+
+Ignored `.env` files, real ignored `config.yaml` files, secrets, and private
+captures are not source-review material. Reviewers and subagents use only
+public source, templates, tests, and sanitized public snapshots. An authorized
+root-owned account read must use the protected bounded reader and emit only
+categories or booleans; never emit values, raw lines, or credential-bearing
+hashes. If a required public sample is unavailable, record that limitation and
+stop the check. Do not fall back to `Get-Content`, `cat`, `rg`, or another
+unbounded read of a private input.
 
 ## Implementation status / reality checks
 
@@ -2209,3 +2227,1544 @@ passing; this is installation-only evidence, not a route acceptance. The
 [three-venue Iteration 41 plan](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/000三场所模拟穿透开发与验收.md)
 records the distinct 99-case and optional-component acceptance gates. No real
 penetration certification case has passed.
+
+#### 000 development candidates and read-only observations (2026-10-01)
+
+The 000 SimNow suite restores the historical typed read-only observation,
+decision and completion modules alongside its offline smoke classes. Its 33
+public scenario documents live under `case_contracts/`, leaving only the
+strategy and runner in each case directory. All live entries still block
+before private configuration access. The retained 007 runtime IDs in the
+diagnostic scope binder do not register 000 or provide a runner. The restored
+legacy `capture_store_snapshot` helper now rejects before touching Store/config.
+Frozen full `tests/unit/live_certification` QA passed 828, skipped one Windows
+symlink-privilege test, with one existing warning and zero SDK/native/network/
+private-config guard attempts across eleven Python processes. This is offline
+evidence; SimNow remains `NO_WRITE / LIVE_NO_GO`.
+
+Binance and OKX each have a standalone GET-only `direct_observation.py`.
+Binance's second fixed Demo capture accepted seven GETs with zero order/cancel
+requests and observed hedge mode; it is limited REST observation, not C01 or
+account-wide/atomic proof. OKX has no new provider run pending explicit region.
+New private output paths have owner ACL checks; OKX retains private economics
+outside Git, while Binance persists redacted counts/shapes/public metadata.
+
+`backtrader_runtime/certification_direct.py`, `certification_binance.py`,
+`certification_okx.py`, `certification_components.py` and
+`certification_operator_control.py` are unregistered candidates, not default
+runtime routes. Direct uses WAL/FULL single-action claims, schema-5 provenance/
+economics/position-side binding, independent queries and UNKNOWN freezing.
+The fixed Demo LIMIT ports require durable accepted provider-order ACK binding,
+exact grants and bounded submit/cleanup windows; neither reads `.env` or changes
+account mode. Risk/execution/control
+composition currently accepts offline_fake only. Risk+execution cancellation now
+binds the pre-cancel fill quantity in immutable SDK intent tags before dispatch;
+quantity changes retain UNKNOWN/review across polling order and restart. Terminal
+risk release, risk-only cancellation, execution without an admitted gate, live operator
+services and complete certification backends remain unavailable.
+
+The gateway SDK has a separate uncommitted dev query-resolution candidate in
+`D:/bt_api_py/bt_api/bt_api_gateway`. Its candidate wheel passed 118 installed
+SDK tests and six framework tests; three-process TCP/Curve completed fake
+submit/query/cancel/query. Original claim history and takeover fencing remain;
+the September 30 wheel was not replaced. No real query verifier, provider or
+account route was accepted. See the
+[current development evidence](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-000-development-2026-10-01.md).
+Real penetration certification remains **0/99**; source presence and fake
+component tests do not close provider or writer-inventory acceptance.
+
+The final nine-file feature lane passed all 309 tests with unchanged source
+manifests. Its strict audit launcher exited 1 for one blocked urllib3 IPv6
+loopback capability probe during requests import, before OS execution; it is
+not a zero-attempt audit pass. Private-config and provider-native attempts were
+zero. See the separate
+[feature QA archive](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/000-certification-feature-offline-qa-2026-10-01/README.md).
+
+### 000 certification entry candidates (2026-10-01 later development)
+
+`certification_binance_cli.py` and `certification_okx_cli.py` are explicit,
+standalone bounded Demo LIMIT/query/owned-cancel/query entries, not registered
+33-case runners. Default doctor/preview does not load credentials or connect;
+OKX doctor reads its bounded private plan only. Execute requires fixed account,
+order, budget and absolute grant windows. Any positive fill remains marked for
+position review before UNKNOWN/terminal early returns; later zero observations
+cannot clear it. No resume, write retry, account-mode change or automatic close
+is supplied. The final CLI-plus-independent files passed 69 Binance tests and
+55 OKX tests with one Windows symlink-privilege skip. These are offline results.
+
+`certification_okx_setup.py` supplies the missing read-only private account
+binding step. Default doctor is zero I/O. Explicit prepare performs five fixed
+Demo GETs, constructs credentials only after stable UID/config observations,
+stores the real UID only in an owner-protected file, computes the port's scope
+and creates a disabled incomplete draft. Its 33 tests plus seven independently
+authored tests passed; no real setup request was executed. Shared
+`certification_private_artifacts.py` atomically creates new owner-only directories
+outside Git, verifies Windows child-inheritance flags and fixed-code path errors,
+and exclusively writes JSON. Independent Windows tests checked actual JSON and
+SQLite DB/WAL/SHM ACLs; this is storage evidence, not provider authentication.
+
+Binance's portable `_certification/c01_signed_rest.py` is a separate pure C01
+evidence-review candidate (139 independently rerun tests). Its successful result
+remains `EVIDENCE_READY_FOR_REVIEW / BLOCKED`; legacy entries are unchanged.
+The adjacent V2 scope proposal corrects V1's unfiltered whole-product declaration
+to explicit instrument/resource/time coverage matching actual provider APIs.
+Neither version has a registered real collector or certification PASS route.
+
+The generated `scripts/ctp_i13_i15_readonly_preflight_bootstrap.py` is now
+materialized byte-for-byte from its existing generator; all-zero deployment pins
+reject before protected deployment reads. New `ctp_td_only_worker.py` composes
+the actual read-only factory's seven queries and strict native close contract.
+Independent guarded source/fake QA passed 26 tests with zero guard attempts and
+SDK imports. The bootstrap still calls the old TD+MD worker; TD-only coordinator
+v3 wiring, 000 registration, pins, Job containment and actual native lifecycle
+remain unaccepted. The expanded QA preserves a historical raw-hash failure due
+solely to worktree CRLF vs HEAD LF; no frozen evidence was rewritten.
+
+The later 14-file custom writer scan reports 51 writer and 14 dynamic candidates,
+zero parse errors, `CANDIDATE_DISCOVERY_ONLY / CUSTOM_SCOPE_NOT_CLASSIFIED`; it
+does not refresh formal R2 disposition or grant a route. See the
+[entry development evidence](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-000-entry-development-2026-10-01.md).
+Real certification remains **0/99**, and CTP remains **NO_WRITE / LIVE_NO_GO**.
+
+### 000 C01 source and TD chain (2026-10-01 current development)
+
+The later portable `c01_capture.py` collectors bind explicit signed-REST V2
+instrument/resource/history scopes, preserve raw captures and real pagination,
+and never grant certification from a serialized source label or local hash.
+Binance's V2 pure normalization and both collector adapters passed 82 source
+tests with two venue-branch skips. The C01 case entry is being connected through
+a separate exact-source-byte loader and current two-process capture custody;
+saved-file review remains BLOCKED. This profile does not invent a provider
+session or claim a whole-account atomic snapshot or distinct administrative
+trust domains. Its trusted launch requires Python `-I -S -B`; Python startup
+code from an unisolated interpreter cannot be retroactively removed by a child.
+
+A real Binance BTCUSDT collector invocation obtained only the public time GET
+HTTP 200 before a clock check returned BLOCKED. Archive/ACL delay caused the
+old comparison against the current time to reject a valid recorded response.
+The revised collector checks the recorded request/response interval with the
+same two-second tolerance and accepts only one Content-Length with no TE.
+Chunked or lengthless responses are explicitly unsupported for that collector.
+That source was independently re-reviewed; this observation is not a real C01
+PASS or permission to write. Private raw evidence stays outside the repository.
+
+`certification_execution_admission.py` now supplies the optional execution-only
+public admission/claim path using direct cumulative budget and immutable SDK
+claim readback. The independently rerun 41-test source focus passed; risk=False
+does not import risk. Each effect rechecks the original provider and scope;
+UNKNOWN, restart and terminal status do not release the cumulative budget.
+It still accepts offline_fake only and is not a real or installed-wheel route.
+One guard-blocked urllib3 IPv6 loopback bind probe during monitor import is
+recorded explicitly; no outbound/provider, native or private-config event ran.
+
+The materialized CTP bootstrap now has the complete source-level coordinator
+v3 -> fixed 000 TD-only worker -> strict frame -> receipt writer wiring.
+The fixed runtime is `example.000_live_certification.simnow_penetration.ctp_private`
+and the strategy is `example.000_live_certification.simnow_penetration`; v2 keeps
+the old 013_3 TD+MD path. Direct entry must pass actual bootstrap/source/runtime/
+dependency custody before configuration, front probing or SDK access. The
+81-test guarded author lane excluded three real-OS tests and one unchanged
+historical CRLF/LF evidence-hash failure. Independent frozen QA passed 34 tests
+with zero guard attempts; all 12 source hashes matched before and after. The
+generated bootstrap is 276,191 bytes. Only its builder cap and two guardian
+bootstrap-source checks changed from 256 to 512 KiB; wire/output caps and Job
+deadlines did not change. Actual Windows custody, installation pins, native
+login/query/close and default registry admission remain separate acceptance.
+
+See the [current development record](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-000-c01-runtime-development-2026-10-01.md)
+and [frozen SimNow source QA](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/simnow-000-source-chain-qa-2026-10-01/archive-index.json).
+
+The subsequent actual Windows bounded harness passed seven tests in eight
+guarded processes with zero private/SDK/native-CTP/provider/network attempts.
+It exercised local query-only token handles, named-pipe EOF/PID and 63 KiB
+frames, isolated Python, real Job completion and three timeout/termination/
+Job-empty cycles. Process handle count stayed 220 -> 220. This does not test
+Session 0, service identity, owner-token transfer, CreateProcessAsUser,
+ProgramData receipts or the installed full 000/native chain. See the
+[Windows harness archive](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/simnow-windows-bounded-platform-2026-10-01/README.md).
+
+New `certification_close.py` and `certification_binance_close.py` provide a
+separate Binance HEDGE LIMIT IOC close candidate with exact typed grants,
+owned-opening-fill allocations, cumulative plan budgets, unique dispatch and
+ACK, and independent order/trade/position reconciliation. Known execution is
+persisted before later reads; UNKNOWN and restart retain its high-water mark.
+Contradictions after convergence durably freeze the current state and same-leg
+admission while retaining historical convergence and allocations. Source/fake
+focus passed 64 tests, and an independent recheck passed four checks. Both live submit and live query remain closed pending actual opening
+ownership admission; CONVERGED is not certification PASS. Limit-based SELL
+notional is a plan budget, not an upper bound on actual execution economics.
+
+The C01 r5 bootstrap uses the current actual CPython image on Windows to avoid
+venv redirector PID mismatches. Ten author checks and eight independent checks
+passed in the actual QA venv, retaining strict current PID/nonce/custody checks.
+Only Binance is REVIEWED at registry SHA-256
+`a34e9b39fdbc0090f1223c7ccb35856c98c738b6e0e4497e64afa1e0d2f79573`;
+OKX remains PENDING. The fresh r5 real demo run returned BLOCKED: each of two
+collectors completed seven GETs with HTTP 200, then income exceeded five
+seconds. Both current children cleaned up completely. An earlier r4 collector
+completed all nine GETs in 14.702 seconds but failed the former venv PID binding;
+that historical evidence was not promoted. No order/cancel occurred and real
+certification remains 0/99. Exact public source snapshots and safe summaries are
+linked from the current development record; private bodies remain outside Git.
+
+The later 2026-10-01 C01 r8 checkpoint adds the explicit Binance-only
+`C01_SIGNED_REST_V3_READ10` policy; the older V2 remains at five seconds.
+READ10 does not change recvWindow5000. Signing occurs after the fixed TLS
+connect, within the whole request deadline, and raw evidence binds the actual
+unsigned query sent. The r8 real demo attempt completed five GETs with HTTP
+200, including signed reads lasting 8.239 and 5.600 seconds, then the sixth
+GET exceeded ten seconds. The single owned child cleaned up completely;
+the second observation did not start. Historical complete single captures or
+saved manifests cannot be promoted into current double-observation PASS.
+Real certification is still 0/99. Persistent TLS reuse is a separately reviewed
+candidate pending its full current collector/source-closure admission.
+
+The dedicated Binance local-validation profile captures four GETs with fixed
+five-second request and thirty-second capture limits. Its complete exchange
+metadata accepts bounded, exact Unicode symbol identities without normalization;
+the selected USDT perpetual still uses the strict ASCII scope. It measures the
+current certification runner's validation gate, not the legacy SDK's global
+validator. Both real attempts are BLOCKED; rules or saved files alone grant no
+case PASS. A versioned V01/V02/V03 case adapter is separate acceptance work.
+
+The 000 SimNow OS root/SCM source checkpoint passed 208 guarded source tests
+and two actual missing-root entry checks returned exit 78 before provider
+startup. Its six-test deployment preparation dry-run reported twenty explicit
+blockers: this host is unelevated in Session 1, the fixed service and protected
+image are absent, and the pinned installed dependency closure is incomplete.
+Three located wheel hashes establish candidate identity only. Later installer,
+EnvRef-renderer and directory-sentinel changes supersede those frozen source
+hashes and need their own review. No service or private config has been created,
+and G1/G4/default pins remain closed. Keep NO_WRITE / LIVE_NO_GO.
+
+The 000 Binance suite now has explicit `_validation_cases_v2/` and
+`_validation_cases_v3/` portable closures and fixed `run_validation_cases*.py`
+entrypoints. These version the V01/V02/V03 contract for the actual certification
+runner's read-only dispatch gate; they do not claim the legacy SDK validator or
+a persistent REST provider session. V2 has had a real current invocation:
+public time returned 200, the following account config timed out, and all three
+cases were BLOCKED. Current real status is five BLOCKED cases (Binance
+C01/V01/V02/V03 and OKX C01), 94 NOT_RUN and 0/99 PASS. V3's fixed five-second
+request/thirty-second capture connection-reuse closure is separate review work.
+
+The r9 real Binance retry scope returned public time 200 and a following
+generic network_failed. A later actual-stdlib offline repro found an actor
+response-lifecycle bug: fixed-length read1 completion can leave response.fp
+open, so the next getresponse raises ResponseNotReady. The historical run did
+not record the exception class and is not retrospectively relabelled. r10 must
+explicitly close a fully validated response while retaining the connection,
+check closure and record only fixed phase/error codes; no retry-policy change
+is required. The real OKX global READ5 attempt timed out on public time before
+account authentication; no region or key conclusion follows.
+
+`certification_monitor.py` supplies optional local owner/port telemetry using
+the actual SDK outbox/consumer/checkpoint APIs. The independently reviewed
+18-test source slice checks the original journal at both owner and port entry,
+keeps observation read-only and does not load monitor when disabled. Its count
+basis is local method entry, not HTTP attempts/native ACKs; missing native/raw
+and claim/latch source hooks still block certification. One guard-blocked local
+urllib3 IPv6 bind probe was recorded, without outbound provider access.
+
+The fixed 000 deployment tools now include `ctp_000_deployment_cli.py`,
+`ctp_000_install_admission.py`, `ctp_000_render_config.py` and an isolated
+entrypoint. They implement DemandStart-only SCM creation, durable ownership
+journals and identity-bound removal, and explicit process-env versus private
+env-file rendering. Three code-owned admission pins remain None. The latest
+49-test guarded env-file slice plus exact-source static review does not reuse
+older 56/208-test authority acceptance. Actual env-file ACL suitability and
+installed/native behavior have not been tested. Explicit profiles include the
+lowercase SimNow-account names (canonicalized on Windows) with CTP settings;
+there is no automatic selection or fallback to Hongyuan/generic CTP accounts.
+
+
+### 2026-10-01 C01 explicit network source checkpoint
+
+Both 000 Binance and OKX portable suites now include the byte-identical standard-library-only `c01_http_connect_candidate.py`. Schema-v3 C01 plans default to DIRECT; explicit `HTTP_CONNECT_ENVREF_V1` requires the paired HTTPS_PROXY or HTTP_PROXY envRef, read from the same current credential-file capture. There is no automatic proxy discovery, retry, route fallback, production target or regional switch. CONNECT supports only demo-fapi.binance.com:443 and openapi.okx.com:443, uses bounded HTTP header parsing and verified target TLS before JIT signing. Proxy endpoint fingerprints remain private to current IPC/manifests; public results use only route labels. Original request and capture deadlines remain unchanged. Binance DIRECT keeps its previous connection implementation.
+
+The r11 source closure was independently reviewed: 15 execution sources and four entry bindings matched; final focused runs passed 30 Binance and 13 OKX checks, including inert connections in actual isolated child processes. Author focus counts were 150 and 89, with overlap; these are source tests, not account acceptance. Both registries are REVIEWED at this checkpoint. Request-stage progress is bounded and bound to the current process/request; it does not establish provider receipt. The original `.env` proxy endpoint had no listener during the read-only inventory, and no matching registered proxy client was found in the bounded standard registry search. Portable clients and other paths remain unknown. Real case totals remain 0/99 until a new actual run establishes its own result; this checkpoint does not grant other cases, component routes or CTP writes.
+
+
+The subsequent current root-owned r11 DIRECT run accepted Binance C01 under the explicitly scoped READ10 profile: two nine-GET captures were complete HTTP 200, both collectors exited normally with verified receipts and cleanup. A new V3 run accepted V01/V02/V03 for the current isolated runner's actual rule gate, using four complete HTTP 200 specification/account reads and normal actor/parent cleanup, with zero provider order/cancel calls. This establishes four versioned READ cases, not the old SDK global validator, remote order rejections, whole-account atomicity, component routes or write authority. Latest real case totals are 4 PASS / 1 BLOCKED / 94 NOT_RUN.
+
+OKX r11 reached a successful signed account-configuration read (API code zero) but rejected the third HTTP 200 instrument response because the reader did not support Transfer-Encoding. Its exact coding and body completeness were not established. OKX r12 now has an independently reviewed bounded framing helper: a single chunked coding with no Content-Length, or one Content-Length with no Transfer-Encoding, is accepted only after strict parsing, original-deadline checks and response/socket close. Other framing is rejected. Its registry is REVIEWED at SHA-256 `e8ef0d44a5f456d696d9c03369b43ddf90a2308bd4acffbd93a3ea613165f562`; Binance and V3 accepted source closures remain frozen. A new root-owned r12 actual attempt failed the first public time GET after 5,010 ms with HTTP status 0 / framing NONE. The child exited 2 with complete cleanup; no authenticated account read or second observation occurred. This does not establish provider chunked behavior. Old failed runs are not upgraded, and totals remain 4/99.
+
+`scripts/ctp_000_paired_front_selector.py` is a credential-free, unregistered
+transport diagnostic using the existing paired probe primitive. It ranks intact
+MD/TD pairs by both-side success rate, worse-side median and maximum successful
+latency, with three samples per side. It does not combine sides across pairs,
+load credentials, import an SDK or grant native/provider authority. Author and
+independent guarded source tests passed 23 checks. After the user's paired
+selection request, root projected only the five existing private config front
+fields outside Git and ran a single TCP diagnostic. All five pairs had 0/3 MD
+and 0/3 TD success; `NO_CANDIDATE`, no selected index and no login or writes.
+The command finished in 6.4 seconds; internal 30-second deadline accounting is
+not a hard whole-command supervisor. Current SimNow cases remain 0/33 real
+PASS and `NO_WRITE / LIVE_NO_GO`. See the paired-front source/transport archive.
+
+The 000 Binance `_validation_log_v1` bundle and `run_validation_log.py` add an
+explicit L04 current-log profile. Its fixed 13-source registry is REVIEWED at
+`24bd8a08f6324db6b8d8b4d1e45843d858f6a7e7ac8b46dbe68497ffbcf64662`.
+The producer logs one fresh gate evaluation; a separate network/credential/
+spawn-denied inspector checks five events and returns facts only, strict=0.
+Current parent custody and complete cleanup are required for the case result.
+Sixteen author source tests and separate actual Windows pinned-loader synthetic
+and fully rehashed adversarial-log checks passed. They do not certify accounts.
+The fresh root-owned live read attempt failed the first public request within
+5,010 ms; its diagnostic does not identify the startup/IPC/transport stage.
+Producer cleanup was complete, actor exit confirmed but normal STOP not proved,
+and no inspector or order/cancel call followed. L04 is BLOCKED. Current real
+totals are 4 PASS / 2 BLOCKED / 93 NOT_RUN. Frozen C01/V3 sources are unchanged.
+
+The standalone Binance roundtrip r1 source closure is
+`7342d5e4df4879d9a5a9ad605dbf0ecb25fd9aad558ff1995f7c258f08ddf76a`.
+It has a durable same-user LocalAppData one-shot ledger, exact BTCUSDT
+BUY/LONG/GTC plan and 100-USDT order-notional cap, no auto close/retry, separate
+ordinary/algo open-order baselines, and official filter checks. Fifty-five
+author source tests and independent source/offline review passed. Actual root
+preview exited 2 before provider work in 391 ms: credential input accidentally
+reused the artifact-output walker, which rejects repository ancestors including
+the requested checkout `.env`. A separately reviewed r2 input-path fix is being
+prepared; output repository rejection stays enforced. No roundtrip order/cancel
+has run. Root backed up the `.env` owner/group/DACL and applied a native
+DACL-only owner-protected change after metadata-only verification; no credential
+bytes, owner/group/SACL, or file identity were changed. Native ACL verification
+and Git-ignore checks pass. The backup is retained privately outside Git.
+
+The 000 renderer now has an explicit eight-EnvRef credential-only profile for
+fresh paired-front selection. It admits installation and checks the destination
+before probing the exact public projection, consumes a short-lived same-process,
+same-thread one-use handoff, then opens the explicit credential source. No
+candidate blocks before credentials/config creation. Default profiles remain
+available. Ordinary mutation and altered dataclasses.replace cloning are blocked;
+this is internal Python API protection, not reflection isolation or native/write
+authority. The author 110-test focus and final independent 3/4-test focuses pass
+with overlapping tests. The nine-file selected public archive has SHA-256
+`3ca0960a53d3ab72c3992aef552425425c549d9e7793e1c021a8fa847cfebc6a`.
+It is not a deployment closure. Current pairs remain unreachable; install pins,
+service/dependency custody and native lifecycle acceptance remain closed.
+
+A separate root-owned public-only diagnostic made one first-IPv4 connection
+attempt to each fixed Binance Demo and OKX global time endpoint. DNS/TCP consumed
+most of its eight-second transaction window, and both expired in TLS before any
+GET. Both child exits were confirmed without forced termination; no credentials,
+account requests or writes occurred. This is not a case result or an explanation
+of an earlier actor failure. Actual case totals remain 4 PASS / 2 BLOCKED /
+93 NOT_RUN. CTP remains NO_WRITE / LIVE_NO_GO.
+
+The standalone Binance roundtrip r2 input fix received independent source/offline
+GO at eight-source digest
+`7f6e88ee22816d75c167cab2c14a1c37d01faa584a176fe024071a15aabd6bd6`.
+The same 58-test focus passed in author and independent runs; it is not 116 unique
+tests. The literal/effective Git-ignore gate holds checked input/policy/tool
+handles; artifact-output repository rejection is unchanged. A fresh root preview
+passed credential input checks, received complete public time HTTP200/close, then
+failed to obtain the specs worker frame: 9,953 ms / exit2 / UNKNOWN. It reached no
+authenticated resource and registered no submit/cancel. Later process inventory
+found no parent42480 direct children; normal specs cleanup is still unproved.
+The exact fourteen-file public snapshot ZIP SHA-256 is
+`58c3a048b9aa18348505fadf4661b82cf7127c4ff19ad6d0d255b184db929df7`.
+This is no new case PASS and no actual roundtrip acceptance.
+
+The separate OKX V01-V03 source bundle is REVIEWED at registry SHA-256
+`96e66f364e6bf45acaa443bab6dd126a6cef3a2956cb17e89ade38add1194dd4` after
+independent review of 51 focused tests. It checks documented USDT balance shape,
+exact SWAP rules, bounded ticker freshness, local output drives, current actor
+PID/nonce/source/STOP/EOF/exit/cleanup and atomic artifacts. Pure or saved facts
+remain strict=0; only the current coordinator can issue its scoped result.
+Python 3.8 grammar parsing passed, runtime execution on 3.8 was not performed.
+The new root-owned live invocation exited2/BLOCKED/actor_request_deadline in
+25,406 ms, with one receipt and no verified actor STOP/EOF/exit/cleanup. No body
+semantics or authenticated balance acceptance followed, and no order was called.
+Later process inventory showed no actor3092 or parent33280 direct child; it is
+not a normal-close receipt. V01/V02/V03 are BLOCKED. Latest case totals are
+4 PASS / 5 BLOCKED / 90 NOT_RUN, still 4/99.
+
+The public optional wheel consumer r2 archive has 26 metadata/audit/harness
+files, ZIP SHA-256
+`7fa11763e4fdb906e9c3efba939c676a9b6da006ebec31b2b7c9df3c1e11bd4c`.
+A fresh isolated candidate-composite install verified 9,009 RECORD payloads
+across 53 distributions and installed SDK/ZMQ origins with clean pip check.
+Its runtime closure substitutes only gateway r2. The old same-version gateway
+wheel lacks four query-resolution exports; the candidate interface, six local
+framework fake/SQLite SDK contracts and 49 fake gateway contracts pass. These
+are installed-artifact/source-at-test results, not provider/topology acceptance.
+Application-level network/provider/subprocess calls were guarded; environment
+setup and tests used processes. Current optional source revisions/R3 producer
+still need final review and source allowlists remain empty.
+
+The separate READ8 batch candidate has independent source GO at five-runtime-file
+digest `13174c4f8df66ce04cde5ee082158890912b8717cf404f6b0aeda841abc686e1`.
+Its parent requires durable capture acknowledgement before the next fixed GET,
+with five-second request and thirty-second batch limits, no signed retry, and
+socket/STOP/EOF/exit checks. Bounded JSON numeric parsing rejects nonfinite
+overflow and nonzero underflow while accepting exact-zero exponent forms.
+The same 17-test focus passed in author and independent runs; Python 3.8 grammar
+passed without 3.8 runtime execution. The six-member public source archive SHA
+is `db3782634945bfb148be6c5b88c4c3eb8f4402ec2b4e7c0c8e3f557361ff2445`.
+It is unregistered/source-only and supplies no provider observation or case PASS;
+the full standalone R3 integration remains under development.
+
+At 2026-10-01T14:23:54Z, a new root-owned credential-free probe of the identical
+five intact MD/TD pairs again found 0/3 successes on both sides of every pair.
+It returned NO_CANDIDATE/exit2 in 6,406 ms; no SDK/login/native/subscription or
+trading action occurred. The new safe receipt is archived alongside the intact
+r1 record. This is transport-only, no new case PASS or CTP gate change.
+
+The later optional consumer 348f source GO was revoked: `_risk_binding` still
+imported ambient risk SDK during receipt mint/revalidation before the verified
+owner importer. Empty default pins kept live activation closed. Its isolated
+installed diagnostics verified 51 wheel URLs, 9,009 RECORD payloads and 115 loaded
+SDK/pyzmq origins; tests remained incomplete due to missing R3 Finder and denied
+child launches (34/1/1, then 68/1/1 deselected/6 failed). A socket.bind attempt
+outside a named test was blocked. The three-file public hash-only diagnostic
+records these limits; no source/policy pin promotion or live acceptance followed.
+The prior accepted local artifact checks remain their original snapshot, and R4
+origin/policy fixes are separate work.
+
+The R3 all-off DIRECT_READ_ONLY_PREVIEW closure `2523beddb205c8ff27f8f4b60558c3daf57ae38f805c55cf2cf24de4771ca169`
+has scoped source GO and overlapping 26-test author/reviewer focuses. Its first
+root actual invocation returned exit2 in 640 ms, with only private binding.json;
+no capture database/response/candidate was established. All nineteen source hashes
+still match, so no drift was observed. The generic error needs an inert actual
+isolated-Finder initialization reproduction before another live read. No order,
+cancel or new certification PASS followed; optional and write scopes remain closed.
+
+R3's duplicate bootstrap/Finder class bug was reproduced with synthetic inputs and
+fixed by canonical registration/reuse, retaining strict class and preload checks.
+The new direct-read closure is `c8a60ec8b8f0edcc202ce21afb4140a2fcef46193ce3afbbcae43685299ac326`;
+author/reviewer 27-test focuses overlap. The next root real preview created its
+database but returned UNKNOWN/worker_nonce_binding in 1,156 ms. Eight predeclared
+capture rows have zero raw/frame observations; worker9928 diagnostics show kill
+sent and wait/EOF completion, without socket-close/normal-exit proof. No candidate
+or order/cancel was established. Current nonce-bound error handling is under inert
+review; all actual records and old source ZIPs are preserved.
+
+The optional consumer risk-import fix has source-only GO at ten-file digest
+`9412f2399821a6f42abbb2e37c218767b971a27a4f353241fa7e8c6e7e45f320`
+(76/1 source focus, 13/1 independent focus; hardlink skips). All activation pins
+remain empty. Its exact source ZIP is `7eebf3ec4eb1ec9e45c6d237af45581ad7be91ed9c76eb3d73ba2c1d160c9cb7`.
+External operator-policy and gateway/monitor candidates are new unregistered work;
+installed Finder integration and provider component routes are not accepted.
+
+The separate, unregistered optional-policy v1 loader has source-only review GO
+as a non-authorizing typed document loader: 27 focused tests, Ruff and Black pass.
+It verifies fixed-volume LocalAppData claim-directory/marker identity and SDK
+module-name/PathFinder origin, RECORD and byte pins. Its two-file source closure
+is `12c2e6ed7eb33bc628332bb1f10511e9646f13a59ca2963f258b54d508f26b0a`,
+archived at ZIP SHA `b673c7cd6e4570e844acaad6992d07322b54af9ba7c31a131a514396874b2404`.
+The expected policy digest and finite confirmation must come from the root-reviewed
+operator packet; the actual owner still needs exact account/action/plan/receipt
+and imported-object bindings. V1 is unwired and excludes gateway/ZMQ, monitor and
+all-off selection. A new v2 integration candidate is separate work; legacy pins
+remain empty, and this source result establishes no live route or provider PASS.
+
+The later READ8 error/cleanup revision has independent source-only GO at digest
+`c52283788d501fbfa93a04fc50004766aebad521ed02de49dc5feaf05c718e67`.
+Its nonce-bound post-BOOT FAIL retains PID/source/request checks and fixed redacted
+failure codes. `socket_created` and `socket_close_uncertain` distinguish no-socket
+DNS failure, confirmed setup-failure closure, and uncertain cleanup; successful
+completion still requires all eight persisted/acknowledged captures and clean
+socket/STOP/EOF/exit. Independent READ8 focus passed 28; the overlapping author
+READ8/R3 focus passed 37. Ruff/Black and Python 3.8 grammar passed, without a 3.8
+runtime run. The six-file ZIP SHA is
+`77890592f6457f73c7d7052bbed98d9da382d6f62d4820a275d5ab237ab65c3a`.
+Root verified its members against current bytes. R3's matching diagnostic-schema
+integration is separate review work; no real provider run or case PASS follows
+from this source result.
+
+The later R3 direct-only r3 packet has 19-file digest `cac399ac866ca178adadba869cb0f6d0cd1b08b405ae1e842a5f2fe91f70e2dc` and exact 25-member ZIP `72f656c803eb11c3141f7f39419cc392edfc4070966b6f90d3bb9d21e2610fdb`; independent focus passed 39. One root-owned actual preview returned UNKNOWN/worker_failure_connect_network_tcp_failed in 875ms, with eight planned capture rows but zero raw/frame observations, no account baseline/candidate and no order/cancel. Its safe-result SHA is `ad42aaef2266458cf89d7906cf5e04a2f96c7f245eef0e483b2c827ebdb1d7f2`. Root credential-free isolated DNS comparison found Windows env={} fails with gaierror 11003, while only SYSTEMROOT/WINDIR succeeds. The READ8 parent now preserves only those two OS variables on Windows (canonical keys, case-insensitive selection); non-Windows stays empty. Author READ8 focus passed 30; changed files passed Black/Ruff and 3.8 grammar. The new 19-file closure `1e0e57cdd48263a4c642e23f6c9e138251b7dc885a35517620c7dd4de63555f6`, READ8 closure `a630e72c8faaaa6ab0612a7a8b309fe4ddefa18c82e0d0ee04aa5cfbf8ef8e93`, and ZIP `e2419dfe70c969c163ca933dc21e4e90b3d570770f4cc1b2ca0964fde0a646a8` require separate independent review and real preview. Historical archives remain unchanged; these facts add no provider or component PASS.
+
+The minimal Windows-environment 19-file packet `1e0e57cdd48263a4c642e23f6c9e138251b7dc885a35517620c7dd4de63555f6` received direct-only source GO. Its raw four-file focus initially had 39 passes and two stale subprocess digest failures; both literal pins were then refreshed and the unmodified on-disk focus passed 41. The corrected-test 25-member ZIP SHA is `40f59c506f15e3221f6457b73623624e88f4db85fb8903ab4b490807ce1248da`; execution bytes were unchanged. A root-owned actual preview returned UNKNOWN/worker_failure_connect_network_deadline in 6094ms: eight planned rows, zero raw/frame, no baseline/candidate or order/cancel. The authenticated failure has socket-created/close-attempt/closed true and close-uncertain false, but no normal STOP/child exit. Safe-result SHA is `f6db38a455b6b08f0140ae3d27c1608808f6abbe649b55f1f7eefcf695f6dac0`. The current tree subsequently enters separate R4 optional-owner, bounded-phase and case-native-field integration; historical 19-file source QA is not acceptance of those changes. Real case count remains 4/99.
+
+
+The later V3 operator-control storage source has independent SOURCE_ONLY_GO:
+source SHA `b7df12407599afa67c7074486b020bce1037339f8edb44c2b5b5043f35549364`,
+test SHA `79a60f7f5c08bf3c7ec2c090bb415498b4aeb3b9e84af5ca0a06bc88a7a4fde5`.
+Its isolated focus passed 15 and skipped one unavailable file-symlink fixture.
+Windows private-directory ACL, identity, hardlink and active-WAL checks executed;
+most owner fixtures are synthetic and do not establish the actual binding factory.
+The four-member source ZIP SHA is
+`ca30584cae426c8039cfe9c0d5235ab3c5c1984325990ebb66b12b8dc757efd6`.
+`guard_for(bound)` shares the exact runtime/account control gate; pause blocks
+submit/cancel writes while permitting read reconciliation. Monitor selection
+alone does not enable operator controls. R4 provider integration and real cases
+remain separate; this adds no provider PASS or native/logout/permission proof.
+
+
+The later READ8 bounded-phase source has pin-review GO at closure
+`fd8f962dc8de93b093818cb3b2975966ded8cbcafdb48fef441bb3dbadb1e3c4`;
+independent Windows Python 3.11.5 focus passed 47 (not a 3.8 runtime run).
+First connect is 15 seconds, with a post-TLS response ceiling of five seconds
+and first total 20 seconds; later requests are five seconds and batch is 60.
+Typed progress cannot extend deadlines; eight ACKs and normal close/STOP/EOF/exit
+are required. Its source ZIP SHA is
+`9fffdd3c75a5ae6a3e52b55be8d21c732c3eefecf48e310c7a6c28a215955164`.
+The gateway/monitor storage candidate has independent source/fake loopback GO,
+11 tests, and source ZIP SHA
+`71aa078d32c057073066d3240f45d3587e3c5a30e81026a326fdecdeaa93f4aa`.
+Live factories derive the exact bound private session directory; storage ACL
+fixtures are mocked and OS peer authentication remains false. No component
+mount or provider acceptance follows from these source results.
+
+The OKX bounded-phase source received 61-test source GO and an exact three-file
+registry/loader promotion delta review. Runtime source digest
+`b8ccf1a801d72e211e3472c0de12b01434eb8141b7557db65dd254570d48a977`
+and final source ZIP SHA
+`d4c07fae2174a453c3141e11fe43875fd773f3b97c2582798dfda48690dad4e0`
+refer to that historical 2026-10-02 checkpoint. A root actual read at
+2026-10-01T21:08:15Z completed three HTTP 200 GETs and normal STOP/EOF/exit/cleanup
+in 15,812ms but returned BLOCKED/current_response_validation_failed. Native
+account response semantics and V01--V03 were not accepted. Failed raw responses
+and a specific typed validation code were not retained by that checkpoint;
+protected diagnostic preservation is subsequent work. Safe result SHA is
+`3ae378e2a426392fe332e4a42dbf2dfecc8ec8a06fc9d5e4bf0689f40dfa21f2`.
+The native portable case contract independently passed 16 tests, but omitted
+topology still reached the generic configurable backend and remains live HOLD
+pending the fixed owner registry and full account snapshot source. No order or
+cancel has occurred; real cases remain 4/99.
+
+The later 2026-10-02 checkpoint supersedes that historical case count. Fresh
+OKX r4 V01--V03 current-read/local dispatch-gate acceptance adds three scoped
+cases: **7 PASS / 2 BLOCKED / 90 NOT_RUN**, with 99 cases and 16 unaccepted
+optional topologies. The r3 tracker JSON is
+`08d9dd77fa80f2df7f7dec73e236dfda0d5858e57779d5730304fd2993e65630`.
+OKX uses a separate bounded uppercase-ASCII inventory grammar for observed
+underscore identifiers; the selected BTC-USDT-SWAP grammar remains strict,
+and no inventory rows are dropped. Fresh GET responses, raw custody and
+normal actor cleanup were verified. This is not provider order-rejection,
+C01 or trading acceptance; older failed runs retain their conclusions.
+
+Binance R4 direct/all-off r6 completed all eight current GETs and the bounded
+passive candidate preview after a narrow exact POSITION_RISK_CONTROL/NONE
+shape fix. Its 26-file closure is
+`23d8ffc14d9c0918518e9978b810e51e7afa5cb57d5a6ed999931b4a90927a9d`.
+The local L04 adapter produced facts-only validation evidence, with zero strict
+cases; no order/cancel has occurred. Unknown/malformed filters remain closed.
+The new SimNow transport selection found pair index 3 reachable (MD/TD each
+3/3); this is time-specific TCP evidence only. The separate fixed TD C01
+protocol/native adapter/Windows Job supervisor candidate uses auth/login plus
+six bounded snapshot queries and explicit native stop receipts. It is being
+reviewed and has no real-provider result. CTP writes remain NO_WRITE/LIVE_NO_GO.
+
+The subsequent current 2026-10-02 checkpoint records **8 PASS / 1 BLOCKED /
+90 NOT_RUN**. Fresh OKX C01 r13 uses C01_SIGNED_REST_V2, global Demo,
+DIRECT and BTC-USDT-SWAP. Its two owned collectors completed 36 GET requests,
+confirmed normal cleanup, and matched scoped economic snapshots; root checked
+the private owner ACLs, identities and complete raw response hashes. The safe
+summary is `bdeff06f18883a48e2e13916d0b70749a71e114a0a66609cd102166a6a54bc8e`.
+This is scoped authenticated read acceptance, with no provider-session,
+atomic-account-state, trading or optional-topology claim. Saved evidence replay
+cannot issue PASS, and historical failed runs remain unchanged. No provider
+order/cancel has occurred. Binance's distinct durable client-ID query recovery
+and SimNow's fixed native C01 read candidate are still under review.
+
+The immutable r4 99-case tracker JSON is
+`9d477645faa38ce58e5ee107364616580bbd4d6f56d9a1750f779f3e60e0b01b`;
+its generator pins the exact r3 snapshot and root-reviewed r13 summary and
+changes only OKX C01. DIRECT in that record binds the network profile only;
+optional components remain UNBOUND and all 16 topologies NOT_ACCEPTED.
+Root separately verified the reviewed CLI's actual shared Codex ancestor and
+created exact owner-ACL Backtrader/Iteration41 children. That local path check
+read no credentials, created no action ledger/marker/policy, made no provider
+request and supplied zero case PASS results.
+
+The later 2026-10-02 Binance R9 actual attempt completed eight GETs and normal
+actor cleanup, then stopped after its permanent reservation and before command
+creation. Root held private file/SQLite custody and verified zero commands,
+provider dispatch claims, POST ACKs and recovery-query rows. The original v1
+grant remains consumed UNKNOWN, with missing provider ID/fill evidence; it is
+not reset, released or retried. This adds no certification or topology PASS.
+R10 corrects the exact native Path-type check for WindowsPath while retaining
+directory/ACL/SQLite/RUNNING checks. The author module passed 22 tests with one
+deselected; independent native-path and complete isolated V2/direct fixtures
+each passed one test, separately recorded. The latter used fake READ8 only and
+stopped before submit. Its 26-source closure is
+`d2419be9ceac47f2070f1b005bc1f74aa26610c9deb320f73f565b03e9ec5b4e`;
+the immutable source ZIP is
+`6adbb4c458e6a6c16c934cb9ab36e52bf2294948f285e7d100816a1adc530636`.
+
+SimNow C01 native/protocol/contract/supervisor source focus passed 119 offline
+tests; root verified 359 installed hashed payload files and 322 Python sources
+without importing the SDK. Two actual credential-free Windows Job inert runs
+cleaned up normally but blocked before SDK/native import. R2 identified the
+native guard's incorrect `_win_amd64` substring check against the actual
+`.cp311-win_amd64.pyd` CPython 3.11 Windows suffix. The pre-fix source bundle is
+preserved; the new ABI fix requires refreshed reviewed pins. The suite-root
+ignored/untracked private config now retains the same five intact MD/TD pairs
+and all values as JSON valid YAML, with owner-only ACL and an exact private
+backup. A new explicit C01_NATIVE_TD_READ_V1 issuer is being implemented to
+select freshly across those pairs and use only five explicit account EnvRefs
+from the root .env. The frozen single-env-pair owner remains BLOCKED. No actual
+SimNow account request or additional real case PASS has occurred; CTP writes
+remain NO_WRITE/LIVE_NO_GO. Gateway/monitor's three independent Windows ACL,
+SQLite and loopback tests passed with a synthetic provider and stubbed lineage;
+all 16 real optional topologies remain NOT_ACCEPTED. The current real case
+tracker remains 8 PASS / 1 BLOCKED / 90 NOT_RUN.
+
+The later R11 Binance replacement-grant candidate is HOLD: independent source
+review found that the legacy direct optional_policy=None path accepted arbitrary
+syntactically valid authorization references at Plan/ledger reservation. Its
+source closure and tests are preserved in a separate immutable archive. R12
+restricts Plan, initialization and reservation to the exact V1/V2 set and
+requires the typed verified optional policy for live V2. Its source-only focus
+passed 127 tests with one clean-consumer test deselected; independent six-file
+review passed 68 with one deselected and gave source-scope GO. These overlapping
+suites are not additive. Neither revision creates authorization or changes the spent
+real V1 UNKNOWN row.
+
+SimNow's exact ABI fix passed independent source QA. A third actual inert run
+passed SDK RECORD/import-path/ABI checks, then blocked at native_import_failed
+with normal Job cleanup and zero client/request operations. A separate fixed
+`backtrader_runtime/certification_simnow_c01_dependencies_v1.json` now records
+seven Python dependency RECORD pins and selected package roots; setup.py ships
+this public manifest as package data. Root checked 148 hashed dependency payloads
+and 106 Python sources without importing them. The dependency verifier/finder
+candidate passed 121 fake-only tests: source .py files are compiled from verified
+bytes, canonical cache rows and two exact unused console rows are excluded, and
+optional dependency native payloads remain unavailable to imports. This is not
+an accepted native load or provider session.
+
+The 000 SimNow C01 case now has an explicit source-bound
+`--live --profile C01_NATIVE_TD_READ_V1` entry. It reads five pairs from the held
+private suite config, selects one fresh intact pair, uses the five fixed .env
+account EnvRefs, and runs only TD auth/login plus six account queries under the
+Windows Job. Its current issuer recomputes private snapshot/receipt validation;
+the private audit v2 retains full typed worker/lifecycle facts and cannot save a
+PASS claim. Eight source/fake tests passed; final independent entry review and
+actual native/account acceptance remain separate. Ordinary --live is still
+closed and this profile grants no CTP order/cancel permission.
+
+The actual credential-free R4 dependency check still blocked; R5's fixed enum
+diagnostic identified `urllib3_six_moves` with normal Job cleanup and zero client
+or request operations. urllib3's verified vendored six.py creates virtual
+modules dynamically, so those require a narrow source-bound loader rule rather
+than ambient PathFinder access. The frozen C01 entry/audit v2 independently
+passed eight fake tests and source review, but its R4 worker has not passed the
+actual inert import gate and no account-profile invocation has occurred.
+
+The later R6b native/owner/inert focus passed 126 fake tests and the updated
+entry pin chain passed eight. Its actual credential-free import still returned
+`native_import_failed`, with normal Job cleanup and zero client/request
+operations. The old 23-member source closure is archived. Exact public six.py
+producer semantics require relative `_get_module` names and distinguish the
+virtual urllib and parse objects from physical stdlib modules. A byte-identical
+public source fixture, retaining its MIT license, is at
+`tests/fixtures/iteration41/urllib3_six_source.py.txt`; its SHA-256 is
+`6fd2ccd30057bfb13b4ab6c28c09b8c3037e86b1fe88dc6fd7c2e058d30c28fa`.
+This fixture supports source-producer checks and provides no SDK/native,
+account, trading, or case acceptance by itself.
+
+The later R7 source/entry checks passed 124/8 overlapping fake tests, but its
+actual inert import still failed. R8b adds closed exception categories and
+hash-bound public relative source locations, and quarantines unknown success
+metadata fields before public output; its author and independent focuses each
+passed 19 tests. The actual R8b Job run failed with FileNotFoundError at verified
+certifi/core.py line 41, with normal process cleanup and zero clients/requests.
+The CA payload is already verified by the dependency RECORD; a narrow verified
+resource-reader correction is in development. This remains zero real SimNow
+case passes and grants no CTP write authority.
+
+Binance's new T01 REST current-account/bounded-income-window candidate is in
+`_certification/t01_owned_order_window_v1.py`. Its R3 source focus passed
+29 tests with 29 expected venue skips, and the separate R2 collector focus
+passed 16. These are source-only results; the current-owner integration remains
+in development, the candidate cannot issue PASS, and the consumed real V1
+UNKNOWN grant is unchanged. The new unregistered
+`certification_monitor_read_case_candidate_v1.py` screens six monitor read-case
+envelopes in fake-only mode and always returns BLOCKED; its 20 tests do not
+establish a live monitor fact source, independent attestation, provider-session
+mapping, or threshold configuration. Real counts remain 8/99 and all 16 optional
+component combinations remain NOT_ACCEPTED.
+
+At the later 2026-10-02 checkpoint, SimNow's R9 verified resource-reader focus
+passed 128 overlapping source tests. Its inert child still carried an old
+adapter hash; the next R9b fixed-pin focus passed 20. The actual R9b credential-
+free SDK/native metadata run completed in 3,047ms with normal Windows Job
+cleanup and zero clients/requests. This is import metadata acceptance only.
+The C01 `C01_NATIVE_TD_READ_V1` profile was then attempted and blocked before
+native worker evidence or account snapshots. A separate transport-only
+diagnostic returned `no_current_transport_candidate`; the profile's nested
+context managers masked that downstream error as a credential-source failure.
+The R11 propagation correction separates resource-read failures from yield-body
+failures and retains normal-exit ACL/directory checks. Its 13-test independent
+focus passed. The latest real C01 run returned `fresh_pair_selection_unavailable`
+in 6,922ms before native worker receipts or account snapshots. Its provider
+operation counter was not observed. Real SimNow C01 remains BLOCKED. The final
+r6 tracker is 9 PASS / 1 BLOCKED / 89 NOT_RUN: Binance 5/0/28, OKX 4/0/29,
+SimNow 0/1/32. All 16 optional combinations remain NOT_ACCEPTED, and route/
+component bindings remain UNBOUND. CTP writes remain NO_WRITE / LIVE_NO_GO.
+
+Binance's R13 current-owner candidate now uses four sealed case modules under
+`backtrader_runtime._binance_t01_case_contract`, the PRECLAIM REST window,
+immutable native journal captures, one typed V2 direct owner, and the actual
+terminal claim row. Its 34-source closure and overlapping 140-test/5-scenario
+reviews are archived under `binance-t01-current-owner-r13-source-2026-10-02`.
+The candidate remains BLOCKED; a current typed parent issuer is separate work.
+OKX's T01 worker R2 passed 77 source tests after binding cancellation to its
+own submit and independent reader invocation. Its stable durable journal and
+current parent admission are separate work. Neither path adds a real T01 PASS
+or creates a replacement grant.
+
+The new Binance `_validation_log_v2` closure and `run_validation_log_v2.py`
+use a Windows Job for the producer and networkless inspector. The original
+handle-close/setup-deadline HOLD snapshot is preserved; the revised independent
+24-test focus passed and the registry was mechanically promoted to REVIEWED.
+The real V2 read run completed four HTTP 200 GETs in 4,469ms, with five validation
+log events, one local validation, zero dispatch boundaries, and normal producer/
+inspector/HTTP actor/parent Job closure. L04 is PASS only for this fresh local
+logged gate instance; it does not prove a remote rejection, global SDK validator
+count, provider session, or optional topology. The fixed case entry supports
+the explicit V2 profile before ambient imports; its independent 29-test focus
+passed. A new actual invocation through `cases/L04/run.py` completed in 5,078ms,
+with four complete GETs and the same scoped log/normal-close facts independently
+rechecked by root. It is the same L04 case, not a tenth PASS.
+
+The separate Binance T01 parent issuer can return only BLOCKED or an ephemeral
+same-session typed proof. R14's descriptor-reader HOLD is archived; R15 now
+verifies the child ACL and handle facts under a protected lease through parsing,
+then reopens the fixed pathname to verify identity. Its 10-test independent
+focus passed and its 38-member source archive is frozen. Actual KnownFolder
+descriptor production remains separate. The current owner proof lacks the
+generic T01 case's distinct attested event source and full before-cleanup
+account snapshot; a fixed execution entry must not upgrade these narrower
+facts to a 99-case PASS. The old V1 consumed UNKNOWN grant is immutable, and no
+real V2 grant or claim has been created. OKX's new current issuer is fake-only pending
+trusted admission: the R2 candidate rejects live source-pinned executors before
+collector creation and refuses database reconstruction after a persistent
+bootstrap marker. Independent R2 review then found zero-byte database replacement
+could still recreate schema. The R3 correction restricts initialization to the
+same constructor's exclusive marker-plus-database bootstrap; its 19-test source/
+fake focus passed independent review. Empty/schema-less reopen cannot reserve
+again, and real dispatch remains unavailable. Neither T01 path has a real PASS
+or account write.
+
+At the later 2026-10-02 checkpoint, the fixed `cases/L04/run.py` Binance entry
+completed one root-owned V2 validation-log run in 5,078ms. It is the same L04
+case as the earlier V2 read, so it adds no case count; at that checkpoint the
+r6 tracker was 9 PASS / 1 BLOCKED / 89 NOT_RUN, with all 16 optional combinations
+NOT_ACCEPTED. SimNow C01 R11 remains BLOCKED at
+`fresh_pair_selection_unavailable`; its provider operation counter was not
+observed. Binance R15 parent-issuer source review is GO, while the 39-source
+R16 execution closure and its fixed entry remain under independent review, with
+no actual invocation or V2 grant. The first OKX auxiliary read attempt's
+`public_preflight_validation_blocked` reason had no verified underlying error.
+The newer public-only R2 attempt completed three HTTP 200 captures in 2,562ms,
+then blocked at `ticker_market_invalid`; it did not derive intent, load
+credentials, or issue an order/cancel, and adds no case PASS. OKX R5's
+isolated-module framing HOLD is preserved; R6's Content-Length/chunked framing
+correction received independent 30-test source GO, while R7 is correcting the
+overstrict ticker check. No R7
+actual auxiliary run or case acceptance exists. These statuses do not add
+account-route or optional topology acceptance.
+
+At the r7 checkpoint on 2026-10-02, the tracker was **9 PASS / 1 BLOCKED / 89 NOT_RUN**
+with 16 optional topologies `NOT_ACCEPTED`. Binance L04 remains one scoped
+local-gate PASS. SimNow C01 R12 is BLOCKED at
+`fresh_pair_selection_unavailable` after 6,265ms; no valid current selection
+was obtained, and the reason subtype was not recorded, so this does not show
+that all five pairs were unreachable. No native worker receipt or account
+snapshots exist, and the provider operation counter is unobserved.
+Binance R16 retained eight complete HTTP 200 read captures but ended UNKNOWN;
+its legacy L04 owner-slot diagnostic is 18 expected versus 24 current, while
+the T01 case remains NOT_RUN. OKX R3 validated three Demo-marked public
+metadata GETs in 1,656ms; no credentials, SDK, intent or writes were used, and
+T01 remains NOT_RUN. These reads add no case PASS or optional-topology binding.
+See the [r7 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r7-2026-10-02.md).
+
+At the 2026-10-02 r8 checkpoint, the tracker was **9 PASS / 1 BLOCKED / 89 NOT_RUN**
+with 16 optional topologies `NOT_ACCEPTED`. Binance R17 was a complete
+read-only preview diagnostic (8 HTTP 200 GETs, 3,437ms, normal read cleanup),
+but Binance T01 remains `NOT_RUN` with zero strict cases. SimNow C01 R13 is
+`BLOCKED` (`worker_process_incomplete`, 6,328ms); root verification found
+`AUDIT_PROCESS_MISBINDING` between launch PID 34,452 and audited case PID
+37,460. A pair index was selected, but the worker exited 2 and was force-killed;
+no worker receipt or account snapshots exist, and the provider operation
+counter is unobserved. No normal containment or verified PID binding is claimed.
+OKX R3 remains public metadata context only. The installed-risk-SDK consumer
+test passed one import/RECORD gate, which grants no route, case, topology, or
+release acceptance. The WebSocket observer remains HOLD, and the current
+control inventory does not prove a deployed principal or receipt. See the
+[r8 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r8-2026-10-02.md).
+
+At the current r9 checkpoint on 2026-10-02, the 99-case tracker remains
+**9 PASS / 1 BLOCKED / 89 NOT_RUN**; all 16 optional topologies remain
+`NOT_ACCEPTED`. Binance T01 remains `NOT_RUN`: observer V2 R2 saw a bounded
+ready/quiet read-only stream with zero events and normal local cleanup, but it
+was not a T01 case execution; the fixed controller/read closure is on
+`HOLD_SOURCE` because the active R3 source map rejects its four new module
+names and synthetic `__file__` roots do not resolve. SimNow C01 R15 attempt 2
+is `BLOCKED` at `native_close_unknown`
+after 95,297ms and forced termination. Pair index 3 was selected, but no worker
+receipt survived and provider auth/login/query progress is unobserved. The
+separate credential-free TCP probe is transport-only. Gateway installed
+consumer R4 is `BLOCKED` at `verified_import_gate` on `_uuid` from
+`BASE_RUNTIME_DLLS`; the narrow source correction and independent review are
+pending. The optional source-registry R2 review is source-candidate-only and
+does not admit a route or case. See the [r9 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r9-2026-10-02.md).
+
+At the current r10 checkpoint through 2026-10-02 12:09:29 UTC, the three-venue
+tracker remains **9 PASS / 1 BLOCKED / 89 NOT_RUN**, with 16 optional
+topologies `NOT_ACCEPTED`. This checkpoint adds no write, account-native, or
+optional route/component binding; the existing per-case `DIRECT`/`OFF` labels
+are preserved. SimNow
+C01 R17 is `BLOCKED` at `native_close_unknown` after 95,579ms; its durable
+progress ends at `client_start/begin`, with no final worker receipt or account
+snapshots, and auth/login/query progress unobserved. A separate TCP R2 probe
+observed pair 3 at MD 3/3 and TD 2/3 at its own time only. Gateway installed
+consumer R8 remains blocked on unresolved `org` during the bounded optional
+import gate; zero provider requests, state constructors, and case passes were
+recorded. The optional Windows stdlib review is source-only, and the OKX T01
+observer remains `HOLD_SOURCE` / `DISABLED`. See the [r10 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r10-2026-10-02.md).
+
+At the historical r11 checkpoint through 2026-10-02 13:57:28 UTC, the tracker was
+**9 PASS / 1 BLOCKED / 89 NOT_RUN**, with 16 optional topologies
+`NOT_ACCEPTED`. Binance T01 remains `NOT_RUN`; independent profile review R1
+is `HOLD_SOURCE_ONLY` for server-clock query-window bounds and a legacy V2
+pre-claim bypass. SimNow C01 R19 is `BLOCKED` at `native_close_unknown`; the
+final worker receipt and actual provider request counters are unavailable.
+OKX T01 remains `NOT_RUN`: the R7 WebSocket attempt acknowledged login but the
+first subscription failed with `60033 Parameter id error`; READY, root replay,
+protocol drain and successful observer close were not verified. The root
+observed Job and handle cleanup, with zero order/cancel attempts and no case
+PASS. No new write, account-native, or optional route/component binding was
+added, and existing per-case route labels are preserved. See the [r11
+tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r11-2026-10-02.md).
+
+The R12 three-venue tracker is a historical cutoff snapshot through
+`2026-10-02T18:25:38Z`: **9 PASS / 1 BLOCKED / 89 NOT_RUN** across 99 unique
+cases; Binance 5/0/28, OKX 4/0/29, SimNow 0/1/32. No new unique PASS was
+added, and all 16 optional topologies remain `NOT_ACCEPTED`. Existing case
+statuses and route bindings were preserved, including SimNow C01's `UNBOUND`
+route. The [R12 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r12-2026-10-02.md)
+has JSON SHA-256 `174759dfea66d026cfecb202611aa7a78fe600fe7818cd9c6e8055e52533eb0c`,
+Markdown SHA-256 `0662c45e5a254ca44c686a6774f2d9caeb1d8c22b119e058200bcf9821eb87c`,
+and generator SHA-256 `472f95bab54f72516d44bd18d31867720e95776f5d3cfc5a00bd11797363bb1d`.
+The R11 JSON and Markdown remain byte-identical.
+
+At that cutoff, SimNow C01 R20 was blocked at `native_close_unknown` after
+98,094ms (exit 2). The 11-record issuer projection failed root validation;
+root validation matched a 12-record typed/durable prefix ending at
+`client_start_native_module_check/begin`. Forced Job cleanup reached active
+count zero with EOF and closed handles, but no final worker receipt or provider
+counters were observed. R21 was a source/fake-only 20-source correction; its
+pre-cutoff README reported 247 focused checks, with independent review pending
+and no native C01/inert-harness execution. The frozen ZIP SHA-256 is
+`daa12c7a81bb2fd6ce89139cbd801ad3a47cc041ce286caf50e873ec06e7f3e8`. Its
+README/index/checkpoint were edited in place after cutoff; the original bytes
+could not be recovered from Git or the ZIP. R12 keeps their captured pre-cutoff
+hashes under metadata-integrity `HOLD` and excludes later metadata/review state.
+
+OKX T01 remained `NOT_RUN`: R11 reached READY, replayed six journal events and
+matched one data UID to REST, then failed quietness; R12 reached READY and
+replayed five events but received no data UID before `quiet_ack_deadline`.
+Root-replayed R12 terminal detail reports `partial_websocket_frame`; the socket
+closed, but normal WebSocket close and control-thread join were not verified.
+Forced Job termination left active count zero and handles closed. Both runs had
+zero order/cancel attempts and added zero case passes. Binance T01 remained
+`NOT_RUN` with R1 `HOLD_SOURCE_ONLY` and R2 ongoing. Optional16 interop R1 timed
+out without a final child receipt or observable cleanup; R2 was held for
+source/report consistency; R3 had eight source/fake checks and independent
+review pending. The composition source/test candidate had no immutable author
+result packet and remained unregistered. No optional topology was admitted.
+These are historical public-evidence findings; R12 did not inspect private
+configuration or `.env`, import SDK/provider modules, or make network calls.
+
+The R16 three-venue tracker is a fixed-cutoff snapshot through
+`2026-10-03T02:00:24Z`: **9 PASS / 4 BLOCKED / 86 NOT_RUN** across 99 unique
+cases (Binance 5/0/28, OKX 4/3/26, SimNow 0/1/32). It adds zero unique PASS;
+all 16 optional topologies remain `NOT_ACCEPTED`. Only OKX L03 and L04 change
+from `NOT_RUN` to `BLOCKED` on one fixed read-only CLI attempt each, both
+`readonly_lease_verification`; order and cancel caps are zero. The L03
+posthoc read confirms an existing complete GET capture and decodable log but
+finds missing reopened-store digest attributes. Static `_l03` access to those
+attributes is a source defect after the reads, but does not prove the complete
+actual failure path; L04's phase is unknown. The separate inert Windows Job
+probe is credential-free and makes no provider call. SimNow C01 remains
+`BLOCKED / UNBOUND`; its V2 R1 source/fake packet is independently held for
+unbound SDK `QueryResult` provenance/records. OKX M01 remains BLOCKED; V4 is
+held for missing PyYAML RECORD/module-origin closure. Binance T01 R2 amendment
+review verifies package integrity only. Optional16 R11 actual import-only
+diagnostic timed out after 122,922ms; cleanup for the direct child completed,
+but there is no final child JSON, constructor success, provider session, case
+PASS or accepted topology. The [R16 final tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r16-final-2026-10-03.md)
+has JSON SHA-256 `622e4c73ce41da6425558f9cb01605935229efbc446a5f62a3406e00f494d90d`,
+Markdown SHA-256 `bb79b4a422314ebac158c270b3273c3174d0492403da3da0d5c5e5e24803ae95`,
+and generator SHA-256 `01c58ae613c89f05f52c006960bd9d3c14c54b67dbac700eb80075bb96518208`. R15 remains
+byte-identical at JSON `766255c31a290f4e481d6a6c108edd88b7df48617e893f193ad8399d5971093c`
+and Markdown `2544bf83f02d8d214aa6f2cccebc70ff38437e0490c234f6baeaf2b2d622cdda`.
+The [R16 draft erratum](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r16-draft-erratum-2026-10-03.md)
+records a corrected initial JSON association; generic `r16` filenames are retained as non-authoritative drafts. R16 final directly verifies all 291 unique public evidence paths against their
+SHA-256 pins; the generator reads public pinned evidence only and makes no
+private-config, `.env`, SDK/provider import, or network calls.
+
+The R15 three-venue tracker is a fixed-cutoff snapshot through
+`2026-10-03T00:59:42Z`: **9 PASS / 2 BLOCKED / 88 NOT_RUN** across 99 unique
+cases (Binance 5/0/28, OKX 4/1/28, SimNow 0/1/32). It adds zero unique PASS;
+all 16 optional topologies remain `NOT_ACCEPTED`. Only OKX M01 changes from
+`NOT_RUN` to `BLOCKED`, bound to one fixed case CLI result that lacks current
+read proof; its earlier registration correction is source-pin-only and grants
+no runtime admission. No route or optional-component binding changes. SimNow
+C01 remains `BLOCKED / UNBOUND`; its V2 R6 result has no current worker receipt
+and leaves request/callback/order/cancel counts unobserved. Optional interop R10
+source/fake reviews are `GO_SOURCE_FAKE_ONLY`; the actual import-only R10 run
+is `BLOCKED` with an unsafe child result and exact Windows access-violation
+exit `0xC0000005`. The child was reaped and output pipes drained/closed. No
+provider session, registry admission, constructor success, or case PASS was
+established; sanitized fatal-only follow-up does not establish module origin
+or root cause. The [R15 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r15-2026-10-03.md)
+has JSON SHA-256 `766255c31a290f4e481d6a6c108edd88b7df48617e893f193ad8399d5971093c`,
+Markdown SHA-256 `2544bf83f02d8d214aa6f2cccebc70ff38437e0490c234f6baeaf2b2d622cdda`,
+and generator SHA-256 `52d91c2ee26ce526c42b38df8b5bdb63a2c5571afa64f270e6763a02fb6a80a4`.
+R11–R14 tracker files remain byte-identical. R15 canonicalizes R14's 130 repeated
+`docs/` evidence prefixes and verifies all 231 serialized public evidence paths
+resolve and match their SHA-256 pins. Its generator reads only pinned public
+source/evidence; it does not read private configuration or `.env`, import
+SDK/provider modules, or make network calls.
+
+The R14 three-venue tracker is a fixed-cutoff snapshot through
+`2026-10-02T23:16:21Z`: **9 PASS / 1 BLOCKED / 89 NOT_RUN** across 99 unique
+cases (Binance 5/0/28, OKX 4/0/29, SimNow 0/1/32). No unique PASS was added;
+all 16 optional topologies remain `NOT_ACCEPTED`. Case status, case-evidence
+IDs, route bindings, and optional-component bindings remain identical to R13,
+including Binance C01 `DIRECT` and SimNow C01 `BLOCKED` / `UNBOUND`. See the
+[R14 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r14-2026-10-03.md).
+Its JSON SHA-256 is `68917e7eade8f2be1cd6f955cc33807507c625136807dc3d291ecb0177770cd6`,
+Markdown SHA-256 is `e58315fed14c5310da85588169addee3b899d2910c3d89cc217617d6f7c15b48`,
+and generator SHA-256 is `194dbb8fc1344f80ec4b9c4892844d9bad7ff799adf60a80a8c41ea0c5af4eb4`.
+R11, R12, and R13 tracker files remain byte-identical.
+
+SimNow C01 continues to bind the R20 `native_close_unknown` result. A separate
+R3 root-wrapper actual invocation ran once for 22,063ms and returned
+`candidate_internal_error`; retry was false, and worker/request/callback/order/
+cancel counts remain unobserved without current worker proof. A public audit
+verified the protected registration and consumed claim but found no current
+worker proof. Static source order shows the wrapper permits only the `.env`
+Git check while the candidate checks its fixed `config.yaml` before the
+credential lease. This is a static failure explanation, not a measured
+worker-zero result. Binance T01 remains `NOT_RUN`: R5's protected read-only
+audit records eight completed GETs and no orders/cancels, but the stream
+snapshot has one journal entry and zero events; R2 stopped before observer
+startup, while R3 drained normally with zero baseline GETs/events and remains
+diagnostic only. Optional16 remains 0/16 accepted. R6/R7 SDK import attempts
+did not establish a constructor or provider session; R8 review is held for
+unbounded pre-persistence child capture; R9 is frozen source/fake only with
+review pending and no actual child/SDK run. M01 readonly-monitor V3 has
+source/fake-only GO and no runtime/provider admission. R14 reads pinned public
+evidence only; it does not read private configuration or `.env`, import
+SDK/provider modules, or make network calls.
+
+The R13 three-venue tracker is a fixed-cutoff snapshot through
+`2026-10-02T19:35:24Z`: **9 PASS / 1 BLOCKED / 89 NOT_RUN** across 99 unique
+cases (Binance 5/0/28, OKX 4/0/29, SimNow 0/1/32). No unique PASS was added;
+all 16 optional topologies remain `NOT_ACCEPTED`. Case status, case-evidence
+IDs, route bindings, and optional-component bindings are copied unchanged from
+R12, including Binance C01 `DIRECT` and SimNow C01 `BLOCKED` / `UNBOUND`. See
+the [R13 tracker](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r13-2026-10-03.md).
+Its JSON SHA-256 is `541d2e7980241b4ca7cf45034de968328ff3cd5c63c1471161000ce49f12af66`,
+Markdown SHA-256 is `87a6a4dc6fcf9c011a469bb9e791320624ae46c11c94c323193778eab2dc7015`,
+and generator SHA-256 is `4d926576a3a6a21c139da7c39def9aa09b53b91d4fcb89338115dff58265bbd2`.
+R11 and R12 trackers remain byte-identical.
+
+OKX T01 remains `NOT_RUN`. R17's read-only WebSocket diagnostic reached READY,
+quiet, drain, complete six-event journal replay, one matching UID frame, and
+normal close; the Windows Job was assigned before resume and the process exited
+0 with active count zero, EOF, and closed handles. It made zero order/cancel
+attempts and added zero case passes. The R13 transport fixture review (58
+passed, 1 skipped) and R17 fixed Git/Python/shell launch-audit review are
+`GO_SOURCE_FAKE_ONLY`; neither admits a route or accepts T01. The earlier R15
+stub stopped at Git audit before provider launch.
+
+SimNow C01 remains blocked on R20's `native_close_unknown` attempt with the
+same direct evidence ID and `UNBOUND` route. The R21 schema replay validates
+the 12-record typed/durable R20 prefix while leaving the invalid 11-record
+issuer projection, absent worker receipt, and unobserved provider counters
+explicit. R21's independent `GO_SOURCE_FAKE_ONLY` is limited to its pinned ZIP
+and fake source slice (247 passed); it adds no SDK/native/account/provider/C01
+acceptance. The public metadata-drift amendment says its pointers were added
+after that review and records `2026-10-02T18:37:14Z`; review-before-that-time
+is an inference from the amendment, not filesystem mtime. R12's original
+README/index/checkpoint pins remain under `HOLD`; later bytes do not replace
+them. A separate credential-free native getter diagnostic ended with
+`worker_frame_invalid`, no final worker receipt, and `NOT_A_CASE_RESULT`, so
+it does not unblock C01.
+
+Binance T01 remains `NOT_RUN`: the independent R2 source review is
+`HOLD_SOURCE_BOUNDARY`, and the R3 39-base/49-combined frozen source profile
+remains source-only with its combined review pending at cutoff. The R3 scope
+addendum defines one fixed listenKey POST, no PUT/DELETE, and separate order
+submit POST/cancel DELETE. Optional16 interop R4 is blocked at
+`installed_public_record_closure`; it created no provider session and admitted
+no case. Its separate R3 cleanup summary reports 4,473 observed handles, zero
+exit waits outstanding, and 395 denied Job assignments, but does not prove
+that every process was contained. Composition V2 remains held; V3 is an
+unregistered fake/source candidate with independent review pending.
+
+At the R13 cutoff, OKX L03 had source/fake-only GO but no runtime admission;
+L04 remained an unadmitted 33-test source candidate with review pending. M01
+had no immutable source archive, SimNow R22 source was still being written,
+and optional interop R5 remained an un-frozen source draft without an actual
+run. None changes case counts or the 16-topology acceptance state. The R13
+generator consumes the pinned R12 tracker and public evidence only; it does
+not inspect `.env`/private configuration, import SDK/provider modules, or make
+network requests. Evidence after the fixed cutoff is excluded.
+
+R17 was the fixed authoritative snapshot at
+`2026-10-03T08:45:39Z`. Its final [JSON](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r17-final-2026-10-03.json), [Markdown](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r17-final-2026-10-03.md), and [generator](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/generate_iteration41_three_venue_99case_tracking_r17_final.py) are additive; R16 and earlier snapshots remain immutable. R17 contains **9 PASS / 4 BLOCKED / 86 NOT_RUN**, zero new unique PASS, and **0/16 optional topologies accepted**. All 99 case rows, their evidence bindings, the direct Binance/OKX C01 route bindings, and the unbound SimNow C01 route remain unchanged from R16. The generator verifies 461 unique public evidence paths and hashes, including 170 new non-case context references.
+
+R17 final JSON/Markdown/generator SHA-256 values are `9305970fe6092169ccfe683be6bfce81c665e0fb84da2b57194f02f3b2ffedb7`, `fd6505b8d5a1238b1c8e8b4d9759b015bf0536319a53fffb99bd90f56e59c709`, and `19e84a637a55277b484afe60b7b3585292901a0d4ef3f82fd7db3a1be032261a`.
+
+R17 adds public context for Binance T01 and V2 diagnostics, SimNow C01 and paired-front transport observations, the unregistered Binance/OKX L02 source/fake correlator, OKX M01 and Optional16 diagnostics, and L03/L04 R4. Diagnostic worker counts are not account-wide proof; unknown provider activity remains `UNOBSERVED`. The L03/L04 R4 sanitized report records one registered installation and one blocked attempt per case. Both are blocked at outer `run_namespace_create_new`, with child summaries `source_bootstrap_blocked` / exit 2; normal reap, both pipe EOFs, stream closure, Job active count zero, and no forced termination are reported. Tree-zero is not certified, and provider requests/account activity remain `UNOBSERVED`. The separate inert source diagnosis reproduces `project_modules_preloaded` from the fixed main/worker files missing in the child manifest, but does not prove the exact captured failure stage. These are non-case contexts and do not add PASS.
+
+SimNow paired-front TCP observations are host/time-specific transport evidence only; they do not establish login, provider readiness, future reachability, or case acceptance. The L02 correlator is source/fake only, unregistered, and has no producer or route. Its Binance listenKey cleanup never deletes a potentially shared provider key; its OKX session identity uses provider-issued login `connId`, while local run nonces bind evidence windows only.
+
+The root-wrapper source/fake review gate uses real frozen helper code and full archive metadata with inert API fixtures. It verifies upstream review pins, each new wrapper template pin, matching outer/inner activation filenames, and a single child-bootstrap call through the real `__main__` guard. The five-second Job settle is one total budget that may complete after pipe EOF drain. Every blocked actual should retain a safe projection of its capture interval; unknown provider counters remain `UNOBSERVED`.
+
+## Iteration 41 current acceptance snapshot: R19 FINAL (2026-10-03)
+
+R19 FINAL is the current read-only authoritative 99-case snapshot at cutoff `2026-10-03T14:21:30.935297Z`: **11 PASS / 4 BLOCKED / 84 NOT_RUN**. Venue totals are Binance USDⓈ-M `6/0/27`, OKX SWAP `5/3/25`, and SimNow `0/1/32`. The snapshot binds 673 case-evidence references and 13 publication-metadata context records; metadata contributes zero case-status delta. All **16 optional topologies remain NOT_ACCEPTED**. See the final [JSON](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r19-final-2026-10-03.json) (SHA-256 `fef21f09380231f9fdada87d319e6896a8160257075a5e50f110c2fba72640a3`) and [Markdown](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r19-final-2026-10-03.md) (SHA-256 `57b31408950124ef5f270fd709afc94fe9ab0a0beb9b0f2e52b5c6fa9fe26230`).
+
+The only two case changes from R18 are Binance L02 and OKX L02, scoped to each current-session read receipt plus producer-authored session-log correlation. This is not server-log or generic-workflow acceptance. The root decision sets publication cutoff only; it does not mint case/provider evidence. Account-write authorization is false, order/cancel activity remains `UNOBSERVED`, and no optional component or venue route is newly bound. R17 remains an unchanged historical snapshot, superseded by R19; R18 remains unchanged as the draft parent.
+
+Additional diagnostic/source context does not alter R19:
+
+- Later source clarification of M01 R9 confirms the child frame ended in CRLF; the nested C01 helper returned `c01_unavailable`. M01 remains blocked; provider order/cancel counts are `UNOBSERVED`. See the [R9 safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v6-r9-root-actual-safe-summary-resume-r1-2026-10-03/root-observation.json) and [framing observation](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-v6-r9-root-helper-framing-readonly-r2-2026-10-03/root-observation.json).
+- OKX L03/L04 V7 R4 remains blocked (`worker_result_blocked` / `candidate_rejected` at the source-closure/name-length gate); provider write counts remain `UNOBSERVED`. See the [R4 safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-l03-l04-v7-r4-root-actual-safe-summary-isolated-resume-r1-2026-10-03/root-observation.json).
+- Binance T01 V4 R2 is GO_SOURCE_FAKE_ONLY, but actual continuation is held pending the 49-source profile activation repair. It adds no case PASS. See the [source/fake packet](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-t01-v4-continuation-source-fake-r2-2026-10-03/README.md) and [independent review](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-t01-v4-continuation-source-review-r2-2026-10-03/README.md).
+- Optional16 R19 R4 timed out after 60,219 ms; cleanup was forced and the Job active count reached zero. The public stack sample was in `R9_DEPENDENCY_CLOSURE` at `_requirement_is_active` (line 409), before SDK import/guard completion. Optional acceptance remains 0/16. See the [safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r19-root-stack-r4-actual-safe-summary-r1-2026-10-03/root-observation.json) and [phase/stack projection](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r19-root-stack-r4-safe-projection-r1-2026-10-03/root-observation.json).
+
+## Historical pre-R19 post-cutoff operational context (non-authoritative)
+
+At the time of the following earlier reports, R17 was the latest fixed snapshot and R18 remained an immutable draft; R19 FINAL above supersedes that tracker status. These summaries remain historical context only:
+
+- Binance CID R2 at 12:38 UTC completed two read-only GETs, reaped cleanly with Job active count zero, and reported the original ledger unchanged. It issued no budget authority or PASS. See [safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-binance-v1-cid-r2-root-actual-safe-summary-r3-2026-10-03/root-observation.json).
+- OKX L03/L04 V7 R3 at 12:49 UTC returned `internal_error` for both cases. The source diagnosis confirmed missing R3 failure diagnostics; provider order/cancel counts remain `UNOBSERVED`, with no case promotion. See [safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-l03-l04-v7-r3-root-actual-safe-summary-resume-r1-2026-10-03/root-observation.json).
+- Binance/OKX L02 R6 at 12:52 UTC both returned `l02_case_issuer_failed`; both Jobs reaped with active count zero, and the original template was restored. No case was added. See [safe summary](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-l02-r6-root-actual-safe-summary-r1-2026-10-03/root-observation.json).
+- Optional16 R19 timed out after 180,594 ms and was force-stopped; the Job was empty after cleanup, stdout/stderr were each zero bytes, and the bounded raw capture was saved. The last public phase was entry into `R9_MODULE_RECORD_SCAN`, with 1s and 2s checkpoints; the underlying cause remains `UNOBSERVED`. See the [safe result](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r19-root-actual-safe-summary-r3-2026-10-03/root-observation.json) and [phase projection](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r19-root-phase-safe-projection-r1-2026-10-03/root-observation.json).
+
+These reports are historical non-case context. Source/fake `GO` decisions remain limited to their reviewed source and fixtures; they do not establish provider acceptance. Do not attempt SimNow login until password rotation is confirmed.
+
+## Iteration 41 current acceptance snapshot: R20 Final R2
+
+R20 Final R2 is the current canonical 99-case snapshot at cutoff `2026-10-03T22:51:51.578780Z`: **12 PASS / 3 BLOCKED / 84 NOT_RUN**; Optional16 remains **0/16 accepted**. This supersedes the R19 section above as current status; R19's bytes and evidence remain historical and unchanged. See the final [tracker JSON](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r20-final-r2-2026-10-04.json) (SHA-256 `16b98128cc9b975756febb0e544e944f592f5d34c34b8213e72ef222c0050b0c`), [tracker Markdown](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r20-final-r2-2026-10-04.md) (SHA-256 `771c22de4a589500ae681e3b7d423494cad5d63623e6c51010589159e6e5247b`), and [publication manifest](docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-three-venue-99-case-acceptance-tracking-r20-final-r2-2026-10-04-manifest.json) (SHA-256 `c1a0fe983fc1df138b81b7954dd2d67bc1bc618f3de90729b687de0bf1664f8b`).
+
+The accepted Monitor V3 and Optional16 R31 R2 records are scoped local SDK diagnostics, not provider/account certification or Optional16 acceptance. SimNow environment-filter and TH application-monitor candidates remain disabled, unregistered source/fake designs; they do not change the live selector, schema, registry, or venue evidence. Keep whole MD/TD pair selection, `NO_WRITE / LIVE_NO_GO`, and the existing requirement to confirm password rotation before any SimNow login.
+
+## Iteration 41 SimNow front selection clarification (2026-10-07)
+
+The current `scripts/ctp_000_paired_front_selector.py` and its same-call
+`ctp_000_front_handoff.py` accept one to eight complete MD/TD pairs. A pair is
+eligible when both endpoints have at least one successful connection among
+three bounded attempts. If no pair is eligible, selection fails. Eligible
+pairs are ranked by the larger of their MD and TD successful-sample median
+latencies, with configuration order breaking ties. Stability and failed
+attempt counts are diagnostics, not additional eligibility or ranking gates.
+The focused independent selector/handoff suite passed 45 tests. The additive
+C01 V3 source closure now binds the current selector, handoff, and probe, and
+its five independent synthetic checks exercise the actual typed handoff into
+the original pre-admission validator. The combined author suite passed 50
+tests; Root read back all 29 source members and the independent review bundle.
+The validator remains `BLOCKED` pending protected native admission. Historical
+C01 V1/V2 closures are unchanged and still pin their older sources. These
+source checks add no real-account PASS and do not authorize login or trading.
+
+## Iteration 41 Root startup findings (2026-10-07)
+
+The current canonical account snapshot remains R20 Final R2: 12 PASS,
+3 BLOCKED, 84 NOT_RUN; Optional16 remains 0/16 accepted. Later local startup
+and source-fake work adds no account PASS.
+
+The L04 R2 actual Root admission reached the reviewed source gate but returned
+`root_route_root_invocation_uncertain`. Its owner process exited; retained
+source post-verification and native/provider cleanup were not established.
+The consumed namespace must not be reused. The R3 successor is limited to
+finite diagnostics for the existing invocation, frame, consumer, and lease
+boundaries; the R2 sources and attempt remain frozen.
+
+Optional16 R19's actual whole call returned `CHILD_RETURNED` with child status
+`ROOT_UNCERTAIN_RETAINED_NO_PARSE` and exit 2. Root's separate 591-public/
+5-software outer custody was post-verified and released before process exit.
+The child uncertainty is not a component or G1 acceptance. R20 development
+preserves the 100+5 limit and adds only strictly validated child diagnostics
+to the existing one-frame parser path; private or late captures stay closed.
+
+Binance T01 R3 failed at `root_capsule_changed` before its OUTER/INNER
+invocation. Public source shows that the synchronous capsule handle was read
+twice without rewinding; the activation grant and markers have the same
+reread pattern. R4 development uses a bounded seek-to-zero reread helper and
+a fresh protected capsule namespace. Do not overwrite the R3 capsule or use
+its failed admission as acceptance. Original V1 remains UNKNOWN; no original
+CID lookup or retrospective allocation is authorized by these successors.
+
+M01 R29's 118-public/36-software source maps and metadata scope fix passed
+source-fake review, but its physical startup recipe is blocked: it requires
+deployment absence while holding and executing a wrapper inside deployment,
+and the attempt claim has no writer. R30 development must bind a protected
+predeployment by identity, ACL, and exact source hash, and create/flush/verify
+an exclusive claim before fresh capture. The 180+5 and 405+5 diagnostic budgets
+remain unchanged; an external parent 100+5 envelope remains unestablished.
+
+
+### Iteration 41 actual constructor follow-up (2026-10-07)
+
+Binance R4 passed 12 source-fake tests but its activation directory suffix
+differs from the frozen R13 writer. Its independent verdict is integrated
+production path BLOCKED; Root did not run it. R5 is an additive repair and
+must test the real producer-to-consumer constructor, keep the frozen R13
+protocol suffix, and bind the public CLI dependency before loading.
+
+Optional16 R20 R2 passed five independent source-fake tests. Its Root actual
+local diagnostic returned CHILD_RETURNED with child ROOT_UNCERTAIN_RETAINED_NO_PARSE
+and finite RuntimeError/r2_invocation/review_pin_shape diagnostics. Root held
+604 public and five software paths, postverified and released the outer
+custody, then explicitly exited the owner process with code zero. No private
+capture or late parse occurred. R19 passes a five-key review map to the
+frozen R2 constructor, which requires four keys plus a separate README slot.
+R21 must adapt this bridge and test the real constructor; R19/R20 stay frozen.
+
+M01 R30's six source-fake tests passed, but independent review is HOLD:
+the real pinned bounded reader advances a synchronous file handle and does
+not seek before wrapper/claim rereads. Path.read_bytes fakes concealed EOF.
+R31 must use offset-aware fakes and an explicit bounded seek-to-zero adapter.
+No complete 154-entry physical acceptance or external 100+5 supervisor is
+established. A packet declared frozen must never be overwritten; successors
+use a new packet namespace and retain each older byte set and QA limitation.
+
+R6's 28-field ZMQ map has validation but no actual Root collector. R5 derives
+bootstrap metadata from a supplied complete map; static pins do not supply
+installed-source/cache/native/dependency/module/DLL observations. Formal
+acceptance remains 12 PASS / 3 BLOCKED / 84 NOT_RUN and Optional16 0/16.
+
+
+### Iteration 41 physical-source follow-up (2026-10-08)
+
+The SimNow selector accepts one through eight complete MD/TD pairs, filters for both endpoints reachable, fails if none qualify, and ranks qualifying pairs by the maximum of their successful latency medians, then configuration order. The accepted correction remains source/fake evidence only; password-rotation confirmation is still pending before SimNow login.
+
+Root independently verified restored M01 R31 R1 bytes and reviewed R31 R2 (5 source/fake tests), then actually held the 118-public/36-software physical closure and passed the generated runner's 154-entry held-map gate with a fresh NON_ACTUAL_PLAN. Both source holds were post-verified and released. No readiness validator, coordinator, SDK/account input, provider operation or attempt claim ran. This does not establish M01 acceptance or its external 100+5 supervisor; see the 2026-10-08 root-physical-source-precheck and owner-exit archives.
+
+Optional16 R21 R2 independently passed 6 source/fake tests with the real binder/R2 constructor path up to a fake CUv2 read leaf. Root's later actual local diagnostic held 605 public and 5 software paths and returned ROOT_UNCERTAIN_RETAINED_NO_PARSE / outer_stderr_not_empty (exit 2, one retained group). Root did not read private captures or late results or claim source postverification/native cleanup; the owner then explicitly exited 0. R22 finite diagnostics are separate pending work. Formal results remain 12/3/84 and Optional16 0/16; these checks add zero real-account PASS results. Frozen packets must remain immutable and later changes use new source and packet names.
+
+
+### Iteration 41 single-pair and finite-diagnostic follow-up (2026-10-08)
+
+The generic SimNow managed-case endpoint median now accepts at least one successful sample out of three, matching the shared selector. Independent public synthetic coverage passed 44 focused checks, including one complete pair through selector/receipt/case binding/validation and no eligible pair producing no receipt. The new additive C01 V5 candidate bounds configured pairs to 1..8 and matches current config count and digest before credential resolution or selection; author and independent focused runs each passed 5 tests. Root verified all five public reviewed/current sources and five review members. V5 remains unregistered and default-closed, without native/provider acceptance. The frozen V3 five-pair scope is historical, not the generic config contract.
+
+One separate author audit violated private-input policy by including an ignored SimNow config sensitive line in a broad search. Its original capture is excluded from public review and evidence; do not reopen, quote, hash, or use it for account operations. The independent V5 review did not reread that input and does not assert zero private reads for the whole author audit. SimNow login still requires pending password-rotation confirmation.
+
+Binance R6 independently passed 14 public source/fake tests, with a held-loader supplement and combined 15-test focus. R7 adds a separate owner-child/300+5 guard candidate; its 9 author tests are source/fake only and independent review is pending. Callback deadlines are cooperative. M01 R32's abstract 100+5 coordinator independently passed 7 source/fake tests; a concrete R33 adapter/bootstrap and actual READY plan remain separate work.
+
+A fresh L04 R3 draft and three ACL-bound run materials led to one actual local startup diagnostic using 98 public and 2 software holds. It returned BLOCKED with the finite r19_consumer/r16_route_exit/outer_lifecycle_uncertain diagnostic, retained its uncertain holders, and the owner then explicitly exited 0. The generic r16_route_exit code does not prove R16 ran. Its UUID is consumed; no private capture was read and no cleanup/source-postverification/provider PASS was inferred.
+
+Optional16 R22 independently passed 8 source/fake tests. Root's actual local diagnostic held 618 public and 5 software paths and completed outer cleanup and full Root custody postverification/release, then owner exit 0. The child still blocked at activation binding with finite RootEnvelopeError classification; this does not establish G1 or components. Formal account results remain 12 PASS / 3 BLOCKED / 84 NOT_RUN and Optional16 0/16.
+
+
+### Iteration 41 Root count correction and bootstrap scope (2026-10-08)
+
+The Optional16 R22 Root caller incorrectly filled INERT_PUBLIC_PATH_COUNT with the 495-item default-closed derived closure. The child payload contract requires the 379-item base public_paths_sha256 map; active public/software/alias counts remain 575/5/19. A public synthetic production-binder probe reproduces driver_r5_active_map_shape with 495 and completes binding with 379. The previous actual frame only observed RootEnvelopeError at the binding phase; do not relabel its unseen private capture with the synthetic specific code. Future Root fill must derive the base count from map.base_inert_public_paths. R22 historical observations remain immutable; R23 is a separate finite-code candidate under independent review.
+
+Binance R7 independent review is HOLD for unbounded in-child StringIO and unproven false provider-call status on BLOCKED. The additive R8 uses bounded TextIO/buffer capture and null when activity is unobserved; its 14 author source/fake tests and concrete coordinator integration await independent review. No R8 account operation has run.
+
+The M01 R33 default-disabled bootstrap constructs CUv2's lazy contextmanager but R31 returns before entering it; the preliminary review claim that this test necessarily invokes native/private scope operations was withdrawn. All 6 source/fake tests passed. Its actual READY activation interface and full pending-write/no-release test remain separate R3 work. R34's 21-key plan draft is pure source/fake preparation, not authority or an actual protected READY plan. Formal results remain 12/3/84 and Optional16 0/16.
+
+
+### Iteration 41 owner outcomes and instance isolation (2026-10-08)
+
+Binance R8 independently passed 14 source/fake tests. Root's one-shot actual R6-capsule invocation held 33 public and 2 software paths and returned PARENT_TIMEOUT / active_deadline at the external 300+5 boundary. The child lifecycle and capture completed; parent source custody was post-verified and released with no retained groups. No typed child frame or case result exists. Provider activity remains UNOBSERVED, private captures and late results were not parsed, the capsule is not reusable, and original V1 UNKNOWN is unchanged. The owner explicitly exited 0; see the R8 actual-observation and host-exit archives. Static R13 retention behavior is a possible no-frame path, not evidence that it occurred.
+
+Optional16 R24 independently passed 13 source/fake tests and verifies 53 fixed inputs. R23's parser HOLD is pinned only as historical provenance. Root corrected the inert-count field to the base-map count 379, prepared a 623-entry fresh closure, held 620 public and 5 software paths and made one 100+5 local diagnostic call. The clean parent returned CHILD_RETURNED / exit 2; the finite child diagnostic is RootEnvelopeError / source_custody_entered / UNOBSERVED with ROOT_UNCERTAIN_RETAINED_NO_PARSE. Parent custody was post-verified and released; child cleanup or source postproof was not inferred. No private capture or late-result parsing occurred, and the owner exited 0. Optional16 remains 0/16.
+
+M01 R34 plan-draft construction independently passed 8 source/fake tests and Root verified its public packet; it grants no authority. M01 R33 R3 independently passed 5 tests but remains HOLD / NOT_ADMITTED because its temporary shared R2 module-global gate can admit an unrelated adapter instance. A separate R4 instance/private-module successor is in progress; frozen source and packets are unchanged. L04 R4 has 18 author source/fake tests and awaits independent review and fresh concrete Root scope. The SimNow one-through-eight-pair correction is accepted source/fake behavior; real login remains pending password-rotation confirmation. Formal venue counts remain 12 PASS / 3 BLOCKED / 84 NOT_RUN; all new work above adds zero real-account PASS results.
+
+
+### Iteration 41 post-image actual diagnostics (2026-10-08)
+
+M01 R33 R4 independently passed 8 source/fake tests but its fresh actual parent stopped before resume at target_verification_failed, with clean parent cleanup and source release. R5 independently passed 12 tests and Root checked the public packet, 14 dependencies and ten historical review files. R5's fresh READY namespace 1157a2e7d1c04b84bc746f22920ebcb7 held 156 parent paths and 55 extra context paths; the actual 100+5 parent returned CHILD_EXITED / exit 2 in 7.235 seconds with zero stdout/stderr bytes. Parent capture, cleanup, source postchecks and release completed. The child 154-source gate, plan validation and provider state remain unobserved; no case payload or private capture was parsed. The owner explicitly exited 0. Finite child-stage diagnostics are the next source-only task.
+
+L04 R4 independently passed 18 source/fake tests. Its fresh concrete source review covers 102 public plus two software rows and the 21 extra exact context pins required to bind its template test. Root physically held and authenticated that context, created three protected material files, and invoked namespace 083501985f504dc9adcdb26ab082b806 once. The actual result remains BLOCKED / root_route_root_invocation_uncertain. The finite R14 lifecycle diagnostic has eight failed gates: parse_allowed, disposition_clean, reason_none, process_reaped, job_empty, job_closed, raw_capture_complete and source_postverified; ten other gates are true. No R16 execution or provider state is inferred from the generic r16_route_exit label. No private capture, late result, cleanup or source postproof was claimed. Two retained Root groups ended at explicit host exit 0; the namespace is consumed.
+
+Optional16 R25 has nine passing source/fake tests but remains SOURCE_FAKE_HOLD / NO_ACTUAL_G1: production fixed-input verification fails on one mistyped R24 source-pins.json digest. R26 will retain frozen predecessors and verify the actual public fixed closure. Binance's candidate for a new read-only lease over an existing R6 allocation grants no trading reuse, deadline extension, allocation issuance, recovery or original V1 query. No existing CID or provider query has yet been established. Formal counts remain 12 PASS / 3 BLOCKED / 84 NOT_RUN, Optional16 0/16, with zero new real-account passes.
+
+
+### Iteration 41 original-allocation inventory and namespace regression (2026-10-08)
+
+Root's bounded protected R6 metadata inventory found no matching run directories or allocations.sqlite3 in the existing t01-runs scope. No credentials, SQLite contents, private captures or provider request were used; the historical capsule metadata read did not reactivate trading or extend deadlines. Source custody was post-verified and released and the owner exited 0. This absence is not a provider-activity proof; original V1 UNKNOWN remains unchanged. The Binance R6 read-only source R1 / documentation packet R2 independently passed eight fake tests but is SOURCE_FAKE_REVIEWED_HOLD: its public transport can bypass the proof gate with arbitrary query text, exposes raw response bytes and stores a general POST/DELETE-capable request method. A separate source R2 successor is narrowing the operation inside the proof-validated observer. No actual GET occurred.
+
+Optional16 R26 independently passed ten tests and verified all 62 public fixed inputs through the production reader. Root public readback passed, but metadata map preparation stopped at driver_r5_control_pin_mismatch before active-copy, protected-control, physical-custody or process creation. R26 incorrectly aliases the frozen R19 baseline CONTROL/SCRATCH to fresh r26 paths. Root did not override those pinned baseline values; R27 will preserve explicit frozen R19 baselines and test the real namespace/rebinding path. Source/fake GO does not establish namespace execution or G1. L04 and M01 finite diagnostic successors remain in development; original passing conditions are preserved. Formal counts remain 12 PASS / 3 BLOCKED / 84 NOT_RUN and Optional16 0/16.
+
+
+### Iteration 41 single-pair policy and finite child-stage diagnostics (2026-10-08)
+
+The corrected 000 SimNow selector accepts 1..8 complete MD/TD pairs, filters both-endpoint reachability, fails with no candidates, then ranks max(successful MD median, successful TD median) with configuration-order ties. At least one of three bounded probes per endpoint suffices; stability is diagnostic and cannot override latency. Selector/handoff/generic consumer/C01 V5 constraints align. The independent focus passed 44 checks; no new TCP, provider login or case acceptance occurred.
+
+Optional16 R27 independently passed 13 source/fake tests and all 62 production fixed-input reads. Its Root map has 632 rows. One actual local diagnostic held 629 public + 5 software files: the parent returned CHILD_RETURNED/exit 2 with complete Root postverify/release and zero retained groups; the child reported RootEnvelopeError at source_custody_entered with held_path_missing and retained its own uncertain scope. Parent cleanup is not child postproof or G1. M01 R6 independently passed eight fake tests; one fresh READY-plan actual parent run held 156 main and 170 extra rows, exited 2 in 6.656 seconds with clean capture/cleanup and released source scopes. Its only finite child phase was RUNNER_RESULT_UNSAFE/UNVERIFIED, the shared validator-None or validated-UNCERTAIN branch. Provider activity remains UNOBSERVED and raw child streams are not returned. Both owners explicitly exited 0.
+
+The L04 R5 additive observer independently passed 14 fake checks and Root public readback verified 26 source ZIP entries/42 review entries. It preserves cleanup result/exception, restores temporary hooks, freezes pending observations, and does not change the R4 lifecycle gates; actual diagnostic use is still separate. The final Binance read-only source R3/candidate R3 independently passed 11 fake checks; no original allocation database exists, so no account GET or trading retry was made and original V1 UNKNOWN remains unchanged. Formal counts stay 12 PASS / 3 BLOCKED / 84 NOT_RUN, Optional16 0/16.
+
+
+### Iteration 41 actual L04 cleanup boundary and composed-entry coverage (2026-10-08)
+
+Fresh concrete L04 namespace 23eeffe289744f1586c7fcdd877744ae obtained metadata-only source review with 49 indexed members. Root created three protected public-content control files. Its first caller stopped before authorization/invocation on an obsolete review cross-pins field; the corrected caller verified the current field and still-fresh leaves, then actually invoked with 104 main and 65 extra rows. The original eight lifecycle gates still failed. The R5 observer reported one returned cleanup_uncertain, unknown count/null returncode, clean/capture/job_closed false and streams_closed true; all temporary hooks restored. Uncertain source refs stayed until explicit host exit 0, not child cleanup/postproof. The actual observation SHA-256 is 039ad8913fad3dd0fb987311b0dd3559594e780e1e2579e0db8ffcd1edd0aa6b; an earlier 65-character PTY transcription was rejected by the exact host-record pin check and corrected.
+
+Actual R14 ports R5 uses R10CleanupAdapter(bundle.r12_module), whose broad cleanup catch collapses reader/process/Job/pipe/close exceptions into the observed tuple. The separately published R25 helper function is a different R3 lineage path, not this actual adapter call. No specific failed step or gate relaxation is justified. Optional16's 64 review paths all appear in the exact derived 577-key child map; same-process validation also reveals fixed dynamic-module alias reuse, so separate validator checks do not establish the production chain. M01 R7 first composition placed observer definitions after the __main__ guard; import-only fake tests missed the actual entry ordering. It is frozen HOLD and not used by Root; a successor must test exact composed __main__ execution. Formal counts remain 12 PASS / 3 BLOCKED / 84 NOT_RUN and Optional16 0/16.
+
+
+### Iteration 41 M01 composed-entry and finite result checkpoint (2026-10-08)
+
+The additive M01 R7 R2 observer (`scripts/iteration41_okx_m01_r33_runner_result_observer_r7_r2.py`) passed eight independent source/fake checks, including actual composed `__main__` ordering and a fake post-launch timeout that suppresses late parsing after cleanup/release. The original R7 R1 remains frozen and was not activated. R2's nested supersedes canonical-source/bundle metadata repeats R2; preserved R1 bytes were verified from R1's own pinned index instead.
+
+Root created a fresh current READY plan and five protected files in namespace `28f4128fa82b48bdac8227621be524fa`, held 156 main and 186 context rows, and ran the 100+5 parent once. It returned CHILD_EXITED / exit 2 in about 6.984 seconds with complete parent capture, cleanup, both source postverification/release, and no retained scope. Its finite result is VALIDATOR_APPROVED_UNCERTAIN with reason ordinal 12 and diagnostic-pair ordinal 1; source-review-bound is reported true, provider/native fields UNSET, and route count null. These are unverified reported categories, not provider or case evidence. Actual observation SHA-256 is `628358eff0a4940a5a25eab066f0f835ed2aa663f8660adf008422b75c711f58`; explicit host exit 0 observation is `23266cf3e7c0cdd5caa44a21a83a5380894f6143842f0a7065fc3ec55e75dad4`. No private captures or late results were read. Formal account results remain 12 PASS / 3 BLOCKED / 84 NOT_RUN and optional topology acceptance 0/16.
+
+
+### Iteration 41 cleanup adapter and initial custody map checkpoint (2026-10-08)
+
+L04 R6 cleanup-stage observer passed fourteen independent source/fake checks; Root verified its 16-member packet and 31-member review. A fresh concrete namespace `d6a92ec369914ae790ccafd2c512eab2` was independently reviewed and materialized, then invoked under 104 main + 82 context rows. Actual result remains BLOCKED with the same eight R14 gate failures and one R5 cleanup_uncertain return. R6 bound its own sources and R10 cleanup, but runtime adapter_source_bound=false; stage/outcome stayed UNOBSERVED, with no adapter patch. Direct canonical R14 fake tests do not establish actual transformed adapter binding. Two Root scopes remained until explicit host exit 0; no child cleanup/source postproof was established. Actual observation SHA-256 `5ba4c5515d36ade7b3193486f1a1992334a79702cb81a950abd788e9d370d44a`; host exit SHA-256 `eb3734c52cf17f3d7c384f7aee1250f8f2405259c1b7f0ad618e4c283f80d501`.
+
+Complete same-process Optional16 R27 sourcefake exposes the activated-map/request distinction: binder validates 575 public + 5 software, whereas real R2 delegate/adapted_hold initially requests 518 public + 5 software. Sixty-four activated keys and 49 review-closure keys are unrequested; the second R17 helper lookup is deterministically absent. The union is 582 public plus the same five software paths. The earlier 577 static projection is not this first request. External/temp/software fake omissions are not actual missing-file evidence. R28 exact merging and fixed-alias lifecycle repair remain candidates pending full composition and independent QA. No G1/provider/case acceptance follows. M01 ordinal 12/1 maps to the shared outer-response/parse catch, not an attributed native/provider cause. Formal totals remain 12 PASS / 3 BLOCKED / 84 NOT_RUN and optional 0/16.
+
+
+### Iteration 41 source-review boundary incident (2026-10-08)
+
+An Optional16 R28 author reported an ad hoc exists/read_bytes loop over 575 declared public pin keys, including at least two prohibited external temporary sources. External totals and native/credential/config/secrets/capture/authority categories were not recorded and are UNOBSERVED. The final self-report says counts only were emitted and no bytes copied, written or reused; Root did not inspect the prohibited contents. The check and 575-hit result are excluded, and blanket no-external-read / whole-turn private_inputs_read=false claims are withdrawn. The original agent was stopped; original unsealed R28 files remain HOLD. A separate agent is rebuilding R28_r2 from frozen public R27 and whitelisted indexed public snapshots, without filesystem reads through external pin keys. See `evidence/iteration41-optional16-source-review-boundary-incident-r1-2026-10-08/observation.json`. No provider, G1 or account PASS follows; formal totals remain 12/3/84 and optional 0/16.
+
+
+### 2026-10-08 current local diagnostic checkpoint
+
+The SimNow selector accepts one to eight complete MD/TD pairs, filters both-side reachability first, then chooses the lowest maximum of the two successful-median latencies; tie order is configuration order. The sealed ranking/handoff independent review records 45 focused checks; the earlier 44-count statement is withdrawn. Public documentation now includes single-pair and multiple-pair placeholder JSON. No current private front projection or real probe/login was read/run in this checkpoint.
+
+M01 R8 independently passed 11 source/fake checks. Root actual startup returned CLEANUP_UNCERTAIN / launch_failed / session_unavailable in 0.016s, without a child frame or cleanup/postverify proof. Its 38,867-byte bootstrap makes a quoted Windows command of 40,005 Python characters, above the documented CreateProcessW limit; this is a launch-blocker inference, not actual exception disclosure. Main156/extra199 holders remained until Root host87043 exited0. The R8 review's inherited167/164 label describes the full index; Root separately verifies dependency164/162 and both packet-relative ZIP aliases. Frozen R7 R1 preservation is derived from its original pinned index. R9 sidecar transport is unfinished source work.
+
+L04 R7 independently passed16 source/fake checks. A fresh concrete review and Root protected material preparation preceded actual invocation. Main104/extra244 custody and observer bindings succeeded; R10 returned cleanup_uncertain at JOB_ACCOUNTING, with source/code/class patches restored. The eight lifecycle failures remain; actual Job count and exception type are unobserved. Root host16742 exited0 with holders retained; child cleanup/source postverify is unproven. Public actual record is f238c1b8aedb652303efdbb06782857e9c32a95eee681ab22590a3b1dee9110c. Optional clean R28_r2 remains unfinished; only a Root-verified whitelist of six public wheel blobs and six public RECORD blobs permits opaque byte/hash transport in its fake, without extraction/import/native behavior. External software uses synthetic bytes. The earlier source-read boundary incident remains recorded and its original R28 excluded. Formal acceptance stays12 PASS /3 BLOCKED /84 NOT_RUN, optional0/16; no added real-case PASS.
+
+Root also produced an exact-hash public opaque snapshot of three fixed CPython stdlib profiler caches for clean Optional source/fake transport only (index9916da11d480bfbaee1a5c741240abe186b3a0ec920e7ba75a2e3580e43aecf0); reviewers must not probe their external metadata paths or unmarshal/import them. The 000 renderer emits version4 with legacy ctp.front_pairs, accepted by the simulation/sandbox compatibility schema; selector docs now state conditional admission and the correct shape. No actual deployment or private config creation is established.
+
+M01 R9 later independently passed13 source/fake checks and Root actual short-command transport ran in freshnamespace2f39647cd1204655b85192c856aa33c7. Protected sidecar used the Root publisher, six CREATE_NEW files, main157/extra213 custody. The actual command was1296 UTF16 units includingNUL, stdin1787 bytes, sidecar38867 bytes. Parent CHILD_EXITED2 in7.656s with complete outer capture/cleanup, both holder postverifications/releases, no retention; host31344 exit0. Finite R8 phase reports OUTER_RESPONSE/RAISED/VALUE_ERROR and parserNOT_REACHED; R7 result remains VALIDATOR_APPROVED_UNCERTAIN ordinal12/pair1, provider/nativeUNSET, no casePASS. Public actual SHA0aa95af0acdbac2305193ffb694b68af3e355bdba3e802ab318d18fbedb397ab. No exception text/args/locals or private/late capture was read; inner/provider lifecycle and formal acceptance remain unestablished.
+
+
+### Iteration 41 predeployment contract and accounting observer readback (2026-10-08)
+
+Independent public static reviews confirm a frozen R28 production once conflict: different active/fixed namespaces fail path binding; identical namespaces fail its absent-directory guard because R30/R9 require protected predeployment. The exact once remains dd3da5e4678b4758e83006f635f88fbff01520cbbed43f103bbd317955e430a5. Actual R8 finite OUTER_RESPONSE/ValueError is consistent but does not locate the actual failed check. A new explicit R10 handoff is source work; frozen inputs and complete custody/claim/cleanup gates remain required.
+
+L04 R8 independently passed12 source/fake checks. Root public readback verifies29 archive/28 indexed/16 repository/39 review members and rechecks inherited201 public context/62 PREP rows, merging216 context. Prior-R7 ZIP snapshots match the original public physical packet; no nonexistent unpacked snapshot is claimed. Readback SHA dfec17279e1b51075c5f9cc0da3e4ce2c6dea844d0568a852c77dcea0aa4420f is public consistency only. Formal acceptance remains12/3/84 and optional0/16; no added real-case PASS.
+
+
+L04 R8 actual in fresh namespace0a77cbbccb1444ce9df8de75939c0484 used main104/extra259 rows after concrete source review and three protected material files. Root authentication bound36 R5,216 R8 and21 template context rows. One cleanup returned cleanup_uncertain with stage/exception_stage JOB_ACCOUNTING_CHECK; the query call returned, but actual count/was_forced remain unobserved. Source/code/class/module hooks restored. The same8 gate failures remain, without cleanup callback or source postverification/release; two holder refs remained until explicit Root session42367 exit0. Actual SHA5b084ab8acd8e8a1b8b98eb5dc0a42d63999762d65bd20f11018cc842f343eeb, host SHA746d43c73fdb8e51c59aa7f7c938cc7ea2dfad7cca8605cfef6451e2abd8fad0. Host exit is not child cleanup proof; namespace is consumed. Concrete review preserves its unrecomputed observer member-index digest caveat; Root separately verified all39 observer archive members by size/hash. No private/raw/late capture was opened or real case PASS added; formal12/3/84 and optional0/16 remain.
+
+
+### Iteration 41 local Windows handle-order diagnostic (2026-10-08)
+
+Public V4 accounting ABI/type checks show no mismatch. R10 retains the Popen handle across wait/EOF into Job query; Microsoft documents ActiveProcesses decrement after process-reference release, and CPython3.11.5 wait does not close that handle. This is a source-order risk, not actual L04 attribution. Root isolated empty-env pass-child labs used exact V4/software pins and no account/SDK/provider: R1 key normalization failed before Job/child, postverified then host58879 exit0; R2 reaped0/pipes closed but count POSITIVE before/immediately after Close, retained without job-close/postverify until host62897 exit0; R3 added a separate bounded ten-sample/planned50ms window, observed ZERO on its first sample, normally closed the unforced Job, postverified/released five public/two software rows, then host95000 exit0. R3 SHA1f9e141f4aff09bfab9d75ad5c06215ebe8e132f3b50acdefdba79f615e15bf2 is local mechanism evidence only, not actual-case values/provider/native acceptance or100+5 proof. R9 observation and a cleanup successor design remain in progress; frozen code is unchanged.
+
+Clean Optional sourcefake now derives the actual first cold request as515 plus14 extra minus11 overlaps equals518. Inert495 is a different stage; the earlier495+23 cold split is withdrawn. Active575/5software/19alias,64 active-only,7 outer-only and582 public union are unchanged, pending sealed independent QA. Profiler equivalence is an explicit bottom fake because external software rows stay synthetic; opaque public cache bytes are not parsed/unmarshaled/imported and confer no actual-equivalence authority. Original R28 boundary-incident exclusion and formal12/3/84, optional0/16 remain.
+
+Root current subprocess public source snapshot index is a57ad270adb62afa1f9136d3005357329af4b7495a45f1ec297005edf08f44cd; blob2ff641d58f8696496e8718538cd96cd7afcd503ae271fb23da22422b3aee9fc7/88448B. Agents may inspect/compile that public copy only, never probe its external origin or execute native/module-top-level/process behavior. It is not runtime/custody authority.
+
+### Iteration 41 current SimNow selection verification (2026-10-08)
+
+Root reran the selector, independent selector, handoff, and managed-consumer partial-success public suites: 49 passed, one existing pytest configuration warning, exit 0. Single configured pairs are accepted; no eligible pair fails; one eligible pair is selected; multiple eligible pairs rank only by max(MD successful-sample median, TD successful-sample median), then configuration order. Stability is diagnostic only, and MD/TD are never mixed across groups. The managed positive case uses the real probe, receipt, and invocation validator with inert socket leaves. Evidence `iteration41-000-simnow-pair-correction-current-root-source-qa-r1-2026-10-08/observation.json` SHA-256 is `28940e2d841584c944efabd660ba2c60fe71245d778c0a08565ae1284724757a`. This is source/fake evidence; frozen C01 old source pins, native/provider admission and actual account acceptance remain closed. Formal 12/3/84 and optional 0/16 are unchanged.
+
+L04 R9 finite accounting-value observer independently passed 13 source/fake checks. Root public readback verifies 30 archive/29 indexed/18 repository/40 review members and inherited 216 context rows, producing 232 context; a separate additive readback recomputes the exact 40-member review-index recipe and produces 233 context. R2 readback SHA-256 is `fdd1873e25d38b25eb7ef5aedeb836a0e55ee501961e46ca6bda6d61f6360129`. Canonical source-pins SHA-256 is `bddf3393c5fbe608ced379d29477723fb18522f8b06ce7bd4916751133505822`; the earlier author message's f8f06 spelling is withdrawn. No actual L04 count/forced category follows from source/fake or public readback. New cleanup successor implementation and a fresh concrete diagnostic review remain separate work.
+
+Root supplies one further named opaque software sample for the M01 R10 sourcefake closure: `iteration41-m01-public-python-image-opaque-snapshot-r1-2026-10-08/index.json` SHA-256 `a7b7d8cce24046baaa069635b5c1332871f36dc75da087e0cb983e8133740559`, with sole `python-image.bin.blob` SHA-256 `c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642`, 92,160 bytes. Root performed a stable bounded 256KiB exact hash/size read. Agents may use only that public index/blob for opaque byte/hash transport into fake files; PE parsing, execution, native import and origin-path probing remain forbidden. This narrow sample is not authority for the complete 36-software map, actual custody, process behavior or provider acceptance.
+
+The next explicitly identified M01 sourcefake software gap has a separate public opaque sample: `iteration41-m01-public-python-dll-opaque-snapshot-r1-2026-10-08/index.json` SHA-256 `1d83ee3ae0309eb878ff20b2fff6f77d4be9f91e103345bd894f2482bded3f90`, sole `python-dll.bin.blob` SHA-256 `162e8557fbed5f39ae24983ee62b2d435b4796c937d9c1a34371888c7e43af00`, 5,991,424 bytes, from a Root stable bounded 8MiB exact hash/size read. The same opaque-only restrictions apply; this does not permit reading metadata origin paths or other software keys, and does not establish native or full-map acceptance.
+
+### Iteration 41 latest L04 and Optional source checkpoint (2026-10-08)
+
+The fresh L04 R9 namespace `be5eb6196bab47f4ba6bc355cbda57b3` is consumed. Main104/extra276 custody and R5/R8/R9/template context authentication succeeded. The original cleanup returned clean with count ZERO and forced FALSE; all18 inner lifecycle gates passed, including capture, normal Job closure and inner source postverification. The actual result remains BLOCKED at `r19_consumer / r16_route_exit / child_frame_stdout_digest`. This is one observed clean run, not a permanent cleanup fix or provider acceptance. Outer Root cleanup/postverification/release did not run; two holder refs remained until explicit host27165 exit0. Actual observation SHA-256 `c0e9c735fb8edc8e6f38627a05212f9c70bcbbe0da48e97accd5b169cf66fd8e`; host record `3cb9bf0842aef3f73ac2b8801da526f4feadd6e999ee6465006f51d44f97008f`. No raw/private/late capture was opened, and provider behavior remains UNOBSERVED.
+
+Material R1 refused the exact public21.6MiB review ZIP at its16MiB reader limit before custody/protected creation/native dispatch. Additive R2 used a32MiB public bound, below CUv2's64MiB bound, verified140 review members and the exact member-index recipe, and created three protected files with source postverification/release; host99612 exit0. Material record `c59721ca74793cc9ec9f680b9f2378c97213a12172d8fc84175043fb78958179`; host `afc0442fe1850bbc7e4ba72a2936ab29723cab6669cd5f823afd7e84500696a5`. The independent concrete review preserves its inherited R3 source-packet prefix/index mismatch caveat; its cross-pins do not establish verification of every inherited R3 member.
+
+Static source/fake review identifies an R19 adapter branch that emits an empty stdout payload for code2/INNER_BLOCKED, whereas its consumer requires nonempty decoded stdout and reports the combined `child_frame_stdout_digest` reason. This reproduces a source branch only; the actual R9 predicate/adapter branch is unknown. No deterministic successful-path LF/CRLF conflict was found. An additive finite diagnostic is pending; validation, retention and success gates remain unchanged. The separately sealed cleanup robustness successor passed12 source/fake checks and awaits independent review; it is optional robustness after the observed R9 clean run.
+
+Optional16 R28_r2 independent review is HOLD_SOURCE_FAKE_IDENTITY/ACTUAL_ROOT_BLOCKED. Function code/origin binding accepted three sourcefake mutations to defaults, globals and closure cells. It did not prove an actual exploit or full-chain mutation. An additive R28_r3 is being developed to bind those runtime fields and compare every production map row to the independently derived map. R28_r2 stays frozen and cannot be activated. Formal acceptance remains12 PASS/3 BLOCKED/84 NOT_RUN and optional0/16.
+
+M01's third named opaque sample is `iteration41-m01-public-git-image-opaque-snapshot-r1-2026-10-08/index.json` SHA-256 `2e3206f529050e7fbb82523f4e4cd2e9f9fc05dd9d3b70c642d53e7acc24b981`, sole `git-image.bin.blob` SHA-256 `134a3923dadcb35e4a017ea27cdeb3aa017c29e012a5566180866f37f9fbdf5f`,45,048 bytes. Root used a stable bounded2MiB exact size/hash read. Agents may use only this public index/blob as opaque fake bytes, never inspect/parse/execute/probe the external origin. R10 full public composition reaches the unavailable pinned C01 helper payload and fails closed; its36-software closure is not proven by these three samples or the18 public PyYAML payloads. No additional private/installed metadata/native payload read is authorized by that limitation.
+
+The cleanup R2 author reports pytest used a newly created external `D:/temp` basetemp despite the prescribed repository basetemp. Its frozen README and sanitized QA summary record that location, without an exact unredacted author command artifact. This author run is not approved scope evidence; the independent reviewer separately observed12 passing tests using the prescribed repository basetemp. No external basetemp was inspected by Root/reviewer, and the author's claims of no other external reads/deletes remain self-report. Future candidate QA must use a fresh repository `.codex-tmp` directory, without revisiting that external directory. Source review is separately HOLD for restarted cleanup deadline and insufficient wait/poll callable binding; no actual activation follows.
+
+Current SimNow C01 V5 public source review also matches19 manifest members and passes5 isolated sourcefake tests, including1/8-pair bounds, same-call one-success-per-side selection, eight-pair latency selection, no candidate and default-closed entry. Its issuer and owner both bind current selector/handoff pins; the reviewer withdrew an erroneous owner-absence claim after the exact existing owner hash was verified. V5 is the existing additive corrected-pair candidate, so no duplicate binder was created. The49-test focus includes a separate007 typed managed binder; that binder does not consume the000 SelectedFrontPair type and must not be presented as000 C01 integration. V5 remains unregistered/default closed with no issuer/native/login/provider invocation. Formal12/3/84 and optional0/16 are unchanged.
+
+The V5 source-order review then found credentials/private-run precede selection and credentials use pair0 metadata; the private packet has no endpoint fields and worker uses separate pair_binding, so no native misroute is claimed. Additive unregistered V6 selects/revalidates first and constructs credentials from its exact selected pair. Its unchanged R1 plus R2 companion passed14 isolated tests independently, including real `_run_candidate` through real `_credential_lease` with inert EnvRef/private/worker leaves. Independent review36ba5d4d97568cf977f67cb8b35e312387a1687c0030e7fb65b7a9aaf3bf91c8 is GO_SOURCE_FAKE_ONLY. Root bounded public readback26 unique rows/19 manifest rows matches, SHA0580653fd25aea616ade365022404b033cfc388e0d89103527bba411cd577378. The companion imports its listed R1 helper by path; SHA is externally pinned/reviewed, not asserted by that loader. Front-match metadata refers to credentials used by fake packet construction plus separate worker binding, not serialized endpoint fields. No source custody/native/registration/account acceptance follows; login remains closed pending rotation confirmation.
+
+M01 R10 source candidate is sealed at96a8edc31f7dc2dc88158f1d9ccd5142bbe1d405d8f2c57ee3deed38aec69226. Its author19-test run used ordinary `python -m pytest`, not prescribed -I/-S/-B, with PYTHONPATH status unobserved and repository `.pytest-r10-finalfocus-06` basetemp. The author withdrew an isolated-QA claim; this result is distinct from the prescribed independent isolated rerun. No frozen packet was rewritten. Source design preserves118/36/154 plus18 parent additions, regenerates exact R31 wrapper lineage from held stdlib-only helpers, and has no plan/self hash cycle because R34 plan binds wrapper, not outer. Full main fake still stops at missing public C01 bytes; direct real closure stops later at pyyaml_record_payload. Independent review and actual activation remain separate.
+
+R20 diagnostics independently passed16 sourcefake checks, but review is NO_GO_AS_CURRENT_R4_ROUTE: outputs alone are not consumed by current R16/R14 loaders and their R4 pin contracts. A coherent new R21 assembler/loader/route source chain is being built without swapping modules after validation; baseline102+2 remains a separate immutable lineage. Optional R28_r3 source candidate passed5 focused checks and awaits independent review of all runtime-function fields and full production-map rows. Formal12/3/84 and optional0/16 remain unchanged.
+
+
+### 2026-10-08 public checkpoint after paired selection correction
+
+SimNow permits one or multiple complete MD/TD groups. Each group is eligible when both ends have a successful bounded connection probe; no eligible group fails, one is selected directly, and multiple eligible groups use the lowest whole-pair latency score. Current selector/handoff and the unregistered 000 C01 V6 source cover single-group and non-first-group behavior. Independent V6 R1/R2 source-fake QA passed 14 tests; no real login occurred and password-rotation confirmation is still required.
+
+M01 R10 independent R2 is GO_SOURCE_FUNCTIONAL_QA_ONLY / ACTUAL_HOLD. Its third, isolated unique-basetemp run passed 19 tests; static review confines writes to tmp_path. Run 1 completion remains UNOBSERVED and the shared-basetemp run 2 is excluded. Root bounded readback matched five review artifacts and two candidate sources; observation SHA-256 9c6ef26949ff199742e0bd12145fbd903641b65c364249b659516872b498ccf8. This is public pin readback, not physical custody, actual activation, deadline, native/provider or case acceptance.
+
+Optional16 R28_r3 independent review is HOLD_SOURCE_FAKE_IDENTITY / ACTUAL_ROOT_BLOCKED: code-referenced module-global content can still change in memory despite the same code and globals-owner identity. The new r4 must bind those values; do not activate r3. L04 R20 diagnostics passed 16 source-fake tests but require a separately reviewed coherent R21 Root route. Historical 102-row maps contain namespace-specific material and cannot be a universal successor digest; new runtime sources must be explicit new held rows. Formal results stay 12 PASS / 3 BLOCKED / 84 NOT_RUN and Optional16 0/16.
+
+
+### 2026-10-08 M01 R10 actual parent diagnostic and observation gap
+
+Root consumed fresh namespace f016f69ea797499e9831955335502c1f for one authorized zero-write local diagnostic. The canonical child map remains154; 18 parent additions overlap one baseline row, yielding171 held main rows plus237 public context rows. Seven protected files were CREATE_NEW; current R10 once/outer/map bindings were checked in the same hold. The actual parent returned after22.609s with childexit0, capturecomplete, cleancleanup, both source scopes postverified/released, and no retained Root refs. Owner93630 then explicitly exited0. Actual observation7a2b8534ed6326530228c8902f6696d79957516c727fc856ac71761e50c9997a; host observation22db96ab75407e6c1711fe438594c5f8df01f5ee0f19f358c27549b51ed629ef. Hostexit is not provider or case proof.
+
+R8 reported COMPLETED/RETURNED for outer and parsed response; R7 remained UNOBSERVED. Its default route_invocations0 is not an actual business counter. Root did not open raw/private captures; child account/provider activity remains unobserved. Static review found no deterministic R10/R7 namespace or runner-pin mismatch. The current R7 emitter has no frame for normal approved OUTER_CAPTURED results, and R8 only accepts its result frames with RUNNER_RESULT_UNSAFE. An additive R11 finite returned-result protocol is being developed at the existing _safe_result boundary, preserving capture/cleanup/postverify/release gates and zero case/provider authority.
+
+The Root-driver public snapshot index54c3ceb29e20101487d067284c90b511965ec703dd4f9a685ef62aa62581abee permits inspection/compilation only, never agent execution. R10 author index four groups contain27 rows/17 unique paths; the10 activation and13 parent-source entries repeat dependencies and are not23 unique sources.
+
+Optional R28_r4 independently passed6 source-fake checks but is HOLD_SOURCE_FAKE_BUILTINS / ACTUAL_ROOT_BLOCKED (reviewe74edd7d8c8550088dd4bd452ec6b08731feba5751b81d6bd1765a51e7d5c9d2). A source-bound function accepted a custom effective builtin len returning999. This is an identity/behavior gap, not a normal-chain bypass or actual exploit. New r5 must bind effective builtin resolution to a trusted pre-execution baseline; do not activate r4. L04 R21 whole-route composition remains separate work. Formal results stay12/3/84 andOptional0/16.
+
+
+### 2026-10-08 Optional16 R28_r5 fixed-closure review
+
+R28_r5 independent focus passed8 tests and verified28 bundle members. Decision GO_CURRENT_PINNED_SOURCE_FAKE_ONLY / ACTUAL_NOT_ESTABLISHED; review4cbd6811972a6f0afbe259e6bc79d9f75cf36f5a9709b42c555f65a4eb17a43b. Root bounded readback matched five review artifacts and anchored checkpoint crosspins only, without candidate execution or custody. Two message README/bundle hashes were transcription errors; actual files match the anchored checkpoint, with no frozen-file rewrite. Baseline builtin identity is the adapter-import trusted-host mapping, not proof of pristine host state. The synthetic dynamic getattr(builtins,'chr') edge remains an unsupported generic form absent from this indexed closure; the author README's blanket unsupported-forms-failclosed statement is not approved. No general verifier/isolation or G1 authority follows.
+
+There is no independent000/C01 front-only entry. V6's protected reader avoids.env/credential resolution but boundedly parses a private config containing credential fields; do not claim credential bytes are unread. A separate unregistered transport-only candidate is being developed: preserve protected ACL/locked lease, select/reverify whole pairs, no semantic credential use,.env/private-run/worker/provider dispatch, account/config digest or value output, or case authority. Root's OS-native ACL protection remains required. This does not remove the pending rotation confirmation for login.
+
+
+### 2026-10-08 000 front transport and M01 R11 actual diagnostics
+
+The additive unregistered `certification_simnow_c01_front_transport_v1.py` defaults disabled. Its ten isolated fake contracts and independent review passed; review9000d5d3e4fdf9a8d698c4a12db34a0926a0aa86f48c01e5273cc14341f9ceac is sourcefake only. It uses V6's protected config lease and current000 selector/handoff. One to eight complete pairs are supported, eligibility requires at least one successful sample on each endpoint, and eligible groups rank by the maximum of MD/TD successful medians, then config order. The30s accepted-result selection budget is not a hard whole-call cap.
+
+Root actually ran one transport-only check through protected bounded config/Win32 ACL/locks and real TCP. Five configured pairs selected index0, degraded=true, after4.484s; context returned and public source pins reverified. The full config containing credential fields is parsed in memory, without credential resolution/use,.env, admission/private-run/worker, SDK/login, registration or order writes. Actual evidenceb8a400f6cae4c0c4f95b6c485e4d97989eba39100d9b83d2d065259ccbbce62c and owner3307 exit0 evidencea55424e3f83dbb6f576a3669e3a7e742baf11e79315cd555469ad99d32d0d374 establish current transport only; login remains closed pending rotation confirmation. No endpoint/account/config/credential values or hashes are public output.
+
+M01 R11 independent focus passed8 with18 unique indexed rows and7 source ZIP members; review50a9c0de34eea771c8af264cda713a479887324e0da513a11a2661f9cf5fcf50 is GO_SOURCE_FUNCTIONAL_QA_ONLY / ACTUAL_HOLD. Root driverR1 stopped before plan creation or parent start; actual exception cause is unobserved. Its alias violates the frozen R11 canonical module-name contract, so the prior static no-blocker conclusion was withdrawn. Extra custody then postverified/released and owner33422 exited0; failed observation54856d25fdad541747e07ed3e835d34037e1b0a3a963dd47b2fbb65cd7f0b723 and cleanup/hostb627e0b04a1e7a800836d6dacd89f914da3915c9d4223526448ef708bdd0638d stay immutable.
+
+New Root R2 snapshot indexd8e7aa34f5a94aac4e29257e9b248faf5a811a20de75648560edd40bc631b857 permits agent inspect/compile only. Root namespace525de48278a948cfad71b66eb7516a31 created8 protected files, keeping old and new sidecars. Canonical child154 plus24 additions with one overlap yield177 main rows; extra250. Actual parent21.735s returned childexit0, complete capture/clean cleanup, both scopes postverified/released and no Root refs retained. R6 postverify and R8 COMPLETED/RETURNED/RETURNED/NONE gate a finite R11 OUTER_CAPTURED observation: outerBLOCKED, both route counts0, nativeUNSET, providerNO_REQUEST_REPORTED, sourceboundtrue, reasonordinal3. Only the prepared public manifest table decoded3 to r28_outer_candidate_captured; outer_reason staysUNREPORTED. These reported fields are unverified diagnostic categories, not independent provider or case proof. Actual98d83cc3173c72fac4c9ef17ec6b0838caa6e1f6a81c8569ceb07a5011db7f5b; owner42598 exit0 ae22a7d762851ef83600b42acadd79cd167b81ce7d1185003ea80a0cabbf8c6c. Raw/private captures were not opened or parsed late. Source-bound finite outer-reason mapping remains separate work.
+
+Optional R5's fixed sourcefake GO has no actual-mode handoff from frozen R27 whole.main; its reader is test-only. A separately versioned retained-handle bounded source session is required, without carrying source_fake_mode/test_fake_active_main into actual. L04 R21 composition is still source work, including explicit R20 template/R19 generated launcher receipt bindings and cold-before-CU order. Formal results remain12 PASS/3 BLOCKED/84 NOT_RUN andOptional0/16. New transport/process diagnostics add zero real case passes. SimNow write/default native account lifecycle remains closed.
+
+
+### 2026-10-08 rotation authorization and installed software check
+
+The user subsequently confirmed SimNow password rotation and local protected-config synchronization, authorizing continued login acceptance. The earlier pending-rotation condition is removed; do not ask again. The next C01 simulation scope is TD auth/login and orders/positions/funds baseline/final only; order/cancel, nativeJoin and MD SDK/session/subscription remain closed. V6 must freshly select and bind a complete pair before its credential lease.
+
+Root verified the fixed interpreter and470 installed SDK payload rows in1.204s, hashing native payloads without loading them. No SDK import, provider login, config/.env read or admission creation/consumption occurred. Observationc51b1c3280d61a3c71501724e73ec626351a689adf99905288039ada94ac05e7 and owner40945 explicit exit0 record77371b2b7dc948c769fe397ebd303cddf3ed9456e9947dcadec68d37c1f8514d are installed-byte evidence only. V3 Root activation is profile-hardwired; a separate V6 entry and fixed Windows Job CLI supervision are being authored, without mutating frozen V3 globals.
+
+RootHeldSourceV1 R1's aggregate-cap test claim was inaccurate, so review93169ba253793e954af9ce85ebecd499551f943e8e133b3df4b2dbc1fb814e60 is HOLD_PACKET_QA_CLAIM_ACCURACY / SOURCE_FUNCTIONAL_ONLY. R1 stays frozen. AdditiveR2 corrects it and exercises the real counter with8/7-byte fake caps, equal-limit success and over-limit failure before payload reads with both handles closed; this is not a production2GB run. Combined independent focus passed11; review244cd19c6a3f22cca78f0a15be21eaea576cefb19dfa27b8af791501ff7810b7 is GO_CURRENT_PINNED_SOURCE_FAKE_ONLY. Root matched five review files only (0eca151a3853a0706a6075cf375b513a8729affba8bb613120905171ea78c3a3), without producer execution/custody. Caller map provenance, opaque root policy, builtin baseline, wrong-thread close and actual Windows/ACL remain limitations; no R27/R5 integration, Root-ready or G1 follows. Formal12/3/84 andOptional0/16 remain unchanged; login authorization and installed checks now exist, with the concrete V6 entry still required.
+
+
+### 2026-10-08：SimNow V6 实际准入失败与整链复核修正
+
+SimNow 新 V6 Root activation 及其独立聚焦检查各通过14项隔离 sourcefake tests；独立 review `253c061f3c166788a5bf4418ff17e1f4d4b8df98689573df1aca993e7f19c6e4` 仅 GO_SOURCE_FAKE_ONLY。Root有界核对29个unique公开行、19个V6 manifest行及2个ZIP成员（读回记录 `bf8901a15d2ba1129bd82dc00d0b3d284152611a11765c789e68ba0f0c15e76d`）。初次ZIP member前缀假设错误的assert发生在输出目录/actual之前，按包中exact basename修正后通过；它不是原生或账户运行。
+
+密码轮换确认和只读登录授权持续有效。Root随后实际调用新入口一次，4.750秒返回 `C01_NATIVE_TD_READ_V6 / BLOCKED / admission_lease_failed / writes=0`。公开wrapper事后SHA一致，未确认Job引用组为0；owner59416显式exit0。实际记录 `evidence/iteration41-simnow-v6-root-activation-root-actual-r1-2026-10-08/observation.json` SHA-256 `efdef33e5f162e1679b16ac200a740ab95f63c84a67874fd4306219ec0ae5d4e`，host记录 `7c980365c6e97c88ced92230637bf17e204bacb5033492734de097aa5cd8ecf3`。没有打开raw/private/late capture，没有输出配置、账号、凭据值或相关摘要。实际provider/native业务是否触达保持UNOBSERVED，不声称登录成功或SDK未加载；host退出不建立内层账户/认证证明。本轮一次性状态保留，不能删除或重用V6 claim/Root marker。
+
+公开静态对照未找到V6 Root admission producer与consumer必然冲突：schema、scope、17个绑定、配置组数、canonical JSON、TTL和命名空间一致。`admission_lease_failed`封装未知异常，不能由源码推断本次原因。下一步为独立V7 source generation、独立私有namespace及同call有限stage/class观测；不得读旧失败捕获、复用旧准入或修改V6冻结字节。V6的`read_only_candidate_complete`即使实际出现也只是readonly profile证据：原contract仍待protected actor验证source/native identity、snapshot custody与回调归档，不能直接计为正式33-case C01 PASS。
+
+L04 R21 R1的6项sourcefake测试使用`_test_prepare_action`，跳过production review gate；其包缺少production gate要求的checkpoint.json/qa.json。原README整链声明撤回，独立结论 `HOLD_SOURCE_FAKE_ROUTE_GATE`（review `74e11ceb4ae75465d31564d492fe921fbc74126d50d6429c0d6f9a4b3dc7fb50`）；不执行R1实际准入。R2 successor另出现路径复用事件：作者覆盖了既有untracked `_r2.py`，旧partial字节尚未恢复，不能声称旧文件全保留。当前R2 bytes已在公开包保存，R2停止GO/实际运行；其独立6项测试只记录为sourcefake元数据。后续必须使用未存在的新source/output路径并保留已封存版本。
+
+M01 R12 R1独立7项sourcefake通过但封为 `HOLD_DIAGNOSTIC_METADATA / ACTUAL_HOLD`（review `69ce3f02fbb62439800ab5ad00abaeb744d11b37fbe8406fedc348e13fd69145`）：向R11传前三帧时丢弃13-byte R12 frame，却未恢复stderr_bytes总计数。新R2只修复总字节计数并增加四帧断言；尚未Root实际执行或得知R11真实outer reason。
+
+Optional16独立静态桥接检查为 `BLOCKED_API_AND_PATH_POLICY_MISMATCH_NO_ROOT_ACTIVATION`：379-row公开map有189个D:/temp逻辑origin，全部被R1 policy拒绝；R5/R12仍有直接Path.read_bytes且未使用该session API。518/575/582是sourcefake组合计数，不是当前物理custody。新的固定ROOT_PUBLIC_PINS公开snapshot reader独立3项sourcefake通过（严格-I-S-B-Xutf8），但没有R5/R12调用集成，379个child origin未解决，NO_ROOTREADY/NO_AUTHORITY；原不含-S的作者QA排除，另有严格调用修正包。
+
+用户要求的运营控制先完成公开盘点：`evidence/iteration41-three-venue-operational-controls-public-inventory-source-only-2026-10-08-r1/`封存135 source pins。Binance/OKX固定owner route仍为空；公开材料未建立独立控制回执endpoint。TradeLogger为本地事件/计数实现，operator service/latch是本地控制；服务端权限变更、终止、断连恢复及独立monitor回执来源未由公开材料认证。历史跟踪中的M02/M03、EM01–EM03、TH01–TH06共33槽均NOT_RUN；这不是一次新的私有配置/服务可用性探测，不推断本机一定未配置外部服务。
+
+正式三场所结果仍12 PASS /3 BLOCKED /84 NOT_RUN，Optional16为0/16。本轮没有新增正式PASS，SimNow登录未通过；用户的密码轮换确认不再是阻塞条件。
+
+
+### 2026-10-08：V8 实际 worker 阻断与 M01 部署副本校验定位
+
+SimNow V7 的有限诊断实际返回 `admission_lease_failed / consumed_marker_create / type_value`，耗时5.157秒，wrapper后验一致、未确认Job引用组0，owner92596显式exit0。实际记录 `evidence/iteration41-simnow-v7-root-activation-root-actual-r1-2026-10-08/observation.json` SHA-256 `b583e7d1b08dfaf28e9c5fc2c5348b215ceaa72bf1d6c8028ceb07e29d529f29`。随后作者和独立公开源码复核均确认V6/V7 admission重建遗漏必填 `configured_front_pair_count`，会在该位置产生TypeError；该确定源码缺陷与V7有限观测一致，但未读取私有捕获来归因V6/V7实际运行。此前“未找到必然冲突”的表述仅代表早先检查点。V6/V7及其一次性状态保留。
+
+新V8只传递遗漏字段，并使用新profile/准入命名空间/runner/Root entry/frontV3/manifest/schema。作者与独立隔离focus各通过8项；新增测试调用真实 `_profile_admission_lease`，用合成文件及假保护叶走重建、yield及三文件二次读取。独立review `4dfb9206d4d6bebfa73157a0ef9d91ca80058a7050618a804c832a44c3deafe4` 为GO_SOURCE_FAKE_ONLY。Root有界核对27个unique公开source、19个manifest row、5份review文件，读回记录 `0081435325f802a0406daa02c4f66cee19b9139f79383ec113acdc5c180fda96`；这些检查未建立账户或native证明。
+
+在持续有效的密码轮换确认和TD只读登录授权下，Root固定字节入口实际执行V8一次，23.937秒返回 `BLOCKED / worker_process_incomplete / admission_failure_stage=none / admission_failure_class=none / writes=0`。wrapper后验一致、未确认Job引用组0，owner48090显式exit0。记录 `evidence/iteration41-simnow-v8-root-activation-root-actual-r1-2026-10-08/observation.json` SHA-256 `32ee30e41db1927044ad017cc909f0cd74d5c81d0d0516ffa42cf699170a1045`；Root driver固定SHA `cd9e4620cb1501d81f9e43483b3f1ac4d86c70390a03b84681020797eb85a189`。外层未打开private/raw/late captures，没有配置、账号、凭据值或摘要输出。这个reason来自candidate阶段的worker-result/lifecycle组合检查，不证明native Init、authenticate/login请求或回调已发生；不能据耗时或none/none诊断推断具体worker条件。旧准入/claim/marker不删除、不重用，V8冻结。
+
+正式C01仍需独立protected actor、同调用source/native/snapshot/callback custody及脱敏归档。source-only设计盘点 `evidence/iteration41-simnow-c01-protected-actor-design-inventory-r1-2026-10-08.md` SHA `9edf361f56808fa4869a42bb268746d89eb45ff9f0e44a6588e79dae5290c3dc` 不提供actor。普通布尔、同进程callback、候选digest/MAC或事后打开issuer-audit不能代替provider真实性和独立权威。V8 profile即使未来出现read_only_candidate_complete，也不能直接记正式C01 PASS。
+
+M01 R12 R2纠正四帧总stderr字节计数，独立7项sourcefake通过；review `5bc1f1d5c78a43fde04d70a6be0e085f9b716afc74be480a50a2fa69c645bdd8`。新Root driver静态复核为STATIC_STRUCTURE_CONSISTENT / ACTUAL_HOLD；其外部源码pin、实际物理持有和授权由Root另行承担。Root核对51个indexed record、36个unique source、14个bundle成员，使用外部固定字节pin及额外CU driver lease执行一次namespace `86f54cdaa04f4d208f2b534f7d0be4db`。创建9份互异保护文件，child map154（118+36），parent union179、extra275；父过程20.625秒，childexit0、capturecomplete、cleanupclean、main/extra及额外driver lease后验和释放成功，owner52094显式exit0。实际记录 `evidence/iteration41-m01-r33-r12-r2-root-actual-parent-diagnostic-r1-2026-10-08/observation.json` SHA `9d7832fdb7c824cff05c080fed051d876b805014de22bb98f9568ca1239e8fd8`。
+
+M01有限返回outer BLOCKED、route0、native UNSET、provider NO_REQUEST_REPORTED；R12 ordinal33绑定171项当前prepared公开源码literal table（SHA `fd34f03bdf56b5cfdcf9f97e8a4725677565a61c4da97fc3af2bf49019f4a092`）。同调用Root从已保留的公开table投影为 `driver_activation_copy`，没有打开raw/late/private捕获；投影记录 `8f74a7aff68078403542a3bf032bca5db4138d6c4260946d72822289830f126a5`。公开源码确认R28旧normalizer只处理R28常量，而R31/R10已生成新的outer；R10替换wrapper gate却保留driver gate，导致模板相等契约与预期生成源码不兼容。观测定位这个组合门，不归因其内部字节/哈希/类型子条件。后续只修复该确定契约，保持原模板pin/lineage、plan/claim/custody和预算，不放宽normalizer去剥离任意源码。
+
+L04新R21 R3已在fresh `_r4_r2.py` 与v7输出命名空间通过独立6项sourcefake；production `load_plan/prepare_action/run_prepared_action` 路由在合成Rootreview和显式fake leaves下得到typed code2拒绝。review `ef76ebd6a421c0f82248ac8d5e57f65822ce1aa8c75b3f031ab8b196fe2587c1` 为GO_SOURCE_FAKE_ONLY / ACTUAL_ROOT_BLOCKED。它不恢复此前被覆盖的R2旧字节，不提供actual Root批准/物理holder接口或code0认证。
+
+Optional16新的fixed JSON同会话consumer独立4项sourcefake通过，review index `81d51f05d24b68eb48d3d2b13b758eb53a77728e0a00cfb5abf41dcf65d31c7f`；379行全部UNRESOLVED，190个repo label与189个temp logical label，C01 helper命中0。R5/R12仍在持有之前读取并验证path，consumer没有生产callsite。`evidence/iteration41-optional16-r5-r12-held-source-callsite-gap-r1-2026-10-08/README.md` SHA `f93e72bddb5eb2a0fa31541e806d5a085208cead653b4d201cfbd04633ba5677` 记录两阶段初始化迁移、CU前置path load和postverify路径复读缺口；未新增无callsite helper或扩大测试，不提供0/16之外的新验收。
+
+运营控制进一步源码分类：EM02本机暂停策略可实现但需provider查询，SimNow EM01交易权限修改/恢复需要管理员控制，EM03服务端强制退出需要服务端/运维控制；M02/M03本机监督器可发起故障恢复，但不能替代真实provider回调。已询问用户测试管理接口/权限范围，登录和可独立开发继续。无新增私有服务可用性探测。正式总结果仍12 PASS /3 BLOCKED /84 NOT_RUN、Optional16 0/16，SimNow C01登录未验收，所有未获准写操作继续关闭。
+
+
+### 2026-10-08：V9 R2 同调用只读观测及清理结果
+
+用户已确认 SimNow 密码轮换并同步，本次继续授权范围内的只读 TD 登录诊断。
+V9 R2 的独立 source-fake focus 通过 16 项；Root 校验 29 项当前公开来源，
+并在外层加入 schema-consistency addendum 要求的未观测 lifecycle 交叉检查。
+R1 的旧 packet 文件仍在，但旧 source payload 未单独保存，已明确撤回其对
+当前源码和实际激活的证明资格；实际使用的是 R2 的固定来源。
+
+Root V9 R2 实际调用耗时 17.437 秒，返回 BLOCKED / worker_process_incomplete。
+同调用有限观测为 Windows Job、assignment/stdin/两路 EOF/退出观察/句柄关闭均
+为 true，退出码 TWO、Job 活跃数类别 ZERO，未超时、未强杀。Root 未解决 Job
+引用为 0，并完成 live assertions 后主进程 exit 0。认证和登录各记录一组
+attempt/first/terminal；查询记录三组。progress 为 71 条合法前缀，末尾为
+native_stop/end；receipt 为 none，因此 request return-code 字段保持 null。
+这些是候选进程诊断，不能认证 provider 活动或确立正式 C01 PASS。
+
+独立静态定位确认：三组查询对应基线 orders/positions/funds 的开始与回调标记；
+第三次查询的返回值/来源校验、基线快照、首次 final 查询之前的步骤仍可能失败。
+native_stop/end 仅表示 stop_and_wait 调用正常返回，不证明其返回了有效 native
+close receipt；progress verified 仅表示前缀结构有效。现有公开有限字段无法唯一
+确定失败原因。Root 没有晚读本次私有 failure/capture/audit，后续诊断须在新 run
+同调用且保护句柄仍有效时仅投影固定类别。writes=0 是 NO_WRITE 政策字段，
+不是独立测得的 native 发送计数。
+
+公开实际 observation SHA-256：
+59f3372eb9c7c2ac3a8e788fca6777b5cbce2399c00b357549fb9098dadaca45。
+Root host-exit observation SHA-256：
+f29620fad5a44b73aac6e4190dfd7c177b738d6c277d1a03f11101801cf9a55f。
+归档分别位于 evidence/iteration41-simnow-v9-r2-root-activation-root-actual-r1-2026-10-08
+及 evidence/iteration41-simnow-v9-r2-root-activation-root-host-exit-r1-2026-10-08。
+
+正式三场所仍为 12 PASS / 3 BLOCKED / 84 NOT_RUN，Optional 仍为 0/16；
+本次进程观测和 source-fake QA 新增正式 PASS 为 0。
+
+
+### 2026-10-08：dev 逐轮提交原则、历史工作区核对及 V10/M01 实际诊断
+
+用户明确要求相关代码直接在对应 dev 工作区修改，每轮按约定范围验收成功后提交，再进行下一轮修复或优化，避免遗留工作区导致重复开发。该原则已写入全局长期指令、Backtrader 顶部 AGENTS.md 和 SDK 本机 AGENTS.md；SDK 的 AGENTS.md 按其既有 .gitignore 保留为本机指令，未强制入库。Backtrader 已以 857d5531bbbb1e188dfab7d27737eb61e346e281 提交仅新增的九行开发原则。其他既有修改未纳入该提交。
+
+当前实际开发路径为 D:/source_code/backtrader 和 D:/bt_api_py；两者及 SDK 的 Base、Binance、OKX、CTP、Execution、Risk、Monitor、Gateway、ZMQ 九个子仓库均为 dev。D:/source_code/bt_api_py 是另一个 code-optimization 旧副本，本次未修改。历史已记录的 Sep29/30 集成提交均为当前相应 dev 的祖先；不能据此宣称历史工作区的所有未提交修改已归并。
+
+Root 对十个历史 Backtrader 工作区的 135 个改动 Python 路径进行了有界源码比较，仅归一 CRLF：103 个已与当前 dev 已提交源码一致，26 个不同，6 个在当前 dev 缺失。32 个差异/缺失的公开源码静态复核未发现可整批复制的已验收产品逻辑：缺失文件是候选探测、未验证回调证据、测试或未注册的离线 guardian；多处历史行为已由当前更强的关闭/来源校验取代。源码存在和静态比较不建立真实账户验收。归档为 evidence/iteration41-dev-delivery-inventory-2026-10-08 和 evidence/iteration41-historical-worktree-public-source-comparison-r1-2026-10-08。SimNow 仍使用用户已确认的 1–8 组完整 MD/TD 规则，每端至少 1/3 成功，不恢复历史多数或 3/3 门槛。
+
+Root V10 SimNow 同调用实际只读诊断返回 BLOCKED / worker_process_incomplete，固定失败序号 119 对应 position_text_invalid。同调用受保护失败诊断记录 5 requests、5 callbacks、2 auth/login rows、3 baseline query callbacks、0 final、0 snapshots，native-close present；这是候选进程有限诊断，不是 provider 身份或正式 C01 证明。Windows Job 归零、两路 EOF、退出观察、句柄关闭均完成，worker exit TWO，未超时/强杀；Root 未解决 Job 引用为 0，host exit 0。外层未晚读失败捕获。实际 observation SHA-256 为 084aa1720c027f43811c43384b1074c0294c82b7770d819307761d5a2f164178；host-exit SHA-256 为 05373dd4003f117eaeaba0dbdf9c39ad3aab95f20d9f1e631d6a2be5436c0491。随后 V11 仅新增同调用固定字段/类型/失败类别投影，保持 native V2 不变；author 与 independent source-fake QA 均为 23 passed。V11 实际调用尚未执行，其 Root driver 的优化模式检查仍在修复，不能将源码 QA 视为正式通过。
+
+正式 C01 dispatcher V1 因未解决引用可能丢失而 HOLD；V2 保留准确模块及稳定引用，并拒绝同进程重入，其独立 source-fake focus 为 7 passed。该 dispatcher 尚未进入本次 Root 实际路径，正式 C01 PASS 仍为 0。
+
+M01 R14 helper 的独立真实构造源码 focus 为 3 passed，R14 Root-driver R2 清理 focus 为 3 passed。Root 实际生成九个受保护文件后，在 parent 完整来源 custody 进入阶段关闭：main scope 未进入、其 generator 已关闭，extra scope 已 postverify，parent/child/provider 均未启动。Root 同调用有界保护读核对 181 行，全部存在，仅序号 141 的 root_public_source_map_r33.json 与序号 142 的 root_runner_template_r31.py 与声明的 pin 不符。静态定位发现最终 R13 runner/map 写入同一路径，但 parent hold addition 仍继承旧 R10 字节 pin；R15 正针对这两个绑定修复，不能绕过校验。Root 未对未进入的 scope 重试 __exit__，保守引用保持至 host exit；bootstrap 完成 postverify，工具确认 Root session 19561 exit 0。实际 observation SHA-256 为 683087775ae8b55caef32a1e9ddd2df641a7f22c90580c7f65486af0bc72f27d，同调用有限 pincheck/host-exit 请求 observation SHA-256 为 a982ec3e7b83c3c17fa5a9cc70d39acbc22ac255573fd1a1aa47bad45a337f8c；最终工具 host-exit 另存独立归档。
+
+Root-held scope V3/V4 的合计 source-fake focus 为 23 passed；V4 为固定消费者增加同保护句柄的私有软件/support 借用。OKX Root identity R1 的整体超时未涵盖 DNS，R2 新增固定域名的有界解析和同一绝对 deadline，合计 source-fake focus 为 26 passed。二者的源码 QA 均不是实际组件或账户验收；L04 的跨进程私有身份交付、可选组件的固定 worker view 仍在完成接线。子代理并发配置已由 10 改为 30，并读回确认；模型上下文配置未改。
+
+正式三场所仍为 12 PASS / 3 BLOCKED / 84 NOT_RUN，Optional 仍为 0/16；本轮新增正式 PASS 为 0。默认 CTP 写入仍为 NO_WRITE / LIVE_NO_GO。每轮后续提交应记录明确验收范围及证据层级，不能将源码或诊断通过升级为真实账户通过。
+
+
+### 2026-10-08：V11 R3 与 M01 R15 实际诊断、继续当前失败轮
+
+- 长期开发原则已保存于全局和两仓库 AGENTS：现有 dev 修改，每轮约定验收后显式提交，再进入下一轮；Backtrader 规则提交为 `857d5531bbbb1e188dfab7d27737eb61e346e281`。SDK 子包先提交，再更新父 gitlink；保留已有无关改动。
+- SimNow V11 R3 的独立 8-test source focus 通过后，Root 实际 session 35585 运行 21.453 秒，返回 `BLOCKED / worker_process_incomplete`。内部 lifecycle 的 forced_kill=true，使 failure/字段形状读取保持 UNOBSERVED；不能认定本次重现了 V10 ordinal119。两个外层 Job 最终 zero/EOF/reader joined/handles closed，不替代内部生命周期。Root 外层公开文件 postverify/close，宿主工具退出 0，未解析 Job 引用组 0，无晚读取私人 artifacts。实际观察 SHA-256 `b35c0b8e3e07806c8ecfccdd86fc8cd05a520958acb44bc1d52a9b86408f47bd`。
+- 公开监督器源码在非零进程退出且 Job 计数正数时立即 terminate；外层已有 Job 计数延迟归零的公开测试模式，但不能据此归因本次内部终止。V12 当前轮修复是在原清理期限内给予短暂 reconciliation，持续非零/未知仍保守终止，不放宽最终生命周期或私人诊断门禁；源修复/测试进行中，未再实际运行。
+- M01 R15 的两处最终 runner/source-map hold 修复通过 1-test source focus 和独立静态 GO。Root 实际 session 74920 在 `root_current_plan_prepare` 返回失败，未创建受保护 plan/启动 parent/调用 authenticator/读取账户。prepared R13/R14/R15、hold addition、active source 均已完成赋值；原错误代码没有保留，不能归因。返回后同内存 plan 的有效期已过，仅是后续类别观察。该轮尚未达到实际 parent-map 门禁，未通过 M01。
+- M01 调用过程中 Root 一次采样观察 elapsed 465.90 秒、CPU 368.28 秒、直接子进程数 0；这不是阶段 profile 或性能验收。extra 和外层公开文件持有已 postverify/close，prestart cleanup complete，宿主工具退出 0。实际观察 SHA-256 `09f041d09f563225fe72eeb0d2850952c11f4c45244ee26c4d23dbe7d248461f`。R16 当前轮准备优化将使用同一次操作中的私有不可变事实，避免重复重建，保留独立入口的新鲜验证和原时限；实现与 source QA 进行中。
+- L04 caller 的公开 map/identity-proof/CREATE_NEW 授权记录 focus 当前 6 passed；R22 child seam/composer 尚未封存，未实际运行。可选组件 TOP R28 入口与 owner-held/worker immutable view 正在集成测试，未实际运行。
+- 两个当前失败轮继续修复，代码尚未作为已验收账户功能提交。显式源码/fixture whitelist 已记录，避免广泛暂存未验收代码。正式结果仍为 **12 PASS / 3 BLOCKED / 84 NOT_RUN，可选组件 0/16**；本段所有新增源码/进程/诊断结果增加零个正式 PASS。
+
+
+### 2026-10-08：V12 R2 明确资金字段失败、R16 实际启动准备与父持有推进
+
+- 当前所有修改继续直接发生在现有 dev；没有新建开发 worktree。长期小轮次原则的规则提交仍为 `857d5531bbbb1e188dfab7d27737eb61e346e281`。单独提交新入口而缺失未提交依赖不能满足可复现交付；V12/R16 的显式前置源码和测试 whitelist 已盘点，不能广泛暂存无关修改。
+- V12 首个 candidate 的 Root→V6→V12 函数接线及 runner issuer pin 不一致，已保留 HOLD 公共快照，未实际运行。修正 R2 的 25 个 payload（含 manifest）通过 Root hash/size/ZIP member 核对，作者隔离 QA 8 passed，独立静态 source-only PASS。独立 reviewer 没有重跑 pytest。
+- Root 使用精确 V12 wrapper 的 `_parse_activation_args`、`_run_production`、`_validate_v12_payload`，外层持有全部 25 个公共 payload、固定 runtime 及独立 review。实际 session 27686 运行 23.438 秒：仍 `BLOCKED / worker_process_incomplete`，同调用脱敏诊断明确为 funds.BizType、field ordinal 4、str、NUL_ONLY；failure ordinal 119 为 pinned `position_text_invalid`。auth/login 共两回调，三个 baseline 查询共三回调，final 查询/基线和最终快照均为零。worker 诊断的 insert/cancel 请求为零；这是实际 worker 观察，不是独立 provider 签名。
+- V12 R2 内部 forced_kill=false，进程 exit2、Job ZERO、EOF/handles closed；两个外部 Job 同样清理完成、读线程结束、无 forced termination，未解析 Job 引用组零。Root 外层 physical hold postverify/close，宿主工具 exit0。公开 actual observation SHA-256 `b005ea4aa824f359d8d817fd20e88730544c5a0a98addd72e71623402ec6e19a`；未晚读取私人 captures。
+- 具名公共 CTP 6.7.7 header 将 BizType 声明为 char，Future='1'/Stock='2'；NUL 不能推断为 Future。当前请求只绑定 BrokerID/InvestorID。下一修复为 funds-only tagged unknown/observed representation，并同步 worker/protocol/独立 contract 的 account schema；保持其它四个维度、身份/交易日、所有金额和完整 baseline/final equality 检查。只比较实际观察到的单个 account-currency row，不声明全币种账户汇总或明确业务类型。
+- 当前 C01 case plan 没有要求第三方/provider 签名。真实 native auth/login callback、RequestID/ErrorID、本地到达顺序、login 的 FrontID/SessionID/TradingDay 和零写入是验收事项；本地时间不能冒称 provider-issued。缺失的 production Root observation/request-ledger verifier 是实现接线工作，不是新增外部授权前提。正式 C01 bridge 将绑定同调用的 source/native/artifact custody、账号 scope、真实 callback/ledger 与清理；普通 JSON/profile bool 仍不能产生正式 PASS。当前 V13 funds candidate 与该 bridge 尚未封存或实际验收。
+- R16 composite 的隔离 fake focus 1 passed（41.64 秒，一条既有 pytest config warning），独立静态 review 记录了 constructor stub，因此不宣称端到端成本。Root 全公共依赖与精确三文件 pins 核对后实际执行 session 1011：plan draft 2.703 秒、composite 29.875 秒、plan contract slice 0.859 秒；这些是一次实际阶段测量，不是性能矩阵。
+- R16 实际创建九个受保护文件、进入 parent physical source hold、调用 authenticator/release，并验证 final runner/map 与 R16 helper 双持有。parent 运行 22.094 秒，child exit0、capture complete、cleanup clean、scope released、无 retained refs。Root 外层 postverify/close、宿主工具 exit0，未解析晚期私人结果。actual observation SHA-256 `f8a6e0b474d21734ddf14a946b4e4298ea914f1d1a5bed9f11e5830def2b780a`。
+- 该 child 的 outer result 仍为 BLOCKED，198-literal 表 ordinal155=`r13_source_map_binding`，route invocations=0、provider UNOBSERVED、正式 PASS=0。Root 返回后的同内存 runtime-map 校验三条件为真，不能代表 child 状态。源码追踪随后明确 R13 gate 使用了 R28 的 34-row case-source map 参数，而非 R9/R4 的 154-row runtime map；下一修复从同调用 held entry 读取 descriptor 绑定的确切 runtime map，不 origin fallback，不放宽原校验。
+- L04 R22 完整 child runner/R11 successor/registration closure 正在实现；必要新增公共行将以最终固定 source-bound 数量封存，不为保持临时 135 行而遗漏依赖。注册限定于同一 fresh Root handoff 目录的受保护 registration child。V5/caller 的现有 focused QA 分别 7/8 passed，完整实际路径尚未验收。
+- 可选组件 Root entry 正在跑真实固定 source transform 的 fake focus。Root 额外提供 cProfile.py/profile.py/pstats.py 三个固定软件 opaque hash/size 快照；不是 runtime/provider 验收，子代理禁止解析或执行这些 opaque bytes。组件实际矩阵未运行。
+- 正式结果仍 **12 PASS / 3 BLOCKED / 84 NOT_RUN，可选组件 0/16**。以上诊断与启动准备增加零个正式 PASS；保持每轮代码验收范围与账户案例验收结果分开记录，失败案例继续当前修复轮。
+
+
+### 2026-10-08：前置选择轮已提交，V13 资金快照真实验收仍失败
+
+- 现有 `dev` 完成一个独立 accepted round：`79560db367196678ba558b3c969db8c85ff03259`（parent `857d5531bbbb1e188dfab7d27737eb61e346e281`）。精确七文件为 runtime front probe、000 paired selector、三个相应测试、`.gitattributes` 五个指定路径 eol 规则以及本轮公共记录。指定 SourceQA 三文件 64 passed/0.96 秒，一条既有 pytest config warning；暂存后逐文件核对 Git checkout filters 输出等于已验收原始 working bytes。提交后五个源码/测试和 attributes clean、index 空。该轮只接受一组/多组完整 MD/TD 的 reachability/latency 选择契约，不能作为 C01/provider PASS。记录见 evidence/iteration41-simnow-paired-front-dev-round-2026-10-08.md。
+- V13 funds-only tagged BizType 25-file closure、ZIP/pins 均核对；作者和独立 SourceQA 均 35 passed。独立 review SHA-256 `4a627459c07165df1e21ee297be39f73b209d1f6d55d364313f5969329412047`，未放宽其它维度/身份/金额和 baseline-final full-funds equality。
+- Root 原 profile 真实 session 34535 耗时 21.344 秒，仍 BLOCKED/worker_process_incomplete。认证/登录两回调，三个基线查询三回调，没有接受快照/最终查询。failure ordinal=0（unclassified）、position-text projection=UNOBSERVED，不能宣布 BizType 已通过账户验收或推定 exception cause。actual SHA-256 `11e7ff6a4486e3426b924aee939624e189c402154543b0ed399c8de3c2f723b1`。内部 exit2、Job ZERO、无 timeout/forced kill、EOF/handles closed；两个外部 Job clean，未解析引用零。Root physical outer hold postverify/close 后宿主 exit0，host evidence SHA-256 `b370ed9823ac90eee014ee2d24fc53cd40a6ee36f6817b1a43a35299c6daaa1e`。未晚读私人 captures。
+- 后续公共 synthetic fixture 调用实际 `worker._private_snapshot -> protocol.encode_private_snapshot_artifact`，明确复现 worker 持仓 schema v1 与 protocol 要求 v2 不一致，产生 `private_snapshot_position_schema_invalid`。这是确定的源码错误；尚不能认定为上述真实 ordinal0 的唯一原因。下一同一资金快照修复轮仅对齐该 schema 与重绑必要 successor closure，必须用完整快照管线门槛，不能只重复 projector 局部测试。
+- 资金轮未接受，不提交为账户功能。正式 Root C01 bridge 保持下一独立接线工作，不与本次 schema 修复混合。正式总数保持 **12 PASS / 3 BLOCKED / 84 NOT_RUN，可选组件 0/16**。
+
+
+### 2026-10-08：两轮闭包已交付 dev，V14 worker 完成而父层仍阻断
+
+- 只读策略源闭包轮提交 `d283ec9d9d059846a0845705b2d45f0de57f1cce`（parent `79560db367196678ba558b3c969db8c85ff03259`）：六策略、六 common 模块、共享测试的单个 suite-root hunk、指定 eol 规则和本轮记录，共十五文件。十三源文件与既有公共 828 passed/1 skipped fake/offline checkpoint 完全一致；本轮指定 isolated SourceQA 最短 C01 typed-plan 节点 1 passed/0.17s，synthetic complete plan 仍不许可 dispatch/certification PASS。记录 evidence/iteration41-simnow-readonly-strategy-dev-round-2026-10-08.md。
+- V12 R2 监督诊断闭包轮提交 `5bcd3b6170a0792d5375f28649b85b48020291ac`（parent `d283ec9d…`）：剩余二十 pinned source prerequisites/R2 files、四份公共 evidence、指定 eol rules、round record，共二十六文件。所有二十五 payload size/hash 均匹配；源和四份 evidence 暂存后的 Git checkout-filter bytes 匹配验收 raw bytes。指定 isolated SourceQA supervisor 文件加 C01 typed-plan 节点 **7 passed/0.76s**，一条既有 pytest warning。独立静态复核 PASS，Root 实际诊断 isolated funds.BizType/NUL_ONLY，完整清理。接受诊断设施及有限失败投影，不接受账户/C01 功能。源内既有混合 eol、Markdown hard-break 和 EOF blank-line 在普通 `git diff --check` 下产生 whitespace 提示；保留精确已验收 raw bytes，没有把该输出记为通过。记录 evidence/iteration41-simnow-v12-r2-diagnostic-dev-round-2026-10-08.md。
+- V14 完整 snapshot producer 管线修复只接受 SOURCE_FAKE_ONLY（作者/独立复核 3/3）；Root 真只读 session18175 耗时19.829秒。inner worker exit0、typed receipt、candidate_transport_complete；auth1/login1/queries6（均终结 callback/return0），progress94/end，receipt reported order/cancel0。父 profile 仍 BLOCKED/candidate_internal_error，未知具体 owner/contract gate；不能认定资金语义或 C01 正式通过。actual SHA `2dd68629a9e5e351443000a5b1edc9f428bd3007ace568bda63df70d3e347500`。两 outer Jobs active0/readersjoined/EOF/closed，无 forced termination；Root outer physical hold postverify/close后宿主exit0，无 retained refs，无晚读私人 captures。host SHA `eeb2747dd42d34de71ca21756fe4ac07fa8a4ca0d92810d28e9b39ecab1f14ea`。
+- 公共复核发现 issuer 直接调用 owner 的 tree/artifact API，owner._OwnerError 与 issuer._IssuerError 不同，预期有限 owner failure 会落入 generic candidate_internal_error；这是确定的错误映射缺口，但本次真实具体 owner gate 未观测，不能据此推定原因。下一 successor 必须覆盖真实 parent postworker sourcefake 并同调用投影有限阶段/代码，不放宽 ACL/tree/contract。
+- OKX M01 R17 session27502 在构造真实 R14 adapter 时抛 ActiveOuterActivationBlocked，authenticator 未调用、业务 parent 未启动；samecall未投影有限 code。main/extra/outer source holds均清理、宿主exit0。actual SHA `b52c7121f3c8ea6dc058f0d4d3ebaf2af1a0cbb74dda1b4700262ef03852b5ca`。公共追踪指出 R17 prepare 临时变换已恢复，而 R14 constructor 重新 compose 使用旧源；R18 正在覆盖真实 constructor 并复核，同样不能作为 M01 账户 PASS。
+- 现有 dev、无新工作区；每轮接受之后明确白名单提交，再继续下一轮。SDK/package 本时段无新增提交，原 unrelated dirt 保留。正式累计 **12 PASS / 3 BLOCKED / 84 NOT_RUN，可选组合0/16**。
+
+
+### 2026-10-08：M01 R18 实际构造成功，内层持有作用域仍缺少两项支持源
+
+- R18 helper/test/Root draft frozen pins 分别 `f9dd76909adeff5b0f6e76a9664c427b213e10a2915109e1f7dda32b1ea47902`、`307d02b624aa158f81241fb64ac4fdb9dc25155d2a903a860352441773e791cf`、`7333976ea4cb34ed94edb160b775a587aee8e2e227821b6da1747e7e4bd1e719`；作者指定 isolated SourceQA **3/3，97.21s**，既有 warning；独立静态复核 clear with limits，review SHA `bb2eb49b4e1926d95876e367b4abf5c0e43d04bb58560c0437eb2da37b91b683`。源 fixture覆盖真实 R14 constructor/R13 recompose，未覆盖完整 R31 preparation。
+- Root实际 session75457 真实 R14 constructor在本轮变换下成功19.016s；parent随后23.422s完成，protected CREATE_NEW9、auth/release调用、parent185rows/extra294rows，R18 helper与154 runtimeMap等绑定检查true。inner返回 exit0/cleanup clean，但 outer ordinal132 exact `r13_held_missing`、route0、provider UNOBSERVED、strict cases0。actual SHA `12e80748fa9536e56c3c3cf3be86fdd74f0ec31231c836933e6d71d2d0e938cc`。
+- main/extra custody均postverify/close、scope released、没有 retained refs；Root额外物理hold postverify/close后宿主exit0。host SHA `11aff570a7e7b2229739e93354b20624e3f831b49774a314e73979fdf8c490f3`。未读私人 captures、未晚解析结果。仅证明真实构造接线和监督诊断清理，不是 M01 账户验收。
+- 公共独立追踪确认内层 R28 run_prelaunch 的 CUV2 held map独立从154 canonical child pins（118public+36software）构造，不含 R17 runtime source-map file和R17 helper；Root parent持有这些项不能自动流入内层。generated verifier先查runtimeMap，后查helper，两处均可能映射相同 r13_held_missing；本次ordinal不能独立指出具体callsite。下一R19仅添加这两项精确、单独pin的inner physical support rows，保持154 canonical admission map/count，必须用完整generatedouter/run_prelaunch/selectedmapdispatch sourcefake检查正向、缺项和篡改。
+- 运营控制盘点 evidence/iteration41-operational-controls-inventory-r1-2026-10-08.md 已落盘：M02需受控真实disconnect/reconnect事实；EM02本地可控但当前operator模块仅offline_fake；EM01账户admin disable/restore和EM03服务端logout回执仍需已询问的控制入口。已有monitor/risk/execution/gateway local APIs不自动证明账户/提供者事实。现有optional矩阵仍为synthetic0/16，需完成实际绑定；没有新增用户信息问题。
+- dev HEAD保持 `5bcd3b6170a0792d5375f28649b85b48020291ac`，index空，未新增工作区。M01 precursor/R18小轮交付闭包见 evidence/iteration41-m01-r33-r18-dev-delivery-closure-r1-2026-10-08.md；尚未新增M01 source commit。正式总数 **12 PASS / 3 BLOCKED / 84 NOT_RUN，可选0/16**。
+
+
+### 2026-10-08：V15 真实运行定位到 owner 树 ACL 契约不一致
+
+- 上一goal turn是progress：交付三轮dev代码、真实V14/M01R18证据改变下一修复动作。本轮保持全部99case+optional16原目标，dev HEAD `5bcd3b6170a0792d5375f28649b85b48020291ac`、index空、无新worktree。
+- V15 owner exception边界修复作者/独立SourceQA均**4/4**，一条既有warning；完整fixture真实调用 `_run_candidate -> owner._verify_tree/_read_snapshot_artifacts -> contract recompute`，只fake底层文件/API/账户/transport。25file/19manifest+ZIP全部match。pins SHA `52a59d0bd8533b7e03bb1bd5f0ba89d4e7c9081913d6d003dc7bcf20ec74f5b3`，review SHA `4e6f4ebf5f5cc7d95e62251f231f48363d6a65fc67a0f1baaed216b53897d45c`。
+- Root session62210本次真实readonly运行20.969s：worker typedreceipt/exit0/candidate_transport_complete、auth1/login1/queries6/progress94/end、reported writes0；父层BLOCKED/candidate_owner_validation_failed，finite stage=`verify_tree`，code=`private_tree_acl_or_identity_invalid`。actual SHA `cd87d7fc2d60fc1e4d4c2dbb19bb74307fe6f1a5302a49457ed78eee7de74772`。两外层Jobsactive0/readersjoined/EOF/handlesclosed、无forcedkill，Rootouterphysicalhold postverify/close后hostexit0；无 retained refs、无晚读私人capture。host SHA `6a8d241b03d71ddbc808934e77b37fab45390f95c7a4a59677c6c326ced24a56`。
+- 公共源码明确workerNativeV4 `_PrivateAcl`生成 `D:P` protected evidence进度/快照，而ownerV6递归walk对evidence所有child要求inherited=True；sharedprivate.verify_acl严格检查protected flag与inherited相反和exactACEflags，因此已知protected evidence的消费规则不一致。这是source契约缺陷；本次具体失败文件/ACL子条件未投影，不作路径归因、不读capture。下一独立owner/issuer successor拟标V17（保留V16Rootbridge槽位），用实际ACL判断代码的synthetic描述符复现，并只对齐protected evidence与SDK-inherited nativeFlow。严格SID/oneACE/fullcontrol/reparse/identity不放宽，sharedprivate/CLI保持冻结。
+- V16Rootbridge仍是source plumbing：ContextVar一次stage、typedpending/nonce、native八请求ledger和commonprojection检查；物理postverify/Rootaccount-witness producer及issuerhook未实现，producerhash空，不能mint正式PASS。其最终Rootentry需在执行issuer的同一进程完成stage/context与custodypostverify，不能假设ContextVar跨subprocess传播。不存在第三方监管签章/外部ledger要求。
+- L04R22root十输出transform in-memory已完成，childclosure/pins未freeze所以fixedfiles0/10；caller十项sourcefake通过、V5/nonce suffix-b/九源identityview准备，仍未接真实链。optional582map已通过scope构造，下一R27review validator scope-entry gate，未Rootactual，不能accept16组合。
+- 后续dev交付盘点已派发：V15test依赖未tracked的 `tests/unit/runtime/test_certification_simnow_c01_v2_contract.py`，必须纳入已验收fixture闭包；不能孤立提交新test。正式总数保持**12 PASS / 3 BLOCKED / 84 NOT_RUN，optional0/16**。
+
+
+### 2026-10-08：V17 真实只读流程推进到收尾 admission 句柄复读缺陷
+
+- 本轮是progress：真实V17证据将下一动作定位为三项同句柄复读EOF，而非继续修改ACL。dev HEAD仍为5bcd3b61，index空，未新增worktree。当前轮失败继续修复，未将未通过profile作为accepted提交。
+- V17 R2核心25及support5全部pin/ZIP一致；作者及独立focus各2/2、一条既有warning。R2 pins655415d924935837353f1b0395546f08f78aa5dd44f2048284fbd670d121e9b5；独立review b6d616884ec62b5a13e650fa23e8e7a194e29c3e2d19e1a627e1a63b2b10494b。clean-dev最小名单21项，旧V15项仅为回归测试依赖，未重新接受旧失败profile。
+- Root session96903实际27.75s：auth/login+六查询完成、typedreceipt/worker0/end94；parent BLOCKED/admission_source_changed，post-worker stage/code均none。actual SHA736f94e8f92d4efb2abeaba4399730650fcd0ab35368107f21d4023d96dd5578。两Jobs0/EOF/joined/closed/noKill，Rootouterhold postverify/close成功，host0/no retained refs/no late private read；host SHA0e09ddc6832e84431d01bb3ffc809c09525b82737f68fdcd1b31955db73faaf4。
+- 公共源profile admission lease1298正常yield返回后1304再次ReadFile同admission handle，未seek0；marker/claim同样需要复读。冻结CLI bounded reader按当前cursor读，因此EOF会被误判为source changed。这个source-defined分支在candidate body正常返回后执行；不晚读private audit、不把该inference当正式C01 PASS。新V19专门修复三handle checked rewind/ACL/identity/bounded reread，sharedCLI/private/NativeV4不改，完成真实验收后提交本轮。
+- V18正式Root接线draft并行实现：原ExitStack内fixedcustodyhook、同进程scope/ledger/postverify、producer真实retained source/runtime/artifact handles。V18也需同窄rewind修复；producer pin尚未最终冻结，当前无formalPASS。
+- L04 R22 child10+Root10已落盘，fullcaller/V5仍在接线并修复原R21review与activeR22coord混用；原review只针对原源，activeR22必须独立绑定held composition，随后独立review及actual。optional entry正在修真实原main attestation和worker snapshot闭包，不把testfakehook或prefix拒绝当实际入口完成。
+- 正式总数保持12 PASS / 3 BLOCKED / 84 NOT_RUN，optional0/16。完整99case+16组合目标保持active。
+
+
+### 2026-10-08：V19 只读修复验收通过并已提交 dev
+
+- Repository/branch: D:/source_code/backtrader / dev. Accepted commit: f46234e338c774d017eb58853f32cfd7310ff9d5; parent 5bcd3b6170a0792d5375f28649b85b48020291ac. Exact 23-file whitelist delivered; index empty. Fifteen new source/test files include only three V17 EOF regression baseline files. No SDK/package commit or new worktree.
+- Acceptance: independent source focus 8/8; clean non-Git HEAD snapshot + exact current closure 8/8 (0.72s; one existing pytest config warning). All 28 payload/support pins and all 25 committed filtered checkout payloads matched. Two tracked watchdog helpers use explicit CRLF checkout rules; new source/records preserve raw bytes.
+- Root actual V19: PASS/read_only_candidate_complete,23.328s,auth1/login1/query6,worker0/typedreceipt/end94. Jobs2zero/EOF/joined/closed/noKill; outerCUv2 postverified+closed; tool session1311 host0; no retained references or late private capture. Actual SHA66988070dbc9dbf75373a18c245cf1af2634c8be87938eeaa41ec9a6bf0021f2; host SHA1e2a27c3d45c4790d7af5fe2cc937c61db7c728461473f54d9a70a3d14b73107.
+- This accepts the bounded readonly repair round, not formal SimNow C01. Formal totals remain12PASS/3BLOCKED/84NOT_RUN; optional0/16. Next round is V18 same-process Root custody/ledger/entry: producer571036d79815f7791bc6917f7afbf87ff8acd9806dc0556a80b9b39d34553f26, bridgec703e509a73aeb5e4b1e37fd911a8a3ccd4211fe1ce9cf2cdcf65edffe586cef. Combinedsourcefake30 passed; final packet and independent review still pending. Keep officialC01PASS0 until actual receipt/cleanup acceptance.
+- Existing dev checkout workflow remains: implement current fix, finish agreed acceptance, stage only accepted explicit paths/hunks, commit, then next round; package commits before parent gitlinks. Preserve unrelated dirt and reconcile verified historical worktree changes.
+
+
+### 2026-10-08：M01 R19 actual 定位运行映射绑定失败，V18 正式启动包装待补齐
+
+- 上轮是progress：只读V19真实PASS及clean-source8/8已经提交devf46234e338c774d017eb58853f32cfd7310ff9d5，本轮从该提交继续；index空，未新增worktree。
+- Root M01 R19 session96967：parent14.187s，真实constructor15.969s；canonical154/parent186/extra295。返回固定ordinal167/r19_runtime_map_binding、reportedroute0/providerUNOBSERVED；actual SHA06fd3e3badaa43e8a9d0867063d337d7c48863b843f8b91ff345da42fe07d605。两source/runtime scopes已postverify+closed，child0/cleanupclean，Roothost0/ref0；host SHA78670d6321347d7096bcdc2ef799b4db13ea6c66cc69f311f1293f9c7f84b5ff。无lateprivatecapture。M01未验收，不提交失败入口；新R20检查公共源中的map/self/plan绑定，必要时增加有限分组错误码，保留所有校验。
+- V18 R1 publicentry packet已经冻结：27map+entryself=28源，三个focus文件31/31；独立匹配及复跑31/31。它尚无Rootactivationwrapper，不能直接宣称actualready。author现补additiveV18wrapper：freshprotectedregistration、boundedouterJob、同进程entry、opaqueCaseReceipt在所有contextclose后序列化；R2完整closure完成及独立GO后Root实际运行。核心entry/producer/bridge保持当前pin，正式C01仍0PASS。
+- L04 end-to-end仍缺typed sourcefake hold view；source validator不改，caller/seam通过显式testtoken绑定typedfakeview，使全链到真实validator/fakebottom。optionalentry只完成map prefix2tests并在profiler gate前拒绝；profiler/cache opaque bytes未在该成功run解析。active-only64rows已定位为publicrepo44docs/16scripts/4tests，下一步冻结入口及具体Rootactual接口，不能将prefix测试计为G1/16组合验收。
+- 正式总数仍12PASS/3BLOCKED/84NOT_RUN，optional0/16；全99case+16组合goal保持active。当前turn是progress，实际证据改变下一动作。
+
+### Iteration 41 V18 R2 source review and M01 R20 finite actual observation (2026-10-08)
+
+The accepted dev checkpoint remains f46234e338c774d017eb58853f32cfd7310ff9d5. The additive V18 activation R2 wrapper closure (29 source rows, four focused tests) independently passed 42 source/fake tests; actual formal C01 remains pending. Its independent review is iteration41-c01-v18-root-entry-activation-independent-review-r2-2026-10-08.md under the Iteration 41 evidence directory. Root's external custody driver and clean-source closure checks are separate pending work. No formal PASS was added.
+
+M01 R20 was invoked once by Root. The actual returned finite diagnosis changed from R19 ordinal 167 to ordinal 164, r19_canonical_map_shape, with zero route invocations and no provider request reported. Both Root custody exit calls returned after postverification and their retained flags were false. The public recorder then failed because its failure-record assignment was outside the exception handler; a recovery assertion also failed before writing the original complete observation. Child return code and parent cleanup fields remain UNOBSERVED and must not be reconstructed by opening private captures or late results. Root host session 23012 explicitly exited 0, as observed by the tool. The bounded public observation is iteration41-m01-r33-r20-root-actual-parent-diagnostic-r1-2026-10-08/observation.json, SHA-256 bb917da586265e7b7fc53b336339f52fc96804d987076f2e553947f2a85ec268. R20 remains frozen and unaccepted; continue the actual main map-contract and recorder fix in a fresh source namespace, without rerunning or committing the failed R20 profile.
+
+### 2026-10-09：000 三场所穿透认证三件套化完成（96/99 PASS + 16/16 拓扑）
+
+本条记录当前实际交付形态。每个用例目录只有 `config.yaml + <ID>_strategy.py + run.py`，命令
+`C:/anaconda3/python.exe cases/<ID>/run.py`（干跑自检）/ `--live [--allow-write] [--allow-dangerous]`；
+退出码 0/1/2/3 = PASS/FAIL/BLOCKED/UNKNOWN；证据写入 `cases/<ID>/evidence/*.json`（git-ignored）。
+公共层为每场所一份 `certlib/`（约 500–900 行：envfile/context/runner + binance_client/okx_client/ctp_client
++ monitor/validation），替代此前逐案例 Bespoke 候选管线；旧候选代码（binance `_certification/` 等）仍在树中
+但不再被新流程引用。
+
+**真实结果**：三场所 96 PASS / 3 BLOCKED / 0 FAIL / 0 NOT_RUN。r21 快照
+（docs/.../evidence/iteration41-three-venue-99-case-acceptance-tracking-r21-2026-10-09.{json,md}，每例证据
+SHA-256 + r21-case-evidence/ 归档）绑定 commits: backtrader dev `d3ebad4b`（后更新至 `fadcfb81`）、
+bt_api_ctp dev `a497bab`。3 处 BLOCKED 均为场所机制性不可达、带完整尝试证据：SimNow E01（7x24 引擎实测
+不冻结挂单保证金、不校验资金；5×1000 手尝试均被接受）、SimNow EM03（实测允许并发会话，无服务端强制登出）、
+Binance EM01（Demo 密钥具备持仓模式权限；如提供受限权限密钥可翻转）。
+
+**可选组件 16 拓扑全通过**：`examples/000_live_certification/optional16/`（spec/gateway_server/gateway_client/
+components/run_matrix + README）。真实矩阵 binance C01+T03 × 16 组合全 PASS（`acceptance-matrix.json`）；
+网关能力验收 `gateway-capability.json` PASS（双客户端同会话同 pid、订单归属、坏 token 拒、停服写请求抛
+GatewayCommandUncertain 且场侧确认零订单、命令 journal 入档）。组件走真实 dev SDK 入口（DurableRiskGate /
+ManagedExecutionFacade+SqliteExecutionStore / DurableOutbox），未启用组件不导入（imports_observed 佐证）。
+诚实缺口：无请求去重/防重放；仅 localhost+per-run token；`bt_api_gateway` 的 router/receipt 链未接线；
+组件接线为 binance 参考，okx/simnow 保持直连认证。
+
+**场所引擎实测要点**：SimNow 7x24 前置持续撮合、挂单即队列、回报(OnRspOrderInsert)可能缺失→以场内侧订单
+查询为受理判定、OrderRef 需时间戳唯一（跨会话查询保留历史行）、查询偶发超时与 -2 流控（读重试、参数化
+attempts/backoff）；OKX Demo 价格带实测仅约 ±0.5%（用 /public/price-limit 取带）、下单端点存在 50013
+Systems busy 时段（同 clOrdId 幂等重试、51016 即已受理）、错误需透出 data[0].sCode/sMsg；Binance Demo 本机
+时钟慢约 8.8s（服务器时偏补偿必需）、双向持仓模式。
+
+**提交链**（dev）：SDK `a497bab`；主仓 `285aac68`（v2 方案）、`8f668fca`/`595daa04`/`8f721384`（SimNow）、
+`3bf6a37d`（Binance）、`b8d492f5`（OKX）、`fadcfb81`（optional16）、`d3ebad4b`（r21 快照）。SDK 父仓 gitlink
+更新、遗留旧代码清理（用例目录版本碎片被旧测试引用，需测试同步改造）、以及 okx/simnow 的网关泛化为后续
+独立轮次事项。

@@ -1,0 +1,563 @@
+{
+  "schema": 1,
+  "venue": "simnow",
+  "case_id": "E01",
+  "status": "BLOCKED",
+  "reason": "insufficient_funds_rejection_not_reachable",
+  "facts": {
+    "rule": "insufficient_funds",
+    "direction": "0",
+    "offset_flag": "0",
+    "dispatch_absent": false,
+    "price_band": {
+      "lower": 934.0,
+      "upper": 1076.0
+    },
+    "last_price": 1010.0,
+    "max_limit_order_volume": 1000,
+    "attempt_volume": 1000,
+    "attempt_price": 935.0,
+    "attempt_volume_placed": 1000,
+    "volume": 1000,
+    "price": 935.0,
+    "max_attempts": 5,
+    "ct_multiplier": 20.0,
+    "engine_observations": {
+      "single_order_cap_lots": 1000,
+      "attempt_volume_requested": 1000,
+      "attempt_volume_placed": 1000,
+      "attempt_notional_yuan": 18700000.0,
+      "funds_enforcement": "not_observed_bounded",
+      "note": "funds enforced only after accumulated resting margin exceeds Available",
+      "outcome": "accepted_without_funds_rejection"
+    },
+    "attempts": [
+      {
+        "submit_code": 0,
+        "evidence_status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "order_ref": "179154915401",
+        "venue_status": "5",
+        "outcome": "terminal_without_trade",
+        "volume_traded": 0,
+        "order_sys_id": "",
+        "attempt": 1,
+        "available_before": {
+          "Balance": 10024631.49,
+          "Available": 10024631.49,
+          "CurrMargin": 0.0,
+          "row_count": 1
+        },
+        "notional_yuan": 18700000.0
+      },
+      {
+        "submit_code": 0,
+        "evidence_status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "order_ref": "179154916302",
+        "venue_status": "5",
+        "outcome": "terminal_without_trade",
+        "volume_traded": 0,
+        "order_sys_id": "",
+        "attempt": 2,
+        "available_before": {
+          "Balance": 10024631.49,
+          "Available": 10024631.49,
+          "CurrMargin": 0.0,
+          "row_count": 1
+        },
+        "notional_yuan": 18700000.0
+      },
+      {
+        "submit_code": 0,
+        "evidence_status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "order_ref": "179154917303",
+        "venue_status": "5",
+        "outcome": "terminal_without_trade",
+        "volume_traded": 0,
+        "order_sys_id": "",
+        "attempt": 3,
+        "available_before": {
+          "Balance": 10024631.49,
+          "Available": 10024631.49,
+          "CurrMargin": 0.0,
+          "row_count": 1
+        },
+        "notional_yuan": 18700000.0
+      },
+      {
+        "submit_code": 0,
+        "evidence_status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "order_ref": "179154918204",
+        "venue_status": "5",
+        "outcome": "terminal_without_trade",
+        "volume_traded": 0,
+        "order_sys_id": "",
+        "attempt": 4,
+        "available_before": {
+          "Balance": 10024631.49,
+          "Available": 10024631.49,
+          "CurrMargin": 0.0,
+          "row_count": 1
+        },
+        "notional_yuan": 18700000.0
+      },
+      {
+        "submit_code": 0,
+        "evidence_status": "unknown",
+        "error_code": null,
+        "error_message": "",
+        "order_ref": "179154919205",
+        "venue_status": "5",
+        "outcome": "terminal_without_trade",
+        "volume_traded": 0,
+        "order_sys_id": "",
+        "attempt": 5,
+        "available_before": {
+          "Balance": 10024631.49,
+          "Available": 10024631.49,
+          "CurrMargin": 0.0,
+          "row_count": 1
+        },
+        "notional_yuan": 18700000.0
+      }
+    ],
+    "available_before": [
+      {
+        "Balance": 10024631.49,
+        "Available": 10024631.49,
+        "CurrMargin": 0.0,
+        "row_count": 1
+      },
+      {
+        "Balance": 10024631.49,
+        "Available": 10024631.49,
+        "CurrMargin": 0.0,
+        "row_count": 1
+      },
+      {
+        "Balance": 10024631.49,
+        "Available": 10024631.49,
+        "CurrMargin": 0.0,
+        "row_count": 1
+      },
+      {
+        "Balance": 10024631.49,
+        "Available": 10024631.49,
+        "CurrMargin": 0.0,
+        "row_count": 1
+      },
+      {
+        "Balance": 10024631.49,
+        "Available": 10024631.49,
+        "CurrMargin": 0.0,
+        "row_count": 1
+      }
+    ],
+    "attempts_used": 5,
+    "canceled_accepted": [],
+    "accepted_residual_in_queue": [],
+    "accepted_without_rejection": true,
+    "account_funds": {
+      "Balance": 10024631.49,
+      "Available": 10024631.49,
+      "CurrMargin": 0.0,
+      "row_count": 1
+    },
+    "accepted_resting_orders": 0,
+    "flatten": {
+      "long": 0,
+      "short": 0,
+      "skipped": "no_position"
+    },
+    "accepted_notional_yuan": 0.0,
+    "native_stop": {
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "direct",
+    "execution": false,
+    "risk": false,
+    "monitor": false
+  },
+  "started_utc": "2026-10-09T12:32:26.789663Z",
+  "finished_utc": "2026-10-09T12:33:36.122451Z",
+  "config_sha256": "78a990686717f651967ac6a307582f5c2eb518304b5a68e97a7f9e0f2d9ba6cb",
+  "env_keys_present": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_EXCHANGE",
+    "CTP_HEDGE_FLAG",
+    "CTP_INSTRUMENT",
+    "CTP_MD_FRONT",
+    "CTP_PASSWORD",
+    "CTP_SET1_MD_FRONT_1",
+    "CTP_SET1_MD_FRONT_2",
+    "CTP_SET1_MD_FRONT_3",
+    "CTP_SET1_TD_FRONT_1",
+    "CTP_SET1_TD_FRONT_2",
+    "CTP_SET1_TD_FRONT_3",
+    "CTP_SET2_MD_FRONT",
+    "CTP_SET2_TD_FRONT",
+    "CTP_TD_FRONT",
+    "CTP_USER_ID"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "pair_index": 0,
+    "sdk_root": "D:\\bt_api_py",
+    "sdk_origin": "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\__init__.py",
+    "call_count": 23,
+    "closed": true,
+    "trading_ready": false,
+    "read_only_ready": false,
+    "frozen": false
+  },
+  "calls": [
+    {
+      "t_ms": 1791549151041,
+      "kind": "login",
+      "front_id": 1,
+      "session_id": -555394783,
+      "trading_day": "20261012",
+      "connection_generation": 1,
+      "login_seconds": 3.438
+    },
+    {
+      "t_ms": 1791549151944,
+      "kind": "query",
+      "family": "instruments",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 3,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549152450,
+      "kind": "query",
+      "family": "depth_market_data",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 85,
+      "request_id": 4,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549153511,
+      "kind": "arm",
+      "armed": true,
+      "environment_profile": "set1_group1_vpn",
+      "connection_generation": 1,
+      "trading_day": "20261012"
+    },
+    {
+      "t_ms": 1791549154559,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 7,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549162571,
+      "kind": "order_insert",
+      "order_ref": "179154915401",
+      "request_id": 8,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 935.0,
+      "volume": 1000,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791549162927,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 9,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549163965,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 10,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549171985,
+      "kind": "order_insert",
+      "order_ref": "179154916302",
+      "request_id": 11,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 935.0,
+      "volume": 1000,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791549172337,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 2,
+      "request_id": 12,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549173385,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 13,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549181397,
+      "kind": "order_insert",
+      "order_ref": "179154917303",
+      "request_id": 14,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 935.0,
+      "volume": 1000,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791549182160,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 3,
+      "request_id": 15,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549182789,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 16,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549190804,
+      "kind": "order_insert",
+      "order_ref": "179154918204",
+      "request_id": 17,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 935.0,
+      "volume": 1000,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791549191157,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 4,
+      "request_id": 18,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549192198,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 19,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549200209,
+      "kind": "order_insert",
+      "order_ref": "179154919205",
+      "request_id": 20,
+      "direction": "0",
+      "offset_flag": "0",
+      "price": 935.0,
+      "volume": 1000,
+      "submit_code": 0
+    },
+    {
+      "t_ms": 1791549200553,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 5,
+      "request_id": 21,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549201618,
+      "kind": "query",
+      "family": "orders",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 5,
+      "request_id": 22,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549202662,
+      "kind": "query",
+      "family": "account",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 23,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549204115,
+      "kind": "query",
+      "family": "positions",
+      "complete": true,
+      "timed_out": false,
+      "error_code": null,
+      "record_count": 1,
+      "request_id": 24,
+      "connection_generation": 1,
+      "attempt": 1
+    },
+    {
+      "t_ms": 1791549216122,
+      "kind": "native_stop",
+      "attempted": true,
+      "join_required": true,
+      "join_completed": false,
+      "native_released": false,
+      "thread_alive": true,
+      "timed_out": true,
+      "complete": false
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:32:31.041391Z",
+      "note": "logged in trading_day=20261012 generation=1 pair_index=0"
+    },
+    {
+      "utc": "2026-10-09T12:32:33.511937Z",
+      "note": "armed; up to 5 resting buys of 1000@935.0"
+    },
+    {
+      "utc": "2026-10-09T12:32:34.559340Z",
+      "note": "attempt 1/5: funds={'Balance': 10024631.49, 'Available': 10024631.49, 'CurrMargin': 0.0, 'row_count': 1}"
+    },
+    {
+      "utc": "2026-10-09T12:32:42.927747Z",
+      "note": "attempt 1: terminal_without_trade status=5"
+    },
+    {
+      "utc": "2026-10-09T12:32:43.965583Z",
+      "note": "attempt 2/5: funds={'Balance': 10024631.49, 'Available': 10024631.49, 'CurrMargin': 0.0, 'row_count': 1}"
+    },
+    {
+      "utc": "2026-10-09T12:32:52.337446Z",
+      "note": "attempt 2: terminal_without_trade status=5"
+    },
+    {
+      "utc": "2026-10-09T12:32:53.385967Z",
+      "note": "attempt 3/5: funds={'Balance': 10024631.49, 'Available': 10024631.49, 'CurrMargin': 0.0, 'row_count': 1}"
+    },
+    {
+      "utc": "2026-10-09T12:33:02.160123Z",
+      "note": "attempt 3: terminal_without_trade status=5"
+    },
+    {
+      "utc": "2026-10-09T12:33:02.789203Z",
+      "note": "attempt 4/5: funds={'Balance': 10024631.49, 'Available': 10024631.49, 'CurrMargin': 0.0, 'row_count': 1}"
+    },
+    {
+      "utc": "2026-10-09T12:33:11.158097Z",
+      "note": "attempt 4: terminal_without_trade status=5"
+    },
+    {
+      "utc": "2026-10-09T12:33:12.198892Z",
+      "note": "attempt 5/5: funds={'Balance': 10024631.49, 'Available': 10024631.49, 'CurrMargin': 0.0, 'row_count': 1}"
+    },
+    {
+      "utc": "2026-10-09T12:33:20.553659Z",
+      "note": "attempt 5: terminal_without_trade status=5"
+    }
+  ],
+  "artifacts": {},
+  "front_selection": [
+    {
+      "index": 0,
+      "td": true,
+      "md": true
+    }
+  ],
+  "contract": {
+    "instrument": "SA701",
+    "exchange": "CZCE",
+    "hedge_flag": "1"
+  }
+}

@@ -1,0 +1,473 @@
+{
+  "schema": 1,
+  "venue": "binance",
+  "case_id": "T03",
+  "status": "PASS",
+  "reason": "",
+  "facts": {
+    "orderId": 28624485329,
+    "clientOrderId": "o167769850f053e40bf87a2",
+    "status": "CANCELED",
+    "executedQty": "0.0000",
+    "avgPrice": "0.00",
+    "price": 81432.6,
+    "quantity": 0.001,
+    "baseline_open_orders": 0,
+    "final_open_orders": 0
+  },
+  "live": true,
+  "grants": {
+    "allow_write": true,
+    "allow_dangerous": false
+  },
+  "topology": {
+    "transport": "gateway_zmq",
+    "execution": true,
+    "risk": true,
+    "monitor": true
+  },
+  "started_utc": "2026-10-09T12:34:15.297845Z",
+  "finished_utc": "2026-10-09T12:34:20.435182Z",
+  "config_sha256": "999754c71a4d0ecb1bd2044c1261c7f5ea743b5626a9cadb1f76be683197da17",
+  "env_keys_present": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET"
+  ],
+  "env_keys_missing": [],
+  "client": {
+    "transport": "gateway_zmq",
+    "gateway_host": "127.0.0.1",
+    "gateway_port": 62888,
+    "gateway_closed": true,
+    "gateway_server": {
+      "commands_served": 10,
+      "endpoint": "tcp://127.0.0.1:62888",
+      "host": "127.0.0.1",
+      "journal": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-cert-gateway-journal-c__vy6ai\\commands.jsonl",
+      "journal_lines": 11,
+      "name": "optional16",
+      "pid": 41456,
+      "port": 62888,
+      "provider": {
+        "call_count": 10,
+        "frozen": false,
+        "frozen_reason": "",
+        "host": "demo-fapi.binance.com",
+        "recv_window_ms": 60000,
+        "server_time_ms": 1791549264919,
+        "time_offset_ms": 8754
+      },
+      "started": true,
+      "transport": "gateway_zmq",
+      "transport_impl": "zmq"
+    },
+    "endpoint": "tcp://127.0.0.1:62888",
+    "journal": "C:\\Users\\yunji\\AppData\\Local\\Temp\\bt-cert-gateway-journal-c__vy6ai\\commands.jsonl",
+    "commands_served": 10,
+    "host": "demo-fapi.binance.com",
+    "server_time_ms": 1791549264919,
+    "time_offset_ms": 8754,
+    "recv_window_ms": 60000,
+    "frozen": false,
+    "frozen_reason": "",
+    "call_count": 11,
+    "provider_call_count": 10,
+    "wrapper": "optional16.components",
+    "active_components": [
+      "execution",
+      "risk",
+      "monitor"
+    ],
+    "run_dir": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-3pmpv2y9",
+    "imports_observed": {
+      "before": [],
+      "after": [
+        "bt_api_execution",
+        "bt_api_monitor",
+        "bt_api_risk"
+      ],
+      "delta": [
+        "bt_api_execution",
+        "bt_api_monitor",
+        "bt_api_risk"
+      ]
+    },
+    "components": {
+      "risk": {
+        "active": true,
+        "package": "bt_api_risk",
+        "policy_id": "optional16-T03",
+        "max_increase_count": 1,
+        "max_increase_notional": "150",
+        "gate_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-3pmpv2y9\\risk.sqlite",
+        "counts": {
+          "reserved": 2,
+          "claimed": 2,
+          "settled": 2,
+          "dispatch_unknown": 0
+        },
+        "denials": {},
+        "last_denial": "",
+        "snapshot": {
+          "active_freeze_reasons": [
+            "dispatch-inflight:cancel-o16ca380ee85f3094ef8a8bc",
+            "dispatch-inflight:o167769850f053e40bf87a2"
+          ],
+          "increase_count": 1,
+          "increase_notional": "81.4326",
+          "policy_fingerprint": "70f9dbc6897c0852f36a9b3f9d56e26f3c868964f26d158562d206074d80813d"
+        }
+      },
+      "execution": {
+        "active": true,
+        "package": "bt_api_execution",
+        "store_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-3pmpv2y9\\execution.sqlite",
+        "admission_gate": "SharedRiskAdmissionAdapter(DurableRiskGate)",
+        "scope": {
+          "provider": "binance",
+          "environment": "demo",
+          "strategy_id": "T03",
+          "account_ref_source": "synthetic-config-digest"
+        },
+        "counts": {
+          "submit_acked": 1,
+          "cancel_cancelled": 1
+        },
+        "last_record": {
+          "cancel_id": "o16ca380ee85f3094ef8a8bc",
+          "state": "CANCELLED",
+          "provider_order_id": "28624485329",
+          "reason": null,
+          "review_required": false
+        },
+        "notes": []
+      },
+      "monitor": {
+        "active": true,
+        "package": "bt_api_monitor",
+        "outbox_db": "C:\\Users\\yunji\\AppData\\Local\\Temp\\optional16-run-3pmpv2y9\\monitor.sqlite",
+        "counts": {
+          "appended": 5,
+          "acknowledged": 5
+        },
+        "checkpoint": 5,
+        "events": [
+          {
+            "sequence": 1,
+            "kind": "connect",
+            "status": "ok"
+          },
+          {
+            "sequence": 2,
+            "kind": "place_order",
+            "status": "ok"
+          },
+          {
+            "sequence": 3,
+            "kind": "query_order",
+            "status": "ok"
+          },
+          {
+            "sequence": 4,
+            "kind": "cancel_order",
+            "status": "ok"
+          },
+          {
+            "sequence": 5,
+            "kind": "query_order",
+            "status": "ok"
+          }
+        ],
+        "readback": {
+          "attempted": false,
+          "ok": true,
+          "events": 5,
+          "cursor": 5,
+          "has_more": false
+        }
+      }
+    },
+    "adapter_notes": [
+      "risk policy from case config: max_orders=1 max_notional_usdt=150",
+      "the gate's dispatch-inflight latch has no resolver here: one INCREASE order per run"
+    ]
+  },
+  "calls": [
+    {
+      "t_ms": 1791549256317,
+      "command": "connect",
+      "params": {},
+      "request_id": "eea2fc7e325a4925a4f0b8117f95bf4d",
+      "duration_ms": 297.0,
+      "ok": true,
+      "result": {
+        "host": "demo-fapi.binance.com",
+        "rtt_ms": 296,
+        "server_time_ms": 1791549264919,
+        "time_offset_ms": 8754
+      },
+      "result_sha256": "71feee98dceb64f5f33a145e16e547a7b057923ef37204e1adbf921637346a5a"
+    },
+    {
+      "t_ms": 1791549256611,
+      "command": "account_config",
+      "params": {},
+      "request_id": "5e1be578bb864ff7bbe8f0d5bf2f7831",
+      "duration_ms": 281.0,
+      "ok": true,
+      "result": {
+        "canDeposit": true,
+        "canTrade": true,
+        "canWithdraw": true,
+        "dualSidePosition": true,
+        "feeTier": 0,
+        "multiAssetsMargin": false,
+        "tradeGroupId": -1,
+        "updateTime": 1791547650231
+      },
+      "result_sha256": "c68d6ff547217ce6d47d53ddb4393881f40fa1b46631db2be62bded78c341043"
+    },
+    {
+      "t_ms": 1791549257857,
+      "command": "filters",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "88d25ff266c6475e86ef34687a79ca5b",
+      "duration_ms": 1234.0,
+      "ok": true,
+      "result": {
+        "contract_type": "PERPETUAL",
+        "max_qty": 1000.0,
+        "min_notional": 50.0,
+        "min_qty": 0.0001,
+        "status": "TRADING",
+        "step_size": 0.0001,
+        "tick_size": 0.1
+      },
+      "result_sha256": "0ebfb07b686ce7eec870f5188b7d137c76f1f998a75862d029884a0c91689843"
+    },
+    {
+      "t_ms": 1791549258135,
+      "command": "mark_price",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "ba038b9ce39f4cf49e5c913d3c5c9647",
+      "duration_ms": 282.0,
+      "ok": true,
+      "result": "83094.50000000",
+      "result_sha256": "048eb1be4f03073a834f86f1cd37111fb6faac3dd5059b28367aba35ee888f92"
+    },
+    {
+      "t_ms": 1791549258413,
+      "command": "open_orders",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "92d59fbb54364efd87b48b6359dc95b7",
+      "duration_ms": 281.0,
+      "ok": true,
+      "result": [],
+      "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "t_ms": 1791549258762,
+      "command": "place_order",
+      "params": {
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "order_type": "LIMIT",
+        "quantity": "0.001",
+        "price": "81432.6",
+        "position_side": "LONG",
+        "time_in_force": "GTC",
+        "client_order_id": "o167769850f053e40bf87a2"
+      },
+      "request_id": "668f370a75b64bc6abad0e4683517077",
+      "duration_ms": 313.0,
+      "ok": true,
+      "result": {
+        "_client_order_id": "o167769850f053e40bf87a2",
+        "clientOrderId": "o167769850f053e40bf87a2",
+        "closePosition": false,
+        "cumQty": "0.0000",
+        "executedQty": "0.0000",
+        "goodTillDate": 0,
+        "orderId": 28624485329,
+        "origQty": "0.0010",
+        "origType": "LIMIT",
+        "positionSide": "LONG",
+        "price": "81432.60",
+        "priceMatch": "NONE",
+        "priceProtect": false,
+        "reduceOnly": false,
+        "selfTradePreventionMode": "EXPIRE_MAKER",
+        "side": "BUY",
+        "status": "NEW",
+        "stopPrice": "0.00",
+        "symbol": "BTCUSDT",
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "updateTime": 1791549267319,
+        "workingType": "CONTRACT_PRICE"
+      },
+      "result_sha256": "c09154c516053b974821b2db40a922778c2fc504ca06966e0ee8b90436ba865b"
+    },
+    {
+      "t_ms": 1791549259066,
+      "command": "query_order",
+      "params": {
+        "symbol": "BTCUSDT",
+        "order_id": 28624485329
+      },
+      "request_id": "3f5f1f8b6a1a4c75b2df438dbf3f1266",
+      "duration_ms": 266.0,
+      "ok": true,
+      "result": {
+        "avgPrice": "0.00",
+        "clientOrderId": "o167769850f053e40bf87a2",
+        "closePosition": false,
+        "cumQuote": "0.000000",
+        "executedQty": "0.0000",
+        "goodTillDate": 0,
+        "orderId": 28624485329,
+        "origQty": "0.0010",
+        "origType": "LIMIT",
+        "positionSide": "LONG",
+        "price": "81432.60",
+        "priceMatch": "NONE",
+        "priceProtect": false,
+        "reduceOnly": false,
+        "selfTradePreventionMode": "EXPIRE_MAKER",
+        "side": "BUY",
+        "status": "NEW",
+        "stopPrice": "0.00",
+        "symbol": "BTCUSDT",
+        "time": 1791549267319,
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "updateTime": 1791549267319,
+        "workingType": "CONTRACT_PRICE"
+      },
+      "result_sha256": "98fb8082ac4c05794deebb26683bfb768ab5e8066fc87c0178af9139b6a5d6e7"
+    },
+    {
+      "t_ms": 1791549259437,
+      "command": "cancel_order",
+      "params": {
+        "symbol": "BTCUSDT",
+        "order_id": 28624485329
+      },
+      "request_id": "abddfb7e1e894c9f82b331e42aa97a27",
+      "duration_ms": 328.0,
+      "ok": true,
+      "result": {
+        "clientOrderId": "o167769850f053e40bf87a2",
+        "closePosition": false,
+        "cumQty": "0.0000",
+        "executedQty": "0.0000",
+        "goodTillDate": 0,
+        "orderId": 28624485329,
+        "origQty": "0.0010",
+        "origType": "LIMIT",
+        "positionSide": "LONG",
+        "price": "81432.60",
+        "priceMatch": "NONE",
+        "priceProtect": false,
+        "reduceOnly": false,
+        "selfTradePreventionMode": "EXPIRE_MAKER",
+        "side": "BUY",
+        "status": "CANCELED",
+        "stopPrice": "0.00",
+        "symbol": "BTCUSDT",
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "updateTime": 1791549268003,
+        "workingType": "CONTRACT_PRICE"
+      },
+      "result_sha256": "f633f9fa7a82bce84b14376827ba3dac70ac8a220cefc9e57caf305d57e45221"
+    },
+    {
+      "t_ms": 1791549259739,
+      "command": "query_order",
+      "params": {
+        "symbol": "BTCUSDT",
+        "order_id": 28624485329
+      },
+      "request_id": "79daef17bd844bc3afce094877ced005",
+      "duration_ms": 266.0,
+      "ok": true,
+      "result": {
+        "avgPrice": "0.00",
+        "clientOrderId": "o167769850f053e40bf87a2",
+        "closePosition": false,
+        "cumQuote": "0.000000",
+        "executedQty": "0.0000",
+        "goodTillDate": 0,
+        "orderId": 28624485329,
+        "origQty": "0.0010",
+        "origType": "LIMIT",
+        "positionSide": "LONG",
+        "price": "81432.60",
+        "priceMatch": "NONE",
+        "priceProtect": false,
+        "reduceOnly": false,
+        "selfTradePreventionMode": "EXPIRE_MAKER",
+        "side": "BUY",
+        "status": "CANCELED",
+        "stopPrice": "0.00",
+        "symbol": "BTCUSDT",
+        "time": 1791549267319,
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "updateTime": 1791549268003,
+        "workingType": "CONTRACT_PRICE"
+      },
+      "result_sha256": "1ad75a5256d080e752990d976da1d9ee166f5bb42ea0cfabea3992486a66bce2"
+    },
+    {
+      "t_ms": 1791549260053,
+      "command": "open_orders",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "11378bc5fe2f4628a05129a9973d477f",
+      "duration_ms": 296.0,
+      "ok": true,
+      "result": [],
+      "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "t_ms": 1791549260325,
+      "command": "open_orders",
+      "params": {
+        "symbol": "BTCUSDT"
+      },
+      "request_id": "3cff7232bcc14c67a56d5ceaf48e08e0",
+      "duration_ms": 266.0,
+      "ok": true,
+      "result": [],
+      "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "notes": [
+    {
+      "utc": "2026-10-09T12:34:16.341135Z",
+      "note": "connected demo-fapi.binance.com offset_ms=8754"
+    },
+    {
+      "utc": "2026-10-09T12:34:18.413852Z",
+      "note": "baseline_open_orders=0 mark=83094.5 plan=0.001@81432.6"
+    },
+    {
+      "utc": "2026-10-09T12:34:18.796743Z",
+      "note": "placed orderId=28624485329"
+    },
+    {
+      "utc": "2026-10-09T12:34:19.089318Z",
+      "note": "accepted orderId=28624485329 status=NEW"
+    }
+  ],
+  "artifacts": {}
+}
