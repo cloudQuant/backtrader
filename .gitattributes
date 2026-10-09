@@ -695,3 +695,13 @@ docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架�
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/reviews/independent-review-transcript.md -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/delivery-manifest.json -text
 docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-driver-r3-call-r3-source-dev-round-r1-2026-10-09/round-record.md -text
+.codex-tmp/simnow_v20_root_preparation_host_r6_20261009.py -text
+.codex-tmp/simnow_v20_root_preparation_actual_caller_r2_20261009.py -text
+.codex-tmp/simnow_v20_root_preparation_launch_r2_20261009.py -text
+.codex-tmp/simnow_v20_root_preparation_contextmanager_r2_test_20261009.py -text
+.codex-tmp/simnow_contextmanager_r6_root_focused_qa_20261009.py -text
+.codex-tmp/simnow_contextmanager_r6_root_focused_qa_20261009.json -text
+.codex-tmp/simnow_contextmanager_r6_independent_review_20261009.md -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-credential-free-job-channel-r3-2026-10-09/runtime-source-pins.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-contextmanager-r6-caller-r2-source-dev-round-r1-2026-10-09/manifest.json -text
+docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-contextmanager-r6-caller-r2-source-dev-round-r1-2026-10-09/round-record.md -text
