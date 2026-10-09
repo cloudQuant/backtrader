@@ -183,6 +183,8 @@ def main(argv=None):
     parser.add_argument("--allow-dangerous", action="store_true", help="pass --allow-dangerous (live)")
     parser.add_argument("--cases", default=None, help="comma list (default C01,T03)")
     parser.add_argument("--combos", default=None, help="comma list of combo ids to run")
+    parser.add_argument("--case-root", default=None,
+                        help="venue suite directory (default binance_penetration; relative names resolve under cert root)")
     parser.add_argument("--python", default=sys.executable or "C:/anaconda3/python.exe")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
     parser.add_argument("--out", default=str(DEFAULT_OUT))
@@ -198,6 +200,12 @@ def main(argv=None):
         mode_args.append("--allow-dangerous")
 
     cases = _parse_list(args.cases, DEFAULT_CASES)
+    if args.case_root:
+        candidate = Path(args.case_root)
+        case_root = candidate if candidate.is_absolute() else (CERT_ROOT / candidate)
+        case_root = case_root.resolve()
+    else:
+        case_root = BINANCE_ROOT
     combos, spec_source = _specs()
     wanted = set(_parse_list(args.combos, ())) if args.combos else None
     if wanted is not None:
@@ -217,7 +225,7 @@ def main(argv=None):
                "flags": {flag: bool(flags.get(flag)) for flag in COMPONENT_FLAGS},
                "started_utc": _utc_now(), "cases": {}}
         for case_id in cases:
-            case_dir = BINANCE_ROOT / "cases" / case_id
+            case_dir = case_root / "cases" / case_id
             if not case_dir.is_dir():
                 row["cases"][case_id] = {"case": case_id, "status": "ERROR", "exit_code": None,
                                          "reason": "case_dir_missing:%s" % case_dir}
@@ -242,7 +250,7 @@ def main(argv=None):
         "python": args.python,
         "repo_root": str(Path(__file__).resolve().parents[3]),
         "cert_root": str(CERT_ROOT),
-        "case_root": str(BINANCE_ROOT),
+        "case_root": str(case_root),
         "cases": list(cases),
         "spec_source": spec_source,
         "grants": {"allow_write": bool(args.allow_write), "allow_dangerous": bool(args.allow_dangerous)},

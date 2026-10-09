@@ -166,3 +166,10 @@ mode exits 0 only when every case reported `PASS`.
 * `run_matrix.py` never imports SDK/provider code, never edits case files and
   only records what the case runner emitted; a recorded `PASS` remains subject
   to the case contract's own evidence rules.
+* `run_matrix.py --case-root <suite-dir>` selects the venue suite (default
+  `binance_penetration`); `--out` names the acceptance file.  The accepted
+  16-combination matrix runs on the binance reference case set; mounting the
+  components on the OKX/SimNow clients would need a per-venue order-parameter
+  translation layer (sz/px/clOrdId and contract multipliers), which is
+  deliberately out of the accepted scope — those suites stay direct-route
+  certified.
