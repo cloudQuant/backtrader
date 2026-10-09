@@ -1,3 +1,0 @@
-identity_exit=0
-recovery_exit=0
-adversarial_exit=0

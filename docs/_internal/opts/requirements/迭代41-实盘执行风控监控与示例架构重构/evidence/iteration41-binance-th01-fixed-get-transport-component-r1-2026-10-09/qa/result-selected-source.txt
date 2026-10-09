@@ -1,9 +1,0 @@
-Exit: 0
-Result: 3 passed, no warnings, 0.10 seconds.
-The temporary selected-source root contains exactly these three files:
-
-pytest.ini | 10 bytes | SHA-256 578fc1cd12d8d642df8eff41d71d5119626e9f88f21fafadba6b1092ac840a93
-examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py | 92,566 bytes | SHA-256 290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f
-tests/unit/live_certification/test_binance_th01_fixed_get_transport_component_r1.py | 11,117 bytes | SHA-256 795d418e16480bda858376d1bd514343806c204712a77d1f84aa8c8bd1b4c326
-
-No R3 bootstrap/CLI/helper, reader, collector, availability probe, `.env`, or private evidence was copied into the selected root. This result establishes that the internal transport component imports and runs without those wider source dependencies; it does not invoke the full owner entry.

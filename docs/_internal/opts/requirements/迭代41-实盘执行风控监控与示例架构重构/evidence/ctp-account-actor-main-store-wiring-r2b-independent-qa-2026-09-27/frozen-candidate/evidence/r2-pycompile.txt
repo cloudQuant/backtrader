@@ -1,1 +1,0 @@
-py_compile passed (exit 0).

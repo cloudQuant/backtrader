@@ -1,7 +1,0 @@
-ROOT_M01_SETUP={"api_guards_installed_before_pytest_candidate_imports": true, "colorama_preloaded_before_native_denials": true, "pytest_conftest_loading_disabled": true, "stdlib_fixture_dependencies_preloaded_before_guards": true}
-................                                                         [100%]
-ROOT_M01_DENIAL_AUDIT={"blocked_import_root_counts":{"_winapi":0,"other":0},"call_sites":[],"call_sites_truncated":0,"category_counts":{"blocked_sdk_import":0,"other_guarded_denial":0},"trip_count":0}
-
-16 passed in 0.93s
-ROOT_M01_METADATA_LISTING_AUDIT={"allowed_exact_ancestor_listing_counts":{"drive_root":0,"repository_parent":1},"path_values_recorded":false,"rejected_listing_category_counts":{"forbidden_or_private_path":0,"outside_reviewed_roots":0},"scope":"Exact repository-parent and drive-root listdir/scandir metadata only."}
-ROOT_M01_GUARD_SELF_CHECKS=passed

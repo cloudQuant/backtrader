@@ -1,8 +1,0 @@
-okx:
-  public_key: "xxxx"
-  private_key: "xxxx"
-  passphrase: "xxxx"
-
-binance:
-  public_key: 'xxxx'
-  private_key: 'xxxx'

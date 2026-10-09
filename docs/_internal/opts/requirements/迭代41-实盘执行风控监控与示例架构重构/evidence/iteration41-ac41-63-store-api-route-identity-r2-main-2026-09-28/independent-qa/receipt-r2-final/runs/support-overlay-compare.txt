@@ -1,2 +1,0 @@
-support_python_files_compared=479
-difference_count=0

@@ -1,1 +1,0 @@
-python -I -S compare_pinned_wheels.py exit=0

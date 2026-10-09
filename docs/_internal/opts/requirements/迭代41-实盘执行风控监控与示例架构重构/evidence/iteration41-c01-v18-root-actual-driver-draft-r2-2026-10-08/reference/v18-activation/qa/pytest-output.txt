@@ -1,4 +1,0 @@
-..........................................                               [100%]
-============================== warnings summary ===============================
-D:\temp\iteration41-main-source-qa-20260926\venv\Lib\site-packages\_pytest\config\__init__.py:1448: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
-42 passed, 1 warning in 5.90s

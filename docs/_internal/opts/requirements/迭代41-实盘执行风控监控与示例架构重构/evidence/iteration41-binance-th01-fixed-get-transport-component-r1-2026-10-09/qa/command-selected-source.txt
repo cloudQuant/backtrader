@@ -1,3 +1,0 @@
-$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
-$env:PYTHONDONTWRITEBYTECODE = '1'
-python -I -B -m pytest -c "$env:TEMP\th01-fixed-get-component-selected-source-r2-20261009\pytest.ini" --confcutdir "$env:TEMP\th01-fixed-get-component-selected-source-r2-20261009" -p no:asyncio -p no:cacheprovider "$env:TEMP\th01-fixed-get-component-selected-source-r2-20261009\tests\unit\live_certification\test_binance_th01_fixed_get_transport_component_r1.py" -q --tb=short

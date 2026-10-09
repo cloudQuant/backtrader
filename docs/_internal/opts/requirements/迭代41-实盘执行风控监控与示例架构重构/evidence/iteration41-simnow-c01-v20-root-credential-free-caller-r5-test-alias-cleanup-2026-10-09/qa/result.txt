@@ -1,4 +1,0 @@
-Result: 12 passed, 0 failed, 1 existing PytestConfigWarning, exit code 0.
-Ruff: all checks passed on the preparation source and source-fake test, exit code 0.
-
-The warning is the environment's existing unknown `asyncio_default_fixture_loop_scope` pytest configuration option. This focused source-fake run did not invoke the actual gate or C01, enter real CUv2, read software payload/private input/environment values, or call process, pipe, WinAPI, SDK, native, provider, or network code.

@@ -1,6 +1,0 @@
-Exit: 0
-Result: 3 passed, 1 existing pytest configuration warning.
-Warning: Unknown config option `asyncio_default_fixture_loop_scope` because this command disables the asyncio plugin.
-Scope: source-fake only. Synthetic HTTPS and fake Process/Pipe leaves; no credential reads, provider/network calls, OS process, or OS Pipe.
-Owner input pin: 92,566 bytes; SHA-256 290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f.
-Test input pin: 11,117 bytes; SHA-256 795d418e16480bda858376d1bd514343806c204712a77d1f84aa8c8bd1b4c326.

@@ -1,7 +1,0 @@
-Focused sourcefake QA (Windows, no native/provider/account calls):
-python -m pytest -q -p no:asyncio tests/unit/live_certification/test_okx_m01_readonly_monitor_v3.py tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py
-
-Formatting/static checks:
-python -m black --target-version py311 --check tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py
-python -m ruff check tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py
-python -m py_compile examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/current_reader.py examples/000_live_certification/okx_penetration/_m01_readonly_monitor_v3/entry.py examples/000_live_certification/okx_penetration/cases/M01/run.py tests/unit/scripts/test_iteration41_okx_m01_reader_lifecycle_integration_r1.py

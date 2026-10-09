@@ -1,2 +1,0 @@
-default_gate= sdk_artifact_release_pin_unavailable
-sdk_package_imported=false

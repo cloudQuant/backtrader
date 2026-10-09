@@ -1,2 +1,0 @@
-compiled 5 Python files; no bytecode written
-EXIT_CODE=0

@@ -1,4 +1,0 @@
-Focused source-fake command exit: 0
-25 passed, 1 existing PytestConfigWarning.
-Warning: unknown config option asyncio_default_fixture_loop_scope in the designated source-QA environment.
-The run exercised the driver's fake CUv2 map and fake wrapper routes plus the pinned wrapper source-fake test. No actual activation, provider, native SDK, WinAPI, or production child-process operation was run.

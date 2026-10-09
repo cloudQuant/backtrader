@@ -1,2 +1,0 @@
-startup_import_guard=active
-forbidden_modules_loaded=False

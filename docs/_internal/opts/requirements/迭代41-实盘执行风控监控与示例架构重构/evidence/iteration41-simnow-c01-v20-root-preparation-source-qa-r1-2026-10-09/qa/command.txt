@@ -1,7 +1,0 @@
-Root-run command proposal from the repository root (not executed by the author):
-
-python -I -B -X utf8 "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-simnow-c01-v20-root-preparation-source-qa-r1-2026-10-09/run_root_preparation_source_qa.py"
-
-Use Root's selected QA interpreter with pytest installed. The runner executes
-one in-process pytest session for the pinned 12-case source-fake file and
-denies child-process creation within that session.

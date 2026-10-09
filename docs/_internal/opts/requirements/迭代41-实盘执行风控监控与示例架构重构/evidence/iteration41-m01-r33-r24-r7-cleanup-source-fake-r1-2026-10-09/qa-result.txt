@@ -1,2 +1,0 @@
-28 passed, 1 warning in 130.07s
-Existing warning: unknown pytest config option asyncio_default_fixture_loop_scope.

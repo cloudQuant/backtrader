@@ -1,9 +1,0 @@
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-driver-r2-independent-review-r1-2026-10-09/README.md" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/root-actual-driver-r2.py" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/root-original-receipt-r5.json" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/root-outside-git-postverification-r5.py" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/root-pre-exit-exact-body-r5.py" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/root-delivery-round-record.md" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/delivery-manifest.json" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-root-support-r1-2026-10-09/byte-preservation-rules-proposal.txt" -text
-"docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-okx-m01-r8-r5-dev-delivery-proposal-r1-independent-review-r1-2026-10-09/README.md" -text
