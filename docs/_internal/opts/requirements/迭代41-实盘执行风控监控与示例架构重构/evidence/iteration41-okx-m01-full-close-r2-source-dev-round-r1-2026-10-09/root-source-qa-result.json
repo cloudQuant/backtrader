@@ -1,0 +1,66 @@
+{
+  "status": "PASS_FULL_CLOSE_SOURCE_FAKE_ONLY",
+  "branch": "dev",
+  "parent": "d93a035f066d6ea1d414848e01de15bbd8c19823",
+  "python_exit": 0,
+  "facts": {
+    "collected": 4,
+    "denial_shapes": [],
+    "denials": {},
+    "errors": 0,
+    "guard_selfchecks": 4,
+    "origin_verified": true,
+    "passed": 4,
+    "provider_import_absent": true,
+    "pytest_exit": 0,
+    "runner_error": null,
+    "selected_public_source_reads": {
+      ".codex-tmp/okx_m01_protected_rebind_r3_root_actual_candidate_20261009.py": 4,
+      ".codex-tmp/okx_m01_r3_normal_cu_close_helper_r2_20261009.py": 4,
+      "tests/__init__.py": 1,
+      "tests/unit/scripts/test_iteration41_okx_m01_r3_normal_cu_close_r2_source_fake.py": 1
+    },
+    "warnings": 0
+  },
+  "input_pins": {
+    "tests/__init__.py": [
+      30,
+      "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+    ],
+    ".codex-tmp/okx_m01_r3_normal_cu_close_helper_r2_20261009.py": [
+      19399,
+      "01a51406d2b54abb116b70e93111e741beaa8f3ada54f15e3b5c67c684c59072"
+    ],
+    "tests/unit/scripts/test_iteration41_okx_m01_r3_normal_cu_close_r2_source_fake.py": [
+      10858,
+      "4b7a1d9df545e42715d53102000acc264ec49d35e62ab6a7862946d738d96e6e"
+    ],
+    ".codex-tmp/okx_m01_protected_rebind_r3_root_actual_candidate_20261009.py": [
+      55093,
+      "f80890de30021dc9751a439a247c0549afca7303fb13f8f8bb27019e6c193fd6"
+    ],
+    ".codex-tmp/okx_m01_r3_normal_cu_close_helper_20261009.py": [
+      16328,
+      "9169878e73d5fd261a311f1e574b8a38ac3417fd456efcccbb5d47d01edd3295"
+    ]
+  },
+  "inputs_unchanged": true,
+  "input_status_and_index_unchanged": true,
+  "generated_runner_pin": [
+    6217,
+    "fd0ccca9482fea7e92fbd857accb8366e243b406b89b90ebe8275371df742116"
+  ],
+  "qa_output_directory": "D:\\ocq03263b69",
+  "stdout_pin": [
+    100,
+    "9687366a2c0ecb1e7cc62a554816f7d09063ca0059d451b75e322bb49043269b"
+  ],
+  "stderr_pin": [
+    0,
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "actual_retained_host_close": false,
+  "metadata_rebind": false,
+  "provider_account_call": false,
+  "formal_m01_pass_count": 0
+}
