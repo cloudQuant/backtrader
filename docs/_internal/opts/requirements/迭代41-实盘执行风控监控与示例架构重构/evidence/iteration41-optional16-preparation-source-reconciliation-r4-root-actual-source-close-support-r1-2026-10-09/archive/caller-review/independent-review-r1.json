@@ -1,0 +1,67 @@
+{
+  "schema": "iteration41.optional16.r4.root-actual-caller-independent-review.v1",
+  "verdict": "GO_SOURCEFAKE_FULL_DEFAULT_CALLER_COMPOSITION_ONLY",
+  "scope": "Independent public-source review of the frozen R3 caller and single sourcefake full-chain test. The reported pytest run was not repeated; no retained host or actual caller was used.",
+  "reviewed_artifacts": [
+    {
+      "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_r3.py",
+      "bytes": 60976,
+      "sha256": "4a55ca904544c297fa1a87c6ca944ec5aa865ebc39a9e820ce0506492ee1d23d"
+    },
+    {
+      "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py",
+      "bytes": 20418,
+      "sha256": "18b8df17744b477d84e3e0a291279d39091d5075c5e35cb96ea0956a3b09ba34"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/sourcefake-report.json",
+      "bytes": 4179,
+      "sha256": "a35030e75346162f55060ff9bd8c65d78fd079e6605d5196cc804207677a3ac0"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/README.md",
+      "bytes": 2395,
+      "sha256": "534bbc7bdefa061e83d94a84f1c08361b2446576bca8eae64d120400ebc56e6c"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/sourcefake-run.txt",
+      "bytes": 394,
+      "sha256": "23662802a802f3059be2ab99494b4c87e7a5231a208a11125688098575cd6e58"
+    },
+    {
+      "path": "scripts/iteration41_optional16_preparation_source_reconciliation_r4.py",
+      "bytes": 88531,
+      "sha256": "bd5b8adf47edabbdcf5faf475ce11fa0dd6b936ad03c7e4be3cd991a26773760"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration41_optional16_preparation_source_reconciliation_r4_source_fake.py",
+      "bytes": 46299,
+      "sha256": "fd6bc283ec1a286d6ea2b315ff2dd904a239777468ed62b71cee532c429ffacd"
+    }
+  ],
+  "findings": [
+    "The prior R2 identity check remains explicit: the R2 reconciliation record's held object is the original PREP_STATE outer hold, while the R2 review-held tuple separately contains the pinned R2 source bytes by object identity. The test asserts that these are distinct roles.",
+    "The test calls the candidate's exact run(root_namespace, expected_caller_sha256) composition and leaves caller._invoke_r4_once unchanged; it asserts the same function object remains installed after the call. That default caller function invokes the exact pinned R4 helper API.",
+    "The caller forwards the helper's sourcefake token only when a module-owned identity token is present in the synthetic Root namespace and the retained original scope has test_only is True. The test deliberately enters that explicit sourcefake branch; this is not production-scope authorization.",
+    "The test derives 42 public and 3 software pins from the existing production-map fixture, holds and checks all 45 map rows using the pinned CUv2 generator, and loads the real pinned R4 source through the caller. It preserves the original Root audit and asserts the R1/R2/R3 records and original Root result remain bound, with one R4 call and normal sourcefake scope close.",
+    "The enter/finish functions are wrapped only to install fake filesystem/API leaves and then delegate to the original caller functions. The test uses 455 deterministic inner rows to reach the 457-row shape and opaque executable/DLL sentinels with a fake digest leaf; these do not reproduce original host identities or verify real software bytes."
+  ],
+  "author_reported_test": {
+    "command": "pytest -q .codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py",
+    "exit_code": 0,
+    "passed": 1,
+    "failed": 0,
+    "independently_rerun": false,
+    "reported_warning": "Existing asyncio_default_fixture_loop_scope pytest configuration warning; an ipykernel BaseComm.__del__ teardown message followed the pytest summary after exit code 0."
+  },
+  "limitations": {
+    "sourcefake_branch_used": true,
+    "actual_retained_host_or_caller_invoked": false,
+    "455_original_inner_file_identities_reproduced": false,
+    "real_executable_or_dll_bytes_verified": false,
+    "private_inputs_or_opaque_payloads_read": false,
+    "process_pipe_native_sdk_provider_network_or_winapi_used": false,
+    "formal_optional16_acceptance": false,
+    "formal_optional16_pass_count": 0
+  }
+}

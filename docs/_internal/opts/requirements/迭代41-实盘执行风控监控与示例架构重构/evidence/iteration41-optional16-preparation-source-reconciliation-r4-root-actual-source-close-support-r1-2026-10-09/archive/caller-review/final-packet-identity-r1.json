@@ -1,0 +1,75 @@
+{
+  "schema": "iteration41.optional16.r4.root-actual-caller-final-packet-identity-review.v1",
+  "verdict": "GO_FINAL_PACKET_IDENTITY_METADATA_ONLY",
+  "review_scope": "Narrow identity review of the frozen sourcefake packet metadata and archived snapshots. No tests were rerun.",
+  "candidate_and_test": [
+    {
+      "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_r3.py",
+      "bytes": 60976,
+      "sha256": "4a55ca904544c297fa1a87c6ca944ec5aa865ebc39a9e820ce0506492ee1d23d"
+    },
+    {
+      "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py",
+      "bytes": 20418,
+      "sha256": "18b8df17744b477d84e3e0a291279d39091d5075c5e35cb96ea0956a3b09ba34"
+    }
+  ],
+  "report_and_readme": {
+    "reviewed_report_snapshot": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/reviewed-sourcefake-report-r1.json",
+      "bytes": 4179,
+      "sha256": "a35030e75346162f55060ff9bd8c65d78fd079e6605d5196cc804207677a3ac0"
+    },
+    "current_report": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/sourcefake-report.json",
+      "bytes": 4593,
+      "sha256": "f5ec2fe02adbbe54e7bc2b1615acecd491eda7d7d75e76f60ae469eed0816143"
+    },
+    "reviewed_readme_snapshot": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/reviewed-README-r1.md",
+      "bytes": 2395,
+      "sha256": "534bbc7bdefa061e83d94a84f1c08361b2446576bca8eae64d120400ebc56e6c"
+    },
+    "current_readme": {
+      "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/README.md",
+      "bytes": 3665,
+      "sha256": "cd3badc10476a5b2829d929205ccde4c23d29081d318a30085e40447474433b8"
+    },
+    "report_metadata_only_relation_verified": true,
+    "readme_metadata_only_relation_verified": true,
+    "relation_method": "Restoring current report independent_review to the archived pending value produces structural JSON equality with the pinned reviewed report snapshot. Restoring the prior pending-review sentence and removing the appended Reviewed artifact identity section makes the current README lines equal the pinned reviewed README snapshot."
+  },
+  "source_index": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/source-index.json",
+    "bytes": 35595,
+    "sha256": "ee2f7095862d5ffedca11f0e3ed2b5708637f1cdb0f70017f42c7b2c73eb6c52",
+    "schema": "iteration41.optional16.r4.root-actual-caller-source-index.v1",
+    "input_count": 76,
+    "post_pin_rows": 76,
+    "sourcefake_artifact_rows": 8,
+    "sourcefake_artifact_rows_size_and_hash_verified": 8,
+    "sourcefake_artifact_paths_unique": true,
+    "all_underlying_input_rows_rehashed_in_this_review": false
+  },
+  "independent_review": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/independent-review-r1.json",
+    "bytes": 4685,
+    "sha256": "3301b0f0a42879cd1b771d3b58c573fcd974a293385935b55b88cb1812419be2",
+    "verdict": "GO_SOURCEFAKE_FULL_DEFAULT_CALLER_COMPOSITION_ONLY"
+  },
+  "sourcefake_run_transcript": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/sourcefake-run.txt",
+    "bytes": 394,
+    "sha256": "23662802a802f3059be2ab99494b4c87e7a5231a208a11125688098575cd6e58",
+    "author_reported_result": "1 passed, 0 failed; not rerun"
+  },
+  "limits": {
+    "formal_optional16_acceptance": false,
+    "actual_host_or_caller_invoked": false,
+    "private_or_opaque_payload_read": false,
+    "process_pipe_native_sdk_provider_network_or_winapi_used": false,
+    "git_operation_performed": false,
+    "tests_rerun": false,
+    "new_identity_record_is_not_in_source_index_artifact_rows": true
+  }
+}

@@ -1,0 +1,5 @@
+$ pytest -q .codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py
+.                                                                        [100%]
+1 passed, 1 warning in 1.68s
+
+Known warning: PytestConfigWarning for asyncio_default_fixture_loop_scope. After pytest exit code 0, the environment emitted an ignored ipykernel BaseComm.__del__ teardown message.

@@ -1,0 +1,87 @@
+{
+  "schema": "iteration41.optional16.r4.root-actual-source-close-support-independent-review.v1",
+  "verdict": "GO_ARCHIVE_CONTENT_ONLY_WITH_FINAL_MANIFEST_REVIEW_SLOT_PENDING",
+  "review_scope": "Independent public metadata/static-delivery review of the frozen source-close support archive. No tests were run and no archived invocation source was executed.",
+  "reviewed_packet": {
+    "directory": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-source-reconciliation-r4-root-actual-source-close-support-r1-2026-10-09/",
+    "readme": {
+      "bytes": 2912,
+      "sha256": "97487df1380cbd9f2380fa36e6b1e2d2fbf886c3ec809f88d1e84e0deb3db135"
+    },
+    "source_index": {
+      "bytes": 38789,
+      "sha256": "2fc3a49eb2e2fc4f7d7b15bd524e8ce9e6d4cc8f7c4c7981665989e5f8892050",
+      "schema": "iteration41.optional16.r4.root-actual-source-close-support-index.v1",
+      "scope": "PUBLIC_SOURCE_CLOSE_SUPPORT_ARCHIVE_ONLY",
+      "archive_payload_count": 20
+    },
+    "delivery_manifest": {
+      "bytes": 11960,
+      "sha256": "1c57793ebe909143bc846717d705e6d048ff2a770d311a17d79acdbea4af95f2",
+      "schema": "iteration41.optional16.r4.root-actual-source-close-support-delivery-manifest.v1",
+      "status": "FROZEN_FOR_INDEPENDENT_STATIC_DELIVERY_REVIEW",
+      "scope": "ROOT_ACTUAL_NORMAL_SOURCE_CLOSE_SUPPORT_ONLY",
+      "proposed_file_count": 23,
+      "manifest_self_pin": "intentionally out of band"
+    },
+    "byte_preservation_rules_proposal": {
+      "bytes": 213,
+      "sha256": "bb13dc664a50fddb6e707dc76329814b60f54e3f69fc08181e52e21edb4cfc44",
+      "classification": "author proposal only; no repository attribute change is claimed"
+    }
+  },
+  "delivery_checks": {
+    "all_proposed_file_size_and_hash_rows_match": true,
+    "archive_rows_match_manifest_and_index": true,
+    "archive_copy_and_named_public_original_pairs_verified": "20/20 exact byte sizes and SHA-256 values matched",
+    "physical_archive_file_count": 20,
+    "manifest_proposed_file_count": 23,
+    "all_proposed_files_present": true,
+    "excluded_dependency_relationships_consistent": true
+  },
+  "source_close_claim_boundary": {
+    "sanitized_observation_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-source-reconciliation-r4-root-actual-source-close-support-r1-2026-10-09/archive/root-actual/r4-observation.json",
+    "sanitized_observation_bytes": 1932,
+    "sanitized_observation_sha256": "b4398bf015a975ec98ba0930811851d8faf4b10a7fae9abc5fa1261da944c330",
+    "reported_status": "ROOT_SOURCE_CUSTODY_CLOSED",
+    "reported_r4_api_invocations": 1,
+    "reported_original_inner_scope_closed": true,
+    "reported_original_outer_normal_exit": true,
+    "reported_fresh_review_scope_normal_exit": true,
+    "reported_original_result_unchanged": true,
+    "historical_assignment_identity_proven": false,
+    "preparation_retry_installer_worker_provider_account_or_host_exit": "not claimed",
+    "formal_optional16_pass_count": 0,
+    "prior_r1_r2_r3_observations": "retained as historical BLOCKED records; no retry authority"
+  },
+  "dependency_scope": {
+    "canonical_r4_helper": {
+      "path": "scripts/iteration41_optional16_preparation_source_reconciliation_r4.py",
+      "bytes": 88531,
+      "sha256": "bd5b8adf47edabbdcf5faf475ce11fa0dd6b936ad03c7e4be3cd991a26773760",
+      "disposition": "existing committed dependency; excluded from this support payload"
+    },
+    "accepted_sourcefake_closure": {
+      "input_count": 51,
+      "disposition": "already delivered dependency; its 51 inputs were not copied, rerun, or re-committed by this archive"
+    },
+    "prior_sourcefake_qa": "The harness and result are archived as provenance; the 47-test result was not rerun here."
+  },
+  "manifest_review_slot": {
+    "frozen_manifest_status": "PENDING_STATIC_DELIVERY_REVIEW",
+    "frozen_planned_review_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-source-reconciliation-r4-root-actual-source-close-support-r1-2026-10-09/independent-review-r1.json",
+    "review_record_path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-preparation-source-reconciliation-r4-root-actual-source-close-support-independent-review-r1-2026-10-09/review.json",
+    "slot_closed_by_this_record": false,
+    "reason": "The candidate packet and manifest were preserved unchanged; Root directed that this independent record be stored in a sibling evidence directory. The manifest's planned in-packet review path therefore remains pending and requires separate reconciliation before claiming final manifest closure."
+  },
+  "limits": {
+    "repository_branch_or_head_independently_checked": false,
+    "archived_source_executed": false,
+    "tests_rerun": false,
+    "actual_or_private_input_accessed": false,
+    "opaque_payload_read_or_executed": false,
+    "process_pipe_native_sdk_provider_network_or_winapi_used": false,
+    "git_operation_performed": false,
+    "formal_optional16_acceptance": false
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "iteration41.optional16.r4.root-actual-caller-fullchain-sourcefake-report.v2",
+  "evidence_level": "SOURCEFAKE_FULL_DEFAULT_CALLER_COMPOSITION_ONLY",
+  "result": "PASS_WITH_KNOWN_ENVIRONMENT_WARNING",
+  "command": "pytest -q .codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py",
+  "exit_code": 0,
+  "tests_passed": 1,
+  "tests_failed": 0,
+  "tests": [
+    {
+      "name": "test_full_run_uses_pinned_cuv2_and_r4_with_exact_outer_map_and_fake_leaves",
+      "outcome": "passed",
+      "assertions": [
+        "called run(root_namespace, expected_caller_sha256) with the default argument composition",
+        "left the production _invoke_r4_once function object unchanged and exercised it through the caller",
+        "loaded and executed the exact pinned CUv2 held_public_sources generator and exact held R4 helper source/API",
+        "used the exact 42-public/3-software outer pin maps and all 45 map rows; replaced only filesystem/hash leaves and preserved original helper scopes/audit",
+        "forwarded the helper sourcefake token only from an explicit identity marker in the synthetic root namespace and a retained test_only scope",
+        "preserved the distinct R2 outer-held identity and R2 source-review tuple/raw-byte identity",
+        "completed the synthetic inner release, original outer normal exit, and fresh review-scope normal close",
+        "preserved original Root state/result and R1/R2/R3 records; exactly one R4 API call; formal Optional16 pass count stayed zero"
+      ]
+    }
+  ],
+  "candidate": {
+    "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_r3.py",
+    "bytes": 60976,
+    "sha256": "4a55ca904544c297fa1a87c6ca944ec5aa865ebc39a9e820ce0506492ee1d23d"
+  },
+  "sourcefake_test": {
+    "path": ".codex-tmp/optional16_r4_root_actual_caller_prepare_20261009_r4_fullchain_sourcefake_r3.py",
+    "bytes": 20418,
+    "sha256": "18b8df17744b477d84e3e0a291279d39091d5075c5e35cb96ea0956a3b09ba34"
+  },
+  "prior_r4_qa": {
+    "path": ".codex-tmp/optional16_r4_sourcefake_guarded_r2/sourcefake-a037a1075326-6fc0d48af8e846f1970cc64a660b7105.json",
+    "bytes": 68351,
+    "sha256": "cb366f766fdcf0bed400bd892acf82a5395e143c22e63d425d5068cb45814ff7",
+    "passed_reports": 47,
+    "input_count": 51,
+    "rerun": false
+  },
+  "superseded_r2_review": {
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r2-2026-10-09/independent-review-r1.json",
+    "bytes": 4754,
+    "sha256": "d67948ddce49d5ab691a472c2be134c924b7c46c7d67dbee2e9b84b30f8d1d06",
+    "finding": "R2 replaced _invoke_r4_once to inject the fake token; this successor leaves the production function intact."
+  },
+  "warning": {
+    "pytest": "Existing PytestConfigWarning: Unknown config option asyncio_default_fixture_loop_scope.",
+    "post_exit": "An ipykernel BaseComm.__del__ teardown message appeared after pytest reported exit code 0."
+  },
+  "scope": {
+    "retained_host_25932_invoked": false,
+    "original_retained_objects_read_or_changed": false,
+    "r1_r2_r3_reconciler_retried": false,
+    "actual_operations": false,
+    "external_software_payload_read": false,
+    "provider_account_or_activation_entered": false,
+    "native_winapi_process_pipe_network": false,
+    "git_state_inspected_or_mutated": false,
+    "formal_optional16_pass_count": 0
+  },
+  "fixture_limits": [
+    "The inner sourcefake fixture preserves exact V3/V4 source and pin rows but uses 455 deterministic synthetic public rows to reach the retained 457-row shape; it does not reproduce the original host’s other 455 held-file identities.",
+    "The two external executable/DLL payload bodies remain opaque sentinels and their pinned digest metadata is supplied by a fake hash leaf; no software body was read.",
+    "The helper API runs its explicit sourcefake branch because the caller receives a fixture-only identity token and the retained inner scope has test_only=True. This test does not establish production-handle source reconciliation or actual host cleanup."
+  ],
+  "independent_review": {
+    "verdict": "GO_SOURCEFAKE_FULL_DEFAULT_CALLER_COMPOSITION_ONLY",
+    "path": "docs/_internal/opts/requirements/迭代41-实盘执行风控监控与示例架构重构/evidence/iteration41-optional16-r4-root-actual-caller-preparation-r3-2026-10-09/independent-review-r1.json",
+    "bytes": 4685,
+    "sha256": "3301b0f0a42879cd1b771d3b58c573fcd974a293385935b55b88cb1812419be2",
+    "independently_reran_test": false
+  }
+}
