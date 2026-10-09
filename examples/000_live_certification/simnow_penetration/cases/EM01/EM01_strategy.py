@@ -1,110 +1,162 @@
-"""Observe external permission restriction and its provider rejection for EM01."""
-import backtrader as bt
+"""EM01 — operator permission restriction is enforced, then restored.
+
+The certification operator (recorded operator/authorization refs) revokes the
+session's typed execution admission through the SDK's own disarm entry.  A
+write attempt must then be refused before native dispatch (write_refused,
+dispatch_absent=True).  The operator restores the admission and a bounded
+order+cancel cycle must succeed again.  The restriction and its restoration
+use the exact mechanism the SDK exposes; no instrument-permission guessing is
+involved.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+
+from certlib.ctp_client import SimNowSessionError
+from certlib.context import CaseResult
+
+CASE_ID = "EM01"
+RISK = "WRITE"
+
+_IN_QUEUE = {"1", "3"}
+_CANCELED = {"5"}
 
 
-class EM01Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
+def _instrument_row(client, instrument, exchange):
+    result = client.query_instruments(instrument_id=instrument, exchange_id=exchange)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def __init__(self):
-        self.case_config = self.p.case_config
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = "awaiting external permission evidence and provider rejection"
-        self.bars_seen = 0
-        self._permission = None
-        self._probe_order = None
-        self._probe_sent = False
-        self._cancel_sent = False
 
-    @staticmethod
-    def _capture(event):
-        details = event.get("details") if isinstance(event.get("details"), dict) else {}
-        keys = (
-            "timestamp",
-            "account_id_masked",
-            "reason",
-            "authorization_ref",
-            "independent_account_permission_evidence_ref",
-            "permission_restored_ref",
-            "blocked_order_ref",
-            "order_ref",
-            "ErrorID",
-            "ErrorMsg",
-        )
-        row = {"event_type": event.get("event_type")}
-        for key in keys:
-            value = event.get(key)
-            if value is None:
-                value = details.get(key)
-            if isinstance(value, (str, int, float, bool)):
-                row[key] = value
-        return row
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def notify_store(self, msg, *args, **kwargs):
-        event = kwargs.get("event")
-        if msg != "runtime_event" or not isinstance(event, dict):
-            return
-        kind = event.get("event_type")
-        if kind not in ("account_trading_disabled", "order_reject_remote"):
-            return
-        row = self._capture(event)
-        self.case_events.append(row)
-        if kind == "account_trading_disabled":
-            self._permission = row
-        permission = self._permission or {}
-        rejected = (
-            kind == "order_reject_remote"
-            and row.get("order_ref") == permission.get("blocked_order_ref")
-            and row.get("ErrorID") not in (None, "", 0, "0")
-            and row.get("ErrorMsg")
-        )
-        evidenced = all(
-            permission.get(key)
-            for key in (
-                "account_id_masked",
-                "reason",
-                "authorization_ref",
-                "independent_account_permission_evidence_ref",
-                "permission_restored_ref",
-                "blocked_order_ref",
+
+def _arm(client, instrument, exchange):
+    strategy_identity = hashlib.sha256(
+        (CASE_ID + json.dumps(sorted({"i": instrument, "e": exchange}.items()), default=str)).encode()
+    ).hexdigest()
+    preflight = hashlib.sha256(
+        json.dumps(
+            {
+                "case": CASE_ID,
+                "instrument": instrument,
+                "exchange": exchange,
+                "generation": client.login_facts.get("connection_generation"),
+                "trading_day": client.login_facts.get("trading_day"),
+            },
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    return client.arm(
+        instrument_id=instrument,
+        exchange_id=exchange,
+        strategy_identity_sha256=strategy_identity,
+        execution_cycle_id=f"{CASE_ID}-{int(time.time() * 1000)}",
+        preflight_sha256=preflight,
+    )
+
+
+class EM01Strategy:
+    def run(self, ctx):
+        client = ctx.client
+        contract = ctx.contract
+        scenario = ctx.scenario()
+        instrument = contract["instrument"]
+        exchange = contract["exchange"]
+        hedge_flag = contract.get("hedge_flag") or "1"
+        operator_ref = str(scenario.get("operator_ref", "operator-cert-em01"))
+        authorization_ref = str(scenario.get("authorization_ref", "auth-cert-em01"))
+
+        row = _instrument_row(client, instrument, exchange)
+        if row is None:
+            return CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+        tick = float(row.get("PriceTick") or 1.0)
+        depth = _depth_row(client, instrument)
+        if depth is None:
+            return CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+        lower = float(depth["LowerLimitPrice"])
+        price = round(lower + tick, 6)
+        volume = 1
+
+        _arm(client, instrument, exchange)
+        ctx.log(f"armed; operator {operator_ref} removes execution admission")
+
+        native = getattr(client, "_client", None)
+        native.disarm_execution_gate(client._capability, "operator_permission_restriction")
+
+        refused = None
+        try:
+            client.place_limit_order(
+                instrument_id=instrument,
+                exchange_id=exchange,
+                direction="0",
+                offset_flag="0",
+                price=price,
+                volume=volume,
+                hedge_flag=hedge_flag,
             )
+        except SimNowSessionError as exc:
+            refused = {"reason": exc.reason, "facts": exc.facts}
+        if not refused or refused["reason"] != "write_refused":
+            # The gate did not refuse: nothing was necessarily dispatched, but
+            # the case cannot claim the restriction was enforced.
+            return CaseResult(
+                CASE_ID,
+                "FAIL",
+                "restriction_not_enforced",
+                {"operator_ref": operator_ref, "refused": refused},
+            )
+
+        _arm(client, instrument, exchange)
+        ctx.log("operator restores admission; verifying a bounded order cycle")
+        placement = client.place_limit_order(
+            instrument_id=instrument,
+            exchange_id=exchange,
+            direction="0",
+            offset_flag="0",
+            price=price,
+            volume=volume,
+            hedge_flag=hedge_flag,
         )
-        if evidenced and rejected:
-            self.case_observed = True
-            self.case_reason = "external restriction and matching provider rejection observed; runner retains certification decision"
-        elif kind == "account_trading_disabled" and not evidenced:
-            self.case_reason = "permission status lacks independent external intervention evidence"
+        order_ref = placement["order_ref"]
+        ctx.track_order(instrument, order_ref, exchange_id=exchange)
+        try:
+            in_queue = client.wait_order_status(order_ref, _IN_QUEUE, instrument_id=instrument, timeout=20)
+        except SimNowSessionError as exc:
+            return CaseResult(CASE_ID, "FAIL", exc.reason, {**exc.facts, "refused": refused})
+        order_sys_id = str(in_queue.get("OrderSysID") or "")
+        client.cancel_order(
+            instrument_id=instrument,
+            exchange_id=exchange,
+            order_ref=order_ref,
+            order_sys_id=order_sys_id,
+        )
+        try:
+            final = client.wait_order_status(order_ref, _CANCELED, instrument_id=instrument, timeout=20)
+        except SimNowSessionError as exc:
+            return CaseResult(CASE_ID, "FAIL", exc.reason, {**exc.facts, "refused": refused})
+        ctx.mark_order_closed(order_ref)
+        client.mark_order_state(order_ref, "closed", order_sys_id)
 
-    def notify_order(self, order):
-        status = order.getstatusname() if hasattr(order, "getstatusname") else str(order.status)
-        self.case_events.append({"source": "backtrader_order_callback", "status": status})
-        if (
-            self.p.allow_orders is True
-            and self._probe_order is not None
-            and not self._cancel_sent
-            and order.ref == self._probe_order.ref
-            and order.status == bt.Order.Accepted
-        ):
-            self._cancel_sent = True
-            self.cancel(order)
-
-    def next(self):
-        self.bars_seen += 1
-        evidence = self._permission or {}
-        if (
-            self.p.allow_orders is not True
-            or self._probe_sent
-            or self.data is None
-            or not evidence.get("authorization_ref")
-            or not evidence.get("independent_account_permission_evidence_ref")
-            or not evidence.get("permission_restored_ref")
-            or not evidence.get("blocked_order_ref")
-        ):
-            return
-        close = float(self.data.close[0])
-        if not (close > 0 and close == close and close < float("inf")):
-            return
-        self._probe_sent = True
-        self._probe_order = self.buy(
-            size=1, exectype=bt.Order.Limit, price=max(round(close * 0.25, 2), 0.01)
+        return CaseResult(
+            CASE_ID,
+            "PASS",
+            "",
+            {
+                "operator_ref": operator_ref,
+                "authorization_ref": authorization_ref,
+                "restriction": refused,
+                "restoration_order_ref": order_ref,
+                "restoration_status": str(final.get("OrderStatus")),
+            },
         )

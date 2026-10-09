@@ -206,13 +206,33 @@ class SimNowSession:
         self._closed = False
         self.login_facts = {}
         self._ref_counter = 0
+        self.event_hook = None
+        self.write_paused = False
+        self.pause_reason = ""
 
     # ------------------------------------------------------------- plumbing
     def _record(self, kind, **fields):
         entry = {"t_ms": int(time.time() * 1000), "kind": kind}
         entry.update(fields)
         self.calls.append(entry)
+        if self.event_hook is not None:
+            try:
+                self.event_hook(kind, **fields)
+            except Exception:
+                pass
         return entry
+
+    def pause(self, reason="operator_pause"):
+        self.write_paused = True
+        self.pause_reason = str(reason)
+        self._record("pause", reason=self.pause_reason)
+        return {"paused": True, "reason": self.pause_reason}
+
+    def resume(self):
+        self.write_paused = False
+        self._record("resume", reason=self.pause_reason)
+        self.pause_reason = ""
+        return {"paused": False}
 
     def connect(self) -> dict:
         from bt_api_ctp.ctp.client import TraderClient
@@ -269,25 +289,39 @@ class SimNowSession:
         return facts
 
     # ---------------------------------------------------------- read queries
-    def _run_query(self, family, **filters):
+    def _run_query(self, family, timeout=None, attempts=2, gap=1.5, **filters):
         client = self._require_client()
         method = getattr(client, f"query_{family}_result")
-        try:
-            result = method(timeout=self.query_timeout, **filters)
-        except TypeError:
-            result = method(timeout=self.query_timeout)
-        records = list(getattr(result, "records", ()) or ())
-        facts = {
-            "family": family,
-            "complete": bool(getattr(result, "complete", False)),
-            "timed_out": bool(getattr(result, "timed_out", False)),
-            "error_code": getattr(result, "error_code", None),
-            "record_count": len(records),
-            "request_id": getattr(result, "request_id", None),
-            "connection_generation": getattr(result, "connection_generation", None),
-        }
-        self._record("query", **facts)
-        if not facts["complete"] or facts["timed_out"] or facts["error_code"] not in (None, 0):
+        effective_timeout = float(timeout or self.query_timeout)
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                result = method(timeout=effective_timeout, **filters)
+            except TypeError:
+                result = method(timeout=effective_timeout)
+            records = list(getattr(result, "records", ()) or ())
+            facts = {
+                "family": family,
+                "complete": bool(getattr(result, "complete", False)),
+                "timed_out": bool(getattr(result, "timed_out", False)),
+                "error_code": getattr(result, "error_code", None),
+                "record_count": len(records),
+                "request_id": getattr(result, "request_id", None),
+                "connection_generation": getattr(result, "connection_generation", None),
+                "attempt": attempt,
+            }
+            self._record("query", **facts)
+            if facts["complete"] and not facts["timed_out"] and facts["error_code"] in (None, 0):
+                break
+            # Live SimNow fronts occasionally drop the first query of a fresh
+            # session, stall a large page, or answer -2 while a previous
+            # request is still pending at the front; bounded retries are safe
+            # for reads and back off further on flow control (-2).
+            if attempt < attempts:
+                time.sleep(gap + (2.0 if facts["error_code"] == -2 else 0.0))
+                effective_timeout = max(effective_timeout * 1.5, effective_timeout + 4.0)
+                continue
             raise SimNowSessionError(f"query_incomplete:{family}", facts)
         expected_generation = self.login_facts.get("connection_generation")
         if expected_generation and facts["connection_generation"] != expected_generation:
@@ -320,7 +354,13 @@ class SimNowSession:
         )
 
     def query_depth_market_data(self, instrument_id=""):
-        return self._run_query("depth_market_data", instrument_id=instrument_id)
+        return self._run_query(
+            "depth_market_data",
+            instrument_id=instrument_id,
+            timeout=12.0,
+            attempts=4,
+            gap=2.5,
+        )
 
     def find_order(self, order_ref, *, instrument_id="", timeout=6.0, interval=0.5):
         """Poll the venue order query until our OrderRef appears."""
@@ -383,6 +423,8 @@ class SimNowSession:
         return projection
 
     def _require_armed(self):
+        if self.write_paused:
+            raise SimNowSessionError("write_paused", {"reason": self.pause_reason})
         if self._capability is None:
             raise SimNowSessionError("write_requires_arm")
 
@@ -420,6 +462,7 @@ class SimNowSession:
         volume,
         hedge_flag="1",
     ) -> dict:
+        from bt_api_ctp.ctp.client import CtpExecutionGateError
         from bt_api_ctp.ctp.ctp_structs_order import CThostFtdcInputOrderField
 
         self._require_armed()
@@ -451,9 +494,13 @@ class SimNowSession:
         field.ForceCloseReason = "0"
         field.IsAutoSuspend = 0
         field.UserForceClose = 0
-        submit_code = client.submit_order_insert(
-            field, request_id, execution_capability=self._capability
-        )
+        try:
+            submit_code = client.submit_order_insert(
+                field, request_id, execution_capability=self._capability
+            )
+        except CtpExecutionGateError as exc:
+            self._record("order_refused", order_ref=field.OrderRef, error=str(exc)[:120])
+            raise SimNowSessionError("write_refused", {"error": str(exc)[:120]}) from exc
         evidence = self._order_insert_evidence(client, request_id)
         record = {
             "order_ref": field.OrderRef,
@@ -497,6 +544,7 @@ class SimNowSession:
         }
 
     def cancel_order(self, *, instrument_id, exchange_id, order_ref, order_sys_id="", action_flag="0") -> dict:
+        from bt_api_ctp.ctp.client import CtpExecutionGateError
         from bt_api_ctp.ctp.ctp_structs_order import CThostFtdcInputOrderActionField
 
         self._require_armed()
@@ -516,9 +564,13 @@ class SimNowSession:
         request_id = client._next_request_id()
         action.OrderActionRef = request_id
         action.RequestID = request_id
-        submit_code = client.submit_order_action(
-            action, request_id, execution_capability=self._capability
-        )
+        try:
+            submit_code = client.submit_order_action(
+                action, request_id, execution_capability=self._capability
+            )
+        except CtpExecutionGateError as exc:
+            self._record("cancel_refused", order_ref=str(order_ref), error=str(exc)[:120])
+            raise SimNowSessionError("write_refused", {"error": str(exc)[:120]}) from exc
         record = {
             "order_ref": str(order_ref),
             "request_id": request_id,

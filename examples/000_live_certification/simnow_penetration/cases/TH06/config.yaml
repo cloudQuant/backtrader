@@ -1,0 +1,51 @@
+# C01 — authenticated login / valid session on the same account.
+#
+# This directory is self-contained: config.yaml + C01_strategy.py + run.py.
+# Credentials are read by NAME from the checkout-root .env.
+schema_version: 1
+case_id: TH06
+venue: simnow
+description: "Repeated-submits-in-window threshold: bounded resting orders inside the window trigger exactly one repeated_threshold monitor alert."
+environment:
+  name: simnow
+  kind: simulation
+credentials:
+  broker_id_env: CTP_BROKER_ID
+  user_id_env: CTP_USER_ID
+  password_env: CTP_PASSWORD
+  app_id_env: CTP_APP_ID
+  auth_code_env: CTP_AUTH_CODE
+contract:
+  instrument_env: CTP_INSTRUMENT
+  exchange_env: CTP_EXCHANGE
+  hedge_flag_env: CTP_HEDGE_FLAG
+fronts:
+  pairs:
+    - {td_env: CTP_TD_FRONT, md_env: CTP_MD_FRONT}
+    - {td_env: CTP_SET1_TD_FRONT_1, md_env: CTP_SET1_MD_FRONT_1}
+    - {td_env: CTP_SET1_TD_FRONT_2, md_env: CTP_SET1_MD_FRONT_2}
+    - {td_env: CTP_SET1_TD_FRONT_3, md_env: CTP_SET1_MD_FRONT_3}
+    - {td_env: CTP_SET2_TD_FRONT, md_env: CTP_SET2_MD_FRONT}
+sdk:
+  root_env: BT_API_PY_ROOT
+  default_root: D:/bt_api_py
+timeouts:
+  login_seconds: 30
+  query_seconds: 8
+  stop_seconds: 12
+policy:
+  allow_write: true
+  allow_dangerous: true
+scenario:
+  side: buy
+  volume: 1
+  price_mode: band_edge
+  monitor: {repeated_threshold: 3, window_seconds: 60}
+  order_interval_ms: 1200
+  accept_timeout_ms: 20000
+  cancel_timeout_ms: 20000
+topology:
+  transport: direct
+  execution: false
+  risk: false
+  monitor: false

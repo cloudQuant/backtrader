@@ -1,178 +1,273 @@
-"""Offline B01 strategy for partial fills followed by batch cancellation."""
+"""B01 — partial fill on an order sized above the top of book, then cancel.
 
-import backtrader as bt
+PASS: two crossing BUY orders sized above the visible top-of-book depth are
+accepted and visible in the venue order query, at least one shows
+0 < VolumeTraded < VolumeTotalOriginal (partial fill) at some poll, every
+remaining order reaches a terminal state, and the position opened by the
+case is flattened back to its starting level.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+
+from certlib.ctp_client import SimNowSessionError
+from certlib.context import CaseResult
+
+CASE_ID = "B01"
+RISK = "DANGEROUS"
+
+_IN_QUEUE = {"1", "3"}  # partially/no traded, still in queue
+_TERMINAL = {"0", "5"}  # all traded / canceled
 
 
-class B01Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def __init__(self):
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = (
-            "waiting for local partial fills before batch cancellation"
-            if self.p.allow_orders is True
-            else "offline order actions are disabled"
-        )
-        self.bars_seen = 0
-        self.order_refs = []
-        self.order_statuses = {}
-        self._orders_by_ref = {}
-        self._requested_sizes = {}
-        self._fills = {}
-        self._target = self._integer("order_count", 3, 2, 5)
-        self._minimum_partials = self._integer("partial_min_count", 2, 1, self._target)
-        self._max_wait_bars = self._integer("max_wait_bars", 3, 1, 10)
-        self._submitted_bar = None
-        self._cancel_refs = []
-        self._partial_refs_at_cancel = []
-        self._cancel_requested = False
 
-    def _config_value(self, name, default):
-        config = self.p.case_config
-        if not hasattr(config, "get"):
-            return default
-        parameters = config.get("parameters", config)
-        return parameters.get(name, default) if hasattr(parameters, "get") else default
+def _long_position(client, instrument):
+    rows = [r for r in client.query_positions(instrument_id=instrument)["rows"]
+            if str(r.get("PosiDirection")) == "2"]
+    return sum(int(r.get("Position") or 0) for r in rows), rows
 
-    def _integer(self, name, default, minimum, maximum):
-        value = self._config_value(name, default)
-        try:
-            if isinstance(value, bool):
-                raise ValueError
-            value = int(value)
-        except (TypeError, ValueError):
-            value = default
-        return min(maximum, max(minimum, value))
 
-    def _number(self, name, default):
-        try:
-            value = float(self._config_value(name, default))
-        except (TypeError, ValueError):
-            value = float(default)
-        return value if value >= 0 else float(default)
+def _probe_position(client, instrument):
+    try:
+        return _long_position(client, instrument)
+    except SimNowSessionError as exc:
+        return -1, [{"error": exc.reason, **exc.facts}]
 
-    def _partial_refs(self):
-        return [
-            ref
-            for ref in self.order_refs
-            if self.order_statuses.get(ref) == "Partial"
-            and 0 < abs(self._fills.get(ref, 0)) < self._requested_sizes.get(ref, 0)
-        ]
 
-    def _maybe_finish(self):
-        if not self._cancel_requested or not self._cancel_refs:
-            return
-        terminal = ("Canceled", "Completed", "Rejected", "Margin", "Expired")
-        if not all(self.order_statuses.get(ref) in terminal for ref in self._cancel_refs):
-            return
-        all_canceled = all(self.order_statuses.get(ref) == "Canceled" for ref in self._cancel_refs)
-        partials_still_partial = all(
-            0 < abs(self._fills.get(ref, 0)) < self._requested_sizes.get(ref, 0)
-            for ref in self._partial_refs_at_cancel
-        )
-        if (
-            all_canceled
-            and len(self._partial_refs_at_cancel) >= self._minimum_partials
-            and partials_still_partial
-        ):
-            self.case_observed = True
-            self.case_reason = (
-                "{} locally partial orders were included in batch cancellation".format(
-                    len(self._partial_refs_at_cancel)
-                )
-            )
-        elif all_canceled:
-            self.case_reason = (
-                "local orders were cleaned up without the required partial-fill count"
-            )
-        else:
-            self.case_reason = "local batch cleanup ended with a fill or non-cancel terminal status"
+def _arm(client, ctx):
+    identity = hashlib.sha256(
+        (CASE_ID + json.dumps(ctx.config, sort_keys=True, default=str)).encode()).hexdigest()
+    preflight = hashlib.sha256(json.dumps({
+        "case": CASE_ID, "instrument": ctx.contract["instrument"],
+        "exchange": ctx.contract["exchange"], "pair_index": client.pair.index,
+        "generation": client.login_facts.get("connection_generation"),
+        "trading_day": client.login_facts.get("trading_day"),
+    }, sort_keys=True).encode()).hexdigest()
+    client.arm(
+        instrument_id=ctx.contract["instrument"], exchange_id=ctx.contract["exchange"],
+        strategy_identity_sha256=identity, preflight_sha256=preflight,
+        execution_cycle_id=f"{CASE_ID}-{int(time.time())}")
 
-    def notify_order(self, order):
-        status = order.getstatusname()
-        self.order_statuses[order.ref] = status
-        self._fills[order.ref] = order.executed.size
-        self.case_events.append(
-            {
-                "kind": "local_order_status",
-                "ref": order.ref,
-                "status": status,
-                "executed_size": order.executed.size,
-            }
-        )
-        self._maybe_finish()
 
-    def notify_store(self, msg, *args, **kwargs):
-        # This local smoke does not consume store notifications.
-        pass
+def _place(client, ctx, *, instrument, exchange, direction, offset_flag, price, volume, hedge_flag):
+    placement = client.place_limit_order(
+        instrument_id=instrument, exchange_id=exchange, direction=direction,
+        offset_flag=offset_flag, price=price, volume=volume, hedge_flag=hedge_flag)
+    ctx.track_order(instrument, placement["order_ref"], exchange_id=exchange)
+    return placement
 
-    def next(self):
-        self.bars_seen += 1
-        if self.p.allow_orders is not True or self.case_observed:
-            return
-        if not self.order_refs:
-            size = self._integer("order_size", 3, 2, 20)
-            offset = self._number("price_offset", 0.5)
-            reference = float(self.data.close[0])
-            for index in range(self._target):
-                price = max(reference - offset - index * 0.01, 0.01)
-                order = self.buy(size=size, exectype=bt.Order.Limit, price=price, offset="open")
-                if order is None:
+
+def _settle(client, ctx, order_ref, order_sys_id=""):
+    ctx.mark_order_closed(order_ref)
+    client.mark_order_state(order_ref, "closed", order_sys_id)
+
+
+def _order_rows(client, instrument, refs):
+    rows = {}
+    for row in client.query_orders(instrument_id=instrument)["rows"]:
+        ref = str(row.get("OrderRef") or "")
+        if ref in refs:
+            rows[ref] = row
+    return rows
+
+
+def _cancel_to_terminal(client, *, instrument, exchange, order_ref, order_sys_id="", timeout=20.0):
+    """Bounded cancel; never raises.  Returns the last observed order state."""
+    facts = {"order_ref": order_ref}
+    try:
+        facts["cancel"] = client.cancel_order(
+            instrument_id=instrument, exchange_id=exchange, order_ref=order_ref,
+            order_sys_id=order_sys_id)
+        row = client.wait_order_status(order_ref, _TERMINAL, instrument_id=instrument, timeout=timeout)
+        facts.update(status=str(row.get("OrderStatus")), volume_traded=row.get("VolumeTraded"),
+                     order_sys_id=str(row.get("OrderSysID") or order_sys_id))
+    except SimNowSessionError as exc:
+        facts["error"] = exc.reason
+        latest = exc.facts.get("latest") if isinstance(exc.facts, dict) else None
+        if isinstance(latest, dict):
+            facts.update(status=str(latest.get("OrderStatus") or ""),
+                         volume_traded=latest.get("VolumeTraded"))
+    return facts
+
+
+def _flatten(client, ctx, *, instrument, exchange, hedge_flag, volume, timeout):
+    """Best-effort bounded crossing SELL (offset 1) reduce; never raises."""
+    volume = int(volume)
+    if volume <= 0:
+        return {"volume": volume, "skipped": "zero_volume"}
+    depth = _depth_row(client, instrument)
+    bid = float(depth.get("BidPrice1") or 0.0) if depth else 0.0
+    if bid <= 0:
+        return {"volume": volume, "error": "no_book"}
+    facts = {"volume": volume, "price": bid}
+    try:
+        placement = _place(client, ctx, instrument=instrument, exchange=exchange,
+                           direction="1", offset_flag="1", price=bid,
+                           volume=volume, hedge_flag=hedge_flag)
+        row = client.wait_order_status(placement["order_ref"], {"0"},
+                                       instrument_id=instrument, timeout=timeout)
+        facts.update(order_ref=placement["order_ref"], status=str(row.get("OrderStatus")),
+                     order_sys_id=str(row.get("OrderSysID") or ""),
+                     volume_traded=row.get("VolumeTraded"))
+        _settle(client, ctx, placement["order_ref"], facts["order_sys_id"])
+    except SimNowSessionError as exc:
+        facts["error"] = exc.reason
+        facts.update(exc.facts)
+    return facts
+
+
+class B01Strategy:
+    RISK = RISK  # class-level alias so certlib.runner's risk gate sees it
+
+    def run(self, ctx):
+        client = ctx.client
+        contract = ctx.contract
+        scenario = ctx.scenario()
+        instrument = contract["instrument"]
+        exchange = contract["exchange"]
+        hedge_flag = contract.get("hedge_flag") or "1"
+
+        rows = client.query_instruments(instrument_id=instrument, exchange_id=exchange)["rows"]
+        if not any(str(r.get("InstrumentID")) == instrument for r in rows):
+            return CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+        depth = _depth_row(client, instrument)
+        if depth is None:
+            return CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+        lower = float(depth.get("LowerLimitPrice") or 0.0)
+        upper = float(depth.get("UpperLimitPrice") or 0.0)
+        bid = float(depth.get("BidPrice1") or 0.0)
+        ask = float(depth.get("AskPrice1") or 0.0)
+        if not (0 < lower < upper):
+            return CaseResult(CASE_ID, "BLOCKED", "price_band_invalid",
+                              {"lower": lower, "upper": upper})
+        if ask <= 0:
+            return CaseResult(CASE_ID, "BLOCKED", "no_book", {"bid": bid, "ask": ask})
+
+        order_volume = int(scenario.get("order_volume", 20))
+        order_count = int(scenario.get("order_count", 2))
+        poll_timeout = int(scenario.get("fill_poll_timeout_ms", 20000)) / 1000.0
+        cancel_timeout = int(scenario.get("cancel_timeout_ms", 20000)) / 1000.0
+        flatten_timeout = int(scenario.get("flatten_timeout_ms", 30000)) / 1000.0
+        position_before, _rows_before = _long_position(client, instrument)
+        placements = []
+
+        def flatten_now(flatten_volume):
+            return _flatten(client, ctx, instrument=instrument, exchange=exchange,
+                            hedge_flag=hedge_flag, volume=flatten_volume, timeout=flatten_timeout)
+
+        def filled_so_far():
+            final = _order_rows(client, instrument, {p["order_ref"] for p in placements})
+            return sum(int(final.get(p["order_ref"], {}).get("VolumeTraded") or 0)
+                       for p in placements)
+
+        def reap_early(extra_facts):
+            """Cancel every non-terminal placement and flatten what traded."""
+            cleanup = []
+            for placement in placements:
+                ref = placement["order_ref"]
+                row = _order_rows(client, instrument, {ref}).get(ref) or {}
+                if str(row.get("OrderStatus")) in _TERMINAL:
+                    _settle(client, ctx, ref, str(row.get("OrderSysID") or ""))
                     continue
-                self.order_refs.append(order.ref)
-                self._orders_by_ref[order.ref] = order
-                self._requested_sizes[order.ref] = size
-                self._fills[order.ref] = 0
-                self.case_events.append(
-                    {
-                        "kind": "local_order_submitted",
-                        "ref": order.ref,
-                        "side": "buy_open",
-                        "size": size,
-                        "price": price,
-                    }
-                )
-            self._submitted_bar = self.bars_seen
-            self.case_reason = "{} local orders submitted; waiting for partial fills".format(
-                len(self.order_refs)
-            )
-            return
-        if self._cancel_requested:
-            self._maybe_finish()
-            return
-        if len(self.order_refs) != self._target or not all(
-            self.order_statuses.get(ref) is not None for ref in self.order_refs
-        ):
-            return
-        partial_refs = self._partial_refs()
-        timed_out = self.bars_seen - self._submitted_bar >= self._max_wait_bars
-        if len(partial_refs) < self._minimum_partials and not timed_out:
-            self.case_reason = "waiting for at least {} local partial fills".format(
-                self._minimum_partials
-            )
-            return
-        self._cancel_refs = [
-            ref
-            for ref in self.order_refs
-            if self.order_statuses.get(ref) in ("Accepted", "Partial")
-        ]
-        self._partial_refs_at_cancel = [ref for ref in partial_refs if ref in self._cancel_refs]
-        if not self._cancel_refs:
-            self.case_reason = "no local open orders remained to cancel"
-            return
-        self._cancel_requested = True
-        self.case_events.append(
-            {
-                "kind": "local_batch_cancel_requested",
-                "refs": list(self._cancel_refs),
-                "partial_refs": list(self._partial_refs_at_cancel),
-            }
-        )
-        batch_cancel = getattr(self.broker, "batch_cancel", None)
-        if callable(batch_cancel):
-            batch_cancel([self._orders_by_ref[ref] for ref in self._cancel_refs])
-        else:
-            for ref in self._cancel_refs:
-                self.cancel(self._orders_by_ref[ref])
-        self.case_reason = "local batch cancellation requested; awaiting terminal statuses"
+                facts = _cancel_to_terminal(
+                    client, instrument=instrument, exchange=exchange, order_ref=ref,
+                    order_sys_id=str(row.get("OrderSysID") or ""), timeout=cancel_timeout)
+                if str(facts.get("status") or "") in _TERMINAL:
+                    _settle(client, ctx, ref, str(facts.get("order_sys_id") or ""))
+                cleanup.append(facts)
+            return {**extra_facts, "cleanup": cleanup, "flatten": flatten_now(filled_so_far())}
+
+        _arm(client, ctx)
+        for index in range(order_count):
+            fresh = _depth_row(client, instrument)
+            fresh_ask = float(fresh.get("AskPrice1") or 0.0) if fresh else 0.0
+            if fresh_ask <= 0:
+                facts = {"placed": placements, "bid": bid, "ask": fresh_ask}
+                reason = reap_early(facts) if placements else facts
+                return CaseResult(CASE_ID, "BLOCKED", "no_book", reason)
+            try:
+                placements.append(_place(
+                    client, ctx, instrument=instrument, exchange=exchange, direction="0",
+                    offset_flag="0", price=fresh_ask, volume=order_volume, hedge_flag=hedge_flag))
+            except SimNowSessionError as exc:
+                return CaseResult(CASE_ID, "FAIL", exc.reason,
+                                  reap_early({"placed": placements, **exc.facts}))
+            ctx.log(f"placed order {index + 1}/{order_count}: {order_volume}@{fresh_ask}")
+
+        refs = {p["order_ref"] for p in placements}
+        latest, partial_ref, seen = {}, "", set()
+        deadline = time.monotonic() + poll_timeout
+        while time.monotonic() < deadline:
+            latest = _order_rows(client, instrument, refs)
+            seen.update(latest)
+            for ref, row in latest.items():
+                traded = int(row.get("VolumeTraded") or 0)
+                if not partial_ref and 0 < traded < int(row.get("VolumeTotalOriginal") or 0):
+                    partial_ref = ref
+            if partial_ref and seen >= refs:
+                break
+            if seen >= refs and all(str(r.get("OrderStatus")) in _TERMINAL for r in latest.values()):
+                break
+            time.sleep(0.5)
+
+        per_order = []
+        for placement in placements:
+            ref = placement["order_ref"]
+            row = latest.get(ref) or _order_rows(client, instrument, {ref}).get(ref) or {}
+            status = str(row.get("OrderStatus") or "")
+            record = {"order_ref": ref, "order_sys_id": str(row.get("OrderSysID") or ""),
+                      "status": status, "volume_traded": int(row.get("VolumeTraded") or 0),
+                      "volume_total": int(row.get("VolumeTotalOriginal") or order_volume),
+                      "price": placement["price"]}
+            if status not in _TERMINAL:
+                facts = _cancel_to_terminal(client, instrument=instrument, exchange=exchange,
+                                            order_ref=ref, order_sys_id=record["order_sys_id"],
+                                            timeout=cancel_timeout)
+                record["cancel"] = facts
+                record["status"] = str(facts.get("status") or status)
+            if record["status"] in _TERMINAL:
+                _settle(client, ctx, ref, record["order_sys_id"])
+            per_order.append(record)
+
+        final = _order_rows(client, instrument, refs)
+        residuals = [{"order_ref": r, "status": str(row.get("OrderStatus") or "")}
+                     for r, row in final.items() if str(row.get("OrderStatus")) in _IN_QUEUE]
+        for item in residuals:  # last bounded cancel pass, then re-check
+            _cancel_to_terminal(client, instrument=instrument, exchange=exchange,
+                                order_ref=item["order_ref"], timeout=cancel_timeout)
+        final = _order_rows(client, instrument, refs)
+        residuals = [{"order_ref": r, "status": str(row.get("OrderStatus") or "")}
+                     for r, row in final.items() if str(row.get("OrderStatus")) in _IN_QUEUE]
+        visible = [r for r in refs
+                   if str(final.get(r, {}).get("OrderStatus") or "") in (_TERMINAL | _IN_QUEUE)]
+
+        total_filled = sum(int(final.get(ref, {}).get("VolumeTraded") or 0) for ref in refs)
+        flat = flatten_now(total_filled)
+        position_after, rows_after = _probe_position(client, instrument)
+        common = {"per_order": per_order, "partial_fill_observed": bool(partial_ref),
+                  "partial_order_ref": partial_ref, "total_filled": total_filled,
+                  "flatten": flat, "position_before": position_before,
+                  "position_after": position_after, "position_rows": rows_after}
+        if not partial_ref:
+            return CaseResult(CASE_ID, "FAIL", "no_partial_fill_observed", common)
+        if len(visible) < order_count:
+            return CaseResult(CASE_ID, "FAIL", "order_not_visible",
+                              {**common, "visible": sorted(visible)})
+        if residuals:
+            return CaseResult(CASE_ID, "FAIL", "residual_order_open",
+                              {**common, "residuals": residuals})
+        if flat.get("status") != "0" or position_after != position_before:
+            return CaseResult(CASE_ID, "FAIL", "flatten_incomplete", common)
+        return CaseResult(CASE_ID, "PASS", "", {
+            **common, "price_band": {"lower": lower, "upper": upper},
+            "insert_evidence": [p["evidence"] for p in placements]})

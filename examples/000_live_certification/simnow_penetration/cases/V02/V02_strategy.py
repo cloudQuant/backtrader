@@ -1,68 +1,82 @@
-"""V02 strategy: passively observe invalid-price-tick validation callbacks."""
+"""V02 — misaligned price tick derived from the venue last price.
 
-import backtrader as bt
+Success condition: the venue-set instrument metadata provides a positive
+price tick, the depth query provides a last price, the price offset by half
+a tick from the rounded last price is rejected locally as a price-tick
+mismatch, and no order insert or order action was dispatched.
+"""
+
+from __future__ import annotations
+
+from certlib.context import CaseResult
+from certlib.validation import LocalReject, validate_order
+
+CASE_ID = "V02"
+RISK = "READ"
 
 
-class V02Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
+def _instrument_row(client, instrument, exchange):
+    result = client.query_instruments(instrument_id=instrument, exchange_id=exchange)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def __init__(self):
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = "waiting for a typed invalid-price-tick validation callback"
-        self.bars_seen = 0
-        self.case_config = self.p.case_config
-        config = self.case_config if isinstance(self.case_config, dict) else {}
-        parameters = config.get("parameters", {})
-        if isinstance(parameters, dict) and parameters.get("scenario") not in (None, "V02"):
-            self.case_reason = "case_config scenario does not match V02"
 
-    def _record(self, event):
-        if len(self.case_events) < 100:
-            self.case_events.append(event)
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def notify_store(self, msg, *args, **kwargs):
-        event = kwargs.get("event")
-        if not isinstance(event, dict):
-            return
-        details = event.get("details") if isinstance(event.get("details"), dict) else {}
-        code = event.get(
-            "error_code",
-            event.get("error_msg", details.get("error_code", details.get("error_msg", ""))),
-        )
-        code_text = str(code).lower()
-        event_type = event.get("event_type")
-        matched = event_type in (
-            "order_validation_rejected",
-            "order_reject_local",
-            "order_rejected",
-        ) and (
-            "invalid_price_tick" in code_text
-            or "price tick" in code_text
-            or "tick mismatch" in code_text
-        )
-        if not matched:
-            return
-        self._record(
-            {
-                "event_type": event_type,
-                "error_code": code,
-                "price": event.get("price", details.get("price")),
-                "min_price_tick": event.get("min_price_tick", details.get("min_price_tick")),
-                "timestamp": event.get("timestamp"),
-            }
-        )
-        self.case_observed = True
-        self.case_reason = "local invalid-tick rejection callback was observed; validation provenance still needs review"
 
-    def notify_order(self, order):
-        self._record(
-            {
-                "event_type": "local_order_status",
-                "ref": getattr(order, "ref", None),
-                "status": order.getstatusname(),
-            }
-        )
+def _dispatch_absent(client):
+    kinds = {str(entry.get("kind")) for entry in client.calls}
+    return "order_insert" not in kinds and "order_action" not in kinds
 
-    def next(self):
-        self.bars_seen += 1
+
+class V02Strategy:
+    def run(self, ctx):
+        client = ctx.client
+        contract = ctx.contract
+        instrument = contract["instrument"]
+        exchange = contract["exchange"]
+
+        row = _instrument_row(client, instrument, exchange)
+        if row is None:
+            return CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+        tick = float(row.get("PriceTick") or 0)
+        if tick <= 0:
+            return CaseResult(
+                CASE_ID, "BLOCKED", "price_tick_invalid",
+                {"instrument": instrument, "tick": tick},
+            )
+
+        depth = _depth_row(client, instrument)
+        if depth is None:
+            return CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+        last = float(depth.get("LastPrice") or 0)
+        if last <= 0:
+            return CaseResult(CASE_ID, "BLOCKED", "last_price_invalid", {"last_price": last})
+
+        price = round(last / tick) * tick + tick / 2.0
+        rule = ""
+        try:
+            validate_order(instrument_row=row, price=price, volume=1)
+        except LocalReject as exc:
+            rule = exc.rule
+
+        dispatch_absent = _dispatch_absent(client)
+        facts = {
+            "rule": rule,
+            "price": price,
+            "tick": tick,
+            "last_price": last,
+            "dispatch_absent": dispatch_absent,
+        }
+        if rule != "price_tick_mismatch":
+            return CaseResult(CASE_ID, "FAIL", f"local_reject_unexpected:{rule or 'none'}", facts)
+        if not dispatch_absent:
+            return CaseResult(CASE_ID, "FAIL", "dispatch_not_absent", facts)
+        return CaseResult(CASE_ID, "PASS", "", facts)

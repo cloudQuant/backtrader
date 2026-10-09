@@ -1,146 +1,228 @@
-"""TH04 strategy: bounded local combined submit/cancel threshold probe."""
+"""TH04 — the combined submit+cancel threshold alert fires exactly once.
 
-import backtrader as bt
+Success condition: Ten combined submit and cancel events (five orders, five cancels) reach
+the combined_threshold, the monitor emits exactly one combined_threshold
+alert, and no order of this run remains in queue.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+
+from certlib.context import CaseResult
+from certlib.ctp_client import SimNowSessionError
+from certlib.monitor import Monitor
+
+CASE_ID = "TH04"
+RISK = "DANGEROUS"
 
 
-class TH04Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
-    threshold_name = "submit_cancel_total_warn_threshold"
-    threshold_metric = "submit_cancel_total"
-    expected_threshold = 3
-    max_submit_requests = 2
+_IN_QUEUE = {"1", "3"}  # partial/no trade, still in queue
+_CANCELED = {"5"}
 
-    def __init__(self):
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = "waiting for bars and a local combined-threshold observation"
-        self.bars_seen = 0
-        self.case_config = self.p.case_config
-        self.submit_count = 0
-        self.order_attempts = 0
-        self.cancel_request_count = 0
-        self.orders = []
-        self._case_price = None
-        self._setting_recorded = False
-        config = self.case_config if isinstance(self.case_config, dict) else {}
-        parameters = config.get("parameters", {})
-        self._config_ok = not (
-            isinstance(parameters, dict) and parameters.get("scenario") not in (None, "TH04")
+
+def _instrument_row(client, instrument, exchange):
+    result = client.query_instruments(instrument_id=instrument, exchange_id=exchange)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
+
+
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
+
+
+def _prepare(client, ctx):
+    """Resolve the traded contract from the venue and arm the session."""
+    contract = ctx.contract
+    instrument = contract["instrument"]
+    exchange = contract["exchange"]
+    row = _instrument_row(client, instrument, exchange)
+    if row is None:
+        return None, CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+    depth = _depth_row(client, instrument)
+    if depth is None:
+        return None, CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+    lower = float(depth["LowerLimitPrice"])
+    upper = float(depth["UpperLimitPrice"])
+    if not (0 < lower < upper):
+        return None, CaseResult(
+            CASE_ID, "BLOCKED", "price_band_invalid", {"lower": lower, "upper": upper}
         )
-        if not self._config_ok:
-            self.case_reason = "case_config scenario does not match TH04"
-
-    def _record(self, event):
-        if len(self.case_events) < 100:
-            self.case_events.append(event)
-
-    def _inspect_logger(self):
-        stats = getattr(self, "stats", None)
-        for observer in getattr(stats, "items", ()):
-            if observer.__class__.__name__ != "TradeLogger":
-                continue
-            value = getattr(getattr(observer, "p", None), self.threshold_name, None)
-            if value is not None and not self._setting_recorded:
-                self._setting_recorded = True
-                self._record(
-                    {
-                        "event_type": "local_threshold_setting",
-                        "name": self.threshold_name,
-                        "value": value,
-                    }
-                )
-            if value != self.expected_threshold:
-                continue
-            counts = getattr(observer, "_monitoring", {})
-            observed_count = (
-                int(counts.get(self.threshold_metric, 0)) if hasattr(counts, "get") else 0
-            )
-            if observed_count >= self.expected_threshold:
-                self.case_observed = True
-                self.case_reason = "TradeLogger combined threshold was reached locally; this is not certification evidence"
-
-    def _limit_price(self):
-        if self._case_price is not None:
-            return self._case_price
-        try:
-            close = float(self.data.close[0])
-        except (TypeError, ValueError, IndexError):
-            return None
-        if close <= 0 or close != close or close > 1.0e300:
-            return None
-        self._case_price = max(close * 0.000001, 1.0e-8)
-        return self._case_price
-
-    def _request_one(self):
-        if self.order_attempts >= self.max_submit_requests:
-            return
-        if not isinstance(getattr(self, "broker", None), bt.brokers.BackBroker):
-            self.case_reason = "order requests are disabled unless the broker is BackBroker"
-            return
-        price = self._limit_price()
-        if price is None:
-            self.case_reason = (
-                "no finite positive bar price is available for the bounded local probe"
-            )
-            return
-        self.order_attempts += 1
-        try:
-            order = self.buy(size=1, exectype=bt.Order.Limit, price=price)
-            if order is None:
-                self._record({"event_type": "local_submit_unavailable"})
-                self.case_reason = "offline broker did not return an order object"
-                return
-            self.orders.append(order)
-            self.submit_count += 1
-            self._record(
-                {
-                    "event_type": "local_submit_request",
-                    "ref": getattr(order, "ref", None),
-                    "size": 1,
-                    "price": price,
-                }
-            )
-            self.cancel_request_count += 1
-            self.cancel(order)
-            self._record({"event_type": "local_cancel_request", "ref": getattr(order, "ref", None)})
-            self.case_reason = (
-                "local order and cancel requests were counted; a monitor warning remains unverified"
-            )
-        except Exception as exc:
-            self._record({"event_type": "local_order_error", "message": str(exc)[:160]})
-            self.case_reason = "bounded local order probe could not be issued"
-
-    def notify_order(self, order):
-        self._record(
+    market = {
+        "instrument": instrument,
+        "exchange": exchange,
+        "hedge_flag": contract.get("hedge_flag") or "1",
+        "tick": float(row.get("PriceTick") or 1.0),
+        "lower": lower,
+        "upper": upper,
+    }
+    strategy_identity = hashlib.sha256(
+        (CASE_ID + json.dumps(ctx.config, sort_keys=True, default=str)).encode()
+    ).hexdigest()
+    preflight = hashlib.sha256(
+        json.dumps(
             {
-                "event_type": "local_order_status",
-                "ref": getattr(order, "ref", None),
-                "status": order.getstatusname(),
-            }
-        )
+                "case": CASE_ID,
+                "instrument": instrument,
+                "exchange": exchange,
+                "pair_index": client.pair.index,
+                "generation": client.login_facts.get("connection_generation"),
+                "trading_day": client.login_facts.get("trading_day"),
+            },
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    client.arm(
+        instrument_id=instrument,
+        exchange_id=exchange,
+        strategy_identity_sha256=strategy_identity,
+        execution_cycle_id=f"{CASE_ID}-{int(time.time())}",
+        preflight_sha256=preflight,
+    )
+    return market, None
 
-    def notify_store(self, msg, *args, **kwargs):
-        event = kwargs.get("event")
-        if not isinstance(event, dict):
-            return
-        event_type = event.get("event_type")
-        details = event.get("details") if isinstance(event.get("details"), dict) else {}
-        if (
-            event_type in ("submit_cancel_total_threshold_reached", "risk_threshold_triggered")
-            and details.get("counter", self.threshold_metric) == self.threshold_metric
-        ):
-            self._record({"event_type": event_type, "details": dict(details)})
-            self.case_observed = True
-            self.case_reason = (
-                "matching local threshold event was received; this is not certification evidence"
+
+def _edge_price(market, side):
+    if side == "buy":
+        return round(market["lower"] + market["tick"], 6)
+    return round(market["upper"] - market["tick"], 6)
+
+
+def _place_visible(client, ctx, market, side, price, volume, timeout_ms):
+    """Place one resting order; wait until the venue query shows it in queue."""
+    placement = client.place_limit_order(
+        instrument_id=market["instrument"],
+        exchange_id=market["exchange"],
+        direction="0" if side == "buy" else "1",
+        offset_flag="0",
+        price=price,
+        volume=volume,
+        hedge_flag=market["hedge_flag"],
+    )
+    order_ref = placement["order_ref"]
+    ctx.track_order(market["instrument"], order_ref, exchange_id=market["exchange"])
+    row = client.wait_order_status(
+        order_ref, _IN_QUEUE, instrument_id=market["instrument"], timeout=timeout_ms / 1000.0
+    )
+    return {
+        "order_ref": order_ref,
+        "order_sys_id": str(row.get("OrderSysID") or ""),
+        "in_queue_status": str(row.get("OrderStatus")),
+        "request_id": placement["request_id"],
+        "insert_evidence": placement["evidence"],
+    }
+
+
+def _place_many(client, ctx, market, side, price, volume, count, timeout_ms, interval_ms):
+    placed = []
+    for index in range(count):
+        if index and interval_ms > 0:
+            time.sleep(interval_ms / 1000.0)
+        placed.append(_place_visible(client, ctx, market, side, price, volume, timeout_ms))
+    return placed
+
+
+def _cancel_terminal(client, ctx, market, item, timeout_ms):
+    """Cancel one tracked order; wait for the terminal canceled venue status."""
+    cancel = client.cancel_order(
+        instrument_id=market["instrument"],
+        exchange_id=market["exchange"],
+        order_ref=item["order_ref"],
+        order_sys_id=item["order_sys_id"],
+    )
+    final = client.wait_order_status(
+        item["order_ref"], _CANCELED,
+        instrument_id=market["instrument"], timeout=timeout_ms / 1000.0,
+    )
+    ctx.mark_order_closed(item["order_ref"])
+    client.mark_order_state(item["order_ref"], "closed", item["order_sys_id"])
+    closed = {
+        **item,
+        "final_status": str(final.get("OrderStatus")),
+        "cancel_submit_code": cancel.get("submit_code"),
+    }
+    return closed, final
+
+
+def _cancel_many(client, ctx, market, placed, timeout_ms, interval_ms=0):
+    orders = []
+    for item in placed:
+        if interval_ms > 0:
+            time.sleep(interval_ms / 1000.0)
+        orders.append(_cancel_terminal(client, ctx, market, item, timeout_ms)[0])
+    return orders
+
+
+def _residual_in_queue(client, market, refs):
+    rows = client.query_orders(instrument_id=market["instrument"])["rows"]
+    return [
+        row
+        for row in rows
+        if str(row.get("OrderRef")) in refs and str(row.get("OrderStatus")) in _IN_QUEUE
+    ]
+
+
+class TH04Strategy:
+    RISK = RISK  # class-level alias so certlib.runner's risk gate sees it
+
+    def run(self, ctx):
+        client = ctx.client
+        scenario = ctx.scenario()
+        market, blocked = _prepare(client, ctx)
+        if blocked is not None:
+            return blocked
+
+        monitor_cfg = dict(scenario.get("monitor", {}) or {})
+        threshold = max(2, int(monitor_cfg.get("combined_threshold") or 10))
+        count = (threshold + 1) // 2  # submits + cancels reach the combined threshold
+        monitor = Monitor(monitor_cfg)
+        client.event_hook = monitor.record  # attached before placing
+
+        side = str(scenario.get("side", "buy")).lower()
+        volume = int(scenario.get("volume", 1))
+        accept_ms = int(scenario.get("accept_timeout_ms", 20000))
+        cancel_ms = int(scenario.get("cancel_timeout_ms", 20000))
+        interval_ms = int(scenario.get("order_interval_ms", 1200))
+        price = _edge_price(market, side)
+        ctx.log(f"armed; placing+canceling {count} orders for combined_threshold={threshold}")
+
+        placed, orders = [], []
+        try:
+            placed = _place_many(
+                client, ctx, market, side, price, volume, count, accept_ms, interval_ms
             )
+            orders = _cancel_many(client, ctx, market, placed, cancel_ms, interval_ms)
+        except SimNowSessionError as exc:
+            return CaseResult(
+                CASE_ID, "FAIL", exc.reason, {**exc.facts, "placed": placed, "orders": orders}
+            )
+        ctx.record_artifact("monitor", monitor.dump())
 
-    def next(self):
-        self.bars_seen += 1
-        self._inspect_logger()
-        if (
-            self.p.allow_orders is True
-            and self._config_ok
-            and self.order_attempts < self.max_submit_requests
-        ):
-            self._request_one()
+        residual = _residual_in_queue(client, market, {item["order_ref"] for item in placed})
+        alerts = [dict(alert) for alert in monitor.alerts]
+        facts = {
+            **monitor.snapshot_config(),
+            "alerts": alerts,
+            "submits": len(monitor.submits()),
+            "cancels": len(monitor.cancels()),
+            "combined_events": len(monitor.submits()) + len(monitor.cancels()),
+            "order_refs": [item["order_ref"] for item in placed],
+            "terminal_count": sum(1 for order in orders if order["final_status"] == "5"),
+        }
+        if len(alerts) != 1 or alerts[0].get("alert") != "combined_threshold":
+            return CaseResult(CASE_ID, "FAIL", "combined_threshold_alert_mismatch", facts)
+        if int(alerts[0].get("count", 0)) < threshold:
+            return CaseResult(CASE_ID, "FAIL", "combined_threshold_count_short", facts)
+        if residual:
+            return CaseResult(CASE_ID, "FAIL", "order_still_open", {**facts, "residual": residual})
+        if facts["terminal_count"] != count:
+            return CaseResult(CASE_ID, "FAIL", "not_all_canceled_terminal", facts)
+        return CaseResult(CASE_ID, "PASS", "", facts)

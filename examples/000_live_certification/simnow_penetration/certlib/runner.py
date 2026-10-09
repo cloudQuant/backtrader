@@ -64,7 +64,9 @@ def _load_strategy(case_dir: Path, case_id: str):
     strategy_cls = getattr(module, f"{case_id}Strategy", None)
     if strategy_cls is None:
         raise SystemExit(f"module {path.name} does not define class {case_id}Strategy")
-    return strategy_cls()
+    strategy = strategy_cls()
+    risk = getattr(strategy, "RISK", None) or getattr(module, "RISK", None) or "READ"
+    return strategy, str(risk)
 
 
 def _section_env_names(section, suffix="_env"):
@@ -161,8 +163,7 @@ def main_case(argv=None):
         print(json.dumps({"case": case_id, "status": "BLOCKED", "reason": "config_case_id_mismatch"}))
         return 2
 
-    strategy = _load_strategy(case_dir, case_id)
-    risk = getattr(strategy, "RISK", "READ")
+    strategy, risk = _load_strategy(case_dir, case_id)
     topology = _topology(config, args)
     required = _required_env_names(config)
     optional = [name for name in _optional_env_names(config) if name not in required]
@@ -215,6 +216,9 @@ def main_case(argv=None):
             "exchange": env_values.get(contract.get("exchange_env", ""), ""),
             "hedge_flag": env_values.get(contract.get("hedge_flag_env", ""), "") or "1",
         }
+        # Internal only: strategies may build a second session (disconnect/
+        # recovery cases).  Never serialized into evidence.
+        ctx._env_values = dict(env_values)
         connect_fact = client.connect()
         ctx.log(
             f"logged in trading_day={connect_fact['trading_day']} "

@@ -1,68 +1,78 @@
-"""V03 strategy: passively observe oversized-order validation callbacks."""
+"""V03 — oversize volume rejected locally with no venue dispatch.
 
-import backtrader as bt
+Success condition: one lot above the instrument maximum limit order volume
+(fallback 1000001 when the row carries no maximum) at a tick-aligned band
+price is rejected locally as above the maximum, with no order insert or
+order action dispatched.
+"""
+
+from __future__ import annotations
+
+from certlib.context import CaseResult
+from certlib.validation import LocalReject, validate_order
+
+CASE_ID = "V03"
+RISK = "READ"
 
 
-class V03Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
+def _instrument_row(client, instrument, exchange):
+    result = client.query_instruments(instrument_id=instrument, exchange_id=exchange)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def __init__(self):
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = "waiting for a typed maximum-order-size validation callback"
-        self.bars_seen = 0
-        self.case_config = self.p.case_config
-        config = self.case_config if isinstance(self.case_config, dict) else {}
-        parameters = config.get("parameters", {})
-        if isinstance(parameters, dict) and parameters.get("scenario") not in (None, "V03"):
-            self.case_reason = "case_config scenario does not match V03"
 
-    def _record(self, event):
-        if len(self.case_events) < 100:
-            self.case_events.append(event)
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def notify_store(self, msg, *args, **kwargs):
-        event = kwargs.get("event")
-        if not isinstance(event, dict):
-            return
-        details = event.get("details") if isinstance(event.get("details"), dict) else {}
-        code = event.get(
-            "error_code",
-            event.get("error_msg", details.get("error_code", details.get("error_msg", ""))),
-        )
-        code_text = str(code).lower()
-        event_type = event.get("event_type")
-        matched = event_type in (
-            "order_validation_rejected",
-            "order_reject_local",
-            "order_rejected",
-        ) and (
-            "max_order_size_exceeded" in code_text
-            or "max order size" in code_text
-            or "max volume" in code_text
-        )
-        if not matched:
-            return
-        self._record(
-            {
-                "event_type": event_type,
-                "error_code": code,
-                "size": event.get("size", details.get("size")),
-                "max_order_size": event.get("max_order_size", details.get("max_order_size")),
-                "timestamp": event.get("timestamp"),
-            }
-        )
-        self.case_observed = True
-        self.case_reason = "local maximum-size rejection callback was observed; validation provenance still needs review"
 
-    def notify_order(self, order):
-        self._record(
-            {
-                "event_type": "local_order_status",
-                "ref": getattr(order, "ref", None),
-                "status": order.getstatusname(),
-            }
-        )
+def _dispatch_absent(client):
+    kinds = {str(entry.get("kind")) for entry in client.calls}
+    return "order_insert" not in kinds and "order_action" not in kinds
 
-    def next(self):
-        self.bars_seen += 1
+
+class V03Strategy:
+    def run(self, ctx):
+        client = ctx.client
+        contract = ctx.contract
+        instrument = contract["instrument"]
+        exchange = contract["exchange"]
+
+        row = _instrument_row(client, instrument, exchange)
+        if row is None:
+            return CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+        tick = float(row.get("PriceTick") or 0)
+        if tick <= 0:
+            return CaseResult(
+                CASE_ID, "BLOCKED", "price_tick_invalid",
+                {"instrument": instrument, "tick": tick},
+            )
+
+        depth = _depth_row(client, instrument)
+        if depth is None:
+            return CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+        lower = float(depth.get("LowerLimitPrice") or 0)
+        if lower <= 0:
+            return CaseResult(CASE_ID, "BLOCKED", "price_band_invalid", {"lower": lower})
+        price = round(lower / tick) * tick
+
+        max_volume = row.get("MaxLimitOrderVolume")
+        volume = int(max_volume) + 1 if max_volume else 1000001
+        rule = ""
+        try:
+            validate_order(instrument_row=row, price=price, volume=volume)
+        except LocalReject as exc:
+            rule = exc.rule
+
+        dispatch_absent = _dispatch_absent(client)
+        facts = {"rule": rule, "volume": volume, "dispatch_absent": dispatch_absent}
+        if rule != "volume_above_max":
+            return CaseResult(CASE_ID, "FAIL", f"local_reject_unexpected:{rule or 'none'}", facts)
+        if not dispatch_absent:
+            return CaseResult(CASE_ID, "FAIL", "dispatch_not_absent", facts)
+        return CaseResult(CASE_ID, "PASS", "", facts)

@@ -1,163 +1,265 @@
-"""Offline T02 strategy for a close request against an existing position."""
+"""T02 — open-then-close with real fills: crossing BUY open, reduce-only close.
 
-import backtrader as bt
+PASS: the crossing BUY (price = AskPrice1) fully fills (status 0), the long
+position is visible, the offset-1 SELL close at the crossing bid fully fills,
+and the final position query shows the position back at zero.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+
+from certlib.ctp_client import SimNowSessionError
+from certlib.context import CaseResult
+
+CASE_ID = "T02"
+RISK = "WRITE"
+
+_FILLED = {"0"}         # all traded
+_TERMINAL = {"0", "5"}  # all traded / canceled
 
 
-class T02Strategy(bt.Strategy):
-    params = (("case_config", None), ("allow_orders", False))
+def _depth_row(client, instrument):
+    result = client.query_depth_market_data(instrument)
+    for row in result["rows"]:
+        if str(row.get("InstrumentID")) == instrument:
+            return row
+    return None
 
-    def __init__(self):
-        self.case_events = []
-        self.case_observed = False
-        self.case_reason = (
-            "waiting for a local close-order observation"
-            if self.p.allow_orders is True
-            else "offline order actions are disabled"
-        )
-        self.bars_seen = 0
-        self.order_refs = []
-        self.order_statuses = {}
-        self.order = None
-        self.seed_order = None
-        self._seed_attempted = False
-        self._seed_completed = False
-        self._position_before = 0.0
-        self._accepted = False
-        self._cancel_requested = False
 
-    def _config_value(self, name, default):
-        config = self.p.case_config
-        if not hasattr(config, "get"):
-            return default
-        parameters = config.get("parameters", config)
-        return parameters.get(name, default) if hasattr(parameters, "get") else default
+def _long_position(client, instrument):
+    rows = [r for r in client.query_positions(instrument_id=instrument)["rows"]
+            if str(r.get("PosiDirection")) == "2"]
+    return sum(int(r.get("Position") or 0) for r in rows), rows
 
-    def _number(self, name, default):
+
+def _probe_position(client, instrument):
+    try:
+        return _long_position(client, instrument)
+    except SimNowSessionError as exc:
+        return -1, [{"error": exc.reason, **exc.facts}]
+
+
+def _arm(client, ctx):
+    identity = hashlib.sha256(
+        (CASE_ID + json.dumps(ctx.config, sort_keys=True, default=str)).encode()).hexdigest()
+    preflight = hashlib.sha256(json.dumps({
+        "case": CASE_ID, "instrument": ctx.contract["instrument"],
+        "exchange": ctx.contract["exchange"], "pair_index": client.pair.index,
+        "generation": client.login_facts.get("connection_generation"),
+        "trading_day": client.login_facts.get("trading_day"),
+    }, sort_keys=True).encode()).hexdigest()
+    client.arm(
+        instrument_id=ctx.contract["instrument"], exchange_id=ctx.contract["exchange"],
+        strategy_identity_sha256=identity, preflight_sha256=preflight,
+        execution_cycle_id=f"{CASE_ID}-{int(time.time())}")
+
+
+def _place(client, ctx, *, instrument, exchange, direction, offset_flag, price, volume, hedge_flag):
+    placement = client.place_limit_order(
+        instrument_id=instrument, exchange_id=exchange, direction=direction,
+        offset_flag=offset_flag, price=price, volume=volume, hedge_flag=hedge_flag)
+    ctx.track_order(instrument, placement["order_ref"], exchange_id=exchange)
+    return placement
+
+
+def _settle(client, ctx, order_ref, order_sys_id=""):
+    ctx.mark_order_closed(order_ref)
+    client.mark_order_state(order_ref, "closed", order_sys_id)
+
+
+def _cancel_to_terminal(client, *, instrument, exchange, order_ref, order_sys_id="", timeout=20.0):
+    """Bounded cancel; never raises.  Returns the last observed order state."""
+    facts = {"order_ref": order_ref}
+    try:
+        facts["cancel"] = client.cancel_order(
+            instrument_id=instrument, exchange_id=exchange, order_ref=order_ref,
+            order_sys_id=order_sys_id)
+        row = client.wait_order_status(order_ref, _TERMINAL, instrument_id=instrument, timeout=timeout)
+        facts.update(status=str(row.get("OrderStatus")), volume_traded=row.get("VolumeTraded"),
+                     order_sys_id=str(row.get("OrderSysID") or order_sys_id))
+    except SimNowSessionError as exc:
+        facts["error"] = exc.reason
+        latest = exc.facts.get("latest") if isinstance(exc.facts, dict) else None
+        if isinstance(latest, dict):
+            facts.update(status=str(latest.get("OrderStatus") or ""),
+                         volume_traded=latest.get("VolumeTraded"))
+    return facts
+
+
+def _flatten(client, ctx, *, instrument, exchange, hedge_flag, volume, timeout):
+    """Best-effort bounded crossing SELL (offset 1) reduce; never raises."""
+    volume = int(volume)
+    if volume <= 0:
+        return {"volume": volume, "skipped": "zero_volume"}
+    depth = _depth_row(client, instrument)
+    bid = float(depth.get("BidPrice1") or 0.0) if depth else 0.0
+    if bid <= 0:
+        return {"volume": volume, "error": "no_book"}
+    facts = {"volume": volume, "price": bid}
+    try:
+        placement = _place(client, ctx, instrument=instrument, exchange=exchange,
+                           direction="1", offset_flag="1", price=bid,
+                           volume=volume, hedge_flag=hedge_flag)
+        row = client.wait_order_status(placement["order_ref"], _FILLED,
+                                       instrument_id=instrument, timeout=timeout)
+        facts.update(order_ref=placement["order_ref"], status=str(row.get("OrderStatus")),
+                     order_sys_id=str(row.get("OrderSysID") or ""),
+                     volume_traded=row.get("VolumeTraded"))
+        _settle(client, ctx, placement["order_ref"], facts["order_sys_id"])
+    except SimNowSessionError as exc:
+        facts["error"] = exc.reason
+        facts.update(exc.facts)
+    return facts
+
+
+class T02Strategy:
+    RISK = RISK  # class-level alias so certlib.runner's risk gate sees it
+
+    def run(self, ctx):
+        client = ctx.client
+        contract = ctx.contract
+        scenario = ctx.scenario()
+        instrument = contract["instrument"]
+        exchange = contract["exchange"]
+        hedge_flag = contract.get("hedge_flag") or "1"
+
+        rows = client.query_instruments(instrument_id=instrument, exchange_id=exchange)["rows"]
+        if not any(str(r.get("InstrumentID")) == instrument for r in rows):
+            return CaseResult(CASE_ID, "BLOCKED", "instrument_not_found", {"instrument": instrument})
+        depth = _depth_row(client, instrument)
+        if depth is None:
+            return CaseResult(CASE_ID, "BLOCKED", "depth_unavailable", {"instrument": instrument})
+        lower = float(depth.get("LowerLimitPrice") or 0.0)
+        upper = float(depth.get("UpperLimitPrice") or 0.0)
+        bid = float(depth.get("BidPrice1") or 0.0)
+        ask = float(depth.get("AskPrice1") or 0.0)
+        if not (0 < lower < upper):
+            return CaseResult(CASE_ID, "BLOCKED", "price_band_invalid",
+                              {"lower": lower, "upper": upper})
+        if ask <= 0 or bid <= 0:
+            return CaseResult(CASE_ID, "BLOCKED", "no_book", {"bid": bid, "ask": ask})
+
+        volume = int(scenario.get("volume", 1))
+        open_timeout = int(scenario.get("open_timeout_ms", 30000)) / 1000.0
+        close_timeout = int(scenario.get("close_timeout_ms", 30000)) / 1000.0
+        position_before, _rows_before = _long_position(client, instrument)
+
+        def flatten_now(flatten_volume, timeout):
+            return _flatten(client, ctx, instrument=instrument, exchange=exchange,
+                            hedge_flag=hedge_flag, volume=flatten_volume, timeout=timeout)
+
+        _arm(client, ctx)
+        ctx.log(f"armed; crossing BUY open {volume}@{ask} ({instrument}.{exchange})")
         try:
-            value = float(self._config_value(name, default))
-        except (TypeError, ValueError):
-            value = float(default)
-        return value if value >= 0 else float(default)
+            opening = _place(client, ctx, instrument=instrument, exchange=exchange,
+                             direction="0", offset_flag="0", price=ask,
+                             volume=volume, hedge_flag=hedge_flag)
+        except SimNowSessionError as exc:
+            return CaseResult(CASE_ID, "FAIL", exc.reason, dict(exc.facts))
+        open_ref = opening["order_ref"]
 
-    def _integer(self, name, default, minimum, maximum):
-        value = self._config_value(name, default)
         try:
-            if isinstance(value, bool):
-                raise ValueError
-            value = int(value)
-        except (TypeError, ValueError):
-            value = default
-        return min(maximum, max(minimum, value))
+            open_row = client.wait_order_status(open_ref, _FILLED, instrument_id=instrument,
+                                                timeout=open_timeout)
+        except SimNowSessionError as exc:
+            cancel = _cancel_to_terminal(client, instrument=instrument, exchange=exchange,
+                                         order_ref=open_ref, timeout=close_timeout)
+            if str(cancel.get("status") or "") in _TERMINAL:
+                _settle(client, ctx, open_ref, str(cancel.get("order_sys_id") or ""))
+            filled = int(cancel.get("volume_traded") or 0)
+            return CaseResult(CASE_ID, "FAIL", exc.reason, {
+                **exc.facts, "open": {"order_ref": open_ref, "cancel": cancel,
+                                      "filled_volume": filled},
+                "flatten": flatten_now(filled, close_timeout)})
 
-    def notify_order(self, order):
-        status = order.getstatusname()
-        self.order_statuses[order.ref] = status
-        self.case_events.append(
-            {
-                "kind": "local_order_status",
-                "ref": order.ref,
-                "status": status,
-                "executed_size": order.executed.size,
-            }
-        )
-        if order.ref != getattr(self.order, "ref", None):
-            if order.ref == getattr(self.seed_order, "ref", None):
-                if status == "Completed":
-                    self._seed_completed = True
-                    self.case_reason = "bounded local setup position filled; awaiting close request"
-                elif status in ("Rejected", "Margin", "Expired", "Canceled"):
-                    self.case_reason = "bounded local setup position reached {}".format(
-                        status.lower()
-                    )
-            return
-        if status in ("Accepted", "Partial"):
-            self._accepted = True
-        elif status == "Canceled" and self._accepted and self._cancel_requested:
-            self.case_observed = True
-            self.case_reason = (
-                "local close order against an existing position was accepted and canceled"
-            )
-        elif status == "Completed" and self._accepted:
-            self.case_observed = True
-            self.case_reason = "local close order against an existing position completed"
-        elif status in ("Rejected", "Margin", "Expired"):
-            self.case_reason = "local close order reached {}".format(status.lower())
+        open_filled = int(open_row.get("VolumeTraded") or 0)
+        open_sys_id = str(open_row.get("OrderSysID") or "")
+        _settle(client, ctx, open_ref, open_sys_id)
+        if open_filled != volume:
+            return CaseResult(CASE_ID, "FAIL", "open_not_fully_filled", {
+                "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
+                         "status": str(open_row.get("OrderStatus")),
+                         "volume_traded": open_filled, "volume_total": volume},
+                "flatten": flatten_now(open_filled, close_timeout)})
 
-    def notify_store(self, msg, *args, **kwargs):
-        # This local smoke does not consume store notifications.
-        pass
+        long_now, rows_now = _probe_position(client, instrument)
+        if long_now <= 0:
+            return CaseResult(CASE_ID, "FAIL", "position_not_reflected", {
+                "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
+                         "volume_traded": open_filled},
+                "position_before": position_before, "position_rows": rows_now,
+                "position_after_open": long_now,
+                "flatten": flatten_now(open_filled, close_timeout)})
 
-    def next(self):
-        self.bars_seen += 1
-        if self.p.allow_orders is not True or self.case_observed:
-            return
-        if self.order is not None:
-            status = self.order_statuses.get(self.order.ref)
-            if status in ("Accepted", "Partial") and not self._cancel_requested:
-                self._accepted = True
-                self._cancel_requested = True
-                self.cancel(self.order)
-                self.case_events.append({"kind": "local_cancel_requested", "ref": self.order.ref})
-                self.case_reason = "local close order cancel requested; awaiting terminal status"
-            elif status == "Canceled" and self._accepted and self._cancel_requested:
-                self.case_observed = True
-                self.case_reason = (
-                    "local close order against an existing position was accepted and canceled"
-                )
-            return
+        close_depth = _depth_row(client, instrument)
+        close_bid = float(close_depth.get("BidPrice1") or 0.0) if close_depth else 0.0
+        if close_bid <= 0:
+            return CaseResult(CASE_ID, "FAIL", "close_no_book", {
+                "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
+                         "volume_traded": open_filled},
+                "position_after_open": long_now, "bid": close_bid})
 
-        position = float(self.getposition(self.data).size)
-        if position == 0:
-            if self.seed_order is None and not self._seed_attempted:
-                size = self._integer("seed_position_size", 1, 1, 5)
-                self.seed_order = self.buy(size=size, exectype=bt.Order.Market)
-                self._seed_attempted = True
-                if self.seed_order is not None:
-                    self.order_refs.append(self.seed_order.ref)
-                    self.case_events.append(
-                        {
-                            "kind": "local_setup_position_submitted",
-                            "ref": self.seed_order.ref,
-                            "side": "buy_market",
-                            "size": size,
-                            "offline_only": True,
-                        }
-                    )
-                    self.case_reason = (
-                        "bounded local setup order submitted; awaiting fill before close request"
-                    )
-                else:
-                    self.case_reason = "offline broker did not return a local setup order"
-            elif self._seed_attempted and not self._seed_completed:
-                self.case_reason = "waiting for the bounded local setup position to fill"
+        close_volume = long_now  # reduce-only close of the visible position
+        ctx.log(f"crossing SELL close {close_volume}@{close_bid} (offset 1)")
+        try:
+            closing = _place(client, ctx, instrument=instrument, exchange=exchange,
+                             direction="1", offset_flag="1", price=close_bid,
+                             volume=close_volume, hedge_flag=hedge_flag)
+        except SimNowSessionError as exc:
+            return CaseResult(CASE_ID, "FAIL", exc.reason, {
+                **exc.facts, "position_after_open": long_now,
+                "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
+                         "volume_traded": open_filled}})
+        close_ref = closing["order_ref"]
+
+        try:
+            close_row = client.wait_order_status(close_ref, _FILLED, instrument_id=instrument,
+                                                 timeout=close_timeout)
+        except SimNowSessionError as exc:
+            cancel = _cancel_to_terminal(client, instrument=instrument, exchange=exchange,
+                                         order_ref=close_ref, timeout=close_timeout)
+            if str(cancel.get("status") or "") in _TERMINAL:
+                _settle(client, ctx, close_ref, str(cancel.get("order_sys_id") or ""))
+            remainder, _rows = _probe_position(client, instrument)
+            if remainder > 0:
+                retry = flatten_now(remainder, close_timeout)
             else:
-                self.case_reason = "no local broker position is available to close"
-            return
-        configured_size = self._number("close_size", 1.0)
-        size = min(abs(position), configured_size)
-        if size <= 0:
-            self.case_reason = "configured close size is not positive"
-            return
-        offset = self._number("price_offset", 20.0)
-        reference = float(self.data.close[0])
-        if position > 0:
-            side = "sell_close"
-            price = max(reference + offset, 0.01)
-            self.order = self.sell(size=size, exectype=bt.Order.Limit, price=price, offset="close")
-        else:
-            side = "buy_close"
-            price = max(reference - offset, 0.01)
-            self.order = self.buy(size=size, exectype=bt.Order.Limit, price=price, offset="close")
-        if self.order is not None:
-            self._position_before = position
-            self.order_refs.append(self.order.ref)
-            self.case_events.append(
-                {
-                    "kind": "local_close_order_submitted",
-                    "ref": self.order.ref,
-                    "side": side,
-                    "size": size,
-                    "position_before": position,
-                }
-            )
-            self.case_reason = "local close order submitted; awaiting acceptance"
+                retry = {"skipped": "position_unknown" if remainder < 0 else "zero_volume"}
+            return CaseResult(CASE_ID, "FAIL", exc.reason, {
+                **exc.facts, "close": {"order_ref": close_ref, "cancel": cancel,
+                                       "volume_total": close_volume},
+                "position_before": position_before, "retry_close": retry})
+
+        close_filled = int(close_row.get("VolumeTraded") or 0)
+        close_sys_id = str(close_row.get("OrderSysID") or "")
+        _settle(client, ctx, close_ref, close_sys_id)
+        position_after, rows_after = _probe_position(client, instrument)
+        if position_after != 0:
+            retry = flatten_now(position_after, close_timeout)
+            position_final, rows_final = _probe_position(client, instrument)
+            return CaseResult(CASE_ID, "FAIL", "position_not_flat", {
+                "open": {"order_ref": open_ref, "order_sys_id": open_sys_id,
+                         "volume_traded": open_filled},
+                "close": {"order_ref": close_ref, "order_sys_id": close_sys_id,
+                          "status": str(close_row.get("OrderStatus")),
+                          "volume_traded": close_filled, "volume_total": close_volume},
+                "position_before": position_before, "position_after": position_after,
+                "retry_close": retry, "position_final": position_final,
+                "position_rows": rows_final})
+
+        return CaseResult(CASE_ID, "PASS", "", {
+            "open": {"order_ref": open_ref, "order_sys_id": open_sys_id, "direction": "0",
+                     "offset_flag": "0", "price": ask, "volume": volume,
+                     "status": str(open_row.get("OrderStatus")), "volume_traded": open_filled},
+            "close": {"order_ref": close_ref, "order_sys_id": close_sys_id, "direction": "1",
+                      "offset_flag": "1", "price": close_bid, "volume": close_volume,
+                      "status": str(close_row.get("OrderStatus")), "volume_traded": close_filled},
+            "position_before": position_before, "position_after_open": long_now,
+            "position_after": position_after, "position_rows": rows_after,
+            "position_flat": position_after == 0,
+            "price_band": {"lower": lower, "upper": upper},
+            "insert_evidence": {"open": opening["evidence"], "close": closing["evidence"]},
+        })
