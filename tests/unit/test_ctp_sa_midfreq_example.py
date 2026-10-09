@@ -5823,3 +5823,21 @@ def test_no_production_or_credential_material_appears_in_example_sources():
         text = (EXAMPLE / filename).read_text(encoding="utf-8")
         assert "preferred" not in text
         assert "secret-1" not in text
+
+
+def test_run_live_wires_live_tick_provenance_before_the_feed():
+    """The sealed-bar chain needs caller-owned tick provenance.
+
+    Regression: a 7x24 rehearsal showed every live bar rejected with
+    ``bar_schema_missing:connection_generation`` (closed_bars=0) because the
+    entry never configured the wrapper's live_tick_provenance; the drill could
+    then never fire.
+    """
+
+    source = (EXAMPLE / "run.py").read_text(encoding="utf-8")
+    assert "configure_live_tick_provenance(" in source
+    assert source.index("configure_live_tick_provenance(") < source.index(
+        "store.getdata("
+    )
+    assert '"generation": live_generation' in source
+    assert '"session_segment": live_session_segment' in source

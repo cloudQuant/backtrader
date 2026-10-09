@@ -724,6 +724,29 @@ def run_live(args) -> int:
             "gate_state": arm_result.get("state"),
         }
 
+        # The sealed-bar evidence chain consumes caller-owned tick provenance:
+        # without it every live bar is rejected for a missing
+        # connection_generation (a 7x24 rehearsal showed 9/9 bars
+        # schema-invalid, closed_bars=0), so the drill could never fire.
+        # Attach the run-scoped provenance before the feed subscribes.
+        live_domain = f"iter42-sa-live-{uuid.uuid4().hex[:12]}"
+        live_session_segment = f"czce-sa-live:{preflight['trading_day']}"
+        live_generation = int(preflight["login"].get("connection_generation") or 0)
+        store.configure_live_tick_provenance(
+            {
+                "clock_domain_id": live_domain,
+                "rules_hash": str(identity_sha or ""),
+                "session_segment": live_session_segment,
+                "generation": live_generation,
+                "source": "iter42:ctp_sa_midfreq:registered-sim",
+            }
+        )
+        summary["live_tick_provenance"] = {
+            "domain": live_domain,
+            "session_segment": live_session_segment,
+            "generation": live_generation,
+        }
+
         purpose = "engineering_smoke" if args.drill else "natural_signal"
         trigger = None
         if args.drill:

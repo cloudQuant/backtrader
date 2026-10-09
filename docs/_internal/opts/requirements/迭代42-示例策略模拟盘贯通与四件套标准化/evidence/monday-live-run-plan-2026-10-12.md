@@ -50,6 +50,10 @@
   **交易所涨跌停价闸门**干净拒绝（`exchange_limits_unavailable`，7x24 无涨跌停价；拒绝
   发生在三腿武装之前，零写入）；014_2 观察层真实链走到密封分钟桶后因陈旧事件钟 BLOCKED。
   → 写 drill 的唯一可验收路径=**时段内标准前置**；7x24 只用于观察层。
+- **013_3 首跑彩排发现并修复封存 bar 链缺口（2026-10-10 07:30 北京）**：run.py 未接入
+  `configure_live_tick_provenance` → live bar 全数缺 `connection_generation` 被拒
+  （`closed_bars=0`），drill 在标准前置也将永不触发；修复后修证彩排 schema 阻断归零、
+  打标证据生效（R1 记录详载）。周一 09:00 为 bar 链+drill 的正式验收。
 - **013_2 首跑彩排发现并修复 drill 竞态**：`--drill` 运行把 `max_pairs=1`，而自然路径在
   warmup 未成熟期（`--drill-warmup-bars 8`）可用伪 z 消耗唯一尝试额度（彩排实录
   attempts=1/fired=false，随后 `_try_open` 永久短路，6789 tick 无一开仓）→ 策略新增

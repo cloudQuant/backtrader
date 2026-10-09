@@ -142,3 +142,21 @@ R2 环境核查：checkout 根 `.env` 中 OKX/Binance Demo 五个凭据名齐全
 `engineering_trigger_not_reached` 持续阻断，drill 从未发出订单。**在时段内标准前置上
 quote.event_time ≈ 墙钟**，窗口按设计生效——周一 09:00 drill 不受此影响。今晚以周一逐字命令
 复跑 013_3 彩排（编辑后首跑）预期同样零单，仅用于验证编辑后入口与武装链路的真实可用性。
+
+## 013_3 编辑后首跑与封存 bar 链修复（2026-10-10 07:27–07:47 北京，7x24）
+
+以周一同一条命令首跑编辑后的入口：选择→7x24 武装→运行 2856s 有界→drain→干净退出
+（run_error=null）。诊断暴露关键缺口：`invalid_completed_bar:bar_schema_missing:
+connection_generation ×9`、`closed_bars=0`——**run.py 从未调用
+`configure_live_tick_provenance`**，live tick 无打标 → bar 缺 `connection_generation`
+（schema 18 项中唯此缺）→ 每根 bar 被拒 → `last_minute=None` → drill 在**标准前置同样
+永远到不了触发**（R1 只验收过"行情(quote)入策略"，bar 链从未真正被真实运行验证）。
+修复：入场后、feed 构建前接入运行域打标（域/会话段/登录代次/身份哈希，写入
+`summary["live_tick_provenance"]`），回归测试断言接线与顺序。
+
+修证彩排（`--run-seconds 1500 --drill-delay-seconds 600 --drill-window-seconds 600`）：
+运行 1655s 有界、干净退出；**`bar_schema_missing` 阻断完全消失（0）**，打标在
+run.json 中实证据生效（`iter42-sa-live-3c1a3add734f / czce-sa-live:20261008 / gen=1`）。
+`closed_bars=0` 仅因 7x24 极端封存环境下 25 分钟不足一根 bar 事件（非 schema/接线问题）；
+`quote:invalid_lower_limit:1553` 仍旧为 7x24 无涨跌停价的环境事实。零单、终态 flat。
+周一标准前置（新鲜钟、正常封存）为 bar 链与 drill 的正式验收路径。
