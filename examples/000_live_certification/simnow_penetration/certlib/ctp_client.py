@@ -357,9 +357,9 @@ class SimNowSession:
         return self._run_query(
             "depth_market_data",
             instrument_id=instrument_id,
-            timeout=12.0,
+            timeout=15.0,
             attempts=4,
-            gap=2.5,
+            gap=5.0,
         )
 
     def find_order(self, order_ref, *, instrument_id="", timeout=6.0, interval=0.5):
