@@ -19,11 +19,10 @@ REPO = Path(__file__).resolve().parents[2]
 EX1 = REPO / "examples" / "013_1_midfreq_cross_arbitrage"
 EX2 = REPO / "examples" / "013_2_highfreq_calendar_arbitrage"
 
-# 013_1 was migrated to its descriptive four-file strategy name and a
-# legacy_runner module; 013_2 keeps the historical layout until its own
-# migration round.
-STRATEGY_FILES = {EX1: "pair_arbitrage_strategy.py", EX2: "strategy.py"}
-LEGACY_RUNNERS = {EX1: "legacy_runner.py", EX2: "run.py"}
+# Both examples now use their descriptive four-file strategy names and a
+# legacy_runner module; the standard run.py delegates to the legacy engine.
+STRATEGY_FILES = {EX1: "pair_arbitrage_strategy.py", EX2: "calendar_arbitrage_strategy.py"}
+LEGACY_RUNNERS = {EX1: "legacy_runner.py", EX2: "legacy_runner.py"}
 
 
 def load_module(directory, filename, name):
@@ -188,6 +187,7 @@ def test_runner_close_offset_follows_exchange_rules(run1, run2):
     # instead of the product-prefix heuristic.
     assert run1.close_offset_for_exchange("DCE") == "close"
     assert run1.close_offset_for_exchange("CZCE") == "close"
+    assert run2.close_offset_for_exchange("SHFE") == "close_today"
     assert run1.close_offset_for_exchange("SHFE") == "close_today"
     assert run1.close_offset_for_exchange("INE") == "close_today"
 

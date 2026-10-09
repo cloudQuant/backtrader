@@ -18,6 +18,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 CANONICAL = REPO / "examples" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"
 VENDORED = REPO / "examples" / "013_1_midfreq_cross_arbitrage" / "simnow_direct.py"
+VENDORED_RB = REPO / "examples" / "013_2_highfreq_calendar_arbitrage" / "simnow_direct.py"
 
 
 def _load_module(path: Path, name: str):
@@ -104,6 +105,7 @@ def _templates():
 
 def test_vendored_copy_is_byte_identical():
     assert VENDORED.read_bytes() == CANONICAL.read_bytes()
+    assert VENDORED_RB.read_bytes() == CANONICAL.read_bytes()
 
 
 def test_ensure_arm_is_idempotent_for_the_same_instrument(simnow_direct):

@@ -239,9 +239,9 @@ def _resolve_live_contracts(config: Mapping[str, Any]) -> List[Tuple[str, str]]:
         exchange = str(overrides.get(product) or PRODUCT_EXCHANGES.get(product) or "").upper()
         if not exchange:
             raise LiveRejected("unknown_live_product_exchange", {"product": product})
-        if exchange in seen:
-            raise LiveRejected("live_legs_pick_distinct_exchanges", {"exchange": exchange})
-        seen.add(exchange)
+        if symbol.upper() in seen:
+            raise LiveRejected("live_legs_must_be_distinct_instruments", {"instrument": symbol})
+        seen.add(symbol.upper())
         resolved.append((symbol, exchange))
     return resolved
 

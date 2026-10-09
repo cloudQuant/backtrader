@@ -10,21 +10,39 @@ state halts the run with evidence left for manual reconciliation.
 """
 
 import math
+import time
 from collections.abc import Mapping
 from datetime import datetime, timezone
 
 import backtrader as bt
 import backtrader.indicators as btind
 
-# SHFE requires an explicit close_today; DCE/CZCE close plain.
+# SHFE/INE require an explicit close_today; DCE/CZCE close plain.
 CLOSE_TODAY_PREFIXES = ("rb", "hc")
+CLOSE_TODAY_EXCHANGES = frozenset({"SHFE", "INE"})
 _UTC_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def close_offset(symbol):
-    """Best-effort CTP close offset for an intraday round trip."""
+    """Best-effort default CTP close offset for an intraday round trip.
+
+    Standard entries do not rely on this product-prefix guess: the live
+    runner resolves each leg's offset from the instrument's actual exchange
+    metadata (``close_offset_for_exchange``) and passes the explicit
+    ``close_offsets`` mapping.  The guess remains only as the offline replay
+    default.
+    """
     letters = "".join(ch for ch in str(symbol) if ch.isalpha()).lower()
     return "close_today" if letters in CLOSE_TODAY_PREFIXES else "close"
+
+
+def close_offset_for_exchange(exchange):
+    """Resolve the CTP close offset from the instrument's actual exchange."""
+    return (
+        "close_today"
+        if str(exchange or "").strip().upper() in CLOSE_TODAY_EXCHANGES
+        else "close"
+    )
 
 
 class PairArbitrageStrategy(bt.Strategy):
@@ -51,13 +69,22 @@ class PairArbitrageStrategy(bt.Strategy):
         ("commission_rate", 0.0001),
         ("margin_rate", 0.1),
         ("multiplier", 10.0),
+        # Iteration-42 standard-entry additions.  Defaults preserve the frozen
+        # replay behavior; the live runner overrides all three.
+        ("close_offsets", None),
+        ("deadline_clock", None),
+        ("broker_position_mode", "net"),
+        ("engineering_trigger", None),
     )
 
     def __init__(self):
         """Build the spread indicator, per-leg close offsets and execution state."""
         self.spread = btind.SpreadZScore(self.data0, self.data1, period=self.p.period)
         self.symbols = [data._name for data in self.datas]
-        self.close_offsets = {symbol: close_offset(symbol) for symbol in self.symbols}
+        overrides = dict(self.p.close_offsets or {})
+        self.close_offsets = {
+            symbol: str(overrides.get(symbol) or close_offset(symbol)) for symbol in self.symbols
+        }
         self._quotes = {}
         self.initial_value = None
         self.halted, self.halt_reason = False, ""
@@ -74,6 +101,7 @@ class PairArbitrageStrategy(bt.Strategy):
         self._confirmations = 0
         self._last_evaluation = -math.inf
         self._started_at = None
+        self._engineering_trigger_fired = False
         self._trade_logger_context_dirty = True
         self._trade_logger_context_revision = 0
         self._trade_logger_last_attempted_tick = 0
@@ -121,6 +149,9 @@ class PairArbitrageStrategy(bt.Strategy):
             self._publish_trade_logger_context()
 
     def _now(self):
+        clock = getattr(getattr(self, "p", None), "deadline_clock", None)
+        if callable(clock):
+            return float(clock())
         bar_datetime = bt.num2date(self.data0.datetime[0])
         if bar_datetime.tzinfo is None or bar_datetime.utcoffset() is None:
             bar_datetime = bar_datetime.replace(tzinfo=timezone.utc)
@@ -133,12 +164,15 @@ class PairArbitrageStrategy(bt.Strategy):
         return self.spread.l.zscore[0]
 
     def _limit(self, symbol, side):
+        """Return the protected limit price, or None without an executable book.
+
+        The live path must never fall back to a stale close price: a missing
+        one-level book refuses the order instead (halt for reconciliation).
+        """
         quote = self._quotes.get(symbol)
-        if quote:
-            bid, ask = quote
-        else:
-            mid = self.getdatabyname(symbol).close[0]
-            bid, ask = mid, mid
+        if not quote:
+            return None
+        bid, ask = quote
         pad = self.p.slippage_ticks * self.p.tick_size
         return (ask + pad) if side == "buy" else (bid - pad)
 
@@ -179,24 +213,35 @@ class PairArbitrageStrategy(bt.Strategy):
     def _try_open(self, now):
         if self.open_attempts >= self.p.max_pairs:
             return
-        if now - self._last_evaluation < self.p.min_interval:
-            return
-        if self.broker.getvalue() <= self.initial_value - self.p.max_loss:
-            self.halt("Maximum equity loss exceeded")
-            return
-        self._last_evaluation = now
-        z = self._zscore()
-        if abs(z) < self.p.entry_z:
-            self._direction, self._confirmations = None, 0
-            return
-        first, second = self.symbols
-        direction = (second, first) if z > 0 else (first, second)
-        if direction != self._direction:
-            self._direction, self._confirmations = direction, 0
-        self._confirmations += 1
-        if self._confirmations < self.p.confirmations:
-            return
-        self._confirmations = 0
+        trigger_side = self._engineering_trigger_side()
+        if trigger_side is None:
+            if now - self._last_evaluation < self.p.min_interval:
+                return
+            if self.broker.getvalue() <= self.initial_value - self.p.max_loss:
+                self.halt("Maximum equity loss exceeded")
+                return
+            self._last_evaluation = now
+            z = self._zscore()
+            if abs(z) < self.p.entry_z:
+                self._direction, self._confirmations = None, 0
+                return
+            first, second = self.symbols
+            direction = (second, first) if z > 0 else (first, second)
+            if direction != self._direction:
+                self._direction, self._confirmations = direction, 0
+            self._confirmations += 1
+            if self._confirmations < self.p.confirmations:
+                return
+            self._confirmations = 0
+        else:
+            if self.broker.getvalue() <= self.initial_value - self.p.max_loss:
+                self.halt("Maximum equity loss exceeded")
+                return
+            first, second = self.symbols
+            # The sell leg goes first in _begin_legs; a long drill buys the
+            # first symbol and sells the second (mirror of the z>0 mapping).
+            direction = (second, first) if trigger_side == "long" else (first, second)
+            self._engineering_trigger_fired = True
         self.open_attempts += 1
         self._mark_trade_logger_context_dirty()
         self._begin_legs(
@@ -206,6 +251,29 @@ class PairArbitrageStrategy(bt.Strategy):
             ],
             "open",
         )
+        if trigger_side is not None and self.current_pair is not None:
+            self.current_pair["reason"] = "engineering_trigger"
+
+    def _engineering_trigger_side(self):
+        """Return the drill side while its bounded window is active, else None.
+
+        The bounded engineering drill is the sanctioned fallback when no
+        natural signal appears; it is one-shot per run and inert unless the
+        runner explicitly passes a trigger with absolute epoch bounds.
+        """
+        trigger = self.p.engineering_trigger
+        if self._engineering_trigger_fired or not isinstance(trigger, Mapping):
+            return None
+        side = str(trigger.get("side") or "").strip().lower()
+        if side not in ("long", "short"):
+            return None
+        try:
+            not_before = float(trigger.get("not_before_epoch"))
+            not_after = float(trigger.get("not_after_epoch"))
+        except (TypeError, ValueError):
+            return None
+        moment = time.time()
+        return side if not_before <= moment <= not_after else None
 
     def _manage_open_pair(self, now):
         pair = self.active_pair
@@ -242,16 +310,29 @@ class PairArbitrageStrategy(bt.Strategy):
         self._advance_pair(self._now())
 
     def _submit(self, symbol, side, lots):
-        # bt.Strategy.sell takes a positive size and derives the short side.
         reduce_only = self.current_pair["action"] == "close"
+        price = self._limit(symbol, side)
+        if price is None:
+            # Never blind-price an order from a stale close: without a live
+            # one-level book the leg refuses and the run halts for manual
+            # reconciliation instead of risking an unintended fill.
+            self.halt(f"No executable book for {symbol}; refusing to submit a blind order")
+            return
+        # bt.Strategy.sell takes a positive size and derives the short side.
         submit = self.buy if side == "buy" else self.sell
+        order_kwargs = {}
+        if str(self.p.broker_position_mode) == "dual_side":
+            # CTP accounts are directional; the exchange-derived leg must be
+            # declared explicitly for every order under a dual-side ledger.
+            order_kwargs["position_side"] = "long" if side == "buy" else "short"
         order = submit(
             data=self.getdatabyname(symbol),
             size=lots,
-            price=self._limit(symbol, side),
+            price=price,
             exectype=bt.Order.Limit,
             time_in_force="IOC",
             offset=self.close_offsets[symbol] if reduce_only else "open",
+            **order_kwargs,
         )
         if order is None:
             self.halt("Broker returned no order; reconciliation required")
@@ -467,6 +548,7 @@ class PairArbitrageStrategy(bt.Strategy):
             "open_attempts": self.open_attempts,
             "halted": self.halted,
             "halt_reason": self.halt_reason,
+            "engineering_trigger_fired": self._engineering_trigger_fired,
             "execution_state": self._report_execution_state(),
             "portfolio_cache_available": bool(state),
         }
