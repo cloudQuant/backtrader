@@ -10,6 +10,7 @@ bt_api_execution"对迭代42 各示例做**组件交互边界**复核（非组�
 | --- | --- | --- |
 | 入口导入边界 | 新测试 `tests/unit/test_iteration42_component_boundaries.py`（8 入口 × spec 加载，sys.modules 增量） | 42 passed：导入任一标准入口**不会**引入 bt_api_py/risk/monitor/execution/gateway 任一模块 |
 | 组件挂载型 flag | 同上（8 入口 × `--execution/--risk/--monitor/--gateway`） | 全部 exit 2 `unknown_arguments_rejected`（无隐藏组件开关/静默挂载） |
+| **假 provider 挂载深测** | 新测试 `tests/unit/test_iteration42_optional16_mount_smoke.py`（假场地 client 驱动 components.py 的真实 dev SDK 组件） | **5 passed**：风险门 reserve/claim/settle 各 1 且派发锁存生效（第二笔 INCREASE `risk_rejected`、零二次派发）；执行 facade 返回场地身份（ACKED/FAKE-1、SharedRiskAdmissionAdapter）；monitor 逐操作 append/acknowledge 且签名 readback 页可读；MARKET+risk 派发前 fail-closed；未启用组件零导入且透传 |
 | optional16 矩阵干跑 | `python run_matrix.py --dry --out <temp>`（不改写 `acceptance-matrix.json`） | 16 组合 × C01/T03 = 32/32 DRY(exit 0)：flag 管线与用例配置在当前仓库状态下无漂移 |
 | 组件包导入 | dev 树（D:/bt_api_py）逐一导入四个包 + 关键符号 | 4/4 OK（来源均为 dev） |
 | optional16 契约 | spec 模块：`matrix_specs()/combo_id/from_config`、`COMPONENT_FLAGS`、`TRANSPORTS` | 16 唯一组合、2 传输 × 2³ 组件全覆盖、默认 `direct-e0-r0-m0` |
