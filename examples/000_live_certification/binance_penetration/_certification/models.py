@@ -104,6 +104,9 @@ class PlannedOperation:
     position_id: str | None
     reduce_only: bool
     instrument_spec_id: str | None
+    position_side: str | None = None
+    time_in_force: str | None = None
+    request_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -204,6 +207,8 @@ class OrderState:
     requested: Decimal
     filled: Decimal
     remaining: Decimal
+    position_side: str | None = None
+    time_in_force: str | None = None
 
 
 @dataclass(frozen=True)

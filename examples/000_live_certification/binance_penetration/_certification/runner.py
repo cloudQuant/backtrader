@@ -389,6 +389,7 @@ def _plan(
     spec: InstrumentSpec | None,
     ref: MarketReference | None,
     currency: str,
+    venue: str | None = None,
 ) -> ActionPlan:
     ops: list[PlannedOperation] = []
     symbol = str(params["symbol"]) if "symbol" in params else None

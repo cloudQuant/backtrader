@@ -1,0 +1,1685 @@
+{
+  "accepted_r1_r9_wrapper_suites_repeated": false,
+  "branch": "dev",
+  "checkout_input_status_sha256_pre_post": {
+    "post": "39c8c76a1811cbd624f233d0593b2eb47ccc86cbf40b8c43c093659b97425739",
+    "pre": "39c8c76a1811cbd624f233d0593b2eb47ccc86cbf40b8c43c093659b97425739"
+  },
+  "checkout_input_status_unchanged": true,
+  "child_diagnostic": {
+    "child_exception": {
+      "category": null,
+      "observed": false,
+      "type": null
+    },
+    "installed_guards": {
+      "candidate_denials": [],
+      "early_selfchecks": [
+        "private_input_open_denied_before_qa_packages",
+        "pytest_config_mutation_denied_before_qa_packages",
+        "sdk_import_denied_before_qa_packages",
+        "network_denied_before_qa_packages",
+        "native_load_denied_before_qa_packages",
+        "subprocess_denied_before_qa_packages",
+        "winapi_process_denied_before_qa_packages",
+        "multiprocessing_pipe_denied_before_qa_packages",
+        "ctypes_c_loader_denied_before_qa_packages",
+        "windll_load_replaced_by_inert_facade_before_qa_packages",
+        "winreg_canonical_binding_verified_before_qa_packages",
+        "winreg_forged_module_denied_before_qa_packages",
+        "winreg_nonbuiltin_origin_denied_before_qa_packages",
+        "winreg_function_rebinding_denied_before_qa_packages",
+        "winreg_import_denied_before_qa_packages",
+        "winreg_operation_audit_denied_before_qa_packages",
+        "pyexpat_canonical_parent_and_children_verified_before_qa_packages",
+        "pyexpat_forged_sys_modules_child_denied_before_qa_packages",
+        "pyexpat_parent_attribute_identity_denied_before_qa_packages",
+        "pyexpat_parent_sys_modules_identity_denied_before_qa_packages",
+        "pyexpat_parent_origin_mutation_denied_before_qa_packages",
+        "pyexpat_parent_loader_mutation_denied_before_qa_packages",
+        "pyexpat_child_spec_mutation_denied_before_qa_packages",
+        "pyexpat_child_file_mutation_denied_before_qa_packages",
+        "pyexpat_trusted_origin_forgery_rejected_by_all_post_stdlib_children",
+        "pyexpat_trusted_origin_forgery_rejected_by_all_post_qa_children",
+        "pyexpat_parent_binding_rechecked_for_all_post_stdlib_children",
+        "pyexpat_parent_binding_rechecked_for_all_post_qa_children"
+      ],
+      "full_guards_completed_before_selected_loader": true,
+      "full_selfchecks": [
+        "windows_chr92_normalization",
+        "private_env_open_denied",
+        "private_config_open_denied",
+        "pytest_config_open_write_denied",
+        "pytest_config_replace_denied",
+        "pytest_config_unlink_denied",
+        "private_secrets_open_denied",
+        "private_capture_open_denied",
+        "opaque_dll_open_denied",
+        "external_software_exe_open_denied",
+        "native_pyd_open_denied",
+        "SDK_import_denied",
+        "native_import_denied",
+        "network_audit_denied",
+        "DNS_audit_denied",
+        "socket_constructor_denied",
+        "DNS_function_denied",
+        "ctypes_loader_denied",
+        "ctypes_proxy_denied",
+        "subprocess_start_denied",
+        "os_process_start_denied",
+        "multiprocessing_start_denied",
+        "multiprocessing_pipe_denied",
+        "connection_wait_denied",
+        "WinAPI_process_audit_denied",
+        "WinAPI_pipe_audit_denied",
+        "WinAPI_process_function_denied",
+        "WinAPI_pipe_function_denied",
+        "winreg_registry_operation_audit_denied"
+      ]
+    },
+    "last_phase": "focused_qa_gate",
+    "phase_trace": [
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "interpreter_flags",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "interpreter_flags",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_path_setup",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_prefix_root_filter",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_prefix_root_filter",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_path_setup",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "importlib_machinery_origin_check",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "importlib_machinery_origin_check",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_origin_preload",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_origin_preload",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_preloaded_module_origin_scan",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_preloaded_module_origin_scan",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_main",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_preload_validation",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_preload_validation",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_origin_recheck",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_stdlib_origin_recheck",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_module_origin_recheck",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "trusted_module_origin_recheck",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "early_hard_guard_install",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "early_hard_guard_install",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.ansi",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.ansi",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.ansitowin32",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.ansitowin32",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.initialise",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.initialise",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.win32",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.win32",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.winterm",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:colorama.winterm",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:yaml",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:yaml",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:pytest",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_dependency_import:pytest",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "third_party_module_origin_audit",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "third_party_module_origin_audit",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "qa_preload",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "full_qa_guard_install",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "full_qa_guard_install",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "selected_source_loader_install",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "selected_source_loader_install",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "focused_pytest_execution",
+        "status": "start"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "focused_pytest_execution",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "child_summary",
+        "status": "complete"
+      },
+      {
+        "category": "-",
+        "exception_type": "-",
+        "phase": "focused_qa_gate",
+        "status": "complete"
+      }
+    ],
+    "preloaded_module_origin_scan": {
+      "first_rejection": null,
+      "parse_problems": [],
+      "rejected_count": 0
+    },
+    "pytest_failure_diagnostic": {
+      "category": null,
+      "phase": null
+    },
+    "scope": "public_source_fake_child_only",
+    "trace_parse_problems": [],
+    "trusted_preload": {
+      "early_guards_installed_before_first_qa_dependency": true,
+      "qa_preload_completed": true,
+      "stdlib_origins_verified": true
+    }
+  },
+  "child_output_artifacts": {
+    "stderr": {
+      "bytes_observed": 0,
+      "bytes_persisted": 0,
+      "path": "D:\\bafsr2r17_290040a4\\child.stderr.bin",
+      "persisted_exactly": true,
+      "sha256_observed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256_persisted": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "truncated_at_limit": false
+    },
+    "stdout": {
+      "bytes_observed": 32855,
+      "bytes_persisted": 32855,
+      "path": "D:\\bafsr2r17_290040a4\\child.stdout.bin",
+      "persisted_exactly": true,
+      "sha256_observed": "e53490a34ea0daec2af276000eb27b1aa4758ed743906655a3e709607d2f4cc9",
+      "sha256_persisted": "e53490a34ea0daec2af276000eb27b1aa4758ed743906655a3e709607d2f4cc9",
+      "truncated_at_limit": false
+    },
+    "storage_root": "D:\\bafsr2r17_290040a4"
+  },
+  "child_return_code": 0,
+  "child_summary": {
+    "actual_process_or_pipe": false,
+    "actual_provider_or_account": false,
+    "call_reports": {
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_after_cleanup_balance_delta_fails_closed_as_not_account_full": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_catalog_capture_and_baseline_produce_scoped_candidate": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_coin_m_family_conflict_in_current_state_never_issues_snapshot": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_cross_family_catalog_symbol_collision_blocks_producer": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_internal_module_global_drift_invalidates_held_producer": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_root_callback_chain_issues_three_reconciled_snapshots_with_r9_tickets": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_stable_nonempty_window_history_reconciles_between_later_phases": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_truncated_current_page_cannot_enter_a_baseline_snapshot": [
+        "passed"
+      ],
+      "selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py::test_unknown_catalog_contract_blocks_producer_before_account_snapshot": [
+        "passed"
+      ]
+    },
+    "candidate_denied_attempts": [],
+    "collected": 9,
+    "early_guard_selfchecks": [
+      "private_input_open_denied_before_qa_packages",
+      "pytest_config_mutation_denied_before_qa_packages",
+      "sdk_import_denied_before_qa_packages",
+      "network_denied_before_qa_packages",
+      "native_load_denied_before_qa_packages",
+      "subprocess_denied_before_qa_packages",
+      "winapi_process_denied_before_qa_packages",
+      "multiprocessing_pipe_denied_before_qa_packages",
+      "ctypes_c_loader_denied_before_qa_packages",
+      "windll_load_replaced_by_inert_facade_before_qa_packages",
+      "winreg_canonical_binding_verified_before_qa_packages",
+      "winreg_forged_module_denied_before_qa_packages",
+      "winreg_nonbuiltin_origin_denied_before_qa_packages",
+      "winreg_function_rebinding_denied_before_qa_packages",
+      "winreg_import_denied_before_qa_packages",
+      "winreg_operation_audit_denied_before_qa_packages",
+      "pyexpat_canonical_parent_and_children_verified_before_qa_packages",
+      "pyexpat_forged_sys_modules_child_denied_before_qa_packages",
+      "pyexpat_parent_attribute_identity_denied_before_qa_packages",
+      "pyexpat_parent_sys_modules_identity_denied_before_qa_packages",
+      "pyexpat_parent_origin_mutation_denied_before_qa_packages",
+      "pyexpat_parent_loader_mutation_denied_before_qa_packages",
+      "pyexpat_child_spec_mutation_denied_before_qa_packages",
+      "pyexpat_child_file_mutation_denied_before_qa_packages",
+      "pyexpat_trusted_origin_forgery_rejected_by_all_post_stdlib_children",
+      "pyexpat_trusted_origin_forgery_rejected_by_all_post_qa_children",
+      "pyexpat_parent_binding_rechecked_for_all_post_stdlib_children",
+      "pyexpat_parent_binding_rechecked_for_all_post_qa_children"
+    ],
+    "expected": 9,
+    "failed_reports": 0,
+    "formal_th01_pass": false,
+    "guard_selfchecks": {
+      "baseline": {
+        "blocked_attempts": 0,
+        "private_native_network_process": 0
+      },
+      "candidate_delta_after_selfchecks": 0,
+      "checks": [
+        "windows_chr92_normalization",
+        "private_env_open_denied",
+        "private_config_open_denied",
+        "pytest_config_open_write_denied",
+        "pytest_config_replace_denied",
+        "pytest_config_unlink_denied",
+        "private_secrets_open_denied",
+        "private_capture_open_denied",
+        "opaque_dll_open_denied",
+        "external_software_exe_open_denied",
+        "native_pyd_open_denied",
+        "SDK_import_denied",
+        "native_import_denied",
+        "network_audit_denied",
+        "DNS_audit_denied",
+        "socket_constructor_denied",
+        "DNS_function_denied",
+        "ctypes_loader_denied",
+        "ctypes_proxy_denied",
+        "subprocess_start_denied",
+        "os_process_start_denied",
+        "multiprocessing_start_denied",
+        "multiprocessing_pipe_denied",
+        "connection_wait_denied",
+        "WinAPI_process_audit_denied",
+        "WinAPI_pipe_audit_denied",
+        "WinAPI_process_function_denied",
+        "WinAPI_pipe_function_denied",
+        "winreg_registry_operation_audit_denied"
+      ],
+      "path_normalization": "d:/private/.env"
+    },
+    "guards_before_test_import": true,
+    "module_origins": {
+      "_certification": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/__init__.py",
+      "_certification.backends": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/backends.py",
+      "_certification.cases": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/cases.py",
+      "_certification.config": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/config.py",
+      "_certification.evidence": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/evidence.py",
+      "_certification.models": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/models.py",
+      "_certification.runner": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/runner.py",
+      "adapter_code_objects": {
+        "r1.collect_account_snapshot": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+        "r2.classifier": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py"
+      },
+      "owner_code_binding_observations": [
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        },
+        {
+          "class_bases_identity": true,
+          "class_global_identity": true,
+          "class_module_identity": true,
+          "class_qualname_identity": true,
+          "dataclass_init_origin": "dataclass_generated",
+          "get_code_origin": "pinned_owner_source",
+          "get_globals_identity": true,
+          "owner_bindings_valid_after_fixture": true,
+          "owner_main_module": true,
+          "owner_sys_modules_identity_during_fixture": true,
+          "require_code_origin": "pinned_owner_source",
+          "require_globals_identity": true
+        }
+      ],
+      "private_helper_loaded": false,
+      "pytest": "d:/temp/iteration41-main-source-qa-20260926/venv/lib/site-packages/pytest/__init__.py",
+      "r1": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+      "r2": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+      "root_readonly_loaded": false,
+      "selected_runner_plan_code": "d:/bafsr2r17_290040a4/selected-source/examples/000_live_certification/binance_penetration/_certification/runner.py",
+      "source_fake_repo_modules": {
+        "_certification": "examples/000_live_certification/binance_penetration/_certification/__init__.py",
+        "_certification.backends": "examples/000_live_certification/binance_penetration/_certification/backends.py",
+        "_certification.cases": "examples/000_live_certification/binance_penetration/_certification/cases.py",
+        "_certification.config": "examples/000_live_certification/binance_penetration/_certification/config.py",
+        "_certification.evidence": "examples/000_live_certification/binance_penetration/_certification/evidence.py",
+        "_certification.models": "examples/000_live_certification/binance_penetration/_certification/models.py",
+        "_certification.runner": "examples/000_live_certification/binance_penetration/_certification/runner.py",
+        "_certification.th01_account_full_snapshot_r1": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+        "_certification.th01_account_full_snapshot_r2": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+        "selected-source.tests.unit.live_certification.test_binance_th01_account_full_snapshot_r2": "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py"
+      },
+      "source_read_paths": [
+        "examples/000_live_certification/binance_penetration/_certification/__init__.py",
+        "examples/000_live_certification/binance_penetration/_certification/backends.py",
+        "examples/000_live_certification/binance_penetration/_certification/cases.py",
+        "examples/000_live_certification/binance_penetration/_certification/config.py",
+        "examples/000_live_certification/binance_penetration/_certification/evidence.py",
+        "examples/000_live_certification/binance_penetration/_certification/models.py",
+        "examples/000_live_certification/binance_penetration/_certification/runner.py",
+        "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+        "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+        "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py",
+        "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py",
+        "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py",
+        "scripts/iteration41_binance_th01_root_account_window_call_r1.py",
+        "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py"
+      ],
+      "sourcefileloader_reads": {
+        "_certification": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/__init__.py",
+          "sha256": "dc6242322955db538276366944d6359193d4f23fbdf7d085ea5db97b7b26f12c"
+        },
+        "_certification.backends": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/backends.py",
+          "sha256": "e896424a73678b0126038373f013253d752a2318e7b2099b05fba390bd0e8f3c"
+        },
+        "_certification.cases": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/cases.py",
+          "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+        },
+        "_certification.config": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/config.py",
+          "sha256": "778cb7ea430b79d7d9a27a2fd2c31a3e6e7ea6ed63d735f3f936abcc93dfd101"
+        },
+        "_certification.evidence": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/evidence.py",
+          "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+        },
+        "_certification.models": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/models.py",
+          "sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+        },
+        "_certification.runner": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/runner.py",
+          "sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+        },
+        "_certification.th01_account_full_snapshot_r1": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+          "sha256": "049ef44814d2131b53a5b32dfdd5519b5c4607cb3db9922d330c1282c01d93c5"
+        },
+        "_certification.th01_account_full_snapshot_r2": {
+          "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+          "sha256": "8524d5fa9934e1c119a5bd7c57f34480311eb9e1d18efb1edc8c8a4792d7d141"
+        },
+        "selected-source.tests.unit.live_certification.test_binance_th01_account_full_snapshot_r2": {
+          "path": "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py",
+          "sha256": "839d0a25d8efbffe0417503f9474ede3a963777deb019ee7306539e28416692a"
+        }
+      },
+      "test": "d:/bafsr2r17_290040a4/selected-source/tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py",
+      "yaml": "d:/temp/iteration41-main-source-qa-20260926/venv/lib/site-packages/yaml/__init__.py"
+    },
+    "origin_problems": [],
+    "other_reports": 0,
+    "passed_call_reports": 9,
+    "preloader": {
+      "bootstrap_stdlib_origins": {
+        "asyncio": "C:\\anaconda3\\Lib\\asyncio\\__init__.py",
+        "base64": "C:\\anaconda3\\Lib\\base64.py",
+        "bisect": "C:\\anaconda3\\Lib\\bisect.py",
+        "builtins": "built-in",
+        "collections": "C:\\anaconda3\\Lib\\collections\\__init__.py",
+        "contextlib": "C:\\anaconda3\\Lib\\contextlib.py",
+        "copy": "C:\\anaconda3\\Lib\\copy.py",
+        "ctypes": "C:\\anaconda3\\Lib\\ctypes\\__init__.py",
+        "ctypes.util": "C:\\anaconda3\\Lib\\ctypes\\util.py",
+        "ctypes.wintypes": "C:\\anaconda3\\Lib\\ctypes\\wintypes.py",
+        "dataclasses": "C:\\anaconda3\\Lib\\dataclasses.py",
+        "datetime": "C:\\anaconda3\\Lib\\datetime.py",
+        "decimal": "C:\\anaconda3\\Lib\\decimal.py",
+        "faulthandler": "built-in",
+        "hashlib": "C:\\anaconda3\\Lib\\hashlib.py",
+        "hmac": "C:\\anaconda3\\Lib\\hmac.py",
+        "http.client": "C:\\anaconda3\\Lib\\http\\client.py",
+        "importlib.util": "C:\\anaconda3\\Lib\\importlib\\util.py",
+        "inspect": "C:\\anaconda3\\Lib\\inspect.py",
+        "io": "C:\\anaconda3\\Lib\\io.py",
+        "json": "C:\\anaconda3\\Lib\\json\\__init__.py",
+        "multiprocessing": "C:\\anaconda3\\Lib\\multiprocessing\\__init__.py",
+        "multiprocessing.connection": "C:\\anaconda3\\Lib\\multiprocessing\\connection.py",
+        "multiprocessing.process": "C:\\anaconda3\\Lib\\multiprocessing\\process.py",
+        "os": "C:\\anaconda3\\Lib\\os.py",
+        "pathlib": "C:\\anaconda3\\Lib\\pathlib.py",
+        "pickle": "C:\\anaconda3\\Lib\\pickle.py",
+        "pyexpat": "C:\\anaconda3\\DLLs\\pyexpat.pyd",
+        "re": "C:\\anaconda3\\Lib\\re\\__init__.py",
+        "socket": "C:\\anaconda3\\Lib\\socket.py",
+        "sqlite3": "C:\\anaconda3\\Lib\\sqlite3\\__init__.py",
+        "ssl": "C:\\anaconda3\\Lib\\ssl.py",
+        "stat": "C:\\anaconda3\\Lib\\stat.py",
+        "struct": "C:\\anaconda3\\Lib\\struct.py",
+        "subprocess": "C:\\anaconda3\\Lib\\subprocess.py",
+        "sysconfig": "C:\\anaconda3\\Lib\\sysconfig.py",
+        "tempfile": "C:\\anaconda3\\Lib\\tempfile.py",
+        "threading": "C:\\anaconda3\\Lib\\threading.py",
+        "time": "built-in",
+        "types": "C:\\anaconda3\\Lib\\types.py",
+        "typing": "C:\\anaconda3\\Lib\\typing.py",
+        "unicodedata": "C:\\anaconda3\\DLLs\\unicodedata.pyd",
+        "unittest.mock": "C:\\anaconda3\\Lib\\unittest\\mock.py",
+        "urllib.parse": "C:\\anaconda3\\Lib\\urllib\\parse.py",
+        "uuid": "C:\\anaconda3\\Lib\\uuid.py",
+        "warnings": "C:\\anaconda3\\Lib\\warnings.py",
+        "weakref": "C:\\anaconda3\\Lib\\weakref.py",
+        "xml.etree.ElementTree": "C:\\anaconda3\\Lib\\xml\\etree\\ElementTree.py",
+        "zipfile": "C:\\anaconda3\\Lib\\zipfile.py"
+      },
+      "candidate_imported": false,
+      "early_guard_installation": {
+        "candidate_denials_before_test_import": 0,
+        "candidate_imported": false,
+        "checks": [
+          "private_input_open_denied_before_qa_packages",
+          "pytest_config_mutation_denied_before_qa_packages",
+          "sdk_import_denied_before_qa_packages",
+          "network_denied_before_qa_packages",
+          "native_load_denied_before_qa_packages",
+          "subprocess_denied_before_qa_packages",
+          "winapi_process_denied_before_qa_packages",
+          "multiprocessing_pipe_denied_before_qa_packages",
+          "ctypes_c_loader_denied_before_qa_packages",
+          "windll_load_replaced_by_inert_facade_before_qa_packages",
+          "winreg_canonical_binding_verified_before_qa_packages",
+          "winreg_forged_module_denied_before_qa_packages",
+          "winreg_nonbuiltin_origin_denied_before_qa_packages",
+          "winreg_function_rebinding_denied_before_qa_packages",
+          "winreg_import_denied_before_qa_packages",
+          "winreg_operation_audit_denied_before_qa_packages",
+          "pyexpat_canonical_parent_and_children_verified_before_qa_packages",
+          "pyexpat_forged_sys_modules_child_denied_before_qa_packages",
+          "pyexpat_parent_attribute_identity_denied_before_qa_packages",
+          "pyexpat_parent_sys_modules_identity_denied_before_qa_packages",
+          "pyexpat_parent_origin_mutation_denied_before_qa_packages",
+          "pyexpat_parent_loader_mutation_denied_before_qa_packages",
+          "pyexpat_child_spec_mutation_denied_before_qa_packages",
+          "pyexpat_child_file_mutation_denied_before_qa_packages",
+          "pyexpat_trusted_origin_forgery_rejected_by_all_post_stdlib_children",
+          "pyexpat_trusted_origin_forgery_rejected_by_all_post_qa_children",
+          "pyexpat_parent_binding_rechecked_for_all_post_stdlib_children",
+          "pyexpat_parent_binding_rechecked_for_all_post_qa_children"
+        ],
+        "console_api": "inert_facade_until_colorama_and_pytest_loaded",
+        "first_qa_package_not_imported": true,
+        "installed_before_first_qa_package": true
+      },
+      "forbidden_modules_absent_before_guard_install": true,
+      "hard_guards_before_first_third_party_import": true,
+      "initial_import_path_after_prefix_drop": [
+        "C:\\anaconda3\\python311.zip",
+        "C:\\anaconda3\\DLLs",
+        "C:\\anaconda3\\Lib"
+      ],
+      "initial_import_prefix_root_entries_removed": [
+        "C:\\anaconda3"
+      ],
+      "initial_import_prefix_root_keys_authorized": [
+        "c:/anaconda3"
+      ],
+      "module_origins": {
+        "asyncio": "C:\\anaconda3\\Lib\\asyncio\\__init__.py",
+        "base64": "C:\\anaconda3\\Lib\\base64.py",
+        "bisect": "C:\\anaconda3\\Lib\\bisect.py",
+        "builtins": "built-in",
+        "collections": "C:\\anaconda3\\Lib\\collections\\__init__.py",
+        "colorama": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\__init__.py",
+        "colorama.ansi": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\ansi.py",
+        "colorama.ansitowin32": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\ansitowin32.py",
+        "colorama.initialise": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\initialise.py",
+        "colorama.win32": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\win32.py",
+        "colorama.winterm": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\colorama\\winterm.py",
+        "contextlib": "C:\\anaconda3\\Lib\\contextlib.py",
+        "copy": "C:\\anaconda3\\Lib\\copy.py",
+        "ctypes": "C:\\anaconda3\\Lib\\ctypes\\__init__.py",
+        "ctypes.util": "C:\\anaconda3\\Lib\\ctypes\\util.py",
+        "ctypes.wintypes": "C:\\anaconda3\\Lib\\ctypes\\wintypes.py",
+        "dataclasses": "C:\\anaconda3\\Lib\\dataclasses.py",
+        "datetime": "C:\\anaconda3\\Lib\\datetime.py",
+        "decimal": "C:\\anaconda3\\Lib\\decimal.py",
+        "faulthandler": "built-in",
+        "hashlib": "C:\\anaconda3\\Lib\\hashlib.py",
+        "hmac": "C:\\anaconda3\\Lib\\hmac.py",
+        "http.client": "C:\\anaconda3\\Lib\\http\\client.py",
+        "importlib.util": "C:\\anaconda3\\Lib\\importlib\\util.py",
+        "inspect": "C:\\anaconda3\\Lib\\inspect.py",
+        "io": "C:\\anaconda3\\Lib\\io.py",
+        "json": "C:\\anaconda3\\Lib\\json\\__init__.py",
+        "multiprocessing": "C:\\anaconda3\\Lib\\multiprocessing\\__init__.py",
+        "multiprocessing.connection": "C:\\anaconda3\\Lib\\multiprocessing\\connection.py",
+        "multiprocessing.process": "C:\\anaconda3\\Lib\\multiprocessing\\process.py",
+        "os": "C:\\anaconda3\\Lib\\os.py",
+        "pathlib": "C:\\anaconda3\\Lib\\pathlib.py",
+        "pickle": "C:\\anaconda3\\Lib\\pickle.py",
+        "pyexpat": "C:\\anaconda3\\DLLs\\pyexpat.pyd",
+        "pytest": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\pytest\\__init__.py",
+        "re": "C:\\anaconda3\\Lib\\re\\__init__.py",
+        "socket": "C:\\anaconda3\\Lib\\socket.py",
+        "sqlite3": "C:\\anaconda3\\Lib\\sqlite3\\__init__.py",
+        "ssl": "C:\\anaconda3\\Lib\\ssl.py",
+        "stat": "C:\\anaconda3\\Lib\\stat.py",
+        "struct": "C:\\anaconda3\\Lib\\struct.py",
+        "subprocess": "C:\\anaconda3\\Lib\\subprocess.py",
+        "sysconfig": "C:\\anaconda3\\Lib\\sysconfig.py",
+        "tempfile": "C:\\anaconda3\\Lib\\tempfile.py",
+        "threading": "C:\\anaconda3\\Lib\\threading.py",
+        "time": "built-in",
+        "types": "C:\\anaconda3\\Lib\\types.py",
+        "typing": "C:\\anaconda3\\Lib\\typing.py",
+        "unicodedata": "C:\\anaconda3\\DLLs\\unicodedata.pyd",
+        "unittest.mock": "C:\\anaconda3\\Lib\\unittest\\mock.py",
+        "urllib.parse": "C:\\anaconda3\\Lib\\urllib\\parse.py",
+        "uuid": "C:\\anaconda3\\Lib\\uuid.py",
+        "warnings": "C:\\anaconda3\\Lib\\warnings.py",
+        "weakref": "C:\\anaconda3\\Lib\\weakref.py",
+        "xml.etree.ElementTree": "C:\\anaconda3\\Lib\\xml\\etree\\ElementTree.py",
+        "yaml": "D:\\temp\\iteration41-main-source-qa-20260926\\venv\\Lib\\site-packages\\yaml\\__init__.py",
+        "zipfile": "C:\\anaconda3\\Lib\\zipfile.py"
+      },
+      "modules": [
+        "asyncio",
+        "unittest.mock",
+        "ssl",
+        "http.client",
+        "socket",
+        "multiprocessing",
+        "multiprocessing.connection",
+        "multiprocessing.process",
+        "subprocess",
+        "threading",
+        "ctypes",
+        "ctypes.util",
+        "ctypes.wintypes",
+        "sqlite3",
+        "hashlib",
+        "hmac",
+        "base64",
+        "contextlib",
+        "importlib.util",
+        "inspect",
+        "tempfile",
+        "dataclasses",
+        "decimal",
+        "datetime",
+        "json",
+        "pickle",
+        "re",
+        "struct",
+        "types",
+        "typing",
+        "unicodedata",
+        "urllib.parse",
+        "uuid",
+        "weakref",
+        "zipfile",
+        "collections",
+        "copy",
+        "builtins",
+        "io",
+        "os",
+        "pathlib",
+        "stat",
+        "sysconfig",
+        "time",
+        "warnings",
+        "bisect",
+        "faulthandler",
+        "pyexpat",
+        "xml.etree.ElementTree",
+        "colorama",
+        "colorama.ansi",
+        "colorama.ansitowin32",
+        "colorama.initialise",
+        "colorama.win32",
+        "colorama.winterm",
+        "yaml",
+        "pytest"
+      ],
+      "phase": "trusted_stdlib_verified_then_hard_guards_before_qa_site_and_third_party_imports",
+      "preloaded_module_origin_scan": {
+        "allowed_entries": [
+          {
+            "module_name": "__main__",
+            "origin_category": "main_module_at_pinned_child_origin"
+          },
+          {
+            "module_name": "__mp_main__",
+            "origin_category": "same_object_main_alias_at_pinned_child_origin"
+          },
+          {
+            "module_name": "pyexpat.errors",
+            "origin_category": "synthetic_child_of_canonical_pyexpat_extension"
+          },
+          {
+            "module_name": "pyexpat.model",
+            "origin_category": "synthetic_child_of_canonical_pyexpat_extension"
+          },
+          {
+            "module_name": "typing.io",
+            "origin_category": "typing_deprecated_type_alias_at_trusted_typing_origin"
+          },
+          {
+            "module_name": "typing.re",
+            "origin_category": "typing_deprecated_type_alias_at_trusted_typing_origin"
+          },
+          {
+            "module_name": "winreg",
+            "origin_category": "canonical_winreg_builtin_binding"
+          }
+        ],
+        "allowed_entry_count": 7,
+        "scan_allowance_counts": {
+          "initial": 7,
+          "post_qa": 7,
+          "post_stdlib": 7
+        },
+        "status": "complete"
+      },
+      "pyexpat_bootstrap_binding": {
+        "child_file": "absent",
+        "child_module_names": [
+          "pyexpat.errors",
+          "pyexpat.model"
+        ],
+        "child_module_type": "types.ModuleType",
+        "child_spec": "present_none",
+        "extension_api_calls_performed": false,
+        "loader": "ExtensionFileLoader",
+        "module_name": "pyexpat",
+        "module_type": "types.ModuleType",
+        "parent_attribute_and_sys_modules_identity_checked": true,
+        "spec_origin": "c:/anaconda3/dlls/pyexpat.pyd",
+        "status": "verified"
+      },
+      "python_runtime_extension_origins": {
+        "_asyncio": "C:\\anaconda3\\DLLs\\_asyncio.pyd",
+        "_bz2": "C:\\anaconda3\\DLLs\\_bz2.pyd",
+        "_ctypes": "C:\\anaconda3\\DLLs\\_ctypes.pyd",
+        "_decimal": "C:\\anaconda3\\DLLs\\_decimal.pyd",
+        "_elementtree": "C:\\anaconda3\\DLLs\\_elementtree.pyd",
+        "_hashlib": "C:\\anaconda3\\DLLs\\_hashlib.pyd",
+        "_lzma": "C:\\anaconda3\\DLLs\\_lzma.pyd",
+        "_multiprocessing": "C:\\anaconda3\\DLLs\\_multiprocessing.pyd",
+        "_overlapped": "C:\\anaconda3\\DLLs\\_overlapped.pyd",
+        "_socket": "C:\\anaconda3\\DLLs\\_socket.pyd",
+        "_sqlite3": "C:\\anaconda3\\DLLs\\_sqlite3.pyd",
+        "_ssl": "C:\\anaconda3\\DLLs\\_ssl.pyd",
+        "_uuid": "C:\\anaconda3\\DLLs\\_uuid.pyd",
+        "pyexpat": "C:\\anaconda3\\DLLs\\pyexpat.pyd",
+        "select": "C:\\anaconda3\\DLLs\\select.pyd",
+        "unicodedata": "C:\\anaconda3\\DLLs\\unicodedata.pyd"
+      },
+      "site_path_position": "appended_after_trusted_stdlib_paths",
+      "status": "complete",
+      "stdlib_verified_before_site": true,
+      "windows_console_api": "inert_facade",
+      "winreg_bootstrap_binding": {
+        "class_bindings": {
+          "HKEYType": "builtins.type:PyHKEY",
+          "error": "builtins.type:OSError"
+        },
+        "function_names": [
+          "CloseKey",
+          "ConnectRegistry",
+          "CreateKey",
+          "CreateKeyEx",
+          "DeleteKey",
+          "DeleteKeyEx",
+          "DeleteValue",
+          "DisableReflectionKey",
+          "EnableReflectionKey",
+          "EnumKey",
+          "EnumValue",
+          "ExpandEnvironmentStrings",
+          "FlushKey",
+          "LoadKey",
+          "OpenKey",
+          "OpenKeyEx",
+          "QueryInfoKey",
+          "QueryReflectionKey",
+          "QueryValue",
+          "QueryValueEx",
+          "SaveKey",
+          "SetValue",
+          "SetValueEx"
+        ],
+        "loader": "BuiltinImporter",
+        "module_name": "winreg",
+        "module_type": "types.ModuleType",
+        "registry_api_calls_performed": false,
+        "registry_operation_audit_denied": true,
+        "spec_origin": "built-in",
+        "status": "verified"
+      }
+    },
+    "pyexpat_bootstrap_binding": {
+      "child_file": "absent",
+      "child_module_names": [
+        "pyexpat.errors",
+        "pyexpat.model"
+      ],
+      "child_module_type": "types.ModuleType",
+      "child_spec": "present_none",
+      "extension_api_calls_performed": false,
+      "loader": "ExtensionFileLoader",
+      "module_name": "pyexpat",
+      "module_type": "types.ModuleType",
+      "parent_attribute_and_sys_modules_identity_checked": true,
+      "spec_origin": "c:/anaconda3/dlls/pyexpat.pyd",
+      "status": "verified"
+    },
+    "pytest_config_binding": {
+      "derived_config": {},
+      "file_bytes": 9,
+      "file_matches_expected": true,
+      "file_sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4",
+      "inipath": "d:/bafsr2r17_290040a4/pytest.ini",
+      "rootpath": "d:/bafsr2r17_290040a4"
+    },
+    "pytest_config_pin_after_tests": {
+      "bytes": 9,
+      "matches_expected": true,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+    },
+    "pytest_exit_code": 0,
+    "pytest_failure_diagnostic": {
+      "category": null,
+      "phase": null
+    },
+    "pytest_failure_diagnostics": [],
+    "pytest_warnings": 0,
+    "python_warnings": 0,
+    "skipped_or_xfailed_reports": 0,
+    "sourcefake_only": true,
+    "winreg_bootstrap_binding": {
+      "class_bindings": {
+        "HKEYType": "builtins.type:PyHKEY",
+        "error": "builtins.type:OSError"
+      },
+      "function_names": [
+        "CloseKey",
+        "ConnectRegistry",
+        "CreateKey",
+        "CreateKeyEx",
+        "DeleteKey",
+        "DeleteKeyEx",
+        "DeleteValue",
+        "DisableReflectionKey",
+        "EnableReflectionKey",
+        "EnumKey",
+        "EnumValue",
+        "ExpandEnvironmentStrings",
+        "FlushKey",
+        "LoadKey",
+        "OpenKey",
+        "OpenKeyEx",
+        "QueryInfoKey",
+        "QueryReflectionKey",
+        "QueryValue",
+        "QueryValueEx",
+        "SaveKey",
+        "SetValue",
+        "SetValueEx"
+      ],
+      "loader": "BuiltinImporter",
+      "module_name": "winreg",
+      "module_type": "types.ModuleType",
+      "registry_api_calls_performed": false,
+      "registry_operation_audit_denied": true,
+      "spec_origin": "built-in",
+      "status": "verified"
+    }
+  },
+  "evidence_level": "SOURCE_FAKE_ACCOUNT_FULL_SNAPSHOT_PRODUCER_ONLY",
+  "exact_nine_passed": true,
+  "expected_case_count": 9,
+  "external_opaque_software_read": false,
+  "focused_test": "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py",
+  "focused_test_entries": {
+    "collected": 9,
+    "expected": 9,
+    "passed_call_reports": 9
+  },
+  "formal_th01_pass": false,
+  "global_worktree_status_changed_during_child": true,
+  "global_worktree_status_sha256_pre_post": {
+    "post": "78f67c77ff2c67b560ca075c71ce0e95fc85857f8e080526722cdfe08fc3a428",
+    "pre": "b42e996d895dce94abaeb78961f868dc2c3b4ae60b79255fdf0b3be939eb1b46"
+  },
+  "head": "934e30b55c078a42517c1c758a45eacb09a2b740",
+  "private_inputs_read": false,
+  "provider_network_account_or_actual_worker": false,
+  "pyexpat_bootstrap_binding": {
+    "child_file": "absent",
+    "child_module_names": [
+      "pyexpat.errors",
+      "pyexpat.model"
+    ],
+    "child_module_type": "types.ModuleType",
+    "child_spec": "present_none",
+    "extension_api_calls_performed": false,
+    "loader": "ExtensionFileLoader",
+    "module_name": "pyexpat",
+    "module_type": "types.ModuleType",
+    "parent_attribute_and_sys_modules_identity_checked": true,
+    "spec_origin": "c:/anaconda3/dlls/pyexpat.pyd",
+    "status": "verified"
+  },
+  "pytest_config_pre_post_pin": {
+    "content": "[pytest]\\n",
+    "post": {
+      "bytes": 9,
+      "matches_expected": true,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+    },
+    "pre": {
+      "bytes": 9,
+      "matches_expected": true,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+    }
+  },
+  "r17_overlay_source": {
+    "base_r8_generated_bytes": 101537,
+    "base_r8_generated_sha256": "662a3bd7d739f8af679d21ebbd60d53d7b0f74d7834fa7c63d79de45029072d9",
+    "bytes": 146986,
+    "sha256": "efb8719f571edee6a8139d6d39d83e099669cc4c7d9f24290b4cd66083fc2c75"
+  },
+  "r6_overlay_source": {
+    "base_r5_bytes": 90345,
+    "base_r5_sha256": "111249ab79ada95e60ba0e507a6d54fd9c6a46db763db7055ee03f9e71b291a2",
+    "bytes": 92476,
+    "sha256": "86907f00b0fe558a70bb72fd36893be5b2f4dd16982c3b0c12f32625adcb3d1a"
+  },
+  "raw_git_index_sha256_pre_post": {
+    "post": "6084407554cf6e433e54b6087ab59c2639cb616a326be9caeb98ef99f5ca44d4",
+    "pre": "6084407554cf6e433e54b6087ab59c2639cb616a326be9caeb98ef99f5ca44d4"
+  },
+  "raw_git_index_unchanged": true,
+  "root_qa_via_fresh_isolated_child": true,
+  "schema": "iteration41.binance.th01.account_full_snapshot_r2.root_source_qa.r17",
+  "selected_namespace_pre_post_pins": {
+    "examples/000_live_certification/binance_penetration/_certification/__init__.py": {
+      "post": {
+        "bytes": 65,
+        "sha256": "dc6242322955db538276366944d6359193d4f23fbdf7d085ea5db97b7b26f12c"
+      },
+      "pre": {
+        "bytes": 65,
+        "sha256": "dc6242322955db538276366944d6359193d4f23fbdf7d085ea5db97b7b26f12c"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/backends.py": {
+      "post": {
+        "bytes": 24420,
+        "sha256": "e896424a73678b0126038373f013253d752a2318e7b2099b05fba390bd0e8f3c"
+      },
+      "pre": {
+        "bytes": 24420,
+        "sha256": "e896424a73678b0126038373f013253d752a2318e7b2099b05fba390bd0e8f3c"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/cases.py": {
+      "post": {
+        "bytes": 5569,
+        "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+      },
+      "pre": {
+        "bytes": 5569,
+        "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/config.py": {
+      "post": {
+        "bytes": 17469,
+        "sha256": "778cb7ea430b79d7d9a27a2fd2c31a3e6e7ea6ed63d735f3f936abcc93dfd101"
+      },
+      "pre": {
+        "bytes": 17469,
+        "sha256": "778cb7ea430b79d7d9a27a2fd2c31a3e6e7ea6ed63d735f3f936abcc93dfd101"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/evidence.py": {
+      "post": {
+        "bytes": 5491,
+        "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+      },
+      "pre": {
+        "bytes": 5491,
+        "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/models.py": {
+      "post": {
+        "bytes": 6414,
+        "sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+      },
+      "pre": {
+        "bytes": 6414,
+        "sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/runner.py": {
+      "post": {
+        "bytes": 83391,
+        "sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+      },
+      "pre": {
+        "bytes": 83391,
+        "sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py": {
+      "post": {
+        "bytes": 60349,
+        "sha256": "049ef44814d2131b53a5b32dfdd5519b5c4607cb3db9922d330c1282c01d93c5"
+      },
+      "pre": {
+        "bytes": 60349,
+        "sha256": "049ef44814d2131b53a5b32dfdd5519b5c4607cb3db9922d330c1282c01d93c5"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py": {
+      "post": {
+        "bytes": 83891,
+        "sha256": "8524d5fa9934e1c119a5bd7c57f34480311eb9e1d18efb1edc8c8a4792d7d141"
+      },
+      "pre": {
+        "bytes": 83891,
+        "sha256": "8524d5fa9934e1c119a5bd7c57f34480311eb9e1d18efb1edc8c8a4792d7d141"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py": {
+      "post": {
+        "bytes": 62664,
+        "sha256": "4dfe7ea41c2666b87ef63984780ae5be7e3ae7c3c2777fb69dd79f764e89ac63"
+      },
+      "pre": {
+        "bytes": 62664,
+        "sha256": "4dfe7ea41c2666b87ef63984780ae5be7e3ae7c3c2777fb69dd79f764e89ac63"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py": {
+      "post": {
+        "bytes": 73002,
+        "sha256": "c937a07671a6df7991fb29e131d895c0eca21644d28140542fab7c8b0db1b944"
+      },
+      "pre": {
+        "bytes": 73002,
+        "sha256": "c937a07671a6df7991fb29e131d895c0eca21644d28140542fab7c8b0db1b944"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py": {
+      "post": {
+        "bytes": 92566,
+        "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f"
+      },
+      "pre": {
+        "bytes": 92566,
+        "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f"
+      }
+    },
+    "scripts/iteration41_binance_th01_account_window_candidate_r2.py": {
+      "post": {
+        "bytes": 11391,
+        "sha256": "698d607e6abce0f5595470c5207a4e065b11200df5b895db35fb6af816364cd6"
+      },
+      "pre": {
+        "bytes": 11391,
+        "sha256": "698d607e6abce0f5595470c5207a4e065b11200df5b895db35fb6af816364cd6"
+      }
+    },
+    "scripts/iteration41_binance_th01_root_account_window_call_r1.py": {
+      "post": {
+        "bytes": 132886,
+        "sha256": "ba0360ecc5ed99b37196e3d077e25a78cd771facec8e224ab1371635cf9be021"
+      },
+      "pre": {
+        "bytes": 132886,
+        "sha256": "ba0360ecc5ed99b37196e3d077e25a78cd771facec8e224ab1371635cf9be021"
+      }
+    },
+    "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py": {
+      "post": {
+        "bytes": 34381,
+        "sha256": "839d0a25d8efbffe0417503f9474ede3a963777deb019ee7306539e28416692a"
+      },
+      "pre": {
+        "bytes": 34381,
+        "sha256": "839d0a25d8efbffe0417503f9474ede3a963777deb019ee7306539e28416692a"
+      }
+    }
+  },
+  "selected_namespace_provenance": {
+    "clean_dependency_basis": "exact_git_show_HEAD_blobs",
+    "dirty_models_config_backends_runner_excluded": true,
+    "expected_test_entry_count": 9,
+    "expected_test_names": [
+      "test_catalog_capture_and_baseline_produce_scoped_candidate",
+      "test_unknown_catalog_contract_blocks_producer_before_account_snapshot",
+      "test_cross_family_catalog_symbol_collision_blocks_producer",
+      "test_internal_module_global_drift_invalidates_held_producer",
+      "test_coin_m_family_conflict_in_current_state_never_issues_snapshot",
+      "test_root_callback_chain_issues_three_reconciled_snapshots_with_r9_tickets",
+      "test_stable_nonempty_window_history_reconciles_between_later_phases",
+      "test_truncated_current_page_cannot_enter_a_baseline_snapshot",
+      "test_after_cleanup_balance_delta_fails_closed_as_not_account_full"
+    ],
+    "model_change": {
+      "base_head_blob": "8a058db531726420b761ced7ee6fd37fb084a72d",
+      "base_head_bytes": 6228,
+      "base_head_sha256": "4f791454c7ced5111178a4ee1edfcd8926409ec20854690ef45af5c2e2d61fa3",
+      "change": "five defaulted read-action fields from the frozen clean HEAD blob",
+      "relative_path": "examples/000_live_certification/binance_penetration/_certification/models.py",
+      "selected_blob": "010f78626b760a306550028695708d17f95b7f53",
+      "selected_bytes": 6414,
+      "selected_sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+    },
+    "root": "D:\\bafsr2r17_290040a4\\selected-source",
+    "runner_change": {
+      "base_head_bytes": 83361,
+      "base_head_sha256": "2204b85350706fd308d57a88f51d9af318123cf13323fffbcd5b206f0310bc58",
+      "change": "one optional trailing venue parameter on _plan",
+      "relative_path": "examples/000_live_certification/binance_penetration/_certification/runner.py",
+      "selected_bytes": 83391,
+      "selected_sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+    },
+    "selected_source_origins": {
+      "examples/000_live_certification/binance_penetration/_certification/models.py": "head_with_selected_model_hunk",
+      "examples/000_live_certification/binance_penetration/_certification/runner.py": "head_with_selected_venue_hunk"
+    },
+    "untracked_fixed_owner_routes_excluded": true
+  },
+  "source_pre_post_pins": {
+    "backtrader_runtime/certification_binance_roundtrip_r3_cli.py": {
+      "post": {
+        "bytes": 33887,
+        "origin": "head_pin_only",
+        "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+        "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+      },
+      "pre": {
+        "bytes": 33887,
+        "origin": "head_pin_only",
+        "path": "backtrader_runtime/certification_binance_roundtrip_r3_cli.py",
+        "sha256": "62b96a9040d530c8ec592471f0595154fb60239ca03bd6d3b56a6c094dfc7c76"
+      }
+    },
+    "backtrader_runtime/certification_roundtrip_private.py": {
+      "post": {
+        "bytes": 17537,
+        "origin": "head_pin_only",
+        "path": "backtrader_runtime/certification_roundtrip_private.py",
+        "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+      },
+      "pre": {
+        "bytes": 17537,
+        "origin": "head_pin_only",
+        "path": "backtrader_runtime/certification_roundtrip_private.py",
+        "sha256": "b866194bdc56d91cc7a6678e83b0af8e4e018ee53a2c136325344c2ee8a5ecfd"
+      }
+    },
+    "backtrader_runtime/certification_roundtrip_r3_bootstrap.py": {
+      "post": {
+        "bytes": 24354,
+        "origin": "checkout_pin_only",
+        "path": "backtrader_runtime/certification_roundtrip_r3_bootstrap.py",
+        "sha256": "6ecf2060558753d3a9f5b4fe9d2e4329659e9b9c00879d539ff4408c9778b4da"
+      },
+      "pre": {
+        "bytes": 24354,
+        "origin": "checkout_pin_only",
+        "path": "backtrader_runtime/certification_roundtrip_r3_bootstrap.py",
+        "sha256": "6ecf2060558753d3a9f5b4fe9d2e4329659e9b9c00879d539ff4408c9778b4da"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/__init__.py": {
+      "post": {
+        "bytes": 65,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/__init__.py",
+        "sha256": "dc6242322955db538276366944d6359193d4f23fbdf7d085ea5db97b7b26f12c"
+      },
+      "pre": {
+        "bytes": 65,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/__init__.py",
+        "sha256": "dc6242322955db538276366944d6359193d4f23fbdf7d085ea5db97b7b26f12c"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/backends.py": {
+      "post": {
+        "bytes": 24420,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/backends.py",
+        "sha256": "e896424a73678b0126038373f013253d752a2318e7b2099b05fba390bd0e8f3c"
+      },
+      "pre": {
+        "bytes": 24420,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/backends.py",
+        "sha256": "e896424a73678b0126038373f013253d752a2318e7b2099b05fba390bd0e8f3c"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/cases.py": {
+      "post": {
+        "bytes": 5569,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/cases.py",
+        "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+      },
+      "pre": {
+        "bytes": 5569,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/cases.py",
+        "sha256": "0e0d7618846975db37551222f3c902ceee2b975f4be0b8236dcf021508492762"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/config.py": {
+      "post": {
+        "bytes": 17469,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/config.py",
+        "sha256": "778cb7ea430b79d7d9a27a2fd2c31a3e6e7ea6ed63d735f3f936abcc93dfd101"
+      },
+      "pre": {
+        "bytes": 17469,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/config.py",
+        "sha256": "778cb7ea430b79d7d9a27a2fd2c31a3e6e7ea6ed63d735f3f936abcc93dfd101"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/evidence.py": {
+      "post": {
+        "bytes": 5491,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/evidence.py",
+        "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+      },
+      "pre": {
+        "bytes": 5491,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/evidence.py",
+        "sha256": "05916efcd52a49fbd6303d315e17b8f57a3f411b3557872250e899636ffb9217"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/models.py": {
+      "post": {
+        "bytes": 6414,
+        "origin": "head_with_selected_model_hunk",
+        "path": "examples/000_live_certification/binance_penetration/_certification/models.py",
+        "sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+      },
+      "pre": {
+        "bytes": 6414,
+        "origin": "head_with_selected_model_hunk",
+        "path": "examples/000_live_certification/binance_penetration/_certification/models.py",
+        "sha256": "bb3ec5d580822500b6dc222df3377a5401441c8855e0923bec7108b4b2807f4e"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/runner.py": {
+      "post": {
+        "bytes": 83391,
+        "origin": "head_with_selected_venue_hunk",
+        "path": "examples/000_live_certification/binance_penetration/_certification/runner.py",
+        "sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+      },
+      "pre": {
+        "bytes": 83391,
+        "origin": "head_with_selected_venue_hunk",
+        "path": "examples/000_live_certification/binance_penetration/_certification/runner.py",
+        "sha256": "f139752d19ca42c68d79c50293338abee22a74abab2757091d29efbd5f950932"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py": {
+      "post": {
+        "bytes": 60349,
+        "origin": "checkout",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+        "sha256": "049ef44814d2131b53a5b32dfdd5519b5c4607cb3db9922d330c1282c01d93c5"
+      },
+      "pre": {
+        "bytes": 60349,
+        "origin": "checkout",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r1.py",
+        "sha256": "049ef44814d2131b53a5b32dfdd5519b5c4607cb3db9922d330c1282c01d93c5"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py": {
+      "post": {
+        "bytes": 83891,
+        "origin": "checkout",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+        "sha256": "8524d5fa9934e1c119a5bd7c57f34480311eb9e1d18efb1edc8c8a4792d7d141"
+      },
+      "pre": {
+        "bytes": 83891,
+        "origin": "checkout",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_full_snapshot_r2.py",
+        "sha256": "8524d5fa9934e1c119a5bd7c57f34480311eb9e1d18efb1edc8c8a4792d7d141"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py": {
+      "post": {
+        "bytes": 62664,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py",
+        "sha256": "4dfe7ea41c2666b87ef63984780ae5be7e3ae7c3c2777fb69dd79f764e89ac63"
+      },
+      "pre": {
+        "bytes": 62664,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_account_window_candidate_r2.py",
+        "sha256": "4dfe7ea41c2666b87ef63984780ae5be7e3ae7c3c2777fb69dd79f764e89ac63"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py": {
+      "post": {
+        "bytes": 73002,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py",
+        "sha256": "c937a07671a6df7991fb29e131d895c0eca21644d28140542fab7c8b0db1b944"
+      },
+      "pre": {
+        "bytes": 73002,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_force_orders_transport_r9.py",
+        "sha256": "c937a07671a6df7991fb29e131d895c0eca21644d28140542fab7c8b0db1b944"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py": {
+      "post": {
+        "bytes": 92566,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py",
+        "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f"
+      },
+      "pre": {
+        "bytes": 92566,
+        "origin": "head",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_root_protected_owner_r1.py",
+        "sha256": "290f8316e46eb9434b818faaaee9dfd1bfa224a34409ba00b2e39dfd28a2c95f"
+      }
+    },
+    "examples/000_live_certification/binance_penetration/_certification/th01_root_readonly.py": {
+      "post": {
+        "bytes": 51587,
+        "origin": "checkout_pin_only",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_root_readonly.py",
+        "sha256": "2b5e055aff27a07c3d28b6499a45ebf1c7546e7a8f0710ea60feb68d2561ca0f"
+      },
+      "pre": {
+        "bytes": 51587,
+        "origin": "checkout_pin_only",
+        "path": "examples/000_live_certification/binance_penetration/_certification/th01_root_readonly.py",
+        "sha256": "2b5e055aff27a07c3d28b6499a45ebf1c7546e7a8f0710ea60feb68d2561ca0f"
+      }
+    },
+    "scripts/iteration41_binance_th01_account_window_candidate_r2.py": {
+      "post": {
+        "bytes": 11391,
+        "origin": "head",
+        "path": "scripts/iteration41_binance_th01_account_window_candidate_r2.py",
+        "sha256": "698d607e6abce0f5595470c5207a4e065b11200df5b895db35fb6af816364cd6"
+      },
+      "pre": {
+        "bytes": 11391,
+        "origin": "head",
+        "path": "scripts/iteration41_binance_th01_account_window_candidate_r2.py",
+        "sha256": "698d607e6abce0f5595470c5207a4e065b11200df5b895db35fb6af816364cd6"
+      }
+    },
+    "scripts/iteration41_binance_th01_root_account_window_call_r1.py": {
+      "post": {
+        "bytes": 132886,
+        "origin": "head",
+        "path": "scripts/iteration41_binance_th01_root_account_window_call_r1.py",
+        "sha256": "ba0360ecc5ed99b37196e3d077e25a78cd771facec8e224ab1371635cf9be021"
+      },
+      "pre": {
+        "bytes": 132886,
+        "origin": "head",
+        "path": "scripts/iteration41_binance_th01_root_account_window_call_r1.py",
+        "sha256": "ba0360ecc5ed99b37196e3d077e25a78cd771facec8e224ab1371635cf9be021"
+      }
+    },
+    "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py": {
+      "post": {
+        "bytes": 34381,
+        "origin": "checkout",
+        "path": "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py",
+        "sha256": "839d0a25d8efbffe0417503f9474ede3a963777deb019ee7306539e28416692a"
+      },
+      "pre": {
+        "bytes": 34381,
+        "origin": "checkout",
+        "path": "tests/unit/live_certification/test_binance_th01_account_full_snapshot_r2.py",
+        "sha256": "839d0a25d8efbffe0417503f9474ede3a963777deb019ee7306539e28416692a"
+      }
+    }
+  },
+  "staging_index_empty_before_and_after": true,
+  "status": "SOURCE_FAKE_PRODUCER_COMPONENT_ONLY",
+  "stderr_emitted": false
+}
