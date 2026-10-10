@@ -62,3 +62,57 @@
 - `test_012_1_operator_demo_override_loads_original_training_artifact_with_mismatch_evidence`：
   自 2026-10-07 起因真实时钟晚于工件窗口而失败（时间炸弹），与迁移无关；
   待资格工件窗口重发后自然恢复。
+
+## 追加：翻转验收完成 — MECHANICAL_DEMO_SMOKE_PASS（2026-10-10 本轮）
+
+按上述翻转路径重发窗口、修复阻断缺陷后，真实 Demo 机械冒烟通过。
+
+### 重发与链刷新
+
+- `012_1/qualification-v3.json` 窗口重发为 `valid_from=1791590400 → valid_until=1794182400`
+  （2026-10-10 → 2026-11-09 UTC）；契约哈希不变（已核实）。新文件 sha256 =
+  `da8363391ae3ab25c7df32c238a4440fe36970d64686b7bcdb67327299e39ee2`。
+- canonical `qualification_artifact.sha256`、`candidate_sha256`（float 修复后为
+  `877a2c3194fc48d18dfef0144c47ecc59969247ff20e3aa85b25cac676a1bac7`）与
+  folder-local 清单同步刷新；refresh `--check` 绿。
+
+### 阻断缺陷链（全部定位并修复）
+
+1. **前基线形态**（阻止初次冒烟）：store 修复 A+B + 限定码 + 3 个回归（`54bf59b2d`）。
+2. **Decimal/float 提交边界**：策略提交 `size/price` 显式 `float()`（`e4f990758`）；
+   修复后出现首次真实成交（4 笔，含 2 开仓），暴露第 3 项。
+3. **SDK 竞态 `reconciliation_errors`（-2013 粘性）**：轮询在订单提交在途窗口
+   按 client id 查询 → Binance `-2013`；订单完成后不再轮询 → 错误永久残留 →
+   broker 停机 `remote_flat_proven=false`（证据 `live-20261010T072540Z-7c4eb44b`：
+   `reconciliation_errors={'161007659700':'-2013','161408116000':'-2013'}`）。
+   SDK 修复（`D:/bt_api_py` `_execution_session.py`）：
+   - 新状态 `next_poll = now + order_poll_interval`（提交在途窗口不轮询）；
+   - `_record` 收到 venue 身份/终态更新时清除陈旧 `reconciliation_error`；
+   - replay 水合保留“重启立即对账”语义（`next_poll=0.0`）。
+4. **SDK 费用标志跨重启复活**：completed 行持久化 `fee_unresolved=True`，而 trade
+   行未持久化 `fee_resolved` → 重启后 `fee_unresolved_orders` 复活 → 启动就绪门
+   `demo reconciliation evidence is incomplete`（证据 `live-20261010T074659Z-bf18ab50`）。
+   SDK 修复：trade 行持久化两个标志；replay 双向重建（`fee_resolved` 可清除）；
+   旧格式 trade 行按 `commission_source == "exchange"` 忠实重建（与实时变更同构）。
+
+- 回归：SDK `tests/bt_api_contract/test_execution_session.py` 183 passed / 2 skipped
+  （新增 5 项：在途不轮询、-2013 竞态清除、费用重开重建 ×2、未解决负例）；主仓
+  store `test_btapistore_iteration21.py` 122 passed；012 系全切片
+  （66/86/128/43/43/43）绿；只读探针 `READINESS-PASS`
+  （`fee_unresolved_orders=[]`、`unknown_ids=[]`、`evidence_errors=[]`、
+  `proof_snapshot=true`）。
+
+### 真实验收结果
+
+- 运行 `live-20261010T075052Z-447e9a10`：`MECHANICAL_DEMO_SMOKE_PASS`（exit 0）。
+  - 开仓 2 笔（okx sell 0.01 / binance buy 0.010，`alpha_intent_history_used=false`）；
+    fills=4；`account_risk_evidence_complete=true`；
+  - `broker_shutdown = PASS / reason=remote_flat_proven / remote_flat_proven=true`，
+    active/local/remote/unknown 全 0；store `shutdown_state=PASS`；
+  - `mechanical_smoke.state=FLAT_RECONCILED`；边界
+    `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH_NOT_PROFITABILITY`。
+- 中间失败记录保留不改写：`7c4eb44b`（-2013 竞态）、`bf18ab50`（费用标志复活）。
+
+### 边界
+
+不构成策略有效性、盈利或生产准入证据；候选研究状态与 HFT 标注不变。
