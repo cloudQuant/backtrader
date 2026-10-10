@@ -160,3 +160,23 @@ run.json 中实证据生效（`iter42-sa-live-3c1a3add734f / czce-sa-live:202610
 `closed_bars=0` 仅因 7x24 极端封存环境下 25 分钟不足一根 bar 事件（非 schema/接线问题）；
 `quote:invalid_lower_limit:1553` 仍旧为 7x24 无涨跌停价的环境事实。零单、终态 flat。
 周一标准前置（新鲜钟、正常封存）为 bar 链与 drill 的正式验收路径。
+
+## 追加：drain 永驻 RECOVERING 的接线缺口与修复（2026-10-10 午后，`71089e7c6`）
+
+复盘两处 live 证据（`0940fd55` 修复前 / `fd775f5b` 修复后）发现**两次都以
+`RECOVERING / drain_reconciliation_required` 收尾**：SA 策略的监督环
+（对账重试、对账超时、以及把 drain 推进到 `STOPPED_FLAT` 的完成转移）全部位于
+`notify_idle`，而 live feed 持续有 tick 时引擎**从不隐式调用** `notify_idle`——
+013_3 的 run.py 是唯一没有 idle 泵的写入口（014_1/015 在各自轮次已带该泵）。
+`fd775f5b` 的 system.log 实录：23:44:03（deadline 时刻）仅排队一轮
+`sdk_command_queued ctp_reconcile`（receipt 7d1d…，queue_depth 1），随后 150s
+宽限内该轮未完成/未交付，无重试（重试在 notify_idle）→ 硬停 → RECOVERING。
+
+修复（镜像 014_1 已验证模式）：run.py 增加 `_idle_pump` 线程（每秒
+`strategy.notify_idle()`）；与 014_1 不同的关键点——泵**故意不理会
+`control.stop_reason`**（duration stop 会先 latch 该字段，而 drain 宽限期恰恰
+需要泵持续运行），退出条件=引擎自身 stop 事件或与 watchdog 相同的 hard deadline。
+回归测试锁定接线与 drain-grace 语义；SA 套件 179 通过（仅既有环境基线 1 项失败）；
+ruff 干净；CLI dry/replay 绿。周一 013_3 若完成完整往返，drain 应可达
+`STOPPED_FLAT`（若对账轮本身仍无法完成，将按其有界超时进入明确的
+`MANUAL_INTERVENTION`，不再是无定义的 RECOVERING 滞留）。
