@@ -7,7 +7,7 @@
 
 | # | 目标要求 | 交付物 | 证据（仓库内） | 状态 |
 | --- | --- | --- | --- | --- |
-| 1 | 8 个示例收敛标准四件套（README.md + config.yaml + `<name>_strategy.py` + run.py）；dry/`--replay`/`--live`；退出码 0/1/2/3；证据 JSON | 8 个目录 | `r9-offline-sweep-2026-10-10.md`（dry/replay 8/8 全绿）+ 登记离线冒烟 8/8 PASS + r1–r8 各记录 | ✅ 完成 |
+| 1 | 8 个示例收敛标准四件套（README.md + config.yaml + `<name>_strategy.py` + run.py）；dry/`--replay`/`--live`；退出码 0/1/2/3；证据 JSON | 8 个目录 | `r9-offline-sweep-2026-10-10.md`（dry/replay 8/8 全绿）+ 登记离线冒烟 8/8 PASS + r1–r8 各记录 + **修复轮后 8/8 dry+replay 复跑于当日 HEAD 全绿（2026-10-10 午后：012_1/012_2 FORMULA_CHECK_PASS；013_1/013_2/013_3/014_1/014_2/015 DRY+LOCAL_REPLAY_PASS）** | ✅ 完成 |
 | 2 | 期货/期权示例 SimNow **有界真实成交往返** | 013_3 / 013_1 / 013_2 / 014_1 写 drill；014_2 观察层 | R1/R4/R5/R6/R7 记录（实现与离线链）；014_1 首跑彩排（7x24 涨跌停闸门干净 BLOCKED，R6 记录）；014_2 7x24 陈旧事件钟 BLOCKED（r7 记录）；**周一六步计划待执行** | ⏳ 周一窗口 |
 | 3 | 015 tick 高频真实贯通（HFT 结论明确排除） | 观察层 | `c13177459` + `r8-015-observation-tier-2026-10-10.md`（真实三腿 tick、零写、`OBSERVATION_PASS`；准入边界诚实标注） | ✅ 完成（观察层口径） |
 | 4 | 加密示例 OKX/Binance Demo 往返 | 012_1 / 012_2 | R2 记录（资格窗口过期→零代码翻转，属冻结研究工件治理=用户决策）；R3 记录（HFT 准入结构门=迭代外） | ⛔ 外部门（证据化 BLOCKED+翻转路径） |
