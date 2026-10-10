@@ -13,7 +13,8 @@
   双腿开平、rb2701/2705 归零、`pair_actions=2`、halted=false）——平仓映射修复获真实
   路径全程验证，见 r5 记录追加；② 013_3 彩排按 7x24 预期零单
   （`live-20261010T084209Z-54afd472`，`quote:invalid_lower_limit ×1245` = 7x24 无涨跌停价），
-  其收尾 RECOVERING/drain 在 fills=0 场景未达 STOPPED_FLAT——步骤 1 留意。
+  其收尾 RECOVERING/drain 经复盘为收尾时序产物（窗口到点后才进 drain、idle 泵停供）
+  而非 livelock——步骤 1 有成交跑预期窗口内完成 drain。
   两目录账户均 flat。watcher 无需再触发；如遇残余仓位用已验证的 operator 清仓脚本 v5。
 - **当日 Demo 侧收官**：012_1 翻转验收 PASS（`447e9a10`，记录 `ac9b76ea3`）、回归复跑 PASS
   （`82a55b70`）；012_2 HFT 准入门机械冒烟 PASS（`f28557f7`，提交 `91c7e63bf`）——
