@@ -2447,8 +2447,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self._advance_reconcile_fence()
         kwargs = {
             "data": self.feeds[venue],
-            "size": native,
-            "price": rule.quantize_price(limit_price, side),
+            # The Backtrader order pipeline is float-based; the normalized
+            # SDK boundary re-quantizes from these float values (exact for
+            # the configured lattices).  Passing Decimal here crashed the
+            # first real demo fill (remsize Decimal vs float execution bit).
+            "size": float(native),
+            "price": float(rule.quantize_price(limit_price, side)),
             "exectype": bt.Order.Limit,
             "time_in_force": "IOC",
             "position_side": position_side,

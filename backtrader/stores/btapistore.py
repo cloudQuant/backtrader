@@ -7046,7 +7046,19 @@ class BtApiStore(LiveStoreBase):
             except (TypeError, ValueError):
                 errors.append("execution_summary_fence_invalid")
 
-        if summary.get("evidence_complete") is False:
+        sdk_summary_errors = summary.get("evidence_errors")
+        # The live SDK marks the summary incomplete exactly once before the
+        # risk baseline exists (``evidence_errors ==
+        # ["account_risk_baseline_required"]`` with ``trading_blocked``).  The
+        # runner's first-start path relaxes that single latch itself, so the
+        # store must pass the original signature through instead of rewriting
+        # it into a generic evidence failure.
+        prebaseline_latch = bool(
+            isinstance(sdk_summary_errors, list)
+            and sdk_summary_errors == ["account_risk_baseline_required"]
+            and summary.get("trading_blocked") is True
+        )
+        if summary.get("evidence_complete") is False and not prebaseline_latch:
             errors.append("sdk_execution_evidence_incomplete")
         execution_enabled = self._sdk_execution_config.get("market_data_only") is False
         arm_managed = summary.get("arm_managed") is True
@@ -7129,6 +7141,16 @@ class BtApiStore(LiveStoreBase):
             "sdk_blocked_reasons_present",
             "sdk_evidence_incomplete",
         }
+        # The live SDK also reports the missing comparable current-equity
+        # aggregate (its aggregate needs the baseline venue set) and its own
+        # single deterministic pre-baseline error entry; both are
+        # consequences of the same missing-baseline state.  They are allowed
+        # here while every other deviation still rejects.
+        prebaseline_extra_evidence_errors = {
+            "invalid_current_equity",
+            "current_equity_aggregate_mismatch",
+            "sdk_prebaseline_aggregate_unavailable",
+        }
         return bool(
             snapshot.get("baseline_equity") is None
             and snapshot.get("baseline_equity_by_venue") is None
@@ -7142,8 +7164,9 @@ class BtApiStore(LiveStoreBase):
             and len(blocked_reasons) == len(expected_blocked_reasons)
             and set(blocked_reasons) == expected_blocked_reasons
             and type(evidence_errors) is list
-            and len(evidence_errors) == len(expected_evidence_errors)
-            and set(evidence_errors) == expected_evidence_errors
+            and expected_evidence_errors <= set(evidence_errors)
+            and set(evidence_errors)
+            <= (expected_evidence_errors | prebaseline_extra_evidence_errors)
         )
 
     def _sdk_reconcile_snapshot(self) -> Dict[str, Any]:
@@ -15651,7 +15674,16 @@ class BtApiStore(LiveStoreBase):
         if not isinstance(sdk_evidence_errors, Mapping):
             errors.append("invalid_sdk_evidence_errors")
         elif sdk_evidence_errors:
-            errors.append("sdk_evidence_errors_present")
+            # The live SDK reports exactly one deterministic entry before the
+            # first baseline exists (no comparable aggregate); that single
+            # entry is qualified so the first-start path can recognize it
+            # while any other provider-reported error still rejects.
+            if dict(sdk_evidence_errors) == {
+                "account_maximum_loss": "aggregate_equity_not_comparable"
+            }:
+                errors.append("sdk_prebaseline_aggregate_unavailable")
+            else:
+                errors.append("sdk_evidence_errors_present")
         blocked_reasons = snapshot.get("blocked_reasons")
         if not isinstance(blocked_reasons, list):
             errors.append("invalid_blocked_reasons")

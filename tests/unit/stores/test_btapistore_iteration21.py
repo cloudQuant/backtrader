@@ -3122,6 +3122,135 @@ def test_required_account_risk_prebaseline_does_not_relax_extra_evidence(extra_e
         store.stop()
 
 
+def test_live_prebaseline_shape_is_recognized_and_reconcile_stays_clean():
+    """The live SDK's genuine first-start shape must pass the first-start gate.
+
+    Regression for the 012_1 demo smoke deadlock: the live SDK reports
+    ``current_equity=None`` before the first baseline (its aggregate needs
+    the baseline venue set), one deterministic ``account_maximum_loss``
+    entry in its error map, and an execution summary with
+    ``evidence_complete=False`` plus the single
+    ``account_risk_baseline_required`` latch.  The store must recognize
+    exactly that state, keep the reconcile snapshot clean, and leave the
+    baseline-required latch for the runner to relax.
+    """
+
+    optional_sdk()
+
+    class LivePreBaselineRiskSdk(AsyncSdk):
+        def get_account_risk_snapshot(self):
+            snapshot = account_risk_prebaseline_payload(self)
+            snapshot.update(
+                current_equity=None,
+                evidence_errors={"account_maximum_loss": "aggregate_equity_not_comparable"},
+            )
+            return snapshot
+
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary.update(
+                evidence_complete=False,
+                evidence_errors=["account_risk_baseline_required"],
+                trading_blocked=True,
+            )
+            return summary
+
+    store = make_store(LivePreBaselineRiskSdk(), require_account_risk=True)
+    store.start()
+    try:
+        snapshot = store._sdk_reconcile_snapshot()
+
+        assert snapshot["evidence_complete"] is True
+        assert snapshot["evidence_errors"] == []
+        assert snapshot["execution_summary"]["evidence_errors"] == [
+            "account_risk_baseline_required"
+        ]
+        assert snapshot["execution_summary"]["evidence_complete"] is True
+        risk_snapshot = snapshot["account_risk_snapshot"]
+        assert risk_snapshot["blocked_reasons"] == [
+            "account_evidence_incomplete",
+            "baseline_missing",
+        ]
+        assert "sdk_prebaseline_aggregate_unavailable" in risk_snapshot["evidence_errors"]
+    finally:
+        store.stop()
+
+
+def test_live_prebaseline_shape_does_not_relax_provider_read_failures():
+    """Only the deterministic pre-baseline entry qualifies; a read failure rejects."""
+
+    optional_sdk()
+
+    class ReadFailureRiskSdk(AsyncSdk):
+        def get_account_risk_snapshot(self):
+            snapshot = account_risk_prebaseline_payload(self)
+            snapshot.update(
+                current_equity=None,
+                evidence_errors={f"{VENUE}:account": "read_failed"},
+            )
+            return snapshot
+
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary.update(
+                evidence_complete=False,
+                evidence_errors=["account_risk_baseline_required"],
+                trading_blocked=True,
+            )
+            return summary
+
+    store = make_store(ReadFailureRiskSdk(), require_account_risk=True)
+    store.start()
+    try:
+        snapshot = store._sdk_reconcile_snapshot()
+
+        assert snapshot["evidence_complete"] is False
+        assert "account_risk:account_risk_evidence_incomplete" in snapshot["evidence_errors"]
+        assert (
+            "sdk_evidence_errors_present"
+            in snapshot["account_risk_snapshot"]["evidence_errors"]
+        )
+    finally:
+        store.stop()
+
+
+def test_prebaseline_execution_latch_does_not_relax_extra_summary_errors():
+    """The baseline latch relaxation is exact; a second summary error rejects."""
+
+    optional_sdk()
+
+    class ExtraSummaryErrorSdk(AsyncSdk):
+        def get_account_risk_snapshot(self):
+            snapshot = account_risk_prebaseline_payload(self)
+            snapshot.update(
+                current_equity=None,
+                evidence_errors={"account_maximum_loss": "aggregate_equity_not_comparable"},
+            )
+            return snapshot
+
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary.update(
+                evidence_complete=False,
+                evidence_errors=[
+                    "account_risk_baseline_required",
+                    "execution_arm_market_data_only",
+                ],
+                trading_blocked=True,
+            )
+            return summary
+
+    store = make_store(ExtraSummaryErrorSdk(), require_account_risk=True)
+    store.start()
+    try:
+        snapshot = store._sdk_reconcile_snapshot()
+
+        assert snapshot["evidence_complete"] is False
+        assert "sdk_execution_evidence_incomplete" in snapshot["evidence_errors"]
+    finally:
+        store.stop()
+
+
 def test_order_query_enqueue_rejection_and_timeout_retry_with_same_identity(monkeypatch):
     optional_sdk()
 

@@ -23,8 +23,8 @@
       "source_data_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
       "structural_break_detected": false,
       "unit_root_pvalue": "0.001",
-      "valid_from_epoch": "1788796200",
-      "valid_until_epoch": "1791388200",
+      "valid_from_epoch": "1791590400",
+      "valid_until_epoch": "1794182400",
       "venue_symbols_sha256": "b6b11d3d46faad99cac5c4ea8268340158cbbf3ee553688a980938248dc50b26"
     },
     "okx->binance": {
@@ -50,8 +50,8 @@
       "source_data_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
       "structural_break_detected": false,
       "unit_root_pvalue": "0.001",
-      "valid_from_epoch": "1788796200",
-      "valid_until_epoch": "1791388200",
+      "valid_from_epoch": "1791590400",
+      "valid_until_epoch": "1794182400",
       "venue_symbols_sha256": "b6b11d3d46faad99cac5c4ea8268340158cbbf3ee553688a980938248dc50b26"
     }
   },

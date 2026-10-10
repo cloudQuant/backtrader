@@ -1528,8 +1528,13 @@ def test_mid_submit_uses_marginal_depth_price_and_capped_broker_deadlines(
     )
 
     kwargs = submitted[0]
-    assert kwargs["price"] == D("100.8")
-    assert kwargs["size"] == D("1")
+    # The Backtrader order pipeline is float-based: the first real demo fill
+    # crashed in OrderData.addbit (Decimal remsize vs float execution bit)
+    # while the strategy still submitted Decimal sizes/prices.  The strategy
+    # now converts at the submit boundary; the normalized SDK layer
+    # re-quantizes from these floats.
+    assert kwargs["price"] == float(D("100.8"))
+    assert kwargs["size"] == 1.0
     assert kwargs["execution_deadline_monotonic_ns"] == execution_deadline_ns
     assert kwargs["cancel_deadline_monotonic_ns"] == cancel_deadline_ns
     assert kwargs["cancel_deadline_monotonic_ns"] <= int(pair_deadline * D("1000000000"))
