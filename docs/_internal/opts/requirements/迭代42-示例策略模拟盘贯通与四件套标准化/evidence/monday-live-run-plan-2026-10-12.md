@@ -43,6 +43,8 @@
 ## PASS 判据（§2 成交往返）
 
 - 013_3：`filled_entry>0 且 filled_close>=filled_entry`、终态 flat、无活动单、无 UNKNOWN。
+  终态策略状态预期=**`STOPPED_FLAT`**（drain 泵修复 `71089e7c6` 后对账可完成；若对账轮
+  本身超时则按其有界超时进 `MANUAL_INTERVENTION`，按证据化 BLOCKED 记录并说明）。
 - 013_1/013_2：会话归属 trades 中**每条腿** entry>0 且各腿 close>=entry（`entry_by_symbol`/
   `close_by_symbol`）、终态 flat、无活动单、无 UNKNOWN；`arm_history` 反映写入前腿部切换
   （013_1 应出现 m↔RM 切换；013_2 为 rb2701↔rb2705）。
