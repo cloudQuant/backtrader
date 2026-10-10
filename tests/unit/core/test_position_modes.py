@@ -49,6 +49,51 @@ def test_validate_dual_side_action():
         pm.validate_dual_side_action(True, "long", "close")
 
 
+@pytest.mark.parametrize(
+    ("isbuy", "position_side", "offset"),
+    (
+        (True, "long", "open"),
+        (False, "short", "open"),
+        (False, "long", "close"),
+        (True, "short", "close"),
+        (False, "long", "close_today"),
+        (False, "long", "close_yesterday"),
+        (True, "short", "close_today"),
+        (True, "short", "close_yesterday"),
+    ),
+)
+def test_dual_side_combos_name_the_created_or_reduced_side(isbuy, position_side, offset):
+    """Opening names the created position; closing names the reduced one.
+
+    Regression for the live rehearsal rejection ``Invalid dual-side order
+    combination: action=sell, position_side=short, offset=close_today``: a
+    sell that closes a long must declare position_side=long, and every
+    close/close_today/close_yesterday variant follows the same mapping.
+    """
+    assert pm.validate_dual_side_action(isbuy, position_side, offset) == (
+        position_side,
+        offset,
+    )
+
+
+@pytest.mark.parametrize(
+    ("isbuy", "position_side", "offset"),
+    (
+        (True, "long", "close"),
+        (True, "long", "close_today"),
+        (True, "long", "close_yesterday"),
+        (False, "short", "close"),
+        (False, "short", "close_today"),
+        (False, "short", "close_yesterday"),
+        (True, "short", "open"),
+        (False, "long", "open"),
+    ),
+)
+def test_dual_side_rejects_inverted_combinations(isbuy, position_side, offset):
+    with pytest.raises(ValueError, match="Invalid dual-side order combination"):
+        pm.validate_dual_side_action(isbuy, position_side, offset)
+
+
 def test_normalize_order_position_meta():
     """Test normalize_order_position_meta in net and dual-side modes."""
     # net mode: passes side/offset through (normalized), no combo validation
