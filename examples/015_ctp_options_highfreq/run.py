@@ -815,6 +815,11 @@ def run_live(args) -> int:
         summary["admission_boundary"] = entry_note
         _write_summary()
         return code_exit
+    except simnow_direct.SimNowDirectError as exc:
+        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
+        _write_summary()
+        _json_print(summary)
+        return EXIT_BLOCKED
     except LiveRejected as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
         _write_summary()
