@@ -115,6 +115,9 @@
 
 ## 收尾（当日）
 
+0. 判读工具：`python D:/temp/iter42_live_summary.py`（读八目录最新 live run.json 的
+   判据字段：status/reason/run_error/entry/close/active/open_position_rows/state/
+   arm_history/front；每步跑完执行一次，输出直接粘贴进对应验收记录）。
 1. 更新三个示例的验收记录（r1/r4/r5 记录追加实跑数值与证据哈希）。
 2. 生成迭代42 最终 tracker（JSON+MD，§7.1 字段：dry/replay/live/tier/trigger/env_scope/orders/
    cleanup/evidence_sha256/commit/status）。
