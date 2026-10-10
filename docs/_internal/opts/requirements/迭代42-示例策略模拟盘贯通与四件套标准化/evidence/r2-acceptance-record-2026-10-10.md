@@ -30,9 +30,19 @@
   （operator 覆盖仅含校准契约不一致，不含过期）。
 - 影响：`--mechanical-smoke`（含 600s 合规时长）在 store 之前被拒；
   同一路径下其余环节都已验证可达。
-- **翻转路径（零代码改动）**：运营/用户重发 `qualification-v3.json` 的有效期窗口
-  （或明确授权 operator 过期豁免的代码变更），刷新 canonical/local manifest 后，
-  原命令 `python run.py --live --allow-write --mechanical-smoke --run-seconds 600` 直接复跑。
+- **翻转路径（零代码改动，2026-10-10 复核精确化）**：运营/用户按研究治理流程重发
+  `012_1/qualification-v3.json` 的有效期窗口后，按以下顺序操作：
+  1. 更新 canonical `examples/strategy-candidate-manifest.json` 中该候选的
+     `qualification_artifact.sha256` 为新文件哈希，并重算 `candidate_sha256`
+     （=canonical JSON〔sort_keys、紧凑分隔符、ensure_ascii=False〕去掉 `candidate_sha256`
+     与 `demo_approval` 后的 sha256）；`runner/strategy/config_sha256` 仅在对应文件字节
+     变化时更新（窗口重发不涉及）。
+  2. `python scripts/refresh_cross_exchange_local_manifests.py`（写模式）刷新两目录
+     folder-local 清单（`--check` 只验证不写；**canonical 由人工治理编辑，脚本永不改写它**）。
+  3. 原命令 `python run.py --live --allow-write --mechanical-smoke --run-seconds 600` 直接复跑；
+     `test_local_admission_manifests_are_current` 与 refresh `--check` 应保持绿。
+  **契约哈希无需改动（已核实）**：`qualification_contract_sha256(rules, risk, 买venue, 卖venue)`
+  只绑定合约规则/风险模型/方向，不含窗口字段——窗口重发不影响它。
 - 治理说明：该工件为迭代21 冻结研究工件（`RESEARCH_REJECTED`，校准训练用），
   窗口变更属研究治理动作，本迭代不擅自修改（与 R1 的时段门同类：时间型外部约束）。
 
