@@ -180,3 +180,17 @@ run.json 中实证据生效（`iter42-sa-live-3c1a3add734f / czce-sa-live:202610
 ruff 干净；CLI dry/replay 绿。周一 013_3 若完成完整往返，drain 应可达
 `STOPPED_FLAT`（若对账轮本身仍无法完成，将按其有界超时进入明确的
 `MANUAL_INTERVENTION`，不再是无定义的 RECOVERING 滞留）。
+
+### 遗留开放风险：对账轮在 registered-sim store 上的未实证性（2026-10-10 午后审计）
+
+- 事实链：drain 对账经 `broker.request_ctp_reconciliation` → `store.enqueue_ctp_reconciliation`
+  → worker 执行 `get_ctp_reconciliation_snapshot` → **`_build_ctp_query_snapshot`（框架查询快照
+  机）**；而 013_3 预检全程用的是 store 自有的 `registered_sim_query`（直接 `api.query_<family>`
+  + 有界重试，已在真实前置实证）。两条查询实现的**结果语义**（`request_id`/`is_last_seen`/
+  `unsupported` 等字段）是否完全一致，**未经真实运行验证**——7x24 的 `fd775f5b` 里该轮排队后
+  150s 宽限内无完成交付，可能即源于此（也可能只是无泵无重试所致，二者未分辨）。
+- 处理策略（不改代码，先测后修）：watcher v3 的 013_3 有界彩排带新泵跑完整 drain——
+  若对账轮能完成 → `STOPPED_FLAT`（风险消除）；若仍失败 → 证据将显示对账轮的具体错误
+  （worker 结果/完成通知），随后按 `registered_sim_query` 口径补 store 级对账快照实现
+  （离线开发 + 单测，真实验证留待标准前置时段）。**不盲改**：星期日前无真实前置可验证，
+  盲目改 store 内部比"带泵+有界超时终端"更危险。
