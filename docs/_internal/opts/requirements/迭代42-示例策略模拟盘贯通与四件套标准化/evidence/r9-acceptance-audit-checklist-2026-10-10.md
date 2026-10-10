@@ -14,7 +14,7 @@
 | 5 | 过程中按最佳实践改进迭代计划 | 修订案 | `a7d2cfc52`（R7/R8 观察层修订）；计划内 R0/R6–R8 修订；`monday-live-run-plan-2026-10-12.md`（含 argv 预检与彩排事实） | ✅ |
 | 6 | bt_api_py 及其子包按需修复 | — | 本轮记录审计（r1–r9 + 组件记录）：无遗留 SDK 待修项；唯一 SDK 相关注记为既有环境性基线（anaconda 深层子模块 identity） | ✅（无待修） |
 | 7 | 用 gateway/risk/monitor/execution 组件测试策略并修复问题 | 边界 + 矩阵 | `test_iteration42_component_boundaries.py` 42 项（入口零组件导入）+ optional16 dry 矩阵 32/32 + 假场所×真 SDK 挂载 5 项 + iteration-41 optional16 真实矩阵 16/16（binance C01+T03 参考；okx/simnow 按设计保持直连） | ✅ |
-| 8 | 验收后提交各自 dev | 提交链 | 主仓 dev：`eb3da84f3`(R1) `7cfad68bc`(R2) `90cf8914a`(R3) `0150641a3`(R4) `e91e3638b`(R5) `8c067982b`+`8c5414496`(R6) `adb1fb7a9`(R7) `c13177459`(R8) `972a183b2`/`7b68e19be`/`41929f556`/`92d5a3378`/`cebde48f6`(R9 离线)；本迭代无 SDK 源码改动需提交 | ✅ 逐轮 |
+| 8 | 验收后提交各自 dev | 提交链 | 主仓 dev：`eb3da84f3`(R1) `7cfad68bc`(R2) `90cf8914a`(R3) `0150641a3`(R4) `e91e3638b`(R5) `8c067982b`+`8c5414496`(R6) `adb1fb7a9`(R7) `c13177459`(R8) `972a183b2`/`7b68e19be`/`41929f556`/`92d5a3378`/`cebde48f6`(R9 离线) + 周一前修复轮 `1477ad469`/`4d66770cb`/`c453ae069`/`0b971a55e`（drill 竞态/打标接线）`e5ec6ebc7`+`4ce647a9e`（门栈+原生成交里程碑）`65d2087d3`（014_1 平仓映射+harness 回归）`175518c89`（选择器语义修正）`3e9d05d92`+`dc595340b`（前选失败细节持久化）；本迭代无 SDK 源码改动需提交 | ✅ 逐轮 |
 | 9 | R9 收尾（终版 tracker/记录/报告） | `iteration42-example-tracker.{json,md}` 终版 + 最终提交 | 现为 R6–R8 态快照（`7b68e19be`），周一后重生成 | ⏳ 周一后 |
 
 ## 唯一未完成项（时窗门）
