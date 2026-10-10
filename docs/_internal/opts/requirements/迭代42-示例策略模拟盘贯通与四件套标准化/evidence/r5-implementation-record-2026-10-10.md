@@ -154,3 +154,20 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
   断言 run.json 保留裸 reason、逐 pair 拒绝原因与样本数；六入口另加源一致性守卫
   （专用分支唯一且先于通用 handler）。验证：新聚焦 8 通过；六套件 266 通过（唯一失败为
   既有环境基线 `test_receipt_rejects_critical_runtime_identity_drift`）；ruff 干净。
+
+## 追加：013_2 彩排完整往返 PASS（2026-10-10 17:00–17:45 北京，watcher v3）
+
+SimNow 服务于当日下午回归后，watcher v3 以周一逐字命令在 7x24 完成 013_2 彩排：
+
+- 运行 `live-20261010T075431Z-3583ad31`（2700s 有界）：**status PASS**。
+  - `engineering_trigger_fired=true`（drill 自然路径真实触发；伪 z 竞态修复后首次以
+    完整自然路径走通）、`open_attempts=1`、`pair_actions=2`；
+  - `positions {rb2701: 0.0, rb2705: 0.0}`（双腿开仓后由平仓腿归零——**平仓
+    `position_side` 反向映射修复在本真实路径上全程验证**）；`halted=false`、
+    `net_pnl=0.0`（demo）、`ticks_seen=9137`；账户 `pilot_account_flat_and_clean=true`。
+- 层级说明：本次为 7x24 前置的 lifecycle 彩排；**周一标准前置时段的 drill 仍为
+  正式验收**，但本次已把"修复后完整往返"的市场侧不确定性降到最低。
+- 对照：同日 013_3 彩排（`live-20261010T084209Z-54afd472`，1356.8s）按 7x24 预期
+  零单（`no_fill_round_trip`，`quote:invalid_lower_limit ×1245` = 7x24 无涨跌停价，
+  账户 flat）；其收尾 `RECOVERING/drain_reconciliation_required` 在 fills=0 场景下
+  未达 STOPPED_FLAT，周一时段内正式跑留意；若再现按"遗留开放风险"节判定。

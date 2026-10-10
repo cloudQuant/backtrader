@@ -92,3 +92,18 @@ allow_write + drill；014_2：900（无写授权）；015：300（无写授权�
 周一六个步骤具备：命令参数预检通过、离线 8/8 dry+replay、登记冒烟全绿、个体测试
 套件全绿；剩余不确定性仅为市场环境（前置可达性/事件钟新鲜度），均有已记录的回退
 与翻转路径。
+
+## 追加：当日晚间在新 HEAD 复验（2026-10-10 傍晚，HEAD `91c7e63bf`）
+
+012_1/012_2 Demo 翻转与 SDK/broker 修复提交后，按同一口径在新 HEAD 复验，结论未变：
+
+- 8/8 dry+replay 全绿（012_x FORMULA_CHECK_PASS；013–015 LOCAL_REPLAY_PASS；全部 rc=0，
+  012_x 用 anaconda 3.11）。
+- 登记离线冒烟 `12 passed, 2 failed, 14 selected, 3 skipped`——与基线逐项一致
+  （2 项 FAIL 仍为 iteration41 managed-L2 需本地 SDK 源在 PYTHONPATH 的既有基线）。
+- `tests/unit/runtime` + `tests/unit/stores` 合并 **1462 passed / 36 skipped / 0 failed**
+  （覆盖当日 BtApiBroker 停机对账重试与 SDK 风险新鲜度语义变更的全部单元层）。
+- 012_x 系数：策略 86、matrix 128、pair 43、组件边界 43、事件路径 perf 43 全绿；SDK
+  `test_execution_session.py` 184 passed / 2 skipped。既有基线失败（非本轮引入，
+  已用 stash 对拍确认）：`tests/unit/brokers/test_btapibroker_iteration22.py` 相关
+  CTP 直写禁用测试 7 项 + arbitrage 1 项，属迭代41"CTP 直写关闭"后的分支既有状态。
