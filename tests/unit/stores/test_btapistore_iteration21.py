@@ -3251,6 +3251,79 @@ def test_prebaseline_execution_latch_does_not_relax_extra_summary_errors():
         store.stop()
 
 
+def test_precise_sdk_loss_bps_passes_the_post_baseline_validation():
+    """Regression: the live SDK's unbounded-precision bps broke the first smoke.
+
+    The first full demo round trip (four fills) ended
+    ``MECHANICAL_DEMO_SMOKE_INCOMPLETE`` because the store compared the SDK's
+    ~200-digit ``loss_bps_observed`` with its own 28-digit division under
+    exact Decimal equality, flagging ``account_loss_bps_mismatch`` and making
+    the final reconciliation evidence unprovable.  The comparison now
+    quantizes to 1e-12 while any real divergence still rejects.
+    """
+
+    optional_sdk()
+    from decimal import localcontext
+
+    class PreciseRiskSdk(AsyncSdk):
+        def configure_execution(self, config):
+            self.execution_configurations = getattr(self, "execution_configurations", [])
+            self.execution_configurations.append(dict(config))
+
+        def get_account_risk_snapshot(self):
+            snapshot = account_risk_payload(
+                self, baseline="9992.14049997", current="9991.22421098", loss_limit_bps="50"
+            )
+            with localcontext() as context:
+                context.prec = 80
+                precise_bps = (
+                    (Decimal("9992.14049997") - Decimal("9991.22421098"))
+                    * Decimal("10000")
+                    / Decimal("9992.14049997")
+                )
+            snapshot["loss_bps_observed"] = str(precise_bps)
+            snapshot["peak_loss_bps"] = str(precise_bps)
+            return snapshot
+
+    store = make_store(PreciseRiskSdk(), require_account_risk=True, account_maximum_loss_bps="50")
+    store.start()
+    try:
+        composed = store._read_account_risk_snapshot(store._api)
+        assert composed["evidence_complete"] is True
+        assert not composed["evidence_errors"]
+    finally:
+        store.stop()
+
+
+def test_real_loss_bps_divergence_still_rejects():
+    """The quantized comparison must not mask genuine economic divergence."""
+
+    optional_sdk()
+
+    class WrongRiskSdk(AsyncSdk):
+        def configure_execution(self, config):
+            self.execution_configurations = getattr(self, "execution_configurations", [])
+            self.execution_configurations.append(dict(config))
+
+        def get_account_risk_snapshot(self):
+            snapshot = account_risk_payload(
+                self, baseline="9992.14049997", current="9991.22421098", loss_limit_bps="50"
+            )
+            # A real mismatch far above the 1e-12 comparison quantum.
+            snapshot["loss_bps_observed"] = "0.5"
+            snapshot["peak_loss_bps"] = "0.5"
+            return snapshot
+
+    store = make_store(WrongRiskSdk(), require_account_risk=True, account_maximum_loss_bps="50")
+    store.start()
+    try:
+        composed = store._read_account_risk_snapshot(store._api)
+        assert composed["evidence_complete"] is False
+        assert "account_loss_bps_mismatch" in composed["evidence_errors"]
+    finally:
+        store.stop()
+
+
 def test_order_query_enqueue_rejection_and_timeout_retry_with_same_identity(monkeypatch):
     optional_sdk()
 

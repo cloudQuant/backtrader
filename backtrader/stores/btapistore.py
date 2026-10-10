@@ -15628,10 +15628,25 @@ class BtApiStore(LiveStoreBase):
                 errors.append("account_loss_amount_mismatch")
             if loss_values["loss_limit_amount"] != expected_limit_amount:
                 errors.append("account_loss_limit_amount_mismatch")
-            if loss_values["loss_bps_observed"] != expected_loss_bps:
+            # The SDK computes this ratio at unbounded precision; the store's
+            # 28-digit default context diverges around digit 29, so exact
+            # Decimal equality always fails.  Compare at a resolution far
+            # finer than any economic meaning instead.
+            bps_quantum = Decimal("0.000000000001")
+
+            def bps_quantized(value):
+                if not isinstance(value, Decimal):
+                    return None
+                try:
+                    return value.quantize(bps_quantum)
+                except InvalidOperation:
+                    return None
+
+            observed_bps = bps_quantized(loss_values["loss_bps_observed"])
+            if observed_bps is None or observed_bps != bps_quantized(expected_loss_bps):
                 errors.append("account_loss_bps_mismatch")
-            peak = loss_values["peak_loss_bps"]
-            if peak is None or peak < expected_loss_bps:
+            peak = bps_quantized(loss_values["peak_loss_bps"])
+            if peak is None or peak < bps_quantized(expected_loss_bps):
                 errors.append("account_peak_loss_bps_mismatch")
             if loss_limit_breached is False and expected_loss_bps >= loss_limit:
                 errors.append("account_loss_latch_missing")
