@@ -88,4 +88,26 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
    回放语义不变），013_1/013_2 live 入口传 GFD（014_1 未设 tif→broker 自动 GFD；
    013_3 本就 GFD——审计确认）。
 
-第 4 层修复后的订单层验证彩排进行中；结果与后续层（若有）另行补记。
+### 第 5–7 层与真实成交里程碑（2026-10-10 深夜彩排序列）
+
+- **彩排 #5（IOC 修复后）**：订单首次到达原生 SDK 层，`run_error =
+  CtpExecutionGateError: ctp_execution_gate_order_insert_field_request_id_mismatch`
+  —— **第 5 层**：`btapistore` 构造发单/撤单字段时从未设置 `field.RequestID = req_id`
+  （dev SDK 新门要求相等）。修复：两处 builder 补设（一处修复覆盖全部写入口）。
+- **彩排 #6（RequestID 修复后）——里程碑**：drill 触发 → 双腿武装切换实录
+  （arm_history: RB2705 锚点 → RB2701 运行时切换）→ **两腿原生真实成交**
+  （`session_order_refs=2`、`entry_by_symbol = {rb2701:1, rb2705:1}`、`trade_rows=2`）
+  → 平仓腿报 `ValueError: Invalid dual-side order combination: action=sell,
+  position_side=short, offset=close_today` —— **第 6 层**：`_submit` 对平仓沿用开仓
+  position_side 映射（sell→short），双开双平语义应为平仓单声明"被平掉的持仓方向"。
+  修复：`reduce_only` 分支反转映射（sell 平多=long、buy 平空=short）+ 策略级回归。
+  该次中止留下 **2 手 7x24 残留仓位**（已取证：rb2701 多 1/rb2705 空 1，today=1）。
+- **残留处置（operator 维护，有界）**：清仓脚本序列完成：定位/武装/平仓
+  （rb2701 以真实成交价 3062 平今成交；rb2705 以 3097 平今成交；期间撤除挂单）→
+  **终态 flat、零工作单**（v5 复核均为 0），7x24 预检条件恢复。
+- **彩排 #7（平仓映射修复后）**：本次 **env 性未触发**（`engineering_trigger_fired=false`、
+  attempts=0、4936 tick）——深夜 7x24 的 bar 节奏显著变慢，8-bar 就绪晚于 [20,40] 分钟窗口；
+  无代码回归（抑制门在窗外也按设计不再放行自然路径）。**修复后的完整往返判定以周一
+  标准前置时段为准**（#6 已证明全链可达成交层）。
+
+订单账本持久化（`strategy_order_ledger`）是本轮四层定位的关键工具，已入 013_2 run.py。
