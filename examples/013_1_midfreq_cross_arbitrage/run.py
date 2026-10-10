@@ -835,6 +835,9 @@ def run_live(args) -> int:
         }
         params["deadline_clock"] = time.monotonic
         params["broker_position_mode"] = "dual_side"
+        # The direct CTP first-version lane accepts GFD only; IOC stays the
+        # offline replay default and never leaves the process there.
+        params["time_in_force"] = "GFD"
         if args.drill:
             drill_config = dict(config.get("drill") or {})
             params["max_pairs"] = 1

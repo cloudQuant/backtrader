@@ -65,3 +65,27 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
 额度（attempts=1 / fired=false），此后 `_try_open` 永久短路 → drill 永不触发。修复与回归
 见 R4 记录同节；Monday 013_2 窗口放宽为 delay 1200 / window 1200（[20,40] 分钟）。
 彩排同时验证：选择/登录/查询/双臂武装/证据落盘/有界清理全链真实可用。
+
+## 周一前四层预下单阻塞链（2026-10-10 深夜彩排逐层定位）
+
+修复 drill 竞态后，013_2 的 7x24 彩排仍零单；连续三个约 50 分钟的有界彩排 + 订单账本
+持久化（`strategy_order_ledger`）逐层定位出四个独立阻塞点（全部为本迭代已接受实现的
+预置缺口，非环境问题；周一三场写 drill 若不修将全部零成交）：
+
+1. **drill 自然路径竞态**（013_1/013_2）：`max_pairs=1` 被窗口前伪 z 消耗 → 已修复
+   `1477ad469` + 回归 `4d66770cb`。（013_3 设计不同、014_1 冷历史门——审计无此竞态。）
+2. **未接打标**（013_3）：`configure_live_tick_provenance` 缺失 → bar 全拒
+   （`bar_schema_missing:connection_generation`）→ 已修复 `0b971a55e`（修证彩排 schema
+   阻断归零；bar 全链验收留待周一标准前置）。
+3. **Broker 证据门接口缺失**（四个写入口均 `require_complete_ctp_evidence=True`）：
+   store 未实现 `supports_complete_ctp_queries`/`get_ctp_query_health` → 每笔订单在原生层前
+   被拒 `ctp_query_capability_unavailable`。修复：`simnow_direct.RegisteredSimStore` 增加
+   **忠实投影**（仅暴露真实执行的启动查询：account/positions + 参考行，含 `IsTrading`
+   透传与两个计数 0），五副本字节一致；回归断言读取端所需结构（pair+multiarm 48 通过）。
+4. **IOC → GFD**（013_1/013_2）：策略以 `time_in_force="IOC"` 提交，直连 CTP 第一版契约
+   仅接受 GFD → 拒单码实录 `unsupported_time_in_force`（订单账本：`"CTP first-version
+   orders require GFD; received IOC"`）。修复：策略新增 `time_in_force` 参数（默认 IOC，
+   回放语义不变），013_1/013_2 live 入口传 GFD（014_1 未设 tif→broker 自动 GFD；
+   013_3 本就 GFD——审计确认）。
+
+第 4 层修复后的订单层验证彩排进行中；结果与后续层（若有）另行补记。

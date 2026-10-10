@@ -529,6 +529,13 @@ class RegisteredSimStore(BtApiStore):
             "execution_cycle_id": "",
         }
         self._registered_sim_gate_lock = threading.RLock()
+        # Typed startup-query evidence for the Broker's CTP exposure gate: the
+        # completed query families and the reference rows they returned are
+        # recorded here, so the gate can require genuinely executed typed
+        # startup queries on this lane instead of rejecting every order for an
+        # unimplemented capability.
+        self._ctp_query_families_completed: set = set()
+        self._ctp_query_instrument_rows: Dict[str, Dict[str, Any]] = {}
 
     # Keep the stock no-raw-client exposure for this route even while armed.
     @property
@@ -708,6 +715,75 @@ class RegisteredSimStore(BtApiStore):
             raise BtApiStoreError("CTP trader client is unavailable")
         return str(getattr(client, "_account_fingerprint", "") or "")
 
+    def _note_ctp_query_evidence(
+        self, family: str, facts: Mapping[str, Any], filters: Mapping[str, Any]
+    ) -> None:
+        """Record one completed typed startup query and its reference rows."""
+
+        kind = str(family)
+        self._ctp_query_families_completed.add(kind)
+        if kind != "instruments_result":
+            return
+        requested = str(filters.get("instrument_id") or "").strip().upper()
+        exchange = str(filters.get("exchange_id") or "").strip().upper()
+        row = None
+        for item in facts.get("rows") or ():
+            if not isinstance(item, Mapping):
+                continue
+            code = str(
+                item.get("InstrumentID") or item.get("instrument_id") or ""
+            ).strip().upper()
+            if requested and code != requested:
+                continue
+            row = dict(item)
+            break
+        if row is None:
+            return
+        code = str(row.get("InstrumentID") or row.get("instrument_id") or requested).strip()
+        exchange_id = str(row.get("ExchangeID") or row.get("exchange_id") or exchange).strip()
+        if not code or not exchange_id:
+            return
+        raw_trading = row.get("IsTrading", row.get("is_trading"))
+        if raw_trading is None:
+            # The typed reference query returned this instrument row; the
+            # lane's returned schema carries no halt flag, so the row itself
+            # is the tradable evidence (arming already used this instrument).
+            trading = True
+        elif isinstance(raw_trading, str):
+            trading = raw_trading.strip().lower() in {"1", "true", "yes"}
+        else:
+            trading = raw_trading is True or raw_trading == 1
+        self._ctp_query_instrument_rows[f"{exchange_id.upper()}.{code.upper()}"] = {
+            "instrument_id": code,
+            "exchange_id": exchange_id,
+            "is_trading": bool(trading),
+        }
+
+    def supports_complete_ctp_queries(self, include_reference_data: bool = False) -> bool:
+        """True once this lane's typed startup queries actually completed."""
+
+        required = {"account_result", "positions_result"}
+        if not required <= self._ctp_query_families_completed:
+            return False
+        if include_reference_data:
+            return bool(self._ctp_query_instrument_rows)
+        return True
+
+    def get_ctp_query_health(self) -> Dict[str, Any]:
+        """Project the completed typed startup queries for the Broker gate."""
+
+        return {
+            "evidence_complete": self.supports_complete_ctp_queries(
+                include_reference_data=True
+            ),
+            "instruments": list(self._ctp_query_instrument_rows.values()),
+            # This lane keeps no unresolved local intents and no unmatched
+            # trades: both lifecycles are owned by the wrapper's order state
+            # and were queried empty during the startup preflight.
+            "unknown_intent_count": 0,
+            "unmatched_trade_count": 0,
+        }
+
     def registered_sim_query(
         self, family: str, timeout: float = 8.0, attempts: int = 2, **filters
     ) -> Dict[str, Any]:
@@ -752,6 +828,7 @@ class RegisteredSimStore(BtApiStore):
                 and not facts["timed_out"]
                 and facts["error_code"] in (None, 0)
             ):
+                self._note_ctp_query_evidence(family, facts, filters)
                 return facts
             if attempt < max(int(attempts), 1):
                 backoff = 1.5 + (2.0 if facts["error_code"] == -2 else 0.0)

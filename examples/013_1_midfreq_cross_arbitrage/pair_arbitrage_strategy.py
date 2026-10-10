@@ -64,6 +64,9 @@ class PairArbitrageStrategy(bt.Strategy):
         ("max_loss", 2000.0),
         ("max_holding_seconds", 1800.0),
         ("order_timeout", 8.0),
+        # CTP first-version live orders require GFD (the broker
+        # validator rejects IOC); the bounded live entries pass "GFD".
+        ("time_in_force", "IOC"),
         ("slippage_ticks", 2.0),
         ("tick_size", 1.0),
         ("commission_rate", 0.0001),
@@ -339,13 +342,20 @@ class PairArbitrageStrategy(bt.Strategy):
         if str(self.p.broker_position_mode) == "dual_side":
             # CTP accounts are directional; the exchange-derived leg must be
             # declared explicitly for every order under a dual-side ledger.
-            order_kwargs["position_side"] = "long" if side == "buy" else "short"
+            # An opening order names the position it creates; a closing order
+            # names the position it reduces (sell closes long, buy closes
+            # short).  A sell must never carry position_side=short on this
+            # ledger, and the dual-side validator rejects that combination.
+            if reduce_only:
+                order_kwargs["position_side"] = "long" if side == "sell" else "short"
+            else:
+                order_kwargs["position_side"] = "long" if side == "buy" else "short"
         order = submit(
             data=self.getdatabyname(symbol),
             size=lots,
             price=price,
             exectype=bt.Order.Limit,
-            time_in_force="IOC",
+            time_in_force=str(self.p.time_in_force),
             offset=self.close_offsets[symbol] if reduce_only else "open",
             **order_kwargs,
         )

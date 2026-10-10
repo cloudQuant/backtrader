@@ -185,3 +185,45 @@ def test_dispatch_hook_is_inert_until_templates_are_configured(simnow_direct):
     wrapper, calls = _wrapper_with_fake_arms(simnow_direct, {})
     wrapper._registered_sim_prepare_dispatch(SimpleNamespace(InstrumentID="m2612", ExchangeID="DCE"))
     assert calls == []
+
+
+def test_store_projects_typed_query_evidence_for_the_broker_gate(simnow_direct):
+    """The Broker's CTP exposure gate must see genuinely executed queries.
+
+    Regression: the three entry brokers set require_complete_ctp_evidence=True
+    while the store implemented neither supports_complete_ctp_queries nor
+    get_ctp_query_health, so every drill order was rejected before the native
+    layer (ctp_query_capability_unavailable).
+    """
+
+    store = object.__new__(simnow_direct.RegisteredSimStore)
+    store._ctp_query_families_completed = set()
+    store._ctp_query_instrument_rows = {}
+
+    assert store.supports_complete_ctp_queries() is False
+    assert store.get_ctp_query_health()["evidence_complete"] is False
+
+    rows = [
+        {"InstrumentID": "rb2701", "ExchangeID": "SHFE", "IsTrading": 1},
+        {"InstrumentID": "rb2705", "ExchangeID": "SHFE", "IsTrading": 1},
+    ]
+    store._note_ctp_query_evidence("account_result", {"rows": []}, {})
+    store._note_ctp_query_evidence("positions_result", {"rows": []}, {})
+    store._note_ctp_query_evidence(
+        "instruments_result",
+        {"rows": rows},
+        {"instrument_id": "rb2705", "exchange_id": "SHFE"},
+    )
+
+    assert store.supports_complete_ctp_queries() is True
+    health = store.get_ctp_query_health()
+    assert health["evidence_complete"] is True
+    assert health["instruments"] == [
+        {"instrument_id": "rb2705", "exchange_id": "SHFE", "is_trading": True}
+    ]
+    assert health["unknown_intent_count"] == 0
+    assert health["unmatched_trade_count"] == 0
+
+    # The success path of the live query must feed the recorder.
+    source = CANONICAL.read_text(encoding="utf-8")
+    assert "self._note_ctp_query_evidence(family, facts, filters)" in source

@@ -558,3 +558,24 @@ def test_highfreq_pair_publish_failure_is_rate_bounded_and_final_report_is_rejec
     # startup-state publication and forced final attempt are still allowed;
     # a per-tick retry would have produced hundreds of calls.
     assert 2 <= len(calls) < 10
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "directory"), (("ex1", EX1), ("ex2", EX2))
+)
+def test_pair_live_entries_bind_gfd_for_the_direct_ctp_lane(
+    request, fixture_name, directory
+):
+    """CTP first-version orders require GFD; IOC is the replay-only default.
+
+    Regression: the drill orders were rejected pre-native with
+    ``unsupported_time_in_force`` ("CTP first-version orders require GFD;
+    received IOC") on the direct registered-sim lane.
+    """
+
+    strategy_class = request.getfixturevalue(fixture_name).PairArbitrageStrategy
+    assert _defaults_of(strategy_class)["time_in_force"] == "IOC"
+    strategy_source = (directory / STRATEGY_FILES[directory]).read_text(encoding="utf-8")
+    assert "time_in_force=str(self.p.time_in_force)" in strategy_source
+    run_source = (directory / "run.py").read_text(encoding="utf-8")
+    assert 'params["time_in_force"] = "GFD"' in run_source

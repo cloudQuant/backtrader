@@ -836,6 +836,9 @@ def run_live(args) -> int:
         }
         params["deadline_clock"] = time.monotonic
         params["broker_position_mode"] = "dual_side"
+        # The direct CTP first-version lane accepts GFD only; IOC stays the
+        # offline replay default and never leaves the process there.
+        params["time_in_force"] = "GFD"
         if args.drill:
             drill_config = dict(config.get("drill") or {})
             params["max_pairs"] = 1
@@ -951,6 +954,17 @@ def run_live(args) -> int:
                     }
                 except Exception as exc:
                     strategy_diagnostics = {"error": f"{type(exc).__name__}: {exc}"}
+        orders_ledger = (
+            getattr(strategy_instance, "orders", None) if strategy_instance is not None else None
+        )
+        if isinstance(orders_ledger, dict) and orders_ledger:
+            # Persist the strategy's own order transitions (status, error code
+            # and message) so a pre-native broker rejection is diagnosable
+            # from the evidence alone.
+            summary["strategy_order_ledger"] = {
+                str(ref): dict(entry)
+                for ref, entry in list(orders_ledger.items())[-40:]
+            }
         # Session-scoped trade accounting: only orders submitted by THIS run
         # may count as the acceptance round trip (the shared simulation
         # account carries unrelated order/trade history).

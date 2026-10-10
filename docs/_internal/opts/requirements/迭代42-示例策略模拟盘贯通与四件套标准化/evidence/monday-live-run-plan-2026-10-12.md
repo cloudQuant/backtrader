@@ -54,6 +54,10 @@
   `configure_live_tick_provenance` → live bar 全数缺 `connection_generation` 被拒
   （`closed_bars=0`），drill 在标准前置也将永不触发；修复后修证彩排 schema 阻断归零、
   打标证据生效（R1 记录详载）。周一 09:00 为 bar 链+drill 的正式验收。
+- **预下单门栈四层修复（2026-10-10 深夜，含 store 证据门投影与 IOC→GFD）**：连续有界彩排
+  逐层清门：drill 竞态（013_1/013_2）→ 打标接线（013_3）→ Broker 证据门接口（四入口，
+  store 忠实投影真实执行的启动查询）→ `time_in_force` IOC→GFD（013_1/013_2；014_1/013_3
+  本就合规）。细节与证据见 r5 记录；订单层验证彩排在途。
 - **013_2 首跑彩排发现并修复 drill 竞态**：`--drill` 运行把 `max_pairs=1`，而自然路径在
   warmup 未成熟期（`--drill-warmup-bars 8`）可用伪 z 消耗唯一尝试额度（彩排实录
   attempts=1/fired=false，随后 `_try_open` 永久短路，6789 tick 无一开仓）→ 策略新增

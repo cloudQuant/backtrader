@@ -2582,6 +2582,9 @@ def _create_ctp_wrapper_class():
             field.UserForceClose = 0
             field.ContingentCondition = "1"
             field.OrderRef = order_ref
+            # The SDK's order-insert gate requires the field's RequestID to
+            # equal the request id passed into the dispatch call.
+            field.RequestID = int(req_id)
             if exchange_id:
                 field.ExchangeID = exchange_id
 
@@ -2658,6 +2661,9 @@ def _create_ctp_wrapper_class():
             )
 
             req_id = self._next_request_id()
+            # Same dispatch convention as the order-insert path: the field
+            # must carry the exact request id that is passed alongside it.
+            field.RequestID = int(req_id)
             ret = self._send_native_order_action(field, req_id)
             if ret != 0:
                 raise BtApiStoreError(f"CTP cancel send failed: ret={ret}")
