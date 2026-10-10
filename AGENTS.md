@@ -3826,14 +3826,30 @@ sweep record, tracker refresh, Monday argv pre-flight, first-run rehearsal recor
   (standard inside CZCE day windows, 7x24 outside — six-copy design since `eb3da84f3`), and a missing
   `notify_idle` pump added to 013_3's entry (every earlier live run stalled in
   `RECOVERING/drain_reconciliation_required` because the drain reconciliation retry loop was never
-  driven). A bounded watcher re-runs the 013_2 drill plus a 013_3 drain rehearsal automatically when
-  the (currently down, host-level maintenance) SimNow fronts return; all eight directories' dry/replay
+  driven). A bounded watcher re-ran the 013_2 drill plus a 013_3 drain rehearsal when the SimNow
+  fronts returned (results in the Demo-side closure bullet above); all eight directories' dry/replay
   were re-run green at the current HEAD.
-- Acceptance status: 015 observation PASS recorded; 013_3/013_1/013_2/014_1 (write drills) and 014_2
-  (observation) await the Monday 2026-10-12 session windows per the committed
-  `evidence/monday-live-run-plan-2026-10-12.md` (six serial steps, each command argv-pre-flighted).
-  R2/R3 crypto demo round trips stay evidence-backed BLOCKED (expired qualification window / HFT
-  admission) with zero-code and process flip paths recorded.
+- Demo-side closure (2026-10-10 evening; main-repo `ac9b76ea3`/`91c7e63bf`/`906ffe57b`, SDK
+  `636addc5`/`5163cbb7`): both crypto gates are closed. 012_1's reissued qualification window plus
+  the submit-race/fee-flag SDK fixes produced `MECHANICAL_DEMO_SMOKE_PASS` (`447e9a10`; regression
+  `82a55b70`). 012_2 got an operator-acknowledged bounded mechanical-smoke lane (real-book-priced
+  single pair; the research path-model gate stays fail-closed) and passed for real (`f28557f7`);
+  its defect chain (Decimal/float submit boundary, transient-stale risk read latching the kill
+  switch, refresh-lane/placement conflicts at the SDK risk-freshness gate, stop reconcile racing a
+  just-closed order — now a bounded retry) is fixed with regressions. The returned SimNow fronts
+  let the watcher capture the 013_2 drill completing a full round trip on 7x24 (`3583ad31`: both
+  legs opened and flattened; the close-mapping fix is validated on the real path). Same-HEAD
+  re-verification: 8/8 dry+replay, registered smoke 12/2(iteration-41 baseline)/3,
+  runtime+stores 1462 passed / 36 skipped / 0 failed.
+- Acceptance status: 015 observation PASS recorded and both crypto Demo round trips closed
+  (012_1/012_2, above); 013_3/013_1/013_2/014_1 (write drills) and 014_2 (observation) await the
+  Monday 2026-10-12 session windows per the committed `evidence/monday-live-run-plan-2026-10-12.md`
+  (six serial steps, each command argv-pre-flighted; 013_2's 7x24 rehearsal already passed end to
+  end). R9 finalization (tracker regeneration, record appends, close-out commit) follows the
+  Monday runs; two recorded leftovers: the six pinned 012_x files' manifest hashes are
+  working-tree-byte (CRLF) based and need an LF normalization pass, and a handful of
+  `test_btapibroker_iteration22.py` CTP-direct-write tests stay red by the iteration-41
+  write-closure design (verified pre-existing via stash diff).
 - Operational traps recorded during the iteration: the 7x24 SimNow front streams real quotes with a
   ~47.9h-stale event clock and has no daily price limits (write drills reject there); the front selector
   ranks standard-kind pairs first and falls back to 7x24 only when every standard pair is unreachable;
