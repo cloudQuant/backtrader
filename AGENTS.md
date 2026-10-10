@@ -3816,6 +3816,19 @@ sweep record, tracker refresh, Monday argv pre-flight, first-run rehearsal recor
   direct CTP lane carries no `ctp.quote.v2` attestation, which this iteration never fabricates). 014_2's
   real chain reached sealed bars but the 7x24 environment's event clock is ~47.9h stale →
   `live_event_clock_outside_run_mapping`; the standard-front session window is its acceptance path.
+- Pre-Monday fix round (2026-10-10, commits `1477ad469`→`71089e7c6`, docs through `c93b5a5f6`): the
+  consecutive bounded 7x24 rehearsals cleared the pre-order gate stack end to end and produced the
+  first-ever native fills for 013_2 (both legs filled; the run then died on the dual-side close
+  mapping, fixed at both the strategy layer and the core `position_modes` validator with harness
+  regressions). Also: sealed-bar provenance wiring for 013_3, the store's typed query-evidence
+  projection for the broker gate, GFD + `field.RequestID` on the direct lane, front-selection failure
+  details persisted on all six live entries, the session-aware selector ranking corrected in docs
+  (standard inside CZCE day windows, 7x24 outside — six-copy design since `eb3da84f3`), and a missing
+  `notify_idle` pump added to 013_3's entry (every earlier live run stalled in
+  `RECOVERING/drain_reconciliation_required` because the drain reconciliation retry loop was never
+  driven). A bounded watcher re-runs the 013_2 drill plus a 013_3 drain rehearsal automatically when
+  the (currently down, host-level maintenance) SimNow fronts return; all eight directories' dry/replay
+  were re-run green at the current HEAD.
 - Acceptance status: 015 observation PASS recorded; 013_3/013_1/013_2/014_1 (write drills) and 014_2
   (observation) await the Monday 2026-10-12 session windows per the committed
   `evidence/monday-live-run-plan-2026-10-12.md` (six serial steps, each command argv-pre-flighted).
