@@ -221,6 +221,8 @@ def strategy_stub(risk_config=None):
         funding_exchange_routes=None,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
     )
     strategy.broker = SimpleNamespace(
         request_reconcile=lambda: {"queued": True},
@@ -406,6 +408,8 @@ def test_event_funding_provider_binds_sdk_route_identity_and_source_age():
         funding_exchange_routes=routes,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
     )
 
     assert strategy._refresh_funding_gate(opening=True) is True
@@ -431,6 +435,8 @@ def test_event_entry_funding_window_includes_pair_hedge_budget():
         funding_exchange_routes=None,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
     )
 
     assert strategy._refresh_funding_gate(opening=True) is False
@@ -454,6 +460,8 @@ def test_event_notify_idle_exits_active_pair_when_funding_schedule_moves_earlier
         funding_exchange_routes=None,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
     )
     calls = []
     strategy._begin_flatten = lambda exposures, reason: calls.append((exposures, reason))
@@ -488,6 +496,8 @@ def test_event_notify_idle_funding_refresh_failure_exits_active_pair_fail_closed
         funding_exchange_routes=None,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
     )
     calls = []
     strategy._begin_flatten = lambda exposures, reason: calls.append((exposures, reason))
@@ -710,6 +720,7 @@ def test_public_shadow_observes_mature_intent_with_zero_execution_accounting():
         account_risk_ledger=None,
         execution_enabled=False,
         shadow=True,
+        mechanical_demo_smoke=False,
     )
     strategy.datas = [
         SimpleNamespace(_name=hft.VENUE_SYMBOLS["okx"]),
@@ -742,6 +753,7 @@ def test_execution_adapter_without_path_model_submits_zero_orders():
         account_risk_ledger=None,
         execution_enabled=True,
         shadow=False,
+        mechanical_demo_smoke=False,
     )
     strategy.datas = [
         SimpleNamespace(_name=hft.VENUE_SYMBOLS["okx"]),
@@ -761,6 +773,84 @@ def test_execution_adapter_without_path_model_submits_zero_orders():
     assert strategy.submitted_order_count == 0
     assert not strategy.engine.intents
     assert strategy.engine.reject_reasons["event_model_missing"] >= 1
+
+
+def test_mechanical_demo_smoke_emits_one_bounded_real_priced_pair():
+    engine = hft.EventArbitrageEngine(
+        rules(), risk(), None, (), mechanical_demo_smoke=True
+    )
+    update_pair(engine, "0", 1)
+    first = engine.evaluate(D("0"))
+    assert first is not None
+    assert first.quantity_base > 0
+    assert first.first_venue in (first.long_venue, first.short_venue)
+    assert engine.mechanical_intents_emitted == 1
+    assert "event_model_missing" not in engine.reject_reasons
+
+    # Before the entry commits, later books re-price the bounded pair (for
+    # example while the account-risk gate waits for a fresh snapshot).
+    update_pair(engine, ".25", 2)
+    second = engine.evaluate(D(".25"))
+    assert second is not None
+    assert engine.mechanical_intents_emitted == 2
+
+    # Once the pair starts, the mechanical branch never emits again.
+    engine.note_mechanical_pair_started()
+    update_pair(engine, ".5", 3)
+    assert engine.evaluate(D(".5")) is None
+    assert engine.mechanical_intents_emitted == 2
+
+    snapshot = engine.snapshot()
+    assert snapshot["mechanical_demo_smoke"] == {
+        "enabled": True,
+        "intents_emitted": 2,
+        "entry_committed": True,
+        "bypassed_gates": [
+            "event_path_models",
+            "markout_gate",
+            "net_edge",
+            "opportunity_lifetime",
+        ],
+        "boundary": "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
+    }
+    assert snapshot["admission"]["status"] == "MECHANICAL_DEMO_SMOKE_OVERRIDE"
+
+
+def test_default_engine_without_models_still_fails_closed():
+    engine = hft.EventArbitrageEngine(rules(), risk(), None, ())
+    for now, sequence in (("0", 1), (".25", 2), (".5", 3)):
+        update_pair(engine, now, sequence)
+        assert engine.evaluate(D(now)) is None
+    assert not engine.intents
+    assert engine.mechanical_intents_emitted == 0
+    assert engine.reject_reasons["event_model_missing"] >= 1
+    snapshot = engine.snapshot()
+    assert snapshot["admission"]["status"] == "FAIL_CLOSED"
+    assert snapshot["mechanical_demo_smoke"]["enabled"] is False
+    assert snapshot["mechanical_demo_smoke"]["bypassed_gates"] == []
+
+
+def test_strategy_binds_mechanical_demo_smoke_to_the_engine():
+    strategy = object.__new__(hft.CrossExchangeArbitrageStrategy)
+    strategy.p = SimpleNamespace(
+        rules=rules(),
+        risk=risk(),
+        venue_stats=None,
+        admission_models=(),
+        funding=explicit_funding(),
+        account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
+        mechanical_demo_smoke=True,
+    )
+    strategy.datas = [
+        SimpleNamespace(_name=hft.VENUE_SYMBOLS["okx"]),
+        SimpleNamespace(_name=hft.VENUE_SYMBOLS["binance"]),
+    ]
+    strategy.broker = SimpleNamespace(getvalue=lambda: 100)
+    hft.CrossExchangeArbitrageStrategy.__init__(strategy)
+    assert strategy.engine.mechanical_demo_smoke is True
+    assert strategy.engine.admission_models == {}
 
 
 def test_event_intent_uses_multilevel_vwap_and_marginal_prices():
@@ -1229,8 +1319,8 @@ def test_event_submit_uses_marginal_depth_price_and_capped_broker_deadlines(
     strategy._submit("okx", "buy", D(".01"), D("100"), "first", position_side="long")
 
     kwargs = submitted[0]
-    assert kwargs["price"] == D("100.2")
-    assert kwargs["size"] == D("1")
+    assert kwargs["price"] == float(D("100.2"))
+    assert kwargs["size"] == 1.0
     assert kwargs["execution_deadline_monotonic_ns"] == execution_deadline_ns
     assert kwargs["cancel_deadline_monotonic_ns"] == cancel_deadline_ns
     assert kwargs["cancel_deadline_monotonic_ns"] <= int(pair_deadline * D("1000000000"))
@@ -1464,6 +1554,12 @@ def test_account_level_loss_budget_requires_fresh_durable_fenced_ledger():
     strategy.p.account_risk_ledger = {**valid, "evidence_complete": False}
     assert strategy._account_loss_allows_entry() is False
     assert strategy.account_risk_status == "stale_or_unbound"
+    # A transient stale read (for example the store reporting its periodic
+    # refresh in progress) blocks that attempt only and must not latch the
+    # kill switch: a later fresh reading admits entry again.
+    assert strategy.account_loss_kill_switch is False
+    strategy.p.account_risk_ledger = {**valid}
+    assert strategy._account_loss_allows_entry() is True
 
     strategy = strategy_stub()
     strategy.p.account_risk_ledger = {

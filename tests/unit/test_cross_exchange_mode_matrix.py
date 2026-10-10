@@ -2376,6 +2376,36 @@ def test_rejected_event_demo_keeps_candidate_bound_model_gate(monkeypatch):
     assert store_calls == []
 
 
+def test_mechanical_demo_smoke_overrides_the_model_gate_only_with_the_explicit_flag(monkeypatch):
+    runner = next(row for row in RUNNERS if row.STRATEGY_ID == "012_2_event_driven_cross_exchange")
+    manifest_path = Path(runner.MANIFEST_PATH).resolve()
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", manifest_path)
+    store_calls = []
+
+    class _GatePassedError(Exception):
+        pass
+
+    def _store_after_gate(*_args, **_kwargs):
+        store_calls.append("store")
+        raise _GatePassedError("gate passed")
+
+    monkeypatch.setattr(runner, "_build_store_impl", _store_after_gate)
+
+    # The explicit mechanical flag admits the bounded smoke past the research
+    # path-model gate: the store builder is reached (and then aborts this
+    # offline test before any provider access).
+    with pytest.raises(_GatePassedError):
+        runner._run_network_impl(
+            "demo",
+            runner.load_config()["run_timeout_seconds"],
+            manifest_path=manifest_path,
+            allow_rejected_demo_simulation=True,
+            mechanical_demo_smoke=True,
+        )
+
+    assert store_calls == ["store"]
+
+
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_run_network_rejects_non_demo_preflight_before_store(runner, monkeypatch):
     manifest = json.loads(Path(runner.MANIFEST_PATH).read_text(encoding="utf-8"))

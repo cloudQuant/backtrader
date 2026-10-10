@@ -1183,6 +1183,71 @@ def test_broker_stop_cannot_pass_before_sdk_recovery_completion(monkeypatch):
     assert completed_summary["status"] == "PASS"
 
 
+def test_broker_stop_retries_the_final_reconcile_until_flat(monkeypatch):
+    broker_holder = {}
+    deliveries = [{"flat": False}, {"flat": True}]
+    calls = []
+
+    def enqueue_reconcile():
+        calls.append("reconcile")
+        if deliveries:
+            broker_holder["broker"]._last_reconcile_result = deliveries.pop(0)
+        return {"queued": True}
+
+    store = SimpleNamespace(
+        uses_async_commands=True,
+        is_connected=True,
+        freeze_openings=lambda _reason: None,
+        enqueue_reconcile=enqueue_reconcile,
+        stop=lambda timeout=None: {"shutdown_state": "PASS"},
+    )
+    broker = BtApiBroker(store=store)
+    broker_holder["broker"] = broker
+    broker._live_started = True
+    monkeypatch.setattr(
+        broker,
+        "_reconcile_proves_flat",
+        lambda result: bool(isinstance(result, dict) and result.get("flat")),
+    )
+
+    summary = broker.stop()
+
+    # The first snapshot raced a just-completed close; the bounded retry
+    # within the shutdown budget proved flat instead of failing the stop.
+    assert calls == ["reconcile", "reconcile"]
+    assert summary["remote_flat_proven"] is True
+    assert summary["reason"] == "remote_flat_proven"
+    assert summary["status"] == "PASS"
+
+
+def test_broker_stop_bounds_the_reconcile_retries_without_a_clean_proof(monkeypatch):
+    broker_holder = {}
+    calls = []
+
+    def enqueue_reconcile():
+        calls.append("reconcile")
+        broker_holder["broker"]._last_reconcile_result = {"flat": False}
+        return {"queued": True}
+
+    store = SimpleNamespace(
+        uses_async_commands=True,
+        is_connected=True,
+        freeze_openings=lambda _reason: None,
+        enqueue_reconcile=enqueue_reconcile,
+        stop=lambda timeout=None: {"shutdown_state": "PASS"},
+    )
+    broker = BtApiBroker(store=store)
+    broker_holder["broker"] = broker
+    broker._live_started = True
+    monkeypatch.setattr(broker, "_reconcile_proves_flat", lambda _result: False)
+
+    summary = broker.stop()
+
+    assert len(calls) == 3
+    assert summary["remote_flat_proven"] is False
+    assert summary["status"] == "INCOMPLETE"
+
+
 class _ObservationOnlyStore:
     """Managed-SDK double with pre-existing external account state."""
 

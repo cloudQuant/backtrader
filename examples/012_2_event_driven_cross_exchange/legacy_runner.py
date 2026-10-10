@@ -1875,6 +1875,7 @@ def _run_network_impl(
     preflight=False,
     manifest_path=MANIFEST_PATH,
     allow_rejected_demo_simulation=False,
+    mechanical_demo_smoke=False,
 ):
     """Run a shadow, paper-live or demo session against the live venues.
 
@@ -1946,9 +1947,18 @@ def _run_network_impl(
                 shutdown_seconds,
             )
     if mode in {"paper-live", "demo"} and not preflight and not admission_models:
-        raise RunnerConfigurationError(
-            "execution requires immutable direction/first-venue/fee/depth/latency path models"
+        mechanical_override = bool(
+            mechanical_demo_smoke
+            and mode == "demo"
+            and isinstance(admission, Mapping)
+            and admission.get("operator_override") is True
         )
+        if not mechanical_override:
+            raise RunnerConfigurationError(
+                "execution requires immutable direction/first-venue/fee/depth/latency path models"
+            )
+        admission["path_models"] = "MECHANICAL_DEMO_SMOKE_OVERRIDE_NO_RESEARCH_MODELS"
+        admission["mechanical_demo_smoke"] = True
     store = None
     report = None
     store_health = None
@@ -2118,6 +2128,9 @@ def _run_network_impl(
                 admission_models=admission_models,
                 execution_enabled=mode != "shadow",
                 shadow=mode == "shadow",
+                mechanical_demo_smoke=bool(
+                    mechanical_demo_smoke and mode == "demo"
+                ),
             )
             if approval_lease is not None:
                 expires_at = datetime.fromisoformat(approval_lease["expires_at"][:-1] + "+00:00")
@@ -2231,6 +2244,12 @@ def _run_network_impl(
                 "approval_lease_status": approval_lease_status,
                 "paper_flatness": paper_flatness,
                 "profitability_claim": "NONE_OBSERVATIONAL_ONLY",
+                "mechanical_demo_smoke": bool(mechanical_demo_smoke and mode == "demo"),
+                "boundary": (
+                    "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+                    if mechanical_demo_smoke and mode == "demo"
+                    else None
+                ),
             }
             report.update(metrics)
     except Exception as exc:
@@ -2331,7 +2350,11 @@ def _run_network_impl(
             and lease_safe
         )
         report["status"] = (
-            "DEMO_EXECUTION_PASS"
+            (
+                "MECHANICAL_DEMO_SMOKE_PASS"
+                if mechanical_demo_smoke
+                else "DEMO_EXECUTION_PASS"
+            )
             if demo_safe
             else ("INCOMPLETE_INSUFFICIENT_SAMPLE" if report["fills"] == 0 else "INCOMPLETE")
         )

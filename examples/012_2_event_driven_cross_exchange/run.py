@@ -238,9 +238,11 @@ def run_live(args) -> int:
             pass
 
     try:
-        # This candidate has no mechanical-smoke instrument (that path exists
-        # only for 012_1); demo runs the bounded event engine under the
-        # operator-acknowledged local lease.
+        # The mechanical smoke runs one bounded, real-priced pair through the
+        # event engine while explicitly bypassing the research admission gates
+        # (event path models, markout tail, net edge, opportunity lifetime).
+        # It stays under the operator-acknowledged rejected-candidate local
+        # lease and is labelled MECHANICAL_DEMO_SMOKE_NOT_RESEARCH.
         report = legacy_runner._run_network_impl(
             mode="demo",
             duration=run_seconds,
@@ -249,6 +251,7 @@ def run_live(args) -> int:
             preflight=False,
             manifest_path=legacy_runner.REPO_CANONICAL_MANIFEST,
             allow_rejected_demo_simulation=True,
+            mechanical_demo_smoke=True,
         )
     except (legacy_runner.RunnerConfigurationError, legacy_runner.DemoApprovalError) as exc:
         summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})

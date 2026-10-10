@@ -1184,12 +1184,27 @@ class BtApiBroker(BrokerBase):
 
         reconcile = getattr(self.store, "enqueue_reconcile", None)
         self._last_reconcile_result = None
-        if callable(reconcile) and time.monotonic() < deadline:
-            receipt = reconcile()
-            if isinstance(receipt, dict) and receipt.get("queued") is True:
-                self._wait_and_drain(deadline)
+        result = None
+        if callable(reconcile):
+            attempts = 3
+            while attempts and time.monotonic() < deadline:
+                attempts -= 1
+                receipt = reconcile()
+                if isinstance(receipt, dict) and receipt.get("queued") is True:
+                    self._wait_and_drain(deadline)
+                candidate = self._last_reconcile_result
+                if candidate is not None:
+                    result = candidate
+                    if self._reconcile_proves_flat(result):
+                        break
+                if not uncertain and time.monotonic() < deadline:
+                    # A final snapshot can race the terminal confirmation of
+                    # an order that closed during this shutdown (its next
+                    # reconciliation poll has not ticked yet).  Re-enqueue a
+                    # bounded retry within the remaining budget instead of
+                    # failing the flat proof on the first snapshot.
+                    time.sleep(min(0.25, max(0.0, deadline - time.monotonic())))
 
-        result = self._last_reconcile_result
         flat_proven = result is not None and self._reconcile_proves_flat(result)
         remote_open_orders = result.get("open_orders") if isinstance(result, dict) else None
         remote_positions = result.get("positions") if isinstance(result, dict) else None

@@ -352,6 +352,7 @@ class EventArbitrageEngine:
         risk: EventDrivenRisk,
         venue_stats: Optional[Mapping[str, VenueExecutionStats]] = None,
         admission_models: Optional[Iterable[EventPathQualification]] = None,
+        mechanical_demo_smoke: bool = False,
     ):
         """Bind rules, risk, venue statistics and indexed admission models."""
 
@@ -359,6 +360,13 @@ class EventArbitrageEngine:
             raise ValueError("rules must contain okx and binance")
         self.rules = dict(rules)
         self.risk = risk
+        # The mechanical demo smoke emits one bounded, real-priced pair while
+        # explicitly bypassing the research admission gates.  It exists only
+        # under the operator-acknowledged mechanical boundary and never
+        # substitutes for the event path model admission.
+        self.mechanical_demo_smoke = bool(mechanical_demo_smoke)
+        self.mechanical_intents_emitted = 0
+        self.mechanical_entry_committed = False
         self.venue_stats = {
             venue: (venue_stats or {}).get(venue, VenueExecutionStats()) for venue in VENUE_SYMBOLS
         }
@@ -610,6 +618,69 @@ class EventArbitrageEngine:
             return None
         return model
 
+    def _mechanical_smoke_intent(self, now: Decimal) -> Optional[EventIntent]:
+        """Emit the single bounded mechanical pair for the demo smoke boundary.
+
+        The intent is priced from the current real books and fee rules with
+        the same executable-VWAP machinery, but it deliberately bypasses the
+        research admission gates (event path models, markout tail, net edge
+        and opportunity lifetime).  It is labelled non-research in the engine
+        snapshot and never substitutes for the event path model admission.
+        """
+        candidates = []
+        for buy_venue, sell_venue in (("okx", "binance"), ("binance", "okx")):
+            calculated = self._cost(buy_venue, sell_venue, now)
+            if calculated is None:
+                continue
+            quantity, buy, sell, exit_sell, exit_buy, cost = calculated
+            candidates.append(
+                (
+                    cost.expected_net,
+                    buy_venue,
+                    sell_venue,
+                    quantity,
+                    buy,
+                    sell,
+                    exit_sell,
+                    exit_buy,
+                    cost,
+                )
+            )
+        if not candidates:
+            self.reject("mechanical_smoke_no_pricing")
+            return None
+        _, buy_venue, sell_venue, quantity, buy, sell, exit_sell, exit_buy, cost = max(candidates)
+        intent = EventIntent(
+            long_venue=buy_venue,
+            short_venue=sell_venue,
+            first_venue=self._first_venue(buy_venue, sell_venue, quantity),
+            quantity_base=quantity,
+            buy_price=buy.price,
+            sell_price=sell.price,
+            opportunity_lifetime=Decimal(0),
+            cost=cost,
+            created_at=now,
+            entry_buy=buy,
+            entry_sell=sell,
+            exit_sell_preview=exit_sell,
+            exit_buy_preview=exit_buy,
+        )
+        self.intents.append(intent)
+        self.mechanical_intents_emitted += 1
+        return intent
+
+    def note_mechanical_pair_started(self) -> None:
+        """Commit the bounded mechanical pair once its entry attempt begins.
+
+        Until this commit the mechanical branch may re-emit with fresh
+        pricing on later books (for example while the account-risk gate is
+        still waiting for its first fresh snapshot); after the commit the
+        engine never emits another mechanical intent, so one smoke run
+        performs at most one round trip.
+        """
+
+        self.mechanical_entry_committed = True
+
     def _markout_series(self, horizon: str, route_key: str):
         return self.markouts[horizon].setdefault(route_key, deque(maxlen=4096))
 
@@ -712,6 +783,8 @@ class EventArbitrageEngine:
             self.opportunity_path_key = None
             self.opportunity_started = None
             return None
+        if self.mechanical_demo_smoke and not self.mechanical_entry_committed and self.active_pair is None:
+            return self._mechanical_smoke_intent(now)
         candidates = []
         for buy_venue, sell_venue in (("okx", "binance"), ("binance", "okx")):
             calculated = self._cost(buy_venue, sell_venue, now)
@@ -1062,12 +1135,32 @@ class EventArbitrageEngine:
             "cost_breakdowns": [cost.as_dict() for cost in self.cost_history],
             "reject_reasons": dict(self.reject_reasons),
             "admission": {
-                "status": "BOUND_MODELS_AVAILABLE" if self.admission_models else "FAIL_CLOSED",
+                "status": (
+                    "MECHANICAL_DEMO_SMOKE_OVERRIDE"
+                    if self.mechanical_demo_smoke
+                    else ("BOUND_MODELS_AVAILABLE" if self.admission_models else "FAIL_CLOSED")
+                ),
                 "configured_path_p99_is_evidence": False,
                 "models": [
                     model.as_dict()
                     for _, model in sorted(self.admission_models.items(), key=lambda item: item[0])
                 ],
+            },
+            "mechanical_demo_smoke": {
+                "enabled": self.mechanical_demo_smoke,
+                "intents_emitted": self.mechanical_intents_emitted,
+                "entry_committed": self.mechanical_entry_committed,
+                "bypassed_gates": (
+                    [
+                        "event_path_models",
+                        "markout_gate",
+                        "net_edge",
+                        "opportunity_lifetime",
+                    ]
+                    if self.mechanical_demo_smoke
+                    else []
+                ),
+                "boundary": "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
             },
             "markouts_quote": serialized_markouts,
             "markout_observations": serialized_observations,
@@ -1150,6 +1243,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         ("account_risk_ledger", None),
         ("execution_enabled", True),
         ("shadow", False),
+        ("mechanical_demo_smoke", False),
     )
 
     def __init__(self):
@@ -1166,6 +1260,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             self.risk,
             self.p.venue_stats,
             self.p.admission_models,
+            mechanical_demo_smoke=bool(self.p.mechanical_demo_smoke),
         )
         self.feeds = {
             SYMBOL_VENUES[data._name]: data for data in self.datas if data._name in SYMBOL_VENUES
@@ -1239,6 +1334,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         state.setdefault("_reconcile_request_active", False)
         state.setdefault("_last_risk_generation", 0)
         state.setdefault("_last_risk_fencing_epoch", 0)
+        state.setdefault("_last_kill_switch_check", Decimal("-Infinity"))
         state.setdefault("account_loss_kill_switch", False)
         state.setdefault("account_risk_status", "not_checked")
         state.setdefault("funding_evidence_status", "not_observed")
@@ -1571,7 +1667,10 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             or as_of > now_ns
         ):
             self.account_risk_status = "stale_or_unbound"
-            self.account_loss_kill_switch = True
+            # A transient stale read (for example the store reporting its
+            # periodic refresh in progress) blocks this attempt only; it must
+            # not latch the kill switch, or one refresh window would freeze
+            # entries for the rest of the run.
             self.engine.reject("account_risk_ledger_stale")
             return False
         try:
@@ -1852,20 +1951,23 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         if self.pair_state is not None:
             return
         if self.engine.active_pair is not None:
-            if (
-                self.p.execution_enabled
-                and not self.p.shadow
-                and not self._account_loss_allows_entry()
-            ):
-                active = self.engine.active_pair
-                self._begin_flatten(
-                    {
-                        active.intent.long_venue: ("long", active.quantity_base),
-                        active.intent.short_venue: ("short", active.quantity_base),
-                    },
-                    "account_loss_kill_switch",
-                )
-                return
+            if self.p.execution_enabled and not self.p.shadow:
+                now_value = self._now()
+                # The kill switch is a slow safeguard: reading the risk
+                # ledger on every book keeps the store's refresh lane busy
+                # and its refresh windows reject risk-reduction submits.
+                if now_value - self._last_kill_switch_check >= Decimal("2.0"):
+                    self._last_kill_switch_check = now_value
+                    if not self._account_loss_allows_entry():
+                        active = self.engine.active_pair
+                        self._begin_flatten(
+                            {
+                                active.intent.long_venue: ("long", active.quantity_base),
+                                active.intent.short_venue: ("short", active.quantity_base),
+                            },
+                            "account_loss_kill_switch",
+                        )
+                        return
             reason = self._funding_exit_reason() or self.engine.exit_reason(book.receive_time)
             if reason and self.p.execution_enabled and not self.p.shadow:
                 active = self.engine.active_pair
@@ -1887,6 +1989,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self._ensure_runtime_state()
         self._cycle_id += 1
         self.remote_flat_proven = False
+        self.engine.note_mechanical_pair_started()
         first_side = "buy" if intent.first_venue == intent.long_venue else "sell"
         first_price = (
             intent.entry_buy.marginal_price
@@ -2053,8 +2156,10 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self._advance_reconcile_fence()
         kwargs = {
             "data": self.feeds[venue],
-            "size": native,
-            "price": rule.quantize_price(limit_price, side),
+            # The Backtrader order pipeline is float-based; the normalized
+            # SDK submit boundary re-quantizes these values.
+            "size": float(native),
+            "price": float(rule.quantize_price(limit_price, side)),
             "exectype": bt.Order.Limit,
             "time_in_force": "IOC",
             "position_side": position_side,

@@ -148,10 +148,10 @@
         "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
-      "runner_sha256": "d60aebb5b358b235480fb8eab1015376b051ea47b88d5f8291c7d57e95d2e1c7",
-      "strategy_sha256": "edbdf1f2c3df64106b5a2acec5e1f300b3c6daec58115a87754ec88fb82ad0db",
+      "runner_sha256": "3ea1a5e2ba2576a27e7aefe798999e0f53bb9f6347d18fe7c8a994856dfccc7a",
+      "strategy_sha256": "f14ae752dbbdd9fde856ca55c61a757990e879f1782a5d2cedf6a510a990c76a",
       "config_sha256": "eaea93b75bcfc35320254bebc042d9e8f0c11e2ff6f708aa49c3ef028bb2c50a",
-      "candidate_sha256": "ee89816c266d4a539f5a0735bb1bec97097c4631afb241a5fcaba03b1e868513",
+      "candidate_sha256": "7803f7887e80683ce956062469c29e1a4ac6313f2f8f51def67c47c17a1a8f07",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,

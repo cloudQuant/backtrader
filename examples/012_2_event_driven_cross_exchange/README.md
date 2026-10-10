@@ -38,9 +38,12 @@ python -m examples.012_2_event_driven_cross_exchange.run --live --allow-write --
 ## Demo 准入语义
 
 - 候选为 RESEARCH_REJECTED 且无签名 demo 审批租约 → 仅开放 operator 确认的
-  **本地有界 Demo 会话**（`--mechanical-smoke` 仅作显式确认开关；本候选没有
-  012_1 的"机械配对"工具，事件引擎在 180s 有界窗口内按自身条件运行并受
-  风险/查询对账约束）；
+  **本地有界 Demo 机械冒烟**：`--mechanical-smoke` 以真实买卖盘与费率定价发出
+  单个有界机械配对，显式绕过研究准入门（event_path_models / markout 尾部 /
+  净边际 / 机会寿命），并在引擎快照与报告中标注
+  `MECHANICAL_DEMO_SMOKE_OVERRIDE`（边界 `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH`）；
+- 常规 demo/paper-live 仍强制要求非空 `event_path_models`——该研究准入在机械
+  冒烟之外保持 fail-closed，不因本开关放宽；
 - 无 `--allow-write` / 无 `--mechanical-smoke` 一律 fail-closed；
 - 命令运行限定在仓库内（demo 需 canonical manifest 绑定），不复制目录运行。
 
