@@ -169,5 +169,9 @@ SimNow 服务于当日下午回归后，watcher v3 以周一逐字命令在 7x24
   正式验收**，但本次已把"修复后完整往返"的市场侧不确定性降到最低。
 - 对照：同日 013_3 彩排（`live-20261010T084209Z-54afd472`，1356.8s）按 7x24 预期
   零单（`no_fill_round_trip`，`quote:invalid_lower_limit ×1245` = 7x24 无涨跌停价，
-  账户 flat）；其收尾 `RECOVERING/drain_reconciliation_required` 在 fills=0 场景下
-  未达 STOPPED_FLAT，周一时段内正式跑留意；若再现按"遗留开放风险"节判定。
+  账户 flat）；其收尾 `RECOVERING/drain_reconciliation_required` 经复盘为**收尾时序
+  产物而非 livelock**：窗口到点（1200s）后才进入 DRAINING→RECOVERING，进程退出前的
+  收尾阶段 idle 泵不再供给 tick，策略自身的 30s `reconciliation_timeout_seconds`
+  （`_begin_reconciliation` 一次性起点、重试不重置）没有机会触发 MANUAL_INTERVENTION。
+  周一有成交的正式跑在窗口内早期进入 drain（余量充分）预期正常达 STOPPED_FLAT；
+  无成交跑本身即为 FAIL/no_fill_round_trip，终态名不再是判据。无需代码改动。
