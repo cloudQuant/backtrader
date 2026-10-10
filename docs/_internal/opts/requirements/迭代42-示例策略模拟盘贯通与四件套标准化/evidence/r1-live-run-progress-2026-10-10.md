@@ -181,16 +181,21 @@ ruff 干净；CLI dry/replay 绿。周一 013_3 若完成完整往返，drain �
 `STOPPED_FLAT`（若对账轮本身仍无法完成，将按其有界超时进入明确的
 `MANUAL_INTERVENTION`，不再是无定义的 RECOVERING 滞留）。
 
-### 遗留开放风险：对账轮在 registered-sim store 上的未实证性（2026-10-10 午后审计）
+### 遗留开放风险：对账轮在 registered-sim store 上的未实证性（2026-10-10 午后审计，当日晚间静态收敛）
 
 - 事实链：drain 对账经 `broker.request_ctp_reconciliation` → `store.enqueue_ctp_reconciliation`
   → worker 执行 `get_ctp_reconciliation_snapshot` → **`_build_ctp_query_snapshot`（框架查询快照
-  机）**；而 013_3 预检全程用的是 store 自有的 `registered_sim_query`（直接 `api.query_<family>`
-  + 有界重试，已在真实前置实证）。两条查询实现的**结果语义**（`request_id`/`is_last_seen`/
-  `unsupported` 等字段）是否完全一致，**未经真实运行验证**——7x24 的 `fd775f5b` 里该轮排队后
-  150s 宽限内无完成交付，可能即源于此（也可能只是无泵无重试所致，二者未分辨）。
+  机）**；而 013_3 预检用的是 store 自有的 `registered_sim_query`。**静态收敛结论（同日晚间）**：
+  两者**调用同一客户端方法与同族命名**——`registered_sim_query(family)` 执行
+  `api.query_<family>`，run.py 预检族为 `account_result/positions_result`；框架快照机的
+  query_specs 恰为 `query_account_result/query_positions_result/query_orders_result/
+  query_trades_result`（同 api 对象、同签名）。四条族的实证面比初判更广：预检已用
+  account/positions/orders 三族（run.py 351-353）、运行时 orders 持续同步
+  （`open_orders_sync_completed` ×656）、且 run.py 自身收尾对账块（967-970）在真实运行中
+  使用全部四族（`final_account/positions/orders/trades`）。剩余不确定性仅为：
+  四族在 5s 轮超时内串行完成的时延表现、以及框架侧关联逻辑对该客户端返回字段（request_id/
+  is_last_seen）的接受度。
 - 处理策略（不改代码，先测后修）：watcher v3 的 013_3 有界彩排带新泵跑完整 drain——
-  若对账轮能完成 → `STOPPED_FLAT`（风险消除）；若仍失败 → 证据将显示对账轮的具体错误
-  （worker 结果/完成通知），随后按 `registered_sim_query` 口径补 store 级对账快照实现
-  （离线开发 + 单测，真实验证留待标准前置时段）。**不盲改**：星期日前无真实前置可验证，
-  盲目改 store 内部比"带泵+有界超时终端"更危险。
+  若对账轮能完成 → `STOPPED_FLAT`（风险消除）；若仍失败 → 证据将显示具体错误，再按
+  `registered_sim_query` 口径补 store 级对账快照（离线开发 + 单测，真实验证留待标准前置
+  时段）。**不盲改**：星期日前无真实前置可验证，且静态上该方法族已被大规模实证。
