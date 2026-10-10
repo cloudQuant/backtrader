@@ -27,12 +27,12 @@
 
 | 序 | 示例 | 建议窗口（北京） | 命令（示例目录内执行） |
 | --- | --- | --- | --- |
-| 1 | 013_3 SA 写 drill | 09:00 开盘后立即启动（CZCE 日盘 09:00–11:30） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
-| 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `python run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 120 --drill-window-seconds 1500` |
-| 3 | 014_2 SA 期权观察（零写） | 10:50 起（上午盘内，900s 窗口） | `python run.py --live --run-seconds 900` |
-| 4 | 015 FG 期权观察（零写） | 11:10 起（上午盘内，300s 窗口） | `python run.py --live --run-seconds 300` |
-| 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
-| 6 | 013_2 rb 写 drill | 21:05 启动（SHFE 夜盘 21:00–23:00） | `python run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
+| 1 | 013_3 SA 写 drill | 09:00 开盘后立即启动（CZCE 日盘 09:00–11:30） | `C:/anaconda3/python.exe run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1500 --drill-warmup-bars 8` |
+| 2 | 014_1 SA 期权三腿写 drill | 09:55 起（同日上午盘） | `C:/anaconda3/python.exe run.py --live --allow-write --drill --run-seconds 3000 --drill-delay-seconds 120 --drill-window-seconds 1500` |
+| 3 | 014_2 SA 期权观察（零写） | 10:50 起（上午盘内，900s 窗口） | `C:/anaconda3/python.exe run.py --live --run-seconds 900` |
+| 4 | 015 FG 期权观察（零写） | 11:10 起（上午盘内，300s 窗口） | `C:/anaconda3/python.exe run.py --live --run-seconds 300` |
+| 5 | 013_1 m/RM 写 drill | 13:35 启动（DCE 午后盘 13:30–15:00） | `C:/anaconda3/python.exe run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
+| 6 | 013_2 rb 写 drill | 21:05 启动（SHFE 夜盘 21:00–23:00） | `C:/anaconda3/python.exe run.py --live --allow-write --drill --drill-side long --run-seconds 2700 --drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8` |
 
 - 每次 run 结束（含 drain）后再启动下一个；同一账户串行。
 - 标准前置仅交易时段 TCP 可达。选择器为**会话感知**排序（`_session_rank`，R1 起设计，
