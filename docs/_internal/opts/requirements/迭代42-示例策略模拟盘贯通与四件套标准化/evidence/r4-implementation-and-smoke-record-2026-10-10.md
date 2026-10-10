@@ -90,3 +90,13 @@ Monday 013_1 窗口放宽为 delay 1200 / window 1200。
 drill-only（窗外一律 `engineering_trigger_not_reached`，无自然路径）✓ 无竞态；014_1 自然
 z/score 门要求 `len(history) ≥ window` 根 15 分钟 bar（live 单会话不可能满足）→ drill 是
 唯一可行入口 ✓ 无竞态；014_2/015 观察层无订单。仅 013_1/013_2 存在并被修复。
+
+## 追加：013_1 7x24 彩排尝试的干净 BLOCKED（2026-10-10 17:25 北京）
+
+以周一同命令逐字在 7x24 发起 013_1 跨所 drill（意图为提前实盘验证 DCE+CZCE 双臂切换）：
+运行 `live-20261010T092544Z-690c9c80` → **BLOCKED / `no_admissible_front_pair`**。
+失败细节持久化（`3e9d05d92`）直接给出归因：唯一可达 pair（index 4、7x24、407ms、
+whitelisted）通过 TCP 与准入后，在合约清单层缺 `CZCE RM612`（`instrument_not_found`）；
+**零写入、账户未动**。结论：7x24 前置全量合约不完整的既有环境事实使 **013_1 无法在
+7x24 彩排**（RM 此前夜间查询亦同样缺失），非代码缺陷；正式验收只能走周一 CZCE 日盘
+standard 前置（步骤 5，命令与判据不变）。该事件同时验证了前选失败细节持久化特性可用。
