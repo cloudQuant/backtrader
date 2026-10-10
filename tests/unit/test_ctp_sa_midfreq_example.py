@@ -5841,3 +5841,27 @@ def test_run_live_wires_live_tick_provenance_before_the_feed():
     )
     assert '"generation": live_generation' in source
     assert '"session_segment": live_session_segment' in source
+
+
+def test_run_live_pumps_notify_idle_through_the_drain_grace():
+    """The SA strategy's supervision loop must be pumped by the live entry.
+
+    Evidence: every 013_3 live run so far ended ``RECOVERING /
+    drain_reconciliation_required``; the strategy's reconciliation retry,
+    timeout and drain-completion transitions live in ``notify_idle``, which
+    ticking live feeds never call implicitly, so the bounded drain
+    reconciliation could not complete in-run.
+    """
+
+    source = (EXAMPLE / "run.py").read_text(encoding="utf-8")
+    assert "def _idle_pump()" in source
+    assert "strategy.notify_idle()" in source
+    # The pump starts before the blocking run and is joined afterwards.
+    assert source.index("idle_thread.start()") < source.index("cerebro.run()")
+    assert "idle_thread.join(timeout=2.0)" in source
+    # It must survive the duration stop (which latches control.stop_reason)
+    # and only stop on the engine's own stop event or the hard deadline.
+    pump = source[source.index("def _idle_pump()") : source.index("def _watchdog()")]
+    assert "while not control.stop_reason" not in pump
+    assert "_event_stop" in pump
+    assert "hard_deadline" in pump

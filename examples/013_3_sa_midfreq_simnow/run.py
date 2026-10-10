@@ -840,6 +840,40 @@ def run_live(args) -> int:
         signal.signal(signal.SIGINT, lambda *_a: control.request_stop("operator_sigint"))
         signal.signal(signal.SIGTERM, lambda *_a: control.request_stop("operator_sigterm"))
 
+        def _strategy_instance():
+            runstrats = getattr(cerebro, "runstrats", None) or []
+            if runstrats and runstrats[0]:
+                return runstrats[0][0]
+            return None
+
+        def _idle_pump() -> None:
+            # The SA strategy's supervision loop (reconciliation retries,
+            # stale-quote timeouts and the bounded drain reconciliation) is
+            # driven by notify_idle; live feeds with ticking quotes never
+            # trigger it implicitly, so this pump is what lets the drain
+            # reach STOPPED_FLAT in-run instead of stalling in RECOVERING.
+            # It intentionally ignores ``control.stop_reason``: the duration
+            # stop latches there first, and the pump must keep running
+            # through the drain grace until the engine itself stops.
+            hard_deadline = (
+                deadline_mono
+                + float(timeouts.get("drain_seconds") or 120.0)
+                + 2.0 * float(timeouts.get("stop_seconds") or 12.0)
+            )
+            while True:
+                if time.monotonic() >= hard_deadline:
+                    return
+                stop_event = getattr(getattr(cerebro, "_event_stop", None), "is_set", None)
+                if callable(stop_event) and stop_event():
+                    return
+                strategy = _strategy_instance()
+                if strategy is not None:
+                    try:
+                        strategy.notify_idle()
+                    except Exception:
+                        pass
+                time.sleep(1.0)
+
         def _watchdog() -> None:
             while True:
                 now = time.monotonic()
@@ -872,7 +906,9 @@ def run_live(args) -> int:
                 pass
 
         watchdog = threading.Thread(target=_watchdog, name="sa-run-watchdog", daemon=True)
+        idle_thread = threading.Thread(target=_idle_pump, name="sa-run-idle-pump", daemon=True)
         watchdog.start()
+        idle_thread.start()
         summary["status"] = "RUNNING"
         _write_summary()
         run_error = None
@@ -882,6 +918,7 @@ def run_live(args) -> int:
             run_error = f"{type(exc).__name__}: {exc}"
         finally:
             watchdog.join(timeout=2.0)
+            idle_thread.join(timeout=2.0)
             signal.signal(signal.SIGINT, previous_sigint)
             signal.signal(signal.SIGTERM, previous_sigterm)
             control.request_stop("run_finished")
