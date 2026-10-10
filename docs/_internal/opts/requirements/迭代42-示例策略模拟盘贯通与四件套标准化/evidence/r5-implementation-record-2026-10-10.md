@@ -146,3 +146,11 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
   周一会话影响：步骤 1–5（日盘窗口）期望 standard；**步骤 6（21:05 夜盘）将选中 7x24**
   （#6 双腿原生成交即在该前端；§2 验收判据与前端无关，receipt 入证据）。计划两处措辞
   已同步修正。
+- **前选失败细节持久化（`3e9d05d92`）**：上述 BLOCKED 复盘发现 `SimNowDirectError` 落入
+  通用 handler，run.json 只留 `"SimNowDirectError: no_front_pair_eligible"`——逐 pair 探测
+  样本（细节）丢失，故障归因需人工重探。六个 live 入口（013_1/013_2/013_3/014_1/014_2/015）
+  统一新增专用 `except simnow_direct.SimNowDirectError` 分支，把 `reason` + `details`
+  写入 summary/run.json。回归：013_1/013_2 以假 simnow_direct 模块驱动真实 `run_live`
+  断言 run.json 保留裸 reason、逐 pair 拒绝原因与样本数；六入口另加源一致性守卫
+  （专用分支唯一且先于通用 handler）。验证：新聚焦 8 通过；六套件 266 通过（唯一失败为
+  既有环境基线 `test_receipt_rejects_critical_runtime_identity_drift`）；ruff 干净。
