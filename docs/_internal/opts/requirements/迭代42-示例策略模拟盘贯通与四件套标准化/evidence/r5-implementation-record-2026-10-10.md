@@ -111,3 +111,19 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
   标准前置时段为准**（#6 已证明全链可达成交层）。
 
 订单账本持久化（`strategy_order_ledger`）是本轮四层定位的关键工具，已入 013_2 run.py。
+
+### 后续审计：014_1 同患修复 + 策略级双开双平回归补全（2026-10-10）
+
+- **014_1 同患确认与修复**：审计 014_1 时确认 `ctp_options_lowfreq_strategy.py` 的
+  `_submit_next_leg` 只保留单一映射（sell→short），而 `_start_exit` 会把三腿方向反转后
+  置 `_state="EXITING"`——与 013_1/013_2 完全同类的第 6 层缺陷（014_1 的周一写入 drill
+  会走同一平仓路径，必须先行修复）。修复为按 `_state == "EXITING"` 反向映射
+  （sell 平多=long、buy 平空=short），与 `exit_offset` 同步生效。
+- **回归补全**：e5ec6ebc7 的提交信息曾声称"strategy-level regression"，但实际只落了
+  GFD 与 store 证据两项测试。本轮补上真正的策略级回归——两个 harness 分别驱动
+  013_1/013_2 与 014_1 的真实提交路径并断言
+  `(side, position_side, offset)` 四元组：开仓 `buy/long/open`、`sell/short/open`；
+  平仓 `sell/long/close{,_today}`、`buy/short/close{,_today}`。014_2/015 无
+  `position_side`（observation tier，无写路径），审计确认无同患。
+- **验证**：pair+options_lowfreq 68 通过；options tier + multiarm 109 通过；ruff 三个
+  改动文件干净；014_1 仅此一份策略文件（无 vendored 副本），回放测试全绿。

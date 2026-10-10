@@ -579,3 +579,57 @@ def test_pair_live_entries_bind_gfd_for_the_direct_ctp_lane(
     assert "time_in_force=str(self.p.time_in_force)" in strategy_source
     run_source = (directory / "run.py").read_text(encoding="utf-8")
     assert 'params["time_in_force"] = "GFD"' in run_source
+
+
+def _dual_side_submit_harness(strategy_class):
+    """Minimal strategy harness that exercises the real ``_submit`` kwargs."""
+    strategy = object.__new__(strategy_class)
+    strategy.p = SimpleNamespace(broker_position_mode="dual_side", time_in_force="GFD")
+    strategy.close_offsets = {"leg": "close"}
+    strategy._limit = lambda symbol, side: 100.0
+    strategy._now = lambda: 0.0
+    strategy._mark_trade_logger_context_dirty = lambda: None
+    strategy.getdatabyname = lambda symbol: object()
+    calls = []
+
+    def _capture(name):
+        def _submit(**kwargs):
+            calls.append((name, kwargs))
+            return SimpleNamespace(ref=len(calls))
+
+        return _submit
+
+    strategy.buy = _capture("buy")
+    strategy.sell = _capture("sell")
+    return strategy, calls
+
+
+@pytest.mark.parametrize("strategy_fixture", ("ex1", "ex2"))
+def test_pair_dual_side_legs_declare_the_position_each_order_touches(
+    request, strategy_fixture
+):
+    """Opening names the created side; closing names the reduced side.
+
+    Regression: the live rehearsal filled both entry legs and the exchange
+    then rejected the close leg with "Invalid dual-side order combination"
+    because the opening mapping was reused (sell -> short) with a close
+    offset.  A sell that closes a long must declare position_side=long.
+    """
+
+    module = request.getfixturevalue(strategy_fixture)
+    strategy, calls = _dual_side_submit_harness(module.PairArbitrageStrategy)
+
+    def _cycle(action, first_side, second_side):
+        strategy.current_pair = {"action": action, "order_refs": [], "last_submit": 0.0}
+        strategy._submit("leg", first_side, 1)
+        strategy._submit("leg", second_side, 1)
+
+    _cycle("open", "buy", "sell")
+    _cycle("close", "sell", "buy")
+
+    assert [(name, kwargs["position_side"], kwargs["offset"]) for name, kwargs in calls] == [
+        ("buy", "long", "open"),
+        ("sell", "short", "open"),
+        ("sell", "long", "close"),
+        ("buy", "short", "close"),
+    ]

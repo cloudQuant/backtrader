@@ -1084,8 +1084,13 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         order_kwargs: dict[str, Any] = {}
         if str(self.p.broker_position_mode) == "dual_side":
             # CTP positions are directional; the exact leg must be declared
-            # explicitly for every order under a dual-side ledger.
-            order_kwargs["position_side"] = "long" if leg["side"] == "buy" else "short"
+            # explicitly for every order under a dual-side ledger. Closing
+            # legs target the side opened at entry, so a sell that closes a
+            # long must declare position_side='long' (reversed mapping).
+            if self._state == "EXITING":
+                order_kwargs["position_side"] = "long" if leg["side"] == "sell" else "short"
+            else:
+                order_kwargs["position_side"] = "long" if leg["side"] == "buy" else "short"
         offset = self.p.exit_offset if self._state == "EXITING" else self.p.entry_offset
         if offset:
             order_kwargs["offset"] = str(offset)

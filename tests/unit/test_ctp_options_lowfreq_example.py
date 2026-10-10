@@ -452,3 +452,70 @@ def test_public_legacy_main_delegates_only_to_the_config_first_cli(monkeypatch, 
     monkeypatch.setattr(runner, "_run_config_first_cli", reject_legacy_arguments)
     assert runner.main(["--mode", "replay", "--output", "report.json"]) == 2
     assert calls == [("--mode", "replay", "--output", "report.json")]
+
+
+def test_dual_side_legs_declare_the_position_each_order_touches(monkeypatch, runner):
+    """Opening names the created side; closing names the reduced side.
+
+    Regression: a close leg reused the opening mapping (sell -> short) with a
+    close offset; the CTP dual-side validator rejects that combination
+    ("Invalid dual-side order combination"), exactly as observed on the live
+    rehearsal for the pair strategies.
+    """
+
+    strategy_type = runner.CtpOptionsLowfreqStrategy
+    strategy_module = sys.modules[strategy_type.__module__]
+    monkeypatch.setattr(
+        strategy_module, "execution_price_allowed", lambda *args, **kwargs: True
+    )
+
+    strategy = object.__new__(strategy_type)
+    strategy.p = SimpleNamespace(
+        broker_position_mode="dual_side",
+        entry_offset="open",
+        exit_offset="close_today",
+    )
+    strategy._state = "ENTERING"
+    strategy._leg_index = 0
+    strategy._pending_order = None
+    strategy._pending_order_ref = None
+    strategy._submission_in_flight = False
+    strategy._submitted_order_ids_by_leg = {}
+    strategy._terminal_order_refs = set()
+    strategy._execution_gate = lambda first_leg: True
+    strategy._record_possible_exposure = lambda leg: None
+    strategy._data_by_symbol = {"RB2701": object()}
+    strategy._last_price_envelopes = {"RB2701": {"mark": 3000.0}}
+    calls = []
+
+    def _capture(name):
+        def _submit(**kwargs):
+            calls.append((name, kwargs))
+            return SimpleNamespace(ref=len(calls))
+
+        return _submit
+
+    strategy.buy = _capture("buy")
+    strategy.sell = _capture("sell")
+
+    def _submit_leg(side):
+        strategy._planned_legs = [
+            {"symbol": "RB2701", "side": side, "size": 1, "price": 3000.0}
+        ]
+        strategy._leg_index = 0
+        strategy._pending_order = None
+        strategy._submission_in_flight = False
+        strategy._submit_next_leg()
+
+    _submit_leg("buy")
+    _submit_leg("sell")
+    strategy._state = "EXITING"
+    _submit_leg("sell")
+    _submit_leg("buy")
+
+    assert [(name, kwargs["position_side"], kwargs["offset"]) for name, kwargs in calls] == [
+        ("buy", "long", "open"),
+        ("sell", "short", "open"),
+        ("sell", "long", "close_today"),
+        ("buy", "short", "close_today"),
+    ]
