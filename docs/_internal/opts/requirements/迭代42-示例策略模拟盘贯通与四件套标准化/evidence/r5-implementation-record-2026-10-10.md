@@ -127,3 +127,22 @@ tick）→ `FAIL / no_fill_round_trip`（1951.8s 有界返回、run_error=null�
   `position_side`（observation tier，无写路径），审计确认无同患。
 - **验证**：pair+options_lowfreq 68 通过；options tier + multiarm 109 通过；ruff 三个
   改动文件干净；014_1 仅此一份策略文件（无 vendored 副本），回放测试全绿。
+
+### 选择器语义实证修正与 SimNow 停服窗口（2026-10-10 午后）
+
+- **背景**：为在周一前验证平仓映射修复后的完整往返，以周一逐字命令在 7x24 发起
+  013_2 彩排（session e24f94d8），干净 BLOCKED：`no_front_pair_eligible`——五个 pair
+  全部 0/3（TD/MD 双端），无写入。对照探测：外网正常（baidu 443 72ms）而
+  www.simnow.com.cn 超时、7x24 MD 端口 ConnectionRefused、其余 timeout →
+  **SimNow 全前端主机级停服/维护窗口**（时间相关事实，非代码缺陷）。
+  已置有界 watcher（`D:/temp/iter42_0132_watch_and_drill.py`，3h 上限、每分钟只探
+  7x24 双端、返回即在示例目录内自动发起同一条周一 drill 命令）等待服务回归。
+- **选择器语义实证修正**（覆盖 92d5a3378 的过度简化）：以伪造 `_probe_endpoint` 实证
+  `select_front_pair` 真实排序键 = `_session_rank → whitelist → 延迟中位数 → 配置顺序`。
+  `_session_rank` 为**会话感知**：CZCE 日盘窗口（09:00–10:15/10:30–11:30/13:30–15:00）
+  内 standard 优先；窗口外（含夜盘/周末）**7x24 优先**——实证：窗口外 standard 10ms vs
+  7x24 999ms 仍选 7x24；强制窗口内 11:00 则反向。该语义自 `eb3da84f3`（R1）起为
+  六副本一致设计（注释即写明 "outside it the always-on engineering front is preferred"）。
+  周一会话影响：步骤 1–5（日盘窗口）期望 standard；**步骤 6（21:05 夜盘）将选中 7x24**
+  （#6 双腿原生成交即在该前端；§2 验收判据与前端无关，receipt 入证据）。计划两处措辞
+  已同步修正。
