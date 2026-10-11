@@ -13,8 +13,8 @@ from typing import Any, Mapping
 
 import pytest
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
-adapter = importlib.import_module("examples.015_ctp_options_highfreq.engineering_smoke")
+runner = importlib.import_module("examples.unified.015_ctp_options_highfreq.legacy_runner")
+adapter = importlib.import_module("examples.unified.015_ctp_options_highfreq.engineering_smoke")
 
 RAW_CONFIG, _ = runner.load_config()
 DEFAULT_PROFILE = "simnow_first_group1"
@@ -255,7 +255,7 @@ def test_observation_seam_accepts_any_frozen_environment_key() -> None:
 # --- launcher wiring ------------------------------------------------------
 
 
-launcher = importlib.import_module("examples.015_ctp_options_highfreq.simnow_launcher")
+launcher = importlib.import_module("examples.unified.015_ctp_options_highfreq.simnow_launcher")
 
 _CREDENTIALS = {
     "CTP_USER_ID": "iter30-user",

@@ -47,24 +47,24 @@ _MANAGED_REPLAY_CAPABILITY_MODULES = (
     "bt_api_monitor",
 )
 ITERATION41_012_1_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "012_1_midfreq_cross_exchange" / "runtime"
+    SOURCE_ROOT / "examples" / "unified" / "012_1_midfreq_cross_exchange" / "runtime"
 )
 ITERATION41_012_1_STRATEGY_ID = "example.012_1.midfreq_cross_exchange"
 ITERATION41_012_2_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "012_2_event_driven_cross_exchange" / "runtime"
+    SOURCE_ROOT / "examples" / "unified" / "012_2_event_driven_cross_exchange" / "runtime"
 )
 ITERATION41_012_2_STRATEGY_ID = "example.012_2.event_driven_cross_exchange"
 ITERATION41_013_1_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "013_1_midfreq_cross_arbitrage" / "runtime"
+    SOURCE_ROOT / "examples" / "unified" / "013_1_midfreq_cross_arbitrage" / "runtime"
 )
 ITERATION41_013_1_STRATEGY_ID = "example.013_1.midfreq_cross_arbitrage"
 ITERATION41_013_2_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "013_2_highfreq_calendar_arbitrage" / "runtime"
+    SOURCE_ROOT / "examples" / "unified" / "013_2_highfreq_calendar_arbitrage" / "runtime"
 )
 ITERATION41_013_2_STRATEGY_ID = "example.013_2.highfreq_calendar_arbitrage"
 ITERATION41_013_3_STRATEGY_ID = "example.013_3.sa_midfreq_simnow"
 ITERATION41_013_3_CTP_PRIVATE_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
+    SOURCE_ROOT / "examples" / "unified" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
 )
 ITERATION41_013_3_CTP_PRIVATE_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.ctp_private"
 ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.managed_replay_l2"
@@ -84,15 +84,16 @@ ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_DIR = (
     PACKAGE_BACKTEST_FIXTURE_ROOT / "runtimes" / "local_backtest"
 )
 ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_ID = "backtrader.iteration41.local_backtest_fixture"
-ITERATION41_015_RUNTIME_DIR = SOURCE_ROOT / "examples" / "015_ctp_options_highfreq" / "runtime"
+ITERATION41_015_RUNTIME_DIR = SOURCE_ROOT / "examples" / "unified" / "015_ctp_options_highfreq" / "runtime"
 ITERATION41_015_STRATEGY_ID = "example.015.ctp_options_highfreq"
 ITERATION41_SAMPLE_RUNTIME_DIR = SOURCE_ROOT / "examples" / "sample" / "runtime"
 ITERATION41_SAMPLE_STRATEGY_ID = "example.sample.ctp_legacy"
-ITERATION41_007_CTP_RUNTIME_DIR = SOURCE_ROOT / "examples" / "007_ctp" / "runtime"
+ITERATION41_007_CTP_RUNTIME_DIR = SOURCE_ROOT / "examples" / "unified" / "007_ctp" / "runtime"
 ITERATION41_007_CTP_STRATEGY_ID = "example.007_ctp.legacy_direct"
 ITERATION41_007_CTP_PRIVATE_RUNTIME_DIR = (
     SOURCE_ROOT
     / "examples"
+    / "unified"
     / "007_ctp"
     / "live_certification"
     / "simnow_penetration"
@@ -106,7 +107,7 @@ ITERATION41_012_1_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_012_1_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.012_1_midfreq_cross_exchange.run_runtime",
+    runner_module="examples.unified.012_1_midfreq_cross_exchange.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_012_2_REGISTRATION = RegisteredRuntime(
@@ -114,7 +115,7 @@ ITERATION41_012_2_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_012_2_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.012_2_event_driven_cross_exchange.run_runtime",
+    runner_module="examples.unified.012_2_event_driven_cross_exchange.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_013_1_REGISTRATION = RegisteredRuntime(
@@ -122,7 +123,7 @@ ITERATION41_013_1_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_013_1_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.013_1_midfreq_cross_arbitrage.run_runtime",
+    runner_module="examples.unified.013_1_midfreq_cross_arbitrage.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_013_2_REGISTRATION = RegisteredRuntime(
@@ -130,7 +131,7 @@ ITERATION41_013_2_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_013_2_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.013_2_highfreq_calendar_arbitrage.run_runtime",
+    runner_module="examples.unified.013_2_highfreq_calendar_arbitrage.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION = RegisteredRuntime(
@@ -235,7 +236,7 @@ ITERATION41_015_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_015_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.015_ctp_options_highfreq.run_runtime",
+    runner_module="examples.unified.015_ctp_options_highfreq.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_SAMPLE_REGISTRATION = RegisteredRuntime(
@@ -250,7 +251,7 @@ ITERATION41_007_CTP_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_007_CTP_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.007_ctp.run_runtime",
+    runner_module="examples.unified.007_ctp.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
 

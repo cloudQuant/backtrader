@@ -16,8 +16,8 @@ from types import SimpleNamespace
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-EX1 = REPO / "examples" / "013_1_midfreq_cross_arbitrage"
-EX2 = REPO / "examples" / "013_2_highfreq_calendar_arbitrage"
+EX1 = REPO / "examples" / "unified" / "013_1_midfreq_cross_arbitrage"
+EX2 = REPO / "examples" / "unified" / "013_2_highfreq_calendar_arbitrage"
 
 # Both examples now use their descriptive four-file strategy names and a
 # legacy_runner module; the standard run.py delegates to the legacy engine.

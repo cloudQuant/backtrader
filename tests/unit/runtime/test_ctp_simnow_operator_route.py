@@ -415,7 +415,7 @@ def test_shared_private_runtime_parses_live_config_but_default_cli_stops_before_
 ) -> None:
     # Mirror the real user's canonical config location without opening or
     # changing the protected runtime directory under examples/.
-    runtime_dir = tmp_path / "examples" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
+    runtime_dir = tmp_path / "examples" / "unified" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
     runtime_dir.mkdir(parents=True)
     registration = replace(
         runtime_inventory.ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION,
@@ -482,7 +482,7 @@ ctp:
 
     def reject_provider_or_runner_import(name, *args, **kwargs):
         if name.split(".", 1)[0].startswith("bt_api_") or name.endswith(
-            "examples.013_3_sa_midfreq_simnow.run_runtime"
+            "examples.unified.013_3_sa_midfreq_simnow.run_runtime"
         ):
             touched.append(("import", name))
             raise AssertionError("unregistered live config crossed into provider/runner code")
@@ -941,7 +941,7 @@ def test_operator_dispatch_rejects_static_binding_before_composition(
         {"available_capabilities": MANAGED_WRITE_CAPABILITIES},
         {"sandbox_write_policy": "receipt_required"},
         {"approval_receipt_digest": "a" * 64},
-        {"runner_module": "examples.013_3_sa_midfreq_simnow.run_runtime"},
+        {"runner_module": "examples.unified.013_3_sa_midfreq_simnow.run_runtime"},
         {"capability_modules": ("bt_api_ctp",)},
     ),
 )

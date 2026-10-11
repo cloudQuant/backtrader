@@ -16,12 +16,12 @@ from tests.test_utils.optional_sdk import optional_sdk
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
-MID = EXAMPLES / "012_1_midfreq_cross_exchange"
-EVENT = EXAMPLES / "012_2_event_driven_cross_exchange"
+MID = EXAMPLES / "unified" / "012_1_midfreq_cross_exchange"
+EVENT = EXAMPLES / "unified" / "012_2_event_driven_cross_exchange"
 MANIFEST = EXAMPLES / "strategy-candidate-manifest.json"
 MODULES = {
-    "012_1_midfreq_cross_exchange": "examples.012_1_midfreq_cross_exchange.legacy_runner",
-    "012_2_event_driven_cross_exchange": "examples.012_2_event_driven_cross_exchange.legacy_runner",
+    "012_1_midfreq_cross_exchange": "examples.unified.012_1_midfreq_cross_exchange.legacy_runner",
+    "012_2_event_driven_cross_exchange": "examples.unified.012_2_event_driven_cross_exchange.legacy_runner",
 }
 STRATEGY_FILES = {
     MID: "cross_exchange_strategy.py",
@@ -182,7 +182,7 @@ def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves
     manifest = json.loads(local_before)
     candidate = manifest["candidates"][0]
     # The stale copy lives in tmp_path, so it must point back at this example.
-    candidate["resolved_example_path"] = str((EXAMPLES / strategy_id).resolve())
+    candidate["resolved_example_path"] = str((EXAMPLES / "unified" / strategy_id).resolve())
     candidate["runner_sha256"] = "0" * 64
     payload = {
         key: value
@@ -239,8 +239,8 @@ def test_demo_requires_the_repository_canonical_manifest(strategy_id, monkeypatc
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 def test_runner_and_strategy_import_normally_without_dynamic_loader(strategy_id):
     runner = _runner(strategy_id)
-    strategy_stem = Path(STRATEGY_FILES[EXAMPLES / strategy_id]).stem
-    strategy = importlib.import_module(f"examples.{strategy_id}.{strategy_stem}")
+    strategy_stem = Path(STRATEGY_FILES[EXAMPLES / "unified" / strategy_id]).stem
+    strategy = importlib.import_module(f"examples.unified.{strategy_id}.{strategy_stem}")
 
     assert strategy_id == runner.STRATEGY_ID
     assert strategy.CrossExchangeArbitrageStrategy.__module__.endswith(f".{strategy_stem}")

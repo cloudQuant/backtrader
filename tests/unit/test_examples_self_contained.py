@@ -85,30 +85,39 @@ COMPATIBILITY_STDLIB_MODULES = {
 # Byte-identical copies of shared support code, keyed by the canonical source.
 VENDORED_COPIES = {
     EXAMPLES
+    / "unified"
     / "013_1_midfreq_cross_arbitrage"
-    / "ctp_example_support.py": (EXAMPLES / "007_ctp" / "ctp_example_support.py"),
+    / "ctp_example_support.py": (EXAMPLES / "unified" / "007_ctp" / "ctp_example_support.py"),
     EXAMPLES
+    / "unified"
     / "013_2_highfreq_calendar_arbitrage"
-    / "ctp_example_support.py": (EXAMPLES / "007_ctp" / "ctp_example_support.py"),
+    / "ctp_example_support.py": (EXAMPLES / "unified" / "007_ctp" / "ctp_example_support.py"),
     EXAMPLES
+    / "unified"
     / "013_1_midfreq_cross_arbitrage"
-    / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
+    / "simnow_direct.py": (EXAMPLES / "unified" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
     EXAMPLES
+    / "unified"
     / "013_2_highfreq_calendar_arbitrage"
-    / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
+    / "simnow_direct.py": (EXAMPLES / "unified" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
     EXAMPLES
+    / "unified"
     / "014_1_ctp_options_lowfreq"
-    / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
+    / "simnow_direct.py": (EXAMPLES / "unified" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
     EXAMPLES
+    / "unified"
     / "012_1_midfreq_cross_exchange"
     / "strategy_candidate_approval.py": (EXAMPLES / "strategy_candidate_approval.py"),
     EXAMPLES
+    / "unified"
     / "012_2_event_driven_cross_exchange"
     / "strategy_candidate_approval.py": (EXAMPLES / "strategy_candidate_approval.py"),
     EXAMPLES
+    / "unified"
     / "012_1_midfreq_cross_exchange"
     / "demo-approval-trust-root.pem": (EXAMPLES / "demo-approval-trust-root.pem"),
     EXAMPLES
+    / "unified"
     / "012_2_event_driven_cross_exchange"
     / "demo-approval-trust-root.pem": (EXAMPLES / "demo-approval-trust-root.pem"),
 }
@@ -198,7 +207,7 @@ def test_zoneinfo_compatibility_import_is_folder_scoped(tmp_path: Path, monkeypa
     """The Python 3.8 fallback must not excuse a missing import elsewhere."""
 
     original_is_installed = _is_installed
-    compatibility_folder = EXAMPLES / "013_3_sa_midfreq_simnow"
+    compatibility_folder = EXAMPLES / "unified" / "013_3_sa_midfreq_simnow"
     monkeypatch.setattr(
         sys.modules[__name__],
         "_is_installed",

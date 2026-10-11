@@ -24,7 +24,7 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar,
 from tests.test_utils.optional_sdk import optional_sdk
 
 REPO = Path(__file__).resolve().parents[2]
-EXAMPLE = REPO / "examples" / "013_3_sa_midfreq_simnow"
+EXAMPLE = REPO / "examples" / "unified" / "013_3_sa_midfreq_simnow"
 PACKAGE = "iter22_sa_midfreq_example"
 
 

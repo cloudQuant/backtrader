@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
+EXAMPLE = ROOT / "examples" / "unified" / "014_2_ctp_options_midfreq"
 # The standard four-file entry delegates to the legacy engine; the frozen
 # fence/import-contract assertions below cover the legacy engine module.
 RUNNER = EXAMPLE / "legacy_runner.py"
@@ -23,7 +23,7 @@ CONFIG = EXAMPLE / "config.yaml"
 def _runner():
     """Load the retained fixture API without invoking its retired script CLI."""
 
-    return importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
+    return importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
 
 
 def test_imported_replay_fixture_runs_actual_cerebro_with_no_external_side_effects() -> None:

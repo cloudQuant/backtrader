@@ -30,9 +30,9 @@ from backtrader.feeds import BarEvidence, ClockMapping
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
-runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
+runner = importlib.import_module("examples.unified.014_1_ctp_options_lowfreq.legacy_runner")
 strategy_module = importlib.import_module(
-    "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+    "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
 )
 
 BASE = dt.datetime(2026, 9, 10, 1, 0, tzinfo=dt.timezone.utc)

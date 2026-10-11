@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
+EXAMPLE = ROOT / "examples" / "unified" / "014_2_ctp_options_midfreq"
 from backtrader.feeds import (  # noqa: E402
     BarBarrierPolicy,
     BarLeg,
@@ -22,10 +22,10 @@ from backtrader.feeds import (  # noqa: E402
 )
 
 strategy_module = importlib.import_module(
-    "examples.014_2_ctp_options_midfreq.ctp_options_midfreq_strategy"
+    "examples.unified.014_2_ctp_options_midfreq.ctp_options_midfreq_strategy"
 )
-features_module = importlib.import_module("examples.014_2_ctp_options_midfreq.features")
-fixture_module = importlib.import_module("examples.014_2_ctp_options_midfreq.fq2_fixture")
+features_module = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.features")
+fixture_module = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.fq2_fixture")
 validate_config = strategy_module.validate_config
 FeaturePolicy = features_module.FeaturePolicy
 FeatureReason = features_module.FeatureReason
@@ -252,7 +252,7 @@ def _short_schedule(decision_input, producer: ReplayQuoteProducer, *, gap: bool)
 
 
 def test_public_edge_replay_matches_independent_feature_oracle_shape() -> None:
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
+    runner = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_replay(runner.load_config(), scenario="edge")
     decision = report["ordinary_decisions"][0]
     feature = report["feature_history"][-1]
@@ -303,7 +303,7 @@ def test_public_edge_replay_matches_independent_feature_oracle_shape() -> None:
 
 
 def test_in_process_cerebro_consumes_both_replay_scenarios() -> None:
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
+    runner = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
 
     raw = runner.load_config()
     edge = runner.run_replay(raw, scenario="edge", inject_cutoff_tick=True)

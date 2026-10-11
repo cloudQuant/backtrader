@@ -15,12 +15,12 @@ import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
-EXAMPLE = REPO / "examples" / "014_1_ctp_options_lowfreq"
+EXAMPLE = REPO / "examples" / "unified" / "014_1_ctp_options_lowfreq"
 
 
 def _load_runner():
     """Return the imported 014_1 low-frequency replay-runner module."""
-    return importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
+    return importlib.import_module("examples.unified.014_1_ctp_options_lowfreq.legacy_runner")
 
 
 @pytest.fixture(scope="module")
@@ -30,13 +30,13 @@ def runner():
 
 
 def test_example_packages_keep_same_named_modules_isolated():
-    low_timing = importlib.import_module("examples.014_1_ctp_options_lowfreq.execution_timing")
-    mid_timing = importlib.import_module("examples.014_2_ctp_options_midfreq.execution_timing")
-    high_timing = importlib.import_module("examples.015_ctp_options_highfreq.execution_timing")
+    low_timing = importlib.import_module("examples.unified.014_1_ctp_options_lowfreq.execution_timing")
+    mid_timing = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.execution_timing")
+    high_timing = importlib.import_module("examples.unified.015_ctp_options_highfreq.execution_timing")
 
-    assert low_timing.__package__ == "examples.014_1_ctp_options_lowfreq"
-    assert mid_timing.__package__ == "examples.014_2_ctp_options_midfreq"
-    assert high_timing.__package__ == "examples.015_ctp_options_highfreq"
+    assert low_timing.__package__ == "examples.unified.014_1_ctp_options_lowfreq"
+    assert mid_timing.__package__ == "examples.unified.014_2_ctp_options_midfreq"
+    assert high_timing.__package__ == "examples.unified.015_ctp_options_highfreq"
     assert low_timing is not mid_timing
     assert mid_timing is not high_timing
 

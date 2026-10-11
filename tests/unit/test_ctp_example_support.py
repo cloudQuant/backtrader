@@ -10,7 +10,7 @@ from backtrader_runtime.errors import RuntimeConfigError
 
 
 _SUPPORT_PATH = (
-    Path(__file__).resolve().parents[2] / "examples" / "007_ctp" / "ctp_example_support.py"
+    Path(__file__).resolve().parents[2] / "examples" / "unified" / "007_ctp" / "ctp_example_support.py"
 )
 _SPEC = importlib.util.spec_from_file_location("ctp_example_support", _SUPPORT_PATH)
 assert _SPEC is not None and _SPEC.loader is not None

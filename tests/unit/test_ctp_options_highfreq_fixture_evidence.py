@@ -14,7 +14,7 @@ from typing import Any, Mapping
 
 import pytest
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
+runner = importlib.import_module("examples.unified.015_ctp_options_highfreq.legacy_runner")
 
 RAW_CONFIG, _ = runner.load_config()
 EVIDENCE_SCHEMA = "iter30.ctp-instrument-evidence.v1"

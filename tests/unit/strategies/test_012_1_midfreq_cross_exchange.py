@@ -16,7 +16,7 @@ InstrumentRule = sdk.CrossVenueLeg
 Freshness, FundingSnapshot = sdk.Freshness, sdk.FundingSnapshot
 UTC = timezone.utc
 
-mid = import_module("examples.012_1_midfreq_cross_exchange.cross_exchange_strategy")
+mid = import_module("examples.unified.012_1_midfreq_cross_exchange.cross_exchange_strategy")
 D = Decimal
 
 

@@ -38,6 +38,7 @@ MAX_CONFIG_BYTES = 1024 * 1024
 CTP_PRODUCTION_RUNTIME_DIR = (
     Path(__file__).resolve().parent.parent
     / "examples"
+    / "unified"
     / "007_ctp"
     / "runtime-production"
 )

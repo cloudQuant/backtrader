@@ -23,139 +23,139 @@
   },
   "legacy_entrypoints": [
     {
-      "path": "007_ctp/ctp_sa_dual_ma_strategy.py",
+      "path": "unified/007_ctp/ctp_sa_dual_ma_strategy.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_bbroker_5s_examples/backtest/run.py",
+      "path": "unified/007_ctp/ctp_bbroker_5s_examples/backtest/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_bbroker_5s_examples/live/run.py",
+      "path": "unified/007_ctp/ctp_bbroker_5s_examples/live/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_mixbroker_5s_examples/backtest/run.py",
+      "path": "unified/007_ctp/ctp_mixbroker_5s_examples/backtest/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_mixbroker_5s_examples/live/run.py",
+      "path": "unified/007_ctp/ctp_mixbroker_5s_examples/live/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_mixbroker_examples/backtest/run.py",
+      "path": "unified/007_ctp/ctp_mixbroker_examples/backtest/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_mixbroker_examples/live/run.py",
+      "path": "unified/007_ctp/ctp_mixbroker_examples/live/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_tickbroker_5s_examples/backtest/run.py",
+      "path": "unified/007_ctp/ctp_tickbroker_5s_examples/backtest/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_tickbroker_5s_examples/live/run.py",
+      "path": "unified/007_ctp/ctp_tickbroker_5s_examples/live/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_tickbroker_examples/backtest/run.py",
+      "path": "unified/007_ctp/ctp_tickbroker_examples/backtest/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/ctp_tickbroker_examples/live/run.py",
+      "path": "unified/007_ctp/ctp_tickbroker_examples/live/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/live_certification/simnow_penetration/run_case.py",
+      "path": "unified/007_ctp/live_certification/simnow_penetration/run_case.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/live_certification/simnow_penetration/run_all.py",
+      "path": "unified/007_ctp/live_certification/simnow_penetration/run_all.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/live_certification/hongyuan_penetration/run_case.py",
+      "path": "unified/007_ctp/live_certification/hongyuan_penetration/run_case.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "007_ctp/live_certification/hongyuan_penetration/run_all.py",
+      "path": "unified/007_ctp/live_certification/hongyuan_penetration/run_all.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "007_ctp/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "012_1_midfreq_cross_exchange/run.py",
+      "path": "unified/012_1_midfreq_cross_exchange/run.py",
       "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
       "iteration41_replacement": "012_1_midfreq_cross_exchange/run_runtime.py",
       "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
     },
     {
-      "path": "012_2_event_driven_cross_exchange/run.py",
+      "path": "unified/012_2_event_driven_cross_exchange/run.py",
       "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
       "iteration41_replacement": "012_2_event_driven_cross_exchange/run_runtime.py",
       "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
     },
     {
-      "path": "013_1_midfreq_cross_arbitrage/run.py",
+      "path": "unified/013_1_midfreq_cross_arbitrage/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "013_1_midfreq_cross_arbitrage/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "013_2_highfreq_calendar_arbitrage/run.py",
+      "path": "unified/013_2_highfreq_calendar_arbitrage/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": "013_2_highfreq_calendar_arbitrage/run_runtime.py",
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
     },
     {
-      "path": "013_3_sa_midfreq_simnow/run.py",
+      "path": "unified/013_3_sa_midfreq_simnow/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": null,
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED. The iteration41 runtime replacement entrypoint was retired in the 013_3 simplification round; run.py is the standard dry/replay/live entry."
     },
     {
-      "path": "014_1_ctp_options_lowfreq/run.py",
+      "path": "unified/014_1_ctp_options_lowfreq/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": null,
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED. The iteration41 runtime replacement entrypoint was retired in the 014_x simplification round; run.py is the standard dry/replay/live entry."
     },
     {
-      "path": "014_2_ctp_options_midfreq/run.py",
+      "path": "unified/014_2_ctp_options_midfreq/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
       "iteration41_replacement": null,
       "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED. The iteration41 runtime replacement entrypoint was retired in the 014_x simplification round; run.py is the standard dry/replay/live entry."
     },
     {
-      "path": "015_ctp_options_highfreq/run.py",
+      "path": "unified/015_ctp_options_highfreq/run.py",
       "status": "LEGACY_RETAINED_OUTSIDE_ITERATION41_RUNTIME_CONTRACT",
       "iteration41_replacement": "015_ctp_options_highfreq/run_runtime.py",
       "boundary": "Do not use this path as evidence of config-v4 validation, replay-only behavior, or execution admission."
@@ -165,12 +165,12 @@
     {
       "example_dir": "012_1_midfreq_cross_exchange",
       "strategy_id": "example.012_1.midfreq_cross_exchange",
-      "runner_module": "examples.012_1_midfreq_cross_exchange.run_runtime",
+      "runner_module": "examples.unified.012_1_midfreq_cross_exchange.run_runtime",
       "research_status": "RESEARCH_REJECTED",
       "verification_tests": [
         "tests/unit/test_iteration41_cross_exchange_runtime.py"
       ],
-      "path": "012_1_midfreq_cross_exchange/run_runtime.py",
+      "path": "unified/012_1_midfreq_cross_exchange/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "012_1_midfreq_cross_exchange/runtime",
       "required_config": "config.yaml",
@@ -191,12 +191,12 @@
     {
       "example_dir": "012_2_event_driven_cross_exchange",
       "strategy_id": "example.012_2.event_driven_cross_exchange",
-      "runner_module": "examples.012_2_event_driven_cross_exchange.run_runtime",
+      "runner_module": "examples.unified.012_2_event_driven_cross_exchange.run_runtime",
       "research_status": "RESEARCH_REJECTED",
       "verification_tests": [
         "tests/unit/test_iteration41_cross_exchange_runtime.py"
       ],
-      "path": "012_2_event_driven_cross_exchange/run_runtime.py",
+      "path": "unified/012_2_event_driven_cross_exchange/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "012_2_event_driven_cross_exchange/runtime",
       "required_config": "config.yaml",
@@ -217,11 +217,11 @@
     {
       "example_dir": "013_1_midfreq_cross_arbitrage",
       "strategy_id": "example.013_1.midfreq_cross_arbitrage",
-      "runner_module": "examples.013_1_midfreq_cross_arbitrage.run_runtime",
+      "runner_module": "examples.unified.013_1_midfreq_cross_arbitrage.run_runtime",
       "verification_tests": [
         "tests/unit/test_iteration41_ctp_pair_runtime.py"
       ],
-      "path": "013_1_midfreq_cross_arbitrage/run_runtime.py",
+      "path": "unified/013_1_midfreq_cross_arbitrage/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "013_1_midfreq_cross_arbitrage/runtime",
       "required_config": "config.yaml",
@@ -242,13 +242,13 @@
     {
       "example_dir": "013_2_highfreq_calendar_arbitrage",
       "strategy_id": "example.013_2.highfreq_calendar_arbitrage",
-      "runner_module": "examples.013_2_highfreq_calendar_arbitrage.run_runtime",
+      "runner_module": "examples.unified.013_2_highfreq_calendar_arbitrage.run_runtime",
       "hft_admission": "HFT_NOT_ADMITTED",
       "report_hft_status": "FAIL/NOT_ADMITTED",
       "verification_tests": [
         "tests/unit/test_iteration41_ctp_pair_runtime.py"
       ],
-      "path": "013_2_highfreq_calendar_arbitrage/run_runtime.py",
+      "path": "unified/013_2_highfreq_calendar_arbitrage/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "013_2_highfreq_calendar_arbitrage/runtime",
       "required_config": "config.yaml",
@@ -269,13 +269,13 @@
     {
       "example_dir": "015_ctp_options_highfreq",
       "strategy_id": "example.015.ctp_options_highfreq",
-      "runner_module": "examples.015_ctp_options_highfreq.run_runtime",
+      "runner_module": "examples.unified.015_ctp_options_highfreq.run_runtime",
       "hft_admission": "HFT_NOT_ADMITTED",
       "report_hft_status": "NOT_ADMITTED",
       "verification_tests": [
         "tests/unit/test_iteration41_ctp_options_highfreq_runtime.py"
       ],
-      "path": "015_ctp_options_highfreq/run_runtime.py",
+      "path": "unified/015_ctp_options_highfreq/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "015_ctp_options_highfreq/runtime",
       "required_config": "config.yaml",
@@ -323,11 +323,11 @@
     {
       "example_dir": "007_ctp",
       "strategy_id": "example.007_ctp.legacy_direct",
-      "runner_module": "examples.007_ctp.run_runtime",
+      "runner_module": "examples.unified.007_ctp.run_runtime",
       "verification_tests": [
         "tests/unit/runtime/test_iteration41_legacy_ctp_007_010_gate.py"
       ],
-      "path": "007_ctp/run_runtime.py",
+      "path": "unified/007_ctp/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "007_ctp/runtime",
       "required_config": "config.yaml",

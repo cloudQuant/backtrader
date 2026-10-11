@@ -33,14 +33,14 @@ COMPONENT_PACKAGES = (
     "bt_api_gateway",
 )
 ENTRIES = {
-    "012_1": REPO / "examples" / "012_1_midfreq_cross_exchange" / "run.py",
-    "012_2": REPO / "examples" / "012_2_event_driven_cross_exchange" / "run.py",
-    "013_1": REPO / "examples" / "013_1_midfreq_cross_arbitrage" / "run.py",
-    "013_2": REPO / "examples" / "013_2_highfreq_calendar_arbitrage" / "run.py",
-    "013_3": REPO / "examples" / "013_3_sa_midfreq_simnow" / "run.py",
-    "014_1": REPO / "examples" / "014_1_ctp_options_lowfreq" / "run.py",
-    "014_2": REPO / "examples" / "014_2_ctp_options_midfreq" / "run.py",
-    "015": REPO / "examples" / "015_ctp_options_highfreq" / "run.py",
+    "012_1": REPO / "examples" / "unified" / "012_1_midfreq_cross_exchange" / "run.py",
+    "012_2": REPO / "examples" / "unified" / "012_2_event_driven_cross_exchange" / "run.py",
+    "013_1": REPO / "examples" / "unified" / "013_1_midfreq_cross_arbitrage" / "run.py",
+    "013_2": REPO / "examples" / "unified" / "013_2_highfreq_calendar_arbitrage" / "run.py",
+    "013_3": REPO / "examples" / "unified" / "013_3_sa_midfreq_simnow" / "run.py",
+    "014_1": REPO / "examples" / "unified" / "014_1_ctp_options_lowfreq" / "run.py",
+    "014_2": REPO / "examples" / "unified" / "014_2_ctp_options_midfreq" / "run.py",
+    "015": REPO / "examples" / "unified" / "015_ctp_options_highfreq" / "run.py",
 }
 OPTIONAL16 = REPO / "examples" / "000_live_certification" / "optional16"
 

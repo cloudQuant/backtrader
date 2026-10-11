@@ -1,0 +1,217 @@
+# 015 — CTP 期权期货 tick 高频 C/P/F（迭代42 标准四件套）
+
+本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_highfreq_strategy.py
++ run.py**（唯一运行入口），另含运行必需的内部模块（下表）。这是一个独立的 C/P/F
+三腿 tick-only 示例；HFT 标注保持 **`FAIL/NOT_ADMITTED`**（本迭代不做 HFT 延迟认证）。
+
+## 运行方式
+
+```text
+python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
+python run.py --replay [--scenario S]  # 离线冻结 cohort/tick fixture 回放（零网络零写入）
+python run.py --live                   # live 观察层（零写；需 Python 3.11，见下）
+python run.py --live --allow-write     # 显式 BLOCKED：本策略无下单路径
+```
+
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放/观察证据写入 `evidence/<run_id>/`（git-ignored）。
+- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
+  `bt-runtime run --strategy-dir examples/unified/015_ctp_options_highfreq/runtime`。
+
+## live 层（观察，零写）
+
+本策略按合同为**决策专用**（普通意图只记录、从不提交订单），因此 live 层采用
+R7/R8 计划修正案的**观察层**：真实直连 registered-sim（SimNow）链——front 选择 →
+Store 登录与账户/持仓/合约元数据只读查询 → 3 × `BtApiFeed` tick 分发
+（`dispatch_ticks=True`）→ 真实 cohort 策略消费真实 tick。零写：不 arm、不下单；
+`--allow-write` 明确 BLOCKED（`write_tier_not_implemented_for_decision_only_strategy`）。
+
+- 环境要求：Python 3.11（`C:/anaconda3/python.exe`）+ dev SDK `D:/bt_api_py`；其他解释器
+  fail-closed（dry/replay 不受限）。
+- PASS = 观察窗内每条腿 ≥1 个真实 tick 经标准入口进入策略且零写入；证据
+  `evidence/live-*/run.json` + `strategy_report.json`（tick/拒绝计数为事实字段）。
+- **准入边界（诚实标注）**：cohort 资格要求 `ctp.quote.v2` 证据 + 同一时钟域决策边界
+  时间（`cohort_decision_now_*`）；直连 CTP tick 源尚不产出该证明，策略会把 tick 记为
+  `TRUSTED_NOW_INVALID` 等拒绝事实而**不会**被伪造成合格 cohort。HFT 结论保持
+  `FAIL/NOT_ADMITTED`；翻转 = 生产 v2 证明的专用适配轮（本迭代不做）。
+
+## 内部模块（运行必需，非第二入口）
+
+| 文件 | 职责 |
+| --- | --- |
+| `legacy_runner.py` | 冻结 tick/cohort 回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
+| `engineering_smoke.py` | 只读工程观察 adapter（注入式、零写；`run_live` 固定拒绝） |
+| `execution_timing.py` | 时钟/证据/执行窗口合同 |
+| `fixtures/` | 冻结 cohort fixture 数据 |
+| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
+
+## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+
+日常入口是 `run_runtime.py`。它必须先读取本目录的
+`runtime/config.yaml`（schema v4），并且该目录必须是中央受审清单中的原始目录；缺少配置、
+复制目录、旧 schema、`--mode`/`--preset`/`--config` 等命令行覆写都会在导入策略、SDK 或
+provider 之前拒绝。配置由用户只维护 `runtime.mode`、`runtime.preset` 和可选的离线
+`parameters.scenario`，不会让用户填写 provider、凭据、审批或写入开关。
+
+缺少 `runtime/config.yaml` 的稳定拒绝码是 `CONFIG_REQUIRED`；启动器不会从模板、当前目录或父目录回退读取。
+
+本例当前只有一个已验收的运行档案：
+
+| `runtime.mode` / `runtime.preset` | 状态 | 实际行为 |
+| --- | --- | --- |
+| `simulation` / `replay` | **SUPPORTED — LOCAL_REPLAY_ONLY** | 读取冻结的本地三腿 tick fixture；网络、provider 构造、外部订单/撤单/成交均为 0。 |
+| `backtest` / `local_backtest` | NOT_SUPPORTED | 不会把高频候选降级或改写为另一套回测入口。 |
+| `simulation` / `shadow`、`paper`、`sandbox` | NOT_SUPPORTED | 不会连接公开行情、SimNow 或账户。 |
+| `live` / `managed_live_direct`、`managed_live_gateway` | NOT_SUPPORTED | 本例没有 execution child；配置不能产生真实交易权限。 |
+
+首次运行推荐只用 bootstrap 生成私有配置，然后运行受清单绑定的入口：
+
+```powershell
+bt-runtime bootstrap --strategy-dir examples/unified/015_ctp_options_highfreq/runtime
+bt-runtime run --strategy-dir examples/unified/015_ctp_options_highfreq/runtime
+```
+
+`bootstrap` 只会首次创建 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置始终使用上述 `bt-runtime bootstrap` 命令，避免从模板手工复制到错误目录。正式配置被 Git 忽略；受版本控制的 `runtime/config.example.yaml` 只供审阅且不是运行时回退来源。修改场景时编辑 `parameters.scenario`，例如 `valid_cohort`、
+`insufficient_cohort` 或 `bar_only`，随后重跑固定入口。输出必须保留
+`admission_status=LOCAL_REPLAY_ONLY`、`hft_status=NOT_ADMITTED`、
+`external_network_requests=0`、`external_write_requests=0`、`actual_fills=0`。这些结果不是
+HFT 能力、真实行情、真实成交、盈利或交易准入证据。
+
+`run_runtime.py` 不读取 `.env`、不接受凭据、不启动 `simnow_launcher.py`，也不创建
+`BtApiStore` 或任何 provider。下面保留的 `run.py` 和工程观测说明是既有回归/诊断材料，
+不构成迭代 41 的操作入口，不能用来绕过上述 `runtime/config.yaml` 合同。
+
+本例使用 `Cerebro.run(channel=...)`、`Event`、`TickEvent` 和 `TickBroker`。策略只有
+`notify_tick` 能创建本地的普通候选 intent；`next`、`notify_bar` 和 `notify_idle` 只保留
+兼容/安全观察行为。每个完整 cohort 先做经济方向和净边际筛选，只有连续两轮同方向合格
+cohort 才能创建 intent；无边际、方向切换、重复载荷/序号、质量失败、scope 变化或过期都会
+清除确认。默认配置为可直接运行的 `replay/formula`，它只读取本目录的冻结 fixture。
+
+`timing` 配置固定 HF-T1 的本地时序投影边界：每腿 1 秒、未对冲 3 秒、最大持仓 60 秒和
+idle 50ms。默认 `runtime_provider: unavailable`，所以普通 replay 仍明确为
+`OFFLINE_SIGNAL_ONLY`；它不会把 cohort 接收时间重命名为 native send 或真实风险期限。
+单元测试可注入带完整 environment/account/TradingDay/generation/subscription/rules/domain scope
+的合成只读 snapshot。每个可信 tick（包括随后被 cohort 校验拒绝的报价）都会先推进保护
+投影；只有完整合格 cohort 才能记录普通候选或零写 normal-exit proposal。它只能生成 immutable 的 `OBSERVE`、
+`PROTECT` 或 `NORMAL_EXIT_PROPOSAL` 记录，所有 proposal 的 `native_write_eligible` 都是 `false`。
+该路径不创建 SDK/CTP client、不调用下单/撤单，也不能成为执行批准、真实成交、平仓、HFT 或
+收益证据。
+
+## SimNow 环境选择（迭代 30）
+
+`config.yaml` 的 `environment` 选择一个**冻结环境键**，默认 `simnow_first_group1`
+（第一套，真实市场时段；迭代 25 的 G3 门要求第一套）。键到 SDK profile 的映射冻结在
+`run.py::ENVIRONMENT_PROFILES`，前置地址由 `bt_api_ctp` 拥有，本目录不写任何端点：
+
+| 冻结键 | 族 | SDK profile | 族内备选 |
+| --- | --- | --- | --- |
+| `simnow_first_group1` | set1 | `set1_group1` | `set1_group1_vpn` |
+| `simnow_first_group2` | set1 | `set1_group2` | 无（本机不可达，必须失败关闭） |
+| `simnow_second_7x24` | set2 | `set2_7x24_4000x` | 无 |
+
+运行前用 `ITER30_SIMNOW_PROFILE` 覆盖（也可写在本地 `.env` 里）。标称对不可达时**只允许**
+在同一族内回退到上表的备选；跨族、未知键、以及与所选冻结对不一致的
+`CTP_TD_FRONT`/`CTP_MD_FRONT`/`CTP_ENV_PROFILE` 都会失败关闭，选路从不依据 IP 或地理。
+`idle` 的无参回调在**没有任何可信时钟来源**时只计数跳过，不再 latch 成时钟违规；注入的
+时钟来源失败或违规仍然 latch。
+
+## 历史只读工程观测（分层，不构成迭代 41 运行入口）
+
+`simnow_launcher.py` 是保留的历史工程观测工具，不是本例的 Iteration 41 runtime 入口，也不会由
+`runtime/config.yaml` 选择或启动。它先做制品前置检查（加载的 `backtrader` 必须是
+本仓源码，否则以 `BACKTRADER_ARTIFACT_MISMATCH` 失败关闭；诊断用的
+`ITER30_ALLOW_EXTERNAL_BACKTRADER=1` 产物不得作为 G3/G4 证据），再用只读
+`market_data_only=True` 链路运行有界观测。报告按层给出独立结论：
+
+| 层 | 含义 | CTP 上的当前状态 |
+| --- | --- | --- |
+| L0 | 连接只读：会话身份、只读就绪、执行门未武装、写入尝试为 0 | `PASS` |
+| L1 | 订阅与 tick 到达：每腿计数、`idle_without_trusted_now_count`、`clock_violation_count` | `PASS` |
+| L2 | quote 资格：时钟质量、freshness、`quality_flags` 为空、`execution_eligible` | `BLOCKED_BY_UPSTREAM_QUALIFICATION`（`UPSTREAM_EXECUTION_NOT_ISSUED`） |
+| L3 | cohort 成立 | 随 L2 阻塞 |
+| L4 | 经济 screen | 随 L2 阻塞 |
+
+L2 的原因是结构性的：`bt_api_ctp` 的 managed receipt 刻意不签发执行资格
+（`execution_qualified=False`），而 `CtpQuoteCohortValidator` 要求
+`execution_eligible is True` 且 `quality_flags` 为空。因此在本机 CTP 链路上**无法**得到
+合格 cohort 或经济 screen；`BLOCKED` 不等于 `NOT_RUN`，解除条件是上游提供可签发的原生
+资格证据链（属 SDK 仓库工作项）。replay 路径的资格字段是示例自己写死的，只能作为公式
+证据。迭代 25 的 G3 在此期间保持 `INCOMPLETE`，且不得以阻塞为理由放宽门限。
+
+运行前需要安装包含公开 cohort API 的当前 `backtrader` 包：
+`backtrader.feeds.CtpQuoteCohortValidator` 和 `CtpCohortNow`。在源码检出中可执行：
+
+```bash
+cd examples/unified/015_ctp_options_highfreq
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install -e ../..
+```
+
+这是本例唯一的运行时库依赖；它不读取、不导入或通过路径注入依赖其它 `examples/` 目录。
+
+历史回归 API 的直接本地零写回放（日常操作请使用上方 `run_runtime.py`）：
+
+```bash
+cd examples/unified/015_ctp_options_highfreq
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python run.py
+```
+
+可选 `--scenario valid_cohort --output-dir /tmp/iter25-options-replay` 生成本地报告；显式的
+`--mode replay --purpose formula` 与默认值相同。
+
+只读 live 观测（凭据只在本目录被忽略的 `.env`）：
+
+```bash
+cd examples/unified/015_ctp_options_highfreq
+PYTHONPATH=/Users/yunjinqi/Documents/new_projects/backtrader \
+SIMNOW_LAUNCHER_RUN_SECONDS=60 \
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python simnow_launcher.py
+```
+
+`fixtures/three_leg_tick_cohorts_v1.json` 是合成输入：合约元数据绑定到记录的 CZCE
+instrument 查询（`metadata_evidence`，含 `legs_sha256` 自校验，并纳入 bundle 身份哈希），
+报价本身仍是合成的、与真实 970 平价自洽。它会产生两次三腿更新的有效 cohort，
+因此可得到一个 `NOT_SUBMITTED_REPLAY` intent（conversion 净边际 40 CNY，reversal −160）。
+它不表示真实 CTP 行情、排队位置、成交、
+费用、保证金、收益或 HFT 资格。输出始终记录：
+
+- `external_network_requests: 0` 与 `external_write_requests: 0`；
+- `actual_fills: 0`、`execution_basis: none` 和 `pnl_fields_emitted: false`；
+- `hft_status: NOT_ADMITTED`。
+
+可用的本地场景是 `valid_cohort`、`insufficient_cohort`、`duplicate_payload`、`stale_source`、
+`mixed_trading_day` 和 `bar_only`。这些场景覆盖重复载荷不能充当第二次更新、来源时间不新鲜、
+混合 TradingDay 不能组成 cohort，以及 bar 回调不能创建普通 intent。`notify_idle` 只有在收到
+显式的同域可信时钟时才重验缓存，不能使用最后一条 tick 的时间或凭缓存 edge 创建 intent；本地
+只输出 1s/3s/60s 的离线期限投影，不生成撤单、减险或第二账本。`config.yaml` 和 fixture 均不含
+凭据；若未来需要本地秘密，只能保存在本目录已忽略的 `.env` 中。
+
+## 策略逻辑与参数
+
+普通候选只能由 `notify_tick` 形成：每腿 tick 必须具有同一 TradingDay、connection generation、
+subscription epoch、规则哈希和时钟域，并满足 250ms 新鲜度、100ms 三腿 skew 与元数据 tick-size
+校验。每个完整 cohort 分别计算 conversion/reversal 的 gross，再扣 `entry_buffer_cny` 和
+`total_reserve_cny`；同方向合格 cohort 连续两次才创建一个 `NOT_SUBMITTED_REPLAY` intent。
+bar、`next` 与无可信时钟的 idle 回调均不能创建普通意图。任何重复 payload、混合交易日、
+过期来源或 scope 变化都会清空确认。
+
+| 配置组 | 当前默认值 | 说明 |
+| --- | --- | --- |
+| `contracts` | CZCE FG701 / FG701C970 / FG701P970 | fixture 中有哈希绑定的元数据证据；报价仍是合成输入。 |
+| `feed` | tick、`max_quote_age_ms=250`、`max_cross_leg_skew_ms=100`、确认 2 次 | 完整 cohort 的时间质量和连续性门。 |
+| `signal` | buffer 20 CNY、reserve 20 CNY | 两种套利方向的净边际阈值。 |
+| `risk` | 10,000/8,000/2,000 CNY、单腿 1 手、最多 1 cycle | 本地风险边界；不是 SDK 账户预算或执行许可。 |
+| `timing` | 单腿 1s、未对冲 3s、最大持仓 60s、idle 50ms | 缺失 SDK 只读风险 provider 时状态为 `OFFLINE_SIGNAL_ONLY`。 |
+| `execution` | 限价、2 次/s、每日普通/应急 80/20 | replay 不会调用该写入通道。 |
+
+## 历史回归 API 的输出与结论阅读
+
+```bash
+python examples/unified/015_ctp_options_highfreq/run.py --mode replay --purpose formula \
+  --scenario valid_cohort --output-dir examples/unified/015_ctp_options_highfreq/reports/local-replay
+```
+
+此命令只用于既有回归 API，不替代必需的 `runtime/config.yaml` 入口。输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
+`external_write_requests=0`、`actual_fills=0`、`execution_basis=none` 与
+`hft_status=NOT_ADMITTED`。`valid_cohort` 仅展示一个本地 conversion intent；其它场景用于负例。
+`simnow_launcher.py` 只做有界、只读分层观测，且当前 L2 受上游资格签发阻断；它不能被用来
+宣称下单、成交、PnL、队列延迟或 HFT 通过。
+

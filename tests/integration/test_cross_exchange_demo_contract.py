@@ -22,7 +22,7 @@ from tests.test_utils.optional_sdk import optional_sdk
 
 import examples.strategy_candidate_approval as demo_approval
 midfreq_demo_approval = importlib.import_module(
-    "examples.012_1_midfreq_cross_exchange.strategy_candidate_approval"
+    "examples.unified.012_1_midfreq_cross_exchange.strategy_candidate_approval"
 )
 from examples.strategy_candidate_approval import (
     APPROVAL_ALGORITHM,
@@ -48,15 +48,15 @@ def _runtime_runner(runner):
     """Load the SDK only for tests exercising the real example entry point."""
     optional_sdk()
     try:
-        return importlib.import_module(f"examples.{runner.STRATEGY_ID}.legacy_runner")
+        return importlib.import_module(f"examples.unified.{runner.STRATEGY_ID}.legacy_runner")
     except ModuleNotFoundError:
         # Folders not yet migrated to the standard layout keep the legacy run.py.
-        return importlib.import_module(f"examples.{runner.STRATEGY_ID}.run")
+        return importlib.import_module(f"examples.unified.{runner.STRATEGY_ID}.run")
 
 
 def test_012_1_backtrader_bootstrap_reuses_checkout_and_rejects_foreign_module(monkeypatch):
     runner = _runtime_runner(RUNNERS[0])
-    expected_init = Path(runner.__file__).resolve().parents[2] / "backtrader" / "__init__.py"
+    expected_init = Path(runner.__file__).resolve().parents[3] / "backtrader" / "__init__.py"
     checkout_module = runner._load_repo_backtrader_package(runner.__file__)
 
     assert checkout_module is runner.bt

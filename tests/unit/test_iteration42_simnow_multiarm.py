@@ -16,12 +16,12 @@ from types import SimpleNamespace
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-CANONICAL = REPO / "examples" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"
-VENDORED = REPO / "examples" / "013_1_midfreq_cross_arbitrage" / "simnow_direct.py"
-VENDORED_RB = REPO / "examples" / "013_2_highfreq_calendar_arbitrage" / "simnow_direct.py"
-VENDORED_OPTIONS_LOW = REPO / "examples" / "014_1_ctp_options_lowfreq" / "simnow_direct.py"
-VENDORED_OPTIONS_MID = REPO / "examples" / "014_2_ctp_options_midfreq" / "simnow_direct.py"
-VENDORED_OPTIONS_HF = REPO / "examples" / "015_ctp_options_highfreq" / "simnow_direct.py"
+CANONICAL = REPO / "examples" / "unified" / "013_3_sa_midfreq_simnow" / "simnow_direct.py"
+VENDORED = REPO / "examples" / "unified" / "013_1_midfreq_cross_arbitrage" / "simnow_direct.py"
+VENDORED_RB = REPO / "examples" / "unified" / "013_2_highfreq_calendar_arbitrage" / "simnow_direct.py"
+VENDORED_OPTIONS_LOW = REPO / "examples" / "unified" / "014_1_ctp_options_lowfreq" / "simnow_direct.py"
+VENDORED_OPTIONS_MID = REPO / "examples" / "unified" / "014_2_ctp_options_midfreq" / "simnow_direct.py"
+VENDORED_OPTIONS_HF = REPO / "examples" / "unified" / "015_ctp_options_highfreq" / "simnow_direct.py"
 
 
 def _load_module(path: Path, name: str):

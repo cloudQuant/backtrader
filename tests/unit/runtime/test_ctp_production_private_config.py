@@ -545,7 +545,7 @@ def test_production_yaml_cannot_choose_route_or_admission(
     (
         (
             _production_document(),
-            Path(__file__).resolve().parents[3] / "examples" / "007_ctp" / "runtime",
+            Path(__file__).resolve().parents[3] / "examples" / "unified" / "007_ctp" / "runtime",
             "ctp_production_runtime_path_mismatch",
         ),
         (

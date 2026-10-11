@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Re-issue the folder-local admission manifests for the 012_x candidates.
 
-Iteration 30 made ``examples/012_1_midfreq_cross_exchange`` and
-``examples/012_2_event_driven_cross_exchange`` self-contained: each folder now
+Iteration 30 made ``examples/unified/012_1_midfreq_cross_exchange`` and
+``examples/unified/012_2_event_driven_cross_exchange`` self-contained: each folder now
 carries a byte-identical copy of the admission policy plus a manifest whose
 paths are folder-relative and whose source hashes are computed from that
 folder's own files.
@@ -65,7 +65,7 @@ def candidate_payload(candidate: Mapping[str, Any]) -> dict[str, Any]:
 def local_manifest(folder: str, canonical: Mapping[str, Any]) -> dict[str, Any]:
     """Build the folder-local manifest for one candidate folder."""
 
-    folder_path = EXAMPLES / folder
+    folder_path = EXAMPLES / "unified" / folder
     rows = [
         row
         for row in canonical.get("candidates", [])
@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     canonical = json.loads(CANONICAL_MANIFEST.read_text(encoding="utf-8"))
     stale: list[str] = []
     for folder in CANDIDATE_FOLDERS:
-        target = EXAMPLES / folder / LOCAL_MANIFEST_NAME
+        target = EXAMPLES / "unified" / folder / LOCAL_MANIFEST_NAME
         expected = _as_json(local_manifest(folder, canonical))
         current = target.read_text(encoding="utf-8") if target.is_file() else ""
         if current == expected:

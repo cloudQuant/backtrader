@@ -943,6 +943,7 @@ def test_legacy_production_runtime_path_is_rejected_before_config_or_provider_ac
     legacy_runtime_dir = (
         Path(__file__).resolve().parents[3]
         / "examples"
+        / "unified"
         / "007_ctp"
         / "runtime-production"
     )

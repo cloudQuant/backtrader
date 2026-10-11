@@ -28,12 +28,12 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLES = REPO / "examples"
 ENTRIES = {
-    "013_1": EXAMPLES / "013_1_midfreq_cross_arbitrage",
-    "013_2": EXAMPLES / "013_2_highfreq_calendar_arbitrage",
-    "013_3": EXAMPLES / "013_3_sa_midfreq_simnow",
-    "014_1": EXAMPLES / "014_1_ctp_options_lowfreq",
-    "014_2": EXAMPLES / "014_2_ctp_options_midfreq",
-    "015": EXAMPLES / "015_ctp_options_highfreq",
+    "013_1": EXAMPLES / "unified" / "013_1_midfreq_cross_arbitrage",
+    "013_2": EXAMPLES / "unified" / "013_2_highfreq_calendar_arbitrage",
+    "013_3": EXAMPLES / "unified" / "013_3_sa_midfreq_simnow",
+    "014_1": EXAMPLES / "unified" / "014_1_ctp_options_lowfreq",
+    "014_2": EXAMPLES / "unified" / "014_2_ctp_options_midfreq",
+    "015": EXAMPLES / "unified" / "015_ctp_options_highfreq",
 }
 
 DETAILS = {

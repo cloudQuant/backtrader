@@ -769,7 +769,7 @@ def _next_actions_for_error(
                 "field_path": "config.yaml",
                 "note": (
                     "bootstrap cannot create CTP account and front fields; see "
-                    "examples/013_3_sa_midfreq_simnow/runtime-ctp-private/README.md for the "
+                    "examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private/README.md for the "
                     "source schema, then run bt-runtime prepare-ctp-config with an explicit "
                     "owner-only source to create the protected, Git-ignored config.yaml"
                 ),
@@ -1362,7 +1362,7 @@ def main(
                 RuntimeConfigError(
                     CONFIG_SCHEMA_UNSUPPORTED,
                     "Iteration 41 uses the shared config.yaml under "
-                    "examples/013_3_sa_midfreq_simnow/runtime-ctp-private; "
+                    "examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private; "
                     "the separate production-config command is retired. "
                     "A future live route still requires independent implementation and review.",
                     field_path="command",

@@ -150,7 +150,7 @@ def _tick_at(symbol, price, ingest_seq, timestamp):
 def _eligible_candidate_ticks():
     """Turn the synthetic local 014_1 eligible fixture into sealed Feed input."""
 
-    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.legacy_runner")
+    runner = importlib.import_module("examples.unified.014_1_ctp_options_lowfreq.legacy_runner")
     config = runner.load_config()
     candidate = config["candidate"]
     assert (candidate["future"], candidate["call"], candidate["put"]) == (FUTURE, CALL, PUT)
@@ -364,7 +364,7 @@ def test_closed_feed_bars_reach_lowfreq_strategy_without_raw_line_reconstruction
     """Run the complete zero-write local chain through ``Cerebro.run``."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     strategy_cls = strategy_module.CtpOptionsLowfreqStrategy
 
@@ -401,7 +401,7 @@ def test_required_feed_evidence_fails_closed_without_raw_line_fallback(monkeypat
     """An absent provider cannot fall back to mutable Backtrader line buffers."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     strategy_cls = strategy_module.CtpOptionsLowfreqStrategy
 
@@ -423,7 +423,7 @@ def test_direct_closed_evidence_callback_lacks_feed_provenance(monkeypatch):
     """A look-alike callback cannot replace the Feed/Cerebro hand-off."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     strategy_cls = strategy_module.CtpOptionsLowfreqStrategy
     client, broker, _, strategy = _run_chain(strategy_cls, evidence_provider=_closed_bar_evidence)
@@ -448,7 +448,7 @@ def test_genuine_feed_event_rejects_replaced_sealed_evidence(monkeypatch):
     """A pre-dispatch hook cannot retain the Feed marker and swap evidence."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     strategy_cls = strategy_module.CtpOptionsLowfreqStrategy
 
@@ -485,7 +485,7 @@ def test_feed_decision_backlog_is_bounded_and_halts_on_overflow():
     """Feed callbacks cannot accumulate an unbounded unseen-decision queue."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     client, broker, _, strategy = _run_chain(
         strategy_module.CtpOptionsLowfreqStrategy,
@@ -506,7 +506,7 @@ def test_generation_reset_discards_queued_old_feed_decision_before_next():
     """A retired barrier scope cannot leave an old READY input actionable in ``next``."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     client, broker, _, strategy = _run_chain(
         strategy_module.CtpOptionsLowfreqStrategy,
@@ -549,7 +549,7 @@ def test_feed_callback_burst_halts_before_an_unconsumed_second_cohort_can_act():
     """A stalled consumer cannot use a second real cohort after queue saturation."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
 
     class NoConsumeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
@@ -592,7 +592,7 @@ def test_feed_decision_overflow_preserves_recovery_posture_for_possible_exposure
     """A backlog failure cannot hide timing risk after a possible fill."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
     client, broker, _, strategy = _run_chain(
         strategy_module.CtpOptionsLowfreqStrategy,
@@ -627,7 +627,7 @@ def test_native_path_buy_is_rejected_before_the_fixture_client_write_boundary():
     """A strategy-originated order attempt remains local in market-data-only mode."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
 
     class WriteProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
@@ -672,7 +672,7 @@ def test_sealed_candidate_conversion_reaches_read_only_broker_without_transport_
     """LOCAL_SUBSET: a synthetic local eligible C/P/F signal reaches only the broker gate."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
 
     class SealedBarClock:
@@ -765,7 +765,7 @@ def test_late_sealed_candidate_cohort_cannot_create_an_entry_or_transport_write(
     """A late C/P/F leg remains below the candidate-entry boundary."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
 
     class CandidateEntryProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
@@ -862,7 +862,7 @@ def test_closed_bar_provider_cannot_mutate_feed_owned_event_before_validation():
     """The provider sees a detached snapshot, not the event later dispatched."""
 
     strategy_module = importlib.import_module(
-        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+        "examples.unified.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
     )
 
     def forged_identity(bar):

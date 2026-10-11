@@ -14,7 +14,7 @@ InstrumentRule = sdk.CrossVenueLeg
 Freshness, FundingSnapshot = sdk.Freshness, sdk.FundingSnapshot
 UTC = timezone.utc
 
-hft = import_module("examples.012_2_event_driven_cross_exchange.event_driven_strategy")
+hft = import_module("examples.unified.012_2_event_driven_cross_exchange.event_driven_strategy")
 D = Decimal
 
 

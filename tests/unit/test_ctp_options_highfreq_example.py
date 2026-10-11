@@ -16,7 +16,7 @@ import backtrader as bt
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-EXAMPLE = REPO / "examples" / "015_ctp_options_highfreq"
+EXAMPLE = REPO / "examples" / "unified" / "015_ctp_options_highfreq"
 PACKAGE = "iter25_ctp_options_highfreq_example"
 
 

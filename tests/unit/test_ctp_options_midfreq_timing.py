@@ -12,8 +12,8 @@ import pytest
 import backtrader as bt
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
-execution_timing = __import__("examples.014_2_ctp_options_midfreq.execution_timing", fromlist=["*"])
+EXAMPLE = ROOT / "examples" / "unified" / "014_2_ctp_options_midfreq"
+execution_timing = __import__("examples.unified.014_2_ctp_options_midfreq.execution_timing", fromlist=["*"])
 ClockMapping = execution_timing.ClockMapping
 ClockObservation = execution_timing.ClockObservation
 ExecutionEvent = execution_timing.ExecutionEvent
@@ -480,7 +480,7 @@ def test_mf_t1_strict_tracking_rejects_dirty_execution_timing_source():
     assert runner.clean_commit_eligible(baseline) is True
 
     dirty = dict(baseline)
-    dirty["worktree_dirty_paths"] = ("examples/014_2_ctp_options_midfreq/execution_timing.py",)
+    dirty["worktree_dirty_paths"] = ("examples/unified/014_2_ctp_options_midfreq/execution_timing.py",)
     dirty["worktree_matches_index"] = False
     assert runner.clean_commit_eligible(dirty) is False
 
@@ -549,7 +549,7 @@ def test_calendar_is_explicit_and_common_cutoffs_are_intersected():
 
 
 def test_actual_cerebro_timing_runner_consumes_none_feed_and_never_writes():
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
+    runner = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_timing_replay(runner.load_config())
     assert report["status"] == "LOCAL_TIMING_REPLAY_PASS"
     assert report["cerebro"]["actual_next_callback"] is True
@@ -703,7 +703,7 @@ def test_new_clock_domain_requires_explicit_scope_and_cannot_replay_retired_scop
 
 def test_fixture_provider_is_finite_and_feed_exposes_a_real_none_poll():
     fixture_module = __import__(
-        "examples.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
+        "examples.unified.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
     )
     TimingFixtureFeed = fixture_module.TimingFixtureFeed
     build_timing_fixture = fixture_module.build_timing_fixture
@@ -1101,9 +1101,9 @@ def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> Non
     """Calendar loss blocks a new entry but cannot trap an already complete basket."""
 
     fixture_module = __import__(
-        "examples.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
+        "examples.unified.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
     )
-    runner = __import__("examples.014_2_ctp_options_midfreq.legacy_runner", fromlist=["*"])
+    runner = __import__("examples.unified.014_2_ctp_options_midfreq.legacy_runner", fromlist=["*"])
     provider = fixture_module.build_normal_exit_fixture()
     provider._calendar = None  # Explicitly model unavailable calendar evidence.
     feed = fixture_module.TimingFixtureFeed(idle_polls=provider.idle_count, bar_count=2)
@@ -1129,7 +1129,7 @@ def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> Non
 
 
 def test_actual_cerebro_two_minute_fixture_reaches_normal_exit_and_idle_stays_risk_only():
-    runner = importlib.import_module("examples.014_2_ctp_options_midfreq.legacy_runner")
+    runner = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
     report = runner.run_timing_replay(runner.load_config(), normal_exit_fixture=True)
     results = report["timing"]["results"]
     assert any(item["reason"] == "NORMAL_EXIT_PROPOSAL" for item in results)

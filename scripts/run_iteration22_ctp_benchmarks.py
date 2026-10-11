@@ -28,7 +28,7 @@ except ImportError as exc:  # pragma: no cover - explicit operator prerequisite
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE_DIR = REPO_ROOT / "examples" / "013_3_sa_midfreq_simnow"
+EXAMPLE_DIR = REPO_ROOT / "examples" / "unified" / "013_3_sa_midfreq_simnow"
 sys.path.insert(0, str(EXAMPLE_DIR))
 
 from features import QuoteFeatureWindow, normalize_quote  # noqa: E402

@@ -25,8 +25,8 @@ from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
-adapter = importlib.import_module("examples.015_ctp_options_highfreq.engineering_smoke")
+runner = importlib.import_module("examples.unified.015_ctp_options_highfreq.legacy_runner")
+adapter = importlib.import_module("examples.unified.015_ctp_options_highfreq.engineering_smoke")
 
 RAW_CONFIG, _ = runner.load_config()
 CONFIG = runner.effective_config(RAW_CONFIG, mode="shadow", purpose="observation")

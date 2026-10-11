@@ -33,9 +33,9 @@ from backtrader.feeds.ctpcohort import CtpCohortNow
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
+runner = importlib.import_module("examples.unified.015_ctp_options_highfreq.legacy_runner")
 strategy_module = importlib.import_module(
-    "examples.015_ctp_options_highfreq.ctp_options_highfreq_strategy"
+    "examples.unified.015_ctp_options_highfreq.ctp_options_highfreq_strategy"
 )
 
 RAW_CONFIG, _ = runner.load_config()

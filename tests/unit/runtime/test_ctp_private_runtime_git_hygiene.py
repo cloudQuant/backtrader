@@ -5,7 +5,7 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[3]
-PRIVATE_RUNTIME = ROOT / "examples" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
+PRIVATE_RUNTIME = ROOT / "examples" / "unified" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
 
 
 def test_ctp_private_runtime_config_and_secrets_are_git_ignored_and_untracked() -> None:

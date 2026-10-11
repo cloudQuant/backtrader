@@ -11,7 +11,7 @@ import backtrader as bt
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO / "examples/015_ctp_options_highfreq/engineering_smoke.py"
+MODULE_PATH = REPO / "examples/unified/015_ctp_options_highfreq/engineering_smoke.py"
 SPEC = importlib.util.spec_from_file_location("iter25_engineering_smoke", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE

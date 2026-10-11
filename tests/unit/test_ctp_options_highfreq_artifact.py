@@ -11,8 +11,8 @@ import importlib
 
 import pytest
 
-runner = importlib.import_module("examples.015_ctp_options_highfreq.legacy_runner")
-launcher = importlib.import_module("examples.015_ctp_options_highfreq.simnow_launcher")
+runner = importlib.import_module("examples.unified.015_ctp_options_highfreq.legacy_runner")
+launcher = importlib.import_module("examples.unified.015_ctp_options_highfreq.simnow_launcher")
 
 EXTERNAL_SNAPSHOT = "/opt/conda/lib/python3.11/site-packages/backtrader/__init__.py"
 
