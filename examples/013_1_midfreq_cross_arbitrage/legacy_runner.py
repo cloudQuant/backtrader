@@ -73,7 +73,8 @@ STRATEGY_CLASS = PairArbitrageStrategy
 DEFAULT_CONFIG = "config.yaml"
 
 # m (DCE) and rm (CZCE) share the same delivery-month calendar.
-PRODUCT_CALENDARS = {"m": (1, 3, 5, 7, 8, 9, 11, 12), "rm": (1, 3, 5, 7, 8, 9, 11, 12)}
+# CZCE RM lists no December contract (1/3/5/7/8/9/11); DCE m trades December.
+PRODUCT_CALENDARS = {"m": (1, 3, 5, 7, 8, 9, 11, 12), "rm": (1, 3, 5, 7, 8, 9, 11)}
 CZCE_PRODUCTS = frozenset({"rm"})
 MIN_DAYS_TO_EXPIRY = 45
 BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(

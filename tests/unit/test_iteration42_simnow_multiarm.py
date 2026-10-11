@@ -97,7 +97,7 @@ def _templates():
             "execution_cycle_id": "cycle-1",
             "preflight_sha256": "1" * 64,
         },
-        ("RM612", "CZCE"): {
+        ("RM701", "CZCE"): {
             "md_front": "tcp://md:2",
             "strategy_identity_sha256": "0" * 64,
             "execution_cycle_id": "cycle-1",
@@ -125,28 +125,28 @@ def test_ensure_arm_is_idempotent_for_the_same_instrument(simnow_direct):
 def test_ensure_arm_switches_only_between_writes(simnow_direct):
     wrapper, calls = _wrapper_with_fake_arms(simnow_direct, _templates())
     wrapper.ensure_registered_sim_arm_for("m2612", "DCE")
-    wrapper.ensure_registered_sim_arm_for("RM612", "CZCE")
+    wrapper.ensure_registered_sim_arm_for("RM701", "CZCE")
     wrapper.ensure_registered_sim_arm_for("m2612", "DCE")
     assert calls == [
         ("arm", "M2612", "DCE"),
         ("disarm", "registered_sim_instrument_switch"),
-        ("arm", "RM612", "CZCE"),
+        ("arm", "RM701", "CZCE"),
         ("disarm", "registered_sim_instrument_switch"),
         ("arm", "M2612", "DCE"),
     ]
     history = wrapper.registered_sim_arm_history()
-    assert [item["instrument"] for item in history] == ["M2612", "RM612", "M2612"]
+    assert [item["instrument"] for item in history] == ["M2612", "RM701", "M2612"]
     assert all("at_epoch" in item for item in history)
 
 
 def test_native_dispatch_switches_to_the_outbound_instrument(simnow_direct):
     wrapper, calls = _wrapper_with_fake_arms(simnow_direct, _templates())
     wrapper.ensure_registered_sim_arm_for("m2612", "DCE")
-    insert_field = SimpleNamespace(InstrumentID="RM612", ExchangeID="CZCE", OrderRef="ref-1")
+    insert_field = SimpleNamespace(InstrumentID="RM701", ExchangeID="CZCE", OrderRef="ref-1")
     assert wrapper._send_native_order_insert(insert_field, 101) == 0
     # The gate switched to RM before the insert and handed the live capability.
-    assert calls[-2:] == [("disarm", "registered_sim_instrument_switch"), ("arm", "RM612", "CZCE")]
-    assert wrapper.trader_client.insert_calls[-1][0]["InstrumentID"] == "RM612"
+    assert calls[-2:] == [("disarm", "registered_sim_instrument_switch"), ("arm", "RM701", "CZCE")]
+    assert wrapper.trader_client.insert_calls[-1][0]["InstrumentID"] == "RM701"
     assert wrapper.trader_client.insert_calls[-1][2] is wrapper._registered_sim_capability
     assert wrapper._order_state["ref-1"] == "active"
 

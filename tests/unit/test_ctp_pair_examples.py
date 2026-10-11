@@ -130,6 +130,11 @@ def test_runner_resolves_symbols_with_product_calendars(run1, run2):
     assert run2.resolve_symbols(today) == ["rb2701", "rb2705"]
     # m and rm pick their own nearest live contracts (DCE full / CZCE 3-digit).
     assert run1.resolve_symbols(today) == ["m2611", "RM611"]
+    # CZCE RM lists no December contract: once Nov falls inside the expiry
+    # guard, resolution rolls to the January contract and never invents RM612
+    # (which no front serves; the 2026-10-10 rehearsal blocked on exactly that).
+    later = dt.date(2026, 10, 10)
+    assert run1.resolve_symbols(later) == ["m2612", "RM701"]
 
 
 def test_pair_limit_refuses_without_an_executable_book(ex1):
