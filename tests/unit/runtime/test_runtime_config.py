@@ -210,7 +210,7 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         and not registration.offline_managed_execution
     )
 
-    assert len(registrations) == 17
+    assert len(registrations) == 15
     assert package_backtests == (runtime_inventory.ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION,)
     package_backtest = package_backtests[0]
     assert (
@@ -237,13 +237,12 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     assert not package_effective.allows_external_writes
     assert not package_effective.allows_production_writes
     assert not package_effective.requires_approval
-    assert len(normal_replays) == 11
+    assert len(normal_replays) == 10
     assert normal_replays == (
         runtime_inventory.ITERATION41_012_1_REGISTRATION,
         runtime_inventory.ITERATION41_012_2_REGISTRATION,
         runtime_inventory.ITERATION41_013_1_REGISTRATION,
         runtime_inventory.ITERATION41_013_2_REGISTRATION,
-        runtime_inventory.ITERATION41_013_3_REGISTRATION,
         ITERATION41_014_1_REGISTRATION,
         runtime_inventory.ITERATION41_014_2_REGISTRATION,
         runtime_inventory.ITERATION41_015_REGISTRATION,
@@ -367,13 +366,11 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     managed = tuple(
         registration for registration in registrations if registration.offline_managed_execution
     )
-    assert len(managed) == 2
+    assert len(managed) == 1
     assert managed == (
-        runtime_inventory.ITERATION41_013_3_MANAGED_REPLAY_REGISTRATION,
         runtime_inventory.ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
     )
     assert tuple(item.runtime_id for item in managed) == (
-        runtime_inventory.ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID,
         runtime_inventory.ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID,
     )
     assert all(item.available_capabilities == ("execution", "risk", "monitor") for item in managed)

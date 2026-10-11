@@ -62,15 +62,11 @@ ITERATION41_013_2_RUNTIME_DIR = (
     SOURCE_ROOT / "examples" / "013_2_highfreq_calendar_arbitrage" / "runtime"
 )
 ITERATION41_013_2_STRATEGY_ID = "example.013_2.highfreq_calendar_arbitrage"
-ITERATION41_013_3_RUNTIME_DIR = SOURCE_ROOT / "examples" / "013_3_sa_midfreq_simnow" / "runtime"
 ITERATION41_013_3_STRATEGY_ID = "example.013_3.sa_midfreq_simnow"
 ITERATION41_013_3_CTP_PRIVATE_RUNTIME_DIR = (
     SOURCE_ROOT / "examples" / "013_3_sa_midfreq_simnow" / "runtime-ctp-private"
 )
 ITERATION41_013_3_CTP_PRIVATE_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.ctp_private"
-ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "013_3_sa_midfreq_simnow" / "runtime-managed-replay"
-)
 ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.managed_replay_l2"
 ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_DIR = (
     SOURCE_ROOT / "examples" / "ctp_options_simnow_managed_replay_runtime"
@@ -152,14 +148,6 @@ ITERATION41_013_2_REGISTRATION = RegisteredRuntime(
     runner_module="examples.013_2_highfreq_calendar_arbitrage.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
-ITERATION41_013_3_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_013_3_RUNTIME_DIR,
-    strategy_id=ITERATION41_013_3_STRATEGY_ID,
-    allowed_presets=("replay",),
-    allowed_parameter_keys=("scenario",),
-    runner_module="examples.013_3_sa_midfreq_simnow.run_runtime",
-    capability_modules=_REPLAY_CAPABILITY_MODULES,
-)
 ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION = RegisteredRuntime(
     runtime_dir=ITERATION41_013_3_CTP_PRIVATE_RUNTIME_DIR,
     strategy_id=ITERATION41_013_3_STRATEGY_ID,
@@ -230,16 +218,6 @@ ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION = RegisteredRuntime(
 )
 ITERATION41_007_CTP_PRIVATE_READONLY_BINDING = CtpSimNowConfigReadOnlyBinding(
     runtime_id=ITERATION41_007_CTP_PRIVATE_RUNTIME_ID,
-)
-ITERATION41_013_3_MANAGED_REPLAY_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_DIR,
-    strategy_id=ITERATION41_013_3_STRATEGY_ID,
-    runtime_id=ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID,
-    allowed_presets=("replay",),
-    available_capabilities=MANAGED_WRITE_CAPABILITIES,
-    offline_managed_execution=True,
-    runner_module="examples.013_3_sa_midfreq_simnow.run_managed_replay_runtime",
-    capability_modules=_MANAGED_REPLAY_CAPABILITY_MODULES,
 )
 ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION = RegisteredRuntime(
     runtime_dir=ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_DIR,
@@ -345,7 +323,6 @@ ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
         ITERATION41_012_2_STRATEGY_ID,
         ITERATION41_013_1_STRATEGY_ID,
         ITERATION41_013_2_STRATEGY_ID,
-        ITERATION41_013_3_STRATEGY_ID,
         ITERATION41_014_1_STRATEGY_ID,
         ITERATION41_014_2_STRATEGY_ID,
         ITERATION41_015_STRATEGY_ID,
@@ -357,7 +334,6 @@ ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
 ITERATION41_MANAGED_REPLAY_RUNTIME_SET = RuntimeSet(
     name="iteration41-managed-replay-l2",
     runtime_ids=(
-        ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID,
         ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID,
     ),
 )
@@ -383,10 +359,8 @@ def iteration41_runtime_registry() -> RuntimeRegistry:
             ITERATION41_012_2_REGISTRATION,
             ITERATION41_013_1_REGISTRATION,
             ITERATION41_013_2_REGISTRATION,
-            ITERATION41_013_3_REGISTRATION,
             ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION,
             ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION,
-            ITERATION41_013_3_MANAGED_REPLAY_REGISTRATION,
             ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
             ITERATION41_014_1_REGISTRATION,
             ITERATION41_014_2_REGISTRATION,

@@ -44,8 +44,14 @@ python run.py --live --allow-write   # SimNow 模拟账户：有界真实成交�
 | `simnow_direct.py` | 直连 registered-sim 执行层：前端选择、Store/包装器子类（仅覆写被关闭的 3 个入口）、准入/冻结/解除 |
 | `legacy_runner.py` | 冻结候选引擎与 `--replay` 实现（含冻结校验、回放、证据写入） |
 | `features.py` / `signal_model.py` / `risk.py` / `reporting.py` / `account_lock.py` | 特征、信号融合、日内风控、证据读写、账户锁 |
-| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径（保留至收尾轮统一处置） |
 | `runtime-ctp-private/` | 受保护私有运行时配置（git-ignored），处置在收尾轮逐项决定 |
+
+已退役（2026-10-11 精简轮）：`runtime/`、`run_runtime.py`、`runtime-managed-replay/`、
+`run_managed_replay_runtime.py`（迭代41 登记路由的源树副本）与 `admission_receipt_tool.py`、
+`operator_readiness.py`、`pilot_supervisor.py`（迭代22 离线工具/监督器）已删除；对应登记从
+`backtrader_runtime` 注册表与 `iteration41-runtime-inventory.json` 移除。`run.py` 的三模式
+（dry/`--replay`/`--live`）不依赖上述文件。包内离线 fake-provider L2 fixture 与机械化管理回放
+登记不受影响。
 
 ## 证据与边界
 
