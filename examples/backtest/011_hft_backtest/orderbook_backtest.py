@@ -117,7 +117,7 @@ def main():
     if not ob_file.exists():
         print(f"Data file not found: {ob_file}")
         print("Generate test data first: python tools/generate_test_data.py --type orderbook")
-        return
+        raise SystemExit(2)
 
     # 1. Create orderbook channel + event queue
     channel = OrderBookChannel(symbol=symbol, dataname=str(ob_file), depth=20)

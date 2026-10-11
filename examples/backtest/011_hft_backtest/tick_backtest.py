@@ -110,7 +110,7 @@ def main():
     if not data_file.exists():
         print(f"Data file not found: {data_file}")
         print("Generate test data first: python tools/generate_test_data.py --type tick")
-        return
+        raise SystemExit(2)
 
     # 1. Create tick channel + event queue
     channel = TickChannel(symbol=symbol, dataname=str(data_file))
