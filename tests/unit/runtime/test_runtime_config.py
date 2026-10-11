@@ -207,7 +207,7 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         and not registration.offline_managed_execution
     )
 
-    assert len(registrations) == 11
+    assert len(registrations) == 10
     assert package_backtests == (runtime_inventory.ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION,)
     package_backtest = package_backtests[0]
     assert (
@@ -335,24 +335,8 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     assert sample_registration.strategy_id == runtime_inventory.ITERATION41_SAMPLE_STRATEGY_ID
     assert sample_registration.allowed_presets == ("replay",)
     assert sample_registration.allowed_parameter_keys == ("scenario",)
-    managed = tuple(
-        registration for registration in registrations if registration.offline_managed_execution
-    )
-    assert len(managed) == 1
-    assert managed == (
-        runtime_inventory.ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
-    )
-    assert tuple(item.runtime_id for item in managed) == (
-        runtime_inventory.ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID,
-    )
-    assert all(item.available_capabilities == ("execution", "risk", "monitor") for item in managed)
-    assert all(
-        item.capability_modules
-        == ("bt_api_py", "bt_api_base", "bt_api_execution", "bt_api_risk", "bt_api_monitor")
-        for item in managed
-    )
+    assert not any(registration.offline_managed_execution for registration in registrations)
     assert registry.require_runtime_set("iteration41-replay") == normal_replays
-    assert registry.require_runtime_set("iteration41-managed-replay-l2") == managed
     assert registry.require_runtime_set("iteration41-local-backtest") == package_backtests
     assert default_runtime_registry().registrations == registrations
 

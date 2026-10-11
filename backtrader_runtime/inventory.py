@@ -68,9 +68,6 @@ ITERATION41_013_3_CTP_PRIVATE_RUNTIME_DIR = (
 )
 ITERATION41_013_3_CTP_PRIVATE_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.ctp_private"
 ITERATION41_013_3_MANAGED_REPLAY_RUNTIME_ID = "example.013_3.sa_midfreq_simnow.managed_replay_l2"
-ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "ctp_options_simnow_managed_replay_runtime"
-)
 ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID = (
     "example.ctp_options_simnow.mechanical_managed_replay_l2"
 )
@@ -207,16 +204,6 @@ ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION = RegisteredRuntime(
 ITERATION41_007_CTP_PRIVATE_READONLY_BINDING = CtpSimNowConfigReadOnlyBinding(
     runtime_id=ITERATION41_007_CTP_PRIVATE_RUNTIME_ID,
 )
-ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_DIR,
-    strategy_id=ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_STRATEGY_ID,
-    runtime_id=ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID,
-    allowed_presets=("replay",),
-    available_capabilities=MANAGED_WRITE_CAPABILITIES,
-    offline_managed_execution=True,
-    runner_module="examples.ctp_options_simnow_managed_replay_runtime",
-    capability_modules=_MANAGED_REPLAY_CAPABILITY_MODULES,
-)
 ITERATION41_PACKAGE_013_3_MANAGED_REPLAY_REGISTRATION = RegisteredRuntime(
     runtime_dir=ITERATION41_PACKAGE_013_3_MANAGED_REPLAY_RUNTIME_DIR,
     strategy_id=ITERATION41_013_3_STRATEGY_ID,
@@ -280,12 +267,6 @@ ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
         ITERATION41_007_CTP_STRATEGY_ID,
     ),
 )
-ITERATION41_MANAGED_REPLAY_RUNTIME_SET = RuntimeSet(
-    name="iteration41-managed-replay-l2",
-    runtime_ids=(
-        ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_RUNTIME_ID,
-    ),
-)
 ITERATION41_PACKAGE_L2_FIXTURE_RUNTIME_SET = RuntimeSet(
     name="iteration41-l2-wheel-fixture",
     runtime_ids=(
@@ -310,7 +291,6 @@ def iteration41_runtime_registry() -> RuntimeRegistry:
             ITERATION41_013_2_REGISTRATION,
             ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION,
             ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION,
-            ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
             ITERATION41_015_REGISTRATION,
             ITERATION41_SAMPLE_REGISTRATION,
             ITERATION41_007_CTP_REGISTRATION,
@@ -318,7 +298,6 @@ def iteration41_runtime_registry() -> RuntimeRegistry:
         ),
         runtime_sets=(
             ITERATION41_REPLAY_RUNTIME_SET,
-            ITERATION41_MANAGED_REPLAY_RUNTIME_SET,
             ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_SET,
         ),
         ctp_simnow_readonly_bindings=(
@@ -334,7 +313,7 @@ def iteration41_l2_fixture_registry() -> RuntimeRegistry:
 
     This registry is intentionally not a filtered view of the normal source
     inventory.  It makes the wheel-consumer surface explicit and cannot imply
-    that the remaining eleven source examples are packaged or runnable after
+    that the remaining nine source examples are packaged or runnable after
     installation.
     """
 

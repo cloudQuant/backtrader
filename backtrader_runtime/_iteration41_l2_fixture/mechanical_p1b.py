@@ -38,7 +38,6 @@ from backtrader_runtime.runner import (
 DEFAULT_RUNTIME_DIR = Path(__file__).resolve().parent / "runtimes" / "mechanical_p1b"
 STRATEGY_ID = "example.ctp_options_simnow.mechanical_managed_replay_l2"
 RUNTIME_ID = "example.ctp_options_simnow.mechanical_managed_replay_l2"
-_SOURCE_COMPAT_RUNNER_MODULE = "examples.ctp_options_simnow_managed_replay_runtime"
 _FAKE_PROVIDER = "iteration41_ctp_mechanical_fake_provider"
 _FAKE_ACCOUNT = "iteration41_ctp_mechanical_fake_account"
 _FAKE_INSTRUMENTS = (
@@ -137,11 +136,7 @@ def _require_managed_replay(
         and registration.available_capabilities == MANAGED_WRITE_CAPABILITIES
         and registration.sandbox_write_policy == "deny"
         and registration.approval_receipt_digest is None
-        # The source-tree compatibility wrapper intentionally delegates to
-        # this package implementation.  Both module names are code-owned and
-        # the enclosing dispatcher still requires an exact reviewed registry
-        # binding before it imports either one.
-        and registration.runner_module in (__name__, _SOURCE_COMPAT_RUNNER_MODULE)
+        and registration.runner_module == __name__
         and effective.order_route == "managed_execution"
         and effective.account_access == "fake_provider"
         and effective.required_capabilities == MANAGED_WRITE_CAPABILITIES

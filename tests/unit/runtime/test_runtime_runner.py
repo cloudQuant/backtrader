@@ -1724,7 +1724,7 @@ def test_all_registered_runners_use_the_shared_sealed_effective_config_helper() 
     """Keep a future runner from silently adding a second runtime config read."""
 
     registrations = iteration41_runtime_registry().registrations
-    assert len(registrations) == 11
+    assert len(registrations) == 10
     ctp_private = runtime_inventory.ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION
     assert ctp_private in registrations
     assert ctp_private.runner_module is None
@@ -1751,7 +1751,7 @@ def test_all_source_registered_runners_accept_the_posix_directory_capability_con
     """Keep source-runner POSIX dispatch from silently restoring a path argument."""
 
     all_registrations = iteration41_runtime_registry().registrations
-    assert len(all_registrations) == 11
+    assert len(all_registrations) == 10
     package_backtests = tuple(
         registration
         for registration in all_registrations

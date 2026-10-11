@@ -2,7 +2,7 @@
   "schema_version": "iteration41.example-runtime-inventory.v3",
   "evidence_scope": "STATIC_ENTRYPOINT_AND_TARGETED_TEST_REVIEW_NOT_PRODUCTION_OR_SIMNOW_ACCEPTANCE",
   "scope_limitations": [
-    "This inventory covers seven ordinary replay entrypoints and one separately registered offline managed fake-provider L2 fixture.",
+    "This inventory covers seven ordinary replay entrypoints; the two package-owned offline L2 fixtures live in the separate l2-wheel-fixture registry and are not source example routes.",
     "LOCAL_REPLAY_ONLY records the tested v4 replay shell; it does not admit a provider, SimNow, sandbox, live trading, managed execution, fills, PnL, profitability, or HFT capability.",
     "Retired direct CTP/SimNow entrypoints for 007_ctp, plus 013_1 and 013_2, retain only config-first fail-closed compatibility CLIs; their direct providers and SimNow paths are not supported.",
     "A real runtime/config.yaml is intentionally local and ignored. config.example.yaml is a reviewed template, never a startup fallback."
@@ -346,33 +346,6 @@
       "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT",
       "legacy_direct_execution": "NOT_SUPPORTED",
       "evidence_boundary": "CONFIG_GATE_AND_NO_ACTION_PROBE_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
-    }
-  ],
-  "managed_replay_l2_entrypoints": [
-    {
-      "example_dir": "ctp_options_simnow_managed_replay_runtime",
-      "strategy_id": "example.ctp_options_simnow.mechanical_managed_replay_l2",
-      "runtime_id": "example.ctp_options_simnow.mechanical_managed_replay_l2",
-      "runner_module": "examples.ctp_options_simnow_managed_replay_runtime",
-      "verification_tests": [
-        "tests/integration/test_iteration41_ctp_mechanical_managed_replay_l2.py"
-      ],
-      "path": "ctp_options_simnow_managed_replay_runtime.py",
-      "status": "LOCAL_CTP_MECHANICAL_MANAGED_FAKE_PROVIDER_L2",
-      "runtime_dir": "ctp_options_simnow_managed_replay_runtime",
-      "required_config": "config.yaml",
-      "config_template": "config.example.yaml",
-      "config_schema_version": 4,
-      "supported_mode_preset": {
-        "mode": "simulation",
-        "preset": "replay"
-      },
-      "allowed_parameter_keys": [],
-      "external_network": false,
-      "external_writes": false,
-      "production_writes": false,
-      "managed_execution": "REVIEWED_OFFLINE_FAKE_PROVIDER_EXECUTION_RISK_MONITOR",
-      "evidence_boundary": "FAKE_PROVIDER_L2_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
     }
   ]
 }

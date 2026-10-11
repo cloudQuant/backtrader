@@ -810,12 +810,11 @@ def _inventory_runner_binding(
 def _managed_l2_required_capability_modules(
     registration: RegisteredRuntime,
 ) -> Tuple[str, ...]:
-    """Return required imports only for the three exact reviewed managed L2 records."""
+    """Return required imports only for the two exact reviewed managed L2 records."""
 
     from . import inventory
 
     reviewed_registrations = (
-        inventory.ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
         inventory.ITERATION41_PACKAGE_013_3_MANAGED_REPLAY_REGISTRATION,
         inventory.ITERATION41_PACKAGE_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
     )
