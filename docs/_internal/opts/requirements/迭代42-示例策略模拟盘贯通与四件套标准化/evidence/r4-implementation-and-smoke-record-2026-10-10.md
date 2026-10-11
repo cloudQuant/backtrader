@@ -113,3 +113,22 @@ z/score 门要求 `len(history) ≥ window` 根 15 分钟 bar（live 单会话�
   跨所双臂切换获得真实路径验证机会。
 - 教训：`instrument_not_found` 先分"前端缺"还是"代码发明了不存在的合约"——
   用同前端定向查询既有月份即可区分。
+
+## 追加：修复后重演终报 PASS（2026-10-11 11:05–11:53 北京，7x24）
+
+周一同命令逐字重演（`--live --allow-write --drill --drill-side long --run-seconds 2700
+--drill-delay-seconds 1200 --drill-window-seconds 1200 --drill-warmup-bars 8`），
+运行 `live-20261011T030536Z-7e938fc7`，终报 **PASS / tier=fill_round_trip**：
+
+- 前置选择：4 个 standard pair 非时段不可达，按会话感知规则回落 7x24（index 4，MD/TD
+  各 3/3，score 94ms），`environment_switched_after_write=false`。
+- 武装：双腿 `armed=true`（DCE.M2612 + CZCE.RM701，`set2_7x24_4000x`、managed、
+  trading_day 20261009）；`arm_history` 实录三腿序切换 **RM701 → M2612 → RM701**
+  ——跨所 disarm→arm 于写入间切换在真实路径闭环（此前唯一未实盘验证的新元素）。
+- 成交：`session_order_refs=4`、两腿 `entry_by_symbol`/`close_by_symbol` 各 1、
+  `trade_rows=8`；四笔 order_refs 1–4 依次为 RM701 卖开 2378.0 → m2612 买开 3408.0 →
+  m2612 卖平 3411.0 → RM701 买平 2381.0（CZCE/DCE 双所，全部 completed）。
+- 终态：`open_position_rows=0`、`active_orders=0`、positions RM701/m2612 均 0.0、
+  `net_pnl=0.0`、`run_error=null`、2850.156s 有界结束；组合账户全程 flat。
+- 意义：步骤 5 的跨所双腿往返在 7x24 真实路径已闭环（此前该元素仅有离线回归层）；
+  正式判据仍为周一 13:35 标准前置六步串行。
