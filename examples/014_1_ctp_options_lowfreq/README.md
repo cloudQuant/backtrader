@@ -10,37 +10,34 @@ call/put/future 转换-反转平价的结构化残差 z-score；研究状态不�
 ```text
 python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
 python run.py --replay [--scenario S]  # 离线冻结 fixture 回放（零网络零写入）
-python run.py --live --allow-write     # live 层：现为证据化 BLOCKED（见下）
+python run.py --live --allow-write     # 严格 live 写层（需 Python 3.11；见下）
 ```
 
 - 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
 - 回放证据写入 `evidence/<run_id>/`（git-ignored）。
-- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
-  `bt-runtime run --strategy-dir examples/014_1_ctp_options_lowfreq/runtime`。
+- 迭代41 登记回放路由（`runtime/`、`run_runtime.py`）已于 2026-10-11 精简轮退役；
+  `run.py` 是唯一入口。
 
-## live 层状态（BLOCKED，非降级伪装）
+## live 层（严格三腿写 drill）
 
-本策略的 live 合同要求 **feed 密封的 closed-bar 证据**（`BarEvidence` + 运行域内
-非合成 `ClockMapping` + candidate/rules/clock-domain 绑定）与写能力 adapter；
-该 adapter 本迭代未集成。`--live` 因此在任何网络、凭据或 provider 之前
-fail-closed，输出精确的集成需求清单与翻转路径；**不会**静默降级为 raw-line
-回放合同。翻转工作项（实现轮）包括：
-
-1. feed 密封证据 provider（逐腿 `BarEvidence`，绑定 store 事件的 clock domain/
-   rules/candidate 与 run 级 clock mapping）；
-2. 运行域 `clock_provider`（非合成、覆盖整个有界窗口）；
-3. `RegisteredSimStore` 三腿武装模板（future + call + put，逐腿 preflight 身份）；
-4. 策略 live 参数（`require_feed_bar_evidence=True` 等）与一次性 drill 触发；
-5. SA/FG 期权合约与行权价只读回读（C/P/F 可用性、tick、涨跌停）后才允许写入。
+R6（`8c067982b`）已实现全严格 live 层：运行域非合成 `ClockMapping`、feed 密封
+`BarEvidence`、`simnow_direct` registered-sim 直连、三腿逐腿 arm 切换（写入间
+disarm→arm）、一次性 drill 触发与逐腿成交核算。`--live` 必须显式 `--allow-write`；
+要求 Python 3.11（`C:/anaconda3/python.exe`）与 dev SDK 预载，其他解释器
+fail-closed。写 drill 必须在交易时段内的标准前置运行（7x24 前置无涨跌停价数据，
+首次彩排在 `exchange_limits_unavailable` 闸门干净拒绝、零写）；首次真实成交往返
+待时段内验收。
 
 ## 内部模块（运行必需，非第二入口）
 
 | 文件 | 职责 |
 | --- | --- |
-| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
-| `simnow_adapter.py` / `simnow_launcher.py` | 历史 SimNow 工程观察/启动器（只读、注入式；`run_live` 固定拒绝） |
+| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容） |
 | `execution_timing.py` | 时钟/证据/执行窗口/持有投影合同 |
-| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
+
+2026-10-11 精简轮退役：历史 SimNow 工程观察链（`simnow_adapter.py`）、独立启动器
+（`simnow_launcher.py`）与迭代41 登记回放路由（`runtime/`、`run_runtime.py`）——
+前者仅被测试引用、无运行入口，后者与 `run.py --replay` 行为重复。
 
 ## 历史本地回放说明（非 Iteration 41 启动指南）
 
@@ -74,28 +71,11 @@ fact、clock domain 和 generation 的时间事实，再允许发送下一腿；
 SDK 的多合约授权、期权规格/成本和真实会话预检均有独立验收证据。回放中的本地订单
 不构成交易所成交、实际 PnL 或收益证明。
 
-## 历史注入式 SimNow engineering_smoke（非 Iteration 41 启动入口）
+## 历史 SimNow engineering_smoke（已于 2026-10-11 退役）
 
-Iter23 增加了一个 fail-closed 的 `simnow engineering_smoke` 入口。它只接受 SDK
-owner 注入的已创建 API 对象（测试使用纯 mock），不读取 `.env`、不创建第二客户端、
-不联网、不下单。入口先做账户范围的持仓、活动委托和 unknown intent 预检，并绑定
-`account_fingerprint`、TradingDay 和 connection generation；任一非空、缺失或跨代际
-结果都会返回 `BLOCKED`。
-
-非纯 mock 运行时优先调用 `BtApiStore.get_ctp_bundle_preflight_snapshot(...,
-read_only=True)`，收口账户范围的公共 Store 证据；退出时调用两次
-`BtApiStore.get_ctp_reconciliation_snapshot()`，不自行复制 native 查询实现。
-预检通过后，运行时只组装一条
-`BtApiStore(provider="btapi") → BtApiFeed（三腿）→ BtApiBroker(provider="btapi") → Cerebro → Strategy` 链，Broker 使用
-`market_data_only`。退出前必须完成两轮身份一致且内容稳定的 reconciliation。即便
-工程链路通过，报告仍固定为 `NO_NATIVE_CONFIRMATION`，不会声称发生成交、平仓或真实
-收益；真实 native 启动必须由 SDK-owned launcher 注入 API 并另行满足授权与外部验收门。
-当前 Iter22 信任根缺失时，engineering_smoke 仍固定 `market_data_only=true`、
-`order_write_allowed=false`，不会生成、读取或写入任何密钥，也不会解除该限制。
-
-这是历史的 SDK-owned 注入式工程接口，不读取或升级 `runtime/config.yaml`，也不是面向操作者的
-Iteration 41 启动方式。`python run.py`、`python simnow_launcher.py` 与 `run_live` 都不能用来取得
-SimNow 或受管模式；上述 replay 入口仍是当前受审核的用户路径。
+Iter23 的注入式 fail-closed `simnow engineering_smoke` 链（`simnow_adapter.py`）只被
+回归测试引用、无运行入口，已随 2026-10-11 精简轮退役。当前受审核的 live 路径是上面的
+严格直连层；`python run.py`（dry/replay/live）是唯一入口。
 
 ## 策略逻辑与参数
 
@@ -115,10 +95,10 @@ SimNow 或受管模式；上述 replay 入口仍是当前受审核的用户路�
 
 ## 历史回放 API 与输出说明
 
-历史 `run.py` 的 `--mode`、`--scenario` 与 `--output` 已被封口并会结构化拒绝；不要用它们替代上方的
-`bt-runtime run --strategy-dir .../runtime`。只有后者会读取必填的 v4 runtime 配置并检查中央清单。
+历史 `run.py` 的 `--mode`、`--scenario` 与 `--output` 已被封口并会结构化拒绝；
+`run.py` 的 dry/replay/live 标准模式是唯一入口。
 
 `eligible`、`no_edge`、`budget_reject` 与 `misaligned` 是离线验证场景；它们均不会联网或写单。
 报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只能说明
-回放分支和本地顺序逻辑。`shadow`/`production` 会在建客户端前拒绝；`simnow engineering_smoke`
-必须由受治理上层显式注入已认证 API，且仍以 `market_data_only` 运行。
+回放分支和本地顺序逻辑。`shadow`/`production` 会在建客户端前拒绝；真实写入只在
+`--live --allow-write` 的严格直连层进行。

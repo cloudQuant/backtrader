@@ -2,7 +2,9 @@
 """Retained 014_2 local replay fixture with a config-first script fence.
 
 Import-level fixture functions remain available to regression tests.  Direct
-script execution can only enter the reviewed Iteration 41 replay runtime.
+script execution still crosses the config-first fence; the iteration-41 replay
+route was retired in the 2026-10-11 cleanup, so a direct script invocation
+fails closed and ``run.py`` is the standard dry/replay/live entry.
 """
 
 from __future__ import annotations
@@ -285,86 +287,10 @@ def run_timing_replay(
     return report
 
 
-def run_engineering_smoke(raw_config: Dict[str, Any], *, api: Any = None) -> Dict[str, Any]:
-    """Build the real Store/Feed/Broker/Cerebro chain without starting it.
-
-    A production caller must inject an already-authenticated SDK object.  The
-    command-line path intentionally supplies none, so it fails closed before
-    any transport, subscription, order, or credential lookup can occur.
-    """
-
-    smoke_config = copy.deepcopy(raw_config)
-    # The replay schema validates the candidate/risk contract; the adapter
-    # owns the live-mode admission and still requires an explicit SDK object.
-    smoke_config["mode"] = "replay"
-    config = validate_config(smoke_config)
-    try:
-        from .simnow_adapter import build_engineering_smoke
-    except ImportError:
-        from simnow_adapter import build_engineering_smoke
-    return build_engineering_smoke(config=config, api=api)
-
-
-def run_engineering_observation(
-    raw_config: Dict[str, Any],
-    *,
-    api: Any = None,
-    store: Any = None,
-    store_ownership: Any = None,
-    environment_profile: str,
-    run_seconds: float,
-    feed_clock: Any,
-    clock_mapping: Any,
-    closed_bar_evidence_provider: Any,
-) -> Dict[str, Any]:
-    """Run the explicit, bounded Set-2 zero-write strategy observation.
-
-    This does not load ``.env``, choose an SDK, or expose a CLI path that could
-    accidentally connect with ambient credentials.  Callers may inject either
-    an API object or one governed Store whose lifecycle they explicitly
-    transfer; the adapter rejects mixed ownership.  Its runtime mode is
-    explicit and distinct from the local replay fixture, while the outer
-    report remains a ``shadow`` observation so it cannot be confused with
-    G3/G4 execution.
-    """
-
-    if not isinstance(raw_config, dict) or raw_config.get("mode") not in {
-        "replay",
-        "engineering_observation",
-    }:
-        raise ConfigurationError(
-            "ENGINEERING_OBSERVATION_MODE",
-            "engineering observation accepts only the frozen replay template or explicit runtime mode",
-        )
-    runtime_config = copy.deepcopy(raw_config)
-    runtime_config["mode"] = "engineering_observation"
-    config = validate_config(runtime_config)
-    try:
-        from .simnow_adapter import run_engineering_observation as _run_observation
-    except ImportError:
-        from simnow_adapter import run_engineering_observation as _run_observation
-    return _run_observation(
-        config=config,
-        api=api,
-        store=store,
-        store_ownership=store_ownership,
-        environment_profile=environment_profile,
-        run_seconds=run_seconds,
-        feed_clock=feed_clock,
-        clock_mapping=clock_mapping,
-        closed_bar_evidence_provider=closed_bar_evidence_provider,
-    )
-
-
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=EXAMPLE_DIR / "config.yaml")
     parser.add_argument("--mode", choices=("replay", "shadow", "simnow", "production"))
-    parser.add_argument(
-        "--purpose",
-        choices=("engineering_smoke",),
-        help="build the injected, fail-closed SimNow engineering chain without starting it",
-    )
     parser.add_argument("--scenario", choices=("no_edge", "edge"))
     parser.add_argument(
         "--timing",
@@ -398,18 +324,6 @@ def _legacy_main() -> int:
         raw_config = load_config(args.config)
         if args.mode is not None:
             raw_config["mode"] = args.mode
-        if args.purpose == "engineering_smoke":
-            if args.mode != "simnow":
-                raise ConfigurationError(
-                    "ENGINEERING_SMOKE_MODE", "engineering_smoke requires --mode simnow"
-                )
-            # No API factory, environment lookup, or .env loading is allowed
-            # in this entry point.  Tests and a separately governed launcher
-            # may call run_engineering_smoke(..., api=explicit_api).
-            raise ConfigurationError(
-                "SDK_NOT_INJECTED",
-                "engineering_smoke requires an explicit injected SDK object; CLI performs no connection",
-            )
         if args.timing or args.timing_normal_exit:
             if args.scenario or args.inject_cutoff_tick or args.inject_at_cutoff_tick:
                 raise ConfigurationError(

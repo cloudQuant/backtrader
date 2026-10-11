@@ -87,10 +87,6 @@ ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_DIR = (
     PACKAGE_BACKTEST_FIXTURE_ROOT / "runtimes" / "local_backtest"
 )
 ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_ID = "backtrader.iteration41.local_backtest_fixture"
-ITERATION41_014_1_RUNTIME_DIR = SOURCE_ROOT / "examples" / "014_1_ctp_options_lowfreq" / "runtime"
-ITERATION41_014_1_STRATEGY_ID = "example.014_1.ctp_options_lowfreq"
-ITERATION41_014_2_RUNTIME_DIR = SOURCE_ROOT / "examples" / "014_2_ctp_options_midfreq" / "runtime"
-ITERATION41_014_2_STRATEGY_ID = "example.014_2.ctp_options_midfreq"
 ITERATION41_015_RUNTIME_DIR = SOURCE_ROOT / "examples" / "015_ctp_options_highfreq" / "runtime"
 ITERATION41_015_STRATEGY_ID = "example.015.ctp_options_highfreq"
 ITERATION41_SAMPLE_RUNTIME_DIR = SOURCE_ROOT / "examples" / "sample" / "runtime"
@@ -255,22 +251,6 @@ ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION = RegisteredRuntime(
     allowed_presets=("local_backtest",),
     runner_module="backtrader_runtime._iteration41_backtest_fixture.run",
 )
-ITERATION41_014_1_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_014_1_RUNTIME_DIR,
-    strategy_id=ITERATION41_014_1_STRATEGY_ID,
-    allowed_presets=("replay",),
-    allowed_parameter_keys=("scenario",),
-    runner_module="examples.014_1_ctp_options_lowfreq.run_runtime",
-    capability_modules=_REPLAY_CAPABILITY_MODULES,
-)
-ITERATION41_014_2_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_014_2_RUNTIME_DIR,
-    strategy_id=ITERATION41_014_2_STRATEGY_ID,
-    allowed_presets=("replay",),
-    allowed_parameter_keys=("scenario",),
-    runner_module="examples.014_2_ctp_options_midfreq.run_runtime",
-    capability_modules=_REPLAY_CAPABILITY_MODULES,
-)
 ITERATION41_015_REGISTRATION = RegisteredRuntime(
     runtime_dir=ITERATION41_015_RUNTIME_DIR,
     strategy_id=ITERATION41_015_STRATEGY_ID,
@@ -323,8 +303,6 @@ ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
         ITERATION41_012_2_STRATEGY_ID,
         ITERATION41_013_1_STRATEGY_ID,
         ITERATION41_013_2_STRATEGY_ID,
-        ITERATION41_014_1_STRATEGY_ID,
-        ITERATION41_014_2_STRATEGY_ID,
         ITERATION41_015_STRATEGY_ID,
         ITERATION41_SAMPLE_STRATEGY_ID,
         ITERATION41_007_CTP_STRATEGY_ID,
@@ -362,8 +340,6 @@ def iteration41_runtime_registry() -> RuntimeRegistry:
             ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION,
             ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION,
             ITERATION41_CTP_MECHANICAL_MANAGED_REPLAY_REGISTRATION,
-            ITERATION41_014_1_REGISTRATION,
-            ITERATION41_014_2_REGISTRATION,
             ITERATION41_015_REGISTRATION,
             ITERATION41_SAMPLE_REGISTRATION,
             ITERATION41_007_CTP_REGISTRATION,

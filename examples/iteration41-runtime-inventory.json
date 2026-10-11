@@ -2,7 +2,7 @@
   "schema_version": "iteration41.example-runtime-inventory.v3",
   "evidence_scope": "STATIC_ENTRYPOINT_AND_TARGETED_TEST_REVIEW_NOT_PRODUCTION_OR_SIMNOW_ACCEPTANCE",
   "scope_limitations": [
-    "This inventory covers ten ordinary replay entrypoints, one bounded public-market shadow observer, and 1 separately registered offline managed fake-provider L2 fixture.",
+    "This inventory covers eight ordinary replay entrypoints, one bounded public-market shadow observer, and 1 separately registered offline managed fake-provider L2 fixture.",
     "LOCAL_REPLAY_ONLY records the tested v4 replay shell; it does not admit a provider, SimNow, sandbox, live trading, managed execution, fills, PnL, profitability, or HFT capability.",
     "Retired direct CTP/SimNow entrypoints for 007_ctp and 010_live_examples, plus 013_1 and 013_2, retain only config-first fail-closed compatibility CLIs; their direct providers and SimNow paths are not supported.",
     "A real runtime/config.yaml is intentionally local and ignored. config.example.yaml is a reviewed template, never a startup fallback."
@@ -193,14 +193,14 @@
     {
       "path": "014_1_ctp_options_lowfreq/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
-      "iteration41_replacement": "014_1_ctp_options_lowfreq/run_runtime.py",
-      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+      "iteration41_replacement": null,
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED. The iteration41 runtime replacement entrypoint was retired in the 014_x simplification round; run.py is the standard dry/replay/live entry."
     },
     {
       "path": "014_2_ctp_options_midfreq/run.py",
       "status": "LEGACY_CLI_CONFIG_FIRST_FAIL_CLOSED",
-      "iteration41_replacement": "014_2_ctp_options_midfreq/run_runtime.py",
-      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED."
+      "iteration41_replacement": null,
+      "boundary": "Direct CLI reaches only the registered config-v4 replay route; missing or unsupported config and every historical flag fail before framework/provider import. Direct CTP/SimNow execution is NOT_SUPPORTED. The iteration41 runtime replacement entrypoint was retired in the 014_x simplification round; run.py is the standard dry/replay/live entry."
     },
     {
       "path": "015_ctp_options_highfreq/run.py",
@@ -299,56 +299,6 @@
       "path": "013_2_highfreq_calendar_arbitrage/run_runtime.py",
       "status": "LOCAL_REPLAY_ONLY",
       "runtime_dir": "013_2_highfreq_calendar_arbitrage/runtime",
-      "required_config": "config.yaml",
-      "config_template": "config.example.yaml",
-      "config_schema_version": 4,
-      "supported_mode_preset": {
-        "mode": "simulation",
-        "preset": "replay"
-      },
-      "allowed_parameter_keys": [
-        "scenario"
-      ],
-      "external_network": false,
-      "external_writes": false,
-      "production_writes": false,
-      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
-    },
-    {
-      "example_dir": "014_1_ctp_options_lowfreq",
-      "strategy_id": "example.014_1.ctp_options_lowfreq",
-      "runner_module": "examples.014_1_ctp_options_lowfreq.run_runtime",
-      "verification_tests": [
-        "tests/unit/test_iteration41_example_runtime.py"
-      ],
-      "path": "014_1_ctp_options_lowfreq/run_runtime.py",
-      "status": "LOCAL_REPLAY_ONLY",
-      "runtime_dir": "014_1_ctp_options_lowfreq/runtime",
-      "required_config": "config.yaml",
-      "config_template": "config.example.yaml",
-      "config_schema_version": 4,
-      "supported_mode_preset": {
-        "mode": "simulation",
-        "preset": "replay"
-      },
-      "allowed_parameter_keys": [
-        "scenario"
-      ],
-      "external_network": false,
-      "external_writes": false,
-      "production_writes": false,
-      "managed_execution": "NOT_WIRED_BY_THIS_RUNTIME_ENTRYPOINT"
-    },
-    {
-      "example_dir": "014_2_ctp_options_midfreq",
-      "strategy_id": "example.014_2.ctp_options_midfreq",
-      "runner_module": "examples.014_2_ctp_options_midfreq.run_runtime",
-      "verification_tests": [
-        "tests/unit/runtime/test_iteration41_sa_ctp_replay_runtime.py"
-      ],
-      "path": "014_2_ctp_options_midfreq/run_runtime.py",
-      "status": "LOCAL_REPLAY_ONLY",
-      "runtime_dir": "014_2_ctp_options_midfreq/runtime",
       "required_config": "config.yaml",
       "config_template": "config.example.yaml",
       "config_schema_version": 4,

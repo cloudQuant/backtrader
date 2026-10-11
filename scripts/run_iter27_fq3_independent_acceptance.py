@@ -46,7 +46,6 @@ SOURCE_PATHS = (
     Path("examples/014_1_ctp_options_lowfreq/ctp_options_lowfreq_strategy.py"),
     Path("examples/014_1_ctp_options_lowfreq/execution_timing.py"),
     Path("examples/014_1_ctp_options_lowfreq/run.py"),
-    Path("examples/014_1_ctp_options_lowfreq/simnow_adapter.py"),
     Path("tests/unit/test_ctp_options_lowfreq_example.py"),
     Path("tests/unit/test_ctp_options_lowfreq_timing.py"),
     Path("backtrader/cerebro.py"),

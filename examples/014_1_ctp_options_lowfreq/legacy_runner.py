@@ -2,7 +2,9 @@
 """Retained 014_1 local replay fixture with a config-first script fence.
 
 Import-level fixture functions remain available to regression tests.  Direct
-script execution can only enter the reviewed Iteration 41 replay runtime.
+script execution still crosses the config-first fence; the iteration-41 replay
+route was retired in the 2026-10-11 cleanup, so a direct script invocation
+fails closed and ``run.py`` is the standard dry/replay/live entry.
 """
 
 from __future__ import annotations
@@ -43,7 +45,6 @@ from datetime import datetime, timedelta
 import hashlib
 import json
 import math
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -60,11 +61,6 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "config.yaml"
 STRATEGY_ID = "ctp_options_lowfreq"
 MODES = frozenset({"replay", "shadow", "simnow", "production"})
-
-try:
-    from .simnow_adapter import SimNowBlocked, SimNowOptionsAdapter
-except ImportError:  # Direct execution through this directory's run.py.
-    from simnow_adapter import SimNowBlocked, SimNowOptionsAdapter
 
 
 class RunnerConfigurationError(ValueError):
@@ -442,76 +438,6 @@ def _blocked_report(mode: str, config: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_simnow_engineering_smoke(config: Mapping[str, Any], *, api: Any = None) -> dict[str, Any]:
-    """Run the injected, read-only SimNow engineering smoke path.
-
-    A real native API must be supplied by the SDK-owned launcher.  This
-    example never loads credentials or creates that client itself.
-    """
-
-    if not isinstance(config, Mapping) or config.get("mode") != "simnow":
-        raise RunnerConfigurationError("SIMNOW_MODE_REQUIRED")
-    try:
-        adapter = SimNowOptionsAdapter(config, api=api)
-        return adapter.run_engineering_smoke()
-    except SimNowBlocked as exc:
-        if api is None or bool(getattr(api, "iter23_pure_mock", False)):
-            request_counts = {"network": 0, "order_write": 0}
-        else:
-            request_counts = {"network": "NOT_OBSERVED", "order_write": "NOT_OBSERVED"}
-        return {
-            "mode": "simnow",
-            "purpose": "engineering_smoke",
-            "status": "BLOCKED",
-            "reason": str(exc),
-            "external_request_counts": request_counts,
-        }
-
-
-def run_engineering_observation(
-    config: Mapping[str, Any],
-    *,
-    environment_profile: str,
-    run_seconds: float,
-    feed_clock: Any,
-    clock_mapping: Any,
-    closed_bar_evidence_provider: Any,
-    api: Any = None,
-    store: Any = None,
-    store_ownership: str | None = None,
-) -> dict[str, Any]:
-    """Run the explicit Set-2 zero-write observation seam.
-
-    This function intentionally has no CLI equivalent: the operator must
-    inject exactly one lifecycle root (an API or a Store transferred with
-    ``store_ownership=\"transfer\"``), a calibrated clock mapping and Feed-owned
-    closed-bar evidence provider.  The local replay template is copied solely
-    for its frozen candidate/risk schema and then relabelled ``shadow`` for
-    the bounded engineering observation.
-    """
-
-    if not isinstance(config, Mapping) or config.get("mode") not in {"replay", "shadow"}:
-        raise RunnerConfigurationError("ENGINEERING_OBSERVATION_MODE")
-    runtime_config = deepcopy(config)
-    runtime_config["mode"] = "shadow"
-    validated = validate_config(runtime_config)
-    try:
-        from .simnow_adapter import run_engineering_observation as _run_observation
-    except ImportError:  # Direct execution through this directory's run.py.
-        from simnow_adapter import run_engineering_observation as _run_observation
-    return _run_observation(
-        config=validated,
-        environment_profile=environment_profile,
-        run_seconds=run_seconds,
-        feed_clock=feed_clock,
-        clock_mapping=clock_mapping,
-        closed_bar_evidence_provider=closed_bar_evidence_provider,
-        api=api,
-        store=store,
-        store_ownership=store_ownership,
-    )
-
-
 def _legacy_main(argv: list[str] | None = None) -> int:
     """Parse CLI arguments, dispatch exactly one mode, and print the JSON report.
 
@@ -523,7 +449,6 @@ def _legacy_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--mode", choices=sorted(MODES))
-    parser.add_argument("--purpose", choices=("engineering_smoke",), default=None)
     parser.add_argument(
         "--scenario",
         choices=("eligible", "no_edge", "budget_reject", "misaligned"),
@@ -535,13 +460,7 @@ def _legacy_main(argv: list[str] | None = None) -> int:
         config = load_config(args.config)
         mode = args.mode or config["mode"]
         report = (
-            run_replay(config, args.scenario)
-            if mode == "replay"
-            else (
-                run_simnow_engineering_smoke({**deepcopy(config), "mode": mode})
-                if mode == "simnow" and args.purpose == "engineering_smoke"
-                else _blocked_report(mode, config)
-            )
+            run_replay(config, args.scenario) if mode == "replay" else _blocked_report(mode, config)
         )
     except RunnerConfigurationError as exc:
         report = {

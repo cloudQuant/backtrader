@@ -38,9 +38,6 @@ from backtrader_runtime import (
 from backtrader_runtime.config import require_loaded_runtime_config_seal
 from backtrader_runtime.cli import main
 from backtrader_runtime.inventory import (
-    ITERATION41_014_1_REGISTRATION,
-    ITERATION41_014_1_RUNTIME_DIR,
-    ITERATION41_014_1_STRATEGY_ID,
     iteration41_runtime_registry,
 )
 from backtrader_runtime.policy import (
@@ -210,7 +207,7 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         and not registration.offline_managed_execution
     )
 
-    assert len(registrations) == 15
+    assert len(registrations) == 13
     assert package_backtests == (runtime_inventory.ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION,)
     package_backtest = package_backtests[0]
     assert (
@@ -237,14 +234,12 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     assert not package_effective.allows_external_writes
     assert not package_effective.allows_production_writes
     assert not package_effective.requires_approval
-    assert len(normal_replays) == 10
+    assert len(normal_replays) == 8
     assert normal_replays == (
         runtime_inventory.ITERATION41_012_1_REGISTRATION,
         runtime_inventory.ITERATION41_012_2_REGISTRATION,
         runtime_inventory.ITERATION41_013_1_REGISTRATION,
         runtime_inventory.ITERATION41_013_2_REGISTRATION,
-        ITERATION41_014_1_REGISTRATION,
-        runtime_inventory.ITERATION41_014_2_REGISTRATION,
         runtime_inventory.ITERATION41_015_REGISTRATION,
         runtime_inventory.ITERATION41_SAMPLE_REGISTRATION,
         runtime_inventory.ITERATION41_007_CTP_REGISTRATION,
@@ -345,12 +340,6 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         ("duration_seconds", 10),
         ("orderbook_limit", 5),
     )
-    registration = registry.require_runtime_dir(ITERATION41_014_1_RUNTIME_DIR)
-    assert registration.strategy_id == ITERATION41_014_1_STRATEGY_ID
-    assert registration.allowed_presets == ("replay",)
-    assert registration.allowed_parameter_keys == ("scenario",)
-    assert registration.sandbox_write_policy == "deny"
-    assert registration.available_capabilities == ()
     highfreq_registration = registry.require_runtime_dir(
         runtime_inventory.ITERATION41_015_RUNTIME_DIR
     )
@@ -1955,12 +1944,12 @@ def test_cli_uses_the_default_reviewed_inventory_without_a_registry_flag(
 
     registration = RegisteredRuntime(
         runtime_dir=tmp_path,
-        strategy_id=ITERATION41_014_1_STRATEGY_ID,
+        strategy_id=runtime_inventory.ITERATION41_015_STRATEGY_ID,
         allowed_presets=("replay",),
         allowed_parameter_keys=("scenario",),
         runner_module="iteration41_default_inventory_runner",
     )
-    monkeypatch.setattr(runtime_inventory, "ITERATION41_014_1_REGISTRATION", registration)
+    monkeypatch.setattr(runtime_inventory, "ITERATION41_015_REGISTRATION", registration)
     import types
 
     runner = types.ModuleType("iteration41_default_inventory_runner")
@@ -1974,7 +1963,7 @@ def test_cli_uses_the_default_reviewed_inventory_without_a_registry_flag(
         stderr=io.StringIO(),
     )
     assert status == 0
-    assert _read_json_line(stdout)["strategy_id"] == ITERATION41_014_1_STRATEGY_ID
+    assert _read_json_line(stdout)["strategy_id"] == runtime_inventory.ITERATION41_015_STRATEGY_ID
 
     stdout = io.StringIO()
     status = main(

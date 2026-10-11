@@ -14,8 +14,8 @@ python run.py --live --allow-write     # 显式 BLOCKED：本策略无下单路�
 ```
 
 - 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放/观察证据写入 `evidence/<run_id>/`（git-ignored）。
-- 也可经迭代41 登记路径运行同一冻结回放（`LOCAL_REPLAY_ONLY`）：
-  `bt-runtime run --strategy-dir examples/014_2_ctp_options_midfreq/runtime`。
+- 迭代41 登记回放路由（`runtime/`、`run_runtime.py`）已于 2026-10-11 精简轮退役；
+  `run.py` 是唯一入口。
 
 ## live 层（观察，零写）
 
@@ -39,15 +39,16 @@ registered-sim（SimNow）链——front 选择 → Store 登录与账户/持仓
 
 | 文件 | 职责 |
 | --- | --- |
-| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容）；亦被 `run_runtime.py`、`simnow_launcher.py` 复用 |
+| `legacy_runner.py` | 冻结回放引擎与 fixture（原 `run.py` 内容） |
 | `fq2_fixture.py` / `features.py` | 冻结 FQ2 分钟 fixture 与特征积分 |
 | `execution_timing.py` / `execution_fixture.py` | 时钟/证据/执行窗口合同与执行 fixture |
-| `simnow_adapter.py` / `simnow_launcher.py` | 历史 SimNow 工程观察/启动器（只读、注入式；`run_live` 固定拒绝） |
-| `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
+
+2026-10-11 精简轮退役：历史 SimNow 工程观察链（`simnow_adapter.py`）、独立启动器
+（`simnow_launcher.py`）与迭代41 登记回放路由（`runtime/`、`run_runtime.py`）。
 
 ## 迭代 24 历史离线 runner（不属于 Iteration 41 受控入口）
 
-以下内容描述迭代 24 保留的 import-level replay、timing 和 engineering fixture。它们只由回归测试或
+以下内容描述迭代 24 保留的 import-level replay 与 timing fixture。它们只由回归测试或
 受治理的代码调用；`python run.py` 执行上面四个标准模式，历史 CLI 参数会被拒绝。
 
 `fq2_fixture.py` 先明确生成 synthetic clock mapping、三腿 bar seal 和每腿 60
@@ -88,24 +89,12 @@ oracle 只用于测试输入与边界对照，策略没有用产品函数倒算 
 三腿执行恢复、账户预算、安装包和第一套环境验收；这些边界仍按迭代 24 文档保持
 `BLOCKED` 或 `NOT_RUN`。
 
-## SimNow engineering_smoke adapter
+## SimNow engineering_smoke adapter（已于 2026-10-11 退役）
 
-`simnow_adapter.py` 是真实 SDK 链路的 fail-closed 装配层：一个
-`BtApiStore(provider="btapi")` 产生三个 `BtApiFeed`，同一 Store 产生一个
-`BtApiBroker`，再装入同一个 `Cerebro`。它不读取 `.env`，不创建客户端，不启动 Store，
-不订阅行情，也不报单。历史 CLI 已统一封口，不接受隐式 API 注入，也不会加载该 adapter。
-
-受治理的上层 launcher 可以在进程内显式传入已认证 SDK 对象调用
-`run_engineering_smoke(..., api=api)`；本 adapter 只记录 transport 提供的 ACK、fill 和
-terminal identity，绝不制造成交。三腿必须按确认成交推进；部分成交进入 compensation/
-recovery 状态。持久日志为 append-only JSONL。实时 FQ2 只接受带
-`event_time`、`recv_monotonic`、`generation`、`subscription_epoch` 且严格早于 bar cutoff
-的同 cohort 事件。费用和保证金必须来自完整、身份绑定的外部输入；启动和停机均要求两轮
-account-wide reconciliation。任一条件缺失即 `BLOCKED`。
-
-当前验收中 `ITER22_APPROVAL_KEY_ID` 与 `ITER22_APPROVAL_HMAC_KEY` 均缺失，因此本路径
-不会解除 `market_data_only`、不会接受空授权、不会生成或写入密钥；执行权限固定为
-`NOT_PROVEN`，缺信任根时返回 `TRUST_ROOT_UNAVAILABLE`。
+Iter24 的注入式 fail-closed `simnow_adapter.py` 装配层（三腿 Store/Feed/Broker/
+Cerebro 链、ACK/fill 记录、append-only JSONL）只被回归测试引用、无运行入口，已随
+2026-10-11 精简轮退役。策略的 `engineering_observation` 模式语义保留（live 观察层
+使用），由 `run.py` 的严格直连链驱动。
 
 ## 策略逻辑与参数
 
@@ -130,17 +119,7 @@ timing fixture 都是确定性测试输入。它们输出的 `LOCAL_REPLAY_PASS`
 `LOCAL_TIMING_REPLAY_PASS` 不证明真实 CTP 行情、账户、成交、费用、PnL 或 G1–G4；非 replay
 模式在无受治理 API 注入时应失败关闭，缺失审批信任根时执行权限保持 `NOT_PROVEN`。
 
-## Iteration 41 runtime 合同细节
+## Iteration 41 runtime 登记路由（已于 2026-10-11 退役）
 
-本 README 开头的 `bootstrap` 与 `run` 是本示例唯一的 Iteration 41 用户入口。以下说明它与
-迭代 24 根目录 runner 和配置的边界。
-
-`bootstrap` 只会首次创建被忽略的 `runtime/config.yaml`，已有文件会以 `CONFIG_EXISTS` 拒绝而不会覆盖。首次建立配置必须使用上述 `bt-runtime bootstrap` 命令，避免手工复制到错误目录。该 runtime 配置与本目录原有根 `config.yaml` 的冻结 C/P/F fixture 参数是两个独立文件；模板不是
-运行时回退来源。
-
-`runtime/config.yaml` 是必填的 schema-v4 启动合同；缺失时会以 `CONFIG_REQUIRED` 拒绝，绝不从模板、当前目录或
-父目录回退读取。
-
-该入口只接受 `simulation/replay` 和唯一的 `parameters.scenario`；没有 CLI 模式、审批、账户、凭据或工程观察参数。它先校验代码拥有的运行时目录和 v4 配置，再读取既有根目录 `config.yaml` 作为冻结的本地 C/P/F fixture。`simnow_adapter.py`、`simnow_launcher.py` 和 engineering observation 不会由该入口加载或调用。
-
-运行报告固定标记 `LOCAL_REPLAY_ONLY`，并声明它只是 synthetic C/P/F replay，不能作为 CTP/SimNow 行情、账户、成交、费用、PnL 或任何准入结论的证据。
+迭代41 的 `runtime/`、`run_runtime.py` 登记回放路由（`bootstrap`/`run`、schema-v4
+配置）已随 2026-10-11 精简轮退役；`run.py` 的 dry/replay/live 标准模式是唯一入口。
