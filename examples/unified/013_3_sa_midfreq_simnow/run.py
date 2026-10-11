@@ -211,7 +211,7 @@ def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
     errors = _new_section_errors(config)
     credentials = dict(config.get("credentials") or {})
     report = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": "DRY",
         "mode": "dry",
@@ -280,7 +280,7 @@ def run_replay(
     writes = report.get("sdk_write_requests")
     ok = not orders and writes == 0
     summary = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": "LOCAL_REPLAY_PASS" if ok else "REPLAY_WRITE_DETECTED",
         "mode": "replay",
@@ -1134,7 +1134,7 @@ def main(argv=None) -> int:
             {
                 "status": "BLOCKED",
                 "reason": decision.reason,
-                "tier": decision.as_evidence(),
+                "entry_tier": decision.as_evidence(),
                 "write_grant_result": "not_evaluated_tier_unresolved",
             }
         )

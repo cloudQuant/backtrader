@@ -231,9 +231,12 @@ python examples/unified/015_ctp_options_highfreq/legacy_runner.py --mode replay 
 - 规范值 `dry | replay | live`；`backtest` 是 `replay` 的文档别名，证据里记 `effective_tier: replay`。
 - 非法值、错误类型或 `entry: null` 在**任何 handler 与 provider 副作用之前**返回
   BLOCKED `config_tier_invalid`，绝不回落到 live。
-- 输出 JSON 的 `tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
+- 输出 JSON 的 `entry_tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
   `write_grant_result` 记录写授权结果。`--allow-write` 与选层正交：判定器不读它，
   本目录原有的写准入条件一字未改。
+- 注意 `entry_tier` 与既有 `tier` 是两个字段：`tier` 是迭代 42 起记录的**结果层级**标签
+  （例如 `fill_round_trip`、`observation_only_tick_arrival`），迭代 43 的历史证据按它判读，
+  因此通道决策一律写进 `entry_tier`，绝不覆盖 `tier`。
 - 判层依赖本目录自带的 `entry_tier.py`（`examples/_support/entry_tier.py` 的逐字节副本，
   由 `tests/unit/test_examples_self_contained.py` 漂移守卫），因此整个目录被复制到别处后
   仍能自行判层。
@@ -246,4 +249,4 @@ entry:
 ```
 
 本目录的 live 通道按契约**只观察不下单**：`--allow-write` 在 `run_live` 的零写拒绝里被直接拒绝（`write_tier_not_implemented_for_decision_only_strategy`），可用它证明分发到 live 而无 provider 副作用。
-严格回放校验器 `legacy_runner.py` 把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。
+本目录的 live 通道按契约**只观察不下单**，其 summary 自迭代 43 R5b 起在**所有出口路径**都带 `entry_tier`（通道决策）与 `write_grant_result`（写授权结果）两个字段，与既有的结果层级标签 `tier` 分列。严格回放校验器 `legacy_runner.py` 把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。

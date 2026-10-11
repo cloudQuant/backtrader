@@ -14,10 +14,17 @@ the same one the gate rows already pin.  Declarations are applied to a staged
 copy (tracked plus added files only, so an ignored private config can never be
 carried along), which also keeps the repository's pinned ``config.yaml`` bytes
 untouched.
+
+Two evidence keys must not be confused: ``entry_tier`` is this channel decision,
+while ``tier`` in a live summary is the pre-existing *outcome* label (for example
+``fill_round_trip`` or ``observation_only_tick_arrival``) that iteration-42
+evidence already records.  Overwriting the outcome label with the decision would
+change the meaning of a historical field, so the split is guarded below.
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import subprocess
@@ -70,8 +77,8 @@ def _payload(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
 
 
 def _tier(payload: Mapping[str, Any]) -> dict[str, Any]:
-    tier = payload.get("tier")
-    assert isinstance(tier, Mapping), f"report carries no tier evidence: {payload}"
+    tier = payload.get("entry_tier")
+    assert isinstance(tier, Mapping), f"report carries no entry_tier evidence: {payload}"
     return dict(tier)
 
 
@@ -159,7 +166,7 @@ def test_gate_blocks_before_any_handler(entry: str, tmp_path: Path, declaration:
     assert completed.returncode == 2, payload
     assert payload["status"] == "BLOCKED", payload
     assert payload["reason"] == reason, payload
-    assert payload["tier"]["tier_selection_reason"] == reason, payload
+    assert payload["entry_tier"]["tier_selection_reason"] == reason, payload
     assert payload.get("write_grant_result") == "not_evaluated_tier_unresolved", payload
     # An unresolved tier must not have reached the live channel: every entry names
     # its own live-tier precondition, and none of those may appear here.
@@ -185,6 +192,8 @@ def test_declared_live_tier_reaches_the_live_channel(entry: str, tmp_path: Path)
     assert payload["status"] == "BLOCKED", payload
     assert payload["mode"] == "live", payload
     assert payload["reason"] == "write_tier_not_implemented_for_decision_only_strategy", payload
+    assert _tier(payload)["effective_tier"] == "live", payload
+    assert payload["write_grant_result"] == "refused_no_order_path_by_contract", payload
 
 
 @pytest.mark.parametrize("entry", ALL_ENTRIES)
@@ -209,3 +218,27 @@ def test_entry_projection_keeps_the_frozen_replay_contract_strict(entry: str, tm
     assert completed.returncode != 0, payload
     assert payload["status"] in {"REJECTED", "BLOCKED"}, payload
     assert "bogus_iteration43_key" in json.dumps(payload) or "schema" in json.dumps(payload).lower(), payload
+
+
+@pytest.mark.parametrize("entry", ALL_ENTRIES)
+def test_decision_evidence_never_overwrites_the_outcome_label(entry: str) -> None:
+    """``summary["tier"]`` stays the iteration-42 outcome label.
+
+    Iteration-42 evidence records a live ``tier`` such as ``fill_round_trip``; the
+    channel decision belongs in ``entry_tier`` and must not be written over it.
+    """
+
+    source = (UNIFIED / entry / "run.py").read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Subscript)
+                and isinstance(target.slice, ast.Constant)
+                and target.slice.value == "tier"
+            ):
+                written = ast.dump(node.value)
+                assert "decision" not in written and "tier_evidence" not in written, (
+                    f"{entry}:{node.lineno} writes the channel decision into the outcome label"
+                )

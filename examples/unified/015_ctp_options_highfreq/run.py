@@ -265,7 +265,7 @@ def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
     report = {
         "status": "DRY" if not errors else "REJECTED",
         "mode": "dry",
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "strategy_id": STRATEGY_ID,
         "candidate_id": config.get("candidate_id"),
@@ -322,7 +322,7 @@ def run_replay(
     status = str(report.get("status") or "")
     ok = status == "LOCAL_REPLAY_PASS"
     summary = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": status or "UNKNOWN",
         "mode": "replay",
@@ -347,6 +347,8 @@ def run_live(args) -> int:
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "write_tier_not_implemented_for_decision_only_strategy",
+                "entry_tier": dict(decision_evidence),
+                "write_grant_result": "refused_no_order_path_by_contract",
                 "hint": (
                     "this strategy has no order path by contract; the live tier is a zero-write "
                     "observation of real tick arrivals and admission facts"
@@ -361,6 +363,7 @@ def run_live(args) -> int:
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "live_tier_requires_python_3_11",
+                "entry_tier": dict(decision_evidence),
                 "current": f"{sys.version_info.major}.{sys.version_info.minor}",
                 "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
             }
@@ -420,6 +423,8 @@ def run_live(args) -> int:
         "mode": "live",
         "tier": "observation_only_tick_arrival",
         "status": "STARTING",
+        "entry_tier": dict(decision_evidence),
+        "write_grant_result": "refused_no_order_path_by_contract",
         "trigger": "observation",
         "hft_status": "FAIL/NOT_ADMITTED",
         "evidence_directory": str(output_directory),
@@ -592,8 +597,6 @@ def run_live(args) -> int:
                 except Exception:
                     pass
                 store = None
-        summary["tier"] = decision_evidence
-        summary["write_grant_result"] = "refused_no_order_path_by_contract"
         summary["admission_attempts"] = attempts
         if armed is None:
             raise LiveRejected("no_admissible_front_pair", {"attempts": attempts})
@@ -895,7 +898,7 @@ def main(argv=None) -> int:
             {
                 "status": "BLOCKED",
                 "reason": decision.reason,
-                "tier": decision.as_evidence(),
+                "entry_tier": decision.as_evidence(),
                 "write_grant_result": "not_evaluated_tier_unresolved",
             }
         )

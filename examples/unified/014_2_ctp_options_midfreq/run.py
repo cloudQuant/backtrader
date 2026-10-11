@@ -214,7 +214,7 @@ def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
         errors.append(f"{type(exc).__name__}: {exc}")
     candidate = dict(config.get("candidate") or {})
     report = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": "DRY" if not errors else "REJECTED",
         "mode": "dry",
@@ -274,7 +274,7 @@ def run_replay(
     ok = status == "LOCAL_REPLAY_PASS"
     _json_print(
         {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
             "status": status or "UNKNOWN",
             "mode": "replay",
@@ -471,12 +471,16 @@ def _live_strategy_config(legacy_config: Mapping[str, Any], live: Mapping[str, A
 
 
 def run_live(args) -> int:
+    decision = getattr(args, "tier_decision", None)
+    decision_evidence = decision.as_evidence() if decision is not None else {}
     if args.allow_write:
         _json_print(
             {
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "write_tier_not_implemented_for_decision_only_strategy",
+                "entry_tier": dict(decision_evidence),
+                "write_grant_result": "refused_no_order_path_by_contract",
                 "hint": (
                     "this strategy has no order path by contract; the live tier is a zero-write "
                     "observation of real sealed evidence and decisions"
@@ -491,6 +495,7 @@ def run_live(args) -> int:
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "live_tier_requires_python_3_11",
+                "entry_tier": dict(decision_evidence),
                 "current": f"{sys.version_info.major}.{sys.version_info.minor}",
                 "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
             }
@@ -548,6 +553,8 @@ def run_live(args) -> int:
         "example_id": "014_2_ctp_options_midfreq",
         "mode": "live",
         "tier": "observation_only_feed_sealed",
+        "entry_tier": dict(decision_evidence),
+        "write_grant_result": "refused_no_order_path_by_contract",
         "status": "STARTING",
         "trigger": "observation",
         "evidence_directory": str(output_directory),
@@ -1017,7 +1024,7 @@ def main(argv=None) -> int:
             {
                 "status": "BLOCKED",
                 "reason": decision.reason,
-                "tier": decision.as_evidence(),
+                "entry_tier": decision.as_evidence(),
                 "write_grant_result": "not_evaluated_tier_unresolved",
             }
         )

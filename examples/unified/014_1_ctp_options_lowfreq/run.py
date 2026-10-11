@@ -222,7 +222,7 @@ def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
         errors.append(f"{type(exc).__name__}: {exc}")
     candidate = dict(config.get("candidate") or {})
     report = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": "DRY" if not errors else "REJECTED",
         "mode": "dry",
@@ -279,7 +279,7 @@ def run_replay(
     )
     ok = report.get("status") == "LOCAL_REPLAY_PASS"
     summary = {
-        "tier": dict(tier_evidence or {}),
+        "entry_tier": dict(tier_evidence or {}),
         "write_grant_result": "not_applicable_offline_tier",
         "status": report.get("status"),
         "mode": "replay",
@@ -1381,7 +1381,7 @@ def main(argv=None) -> int:
             {
                 "status": "BLOCKED",
                 "reason": decision.reason,
-                "tier": decision.as_evidence(),
+                "entry_tier": decision.as_evidence(),
                 "write_grant_result": "not_evaluated_tier_unresolved",
             }
         )
