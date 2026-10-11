@@ -107,7 +107,9 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
 
     The optional ``live_adapter`` section is consumed by the standard
     ``run.py`` live tier only; the frozen replay contract validates the
-    remainder exactly as before.
+    remainder exactly as before.  The iteration-43 ``entry`` section is
+    validated by ``run.py`` through the folder-local ``entry_tier`` helper, so
+    it is projected away here rather than admitted into the replay key set.
     """
 
     try:
@@ -117,8 +119,8 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
         raise RunnerConfigurationError("unable to read local config") from exc
     except yaml.YAMLError as exc:
         raise RunnerConfigurationError("invalid local config YAML") from exc
-    if isinstance(raw, dict) and "live_adapter" in raw:
-        raw = {key: value for key, value in raw.items() if key != "live_adapter"}
+    if isinstance(raw, dict):
+        raw = {key: value for key, value in raw.items() if key not in {"live_adapter", "entry"}}
     return validate_config(raw)
 
 

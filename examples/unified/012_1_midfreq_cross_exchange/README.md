@@ -60,3 +60,35 @@ python -m examples.unified.012_1_midfreq_cross_exchange.run --live --allow-write
   生产或 HFT 结论（本候选 `hft_label=not_applicable`）。
 - 历史冻结记录（迭代21/26/30）不被本迭代改写；接口差异以本 README 与
   `docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/迭代计划.md` 为准。
+
+
+## 运行层选择（迭代 43）
+
+本目录的通道由 `config.yaml` 的 `entry.tier` 决定，命令行模式参数只能**保持或降低**它，不能上调：
+
+| `entry.tier` | 无模式参数 | `--dry` | `--replay` | `--live` |
+| --- | --- | --- | --- | --- |
+| 未声明 | `dry`（与迭代 43 之前逐字一致） | `dry` | `replay` | `live` |
+| `dry` | `dry` | `dry` | `dry` | BLOCKED `config_tier_conflict` |
+| `replay`／`backtest` | `replay` | `dry` | `replay` | BLOCKED `config_tier_conflict` |
+| `live` | `live` | `dry` | `replay` | `live` |
+
+- 规范值 `dry | replay | live`；`backtest` 是 `replay` 的文档别名，证据里记 `effective_tier: replay`。
+- 非法值、错误类型或 `entry: null` 在**任何 handler 与 provider 副作用之前**返回
+  BLOCKED `config_tier_invalid`，绝不回落到 live。
+- 输出 JSON 的 `tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
+  `write_grant_result` 记录写授权结果。`--allow-write` 与选层正交：判定器不读它，
+  本目录原有的写准入条件一字未改。
+- 判层依赖本目录自带的 `entry_tier.py`（`examples/_support/entry_tier.py` 的逐字节副本，
+  由 `tests/unit/test_examples_self_contained.py` 漂移守卫），因此整个目录被复制到别处后
+  仍能自行判层。
+
+声明方式（追加到本目录 `config.yaml` 末尾）：
+
+```yaml
+entry:
+  tier: replay   # dry | replay | live（backtest 为 replay 别名）
+```
+
+本目录的 live 通道在进入任何 provider 之前先要求显式 `--allow-write`（否则 `REJECTED / write_consent_missing`），因此声明 `tier: live` 而无模式参数时得到的是零写拒绝；无写观察通道由迭代 43 的 R5b 轮补齐。
+另外：本目录的 `config.yaml` 字节被 `strategy-candidate-manifest.json` 绑定，新增 `entry.tier` 声明后必须执行 `python scripts/refresh_cross_exchange_local_manifests.py` 重新签发目录内清单，否则 replay/live handler 会以 `runner source fingerprint mismatch` 拒绝。新指纹不继承任何旧签名授权，批准状态仍为 `NOT_APPROVED`。

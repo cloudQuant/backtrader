@@ -58,3 +58,34 @@ python run.py --live --allow-write   # SimNow 模拟账户：有界真实成交�
 - 现场证据：各 `evidence/<run_id>/`（run.json、风控状态、日志、回放报告）。
 - 边界标签：回放=`LOCAL_REPLAY_ONLY`；live=真实 SimNow 模拟账户、有界写入、
   非盈利/非生产结论；HFT/延迟结论不适用。
+
+
+## 运行层选择（迭代 43）
+
+本目录的通道由 `config.yaml` 的 `entry.tier` 决定，命令行模式参数只能**保持或降低**它，不能上调：
+
+| `entry.tier` | 无模式参数 | `--dry` | `--replay` | `--live` |
+| --- | --- | --- | --- | --- |
+| 未声明 | `dry`（与迭代 43 之前逐字一致） | `dry` | `replay` | `live` |
+| `dry` | `dry` | `dry` | `dry` | BLOCKED `config_tier_conflict` |
+| `replay`／`backtest` | `replay` | `dry` | `replay` | BLOCKED `config_tier_conflict` |
+| `live` | `live` | `dry` | `replay` | `live` |
+
+- 规范值 `dry | replay | live`；`backtest` 是 `replay` 的文档别名，证据里记 `effective_tier: replay`。
+- 非法值、错误类型或 `entry: null` 在**任何 handler 与 provider 副作用之前**返回
+  BLOCKED `config_tier_invalid`，绝不回落到 live。
+- 输出 JSON 的 `tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
+  `write_grant_result` 记录写授权结果。`--allow-write` 与选层正交：判定器不读它，
+  本目录原有的写准入条件一字未改。
+- 判层依赖本目录自带的 `entry_tier.py`（`examples/_support/entry_tier.py` 的逐字节副本，
+  由 `tests/unit/test_examples_self_contained.py` 漂移守卫），因此整个目录被复制到别处后
+  仍能自行判层。
+
+声明方式（追加到本目录 `config.yaml` 末尾）：
+
+```yaml
+entry:
+  tier: replay   # dry | replay | live（backtest 为 replay 别名）
+```
+
+本目录的 live 通道先校验解释器（`live_tier_requires_python_3_11`），再要求显式 `--allow-write`，因此声明 `tier: live` 而无模式参数不会触达任何 provider；无写观察通道由迭代 43 的 R5b 轮补齐。

@@ -110,7 +110,10 @@ def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any
 
     The optional iteration-42 ``live_adapter`` section is consumed by the
     standard ``run.py`` live tier only and is stripped here so the frozen
-    replay contract keeps its strict key set.
+    replay contract keeps its strict key set.  The iteration-43 ``entry``
+    section is validated by ``run.py`` through the folder-local ``entry_tier``
+    helper, so it is projected away here rather than admitted into the replay
+    key set.
     """
 
     try:
@@ -121,8 +124,8 @@ def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any
         raise ConfigurationError("CONFIG_YAML", f"invalid yaml: {error}") from error
     if not isinstance(loaded, dict):
         raise ConfigurationError("CONFIG_SCHEMA", "config root must be a mapping")
-    if "live_adapter" in loaded:
-        loaded = {key: value for key, value in loaded.items() if key != "live_adapter"}
+    if "live_adapter" in loaded or "entry" in loaded:
+        loaded = {key: value for key, value in loaded.items() if key not in {"live_adapter", "entry"}}
     return loaded
 
 

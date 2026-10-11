@@ -123,3 +123,35 @@ timing fixture 都是确定性测试输入。它们输出的 `LOCAL_REPLAY_PASS`
 
 迭代41 的 `runtime/`、`run_runtime.py` 登记回放路由（`bootstrap`/`run`、schema-v4
 配置）已随 2026-10-11 精简轮退役；`run.py` 的 dry/replay/live 标准模式是唯一入口。
+
+
+## 运行层选择（迭代 43）
+
+本目录的通道由 `config.yaml` 的 `entry.tier` 决定，命令行模式参数只能**保持或降低**它，不能上调：
+
+| `entry.tier` | 无模式参数 | `--dry` | `--replay` | `--live` |
+| --- | --- | --- | --- | --- |
+| 未声明 | `dry`（与迭代 43 之前逐字一致） | `dry` | `replay` | `live` |
+| `dry` | `dry` | `dry` | `dry` | BLOCKED `config_tier_conflict` |
+| `replay`／`backtest` | `replay` | `dry` | `replay` | BLOCKED `config_tier_conflict` |
+| `live` | `live` | `dry` | `replay` | `live` |
+
+- 规范值 `dry | replay | live`；`backtest` 是 `replay` 的文档别名，证据里记 `effective_tier: replay`。
+- 非法值、错误类型或 `entry: null` 在**任何 handler 与 provider 副作用之前**返回
+  BLOCKED `config_tier_invalid`，绝不回落到 live。
+- 输出 JSON 的 `tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
+  `write_grant_result` 记录写授权结果。`--allow-write` 与选层正交：判定器不读它，
+  本目录原有的写准入条件一字未改。
+- 判层依赖本目录自带的 `entry_tier.py`（`examples/_support/entry_tier.py` 的逐字节副本，
+  由 `tests/unit/test_examples_self_contained.py` 漂移守卫），因此整个目录被复制到别处后
+  仍能自行判层。
+
+声明方式（追加到本目录 `config.yaml` 末尾）：
+
+```yaml
+entry:
+  tier: replay   # dry | replay | live（backtest 为 replay 别名）
+```
+
+本目录的 live 通道按契约**只观察不下单**：`--allow-write` 在 `run_live` 的第一条语句就被拒绝（`write_tier_not_implemented_for_decision_only_strategy`），因此可用它来证明确实分发到了 live 通道而不产生任何 provider 副作用。
+严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。

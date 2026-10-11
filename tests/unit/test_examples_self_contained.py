@@ -120,12 +120,13 @@ VENDORED_COPIES = {
     / "unified"
     / "012_2_event_driven_cross_exchange"
     / "demo-approval-trust-root.pem": (EXAMPLES / "_support" / "demo-approval-trust-root.pem"),
-    # Iteration 43 tier resolver: one canonical helper, one copy per unified example.
-    EXAMPLES
-    / "unified"
-    / "015_ctp_options_highfreq"
-    / "entry_tier.py": (EXAMPLES / "_support" / "entry_tier.py"),
+    # Iteration 43 tier resolver: one canonical helper plus one copy per unified
+    # example.  Registered by discovery below so a newly added example copy is
+    # guarded without editing this table.
 }
+
+for _tier_copy in sorted((EXAMPLES / "unified").glob("*/entry_tier.py")):
+    VENDORED_COPIES[_tier_copy] = EXAMPLES / "_support" / "entry_tier.py"
 
 
 LOCAL_MANIFEST_REFRESH_SCRIPT = ROOT / "scripts" / "refresh_cross_exchange_local_manifests.py"

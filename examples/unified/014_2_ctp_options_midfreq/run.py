@@ -193,7 +193,10 @@ def _live_section_errors(live: Mapping[str, Any]) -> List[str]:
 
 
 # --------------------------------------------------------------------------- dry
-def run_dry() -> int:
+import entry_tier  # noqa: E402  (folder-local copy of examples/_support/entry_tier.py)
+
+
+def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
     legacy = _load_legacy()
 
     errors: list = []
@@ -211,6 +214,8 @@ def run_dry() -> int:
         errors.append(f"{type(exc).__name__}: {exc}")
     candidate = dict(config.get("candidate") or {})
     report = {
+        "tier": dict(tier_evidence or {}),
+        "write_grant_result": "not_applicable_offline_tier",
         "status": "DRY" if not errors else "REJECTED",
         "mode": "dry",
         "strategy_id": STRATEGY_ID,
@@ -234,7 +239,11 @@ def run_dry() -> int:
 
 
 # ------------------------------------------------------------------------ replay
-def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
+def run_replay(
+    scenario: Optional[str],
+    evidence_dir: Optional[Path],
+    tier_evidence: Optional[Mapping[str, Any]] = None,
+) -> int:
     legacy = _load_legacy()
 
     chosen = str(scenario or "")
@@ -265,6 +274,8 @@ def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
     ok = status == "LOCAL_REPLAY_PASS"
     _json_print(
         {
+        "tier": dict(tier_evidence or {}),
+        "write_grant_result": "not_applicable_offline_tier",
             "status": status or "UNKNOWN",
             "mode": "replay",
             "run_id": run_id,
@@ -970,6 +981,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--replay", action="store_true", help="offline minute FQ2 fixture replay")
+    mode.add_argument("--dry", action="store_true", help="force the offline config self-check")
     mode.add_argument("--live", action="store_true", help="live observation tier (no write path)")
     parser.add_argument("--allow-write", action="store_true", help="refused: this strategy has no order path")
     parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
@@ -990,11 +1002,36 @@ def main(argv=None) -> int:
     if args.allow_dangerous:
         _json_print({"status": "REJECTED", "error": "no_dangerous_actions_defined"})
         return EXIT_BLOCKED
-    if args.live:
+    # ``config.entry.tier`` selects the channel; a mode flag may only keep or
+    # lower it, and a malformed declaration is rejected before any provider side
+    # effect instead of falling back toward live.
+    try:
+        tier_config = _load_raw_config()
+    except Exception as exc:  # a config that cannot be read is not a live request
+        _json_print({"status": "BLOCKED", "reason": f"tier_config_unreadable:{type(exc).__name__}"})
+        return EXIT_BLOCKED
+    cli_tier = "live" if args.live else "replay" if args.replay else "dry" if args.dry else None
+    decision = entry_tier.decide(tier_config, cli_tier)
+    if entry_tier.invalid(decision) or entry_tier.conflict(decision):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "reason": decision.reason,
+                "tier": decision.as_evidence(),
+                "write_grant_result": "not_evaluated_tier_unresolved",
+            }
+        )
+        return EXIT_BLOCKED
+    args.tier_decision = decision
+    if decision.effective_tier == "live":
         return run_live(args)
-    if args.replay:
-        return run_replay(args.scenario, Path(args.evidence_dir) if args.evidence_dir else None)
-    return run_dry()
+    if decision.effective_tier == "replay":
+        return run_replay(
+            args.scenario,
+            Path(args.evidence_dir) if args.evidence_dir else None,
+            decision.as_evidence(),
+        )
+    return run_dry(decision.as_evidence())
 
 
 if __name__ == "__main__":

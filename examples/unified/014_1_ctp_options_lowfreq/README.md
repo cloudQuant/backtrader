@@ -102,3 +102,35 @@ Iter23 的注入式 fail-closed `simnow engineering_smoke` 链（`simnow_adapter
 报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只能说明
 回放分支和本地顺序逻辑。`shadow`/`production` 会在建客户端前拒绝；真实写入只在
 `--live --allow-write` 的严格直连层进行。
+
+
+## 运行层选择（迭代 43）
+
+本目录的通道由 `config.yaml` 的 `entry.tier` 决定，命令行模式参数只能**保持或降低**它，不能上调：
+
+| `entry.tier` | 无模式参数 | `--dry` | `--replay` | `--live` |
+| --- | --- | --- | --- | --- |
+| 未声明 | `dry`（与迭代 43 之前逐字一致） | `dry` | `replay` | `live` |
+| `dry` | `dry` | `dry` | `dry` | BLOCKED `config_tier_conflict` |
+| `replay`／`backtest` | `replay` | `dry` | `replay` | BLOCKED `config_tier_conflict` |
+| `live` | `live` | `dry` | `replay` | `live` |
+
+- 规范值 `dry | replay | live`；`backtest` 是 `replay` 的文档别名，证据里记 `effective_tier: replay`。
+- 非法值、错误类型或 `entry: null` 在**任何 handler 与 provider 副作用之前**返回
+  BLOCKED `config_tier_invalid`，绝不回落到 live。
+- 输出 JSON 的 `tier` 字段记录 `config_tier / cli_tier / effective_tier / tier_selection_reason`，
+  `write_grant_result` 记录写授权结果。`--allow-write` 与选层正交：判定器不读它，
+  本目录原有的写准入条件一字未改。
+- 判层依赖本目录自带的 `entry_tier.py`（`examples/_support/entry_tier.py` 的逐字节副本，
+  由 `tests/unit/test_examples_self_contained.py` 漂移守卫），因此整个目录被复制到别处后
+  仍能自行判层。
+
+声明方式（追加到本目录 `config.yaml` 末尾）：
+
+```yaml
+entry:
+  tier: replay   # dry | replay | live（backtest 为 replay 别名）
+```
+
+本目录的 live 通道是写 drill，第一步即要求显式 `--allow-write`（否则 `REJECTED / write_consent_missing`）；无写观察通道由迭代 43 的 R5b 轮补齐。
+严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。
