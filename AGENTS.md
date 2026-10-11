@@ -392,11 +392,13 @@ docs/                  Sphinx docs (EN + ZH) + design/bug notes
 scripts/               optimize_code.sh, refresh_strategy_durations.py,
                        run_strategy_branch_compare.py, …
 studies/               research/diagnostic scripts (e.g. branch_compare/)
-examples/012_1_midfreq_cross_exchange/  mid-frequency OKX/Binance perpetual example
-examples/012_2_event_driven_cross_exchange/ event-driven OKX/Binance perpetual candidate
-examples/013_3_sa_midfreq_simnow/ controlled CTP/SimNow SA mid-frequency example
-examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest
-examples/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
+examples/backtest/           backtest-only four-file demos (001-017 ids)
+examples/unified/            backtest+live entries; run.py resolves its tier from config.entry.tier
+examples/live/000_live_certification/  three-venue penetration suites + optional16 (unchanged topology)
+examples/_support/           repo-level tooling, admission material and the canonical entry_tier helper
+examples/_support/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
+examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest (root, pending move)
+examples/data/               shared read-only CSV fixtures
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 ```
 
@@ -3871,3 +3873,44 @@ sweep record, tracker refresh, Monday argv pre-flight, first-run rehearsal recor
   are rejected; the optional16 dry matrix re-runs green (32/32 DRY) and all four component packages import
   cleanly from the dev tree. The component-positive acceptance remains the iteration-41 optional16 real
   matrix (binance C01+T03 × 16).
+
+### Iteration 43 — examples three-class layout, config-selected tier, portable folders (2026-10-11)
+
+Plan and per-round evidence live under
+`docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/` (迭代计划.md + evidence/).
+
+- `examples/` is now `backtest/`, `live/`, `unified/` plus non-example `_support/`, `data/`, and rebuildable
+  output. `examples/README.md` is the index: class definitions, the per-leaf capability register, the
+  small-data-versus-big-data boundary, the old→new path map, and the registered leftovers.
+  `tests/unit/test_iteration43_example_layout_boundaries.py` pins that shape (root whitelist, live suite
+  topology, `entry_tier` helper copies, no leaf importing `examples._support`, no tracked credential file).
+  Historical evidence under `docs/_internal/**` keeps its old paths and is read as retired.
+- Unified entries resolve their channel from `config.entry.tier` (`dry | replay | live`, with `backtest` as a
+  documented alias) through a folder-local byte copy of `examples/_support/entry_tier.py`. A mode flag may keep
+  or **lower** a declared tier and can never raise it; an escalation or a malformed declaration is `BLOCKED`
+  before any handler or provider effect. Absent declaration reproduces iteration-42 commands exactly, and the
+  repository ships no declaration, so `--live`, `--live --allow-write` and `--replay` keep working unchanged.
+  **Any order still needs `--allow-write` plus each example's own admission, receipt and bounded conditions.**
+- Evidence keys: `entry_tier` is the channel decision; the pre-existing `tier` field in a live summary stays the
+  outcome label (`fill_round_trip`, `observation_only_tick_arrival`, …) that iteration-42 evidence records.
+  `013_1/013_2/013_3/014_1` gained an independent `run_live_observe()` zero-write session (front selection,
+  native login, account/position/order/trade reads, store write counters, orderly close) used when the live tier
+  is selected without a grant; `012_1/012_2` answer `live_observation_unavailable` instead of implying an
+  observation path exists. SimNow writes are still only ever via the direct registered-sim narrow admission and
+  the Store/managed/production write routes stay closed (`NO_WRITE / LIVE_NO_GO`).
+- Portability is guarded by `tests/unit/test_iteration43_copy_out_runnable.py`: each leaf is staged from git's
+  tracked-plus-added list (so an ignored private config cannot travel), `PYTHONPATH` is cleared, and the offline
+  entry must either exit zero or fail non-zero **naming the missing input** (big data, an optional dependency,
+  or the deliberate checkout-only `backtrader` fence in 012_1). Small fixtures now ship inside their folder under
+  `data/` with a byte-drift guard; big data stays external. `011`'s missing-data branch previously printed and
+  returned exit 0 — a fake success — and was changed to `SystemExit(2)`.
+- Commit chain on `dev`: `75080cbea` (R0 baselines) → `a290dc459` (R1 backtest) → `db5ad2b21` (R2 unified) →
+  `021663e1d` (R3 live suite) → `f6074acd7` (R4 _support/data) → `28767cc27` → `f2c048a5b` (R5a-1 template) →
+  `02bf6fc13` (R5a-2 all eight entries) → `35353e960` (R5b-1) → `81c85efe9` (R5b-2) → `ca09d7d7e` (R7).
+  Frozen gates still hold: `tests/unit/runtime` 746 passed / 23 skipped / 0 failed, registered offline smoke
+  8 / 0 / 2, `ruff check examples` 176 with no increment, self-contained focus 3 pre-existing reds
+  (000 optional16 imports two component packages; two `ctp_example_support.py` CRLF drifts).
+- Deliberately not in this close-out: the seven loose root scripts' four-file promotion, relocating or
+  re-binding the root `examples/strategy-candidate-manifest.json` (its row fingerprint includes
+  `resolved_example_path`, so a move needs a controlled re-issue decision), a uniform `--data-dir` CLI for big
+  data, 006's ASCII console output, 001's stale `log_data` parameter name, and 002's `KeyError: 'orderbook'`.
