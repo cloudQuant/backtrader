@@ -25,6 +25,26 @@ sys.path.insert(0, PROJECT_ROOT)
 
 import backtrader as bt
 
+def resolve_data_path(filename: str) -> str:
+    """Return the folder-local copy of a fixture, falling back to the repository.
+
+    The examples are self-contained: each folder carries a byte-identical copy of
+    the small fixture under ``data/`` so a copy of this directory runs anywhere,
+    while an in-repo checkout still resolves the shared ``tests/datas`` original.
+    A missing input is a hard failure that names the file, never a silent download.
+    """
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = (
+        os.path.join(here, "data", filename),
+        os.path.abspath(os.path.join(here, "..", "..", "data", filename)),
+        os.path.abspath(os.path.join(here, "..", "..", "..", "tests", "datas", filename)),
+    )
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    raise SystemExit("missing example input %r; expected one of: %s" % (filename, ", ".join(candidates)))
+
 
 class BokehSMAStrategy(bt.Strategy):
     """Dual moving average crossover strategy."""
@@ -51,9 +71,7 @@ class BokehSMAStrategy(bt.Strategy):
 
 def _build_nasdaq_data():
     """Build a consistent NVDA sample data feed."""
-    data_path = os.path.join(
-        PROJECT_ROOT, "tests", "datas", "nvda-1999-2014.txt"
-    )
+    data_path = resolve_data_path("nvda-1999-2014.txt")
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"Data file does not exist: {data_path}")
 

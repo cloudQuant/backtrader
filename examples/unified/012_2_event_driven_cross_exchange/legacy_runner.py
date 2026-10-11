@@ -28,10 +28,6 @@ import threading
 import time
 from typing import Mapping, Optional
 
-from backtrader_runtime.legacy import (
-    legacy_direct_execution_error as _legacy_direct_execution_error,
-    run_legacy_config_first_cli as _run_legacy_config_first_cli,
-)
 
 import backtrader as bt
 from backtrader.brokers.hft.exchange import SimpleExchangeModel
@@ -65,6 +61,19 @@ else:
     )
 import yaml
 
+
+def _iteration41_legacy():
+    """Import the config-first helpers only where the legacy CLI path needs them.
+
+    ``run.py`` loads this module for its offline dry and replay tiers, which must
+    also work from a copy of this folder where ``backtrader_runtime`` is not
+    installed.  Only the retired direct-script route and the config-first CLI
+    below ever need that package, so it is imported on demand here.
+    """
+
+    from backtrader_runtime import legacy
+
+    return legacy
 if __package__:
     from .event_driven_strategy import CrossExchangeArbitrageStrategy, EventArbitrageEngine, EventBook
     from .event_driven_strategy import EventPathQualification
@@ -2366,14 +2375,14 @@ def build_store(*args, **kwargs):
     """Reject direct Store construction outside a reviewed runtime route."""
 
     del args, kwargs
-    raise _legacy_direct_execution_error("012_2 direct Store construction")
+    raise _iteration41_legacy().legacy_direct_execution_error("012_2 direct Store construction")
 
 
 def run_network(*args, **kwargs):
     """Reject the retired direct network route until v4 shadow is registered."""
 
     del args, kwargs
-    raise _legacy_direct_execution_error("012_2 direct network runner")
+    raise _iteration41_legacy().legacy_direct_execution_error("012_2 direct network runner")
 
 
 def build_parser():
@@ -2402,7 +2411,7 @@ def build_parser():
 def main(argv=None):
     """Retain only the fixed Iteration 41 configuration-first CLI alias."""
 
-    return _run_legacy_config_first_cli(HERE / "runtime", argv)
+    return _iteration41_legacy().run_legacy_config_first_cli(HERE / "runtime", argv)
 
 
 if __name__ == "__main__":

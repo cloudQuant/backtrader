@@ -128,6 +128,19 @@ VENDORED_COPIES = {
 for _tier_copy in sorted((EXAMPLES / "unified").glob("*/entry_tier.py")):
     VENDORED_COPIES[_tier_copy] = EXAMPLES / "_support" / "entry_tier.py"
 
+# Iteration 43 R7: a leaf that carries a small fixture ships a byte-identical copy
+# of the repository original, discovered here so a new folder-local fixture is
+# guarded without editing this table.  Generated fixtures with no repository
+# original (for example 002's synthesised order books) are the leaf's own product
+# and stay outside this comparison.
+for _data_copy in sorted(EXAMPLES.rglob("data/*")):
+    if not _data_copy.is_file() or _data_copy.parent.parent == EXAMPLES:
+        continue
+    for _candidate in (ROOT / "tests" / "datas" / _data_copy.name, EXAMPLES / "data" / _data_copy.name):
+        if _candidate.is_file():
+            VENDORED_COPIES[_data_copy] = _candidate
+            break
+
 
 LOCAL_MANIFEST_REFRESH_SCRIPT = ROOT / "scripts" / "refresh_cross_exchange_local_manifests.py"
 

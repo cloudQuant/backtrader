@@ -19,16 +19,24 @@ _ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[3]
 if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
     _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
 
-from backtrader_runtime.legacy import (  # noqa: E402
-    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
-    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
-)
+def _iteration41_legacy():
+    """Import the config-first helpers only when the legacy CLI path needs them.
+
+    ``run.py`` loads this module for its offline dry and replay tiers, which must
+    also work from a copy of this folder where ``backtrader_runtime`` is not
+    installed.  Only the retired direct-script route and the config-first CLI
+    below ever need that package, so it is imported on demand here.
+    """
+
+    from backtrader_runtime import legacy
+
+    return legacy
 
 
 def _run_config_first_cli(argv=None) -> int:
     """Route the retired script through its fixed registered replay runtime."""
 
-    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+    return _iteration41_legacy().run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
 
 
 def main(argv=None) -> int:
@@ -320,7 +328,9 @@ def _arguments() -> argparse.Namespace:
 
 def _legacy_main() -> int:
     """Dispatch the offline CLI, print one JSON report, and return exit status."""
-    raise _iteration41_legacy_direct_execution_error("examples/unified/014_2_ctp_options_midfreq/run.py")
+    raise _iteration41_legacy().legacy_direct_execution_error(
+        "examples/unified/014_2_ctp_options_midfreq/run.py"
+    )
 
     args = _arguments()
     try:

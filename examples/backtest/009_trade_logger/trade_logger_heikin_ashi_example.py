@@ -36,6 +36,7 @@ def resolve_data_path(filename: str) -> Path:
         FileNotFoundError: If the data file cannot be found in any search path.
     """
     search_paths = [
+        BASE_DIR / "data" / filename,
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
         BASE_DIR / "datas" / filename,

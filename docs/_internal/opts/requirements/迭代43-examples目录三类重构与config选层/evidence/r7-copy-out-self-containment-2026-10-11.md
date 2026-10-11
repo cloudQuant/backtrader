@@ -50,3 +50,59 @@
 
 沿用 R0/R2 冻结基线；R7 每片都要复跑：`tests/unit/test_examples_self_contained.py`、受影响示例的仓库内入口、
 以及本文件的副本内复验矩阵；`ruff check examples` 保持 176 不增。
+
+## 5. R7-a/b/d 已完成（2026-10-11 同日后续轮，覆盖 §1 表中相应行与 §3 待做序）
+
+### R7-a 小数据入目录（`<leaf>/data/<file>`，先本地再仓库）
+
+| 目录 | 随目录携带的副本 | 来源 | 解析改动 |
+|---|---|---|---|
+| `backtest/006_plots` | `nvda-1999-2014.txt` 277KB | `tests/datas/` | 3 个入口共 7 处 `os.path.join(PROJECT_ROOT,…)` → 目录内 `resolve_data_path()`（先 `data/`、再 `examples/data/`、再 `tests/datas/`，缺失即 `SystemExit` 并点名文件与候选路径） |
+| `backtest/008_dual_side` | `2006-day-001.txt` 12KB | `tests/datas/` | 3 个入口各 1 处，同上 |
+| `backtest/009_trade_logger` | `113013.csv` 137KB、`orcl-1995-2014.txt` 351KB | `tests/datas/` | `trade_logger_example.py` 2 处 → 同一 helper；heikin 版把 `BASE_DIR/"data"` 加为其搜索表首项 |
+
+副本由 `test_examples_self_contained.py` 的 vendored 漂移守卫按发现登记（`examples/**/data/*` 命中
+`tests/datas` 或 `examples/data` 原名者逐字节比对；002 的合成 `data/` 无仓库原名，不参与比对，不误伤）。
+
+### R7-b `backtrader_runtime` 惰性化（本轮实测的真实阻断点）
+
+触发点不是 `run.py`，而是各 `legacy_runner.py` 的**模块级** `from backtrader_runtime.legacy import (…)`。
+改为 `_iteration41_legacy()` 按需导入，并把两处（config-first CLI、退役脚本的 fail-close raise）调用点改经该访问器：
+`014_2` 手工完成，`012_1`/`012_2`/`014_1` 以锚定脚本同法完成（共 8 个调用点，别名残留断言全零）。
+`012_2` 的 helper 初版插在 `import backtrader` **之前**，制造了 7 条 E402 新增红 —— 已把 helper 移到导入块之后，
+`ruff check examples` 回到冻结值 176。此错误只在增量对比中可见，绝对计数不够。
+
+### R7-d 复制即可运行的守卫固化：`tests/unit/test_iteration43_copy_out_runnable.py`
+
+31 条用例逐目录用 `git ls-files -c -o --exclude-standard` 取"跟踪+新增、绝不含被忽略项"的副本，
+清 `PYTHONPATH`、`cwd` 设在副本内跑离线入口，按**实测**分两类断言：
+
+- 必须跑通（exit 0 且有输出）：`004 005 006×3 008×3 009×2`、`unified/012_2 013_1 013_2 013_3 014_1 014_2 015`；
+- 必须 fail-closed 且**点名缺失输入**：`001`→`bond_`、`003`→`bookTicker`、`011×2`→`Generate test data`、
+  `016/017`→`XAUUSD_M1.csv`、`012_1`→`checkout's backtrader package`（其 legacy_runner 有
+  "必须使用本 checkout 的 backtrader 包"的受控栅栏，属设计约束，放宽它是独立治理决定，本轮不动）。
+
+外加 24 条"副本内不得携带 `.env`/`secrets*`/`__pycache__`/`logs`/`state`"的私有输入守卫。
+`002` 不入表：其 `KeyError: 'orderbook'` 是已登记的既有功能缺陷，与可移植性无关，
+把它写成"通过"或用例失败都会掩盖真实缺口。
+若该解释器离开 checkout 就导不到 `backtrader`，整套以 skip 带原因退出，不伪装成可移植性结论。
+
+### 复验结果（对照 R0/R2 冻结基线）
+
+`test_iteration43_copy_out_runnable.py` + `test_examples_self_contained.py`：**84 passed / 3 failed**
+（3 项即 R0 命名的既有红）；`tests/unit/runtime` + 012_x demo contract：**875 passed / 23 skipped / 0 failed**；
+登记离线冒烟 **8 / 0 / 2**；`ruff check examples` **176**（本轮改动文件单独全清）。
+
+### §1 表中行的当前状态（以本节为准）
+
+`006/008/009` 三行由 ❌ 转 ✅（副本内 exit 0）；`014_2` 由 ❌ 转 ✅；
+`012_2`/`014_1` 由 ❌（`backtrader_runtime`）转 ✅；`012_1` 由 ❌ 转 ⚠️ 设计性 fail-closed（点名原因）；
+`001/003/011/016/017` 维持 ⚠️ 大数据 fail-closed（已被守卫断言点名）；`011` 的假通过修复见 §2。
+
+### 仍未做（R7-c 剩余与诚实边界）
+
+- 大数据仍按 `--data-dir`/仓库解析，不随目录复制（`011` 7.2MB、`016/017` 99MB、根级 bollinger 23.5MB）；
+  统一 CLI 参数化（而非仅靠 `BACKTRADER_DATA_DIR`）留待后续轮，现状已是"非零 + 点名"。
+- `006` 三脚本依赖控制台 UTF-8（`✓` 字符）；守卫以 `PYTHONIOENCODING=utf-8` 运行，
+  改为纯 ASCII 输出属已登记的独立行为小轮。
+- `000` 认证套件副本内因缺 `.env` 而 `env_keys_missing`：代码可移植、凭据不外带，**不得为通过守卫而放宽**。
