@@ -154,7 +154,7 @@ def _default_owner(path: object) -> str:
         return "runtime-maintainers"
     if normalized.startswith(("backtrader/stores/", "backtrader/brokers/")):
         return "core-execution-maintainers"
-    if normalized.startswith(("examples/007_ctp/", "examples/010_live_examples/")):
+    if normalized.startswith("examples/007_ctp/"):
         return "legacy-ctp-runtime-maintainers"
     if normalized.startswith("examples/"):
         return "example-runtime-maintainers"

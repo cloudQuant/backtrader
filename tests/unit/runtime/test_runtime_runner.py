@@ -1724,7 +1724,7 @@ def test_all_registered_runners_use_the_shared_sealed_effective_config_helper() 
     """Keep a future runner from silently adding a second runtime config read."""
 
     registrations = iteration41_runtime_registry().registrations
-    assert len(registrations) == 13
+    assert len(registrations) == 11
     ctp_private = runtime_inventory.ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION
     assert ctp_private in registrations
     assert ctp_private.runner_module is None
@@ -1733,9 +1733,6 @@ def test_all_registered_runners_use_the_shared_sealed_effective_config_helper() 
     assert ctp_private_007.runner_module is None
     assert ctp_private_007.sandbox_write_policy == "deny"
     assert ctp_private_007.available_capabilities == ()
-    shadow_registration = runtime_inventory.ITERATION41_010_OKX_SHADOW_REGISTRATION
-    assert shadow_registration in registrations
-    assert shadow_registration.runner_module == "examples.010_live_examples.run_okx_shadow_runtime"
     for registration in registrations:
         if registration.runner_module is None:
             continue
@@ -1754,7 +1751,7 @@ def test_all_source_registered_runners_accept_the_posix_directory_capability_con
     """Keep source-runner POSIX dispatch from silently restoring a path argument."""
 
     all_registrations = iteration41_runtime_registry().registrations
-    assert len(all_registrations) == 13
+    assert len(all_registrations) == 11
     package_backtests = tuple(
         registration
         for registration in all_registrations
@@ -1777,7 +1774,6 @@ def test_all_source_registered_runners_accept_the_posix_directory_capability_con
     )
     assert runtime_inventory.ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION not in registrations
     assert runtime_inventory.ITERATION41_007_CTP_REGISTRATION in registrations
-    assert runtime_inventory.ITERATION41_010_OKX_SHADOW_REGISTRATION in registrations
     assert len(registrations) + len(package_backtests) + len(private_readonly) == len(
         all_registrations
     )

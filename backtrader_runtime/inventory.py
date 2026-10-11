@@ -102,14 +102,6 @@ ITERATION41_007_CTP_PRIVATE_RUNTIME_DIR = (
 )
 ITERATION41_007_CTP_PRIVATE_RUNTIME_ID = "example.007_ctp.simnow_penetration.ctp_private"
 ITERATION41_007_CTP_PRIVATE_STRATEGY_ID = "example.007_ctp.simnow_penetration"
-ITERATION41_010_LIVE_EXAMPLES_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "010_live_examples" / "runtime"
-)
-ITERATION41_010_LIVE_EXAMPLES_STRATEGY_ID = "example.010_live_examples.simnow_legacy"
-ITERATION41_010_OKX_SHADOW_RUNTIME_DIR = (
-    SOURCE_ROOT / "examples" / "010_live_examples" / "runtime-okx-shadow"
-)
-ITERATION41_010_OKX_SHADOW_STRATEGY_ID = "example.010_live_examples.okx_public_shadow"
 
 
 ITERATION41_012_1_REGISTRATION = RegisteredRuntime(
@@ -274,26 +266,6 @@ ITERATION41_007_CTP_REGISTRATION = RegisteredRuntime(
     runner_module="examples.007_ctp.run_runtime",
     capability_modules=_REPLAY_CAPABILITY_MODULES,
 )
-ITERATION41_010_LIVE_EXAMPLES_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_010_LIVE_EXAMPLES_RUNTIME_DIR,
-    strategy_id=ITERATION41_010_LIVE_EXAMPLES_STRATEGY_ID,
-    allowed_presets=("replay",),
-    allowed_parameter_keys=("scenario",),
-    runner_module="examples.010_live_examples.run_runtime",
-    capability_modules=_REPLAY_CAPABILITY_MODULES,
-)
-ITERATION41_010_OKX_SHADOW_REGISTRATION = RegisteredRuntime(
-    runtime_dir=ITERATION41_010_OKX_SHADOW_RUNTIME_DIR,
-    strategy_id=ITERATION41_010_OKX_SHADOW_STRATEGY_ID,
-    allowed_presets=("shadow",),
-    allowed_parameter_keys=("symbols", "duration_seconds", "orderbook_limit"),
-    runner_module="examples.010_live_examples.run_okx_shadow_runtime",
-    bootstrap_parameters=(
-        ("symbols", ("BTC/USDT:USDT", "ETH/USDT:USDT")),
-        ("duration_seconds", 10),
-        ("orderbook_limit", 5),
-    ),
-)
 
 
 ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
@@ -306,7 +278,6 @@ ITERATION41_REPLAY_RUNTIME_SET = RuntimeSet(
         ITERATION41_015_STRATEGY_ID,
         ITERATION41_SAMPLE_STRATEGY_ID,
         ITERATION41_007_CTP_STRATEGY_ID,
-        ITERATION41_010_LIVE_EXAMPLES_STRATEGY_ID,
     ),
 )
 ITERATION41_MANAGED_REPLAY_RUNTIME_SET = RuntimeSet(
@@ -343,8 +314,6 @@ def iteration41_runtime_registry() -> RuntimeRegistry:
             ITERATION41_015_REGISTRATION,
             ITERATION41_SAMPLE_REGISTRATION,
             ITERATION41_007_CTP_REGISTRATION,
-            ITERATION41_010_LIVE_EXAMPLES_REGISTRATION,
-            ITERATION41_010_OKX_SHADOW_REGISTRATION,
             ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION,
         ),
         runtime_sets=(

@@ -207,7 +207,7 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         and not registration.offline_managed_execution
     )
 
-    assert len(registrations) == 13
+    assert len(registrations) == 11
     assert package_backtests == (runtime_inventory.ITERATION41_PACKAGE_LOCAL_BACKTEST_REGISTRATION,)
     package_backtest = package_backtests[0]
     assert (
@@ -234,7 +234,7 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     assert not package_effective.allows_external_writes
     assert not package_effective.allows_production_writes
     assert not package_effective.requires_approval
-    assert len(normal_replays) == 8
+    assert len(normal_replays) == 7
     assert normal_replays == (
         runtime_inventory.ITERATION41_012_1_REGISTRATION,
         runtime_inventory.ITERATION41_012_2_REGISTRATION,
@@ -243,7 +243,6 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
         runtime_inventory.ITERATION41_015_REGISTRATION,
         runtime_inventory.ITERATION41_SAMPLE_REGISTRATION,
         runtime_inventory.ITERATION41_007_CTP_REGISTRATION,
-        runtime_inventory.ITERATION41_010_LIVE_EXAMPLES_REGISTRATION,
     )
     assert runtime_inventory.ITERATION41_007_CTP_REGISTRATION in normal_replays
     for approved in normal_replays:
@@ -324,22 +323,6 @@ def test_default_inventory_keeps_source_replays_separate_from_managed_l2_and_pac
     assert legacy_007_replay is runtime_inventory.ITERATION41_007_CTP_REGISTRATION
     assert legacy_007_replay.strategy_id == runtime_inventory.ITERATION41_007_CTP_STRATEGY_ID
     assert legacy_007_replay.allowed_presets == ("replay",)
-    shadow_registration = registry.require_runtime_dir(
-        runtime_inventory.ITERATION41_010_OKX_SHADOW_RUNTIME_DIR
-    )
-    assert shadow_registration is runtime_inventory.ITERATION41_010_OKX_SHADOW_REGISTRATION
-    assert shadow_registration.strategy_id == "example.010_live_examples.okx_public_shadow"
-    assert shadow_registration.allowed_presets == ("shadow",)
-    assert shadow_registration.allowed_parameter_keys == (
-        "symbols",
-        "duration_seconds",
-        "orderbook_limit",
-    )
-    assert shadow_registration.bootstrap_parameters == (
-        ("symbols", ("BTC/USDT:USDT", "ETH/USDT:USDT")),
-        ("duration_seconds", 10),
-        ("orderbook_limit", 5),
-    )
     highfreq_registration = registry.require_runtime_dir(
         runtime_inventory.ITERATION41_015_RUNTIME_DIR
     )

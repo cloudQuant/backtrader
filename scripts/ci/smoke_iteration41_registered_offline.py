@@ -2,8 +2,8 @@
 
 Only code-owned backtest/local_backtest and simulation/replay registrations are
 eligible. The script filters registrations before reading configs, so it never
-needs the private SimNow file and never runs shadow, private-read, or live
-provider routes.
+needs the private SimNow file and never runs private-read or live provider
+routes.
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ from backtrader_runtime.config import load_runtime_config
 from backtrader_runtime.inventory import (
     ITERATION41_007_CTP_PRIVATE_READONLY_BINDING,
     ITERATION41_007_CTP_PRIVATE_READONLY_REGISTRATION,
-    ITERATION41_010_OKX_SHADOW_REGISTRATION,
     ITERATION41_013_3_CTP_PRIVATE_READONLY_BINDING,
     ITERATION41_013_3_CTP_PRIVATE_READONLY_REGISTRATION,
     iteration41_runtime_registry,
@@ -84,14 +83,6 @@ def _offline_smoke_registrations(registry):
             ):
                 raise RuntimeError("private CTP runtime no longer matches its read-only contract")
             skipped.append((registration, "SKIP_PRIVATE_READ_ONLY"))
-            continue
-        if registration.runtime_id == ITERATION41_010_OKX_SHADOW_REGISTRATION.runtime_id:
-            if (
-                registration is not ITERATION41_010_OKX_SHADOW_REGISTRATION
-                or registration.allowed_presets != ("shadow",)
-            ):
-                raise RuntimeError("public shadow runtime no longer matches its reviewed contract")
-            skipped.append((registration, "SKIP_SHADOW"))
             continue
         if (
             registration.allowed_presets not in (("replay",), ("local_backtest",))

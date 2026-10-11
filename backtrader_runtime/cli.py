@@ -600,37 +600,6 @@ def _next_actions_for_error(
                 "note": _CTP_SIMNOW_PREFLIGHT_SUPERVISOR_NOTE,
             }
         ]
-    if reason in ("provider_dependency_version_unreviewed", "provider_dependency_unavailable"):
-        return [
-            {
-                "action": "install_reviewed_public_shadow_dependencies",
-                "field_path": error.field_path or "runtime.dependencies",
-                "note": (
-                    "from the Backtrader repository root, install the reviewed public OKX "
-                    "shadow dependency pair in the same Python environment as bt-runtime; "
-                    "this does not grant account or order access"
-                ),
-                "command": ["python", "-m", "pip", "install", "-e", ".[okx-public-shadow]"],
-            }
-        ]
-    if reason in (
-        "public_market_startup_incomplete",
-        "public_market_read_failed",
-        "public_market_observation_empty",
-        "provider_shutdown_incomplete",
-        "provider_hard_timeout",
-        "provider_hard_timeout_loop_unavailable",
-    ):
-        return [
-            {
-                "action": "inspect_public_market_session",
-                "field_path": error.field_path or "runtime.runner",
-                "note": (
-                    "the bounded public-market run did not complete; inspect provider/network "
-                    "availability and the reviewed dependency pair before retrying this same config"
-                ),
-            }
-        ]
     if reason == "ctp_private_source_incomplete":
         return [
             {
@@ -1054,11 +1023,6 @@ def _operator_error_payload(
         # boundary, so the CLI must not label them offline by default.
         provider_io_may_have_started = dispatch_started and error.reason not in (
             "capability_dependency_missing",
-            "provider_dependency_version_unreviewed",
-            "provider_dependency_unavailable",
-            "provider_origin_untrusted",
-            "strategy_callback_dependency_unavailable",
-            "strategy_callback_initialization_failed",
             # The config-driven CTP binding can reject malformed front
             # selection before any transport probe or provider access. A
             # failed TCP probe is not offline and is intentionally omitted.

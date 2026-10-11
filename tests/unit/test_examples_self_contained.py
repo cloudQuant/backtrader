@@ -68,7 +68,6 @@ STDLIB = _stdlib_module_names()
 # environment and documented by their owning example folders. Keep exceptions
 # folder-scoped so they cannot hide undeclared imports in other examples.
 OPTIONAL_EXAMPLE_MODULES = {
-    "010_live_examples": frozenset({"ccxt"}),
     "017_fnn_embedding": frozenset({"torch"}),
 }
 
@@ -96,9 +95,6 @@ VENDORED_COPIES = {
     EXAMPLES
     / "014_1_ctp_options_lowfreq"
     / "simnow_direct.py": (EXAMPLES / "013_3_sa_midfreq_simnow" / "simnow_direct.py"),
-    EXAMPLES
-    / "010_live_examples"
-    / "fake_btapi.py": (ROOT / "tests" / "fixtures" / "fake_btapi.py"),
     EXAMPLES
     / "012_1_midfreq_cross_exchange"
     / "strategy_candidate_approval.py": (EXAMPLES / "strategy_candidate_approval.py"),

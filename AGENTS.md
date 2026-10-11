@@ -420,7 +420,7 @@ The `examples/000_live_certification/{simnow_penetration,hongyuan_penetration}` 
 
 The same `examples/000_live_certification` root also contains 13 sibling live-only venue suites for OKX, Binance, Bitget, Bybit, Coinbase, dYdX, Gate.io, HTX, Hyperliquid, IB Web, MT5, Kraken, and MEXC. Like the SimNow layout, each venue owns 33 `cases/<ID>/{<ID>_strategy.py,run.py}` entries, but these new entries never run the SimNow offline smoke. Each venue also bundles its own `_certification` schema-v2 runtime and `config.example.yaml`; there are no shared `penetration_*.py` files at the 000 root and no import of `bt_api_py` or sibling venue code, so a whole venue directory is portable. The strategy file declares the protected case/risk/evidence contract and the adjacent runner is fixed to that one case ID. Example configs contain environment-variable names and placeholders only, keep all WRITE/DANGEROUS cases and policy grants disabled, and require private real configs outside the repository. READ cases consume referenced provider evidence without creating state; write cases require exact config/CLI grants, bounded runner-authored operations, independent observations, complete snapshots, and cleanup restricted to authorized orders. No reviewed/deployed venue adapter or live result is included, so source presence and static checks establish zero venue `PASS` results. The managed bridge remains a trust boundary; incomplete product metadata, unsupported valuation, missing independent evidence, or uncertain cleanup must be `BLOCKED`. CTP's separate `NO_WRITE / LIVE_NO_GO` status is unchanged.
 
-The Iteration 41 inventory currently has 13 registrations, including a 007 suite-root zero-write `simulation/sandbox` runtime/front-check route (the 013_3 source replay and source managed L2 entries were retired in the 2026-10-11 simplification round, and the 014_1/014_2 replay routes were retired in the same day's cleanup). Its protected, Git-ignored config and directory ACL are aligned with 013_3; the schema-v4 config is rebound to `example.007_ctp.simnow_penetration` and contains five configured MD/TD pairs. Offline `doctor` exited 0 with `provider_preflight_started=false`, five pairs, and `preflight_available=false`; ordinary `preflight` remains fail-closed pending a bounded Windows Job supervisor and independent acceptance. On 2026-09-28, one explicit credential-free `check-ctp-fronts` TCP probe selected pair index 3 (MD and TD each 3/3 reachable); indexes 0/1/2/4 each had 0/3. This is a host-and-time-specific transport observation only: no SDK import, provider login, market-data subscription, order, or cancel occurred, and it does not establish future reachability. `bt-runtime run` on the suite root returns `profile_dispatch_unavailable`/exit 2 with `provider_preflight_started=false`; this route has no runner. The 007 route has no certification case runner, trading runner, or write permission. All 33 case directories are staged at `examples/007_ctp/live_certification/simnow_penetration/cases/<ID>/{config.yaml,<ID>_strategy.py,run.py}`; per-case configs contain scenario parameters only and must not duplicate account credentials. Their strategy files describe planned real actions and evidence, not executable provider strategies. Historical flat `cases/*.py` remain closed source. `managed_case_entry` returns `BLOCKED`/exit 2 for the cases; that unavailable-case-runner result is never real SimNow `PASS`. The latest six-file fake/offline runtime focus passed 176 tests, skipped 13, with one existing pytest-configuration warning; it does not establish TCP, provider, account, or trading behavior. Keep `NO_WRITE / LIVE_NO_GO`.
+The Iteration 41 inventory currently has 11 registrations, including a 007 suite-root zero-write `simulation/sandbox` runtime/front-check route (the 013_3 source replay and source managed L2 entries were retired in the 2026-10-11 simplification round, and the 014_1/014_2 replay routes were retired in the same day's cleanup). Its protected, Git-ignored config and directory ACL are aligned with 013_3; the schema-v4 config is rebound to `example.007_ctp.simnow_penetration` and contains five configured MD/TD pairs. Offline `doctor` exited 0 with `provider_preflight_started=false`, five pairs, and `preflight_available=false`; ordinary `preflight` remains fail-closed pending a bounded Windows Job supervisor and independent acceptance. On 2026-09-28, one explicit credential-free `check-ctp-fronts` TCP probe selected pair index 3 (MD and TD each 3/3 reachable); indexes 0/1/2/4 each had 0/3. This is a host-and-time-specific transport observation only: no SDK import, provider login, market-data subscription, order, or cancel occurred, and it does not establish future reachability. `bt-runtime run` on the suite root returns `profile_dispatch_unavailable`/exit 2 with `provider_preflight_started=false`; this route has no runner. The 007 route has no certification case runner, trading runner, or write permission. All 33 case directories are staged at `examples/007_ctp/live_certification/simnow_penetration/cases/<ID>/{config.yaml,<ID>_strategy.py,run.py}`; per-case configs contain scenario parameters only and must not duplicate account credentials. Their strategy files describe planned real actions and evidence, not executable provider strategies. Historical flat `cases/*.py` remain closed source. `managed_case_entry` returns `BLOCKED`/exit 2 for the cases; that unavailable-case-runner result is never real SimNow `PASS`. The latest six-file fake/offline runtime focus passed 176 tests, skipped 13, with one existing pytest-configuration warning; it does not establish TCP, provider, account, or trading behavior. Keep `NO_WRITE / LIVE_NO_GO`.
 
 The suite-root 007 `config.yaml` and any `secrets.yaml` now have exact Git-ignore rules. Offline CI smoke skips both reviewed CTP private-read runtimes before config loading; the synthetic same-path CLI test clones only its matching read-only binding. These checks do not read the private config or enable a runner.
 
@@ -614,28 +614,27 @@ the CLI/operator dispatcher reject it. The selected-front read-only route has no
 injected UTC source requirement; its bounded observation uses a monotonic
 deadline. A future write admission needs its own trusted expiry/time policy.
 
-The current default registry has 13 registrations: 8 nonmanaged
+The current default registry has 11 registrations: 7 nonmanaged
 `simulation/replay` paths (five ordinary strategy examples, the no-action
-legacy profiles for `examples/007_ctp` and `examples/010_live_examples`, and
+legacy profile for `examples/007_ctp`, and
 the separate `examples/sample.py` no-action migration profile), two zero-write
 CTP SimNow `simulation/sandbox` RuntimeProfiles with read-only bindings: the
 013_3 private runtime and the 007 certification-suite root runtime/front-check
 route. Offline `doctor` and credential-free `check-ctp-fronts` are available
 for both. Ordinary CTP `preflight` for 013_3 and 007 remains fail-closed
 pending a bounded hard Windows Job supervisor and independent acceptance. The
-registry also has one `examples/010_live_examples` public-market-only
-`simulation/shadow` runtime
-(fixed OKX public instruments, bounded duration and requested five-level depth), one
+registry also has one
 source fake-provider managed L2 replay path, and one package-owned
 `backtest/local_backtest` fixture. The 013_3 source replay and source managed
 L2 entries were retired in the 2026-10-11 simplification round; the
 package-owned offline L2 fixtures remain in their separate registry. The
+`examples/010_live_examples` directory was retired on 2026-10-11 together with
+its legacy SimNow no-action replay profile and its public-market-only
+`simulation/shadow` runtime; no `simulation/shadow` registration remains and
+the `okx-public-shadow` packaging extra was removed with it. The
 fixture executes four packaged CSV bars
 through Cerebro with zero network, external writes, orders, fills, or provider
 submissions; it is an acceptance fixture, not a general deployment route.
-The public shadow passes validated books to the historical
-`LiveMultiSymbolStrategy.notify_orderbook` callback on a brokerless observer;
-it does not construct Cerebro, run `next()`, or expose an order route.
 There is no registered live runner. Do not make a replay configuration or a
 template into a live route by adding a fallback or override; live registration
 requires its own reviewed implementation and acceptance evidence.
@@ -1056,8 +1055,9 @@ test doubles are retained for local tests.
   (temp cleanup, installed-vs-local switch, slow auto-marking).
 - `python scripts/ci/smoke_iteration41_registered_offline.py` runs the
   registered offline replay/backtest CLI entries; managed L2 replay requires
-  the local SDK source packages on `PYTHONPATH`. It deliberately skips the
-  public-network shadow and all private/live routes.
+  the local SDK source packages on `PYTHONPATH`. It deliberately filters
+  registrations before config loading and skips all private-read and live
+  routes.
 - `tests/datas/` holds fixtures; MT5 daily CSVs in `tests/datas/mt5_1d_data/`.
 - New regression tests should pass on **both** `dev` and `master` (bake master's
   output as the expected values). Some `tests/unit/brokers/*_performance` tests

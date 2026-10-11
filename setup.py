@@ -105,9 +105,6 @@ setup(
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
         "live": ["cryptography>=3.4"],
-        # Public OKX shadow observation was verified with this isolated
-        # CCXT/aiohttp pair on CPython 3.11; it grants no account or write route.
-        "okx-public-shadow": ["ccxt==4.5.83", "aiohttp==3.14.3"],
     },  # List of project dependencies
     python_requires=">=3.8",
     entry_points={

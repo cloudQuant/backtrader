@@ -400,38 +400,6 @@ def test_cli_never_uses_cwd_or_ai_arguments_as_a_runtime(arguments: tuple) -> No
     assert "AI-produced" in action["note"]
 
 
-def test_run_failure_after_dispatch_does_not_claim_offline_execution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    runtime_dir = tmp_path / "public-run-failure"
-    _write_config(runtime_dir)
-
-    def failed_dispatch(*_args: object) -> object:
-        raise RuntimeConfigError(
-            PRESET_POLICY_VIOLATION,
-            "a bounded public market read failed",
-            field_path="runtime.runner",
-            reason="public_market_read_failed",
-        )
-
-    monkeypatch.setitem(main.__globals__, "dispatch_registered_runtime", failed_dispatch)
-    stderr = io.StringIO()
-    status = main(
-        ["run", "--strategy-dir", str(runtime_dir)],
-        registry=_registry(runtime_dir),
-        environ={},
-        stdout=io.StringIO(),
-        stderr=stderr,
-    )
-
-    assert status == 2
-    rejection = _payload(stderr)
-    diagnostic = rejection["diagnostic"]
-    assert diagnostic["offline"] is False
-    assert diagnostic["provider_io_may_have_started"] is True
-    assert diagnostic["next_actions"][0]["action"] == "inspect_public_market_session"
-
-
 def test_missing_managed_replay_capability_is_reported_before_provider_io(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
