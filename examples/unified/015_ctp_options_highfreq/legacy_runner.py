@@ -647,9 +647,10 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> tuple[dict[str, Any], Path
     config = _mapping(raw, "config root")
     # The optional iteration-42 ``live_adapter`` section is consumed by the
     # standard ``run.py`` live tier only; the frozen replay contract keeps
-    # its strict key set.
-    if "live_adapter" in config:
-        config = {key: value for key, value in config.items() if key != "live_adapter"}
+    # its strict key set.  The iteration-43 ``entry`` section is validated by
+    # ``run.py`` through the folder-local ``entry_tier`` helper, so it is
+    # projected away here rather than admitted into the replay key set.
+    config = {key: value for key, value in config.items() if key not in {"live_adapter", "entry"}}
     validate_config(config)
     return config, config_path.resolve()
 

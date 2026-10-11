@@ -205,7 +205,7 @@ bar、`next` 与无可信时钟的 idle 回调均不能创建普通意图。任�
 ## 历史回归 API 的输出与结论阅读
 
 ```bash
-python examples/unified/015_ctp_options_highfreq/run.py --mode replay --purpose formula \
+python examples/unified/015_ctp_options_highfreq/legacy_runner.py --mode replay --purpose formula \
   --scenario valid_cohort --output-dir examples/unified/015_ctp_options_highfreq/reports/local-replay
 ```
 

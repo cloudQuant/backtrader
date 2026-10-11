@@ -46,6 +46,8 @@ for _bootstrap_path in (str(HERE), str(REPO_ROOT)):
     if _bootstrap_path not in sys.path:
         sys.path.insert(0, _bootstrap_path)
 
+import entry_tier  # noqa: E402  (folder-local copy of examples/_support/entry_tier.py)
+
 EXIT_PASS, EXIT_FAIL, EXIT_BLOCKED, EXIT_UNKNOWN = 0, 1, 2, 3
 STRATEGY_ID = "ctp_options_highfreq"
 LIVE_ADAPTER_KEY = "live_adapter"
@@ -244,7 +246,7 @@ class _LiveClock:
 
 
 # --------------------------------------------------------------------------- dry
-def run_dry() -> int:
+def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:
     legacy = _load_legacy()
 
     errors: list = []
@@ -263,6 +265,8 @@ def run_dry() -> int:
     report = {
         "status": "DRY" if not errors else "REJECTED",
         "mode": "dry",
+        "tier": dict(tier_evidence or {}),
+        "write_grant_result": "not_applicable_offline_tier",
         "strategy_id": STRATEGY_ID,
         "candidate_id": config.get("candidate_id"),
         "hft_status": "FAIL/NOT_ADMITTED",
@@ -284,7 +288,11 @@ def run_dry() -> int:
     return EXIT_PASS if not errors else EXIT_BLOCKED
 
 
-def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
+def run_replay(
+    scenario: Optional[str],
+    evidence_dir: Optional[Path],
+    tier_evidence: Optional[Mapping[str, Any]] = None,
+) -> int:
     legacy = _load_legacy()
 
     chosen = str(scenario or "")
@@ -314,6 +322,8 @@ def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
     status = str(report.get("status") or "")
     ok = status == "LOCAL_REPLAY_PASS"
     summary = {
+        "tier": dict(tier_evidence or {}),
+        "write_grant_result": "not_applicable_offline_tier",
         "status": status or "UNKNOWN",
         "mode": "replay",
         "run_id": run_id,
@@ -329,6 +339,8 @@ def run_replay(scenario: Optional[str], evidence_dir: Optional[Path]) -> int:
 
 # -------------------------------------------------------------------------- live
 def run_live(args) -> int:
+    decision = getattr(args, "tier_decision", None)
+    decision_evidence = decision.as_evidence() if decision is not None else {}
     if args.allow_write:
         _json_print(
             {
@@ -580,6 +592,8 @@ def run_live(args) -> int:
                 except Exception:
                     pass
                 store = None
+        summary["tier"] = decision_evidence
+        summary["write_grant_result"] = "refused_no_order_path_by_contract"
         summary["admission_attempts"] = attempts
         if armed is None:
             raise LiveRejected("no_admissible_front_pair", {"attempts": attempts})
@@ -846,6 +860,7 @@ def main(argv=None) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--replay", action="store_true", help="offline tick/cohort fixture replay")
     mode.add_argument("--live", action="store_true", help="live observation tier (no write path)")
+    mode.add_argument("--dry", action="store_true", help="force the offline config self-check")
     parser.add_argument("--allow-write", action="store_true", help="refused: this strategy has no order path")
     parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
     parser.add_argument("--scenario", default=None, help="replay scenario name")
@@ -865,11 +880,36 @@ def main(argv=None) -> int:
     if args.allow_dangerous:
         _json_print({"status": "REJECTED", "error": "no_dangerous_actions_defined"})
         return EXIT_BLOCKED
-    if args.live:
+    # ``config.entry.tier`` selects the channel; a mode flag may only keep or
+    # lower it, and a malformed declaration is rejected before any provider side
+    # effect instead of falling back to a live run.
+    try:
+        tier_config = _load_raw_config()
+    except LiveRejected as exc:
+        _json_print({"status": "BLOCKED", "reason": exc.reason, **({"details": exc.details} if exc.details else {})})
+        return EXIT_BLOCKED
+    cli_tier = "live" if args.live else "replay" if args.replay else "dry" if args.dry else None
+    decision = entry_tier.decide(tier_config, cli_tier)
+    if entry_tier.invalid(decision) or entry_tier.conflict(decision):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "reason": decision.reason,
+                "tier": decision.as_evidence(),
+                "write_grant_result": "not_evaluated_tier_unresolved",
+            }
+        )
+        return EXIT_BLOCKED
+    args.tier_decision = decision
+    if decision.effective_tier == "live":
         return run_live(args)
-    if args.replay:
-        return run_replay(args.scenario, Path(args.evidence_dir) if args.evidence_dir else None)
-    return run_dry()
+    if decision.effective_tier == "replay":
+        return run_replay(
+            args.scenario,
+            Path(args.evidence_dir) if args.evidence_dir else None,
+            decision.as_evidence(),
+        )
+    return run_dry(decision.as_evidence())
 
 
 if __name__ == "__main__":

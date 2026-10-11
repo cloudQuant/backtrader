@@ -120,6 +120,11 @@ VENDORED_COPIES = {
     / "unified"
     / "012_2_event_driven_cross_exchange"
     / "demo-approval-trust-root.pem": (EXAMPLES / "_support" / "demo-approval-trust-root.pem"),
+    # Iteration 43 tier resolver: one canonical helper, one copy per unified example.
+    EXAMPLES
+    / "unified"
+    / "015_ctp_options_highfreq"
+    / "entry_tier.py": (EXAMPLES / "_support" / "entry_tier.py"),
 }
 
 
