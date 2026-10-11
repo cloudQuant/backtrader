@@ -196,6 +196,26 @@ def test_declared_live_tier_reaches_the_live_channel(entry: str, tmp_path: Path)
     assert payload["write_grant_result"] == "refused_no_order_path_by_contract", payload
 
 
+@pytest.mark.parametrize("entry", ("012_1_midfreq_cross_exchange", "012_2_event_driven_cross_exchange"))
+def test_crypto_live_without_grant_states_the_missing_channel(entry: str, tmp_path: Path) -> None:
+    """The crypto entries report the absent observation path, not a consent error.
+
+    Their live tier is the demo write acceptance, so this row is the honest
+    capability statement: nothing is connected, nothing is ordered, and the
+    reason names the gap rather than implying an observation path was refused.
+    """
+
+    staged = _stage(tmp_path, entry, declaration="\nentry:\n  tier: live\n")
+    completed = _run(entry, [], staged)
+    payload = _payload(completed)
+    assert completed.returncode == 2, payload
+    assert payload["status"] == "BLOCKED", payload
+    assert payload["mode"] == "live" and payload["channel"] == "observe", payload
+    assert payload["reason"] == "live_observation_unavailable", payload
+    assert payload["write_grant_result"] == "not_requested", payload
+    assert _tier(payload)["effective_tier"] == "live", payload
+
+
 @pytest.mark.parametrize("entry", ALL_ENTRIES)
 def test_folder_local_helper_is_a_byte_copy(entry: str) -> None:
     vendored = UNIFIED / entry / "entry_tier.py"

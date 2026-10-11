@@ -622,6 +622,228 @@ def _fee_schedule_from(commission: Mapping[str, Any], future_price: float, multi
     }
 
 
+
+# ------------------------------------------------------------------ live observe
+def run_live_observe(args) -> int:
+    """Open a real SimNow session, read it, and close it. Writes stay unreachable.
+
+    The live tier used to demand ``--allow-write`` before it would even start, so
+    an operator who only wanted to look at the account had no channel at all.
+    This path keeps the same interpreter, dev-SDK, config and leg preconditions,
+    selects a reachable whole front pair, logs in, and reads the account,
+    positions, orders and trades before closing the session.
+
+    It never builds a Broker or Cerebro, never calls ``registered_sim_arm``, and
+    never submits or cancels an order; the store's own write counters are
+    reported so the absence of writes is evidenced rather than asserted. Open
+    positions or resting orders are reported, not refused: the clean-account
+    gate is a precondition of the write drill, not of observation.
+    """
+
+    if sys.version_info[:2] != (3, 11):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "channel": "observe",
+                "reason": "live_tier_requires_python_3_11",
+                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
+                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
+            }
+        )
+        return EXIT_BLOCKED
+
+    # Import order matters, exactly as in the drill: legacy_runner's iteration-41
+    # fence puts the checkout root on sys.path before anything binds ``backtrader``.
+    _ensure_dev_sdk_path()
+    import legacy_runner
+    import simnow_direct
+
+    decision = getattr(args, "tier_decision", None)
+    tier_evidence = decision.as_evidence() if decision is not None else {}
+    try:
+        raw_config = _load_raw_config()
+        legacy_config = legacy_runner.load_config()
+    except Exception as exc:
+        _json_print({"status": "REJECTED", "mode": "live", "error": f"{type(exc).__name__}: {exc}"})
+        return EXIT_BLOCKED
+    live = dict(raw_config.get(LIVE_ADAPTER_KEY) or {})
+    errors = _live_section_errors(live)
+    if errors:
+        _json_print({"status": "REJECTED", "mode": "live", "errors": errors})
+        return EXIT_BLOCKED
+    try:
+        env = _load_env()
+        _ensure_dev_sdk_path(strict=True)
+        legs: List[Tuple[str, str, str]] = []
+        for key in ("future", "call", "put"):
+            full_symbol = str(dict(legacy_config.get("candidate") or {}).get(key) or "")
+            code, leg_exchange = _split_symbol(full_symbol)
+            legs.append((full_symbol, code, leg_exchange))
+        if len({item[1] for item in legs}) != 3:
+            raise LiveRejected("three_distinct_legs_required")
+        if len({item[2] for item in legs}) != 1:
+            raise LiveRejected("single_exchange_options_bundle_required")
+    except LiveRejected as exc:
+        _json_print({"status": "BLOCKED", "mode": "live", "reason": exc.reason, "details": exc.details})
+        return exc.exit_code
+    except Exception as exc:
+        _json_print({"status": "BLOCKED", "mode": "live", "reason": f"{type(exc).__name__}: {exc}"})
+        return EXIT_BLOCKED
+    exchange = legs[0][2]
+
+    timeouts = dict(live.get("timeouts") or {})
+    query_timeout = float(timeouts.get("query_seconds") or 8.0)
+    run_id = (
+        f"observe-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f"-{uuid.uuid4().hex[:8]}"
+    )
+    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
+    output_directory.mkdir(parents=True, exist_ok=True)
+    summary: Dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "example_id": '014_1_ctp_options_lowfreq',
+        "mode": "live",
+        "channel": "observe",
+        "status": "STARTING",
+        "entry_tier": dict(tier_evidence),
+        "write_grant_result": "not_required_observation_only",
+        "legs": [item[0] for item in legs],
+        "exchange": exchange,
+        "evidence_directory": str(output_directory),
+    }
+
+    def _write_summary() -> None:
+        try:
+            (output_directory / "run.json").write_text(
+                json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+    store = None
+    try:
+        credentials = {
+            field: _resolve_ref(
+                env.get(str((live.get("credentials") or {}).get(f"{field}_env"))), {}, field=field
+            )
+            for field in ("broker_id", "user_id", "password", "app_id", "auth_code")
+        }
+        selection = simnow_direct.select_front_pair(
+            ((live.get("fronts") or {}) or {}).get("pairs") or [],
+            env,
+            samples=3,
+            connect_timeout=3.0,
+        )
+        attempts: List[Dict[str, Any]] = []
+        for candidate_pair in selection["ordered_pairs"]:
+            record: Dict[str, Any] = {
+                "index": candidate_pair["index"],
+                "kind": candidate_pair["kind"],
+                "whitelisted": candidate_pair["whitelisted"],
+                "score_ms": candidate_pair["score_ms"],
+            }
+            attempt_store = simnow_direct.RegisteredSimStore(
+                provider="ctp",
+                backend="direct",
+                config={
+                    "md_front": candidate_pair["md_front"],
+                    "td_front": candidate_pair["td_front"],
+                    "broker_id": credentials["broker_id"],
+                    "investor_id": credentials["user_id"],
+                    "password": credentials["password"],
+                    "app_id": credentials["app_id"],
+                    "auth_code": credentials["auth_code"],
+                    "auto_settlement_confirm": False,
+                    "allow_zero_login_response": bool(
+                        ((live.get("live_market_data") or {}) or {}).get("allow_zero_login_response", False)
+                    ),
+                    "supports_dual_side": True,
+                },
+            )
+            try:
+                attempt_store.start()
+                try:
+                    ready = attempt_store.registered_sim_wait_ready(
+                        timeout=float(timeouts.get("login_seconds") or 30.0)
+                    )
+                except Exception:
+                    ready = False
+                try:
+                    login = attempt_store.registered_sim_login_facts()
+                except Exception:
+                    login = {}
+                if not ready or not (login.get("read_only_ready") or login.get("trading_ready")):
+                    raise LiveRejected("login_not_ready", {"login": login, "wait_ready": ready})
+                positions = _rows(attempt_store.registered_sim_query("positions_result", timeout=query_timeout))
+                orders = _rows(attempt_store.registered_sim_query("orders_result", timeout=query_timeout))
+                record["login"] = login
+                record["readings"] = {
+                    "account_rows": len(_rows(attempt_store.registered_sim_query("account_result", timeout=query_timeout))),
+                    "position_rows": len(positions),
+                    "open_position_rows": len([row for row in positions if _position_is_open(row)]),
+                    "order_rows": len(orders),
+                    "active_order_rows": len([row for row in orders if _order_is_active(row)]),
+                    "trade_rows": len(_rows(attempt_store.registered_sim_query("trades_result", timeout=query_timeout))),
+                }
+                record["result"] = "observed"
+            except simnow_direct.SimNowDirectError as exc:
+                record.update({"result": "blocked", "reason": exc.reason, "details": dict(exc.details)})
+            except LiveRejected as exc:
+                record.update({"result": "blocked", "reason": exc.reason, "details": dict(exc.details)})
+            except Exception as exc:
+                record.update({"result": "error", "reason": f"{type(exc).__name__}: {exc}"})
+            attempts.append(record)
+            if record["result"] == "observed":
+                store = attempt_store
+                break
+            try:
+                attempt_store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
+            except Exception:
+                pass
+        summary["admission_attempts"] = attempts
+        if store is None:
+            raise LiveRejected("no_observable_front_pair", {"attempts": attempts})
+        observed = next(record for record in attempts if record["result"] == "observed")
+        summary["selected_pair_index"] = observed["index"]
+        summary["selected_pair_kind"] = observed["kind"]
+        summary["login"] = observed["login"]
+        summary["readings"] = observed["readings"]
+        try:
+            summary["write_health"] = dict(store.registered_sim_write_health())
+        except Exception as exc:
+            summary["write_health_error"] = f"{type(exc).__name__}: {exc}"
+        summary["status"] = "LIVE_OBSERVE_PASS"
+        summary["boundary"] = "SESSION_AND_QUERY_OBSERVATION_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE"
+        _write_summary()
+        return EXIT_PASS
+    except simnow_direct.SimNowDirectError as exc:
+        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
+        _write_summary()
+        _json_print(summary)
+        return EXIT_BLOCKED
+    except LiveRejected as exc:
+        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
+        _write_summary()
+        _json_print(summary)
+        return exc.exit_code
+    except Exception as exc:
+        summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})
+        _write_summary()
+        _json_print(summary)
+        return EXIT_BLOCKED
+    finally:
+        if store is not None:
+            try:
+                store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
+            except Exception:
+                pass
+        _write_summary()
+        _json_print(summary)
+
+
 def run_live(args) -> int:
     if not args.allow_write:
         _json_print(
@@ -1388,7 +1610,9 @@ def main(argv=None) -> int:
         return EXIT_BLOCKED
     args.tier_decision = decision
     if decision.effective_tier == "live":
-        return run_live(args)
+        # The write drill keeps its explicit grant; without a grant the live tier
+        # becomes this zero-write observation session instead of refusing to start.
+        return run_live(args) if args.allow_write else run_live_observe(args)
     if decision.effective_tier == "replay":
         return run_replay(
             args.scenario,

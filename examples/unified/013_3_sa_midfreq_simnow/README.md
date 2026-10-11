@@ -91,4 +91,4 @@ entry:
   tier: replay   # dry | replay | live（backtest 为 replay 别名）
 ```
 
-本目录的 live 通道先校验解释器（`live_tier_requires_python_3_11`），再要求显式 `--allow-write`，因此声明 `tier: live` 而无模式参数不会触达任何 provider；无写观察通道由迭代 43 的 R5b 轮补齐。
+本目录的 live 通道分两条：带 `--allow-write` 进入原写 drill（准入条件一字未改）；**不带写授权时进入 `run_live_observe()` 零写观察会话**（`channel: observe`）——解释器与配置前置 → 完整 MD/TD 对新鲜选择 → 原生登录 → 账户/持仓/委托/成交与所配置合约的只读查询 → 正常关闭，终报 `LIVE_OBSERVE_PASS` 并附 store 自身 `write_health`。该路径从不构造 Broker/Cerebro、从不调用 `registered_sim_arm`；脏账户（`_live_preflight` 的清洁门属写 drill）在此只上报不拒跑。

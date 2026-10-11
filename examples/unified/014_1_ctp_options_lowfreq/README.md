@@ -135,5 +135,5 @@ entry:
   tier: replay   # dry | replay | live（backtest 为 replay 别名）
 ```
 
-本目录的 live 通道是写 drill，第一步即要求显式 `--allow-write`（否则 `REJECTED / write_consent_missing`）；无写观察通道由迭代 43 的 R5b 轮补齐。
+本目录的 live 通道分两条：带 `--allow-write` 进入原三腿写 drill（`--drill` 等授权条件一字未改）；**不带写授权时进入 `run_live_observe()` 零写观察会话**（`channel: observe`）——解释器/dev-SDK/配置与三腿解析前置 → 完整 MD/TD 对新鲜选择 → 原生登录 → 账户/持仓/委托/成交只读查询 → 正常关闭，终报 `LIVE_OBSERVE_PASS` 并附 `write_health`。该路径从不构造 Broker/Cerebro、从不调用 `registered_sim_arm`；已有持仓或挂单只如实上报（`open_position_rows`/`active_order_rows`），清洁账户门属写 drill 前提，不属观察。
 严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。

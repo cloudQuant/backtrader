@@ -76,3 +76,28 @@ R5a 把通道决策证据写成 `tier`，但各例 live summary 的 `tier` 早�
 R5b-2：`013_3`（迭代 22 schema 的 SA 例）与 `014_1`（期权低频写 drill）各自补无写观察或
 显式返回 `live_observation_unavailable`；`012_1/012_2` 用其 SDK 只读 preflight 组观察层。
 其后 R7（复制即可运行）与 R6（索引/守卫/AGENTS）。
+
+## 6. R5b-2 追加（同日下一轮，§2 表格的交付状态以本节为准）
+
+§2 表把 `013_3`/`014_1`/`012_1`/`012_2` 记为“未交付，R5b-2 继续”。R5b-2 已落地，交付形态如下：
+
+| 示例 | R5b-2 结果 |
+|---|---|
+| `013_3_sa_midfreq_simnow` | 新增 `run_live_observe()`：迭代 22 schema 的 `live_contract.instrument/exchange` 经 `_resolve_ref` 解析，选择完整 MD/TD 对 → 登录 → 持仓/委托/合约元数据/账户/成交只读读 → `write_health` → 关闭；不调用其整体式 `_live_preflight`（该函数把清洁账户作为写 drill 前提），故脏账户只上报 |
+| `014_1_ctp_options_lowfreq` | 新增 `run_live_observe()`：保留三腿（future/call/put）与单所校验、dev-SDK 预载与解释器前置，登录后做四组只读查询并投影 `open_position_rows`/`active_order_rows`；写 drill 与 `--drill` 授权链未动 |
+| `012_1`/`012_2` | 无独立无写观察路径，`live` 无授权时显式返回 `BLOCKED / live_observation_unavailable`（`write_grant_result: not_requested`），不再以 `write_consent_missing` 冒充“观察通道存在但被拒”；同一 sealed config 上的只读 preflight 属后续独立轮 |
+
+三个 SimNow 家族例子的观察测试各自断言**生命周期序列本身**（`start → wait_ready → stop`、逐例的只读查询顺序、`write_health` 四项全零、
+`BtApiBroker` 构造即抛的哨兵、store `__getattr__` 对任何 arm/submit/cancel/send/freeze/disarm 立即抛），
+并各含一条分发断言（`--live` → observe，`--live --allow-write` → drill）。
+既有测试与文档中没有任何一处依赖 `write_consent_missing` 这个字符串（全库 grep 为零），
+因此该行为变更不产生隐藏回归。
+
+R5b-2 门禁：迭代 43 五份测试 **118 passed / 3 skipped / 0 failed**；
+`tests/unit/runtime` + 自包含 + 012_x 集成合并跑 **918 passed / 23 skipped / 3 failed（R0 既有红）**；
+登记离线冒烟 **8 / 0 / 2**；`ruff check examples` 仍为 **176**，本轮改动文件单独全清；
+012_x 目录清单在 run.py 再次变更后重签并 `--check` up to date（仅 `runner_sha256`/`candidate_sha256` 变化，
+批准状态与 `demo_approval` 未变，新指纹不继承旧签名授权）。
+
+至此 R5b 的“缺能力入口显式标注”要求完成：6 例中 3 例具备真实零写观察会话，2 例本为观察层并补齐证据，
+1 对（012_x）以 `live_observation_unavailable` 诚实标注并给出翻转路径。

@@ -175,6 +175,39 @@ def run_replay(
     return EXIT_PASS if ok else EXIT_FAIL
 
 
+
+# ------------------------------------------------------------------ live observe
+def run_live_observe(args) -> int:
+    """No zero-write observation channel exists here yet.
+
+    This example's live tier is the dual-venue demo acceptance path, and its
+    read-only preconditions (account mode, hedge mode, fee and instrument
+    metadata) are only exercised inside the admitted write run.  Reporting
+    ``live_observation_unavailable`` keeps the capability gap explicit instead of
+    letting ``write_consent_missing`` read as if an observation path existed and
+    was merely refused.  The write drill's own consent gate below is unchanged.
+    """
+
+    decision = getattr(args, "tier_decision", None)
+    tier_evidence = decision.as_evidence() if decision is not None else {}
+    _json_print(
+        {
+            "status": "BLOCKED",
+            "mode": "live",
+            "channel": "observe",
+            "reason": "live_observation_unavailable",
+            "entry_tier": dict(tier_evidence),
+            "write_grant_result": "not_requested",
+            "gap": (
+                "this example has no standalone zero-write observation path; a read-only "
+                "preflight over the same sealed config and demo credentials is the follow-up"
+            ),
+            "hint": "add --allow-write to run the admitted demo path; nothing was connected or ordered",
+        }
+    )
+    return EXIT_BLOCKED
+
+
 def run_live(args) -> int:
     legacy_runner = _load_legacy()
 
@@ -353,7 +386,9 @@ def main(argv=None) -> int:
         return EXIT_BLOCKED
     args.tier_decision = decision
     if decision.effective_tier == "live":
-        return run_live(args)
+        # The demo write path keeps its explicit grant; without one the live tier
+        # reports the missing observation channel instead of pretending to consent-check.
+        return run_live(args) if args.allow_write else run_live_observe(args)
     if decision.effective_tier == "replay":
         return run_replay(
             args.scenario,
