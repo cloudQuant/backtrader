@@ -82,8 +82,8 @@ RUNTIME_SOURCE_MODULES = (
     ("backtrader.hft_recorder", "backtrader.brokers.hft.recorder", "backtrader"),
     ("backtrader.hft_state", "backtrader.brokers.hft.state", "backtrader"),
     (
-        "examples.strategy_candidate_approval",
-        "examples.strategy_candidate_approval",
+        "examples._support.strategy_candidate_approval",
+        "examples._support.strategy_candidate_approval",
         "backtrader",
     ),
     ("bt_api_py.package_api", "bt_api_py", "bt_api_py"),

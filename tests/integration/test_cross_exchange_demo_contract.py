@@ -20,11 +20,11 @@ import pytest
 
 from tests.test_utils.optional_sdk import optional_sdk
 
-import examples.strategy_candidate_approval as demo_approval
+import examples._support.strategy_candidate_approval as demo_approval
 midfreq_demo_approval = importlib.import_module(
     "examples.unified.012_1_midfreq_cross_exchange.strategy_candidate_approval"
 )
-from examples.strategy_candidate_approval import (
+from examples._support.strategy_candidate_approval import (
     APPROVAL_ALGORITHM,
     APPROVAL_KEY_ID,
     CANONICAL_MANIFEST_RELATIVE_PATH,
@@ -189,7 +189,8 @@ def _approval_artifact(
     examples = tmp_path / "examples"
     receipts = examples / "receipts"
     receipts.mkdir(parents=True)
-    trust_path = examples / "demo-approval-trust-root.pem"
+    (examples / "_support").mkdir(parents=True, exist_ok=True)
+    trust_path = examples / "_support" / "demo-approval-trust-root.pem"
     trust_raw = _public_key(trust_key, trust_path)
 
     runtime_source = copy.deepcopy(runtime_source or _runtime_source())
@@ -570,7 +571,7 @@ def test_signed_format_valid_but_false_repository_commit_fails_closed(runner, tm
         ("runtime_files", "backtrader.live_feed"),
         ("runtime_files", "backtrader.broker"),
         ("runtime_files", "backtrader.hft_matching"),
-        ("runtime_files", "examples.strategy_candidate_approval"),
+        ("runtime_files", "examples._support.strategy_candidate_approval"),
         ("runtime_files", "bt_api_py.cross_venue"),
         ("source_files", "bt_api_py.public_api"),
         ("source_files", "bt_api_py.execution_session"),
@@ -624,7 +625,7 @@ def test_runtime_source_collector_covers_every_required_framework_sdk_and_venue_
         "backtrader.feed",
         "backtrader.broker",
         "backtrader.hft_matching",
-        "examples.strategy_candidate_approval",
+        "examples._support.strategy_candidate_approval",
         "bt_api_py.cross_venue",
         "bt_api_py.public_api",
         "bt_api_py.execution_session",
@@ -885,7 +886,7 @@ def test_candidate_source_or_config_tamper_stops_before_store(
 
 
 def test_repository_trust_root_has_expected_fingerprint():
-    trust_root = Path(__file__).parents[2] / "examples" / "demo-approval-trust-root.pem"
+    trust_root = Path(__file__).parents[2] / "examples" / "_support" / "demo-approval-trust-root.pem"
     # Normalize first so the fixture starts from the committed LF bytes on
     # every platform; a CRLF checkout must not double-convert the artifact.
     raw = trust_root.read_bytes().replace(b"\r\n", b"\n")

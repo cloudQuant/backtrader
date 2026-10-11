@@ -38,7 +38,7 @@ _ITERATION41_REQUIREMENTS = (
 DEFAULT_ARTIFACT_SPECS: Tuple[Tuple[str, str, str], ...] = (
     (
         "runtime_inventory",
-        "examples/iteration41-runtime-inventory.json",
+        "examples/_support/iteration41-runtime-inventory.json",
         "json",
     ),
     (

@@ -38,7 +38,7 @@ def resolve_data_path(filename: str) -> Path:
 
     # 3. Common data directories
     search_paths.append(repo_root / "datas" / filename)
-    search_paths.append(repo_root / "examples" / filename)
+    search_paths.append(repo_root / "examples" / "data" / filename)
     search_paths.append(repo_root / "tests" / "datas" / filename)
 
     # 4. Directory specified by environment variable

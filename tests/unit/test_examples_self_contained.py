@@ -32,7 +32,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
-NON_EXAMPLE_DIRS = frozenset({"logs", "output", "state"})
+NON_EXAMPLE_DIRS = frozenset({"logs", "output", "state", "_support", "data"})
 # Iteration 43 groups examples by kind.  A category directory is a container,
 # never an example: treating it as one would silently accept imports that cross
 # between two examples that merely share a category.
@@ -107,19 +107,19 @@ VENDORED_COPIES = {
     EXAMPLES
     / "unified"
     / "012_1_midfreq_cross_exchange"
-    / "strategy_candidate_approval.py": (EXAMPLES / "strategy_candidate_approval.py"),
+    / "strategy_candidate_approval.py": (EXAMPLES / "_support" / "strategy_candidate_approval.py"),
     EXAMPLES
     / "unified"
     / "012_2_event_driven_cross_exchange"
-    / "strategy_candidate_approval.py": (EXAMPLES / "strategy_candidate_approval.py"),
+    / "strategy_candidate_approval.py": (EXAMPLES / "_support" / "strategy_candidate_approval.py"),
     EXAMPLES
     / "unified"
     / "012_1_midfreq_cross_exchange"
-    / "demo-approval-trust-root.pem": (EXAMPLES / "demo-approval-trust-root.pem"),
+    / "demo-approval-trust-root.pem": (EXAMPLES / "_support" / "demo-approval-trust-root.pem"),
     EXAMPLES
     / "unified"
     / "012_2_event_driven_cross_exchange"
-    / "demo-approval-trust-root.pem": (EXAMPLES / "demo-approval-trust-root.pem"),
+    / "demo-approval-trust-root.pem": (EXAMPLES / "_support" / "demo-approval-trust-root.pem"),
 }
 
 

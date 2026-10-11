@@ -296,7 +296,7 @@
     {
       "example_dir": "sample",
       "strategy_id": "example.sample.ctp_legacy",
-      "runner_module": "examples.sample",
+      "runner_module": "examples._support.sample",
       "verification_tests": [
         "tests/unit/runtime/test_iteration41_legacy_sample_runtime.py"
       ],

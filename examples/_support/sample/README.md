@@ -16,13 +16,13 @@ separate managed SDK/execution implementation and acceptance package exists.
 Create the ignored local contract once:
 
 ```bash
-bt-runtime bootstrap --strategy-dir examples/sample/runtime
+bt-runtime bootstrap --strategy-dir examples/_support/sample/runtime
 ```
 
 Then run the same registered directory:
 
 ```bash
-bt-runtime run --strategy-dir examples/sample/runtime
+bt-runtime run --strategy-dir examples/_support/sample/runtime
 ```
 
 The generated `runtime/config.yaml` is required and is never replaced by

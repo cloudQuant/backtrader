@@ -86,7 +86,7 @@ ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_DIR = (
 ITERATION41_PACKAGE_LOCAL_BACKTEST_RUNTIME_ID = "backtrader.iteration41.local_backtest_fixture"
 ITERATION41_015_RUNTIME_DIR = SOURCE_ROOT / "examples" / "unified" / "015_ctp_options_highfreq" / "runtime"
 ITERATION41_015_STRATEGY_ID = "example.015.ctp_options_highfreq"
-ITERATION41_SAMPLE_RUNTIME_DIR = SOURCE_ROOT / "examples" / "sample" / "runtime"
+ITERATION41_SAMPLE_RUNTIME_DIR = SOURCE_ROOT / "examples" / "_support" / "sample" / "runtime"
 ITERATION41_SAMPLE_STRATEGY_ID = "example.sample.ctp_legacy"
 ITERATION41_007_CTP_RUNTIME_DIR = SOURCE_ROOT / "examples" / "unified" / "007_ctp" / "runtime"
 ITERATION41_007_CTP_STRATEGY_ID = "example.007_ctp.legacy_direct"
@@ -244,7 +244,7 @@ ITERATION41_SAMPLE_REGISTRATION = RegisteredRuntime(
     strategy_id=ITERATION41_SAMPLE_STRATEGY_ID,
     allowed_presets=("replay",),
     allowed_parameter_keys=("scenario",),
-    runner_module="examples.sample",
+    runner_module="examples._support.sample",
 )
 ITERATION41_007_CTP_REGISTRATION = RegisteredRuntime(
     runtime_dir=ITERATION41_007_CTP_RUNTIME_DIR,

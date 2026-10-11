@@ -1312,7 +1312,7 @@ def test_actual_shipped_inventory_binding_never_executes_cwd_examples_sentinel(
         with _loaded_registered_runner(runtime_inventory.ITERATION41_SAMPLE_REGISTRATION) as module:
             assert (
                 Path(module.__file__).resolve()
-                == (runtime_inventory.SOURCE_ROOT / "examples" / "sample.py").resolve()
+                == (runtime_inventory.SOURCE_ROOT / "examples" / "_support" / "sample.py").resolve()
             )
             assert not sentinel.exists()
             _assert_public_examples_unchanged(previous_examples)

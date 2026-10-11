@@ -8,7 +8,7 @@ configuration-first runtime contract and bypassed the Backtrader/SDK execution
 boundary. It is deliberately *not* an Iteration 41 execution route.
 
 The only supported entry point is the registered, local ``simulation/replay``
-audit profile in ``examples/sample/runtime``. It validates mandatory schema-v4
+audit profile in ``examples/_support/sample/runtime``. It validates mandatory schema-v4
 ``config.yaml`` and returns a zero-I/O migration report. Sandbox and live
 execution are ``NOT_SUPPORTED`` until this example has a separately reviewed
 managed SDK/execution migration.

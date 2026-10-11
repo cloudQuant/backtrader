@@ -4,7 +4,7 @@ import copy
 
 import pytest
 
-from examples.strategy_candidate_approval import (
+from examples._support.strategy_candidate_approval import (
     DemoApprovalVerificationError,
     canonical_sha256,
 )

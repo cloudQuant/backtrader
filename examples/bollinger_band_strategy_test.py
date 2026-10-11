@@ -375,7 +375,7 @@ def main():
     print("="*70)
 
     # Load data
-    data_path = BASE_DIR / "DOGEUSDT_15m_20200710_20260126.csv"
+    data_path = BASE_DIR / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
     print(f"\nLoading data from: {data_path}")
 
     df = load_data(data_path)

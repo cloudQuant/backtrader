@@ -65,7 +65,7 @@ def resolve_data_path(filename: str) -> Path:
     search_paths.append(repo_root / filename)
 
     # 3. Common data directories (examples, tests/datas)
-    search_paths.append(repo_root / "examples" / filename)
+    search_paths.append(repo_root / "examples" / "data" / filename)
     search_paths.append(repo_root / "tests" / "datas" / filename)
 
     # 4. Directory specified by environment variable BACKTRADER_DATA_DIR

@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-APPROVAL = "examples/strategy_candidate_approval.py"
+APPROVAL = "examples/_support/strategy_candidate_approval.py"
 
 SPLIT_FILES = [
     "backtrader/cerebro.py",
@@ -36,7 +36,7 @@ SPLIT_FILES = [
 
 def load_module():
     sys.path.insert(0, str(REPO))
-    import examples.strategy_candidate_approval as mod
+    import examples._support.strategy_candidate_approval as mod
 
     return mod
 
