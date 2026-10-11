@@ -22,7 +22,7 @@ import os
 import sys
 
 # Add the project root to the module search path.
-PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 sys.path.insert(0, PROJECT_ROOT)
 
 import backtrader as bt

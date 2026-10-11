@@ -33,7 +33,7 @@ def resolve_data_path(filename: str) -> Path:
 
     # 2. tests directory and project root directory
     search_paths.append(BASE_DIR.parent / filename)
-    repo_root = BASE_DIR.parent.parent
+    repo_root = BASE_DIR.parent.parent.parent
     search_paths.append(repo_root / filename)
 
     # 3. Common data directories

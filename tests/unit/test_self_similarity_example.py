@@ -18,7 +18,9 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 
-strategy_mod = importlib.import_module("examples.016_self_similarity.self_similarity_strategy")
+strategy_mod = importlib.import_module(
+    "examples.backtest.016_self_similarity.self_similarity_strategy"
+)
 
 DECISION_LONG = strategy_mod.DECISION_LONG
 DECISION_SHORT = strategy_mod.DECISION_SHORT

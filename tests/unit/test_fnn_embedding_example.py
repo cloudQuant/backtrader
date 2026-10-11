@@ -17,7 +17,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 
-strategy_mod = importlib.import_module("examples.017_fnn_embedding.fnn_embedding_strategy")
+strategy_mod = importlib.import_module("examples.backtest.017_fnn_embedding.fnn_embedding_strategy")
 
 DECISION_LONG = strategy_mod.DECISION_LONG
 DECISION_SHORT = strategy_mod.DECISION_SHORT
@@ -180,7 +180,7 @@ class TestAutoencoder:
     @pytest.fixture(scope="class")
     def autoenc_mod(self):
         pytest.importorskip("torch", reason="PyTorch is optional for FNN example tests")
-        return importlib.import_module("examples.017_fnn_embedding.fnn_autoencoder")
+        return importlib.import_module("examples.backtest.017_fnn_embedding.fnn_autoencoder")
 
     def test_training_deterministic(self, autoenc_mod):
         rng = np.random.default_rng(3)

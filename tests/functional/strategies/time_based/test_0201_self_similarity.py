@@ -20,8 +20,10 @@ REPO = Path(__file__).resolve().parents[4]
 
 @pytest.fixture(scope="module")
 def result():
-    run_mod = importlib.import_module("examples.016_self_similarity.run")
-    cfg = run_mod.load_yaml_config(REPO / "examples" / "016_self_similarity" / "config.yaml")
+    run_mod = importlib.import_module("examples.backtest.016_self_similarity.run")
+    cfg = run_mod.load_yaml_config(
+        REPO / "examples" / "backtest" / "016_self_similarity" / "config.yaml"
+    )
     cfg["params"]["corr_threshold"] = 0.3
     cfg["data"]["fromdate"] = "2021-09-01"
     cfg["data"]["todate"] = "2021-10-31"

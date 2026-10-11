@@ -33,6 +33,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
 NON_EXAMPLE_DIRS = frozenset({"logs", "output", "state"})
+# Iteration 43 groups examples by kind.  A category directory is a container,
+# never an example: treating it as one would silently accept imports that cross
+# between two examples that merely share a category.
+CATEGORY_DIRS = frozenset({"backtest", "live", "unified"})
 # ``sys.stdlib_module_names`` lists names for every supported platform. The
 # fallback scan only sees the current platform, while examples import these
 # process-lock modules conditionally for Windows and POSIX respectively.
@@ -113,17 +117,25 @@ VENDORED_COPIES = {
 LOCAL_MANIFEST_REFRESH_SCRIPT = ROOT / "scripts" / "refresh_cross_exchange_local_manifests.py"
 
 
-def _example_folders() -> list[Path]:
-    """Every directory under ``examples/`` that ships runnable Python."""
-
-    return sorted(
-        path
-        for path in EXAMPLES.iterdir()
-        if path.is_dir()
+def _is_example_leaf(path: Path) -> bool:
+    return (
+        path.is_dir()
         and not path.name.startswith(("__", "."))
         and path.name not in NON_EXAMPLE_DIRS
         and any(path.rglob("*.py"))
     )
+
+
+def _example_folders() -> list[Path]:
+    """Every leaf example directory, at ``examples/<name>`` or ``examples/<category>/<name>``."""
+
+    folders: list[Path] = []
+    for path in EXAMPLES.iterdir():
+        if path.name in CATEGORY_DIRS and path.is_dir():
+            folders.extend(child for child in path.iterdir() if _is_example_leaf(child))
+        elif _is_example_leaf(path):
+            folders.append(path)
+    return sorted(folders)
 
 
 def _local_modules(folder: Path) -> set[str]:
@@ -201,6 +213,23 @@ def test_zoneinfo_compatibility_import_is_folder_scoped(tmp_path: Path, monkeypa
     monkeypatch.setattr(sys.modules[__name__], "_is_installed", lambda _name: False)
 
     assert _example_import_violations(folder) == ["unrelated_example/example.py imports 'zoneinfo'"]
+
+
+def test_category_directory_is_not_treated_as_one_example(tmp_path: Path, monkeypatch) -> None:
+    """Two sibling leaves in one category must not accept each other's modules."""
+
+    category = tmp_path / "backtest"
+    (category / "first").mkdir(parents=True)
+    (category / "second").mkdir()
+    (category / "first" / "entry.py").write_text("import second_helper\n", encoding="utf-8")
+    (category / "second" / "second_helper.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    monkeypatch.setattr(sys.modules[__name__], "EXAMPLES", tmp_path)
+    assert _example_folders() == [category / "first", category / "second"]
+
+    entry = category / "first" / "entry.py"
+    violations = _example_import_violations(category / "first")
+    assert violations == [f"{entry.relative_to(tmp_path).as_posix()} imports 'second_helper'"]
 
 
 @pytest.mark.parametrize("copy", sorted(VENDORED_COPIES), ids=lambda path: path.name)
