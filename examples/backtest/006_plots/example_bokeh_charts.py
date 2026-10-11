@@ -9,7 +9,7 @@ This example demonstrates how to use the Bokeh module for interactive visualizat
 3. Custom tabs
 
 Usage:
-    python examples/006_plots/example_bokeh_charts.py
+    python examples/backtest/006_plots/example_bokeh_charts.py
 
 Dependencies:
     pip install bokeh

@@ -9,7 +9,7 @@ Usage:
     python tools/generate_test_data.py --type orderbook --rows 5000
 
     # Then run:
-    python examples/011_hft_backtest/orderbook_backtest.py
+    python examples/backtest/011_hft_backtest/orderbook_backtest.py
 """
 
 import sys

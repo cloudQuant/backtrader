@@ -1,7 +1,7 @@
 # Iteration 41 CTP private runtime
 
 This registered runtime uses one protected, Git-ignored file:
-`examples/013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml`. The file
+`examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml`. The file
 uses the canonical top-level `ctp:` block for the CTP account, contract,
 HedgeFlag, and explicitly configured MD/TD addresses. The registry declares
 only a `simulation/sandbox` private read-only profile. Ordinary CLI
@@ -90,9 +90,9 @@ command is currently disabled for this registered runtime:
 
 ```powershell
 # Optional: validate config offline; this does not access a provider.
-bt-runtime doctor --strategy-dir examples/013_3_sa_midfreq_simnow/runtime-ctp-private
+bt-runtime doctor --strategy-dir examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private
 # Optional: bounded, credential-free TCP reachability check for configured pairs.
-bt-runtime check-ctp-fronts --strategy-dir examples/013_3_sa_midfreq_simnow/runtime-ctp-private
+bt-runtime check-ctp-fronts --strategy-dir examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private
 ```
 
 `doctor` validates the config without provider or network I/O. The front check

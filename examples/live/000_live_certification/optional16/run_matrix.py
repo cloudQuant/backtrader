@@ -25,7 +25,7 @@ root (so any CWD works), and records the exact command line of every case.
 
 Examples::
 
-    C:/anaconda3/python.exe <repo>/examples/000_live_certification/optional16/run_matrix.py --dry
+    C:/anaconda3/python.exe <repo>/examples/live/000_live_certification/optional16/run_matrix.py --dry
     C:/anaconda3/python.exe .../run_matrix.py --live --allow-write --cases C01,T03
 """
 
@@ -248,7 +248,7 @@ def main(argv=None):
         "mode": "live" if live else "dry",
         "dry": not live,
         "python": args.python,
-        "repo_root": str(Path(__file__).resolve().parents[3]),
+        "repo_root": str(Path(__file__).resolve().parents[4]),
         "cert_root": str(CERT_ROOT),
         "case_root": str(case_root),
         "cases": list(cases),

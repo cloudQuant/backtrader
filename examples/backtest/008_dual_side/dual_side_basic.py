@@ -16,7 +16,7 @@ Key points:
     when both legs are open and position_side is not specified.
 
 Usage:
-    python examples/008_dual_side/dual_side_basic.py
+    python examples/backtest/008_dual_side/dual_side_basic.py
 """
 import datetime
 import os

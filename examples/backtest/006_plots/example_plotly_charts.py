@@ -12,7 +12,7 @@ This example demonstrates how to use the Plotly backend for high-performance int
 4. Save as HTML file
 
 Usage:
-    python examples/006_plots/example_plotly_charts.py
+    python examples/backtest/006_plots/example_plotly_charts.py
 """
 
 import datetime

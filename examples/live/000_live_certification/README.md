@@ -54,7 +54,7 @@
 先将对应目录的 `config.example.yaml` 复制到仓库外私有路径，替换非敏感占位符，并通过环境变量提供真实 endpoint、token 和 account。每个入口已固定自己的案例 ID，不接受 `--case` 或 `--all`：
 
 ```powershell
-cd examples/000_live_certification/okx_penetration
+cd examples/live/000_live_certification/okx_penetration
 python cases/C01/run.py `
   --config D:/private-cert/okx.yaml `
   --evidence-dir D:/certification-evidence/okx-C01

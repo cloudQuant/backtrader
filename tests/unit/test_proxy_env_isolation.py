@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Proxy-environment isolation regression tests (iteration-32 acceptance, F8).
 
-``examples/013_1|013_2/ctp_example_support.py`` run ``load_dotenv`` at import
+``examples/unified/013_1|013_2/ctp_example_support.py`` run ``load_dotenv`` at import
 time, which copies a developer's ``.env`` proxy settings into ``os.environ``
 and never restores them. Any later test in the same xdist worker that opens a
 real socket then dials a proxy that is not running (``ConnectionRefusedError

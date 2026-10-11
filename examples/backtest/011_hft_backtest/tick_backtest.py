@@ -9,7 +9,7 @@ Usage:
     python tools/generate_test_data.py --type tick --rows 10000
 
     # Then run:
-    python examples/011_hft_backtest/tick_backtest.py
+    python examples/backtest/011_hft_backtest/tick_backtest.py
 """
 
 import os

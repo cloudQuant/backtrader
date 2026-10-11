@@ -42,7 +42,7 @@ ENTRIES = {
     "014_2": REPO / "examples" / "unified" / "014_2_ctp_options_midfreq" / "run.py",
     "015": REPO / "examples" / "unified" / "015_ctp_options_highfreq" / "run.py",
 }
-OPTIONAL16 = REPO / "examples" / "000_live_certification" / "optional16"
+OPTIONAL16 = REPO / "examples" / "live" / "000_live_certification" / "optional16"
 
 
 def _load_entry(name: str, path: Path):

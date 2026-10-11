@@ -14,7 +14,7 @@ Features demonstrated:
 - Optional MySQL logging (disabled by default)
 
 Usage:
-    python examples/009_trade_logger/trade_logger_example.py
+    python examples/backtest/009_trade_logger/trade_logger_example.py
 """
 
 import datetime

@@ -1,6 +1,6 @@
 """Offline fake-provider smoke for the optional16 component mounts.
 
-Drives ``examples/000_live_certification/optional16/components.py`` with a fake
+Drives ``examples/live/000_live_certification/optional16/components.py`` with a fake
 venue client and the real dev-SDK components (``bt_api_risk`` DurableRiskGate,
 ``bt_api_execution`` ManagedExecution/Cancellation facades over a real SQLite
 store, ``bt_api_monitor`` DurableOutbox).  This exercises the exact mount code
@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-OPTIONAL16 = REPO / "examples" / "000_live_certification" / "optional16"
+OPTIONAL16 = REPO / "examples" / "live" / "000_live_certification" / "optional16"
 DEV_SDK = Path("D:/bt_api_py/bt_api")
 _DEV_SRC_DIRS = (
     DEV_SDK / "bt_api_base" / "src",

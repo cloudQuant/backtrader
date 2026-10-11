@@ -124,7 +124,7 @@ def isolated_opener(monkeypatch):
 
     * ``urllib.request`` caches its opener process-wide (``_opener``), so another
       test's installed opener survives into this one.
-    * ``examples/013_1|013_2/ctp_example_support.py`` call ``load_dotenv`` at
+    * ``examples/unified/013_1|013_2/ctp_example_support.py`` call ``load_dotenv`` at
       import time, which injects the developer's ``.env`` (including
       ``HTTP_PROXY``/``SOCKS_PROXY`` pointing at a local proxy) into
       ``os.environ`` for the rest of the worker.

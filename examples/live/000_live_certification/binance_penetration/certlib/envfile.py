@@ -11,7 +11,7 @@ from pathlib import Path
 
 def default_env_path() -> Path:
     # certlib/envfile.py -> certlib -> <venue> -> 000_live_certification -> examples -> repo root
-    return Path(__file__).resolve().parents[4] / ".env"
+    return Path(__file__).resolve().parents[5] / ".env"
 
 
 def load_env(names, path=None):

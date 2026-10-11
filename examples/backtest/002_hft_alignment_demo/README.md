@@ -34,15 +34,15 @@
 在仓库根目录执行：
 
 ```bash
-python examples/002_hft_alignment_demo/run_backtrader.py
-python examples/002_hft_alignment_demo/run_hftbacktest.py
-python examples/002_hft_alignment_demo/compare.py
+python examples/backtest/002_hft_alignment_demo/run_backtrader.py
+python examples/backtest/002_hft_alignment_demo/run_hftbacktest.py
+python examples/backtest/002_hft_alignment_demo/compare.py
 ```
 
 也可以切换策略，例如：
 
 ```bash
-python examples/002_hft_alignment_demo/compare.py --strategy queue_market_making --max-decisions 180
+python examples/backtest/002_hft_alignment_demo/compare.py --strategy queue_market_making --max-decisions 180
 ```
 
 ## 当前推荐默认配置

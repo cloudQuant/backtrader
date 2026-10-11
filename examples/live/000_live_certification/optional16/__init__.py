@@ -25,7 +25,7 @@ its request id, params, outcome, error string and result digest. The client
 token travels under the payload key ``auth`` (the transport wire layer rejects
 secret-shaped field names) and is never journaled.
 
-Live invocation the owner runs (from ``examples/000_live_certification``)
+Live invocation the owner runs (from ``examples/live/000_live_certification``)
 --------------------------------------------------------------------------
 Embedded server (each case process starts and stops its own gateway)::
 

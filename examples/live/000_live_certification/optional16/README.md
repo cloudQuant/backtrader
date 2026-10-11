@@ -64,7 +64,7 @@ under `adapter_notes`. An enabled-but-unimportable package raises
 ## Dry invocation (no network)
 
 ```powershell
-C:/anaconda3/python.exe D:/source_code/backtrader/examples/000_live_certification/optional16/run_matrix.py --dry
+C:/anaconda3/python.exe D:/source_code/backtrader/examples/live/000_live_certification/optional16/run_matrix.py --dry
 ```
 
 Each case runs its own dry self-check (`cases/<ID>/run.py --transport …`), which
@@ -81,19 +81,19 @@ cases from their own directories (any CWD works for `run_matrix.py`):
 
 ```powershell
 # read-only case (C01) through each transport
-C:/anaconda3/python.exe examples/000_live_certification/binance_penetration/cases/C01/run.py --live --transport direct
-C:/anaconda3/python.exe examples/000_live_certification/binance_penetration/cases/C01/run.py --live --transport gateway_zmq
+C:/anaconda3/python.exe examples/live/000_live_certification/binance_penetration/cases/C01/run.py --live --transport direct
+C:/anaconda3/python.exe examples/live/000_live_certification/binance_penetration/cases/C01/run.py --live --transport gateway_zmq
 
 # cancel case (T03, WRITE risk level) — grants are required
-C:/anaconda3/python.exe examples/000_live_certification/binance_penetration/cases/T03/run.py --live --allow-write --transport direct
-C:/anaconda3/python.exe examples/000_live_certification/binance_penetration/cases/T03/run.py --live --allow-write --transport gateway_zmq
+C:/anaconda3/python.exe examples/live/000_live_certification/binance_penetration/cases/T03/run.py --live --allow-write --transport direct
+C:/anaconda3/python.exe examples/live/000_live_certification/binance_penetration/cases/T03/run.py --live --allow-write --transport gateway_zmq
 
 # with components (execution/risk/monitor are independent flags)
 C:/anaconda3/python.exe .../cases/T03/run.py --live --allow-write --transport direct --execution --risk --monitor
 C:/anaconda3/python.exe .../cases/T03/run.py --live --allow-write --transport gateway_zmq --execution --risk --monitor
 
 # the whole matrix in one go (operator-run; --allow-write covers the T03 cases)
-C:/anaconda3/python.exe examples/000_live_certification/optional16/run_matrix.py --live --allow-write
+C:/anaconda3/python.exe examples/live/000_live_certification/optional16/run_matrix.py --live --allow-write
 ```
 
 The case runner reads credentials by *name* from the checkout-root `.env`;
