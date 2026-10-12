@@ -55,7 +55,7 @@ bt-runtime run --strategy-dir examples/unified/013_1_midfreq_cross_arbitrage/run
 | --- | --- |
 | `simnow_direct.py` | 直连 registered-sim 执行层（013_3 同源字节副本）：前端选择、Store/包装器子类、准入/冻结/解除、双腿武装模板 |
 | `legacy_runner.py` | 冻结回放引擎与 `--replay` 实现（原 `run.py` 内容）；另被 `run_runtime.py` 复用 |
-| `ctp_example_support.py` | 007 同源字节副本（历史支持模块；仅 `legacy_runner` 复用其配置读取） |
+| `ctp_example_support.py` | `examples/_support/ctp_legacy_example_support.py` 精确字节副本（保留历史 API；八个旧实盘入口仍拒绝执行，007 支持模块独立） |
 | `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
 ## 证据与边界

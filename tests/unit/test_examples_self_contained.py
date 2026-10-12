@@ -2,7 +2,8 @@
 
 Every example folder must run after being copied out of the repository, so it
 may import only the standard library, installed distributions, and modules that
-live inside that same folder.  Importing ``examples.*`` (the examples root),
+live inside that same folder. The two repository framework packages are named
+explicitly, separately from installed-package origin checks. Importing ``examples.*`` (the examples root),
 a sibling example folder, or ``tests.*`` is a violation.
 
 Shared *code* is kept local by byte-identical copies; the drift guard below fails
@@ -23,6 +24,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import pkgutil
+import site
 import subprocess
 import sys
 import sysconfig
@@ -68,12 +70,35 @@ def _stdlib_module_names() -> set[str]:
 
 STDLIB = _stdlib_module_names()
 
-# These runtime dependencies are optional for the repository's ordinary CI
-# environment and documented by their owning example folders. Keep exceptions
-# folder-scoped so they cannot hide undeclared imports in other examples.
+# These packages are declared by their owning example folders but are not
+# present in every source-QA environment. Keep exceptions scoped to those
+# example leaves so they cannot hide imports in other examples.
 OPTIONAL_EXAMPLE_MODULES = {
     "017_fnn_embedding": frozenset({"torch"}),
+    # The cross-exchange demonstrations explicitly require the separately
+    # maintained SDK package even for their offline/replay support code.
+    "012_1_midfreq_cross_exchange": frozenset({"bt_api_py"}),
+    "012_2_event_driven_cross_exchange": frozenset({"bt_api_py"}),
 }
+
+# Optional16 imports SDK packages lazily at these concrete optional-component
+# boundaries. The transport implementation has a stdlib fallback; the
+# components module only imports each SDK when its corresponding mount is on.
+OPTIONAL_IMPORTS_BY_FILE = {
+    "live/000_live_certification/optional16/components.py": frozenset(
+        {"bt_api_execution", "bt_api_monitor", "bt_api_risk"}
+    ),
+    "live/000_live_certification/optional16/gateway_server.py": frozenset(
+        {"bt_api_transport_zmq"}
+    ),
+}
+
+# Backtrader and its configuration-first runtime are the framework packages
+# supplied by this repository. They are allowed as project dependencies, but
+# are deliberately not reported by _is_installed when find_spec resolves them
+# back into this checkout.
+PROJECT_FRAMEWORK_MODULES = frozenset({"backtrader", "backtrader_runtime"})
+FORBIDDEN_TOP_LEVEL_MODULES = frozenset({"examples", "tests"})
 
 # This module is in the standard library from Python 3.9 onward. The 013_3
 # example catches ImportError and falls back to the declared core dependency
@@ -87,11 +112,11 @@ VENDORED_COPIES = {
     EXAMPLES
     / "unified"
     / "013_1_midfreq_cross_arbitrage"
-    / "ctp_example_support.py": (EXAMPLES / "unified" / "007_ctp" / "ctp_example_support.py"),
+    / "ctp_example_support.py": (EXAMPLES / "_support" / "ctp_legacy_example_support.py"),
     EXAMPLES
     / "unified"
     / "013_2_highfreq_calendar_arbitrage"
-    / "ctp_example_support.py": (EXAMPLES / "unified" / "007_ctp" / "ctp_example_support.py"),
+    / "ctp_example_support.py": (EXAMPLES / "_support" / "ctp_legacy_example_support.py"),
     EXAMPLES
     / "unified"
     / "013_1_midfreq_cross_arbitrage"
@@ -189,11 +214,52 @@ def _imported_top_levels(path: Path) -> set[str]:
 
 
 def _is_installed(name: str) -> bool:
-    if name in STDLIB or name in {"backtrader", "bt_api_py", "bt_api_ctp"}:
+    """Return whether a module resolves to an installed site-package origin.
+
+    ``find_spec`` also finds modules in this checkout, sibling development
+    checkouts, editable installs, and namespace packages. None of those facts
+    alone means the dependency will exist when an example folder is copied.
+    """
+
+    if name in STDLIB:
         return True
     try:
-        return importlib.util.find_spec(name) is not None
-    except (ImportError, ValueError):  # pragma: no cover - defensive
+        spec = importlib.util.find_spec(name)
+    except (ImportError, ValueError, ModuleNotFoundError):  # pragma: no cover - defensive
+        return False
+    origin = getattr(spec, "origin", None)
+    if not isinstance(origin, str) or not origin or origin in {"built-in", "frozen"}:
+        # Namespace packages have search locations but no concrete installed
+        # payload, so they do not satisfy this copied-folder contract.
+        return False
+    try:
+        source = Path(origin).resolve()
+    except (OSError, RuntimeError, ValueError):  # pragma: no cover - defensive
+        return False
+    if _is_within(source, ROOT):
+        return False
+
+    roots = set()
+    configured = sysconfig.get_paths()
+    for key in ("purelib", "platlib"):
+        value = configured.get(key)
+        if value:
+            roots.add(Path(value))
+    try:
+        roots.update(Path(value) for value in site.getsitepackages() if value)
+        user_site = site.getusersitepackages()
+        if user_site:
+            roots.add(Path(user_site))
+    except (AttributeError, OSError, TypeError):  # pragma: no cover - platform-specific
+        pass
+    return any(_is_within(source, root) for root in roots)
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except (OSError, RuntimeError, ValueError):
         return False
 
 
@@ -210,10 +276,18 @@ def _example_import_violations(folder: Path) -> list[str]:
     compatibility_stdlib = COMPATIBILITY_STDLIB_MODULES.get(folder.name, frozenset())
     violations = []
     for path in sorted(folder.rglob("*.py")):
+        path_optional = OPTIONAL_IMPORTS_BY_FILE.get(
+            path.relative_to(EXAMPLES).as_posix(), frozenset()
+        )
         for name in sorted(_imported_top_levels(path)):
+            if name in FORBIDDEN_TOP_LEVEL_MODULES:
+                violations.append(f"{path.relative_to(EXAMPLES).as_posix()} imports {name!r}")
+                continue
             if (
                 name in local
                 or name in optional
+                or name in path_optional
+                or name in PROJECT_FRAMEWORK_MODULES
                 or name in compatibility_stdlib
                 or _is_installed(name)
             ):
@@ -258,6 +332,121 @@ def test_category_directory_is_not_treated_as_one_example(tmp_path: Path, monkey
     entry = category / "first" / "entry.py"
     violations = _example_import_violations(category / "first")
     assert violations == [f"{entry.relative_to(tmp_path).as_posix()} imports 'second_helper'"]
+
+
+@pytest.mark.parametrize("name", ("examples", "tests"))
+def test_examples_and_tests_imports_cannot_be_masked_by_local_files(
+    name: str, tmp_path: Path, monkeypatch
+) -> None:
+    folder = tmp_path / "example"
+    folder.mkdir()
+    (folder / f"{name}.py").write_text("VALUE = 1\n", encoding="utf-8")
+    entry = folder / "entry.py"
+    entry.write_text(f"import {name}\n", encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "EXAMPLES", tmp_path)
+    # This simulates a machine where an unrelated same-named package can be
+    # found; repository-only roots remain forbidden regardless of that result.
+    monkeypatch.setattr(sys.modules[__name__], "_is_installed", lambda _module: True)
+    assert _example_import_violations(folder) == [f"example/entry.py imports '{name}'"]
+
+
+@pytest.mark.parametrize(
+    "origin_kind",
+    ("repository", "examples", "tests", "namespace", "editable"),
+)
+def test_find_spec_is_not_treated_as_an_installed_origin(
+    origin_kind: str, tmp_path: Path, monkeypatch
+) -> None:
+    """Repository and editable source roots cannot masquerade as installed packages."""
+
+    site_packages = tmp_path / "site-packages"
+    monkeypatch.setattr(
+        sysconfig,
+        "get_paths",
+        lambda: {"purelib": str(site_packages), "platlib": str(site_packages)},
+    )
+    monkeypatch.setattr(site, "getsitepackages", lambda: [str(site_packages)])
+    monkeypatch.setattr(site, "getusersitepackages", lambda: str(site_packages))
+
+    if origin_kind == "repository":
+        origin = ROOT / "backtrader" / "__init__.py"
+        spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+    elif origin_kind == "examples":
+        origin = EXAMPLES / "fixture_package" / "__init__.py"
+        spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+    elif origin_kind == "tests":
+        origin = ROOT / "tests" / "fixture_package.py"
+        spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+    elif origin_kind == "namespace":
+        spec = type(
+            "Spec",
+            (),
+            {"origin": None, "submodule_search_locations": [str(site_packages / "namespace")]},
+        )()
+    else:
+        origin = tmp_path / "editable-source" / "fixture_package.py"
+        spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: spec)
+    assert _is_installed("fixture_package") is False
+
+
+def test_site_packages_origin_is_installed(tmp_path: Path, monkeypatch) -> None:
+    site_packages = tmp_path / "site-packages"
+    origin = site_packages / "fixture_package" / "__init__.py"
+    spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+    monkeypatch.setattr(
+        sysconfig,
+        "get_paths",
+        lambda: {"purelib": str(site_packages), "platlib": str(site_packages)},
+    )
+    monkeypatch.setattr(site, "getsitepackages", lambda: [str(site_packages)])
+    monkeypatch.setattr(site, "getusersitepackages", lambda: str(site_packages))
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: spec)
+    assert _is_installed("fixture_package") is True
+
+
+@pytest.mark.parametrize("name", ("backtrader", "bt_api_py"))
+def test_repository_and_editable_framework_sources_are_not_installed(
+    name: str, tmp_path: Path, monkeypatch
+) -> None:
+    origin = (
+        ROOT / "backtrader" / "__init__.py"
+        if name == "backtrader"
+        else tmp_path / "editable-source" / "bt_api_py" / "__init__.py"
+    )
+    spec = type("Spec", (), {"origin": str(origin), "submodule_search_locations": None})()
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: spec)
+    assert _is_installed(name) is False
+
+
+def test_optional16_sdk_import_allowlist_tracks_actual_lazy_boundaries(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Only the component and transport fallback files may need these SDK packages."""
+
+    monkeypatch.setattr(sys.modules[__name__], "EXAMPLES", tmp_path)
+    monkeypatch.setattr(sys.modules[__name__], "_is_installed", lambda _name: False)
+    for relative, source in (
+        (
+            "live/000_live_certification/optional16/components.py",
+            "import bt_api_execution\nimport bt_api_risk\nimport bt_api_monitor\n",
+        ),
+        (
+            "live/000_live_certification/optional16/gateway_server.py",
+            "import bt_api_transport_zmq\n",
+        ),
+    ):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+        assert _example_import_violations(path.parent.parent) == []
+
+    unrelated = tmp_path / "live" / "000_live_certification" / "optional16" / "unrelated.py"
+    unrelated.write_text("import bt_api_risk\n", encoding="utf-8")
+    assert _example_import_violations(unrelated.parent.parent) == [
+        "live/000_live_certification/optional16/unrelated.py imports 'bt_api_risk'"
+    ]
 
 
 @pytest.mark.parametrize("copy", sorted(VENDORED_COPIES), ids=lambda path: path.name)

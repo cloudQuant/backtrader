@@ -23,7 +23,7 @@ import sys
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(0, PROJECT_ROOT)
 
-import backtrader as bt
+import backtrader as bt  # noqa: E402 - repository bootstrap precedes the import
 
 def resolve_data_path(filename: str) -> str:
     """Return the folder-local copy of a fixture, falling back to the repository.
@@ -105,7 +105,9 @@ def example_backtrader_bokeh_dispatch():
     output_file = os.path.join(os.path.dirname(__file__), "output", "backend_bokeh_dispatch.html")
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     cerebro.plot(backend="bokeh", style="candle", iplot=False, filename=output_file)
-    print("✓ Backend dispatch completed")
+    if not os.path.isfile(output_file) or os.path.getsize(output_file) == 0:
+        raise RuntimeError("required backend Bokeh HTML was not generated")
+    print("Backend dispatch completed")
 
 
 def example_schemes():
@@ -283,7 +285,7 @@ Notes:
 
 
 def example_save_bokeh_html():
-    """Example 6: Save Bokeh chart as HTML (optional)."""
+    """Example 6: Save the required Bokeh chart as HTML."""
     print("\n" + "=" * 60)
     print("Example 6: Save Bokeh Chart as HTML")
     print("=" * 60)
@@ -327,26 +329,13 @@ def example_save_bokeh_html():
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, "bokeh_chart.html")
 
-    try:
-        from backtrader.bokeh import BacktraderBokeh, Blackly
+    from backtrader.bokeh import BacktraderBokeh, Blackly
 
-        # Create Bokeh plotter
-        b = BacktraderBokeh(
-            style="bar",
-            scheme=Blackly(),
-        )
-
-        # Plot and save (pass strategy instance, not results)
-        strategy = results[0]
-        b.plot(strategy=strategy, show=False, filename=output_file_path)
-        print(f"✓ Bokeh chart saved to: {output_file_path}")
-    except ImportError as e:
-        print("⚠ Need to install bokeh: pip install bokeh")
-        print(f"  Error: {e}")
-    except Exception as e:
-        print(f"\n⚠ Bokeh chart generation skipped: {e}")
-        print("  Bokeh chart generation requires complete environment configuration")
-        print("  The above theme, utility function, and tab examples ran successfully")
+    b = BacktraderBokeh(style="bar", scheme=Blackly())
+    b.plot(strategy=results[0], show=False, filename=output_file_path)
+    if not os.path.isfile(output_file_path) or os.path.getsize(output_file_path) == 0:
+        raise RuntimeError("required Bokeh HTML was not generated")
+    print(f"Bokeh chart saved to: {output_file_path}")
 
 
 def example_backend_switch():
@@ -372,7 +361,7 @@ if __name__ == "__main__":
     example_utils()
     example_tabs()
     example_backtrader_bokeh()
-    example_save_bokeh_html()  # Try to generate bokeh_chart.html
+    example_save_bokeh_html()
 
     print("\n" + "=" * 60)
     print("Examples completed!")

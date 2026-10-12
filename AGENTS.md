@@ -395,7 +395,9 @@ studies/               research/diagnostic scripts (e.g. branch_compare/)
 examples/backtest/           backtest-only four-file demos (001-017 ids)
 examples/unified/            backtest+live entries; run.py resolves its tier from config.entry.tier
 examples/live/000_live_certification/  three-venue penetration suites + optional16 (unchanged topology)
-examples/_support/           repo-level tooling, admission material and the canonical entry_tier helper
+examples/_support/           repo-level tooling, admission material and canonical example helpers
+  ctp_legacy_example_support.py  fail-closed compatibility surface copied by 013_1/013_2
+  entry_tier.py             canonical Iteration 43 config/CLI tier resolver
 examples/_support/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
 examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest (root, pending move)
 examples/data/               shared read-only CSV fixtures
@@ -493,6 +495,12 @@ remains callable, and strategy submit methods can still use a caller-supplied
 custom broker; this is not full writer closure. The three-file main focus passed
 33 tests; four existing `SIM112` lower-case environment-alias Ruff findings in
 untouched source lines remain. Keep CTP routes `NO_WRITE / LIVE_NO_GO`.
+Their byte-identical helper copies now come from
+`examples/_support/ctp_legacy_example_support.py`, a small replay-config reader
+plus eight retired dotenv, credential, SimNow, Store, Broker, Feed, and direct
+runner names that raise the runtime's legacy-entrypoint error before side
+effects. The executable `examples/unified/007_ctp/ctp_example_support.py` is a
+separate helper and is not the source for those compatibility copies.
 The canonical private CTP block is `ctp:` with the same MD/TD, contract,
 account, and authentication fields for `simulation/sandbox` and
 `live/managed_live_direct`. The explicit `mode`/`preset` in that same

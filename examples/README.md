@@ -1,6 +1,6 @@
 # `examples/` 三类目录索引（迭代 43）
 
-本目录只有三类示例，加上三个非示例的支持目录。判定规则很简单：
+本目录只有三类示例，以及下面列出的支持目录与可重建产物目录。判定规则很简单：
 
 | 类别 | 定义 | 目录 | 运行层 |
 |---|---|---|---|
@@ -38,15 +38,15 @@
 
 | 目录 | 离线入口 | 输入 | 复制到别处 |
 |---|---|---|---|
-| `001_multi_extend_data` | `run.py --dry/--replay` | `bond_merged_all_data.csv`(70MB) + `bond_index_000000.csv` | ⚠️ 非零退出并点名 `bond_*` |
-| `002_hft_alignment_demo` | `run_backtrader.py` 等 | 目录内合成 `data/` | ❌ 既有功能缺陷 `KeyError: 'orderbook'`（见 §4） |
+| `001_multi_extend_data` | `run.py`（此例不解析 `--dry/--replay`） | `bond_merged_all_data.csv`(70MB) + `bond_index_000000.csv` | ⚠️ 非零退出并点名 `bond_*` |
+| `002_hft_alignment_demo` | `run_backtrader.py` 等 | 目录内合成 `data/` | ✅ Backtrader 默认数据入口；hftbacktest 对齐未在本轮复验 |
 | `003_hft_notebook_examples` | `prepare_data.py --skip-download` | 外部 `J:\binance-public-data…\bookTicker\BTCUSDT` | ⚠️ 非零退出并点名缺失文件 |
 | `004_midfreq_demo` `005_midfreq_arbitrage` | `run.py` | 自带数据 | ✅ exit 0 |
-| `006_plots` | `example_bokeh_charts.py` 等 3 个 | 目录内 `data/nvda-1999-2014.txt` | ✅（需 UTF-8 控制台，见 §4） |
+| `006_plots` | `example_bokeh_charts.py` 等 4 个（`plot_plotly_example.py --output output/plotly_example.html` 无浏览器导出） | 目录内 `data/nvda-1999-2014.txt` | ✅（需 UTF-8 控制台，见 §4） |
 | `008_dual_side` | `dual_side_*.py` 3 个 | 目录内 `data/2006-day-001.txt` | ✅ |
 | `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | 目录内 `data/113013.csv`、`data/orcl-1995-2014.txt` | ✅ |
 | `011_hft_backtest` | `tick_backtest.py`、`orderbook_backtest.py` | `tests/datas/tick_data/`(7.2MB) | ⚠️ `exit 2` 指示先 `tools/generate_test_data.py`（假通过已修） |
-| `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config`/`BACKTRADER_DATA_DIR` 解析 | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
+| `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config` 解析（不支持 `BACKTRADER_DATA_DIR`） | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
 
 小数据随目录走（`<leaf>/data/`，逐字节副本 + 漂移守卫）；**大数据不随目录复制**，缺失即 fail-closed 点名，
 绝不静默联网补齐。`003` 是这一范式的既有实现。
@@ -58,7 +58,7 @@
 同级 `optional16/` 为可选组件 16 拓扑矩阵（**不得拆到 `live/optional16/`**）。
 命令 `python cases/<ID>/run.py` 干跑 / `--live [--allow-write] [--allow-dangerous]`；
 私有 `.env` 与真实 `config.yaml` 不进仓库，因此副本内以 `env_keys_missing` 阻塞属设计结果。
-`examples/007_ctp/` 与 `unified/007_ctp/` 是 CTP 认证套件根与注册 runtime，位置见上表。
+`examples/unified/007_ctp/` 是 CTP 认证套件根与注册 runtime，位置见上表。
 
 ## 4. 旧→新映射与遗留登记
 
@@ -80,9 +80,13 @@
 1. `examples/` 根 7 个散落脚本（`sma_crossover.py` 等）的四件套化 —— 独立后续轮。
 2. 根 `examples/strategy-candidate-manifest.json` 的归属与是否移入 `_support/` —— 待治理决定（其行指纹含
    `resolved_example_path`，移动需受控重绑）。
-3. 大数据统一 `--data-dir` 参数化（现为 config + 环境变量）；`006` 的 `✓` 改纯 ASCII 输出；
-   `001` 的 `log_data`→`log_bars` 参数名陈旧；`002` 的 `KeyError: 'orderbook'`；
+3. 大数据统一 `--data-dir` 参数化（目前各例能力不同，016/017 使用 `--config`）；`006` 的 `✓` 改纯 ASCII 输出；
+   `001` 的 `log_data`→`log_bars` 参数名陈旧；
    策略回归会向跟踪文件 `backtest/017_fnn_embedding/reports/train_report.jsonl` 追加行（提交前须恢复原字节）。
 4. `012_1` 的 checkout-only `backtrader` 栅栏：它是受控约束，放宽是独立治理决定。
 5. 让 `live/000_live_certification` 满足"复制即可运行"：该套件根定位与私有凭据按迭代 41/42 设计绑定 checkout，
    守卫据实断言其 `env_keys_missing` 阻塞，不为其放宽。
+
+2026-10-12 修复复验：002 缺失 orderbook 默认路径已修复；006 必需 HTML 导出失败会返回失败。
+完整的运行/明确拒绝/暂缓入口分类与安装来源检查见复制验收测试及迭代43修复复验报告。
+历史 R6/R7 的完成声明不能替代本次结果；真实账户、HFT 对齐与大数据入口仍需各自验收。

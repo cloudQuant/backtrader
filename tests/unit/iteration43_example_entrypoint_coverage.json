@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "acceptance_status": "classification_only_not_run_evidence",
+  "inventory_scope": "tracked Python files under examples with an AST __main__ equality guard",
+  "frozen_dry_evidence": {
+    "case_ids": [
+      "B01",
+      "B02",
+      "C01",
+      "E01",
+      "E02",
+      "E03",
+      "EM01",
+      "EM02",
+      "EM03",
+      "L01",
+      "L02",
+      "L03",
+      "L04",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "O01",
+      "O02",
+      "O03",
+      "T01",
+      "T02",
+      "T03",
+      "TH01",
+      "TH02",
+      "TH03",
+      "TH04",
+      "TH05",
+      "TH06",
+      "V01",
+      "V02",
+      "V03"
+    ],
+    "case_suites": [
+      {
+        "cases_root": "examples/live/000_live_certification/binance_penetration/cases",
+        "evidence_ref": "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/验收报告-2026-10-12.md",
+        "evidence_note": "Section 2: the 99-case copy dry checks are frozen evidence and were not rerun."
+      },
+      {
+        "cases_root": "examples/live/000_live_certification/okx_penetration/cases",
+        "evidence_ref": "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/验收报告-2026-10-12.md",
+        "evidence_note": "Section 2: the 99-case copy dry checks are frozen evidence and were not rerun."
+      },
+      {
+        "cases_root": "examples/live/000_live_certification/simnow_penetration/cases",
+        "evidence_ref": "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/验收报告-2026-10-12.md",
+        "evidence_note": "Section 2: the 99-case copy dry checks are frozen evidence and were not rerun."
+      }
+    ],
+    "optional16_scripts": [
+      "examples/live/000_live_certification/optional16/gateway_capability_check.py",
+      "examples/live/000_live_certification/optional16/gateway_server.py",
+      "examples/live/000_live_certification/optional16/run_matrix.py"
+    ],
+    "optional16_evidence_ref": {
+      "path": "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/验收报告-2026-10-12.md",
+      "note": "Section 2: 32/32 optional16 dry checks are frozen evidence; no rerun or provider/account acceptance."
+    }
+  },
+  "deferred_entrypoints": [
+    {
+      "path": "examples/_support/clean_bond_data.py",
+      "category": "data_tool",
+      "reason": "Data preparation utility; not a backtest leaf copy command and not run by this acceptance."
+    },
+    {
+      "path": "examples/_support/sample.py",
+      "category": "support_sample",
+      "reason": "Support/sample script; its runtime behavior is outside the bounded leaf-copy command set."
+    },
+    {
+      "path": "examples/backtest/002_hft_alignment_demo/compare.py",
+      "category": "comparison_tool",
+      "reason": "Comparison entrypoint is distinct from the bounded run_backtrader copy command."
+    },
+    {
+      "path": "examples/backtest/002_hft_alignment_demo/compare_all.py",
+      "category": "comparison_tool",
+      "reason": "Multi-engine comparison entrypoint is distinct from the bounded run_backtrader copy command."
+    },
+    {
+      "path": "examples/backtest/002_hft_alignment_demo/run_hftbacktest.py",
+      "category": "optional_dependency_tool",
+      "reason": "This invokes the separate optional hftbacktest engine; the copy command acceptance covers the Backtrader engine only."
+    },
+    {
+      "path": "examples/backtest/003_hft_notebook_examples/compare.py",
+      "category": "comparison_tool",
+      "reason": "Comparison entrypoint has a separate input and execution contract from the copied data-preparation command."
+    },
+    {
+      "path": "examples/backtest/003_hft_notebook_examples/run_backtrader.py",
+      "category": "data_dependent_tool",
+      "reason": "Backtest entrypoint requires the separately prepared HFT notebook data and is not part of this copy command set."
+    },
+    {
+      "path": "examples/backtest/003_hft_notebook_examples/run_hftbacktest.py",
+      "category": "optional_dependency_tool",
+      "reason": "This invokes the separate optional hftbacktest engine and is not part of the copied data-preparation command."
+    },
+    {
+      "path": "examples/bollinger_band_strategy_test.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level research script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/bollinger_band_strategy_train.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level training script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/cryptohftdata_sma.py",
+      "category": "standalone_data_example",
+      "reason": "Root-level data-dependent example; separate data and copy contract is required."
+    },
+    {
+      "path": "examples/mixed_mode_backtest.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level backtest script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/optimize_bollinger_strategy.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level optimization script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/optimize_strategy.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level optimization script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/premium_rate_crossover_strategy.py",
+      "category": "standalone_research_example",
+      "reason": "Root-level research script, not a self-contained folder leaf in the copy command matrix."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_bbroker_5s_examples/backtest/run.py",
+      "category": "ctp_backtest_route",
+      "reason": "CTP-specific backtest route requires its own standalone copy and data contract."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_bbroker_5s_examples/live/run.py",
+      "category": "provider_admitted_route",
+      "reason": "Live route is outside copy-only acceptance and requires separate provider admission."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_mixbroker_5s_examples/backtest/run.py",
+      "category": "ctp_backtest_route",
+      "reason": "CTP-specific backtest route requires its own standalone copy and data contract."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_mixbroker_5s_examples/live/run.py",
+      "category": "provider_admitted_route",
+      "reason": "Live route is outside copy-only acceptance and requires separate provider admission."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_mixbroker_examples/backtest/run.py",
+      "category": "ctp_backtest_route",
+      "reason": "CTP-specific backtest route requires its own standalone copy and data contract."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_mixbroker_examples/live/run.py",
+      "category": "provider_admitted_route",
+      "reason": "Live route is outside copy-only acceptance and requires separate provider admission."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_sa_dual_ma_strategy.py",
+      "category": "ctp_strategy_example",
+      "reason": "Standalone CTP strategy entrypoint is not part of the leaf-copy command matrix."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_tickbroker_5s_examples/backtest/run.py",
+      "category": "ctp_backtest_route",
+      "reason": "CTP-specific backtest route requires its own standalone copy and data contract."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_tickbroker_5s_examples/live/run.py",
+      "category": "provider_admitted_route",
+      "reason": "Live route is outside copy-only acceptance and requires separate provider admission."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_tickbroker_examples/backtest/run.py",
+      "category": "ctp_backtest_route",
+      "reason": "CTP-specific backtest route requires its own standalone copy and data contract."
+    },
+    {
+      "path": "examples/unified/007_ctp/ctp_tickbroker_examples/live/run.py",
+      "category": "provider_admitted_route",
+      "reason": "Live route is outside copy-only acceptance and requires separate provider admission."
+    },
+    {
+      "path": "examples/unified/007_ctp/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/012_1_midfreq_cross_exchange/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/012_1_midfreq_cross_exchange/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/012_2_event_driven_cross_exchange/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/012_2_event_driven_cross_exchange/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/013_1_midfreq_cross_arbitrage/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/013_1_midfreq_cross_arbitrage/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/013_2_highfreq_calendar_arbitrage/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/013_2_highfreq_calendar_arbitrage/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/013_3_sa_midfreq_simnow/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/014_1_ctp_options_lowfreq/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/014_2_ctp_options_midfreq/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/015_ctp_options_highfreq/legacy_runner.py",
+      "category": "legacy_direct_entry_fence",
+      "reason": "Legacy direct-entry fence is intentionally preserved; the managed run.py dry command is the copied entry."
+    },
+    {
+      "path": "examples/unified/015_ctp_options_highfreq/run_runtime.py",
+      "category": "managed_runtime_cli",
+      "reason": "Runtime dispatch is a separate configured route and is not exercised by the leaf-copy matrix."
+    },
+    {
+      "path": "examples/unified/015_ctp_options_highfreq/simnow_launcher.py",
+      "category": "provider_admitted_route",
+      "reason": "SimNow launcher is outside copy-only acceptance and requires separate provider admission."
+    }
+  ]
+}

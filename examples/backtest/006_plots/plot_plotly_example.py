@@ -8,12 +8,14 @@ interactive features such as zooming, panning, and hovering for detailed inspect
 
 Usage:
     python plot_plotly_example.py
+    python plot_plotly_example.py --output output/plotly_example.html
 
 The example generates sample price data, runs a simple SMA crossover strategy,
 and displays an interactive candlestick chart with indicators, trades, and
 performance metrics.
 """
-import datetime
+import argparse
+from pathlib import Path
 
 import backtrader as bt
 
@@ -90,7 +92,6 @@ class SMAStrategy(bt.Strategy):
                 the completed trade, including entry and exit prices, profit/loss,
                 and commission.
         """
-        pass
 
     def next(self):
         """Execute trading logic for each bar.
@@ -124,10 +125,9 @@ class SMAStrategy(bt.Strategy):
         - Calculating and displaying performance metrics
         - Saving results to a file or database
         """
-        pass
 
 
-def run_example():
+def run_example(output=None):
     """Run the Plotly plotting example with a sample SMA crossover strategy.
 
     This function demonstrates the complete workflow of:
@@ -196,15 +196,23 @@ def run_example():
 
     # Plot using Plotly backend
     print("\nGenerating Plotly chart...")
-    cerebro.plot(backend="plotly", style="candle")
+    if output is None:
+        cerebro.plot(backend="plotly", style="candle")
+    else:
+        from backtrader.plot import PlotlyPlot
 
-    # You can also save to HTML file instead of displaying interactively
-    # from backtrader.plot import PlotlyPlot
-    # plotter = PlotlyPlot(style="candle")
-    # figs = plotter.plot(results[0])
-    # for i, fig in enumerate(figs):
-    #     fig.write_html(f"backtrader_chart_{i}.html")
+        destination = Path(output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        figures = PlotlyPlot(style="candle").plot(results[0])
+        if len(figures) != 1:
+            raise RuntimeError("expected one strategy chart")
+        figures[0].write_html(str(destination), auto_open=False)
+        if not destination.is_file() or destination.stat().st_size == 0:
+            raise RuntimeError("required Plotly HTML was not generated")
+        print(f"Plotly chart saved to: {destination}")
 
 
 if __name__ == "__main__":
-    run_example()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", help="Save HTML without opening a browser")
+    run_example(parser.parse_args().output)
