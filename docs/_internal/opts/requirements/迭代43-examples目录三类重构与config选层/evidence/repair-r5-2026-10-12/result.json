@@ -1,0 +1,61 @@
+{
+  "name": "r5",
+  "head": "659ceeb870c2a0a6e98f38a4ce8694e49e075735",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration43_hft_alignment_paths.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_r5",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\r5.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 8.531,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "examples/backtest/002_hft_alignment_demo/README.md": {
+      "size_bytes": 2837,
+      "sha256": "7ad840a73f69868cf26e7847639a5ed4346656e9d44cc2ceda7fe8422cb7abf2"
+    },
+    "examples/backtest/002_hft_alignment_demo/common.py": {
+      "size_bytes": 3385,
+      "sha256": "98edda3af4f22958f9a27c68090e86582ca9c9d8c80bcd7ebcebaddb5dadc4bc"
+    },
+    "tests/unit/test_iteration43_hft_alignment_paths.py": {
+      "size_bytes": 1057,
+      "sha256": "b7e3295c1a3da4204ccb7662bc55e52a571fe3f9d9a90b8d14fb10f99a7596ab"
+    }
+  },
+  "log": {
+    "size_bytes": 631,
+    "sha256": "7b0c14eb44827f2516f6977b3f60247670561580cd0d63601a1e66413071f268"
+  },
+  "xml": {
+    "size_bytes": 348,
+    "sha256": "eb248e4baceb8df968e2ce83d278f0dd4ef6091639252970b485872e99f8eaa7"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/backtest/002_hft_alignment_demo/common.py",
+    "examples/backtest/002_hft_alignment_demo/README.md",
+    "tests/unit/test_iteration43_hft_alignment_paths.py"
+  ],
+  "parent_commit": "659ceeb870c2a0a6e98f38a4ce8694e49e075735",
+  "branch": "dev",
+  "title": "restore-hft-default-orderbook-path",
+  "account_acceptance_added": 0
+}

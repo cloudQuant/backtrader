@@ -35,6 +35,7 @@ def default_paths(data_dir: Path) -> dict[str, Path]:
         Dict with paths to orderbook, ticks, market_data, and latency files.
     """
     return {
+        "orderbook": data_dir / "orderbook_ETHUSDT_20240101.jsonl",
         "ticks": data_dir / "tick_ETHUSDT_20240101.csv",
         "market_data": data_dir / "ETHUSDT_20240101.npz",
         "latency": data_dir / "latency_20240101.npz",

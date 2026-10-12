@@ -15,13 +15,15 @@
 
 ## 默认数据
 
-默认直接使用仓库内已有数据：
+默认使用本目录自带的公开演示数据，复制本目录后路径仍然有效：
 
-- `tests/datas/binance_bbo_demo/orderbook_ETHUSDT_20240101.jsonl`
-- `tests/datas/binance_bbo_demo/tick_ETHUSDT_20240101.csv`
-- `tests/datas/binance_bbo_demo/ETHUSDT_20240101.npz`
+- `data/orderbook_ETHUSDT_20240101.jsonl`
+- `data/tick_ETHUSDT_20240101.csv`
+- `data/ETHUSDT_20240101.npz`
+- `data/latency_20240101.npz`
 
-这里没有复制数据文件，而是直接引用测试数据目录，避免重复存储。
+可用 `--data-dir` 指定另一组同名文件。2026-10-12 修复复验运行了 Backtrader
+默认数据入口；下文两引擎对齐结果保留为历史记录，本轮未重新验证 hftbacktest。
 
 ## 为什么这个例子比之前更有意义
 
