@@ -5,7 +5,7 @@
   "candidates": [
     {
       "strategy_id": "012_1_midfreq_cross_exchange",
-      "resolved_example_path": "012_1_midfreq_cross_exchange",
+      "resolved_example_path": "unified/012_1_midfreq_cross_exchange",
       "entrypoint": "run.py",
       "strategy_module": "cross_exchange_strategy.py",
       "strategy_class": "CrossExchangeArbitrageStrategy",
@@ -68,10 +68,10 @@
         "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
-      "runner_sha256": "e5183319a78c45ac99a207f3ba0d6364ea86b5dbfccff6ea4d315440ce85d481",
+      "runner_sha256": "23e93b694941848d515b6f1e45da07431290f33edb929225ddca295b646a579d",
       "strategy_sha256": "08d6ec995da75429f42c5e7cefb2739a113ac31eba54cf7d481ce45edeb1bf27",
-      "config_sha256": "82fa5771d05ebab3a2a3a7dd76bac611254bb0c9a3cde7d3c8b91dcc04069c0d",
-      "candidate_sha256": "877a2c3194fc48d18dfef0144c47ecc59969247ff20e3aa85b25cac676a1bac7",
+      "config_sha256": "9f8e3123c8b7021853fa30435da4e0548c72fbd8abd11b5da530b3c26bb7ab7b",
+      "candidate_sha256": "0715832ecd9cb309c3d50c9d72046861642ca4c7ced2c55e75b77f0eca997387",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,
@@ -80,7 +80,7 @@
     },
     {
       "strategy_id": "012_2_event_driven_cross_exchange",
-      "resolved_example_path": "012_2_event_driven_cross_exchange",
+      "resolved_example_path": "unified/012_2_event_driven_cross_exchange",
       "entrypoint": "run.py",
       "strategy_module": "event_driven_strategy.py",
       "strategy_class": "CrossExchangeArbitrageStrategy",
@@ -148,10 +148,10 @@
         "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
-      "runner_sha256": "3ea1a5e2ba2576a27e7aefe798999e0f53bb9f6347d18fe7c8a994856dfccc7a",
+      "runner_sha256": "77bb37c1641ced8f5d49496da30963bb05d440c54f88f84593df79145111d9f3",
       "strategy_sha256": "f14ae752dbbdd9fde856ca55c61a757990e879f1782a5d2cedf6a510a990c76a",
-      "config_sha256": "eaea93b75bcfc35320254bebc042d9e8f0c11e2ff6f708aa49c3ef028bb2c50a",
-      "candidate_sha256": "7803f7887e80683ce956062469c29e1a4ac6313f2f8f51def67c47c17a1a8f07",
+      "config_sha256": "e57da86e9367ec445fccc1675fb23ea7fa91b53147ebe62b1329bdc61eb54397",
+      "candidate_sha256": "79af562c4212471dae99f438749ecf2394252349402d20465f1748ef595021f3",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,

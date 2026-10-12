@@ -1,0 +1,101 @@
+{
+  "name": "i42manifeste",
+  "head": "86ea29aa93a4e94f7a6ae21190ee25a5b2e6450f",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration42_candidate_manifest_binding.py",
+    "tests/unit/test_cross_exchange_mode_matrix.py",
+    "tests/unit/test_cross_exchange_pair_examples.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_i42manifeste",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\i42manifeste.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 16.609,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "examples/strategy-candidate-manifest.json": {
+      "size_bytes": 7191,
+      "sha256": "71a06cd8192f3a36c7310a3157fad7b3287265f144d817f9027f247d2c1d2bbd"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/legacy_runner.py": {
+      "size_bytes": 133648,
+      "sha256": "eb50b74be134233a887135c425b72e790e9ee49153eacf674f7b236ce2ae6dcd"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/run.py": {
+      "size_bytes": 18574,
+      "sha256": "23e93b694941848d515b6f1e45da07431290f33edb929225ddca295b646a579d"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3319,
+      "sha256": "4549b846f607614da429e002c8c90f418bee225c5e7a43bf27811fbbc8f677f9"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/legacy_runner.py": {
+      "size_bytes": 105053,
+      "sha256": "301f0c61002d09c5759fb9ba401d2dd50bbe8600c951a6d0de2ad2c19d4b2ac1"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/run.py": {
+      "size_bytes": 18875,
+      "sha256": "77bb37c1641ced8f5d49496da30963bb05d440c54f88f84593df79145111d9f3"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3802,
+      "sha256": "df6a44c6a5ad436aad1eb3fbd482d5d2c1ae0f1feb0d48231f687df805046e85"
+    },
+    "tests/unit/test_cross_exchange_mode_matrix.py": {
+      "size_bytes": 92922,
+      "sha256": "3df556c7c6a862e551c44762af49a945ca70cbf005383034aabd922d87502bb4"
+    },
+    "tests/unit/test_cross_exchange_pair_examples.py": {
+      "size_bytes": 21035,
+      "sha256": "1df91ed1be9e2cfeffb1a675d432b48fcea510638a452778c5645300ea09e99f"
+    },
+    "tests/unit/test_iteration42_candidate_manifest_binding.py": {
+      "size_bytes": 12289,
+      "sha256": "8dfa1c4163697792ad73fb693169f6a4678b7db008a8114e2f8c9fd4920a7a0d"
+    }
+  },
+  "log": {
+    "size_bytes": 802,
+    "sha256": "7d101978bf2f15cda090e4eed8432ea8a8532745784a5454f678c6e3c7fcbc1d"
+  },
+  "xml": {
+    "size_bytes": 38329,
+    "sha256": "3a879a08d1185ab035f8452f12aab755cad04bff7526d27321f759c69ed5c0b9"
+  },
+  "environment_flags": {
+    "BT_I43_COPY_STRICT": null,
+    "MPLBACKEND": "Agg",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "harness": {
+    "size_bytes": 3744,
+    "sha256": "d269c9018967876c693c7040844d8cb0f159d3226984d39c8bea5970ed206d85"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 181,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/strategy-candidate-manifest.json",
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+    "tests/unit/test_iteration42_candidate_manifest_binding.py"
+  ],
+  "parent_commit": "86ea29aa93a4e94f7a6ae21190ee25a5b2e6450f",
+  "branch": "dev",
+  "title": "restore-canonical-and-local-candidate-bindings",
+  "account_acceptance_added": 0
+}

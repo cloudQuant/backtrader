@@ -70,8 +70,8 @@
       },
       "runner_sha256": "23e93b694941848d515b6f1e45da07431290f33edb929225ddca295b646a579d",
       "strategy_sha256": "08d6ec995da75429f42c5e7cefb2739a113ac31eba54cf7d481ce45edeb1bf27",
-      "config_sha256": "82fa5771d05ebab3a2a3a7dd76bac611254bb0c9a3cde7d3c8b91dcc04069c0d",
-      "candidate_sha256": "74101773a14566160945796fa946a4abe1218f2b4b08c6c8883247b36ad78972",
+      "config_sha256": "9f8e3123c8b7021853fa30435da4e0548c72fbd8abd11b5da530b3c26bb7ab7b",
+      "candidate_sha256": "e4dfc0e8cda6c5fa8dbe59eaeb292ee650f76064a938149a3495ff550bcdaf88",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,
