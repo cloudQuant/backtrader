@@ -51,6 +51,8 @@ class FakeStore:
     fail_wait_ready_indexes: set[int] = set()
     fail_query_indexes: set[int] = set()
     close_health_by_index: dict[int, object] = {}
+    write_health_by_index: dict[int, object] = {}
+    fail_write_health_indexes: set[int] = set()
 
     def __init__(self, **kwargs: object) -> None:
         self.init_config = dict(kwargs.get("config") or {})
@@ -88,8 +90,15 @@ class FakeStore:
         rows = {"account_result": 1, "positions_result": 2, "orders_result": 1, "trades_result": 0}
         return {"rows": [{} for _ in range(rows.get(kind, 0))]}
 
-    def registered_sim_write_health(self) -> dict[str, int]:
-        return {"arm_calls": 0, "submit_calls": 0, "cancel_calls": 0, "native_send_calls": 0}
+    def registered_sim_write_health(self) -> object:
+        if self.index in FakeStore.fail_write_health_indexes:
+            raise RuntimeError("synthetic write-health failure secret")
+        # Faithful public API shape; these Store-local facts do not prove
+        # native-wide or process-wide absence of writes.
+        return FakeStore.write_health_by_index.get(
+            self.index,
+            {"armed": False, "frozen": False, "active_orders": 0},
+        )
 
     def __getattr__(self, name: str):
         if any(word in name for word in ("arm", "submit", "cancel", "send", "freeze", "disarm")):
@@ -119,6 +128,8 @@ def entry(monkeypatch, tmp_path):
     FakeStore.fail_wait_ready_indexes = set()
     FakeStore.fail_query_indexes = set()
     FakeStore.close_health_by_index = {}
+    FakeStore.write_health_by_index = {}
+    FakeStore.fail_write_health_indexes = set()
     fake = types.ModuleType("simnow_direct")
     fake.SimNowDirectError = type("SimNowDirectError", (RuntimeError,), {})
     fake.RegisteredSimStore = FakeStore
@@ -185,7 +196,11 @@ def test_sa_observe_lifecycle_reads_and_never_writes(entry, capsys) -> None:
     assert summary["entry_tier"]["effective_tier"] == "live", summary
     assert summary["write_grant_result"] == "not_required_observation_only", summary
     assert summary["instrument"] == "SA2601" and summary["exchange"] == "CZCE", summary
-    assert summary["write_health"] == {"arm_calls": 0, "submit_calls": 0, "cancel_calls": 0, "native_send_calls": 0}
+    assert summary["write_health"] == {
+        "armed": False,
+        "frozen": False,
+        "active_orders": 0,
+    }
     assert summary["readings"]["instrument_rows"] == 1, summary
 
     store = FakeStore.instances[0]
@@ -278,6 +293,9 @@ def test_sa_unconfirmed_front_close_health_blocks_and_prevents_retry(
 def test_sa_selected_store_stop_failure_blocks_and_retains_ownership(entry, monkeypatch, capsys) -> None:
     module, tmp_path = entry
     FakeStore.fail_stop_indexes = {0}
+    FakeStore.write_health_by_index = {
+        0: {"armed": True, "frozen": False, "active_orders": 0}
+    }
 
     code = module.run_live_observe(_args(tmp_path, module))
     summary = _payload(capsys)
@@ -286,6 +304,10 @@ def test_sa_selected_store_stop_failure_blocks_and_retains_ownership(entry, monk
     assert code != 0, code
     assert summary["status"] == persisted["status"] == "BLOCKED", summary
     assert summary["reason"] == persisted["reason"] == "cleanup_uncertain", summary
+    assert summary["write_health_error"] == persisted["write_health_error"] == {
+        "reason": "health_flag_not_false",
+        "field": "armed",
+    }, summary
     assert summary["cleanup_error"] == persisted["cleanup_error"] == {
         "phase": "selected_store_stop",
         "exception_type": "RuntimeError",
@@ -372,3 +394,135 @@ def test_sa_live_routes_by_write_grant(entry, monkeypatch) -> None:
     seen.clear()
     module.main(["--live", "--allow-write"])
     assert seen == ["drill"], seen
+
+
+@pytest.mark.parametrize(
+    "health, expected",
+    [
+        pytest.param(None, {"reason": "health_not_mapping"}, id="none"),
+        pytest.param({}, {"reason": "health_field_missing", "field": "armed"}, id="missing-armed"),
+        pytest.param(
+            {"armed": False},
+            {"reason": "health_field_missing", "field": "frozen"},
+            id="missing-frozen",
+        ),
+        pytest.param(
+            {"armed": False, "frozen": False},
+            {"reason": "health_field_missing", "field": "active_orders"},
+            id="missing-active-orders",
+        ),
+        pytest.param(
+            {"armed": 0, "frozen": False, "active_orders": 0},
+            {"reason": "health_flag_not_false", "field": "armed"},
+            id="armed-wrong-type",
+        ),
+        pytest.param(
+            {"armed": True, "frozen": False, "active_orders": 0},
+            {"reason": "health_flag_not_false", "field": "armed"},
+            id="armed",
+        ),
+        pytest.param(
+            {"armed": False, "frozen": 0, "active_orders": 0},
+            {"reason": "health_flag_not_false", "field": "frozen"},
+            id="frozen-wrong-type",
+        ),
+        pytest.param(
+            {"armed": False, "frozen": True, "active_orders": 0},
+            {"reason": "health_flag_not_false", "field": "frozen"},
+            id="frozen",
+        ),
+        pytest.param(
+            {"armed": False, "frozen": False, "active_orders": False},
+            {"reason": "health_count_not_zero", "field": "active_orders"},
+            id="active-orders-bool",
+        ),
+        pytest.param(
+            {"armed": False, "frozen": False, "active_orders": 1},
+            {"reason": "health_count_not_zero", "field": "active_orders"},
+            id="active-orders-nonzero",
+        ),
+        pytest.param(
+            {
+                "armed": False,
+                "frozen": False,
+                "active_orders": 0,
+                "native_send_calls": 1,
+            },
+            {"reason": "health_count_not_zero", "field": "native_send_calls"},
+            id="optional-counter-nonzero",
+        ),
+        pytest.param(
+            {
+                "armed": False,
+                "frozen": False,
+                "active_orders": 0,
+                "submit_calls": True,
+            },
+            {"reason": "health_count_not_zero", "field": "submit_calls"},
+            id="optional-counter-wrong-type",
+        ),
+    ],
+)
+def test_sa_write_health_contract_blocks_unconfirmed_facts(
+    entry, capsys, health: object, expected: dict[str, str]
+) -> None:
+    module, tmp_path = entry
+    FakeStore.write_health_by_index = {0: health}
+
+    code = module.run_live_observe(_args(tmp_path, module))
+    summary = _payload(capsys)
+    persisted = json.loads((tmp_path / "evidence" / "run.json").read_text(encoding="utf-8"))
+
+    assert code != 0, code
+    assert summary["status"] == persisted["status"] == "BLOCKED", summary
+    assert summary["reason"] == persisted["reason"] == "write_health_unconfirmed", summary
+    assert summary["write_health_error"] == persisted["write_health_error"] == expected, summary
+    assert "write_health" not in summary
+    assert summary["cleanup_status"] == persisted["cleanup_status"] == "closed", summary
+    assert len(FakeStore.instances) == 1, summary
+    assert FakeStore.instances[0].stop_calls == 1
+    assert module._OBSERVATION_CLEANUP_KEEPALIVE == []
+    assert "synthetic write-health failure secret" not in json.dumps(summary)
+
+
+def test_sa_write_health_method_exception_is_finite_and_still_closes(
+    entry, capsys
+) -> None:
+    module, tmp_path = entry
+    FakeStore.fail_write_health_indexes = {0}
+
+    code = module.run_live_observe(_args(tmp_path, module))
+    summary = _payload(capsys)
+    persisted = json.loads((tmp_path / "evidence" / "run.json").read_text(encoding="utf-8"))
+
+    assert code != 0, code
+    assert summary["status"] == persisted["status"] == "BLOCKED", summary
+    assert summary["reason"] == persisted["reason"] == "write_health_unconfirmed", summary
+    assert summary["write_health_error"] == persisted["write_health_error"] == {
+        "reason": "health_unreadable"
+    }, summary
+    assert "write_health" not in summary
+    assert summary["cleanup_status"] == persisted["cleanup_status"] == "closed", summary
+    assert FakeStore.instances[0].stop_calls == 1
+    assert module._OBSERVATION_CLEANUP_KEEPALIVE == []
+    assert "synthetic write-health failure secret" not in json.dumps(summary)
+
+
+def test_sa_optional_zero_write_health_counters_are_accepted(entry, capsys) -> None:
+    module, tmp_path = entry
+    health = {
+        "armed": False,
+        "frozen": False,
+        "active_orders": 0,
+        "arm_calls": 0,
+        "submit_calls": 0,
+        "cancel_calls": 0,
+        "native_send_calls": 0,
+    }
+    FakeStore.write_health_by_index = {0: health}
+
+    assert module.run_live_observe(_args(tmp_path, module)) == 0
+    summary = _payload(capsys)
+    assert summary["status"] == "LIVE_OBSERVE_PASS", summary
+    assert summary["write_health"] == health, summary
+    assert FakeStore.instances[0].stop_calls == 1

@@ -121,6 +121,47 @@ def _observation_close_health_error(health: Any, *, phase: str) -> Optional[Dict
     return None
 
 
+def _observation_write_health_projection(
+    health: Any,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
+    """Validate Store-local write health and project only known fields.
+
+    These values describe this Store's registered gate state. They do not
+    establish native-wide or process-wide absence of writes.
+    """
+    if not isinstance(health, Mapping):
+        return None, {"reason": "health_not_mapping"}
+
+    projection: Dict[str, Any] = {}
+    try:
+        for field in ("armed", "frozen"):
+            if field not in health:
+                return None, {"reason": "health_field_missing", "field": field}
+            value = health[field]
+            if type(value) is not bool or value is not False:
+                return None, {"reason": "health_flag_not_false", "field": field}
+            projection[field] = False
+
+        if "active_orders" not in health:
+            return None, {"reason": "health_field_missing", "field": "active_orders"}
+        active_orders = health["active_orders"]
+        if type(active_orders) is not int or active_orders != 0:
+            return None, {"reason": "health_count_not_zero", "field": "active_orders"}
+        projection["active_orders"] = 0
+
+        optional_counters = ("arm_calls", "submit_calls", "cancel_calls", "native_send_calls")
+        for field in optional_counters:
+            if field not in health:
+                continue
+            value = health[field]
+            if type(value) is not int or value != 0:
+                return None, {"reason": "health_count_not_zero", "field": field}
+            projection[field] = 0
+    except Exception:
+        return None, {"reason": "health_unreadable"}
+
+    return projection, None
+
 def _json_print(payload: Mapping[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
 
@@ -771,10 +812,26 @@ def run_live_observe(args) -> int:
         summary["login"] = observed["login"]
         summary["readings"] = observed["readings"]
         try:
-            summary["write_health"] = dict(store.registered_sim_write_health())
-        except Exception as exc:
-            summary["write_health_error"] = f"{type(exc).__name__}: {exc}"
-        observation_ready_to_pass = True
+            raw_write_health = store.registered_sim_write_health()
+        except Exception:
+            write_health, write_health_error = None, {"reason": "health_unreadable"}
+        else:
+            write_health, write_health_error = _observation_write_health_projection(
+                raw_write_health
+            )
+        if write_health_error is not None:
+            summary["write_health_error"] = write_health_error
+            summary.update(
+                {
+                    "status": "BLOCKED",
+                    "reason": "write_health_unconfirmed",
+                    "details": dict(write_health_error),
+                }
+            )
+            result_code = EXIT_BLOCKED
+        else:
+            summary["write_health"] = write_health
+            observation_ready_to_pass = True
     except simnow_direct.SimNowDirectError as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
         result_code = EXIT_BLOCKED
