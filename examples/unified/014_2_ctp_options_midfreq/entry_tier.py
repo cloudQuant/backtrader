@@ -14,7 +14,7 @@ caller keeps applying its own write admission after this decision.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Tuple
 
 TIERS = ("dry", "replay", "live")
 TIER_ALIASES = {"backtest": "replay"}
@@ -47,7 +47,9 @@ class TierDecision:
         }
 
 
-def config_tier(config: Any) -> Optional[str]:
+def config_tier(
+    config: Any, *, allowed_entry_keys: Tuple[str, ...] = ("tier",)
+) -> Optional[str]:
     """Return the declared tier, or ``None`` when the example declares none.
 
     Raises:
@@ -56,9 +58,10 @@ def config_tier(config: Any) -> Optional[str]:
 
     if not isinstance(config, Mapping):
         raise ValueError("config must be a mapping to read entry.tier")
-    if "tier" not in _entry_view(config):
+    entry = _entry_view(config, allowed_entry_keys)
+    if "tier" not in entry:
         return None
-    declared = _entry_view(config)["tier"]
+    declared = entry["tier"]
     if not isinstance(declared, str):
         raise ValueError("entry.tier must be a string")
     normalized = declared.strip().lower()
@@ -67,7 +70,12 @@ def config_tier(config: Any) -> Optional[str]:
     return normalized
 
 
-def decide(config: Any, cli_tier: Optional[str]) -> TierDecision:
+def decide(
+    config: Any,
+    cli_tier: Optional[str],
+    *,
+    allowed_entry_keys: Tuple[str, ...] = ("tier",),
+) -> TierDecision:
     """Resolve ``entry.tier`` against the CLI request without ever escalating it.
 
     A CLI mode flag may keep or lower the declared tier; raising it above an
@@ -76,7 +84,7 @@ def decide(config: Any, cli_tier: Optional[str]) -> TierDecision:
     """
 
     try:
-        declared = config_tier(config)
+        declared = config_tier(config, allowed_entry_keys=allowed_entry_keys)
     except ValueError:
         return TierDecision(None, cli_tier, "dry", REASON_INVALID)
     canonical = TIER_ALIASES.get(declared, declared) if declared else None
@@ -103,7 +111,7 @@ def conflict(decision: TierDecision) -> bool:
     return decision.reason == REASON_CONFLICT
 
 
-def _entry_view(config: Mapping) -> Any:
+def _entry_view(config: Mapping, allowed_entry_keys: Tuple[str, ...]) -> Any:
     entry = config.get("entry")
     if "entry" in config and entry is None:
         raise ValueError("entry must be a mapping when present")
@@ -111,4 +119,6 @@ def _entry_view(config: Mapping) -> Any:
         return {}
     if not isinstance(entry, Mapping):
         raise ValueError("entry must be a mapping")
+    if any(key not in allowed_entry_keys for key in entry):
+        raise ValueError("entry contains unknown keys")
     return entry

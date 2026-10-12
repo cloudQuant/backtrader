@@ -1,0 +1,122 @@
+{
+  "name": "r3b",
+  "head": "e96e1962333827a91b03812b7bc8d3484e32d42f",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration43_entry_tier.py",
+    "tests/unit/test_iteration43_entry_schema.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_r3b",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\r3b.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 4.906,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "examples/_support/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/run.py": {
+      "size_bytes": 17327,
+      "sha256": "f7041766c57828d78547b59531d5d4605605d34ef197b45b2240dc50d3e2d877"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3401,
+      "sha256": "3da8f63b5f899234296932ff96fb9b5aa1c530dc55a73049d641ccff56c24637"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/run.py": {
+      "size_bytes": 17628,
+      "sha256": "77e4bebbede1ec317eb31ef6ea3583696b3e582cfdb1e911dbe5b42d311fd811"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3889,
+      "sha256": "e7a1254b609d92374e5246dc92e86aa3f6a3e9c7651be6007281c0f3c7cbd25a"
+    },
+    "examples/unified/013_1_midfreq_cross_arbitrage/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/013_2_highfreq_calendar_arbitrage/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/013_3_sa_midfreq_simnow/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/014_1_ctp_options_lowfreq/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/014_2_ctp_options_midfreq/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/015_ctp_options_highfreq/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "tests/unit/test_iteration43_entry_schema.py": {
+      "size_bytes": 14510,
+      "sha256": "8a631a5b968d99daeb5a69a0a550fe95e269d6a64adddbffd14312784187f0c9"
+    },
+    "tests/unit/test_iteration43_entry_tier.py": {
+      "size_bytes": 4743,
+      "sha256": "16de64d7e6d017c6f53fe7f67ab52461e47e8ac6bfa489f361905dc2d27c27fc"
+    }
+  },
+  "log": {
+    "size_bytes": 632,
+    "sha256": "31f50e3b4ba609fe45b4f0f4c1b3d0bdc1d83f065134c02b085c669386856b40"
+  },
+  "xml": {
+    "size_bytes": 8099,
+    "sha256": "5833522ac878e2cf24d5af510f3d6ff614d13463d65a4962636abb0be9781b1e"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/_support/entry_tier.py",
+    "examples/unified/012_1_midfreq_cross_exchange/entry_tier.py",
+    "examples/unified/012_2_event_driven_cross_exchange/entry_tier.py",
+    "examples/unified/013_1_midfreq_cross_arbitrage/entry_tier.py",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/entry_tier.py",
+    "examples/unified/013_3_sa_midfreq_simnow/entry_tier.py",
+    "examples/unified/014_1_ctp_options_lowfreq/entry_tier.py",
+    "examples/unified/014_2_ctp_options_midfreq/entry_tier.py",
+    "examples/unified/015_ctp_options_highfreq/entry_tier.py",
+    "examples/unified/012_1_midfreq_cross_exchange/run.py",
+    "examples/unified/012_2_event_driven_cross_exchange/run.py",
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+    "tests/unit/test_iteration43_entry_tier.py",
+    "tests/unit/test_iteration43_entry_schema.py"
+  ],
+  "parent_commit": "e96e1962333827a91b03812b7bc8d3484e32d42f",
+  "branch": "dev",
+  "title": "strict-entry-schema",
+  "account_acceptance_added": 0
+}

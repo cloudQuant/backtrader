@@ -30,6 +30,16 @@ CHECKOUT_ROOT = HERE.parents[2]
 
 EXIT_PASS, EXIT_FAIL, EXIT_BLOCKED, EXIT_UNKNOWN = 0, 1, 2, 3
 EVIDENCE_DIR = HERE / "evidence"
+ENTRY_KEYS = ("tier", "venue", "credentials", "policy", "timeouts", "evidence_boundary")
+ENTRY_CREDENTIAL_KEYS = (
+    "okx_api_key_env",
+    "okx_secret_env",
+    "okx_passphrase_env",
+    "binance_api_key_env",
+    "binance_secret_env",
+)
+ENTRY_POLICY_KEYS = ("max_actions", "max_order_notional_usdt", "max_round_trips")
+ENTRY_TIMEOUT_KEYS = ("run_seconds", "stop_seconds")
 
 
 def _load_legacy():
@@ -49,7 +59,7 @@ def _load_raw_config() -> Dict[str, Any]:
     import yaml
 
     with (HERE / "config.yaml").open("r", encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle) or {}
+        raw = yaml.safe_load(handle)
     if not isinstance(raw, dict):
         raise ValueError("config root must be a mapping")
     return raw
@@ -60,6 +70,8 @@ def _entry_errors(raw: Mapping[str, Any]) -> list:
     entry = raw.get("entry")
     if not isinstance(entry, Mapping):
         return ["entry_section_missing"]
+    if any(key not in ENTRY_KEYS for key in entry):
+        errors.append("entry_unknown_key")
     venues = entry.get("venue")
     if not isinstance(venues, list) or sorted(str(v) for v in venues) != ["binance", "okx"]:
         errors.append("entry_venue_must_be_okx_and_binance")
@@ -67,13 +79,17 @@ def _entry_errors(raw: Mapping[str, Any]) -> list:
     if not isinstance(credentials, Mapping) or not credentials:
         errors.append("entry_credentials_missing")
     else:
+        if any(key not in ENTRY_CREDENTIAL_KEYS for key in credentials):
+            errors.append("entry_credentials_unknown_key")
         for key, value in credentials.items():
             if not str(key).endswith("_env") or not isinstance(value, str) or not value.strip():
-                errors.append(f"entry_credential_name_invalid:{key}")
+                errors.append("entry_credential_name_invalid")
     policy = entry.get("policy")
     if not isinstance(policy, Mapping):
         errors.append("entry_policy_missing")
     else:
+        if any(key not in ENTRY_POLICY_KEYS for key in policy):
+            errors.append("entry_policy_unknown_key")
         for name in ("max_actions", "max_round_trips"):
             if int(policy.get(name, 0) or 0) <= 0:
                 errors.append(f"entry_policy_{name}_invalid")
@@ -81,6 +97,8 @@ def _entry_errors(raw: Mapping[str, Any]) -> list:
     if not isinstance(timeouts, Mapping):
         errors.append("entry_timeouts_missing")
     else:
+        if any(key not in ENTRY_TIMEOUT_KEYS for key in timeouts):
+            errors.append("entry_timeouts_unknown_key")
         for name in ("run_seconds", "stop_seconds"):
             try:
                 if float(timeouts.get(name, 0) or 0) <= 0:
@@ -380,7 +398,7 @@ def main(argv=None) -> int:
         _json_print({"status": "BLOCKED", "reason": f"tier_config_unreadable:{type(exc).__name__}"})
         return EXIT_BLOCKED
     cli_tier = "live" if args.live else "replay" if args.replay else "dry" if args.dry else None
-    decision = entry_tier.decide(tier_config, cli_tier)
+    decision = entry_tier.decide(tier_config, cli_tier, allowed_entry_keys=ENTRY_KEYS)
     if entry_tier.invalid(decision) or entry_tier.conflict(decision):
         _json_print(
             {
@@ -391,6 +409,24 @@ def main(argv=None) -> int:
             }
         )
         return EXIT_BLOCKED
+    if "entry" in tier_config:
+        try:
+            entry_errors = _entry_errors(tier_config)
+        except Exception:
+            entry_errors = ["entry_configuration_invalid"]
+        if entry_errors:
+            invalid_decision = entry_tier.TierDecision(
+                decision.config_tier, decision.cli_tier, "dry", entry_tier.REASON_INVALID
+            )
+            _json_print(
+                {
+                    "status": "BLOCKED",
+                    "reason": entry_tier.REASON_INVALID,
+                    "entry_tier": invalid_decision.as_evidence(),
+                    "write_grant_result": "not_evaluated_tier_unresolved",
+                }
+            )
+            return EXIT_BLOCKED
     args.tier_decision = decision
     if decision.effective_tier == "live":
         # The demo write path keeps its explicit grant; without one the live tier

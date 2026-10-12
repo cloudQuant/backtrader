@@ -92,3 +92,36 @@ def test_absent_entry_section_keeps_the_legacy_offline_default() -> None:
     assert decision.config_tier is None
     assert decision.effective_tier == "dry"
     assert decision.reason == entry_tier.REASON_DEFAULT_DRY
+
+
+@pytest.mark.parametrize(
+    "entry_key", ("venue", "credentials", "policy", "timeouts", "evidence_boundary")
+)
+def test_default_entry_schema_rejects_keys_beyond_tier(entry_key: str) -> None:
+    """Only the two legacy crypto entries may opt into their wider entry schema."""
+
+    decision = entry_tier.decide({"entry": {"tier": "dry", entry_key: "synthetic"}}, None)
+
+    assert decision.reason == entry_tier.REASON_INVALID
+    assert decision.effective_tier == "dry"
+
+
+def test_explicit_entry_schema_can_admit_the_012_projection() -> None:
+    """The caller can admit the 012 schema without weakening the default helper contract."""
+
+    allowed = ("tier", "venue", "credentials", "policy", "timeouts", "evidence_boundary")
+    config = {
+        "entry": {
+            "tier": "dry",
+            "venue": ["okx", "binance"],
+            "credentials": {"okx_api_key_env": "SYNTHETIC_OKX_KEY"},
+            "policy": {"max_actions": 1},
+            "timeouts": {"run_seconds": 1},
+            "evidence_boundary": "SYNTHETIC_ONLY",
+        }
+    }
+
+    decision = entry_tier.decide(config, None, allowed_entry_keys=allowed)
+
+    assert decision.effective_tier == "dry"
+    assert decision.reason == entry_tier.REASON_CONFIG_DEFAULT
