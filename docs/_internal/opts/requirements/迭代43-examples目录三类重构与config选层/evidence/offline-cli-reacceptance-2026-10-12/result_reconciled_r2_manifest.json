@@ -1,0 +1,15 @@
+{
+  "schema": "iteration43_offline_cli_reconciliation_r2_addendum_manifest",
+  "result_reconciled_r2": {
+    "path": "D:\\temp\\iteration43-offline-cli-20261012-02\\completion-r3\\result_reconciled_r2.json",
+    "size_bytes": 20322,
+    "sha256": "697438347ae3521437b6876a2b6b5928ff8b2007d22445a41cc1efa40a7fa37f"
+  },
+  "preserved_source_records": {
+    "original_result_sha256": "b68a7f11555a692d8241caa193ea193207ede9c88ba3b6d46c7a68e5cb8c09be",
+    "reconciliation_r1_sha256": "fe63271bd89c27458cb705695e89f1dc91f35837979b367313f94e41ffe0589e",
+    "harness_failure_sha256": "1083d676ba3138a0756e001c3307580f200bad66846b3df96b099cb561ecf8a6",
+    "prior_archive_sha256": "fc125252c9bd4ff6baf06083d6d35a955b0b1ca3db7209b05575145d52146d52"
+  },
+  "source_snapshot_commit": "4cf68a5722ba09963da3b5778f39971c2e8c7f3f"
+}

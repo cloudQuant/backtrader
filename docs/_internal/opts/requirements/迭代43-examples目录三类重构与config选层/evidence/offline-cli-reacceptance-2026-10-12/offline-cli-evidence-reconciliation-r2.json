@@ -1,0 +1,9 @@
+{
+  "schema": "iteration43_offline_cli_archive_sidecar_v1",
+  "archive": "D:\\temp\\iteration43-offline-cli-20261012-02\\completion-r3\\offline-cli-evidence-reconciliation-r2.zip",
+  "size_bytes": 4600,
+  "sha256": "7e11339c7d3cee113ac9115f260dcca5bf345a542fadad1f831013c027e18c5f",
+  "result_sha256": "697438347ae3521437b6876a2b6b5928ff8b2007d22445a41cc1efa40a7fa37f",
+  "manifest_sha256": "ba11e7712264568f8f27aee1050fb100263b1586ec0584f66c971d0ace1e830d",
+  "prior_archive": "fc125252c9bd4ff6baf06083d6d35a955b0b1ca3db7209b05575145d52146d52"
+}

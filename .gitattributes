@@ -764,3 +764,30 @@ examples/unified/015_ctp_options_highfreq/README.md -text
 docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-public-status.json -text
 docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.json -text
 docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.md -text
+
+# Iteration 42/43 repair reports: preserve exact archived public evidence bytes.
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/修复复验报告-2026-10-12.md -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-summary-2026-10-12.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/修复复验报告-2026-10-12.md -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/repair-summary-2026-10-12.json -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/reacceptance-regression-2026-10-12/raw-qa.zip -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/reacceptance-regression-2026-10-12/result.json -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-diagnostics-2026-10-12/git-byte-policy-supplement.json -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-diagnostics-2026-10-12/git-byte-policy-supplement.zip -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-diagnostics-2026-10-12/manifest.json -text
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-diagnostics-2026-10-12/raw-diagnostics.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/repair-diagnostics-2026-10-12/manifest.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/repair-diagnostics-2026-10-12/raw-diagnostics.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/iteration43-offline-cli-012-replay-b3a6b7c7-r1.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/iteration43-offline-cli-012-replay-b3a6b7c7-r1.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/iteration43-offline-cli-012-replay-c299359e-r1.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/iteration43-offline-cli-012-replay-c299359e-r1.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/local-files.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/manifest.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/offline-cli-evidence-archive-r2.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/offline-cli-evidence-archive-r2.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/offline-cli-evidence-reconciliation-r2.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/offline-cli-evidence-reconciliation-r2.zip -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/reconciliation-r1.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/result_reconciled_r2.json -text
+docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/result_reconciled_r2_manifest.json -text

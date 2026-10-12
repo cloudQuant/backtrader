@@ -1,0 +1,265 @@
+{
+  "schema": "iteration43_offline_cli_012_replay_after_c299359e_reconciliation_r1",
+  "created_utc": "2026-10-12T08:23:12.3648876+00:00",
+  "evidence_boundary": "EXTERNAL_PUBLIC_MIRROR_OFFLINE_REPLAY_ONLY",
+  "snapshot": {
+    "source_commit": "c299359e133452135221b8ad53d11b4e9a0121bb",
+    "head_at_start": "c299359e133452135221b8ad53d11b4e9a0121bb",
+    "head_after": "c299359e133452135221b8ad53d11b4e9a0121bb",
+    "head_changed_during_run": false,
+    "git_archive_sha256": "d65d583907430dee8b5f5063b6209b290bd0ef7b7dfb62d46b8608e31fabe83d",
+    "source_manifest_path": "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\source_manifest.json",
+    "source_manifest_size_bytes": 121731,
+    "source_manifest_sha256": "cafecf73f827b17a6a3bcfb4b76805ec278cdc0c1a8944f3f99308bbd2ac2cad",
+    "source_file_count": 550,
+    "mirror_pins_match_after_runs": true,
+    "configs_loaded_from_checkout": false,
+    "filtered_public_source_commands": [
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/strategy-candidate-manifest.json",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_1_midfreq_cross_exchange/config.yaml",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_1_midfreq_cross_exchange/cross_exchange_strategy.py",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_1_midfreq_cross_exchange/qualification-v3.json",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_1_midfreq_cross_exchange/run.py",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_2_event_driven_cross_exchange/config.yaml",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_2_event_driven_cross_exchange/event_driven_strategy.py",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_2_event_driven_cross_exchange/run.py",
+      "git cat-file --filters c299359e133452135221b8ad53d11b4e9a0121bb:examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json"
+    ],
+    "exact_filtered_source_pins": [
+      {
+        "path": "examples/strategy-candidate-manifest.json",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 7191,
+        "sha256": "09a4cb12753169ae4bd6ef60c1e863a0861884ecfff4ecf44b6ef2cf833ec084"
+      },
+      {
+        "path": "examples/unified/012_1_midfreq_cross_exchange/config.yaml",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 2028,
+        "sha256": "9f8e3123c8b7021853fa30435da4e0548c72fbd8abd11b5da530b3c26bb7ab7b"
+      },
+      {
+        "path": "examples/unified/012_1_midfreq_cross_exchange/cross_exchange_strategy.py",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 143138,
+        "sha256": "0bf237c86566fd138bf12644c22eaf070865f47b97d84cea791d30dcf027ec49"
+      },
+      {
+        "path": "examples/unified/012_1_midfreq_cross_exchange/qualification-v3.json",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 4210,
+        "sha256": "da8363391ae3ab25c7df32c238a4440fe36970d64686b7bcdb67327299e39ee2"
+      },
+      {
+        "path": "examples/unified/012_1_midfreq_cross_exchange/run.py",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 18574,
+        "sha256": "23e93b694941848d515b6f1e45da07431290f33edb929225ddca295b646a579d"
+      },
+      {
+        "path": "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 3401,
+        "sha256": "44b61e5acfa0ee30f527c870f5b878ac209b3fee202464885869988d757146e5"
+      },
+      {
+        "path": "examples/unified/012_2_event_driven_cross_exchange/config.yaml",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 2174,
+        "sha256": "e57da86e9367ec445fccc1675fb23ea7fa91b53147ebe62b1329bdc61eb54397"
+      },
+      {
+        "path": "examples/unified/012_2_event_driven_cross_exchange/event_driven_strategy.py",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 125224,
+        "sha256": "e0363508bf6bffa06b73eccb72b52b4a4da7cd5396ef54646503744d1fe7bd28"
+      },
+      {
+        "path": "examples/unified/012_2_event_driven_cross_exchange/run.py",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 18875,
+        "sha256": "77bb37c1641ced8f5d49496da30963bb05d440c54f88f84593df79145111d9f3"
+      },
+      {
+        "path": "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+        "origin": "git-cat-file--filters-frozen-commit",
+        "size_bytes": 3889,
+        "sha256": "48a23db547c024c4fe0e0cfe2e2a8ff9cb536a967959308a1bd67692686f332e"
+      }
+    ],
+    "harness": {
+      "path": "D:\\temp\\run_012_replay_after_c299359e.py",
+      "size_bytes": 17725,
+      "sha256": "5a23d009d3efe3242d1285efd88ca7f0430591d0c0069238143e8b3774b73b81"
+    },
+    "harness_copy_in_archive": "harness.py",
+    "root_candidate_manifest_pin": {
+      "path": "examples/strategy-candidate-manifest.json",
+      "origin": "git-cat-file--filters-frozen-commit",
+      "size_bytes": 7191,
+      "sha256": "09a4cb12753169ae4bd6ef60c1e863a0861884ecfff4ecf44b6ef2cf833ec084"
+    }
+  },
+  "execution": {
+    "requested": 2,
+    "launched": 2,
+    "returncode_zero": 2,
+    "timed_out": 0,
+    "offline_replay_passed": 2,
+    "status": "FORMULA_CHECK_PASS",
+    "provider_constructor_requested_by_harness": false,
+    "live_flag_used": false,
+    "allow_write_flag_used": false,
+    "active_conda_variables_preserved": true,
+    "conda_shlvl_overridden": false,
+    "ambient_pythonpath_inherited": false,
+    "child_pythonpath_binding": "fresh frozen mirror only",
+    "external_request_counts": {
+      "network": 0,
+      "order_write": 0
+    },
+    "counter_limitation": "Only external_request_counts was emitted. No other counter fields are inferred.",
+    "runs": [
+      {
+        "entry": "012_1_midfreq_cross_exchange",
+        "mode": "replay",
+        "command": [
+          "C:\\anaconda3\\python.exe",
+          "run.py",
+          "--replay",
+          "--evidence-dir",
+          "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\evidence\\012_1_midfreq_cross_exchange\\replay"
+        ],
+        "cwd": "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\mirror\\examples\\unified\\012_1_midfreq_cross_exchange",
+        "evidence_dir": "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\evidence\\012_1_midfreq_cross_exchange\\replay",
+        "returncode": 0,
+        "timed_out": false,
+        "status": "FORMULA_CHECK_PASS",
+        "entry_tier": {
+          "cli_tier": "replay",
+          "config_tier": null,
+          "effective_tier": "replay",
+          "tier_selection_reason": "cli_requested"
+        },
+        "write_grant_result": "not_applicable_offline_tier",
+        "pass_status_check": true,
+        "tier_check": true,
+        "write_grant_check": true,
+        "counters": {
+          "external_request_counts": {
+            "network": 0,
+            "order_write": 0
+          }
+        },
+        "counter_keys_present": [
+          "external_request_counts"
+        ],
+        "stdout": {
+          "archive_path": "logs\\012_1_midfreq_cross_exchange--replay.stdout.txt",
+          "size_bytes": 565,
+          "sha256": "a4f7ea4a8c38fc2a7e7558dd8c3ea4a28716d5610454e80f6676774c0dc2f606"
+        },
+        "stderr": {
+          "archive_path": "logs\\012_1_midfreq_cross_exchange--replay.stderr.txt",
+          "size_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "run_id": "replay-20261012T081655Z-897da3ac",
+        "evidence_report": {
+          "archive_path": "evidence\\012_1_midfreq_cross_exchange\\replay\\report.json",
+          "size_bytes": 462935,
+          "sha256": "eff213a10b155da9f644857d0e7a6446947aaf8918ff5da4719366ff7cf6a6f5"
+        },
+        "candidate_policy": {
+          "research_status": "RESEARCH_REJECTED",
+          "demo_approval_status": "NOT_APPROVED",
+          "qualification_artifact": {
+            "path": "qualification-v3.json",
+            "sha256": "da8363391ae3ab25c7df32c238a4440fe36970d64686b7bcdb67327299e39ee2",
+            "role": "calibration_training_only"
+          }
+        }
+      },
+      {
+        "entry": "012_2_event_driven_cross_exchange",
+        "mode": "replay",
+        "command": [
+          "C:\\anaconda3\\python.exe",
+          "run.py",
+          "--replay",
+          "--evidence-dir",
+          "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\evidence\\012_2_event_driven_cross_exchange\\replay"
+        ],
+        "cwd": "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\mirror\\examples\\unified\\012_2_event_driven_cross_exchange",
+        "evidence_dir": "D:\\temp\\iteration43-offline-cli-012-replay-c299359e\\evidence\\012_2_event_driven_cross_exchange\\replay",
+        "returncode": 0,
+        "timed_out": false,
+        "status": "FORMULA_CHECK_PASS",
+        "entry_tier": {
+          "cli_tier": "replay",
+          "config_tier": null,
+          "effective_tier": "replay",
+          "tier_selection_reason": "cli_requested"
+        },
+        "write_grant_result": "not_applicable_offline_tier",
+        "pass_status_check": true,
+        "tier_check": true,
+        "write_grant_check": true,
+        "counters": {
+          "external_request_counts": {
+            "network": 0,
+            "order_write": 0
+          }
+        },
+        "counter_keys_present": [
+          "external_request_counts"
+        ],
+        "stdout": {
+          "archive_path": "logs\\012_2_event_driven_cross_exchange--replay.stdout.txt",
+          "size_bytes": 570,
+          "sha256": "53090fe7612fa4d1e4e81eeb48b9001246cf034c03f891373b593811a9e162d2"
+        },
+        "stderr": {
+          "archive_path": "logs\\012_2_event_driven_cross_exchange--replay.stderr.txt",
+          "size_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "run_id": "replay-20261012T081701Z-e33a8bfa",
+        "evidence_report": {
+          "archive_path": "evidence\\012_2_event_driven_cross_exchange\\replay\\report.json",
+          "size_bytes": 34907,
+          "sha256": "29a1597db34ecc7cbbb62fa12f89953a5c84b0195f3a6694ffcfd017f612bb1f"
+        },
+        "candidate_policy": {
+          "research_status": "RESEARCH_REJECTED",
+          "demo_approval_status": "NOT_APPROVED",
+          "qualification_artifact": null
+        }
+      }
+    ]
+  },
+  "candidate_disposition": {
+    "research_status": "RESEARCH_REJECTED",
+    "demo_approval": "NOT_APPROVED",
+    "qualification_acceptance": "NOT_ESTABLISHED",
+    "qualification_012_1_artifact_pin": {
+      "path": "examples/unified/012_1_midfreq_cross_exchange/qualification-v3.json",
+      "origin": "git-cat-file--filters-frozen-commit",
+      "size_bytes": 4210,
+      "sha256": "da8363391ae3ab25c7df32c238a4440fe36970d64686b7bcdb67327299e39ee2"
+    },
+    "note": "Offline formula fixture pass is not research approval, demo approval, qualification acceptance, market evidence, or profitability evidence. The existing qualification-v3 artifact was preserved byte-for-byte."
+  },
+  "prior_layers": {
+    "initial_4cf_full16": "8/8 dry and 6/8 replay passed; 14/16 total. Two 012 replay source-fingerprint rejections.",
+    "b3_two_route": "Both 012 replay routes returned code 2 REJECTED before a research/qualification disposition; exact strategy-pin mismatches are recorded in the aggregate manifest.",
+    "c299_two_route": "Both 012 replay routes returned code 0 FORMULA_CHECK_PASS in this independent snapshot and namespace."
+  },
+  "limitations": [
+    "This archive covers only the two 012 --replay invocations at c299359e.",
+    "No live/provider/account/SDK constructor was requested.",
+    "FORMULA_CHECK_PASS is offline formula-fixture evidence only.",
+    "No repository files or private configuration were read or changed by this packaging step."
+  ]
+}

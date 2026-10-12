@@ -1,0 +1,185 @@
+{
+  "schema": "iteration42-repair-reacceptance-v1",
+  "date": "2026-10-12",
+  "conclusion": "SOURCE_REPAIRS_ACCEPTED_OVERALL_PARTIAL",
+  "account_acceptance_added": 0,
+  "initial_regression": {
+    "passed": 69,
+    "failed": 0,
+    "skipped": 0
+  },
+  "rounds": [
+    {
+      "name": "i42health",
+      "iteration": "42",
+      "title": "require-confirmed-store-write-health",
+      "commit": "86ea29aa93a4e94f7a6ae21190ee25a5b2e6450f",
+      "parent": "4cf68a5722ba09963da3b5778f39971c2e8c7f3f",
+      "scope": [
+        "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+        "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+        "examples/unified/013_3_sa_midfreq_simnow/run.py",
+        "examples/unified/014_1_ctp_options_lowfreq/run.py",
+        "tests/unit/test_iteration43_live_observation.py",
+        "tests/unit/test_iteration43_sa_live_observation.py",
+        "tests/unit/test_iteration43_options_live_observation.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42health-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42health-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42health-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 112,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42health-2026-10-12"
+    },
+    {
+      "name": "i42manifeste",
+      "iteration": "42",
+      "title": "restore-canonical-and-local-candidate-bindings",
+      "commit": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+      "parent": "86ea29aa93a4e94f7a6ae21190ee25a5b2e6450f",
+      "scope": [
+        "examples/strategy-candidate-manifest.json",
+        "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+        "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+        "tests/unit/test_iteration42_candidate_manifest_binding.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42manifeste-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42manifeste-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42manifeste-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 181,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42manifeste-2026-10-12"
+    },
+    {
+      "name": "i42gitpolicy",
+      "iteration": "42",
+      "title": "unify-git-source-fingerprint-policy",
+      "commit": "c299359e133452135221b8ad53d11b4e9a0121bb",
+      "parent": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+      "scope": [
+        "examples/strategy-candidate-manifest.json",
+        "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+        "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+        "tests/unit/test_iteration42_candidate_manifest_binding.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42gitpolicy-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42gitpolicy-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42gitpolicy-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42gitpolicy-2026-10-12"
+    },
+    {
+      "name": "i42tracker",
+      "iteration": "42",
+      "title": "rebuild-public-status-tracker",
+      "commit": "2edf40cb9b6b9d29d481b6819811e1fff9a5a489",
+      "parent": "c299359e133452135221b8ad53d11b4e9a0121bb",
+      "scope": [
+        ".gitattributes",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/acceptance-audit-2026-10-12.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-public-status.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/monday-live-run-plan-2026-10-12.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r1-live-run-progress-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r4-implementation-and-smoke-record-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r5-implementation-record-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r6-0141-strict-live-adapter-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r7-0142-observation-tier-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r9-acceptance-audit-checklist-2026-10-10.md",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/source-binding-review-2026-10-12.json",
+        "examples/_support/demo-approval-trust-root.pem",
+        "examples/_support/strategy_candidate_approval.py",
+        "examples/unified/015_ctp_options_highfreq/README.md",
+        "scripts/generate_iteration42_tracker.py",
+        "tests/unit/test_iteration42_public_tracker.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/tracker-generation-2026-10-12.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42tracker-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42tracker-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42tracker-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42tracker-2026-10-12"
+    },
+    {
+      "name": "i42cleanup",
+      "iteration": "42",
+      "title": "require-confirmed-live-final-cleanup",
+      "commit": "cca4264e0800baccb85805d6af3ef256c34e2162",
+      "parent": "2edf40cb9b6b9d29d481b6819811e1fff9a5a489",
+      "scope": [
+        "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+        "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+        "examples/unified/013_3_sa_midfreq_simnow/run.py",
+        "examples/unified/014_1_ctp_options_lowfreq/run.py",
+        "examples/unified/014_2_ctp_options_midfreq/run.py",
+        "tests/unit/test_iteration42_live_final_cleanup.py",
+        "tests/unit/test_iteration42_observation_final_cleanup.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42cleanup-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42cleanup-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42cleanup-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 211,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42cleanup-2026-10-12"
+    },
+    {
+      "name": "i42privacy",
+      "iteration": "42",
+      "title": "sanitize-observer-generic-diagnostics",
+      "commit": "30547cd750bac6c5f1b12eb654b802b043439221",
+      "parent": "cca4264e0800baccb85805d6af3ef256c34e2162",
+      "scope": [
+        "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+        "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+        "examples/unified/013_3_sa_midfreq_simnow/run.py",
+        "examples/unified/014_1_ctp_options_lowfreq/run.py",
+        "tests/unit/test_iteration43_live_observation.py",
+        "tests/unit/test_iteration43_options_live_observation.py",
+        "tests/unit/test_iteration43_sa_live_observation.py",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42privacy-2026-10-12/raw-qa.zip",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42privacy-2026-10-12/result.json",
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42privacy-2026-10-12/round.md"
+      ],
+      "counts": {
+        "passed": 130,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "evidence": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/repair-i42privacy-2026-10-12"
+    }
+  ],
+  "remaining_target_examples": [
+    "013_3",
+    "014_1",
+    "014_2"
+  ],
+  "qualification_inner_config_binding": "MISMATCH_UNCHANGED",
+  "research": "RESEARCH_REJECTED",
+  "approval": "NOT_APPROVED",
+  "hft_012_2": "FAIL",
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY"
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "iteration43_offline_cli_archive_sidecar_v1",
+  "archive": "D:\\temp\\iteration43-offline-cli-012-replay-b3a6b7c7\\iteration43-offline-cli-012-replay-b3a6b7c7-r1.zip",
+  "size_bytes": 72837,
+  "sha256": "06c448ff89172edce062cffb79558e80faeb982098e84c5a884e5d4fd1e817a9",
+  "source_snapshot_commit": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+  "result_path": "D:\\temp\\iteration43-offline-cli-012-replay-b3a6b7c7\\result.json",
+  "source_manifest_path": "D:\\temp\\iteration43-offline-cli-012-replay-b3a6b7c7\\source_manifest.json",
+  "included_members": [
+    {
+      "path": "012_1_midfreq_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "012_1_midfreq_cross_exchange--replay.stdout.txt",
+      "size_bytes": 163,
+      "sha256": "d79804fe16ccad990fe4af55f82449e9b0e4842fb6aebb7dd77061260fcc08ad"
+    },
+    {
+      "path": "012_2_event_driven_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "012_2_event_driven_cross_exchange--replay.stdout.txt",
+      "size_bytes": 163,
+      "sha256": "6182fb9a454585e8218089041a146e5400e3c275960850ae9059e26905ad9df5"
+    },
+    {
+      "path": "executed_harness.py",
+      "size_bytes": 15990,
+      "sha256": "d187bc239ce056a10399c5daaf56b0b4fc3493c82f2389979f9b64107438129f"
+    },
+    {
+      "path": "raw_harness_failure.json",
+      "size_bytes": 194,
+      "sha256": "26f368ca91e379ad841aaee596e9295246dbf3eb1c3e86c6ad63b01102e0d19e"
+    },
+    {
+      "path": "raw_result.json",
+      "size_bytes": 128861,
+      "sha256": "23fd33baf5b9c5be9eca02f9d20c59d8cc7bb2b992be9c0c5efa96a627e4b88a"
+    },
+    {
+      "path": "result.json",
+      "size_bytes": 15402,
+      "sha256": "25adb005f89f2b55a425b36daefa7371a3c635c88f594d1ce5de0c19a4b9e86a"
+    },
+    {
+      "path": "source_manifest.json",
+      "size_bytes": 120318,
+      "sha256": "b0cff7c4575128a8da49c5b1ac9e40ae6be8813719dfb8df60ecd1dfd2dd365f"
+    },
+    {
+      "path": "archive_members.json",
+      "size_bytes": 1674,
+      "sha256": "118bd94b7aae6cd5b352cd1b68e573a0efbc1d209587235de7e456a0678a37a2"
+    }
+  ]
+}

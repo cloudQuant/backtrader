@@ -1,0 +1,733 @@
+{
+  "schema": "iteration43_offline_cli_external_archive_manifest_r2",
+  "archive": "D:\\temp\\iteration43-offline-cli-20261012-02\\offline-cli-evidence-archive-r2.zip",
+  "archive_size_bytes": 1042739,
+  "archive_sha256": "fc125252c9bd4ff6baf06083d6d35a955b0b1ca3db7209b05575145d52146d52",
+  "preserves_prior_failed_attempts": true,
+  "includes_reconciler_harness": true,
+  "excludes_mirror_and_private_config_files": true,
+  "members": [
+    {
+      "path": "attempt-02/logs/012_1_midfreq_cross_exchange--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/012_1_midfreq_cross_exchange--dry.stdout.txt",
+      "size_bytes": 445,
+      "sha256": "b75df31393adee1ef26eec8f8320f3115fd7e5745720236a0fde7617f303f65b"
+    },
+    {
+      "path": "attempt-02/logs/012_1_midfreq_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/012_1_midfreq_cross_exchange--replay.stdout.txt",
+      "size_bytes": 165,
+      "sha256": "1806187c296425beb72faaa5d74e42b0da66e84336d3483d58fe6d77a9fe4b4d"
+    },
+    {
+      "path": "attempt-02/logs/012_2_event_driven_cross_exchange--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/012_2_event_driven_cross_exchange--dry.stdout.txt",
+      "size_bytes": 450,
+      "sha256": "57cd95d0e7c81f33b5d3329be85829fbc57c5ed2647523f05cd8e29eb497a341"
+    },
+    {
+      "path": "attempt-02/logs/012_2_event_driven_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/012_2_event_driven_cross_exchange--replay.stdout.txt",
+      "size_bytes": 165,
+      "sha256": "168a0a2233fe5c18c28bc4d2d2472177aa8bdd3d53a07b18310b8945e2ab36cb"
+    },
+    {
+      "path": "attempt-02/logs/013_1_midfreq_cross_arbitrage--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/013_1_midfreq_cross_arbitrage--dry.stdout.txt",
+      "size_bytes": 586,
+      "sha256": "9914c732951e45988609bf81b75069c56c005d8ca16c12443d320fbf58137838"
+    },
+    {
+      "path": "attempt-02/logs/013_1_midfreq_cross_arbitrage--replay.stderr.txt",
+      "size_bytes": 2337446,
+      "sha256": "91c2c564b81c7d0356b42874740b05bb582555027315c21885e2786e54b58428"
+    },
+    {
+      "path": "attempt-02/logs/013_1_midfreq_cross_arbitrage--replay.stdout.txt",
+      "size_bytes": 673,
+      "sha256": "a9fe38a8c327702aa86476c190d78a0da2369d46cbd1be5c30af713e8b75784a"
+    },
+    {
+      "path": "attempt-02/logs/013_2_highfreq_calendar_arbitrage--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/013_2_highfreq_calendar_arbitrage--dry.stdout.txt",
+      "size_bytes": 593,
+      "sha256": "57c1b83696764c4d53df51210c273f8cad0a7f78b56d1345a39dd5215237f6a2"
+    },
+    {
+      "path": "attempt-02/logs/013_2_highfreq_calendar_arbitrage--replay.stderr.txt",
+      "size_bytes": 813066,
+      "sha256": "5f3575e7f3c866bb68017a4b285d73bad56a27c35f9eeed5e9c329c93469bf83"
+    },
+    {
+      "path": "attempt-02/logs/013_2_highfreq_calendar_arbitrage--replay.stdout.txt",
+      "size_bytes": 677,
+      "sha256": "21ced7e69b0662aaf8701b1c586dae3977420696982d25a0de6d3244809438f2"
+    },
+    {
+      "path": "attempt-02/logs/013_3_sa_midfreq_simnow--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/013_3_sa_midfreq_simnow--dry.stdout.txt",
+      "size_bytes": 471,
+      "sha256": "2fbfe71f456093bf126d497cfee188465af3cf2eaa7fc3a1dba4ad94e2677c03"
+    },
+    {
+      "path": "attempt-02/logs/013_3_sa_midfreq_simnow--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/013_3_sa_midfreq_simnow--replay.stdout.txt",
+      "size_bytes": 592,
+      "sha256": "c3412d17dcb887ddde0d4789b392d1898c2c9b2a4c9503e05b478abece646171"
+    },
+    {
+      "path": "attempt-02/logs/014_1_ctp_options_lowfreq--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/014_1_ctp_options_lowfreq--dry.stdout.txt",
+      "size_bytes": 650,
+      "sha256": "9d7342eecee08082afbc0c7013711023efe71af6ced5b40302340753e2aaa94a"
+    },
+    {
+      "path": "attempt-02/logs/014_1_ctp_options_lowfreq--replay.stderr.txt",
+      "size_bytes": 1441,
+      "sha256": "99c38619e88b4a541066a5c3b8ba75818cde9ed109b352940df56efc4455bad3"
+    },
+    {
+      "path": "attempt-02/logs/014_1_ctp_options_lowfreq--replay.stdout.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/014_2_ctp_options_midfreq--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/logs/014_2_ctp_options_midfreq--dry.stdout.txt",
+      "size_bytes": 702,
+      "sha256": "a5b27f13f117fef00618428b35dc86460bbf1b90ae149edbe75df38a4900e557"
+    },
+    {
+      "path": "attempt-02/logs/014_2_ctp_options_midfreq--replay.stderr.txt",
+      "size_bytes": 5539,
+      "sha256": "45fad631c052ffb25914153c2982b012192bff2ab22054bcadfda02421806324"
+    },
+    {
+      "path": "attempt-02/logs/014_2_ctp_options_midfreq--replay.stdout.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/evidence/013_1_midfreq_cross_arbitrage/replay/report.json",
+      "size_bytes": 26746,
+      "sha256": "0cf7d8637f827eb198a326c9c2c508ac9856a953415b85373e6a460a6e1edc93"
+    },
+    {
+      "path": "attempt-02/evidence/013_2_highfreq_calendar_arbitrage/replay/report.json",
+      "size_bytes": 26871,
+      "sha256": "eaf9b537648f17a429aff9ff217326ab877428089b6bda7ae105763d4530cf80"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/bars.jsonl",
+      "size_bytes": 51962,
+      "sha256": "e62674ce334af80533b9d763e9b5957c4c6597c1c43b406a676b4aa64dcdb7d6"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/contract_selection.json",
+      "size_bytes": 129,
+      "sha256": "7dd6584521a37c5c9c36a17d5c90b7661c5ed7075e0e793b8b7661b4eb4179ce"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/daily_report.json",
+      "size_bytes": 200,
+      "sha256": "9545931d0677beb207384ed5322577d3df8eb6cc8f2020929787b7fd1eb04c5c"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/daily_report.md",
+      "size_bytes": 407,
+      "sha256": "7a8e745baea4cea85ae221861293c76f51ff7cc1addb0a72493f911b789a0f60"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/manifest.json",
+      "size_bytes": 4471,
+      "sha256": "4c1ebeb35dcff6f0389f37881f113ad0dd241314f647c2734c3d0fd2206ab9ff"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/preflight.json",
+      "size_bytes": 111,
+      "sha256": "cee76eb3a69575b3c6a348f0a9c9f2bd401a27643fa68e719f4bcd04e9b9982e"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/quotes.jsonl",
+      "size_bytes": 3853893,
+      "sha256": "a94d3e7c44f461ce9b902cdcf46a938ecb6a00728944d2bfaad8d348413520b2"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/reconciliation.json",
+      "size_bytes": 116,
+      "sha256": "b5650d2482372796c534535e9e6a8f138b2f7cf3ff8e5d32945864b309f21a61"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/replay-risk.json",
+      "size_bytes": 304,
+      "sha256": "931d201c9d83dc98eb8175da68a5001cf1fe4b05a67c1f4def7c5496bafec864"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/retention.json",
+      "size_bytes": 92,
+      "sha256": "a136b785ea1a8e243bb894db3b04ffd1ccf569495b5d3837a9e7186055420891"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/risk_events.jsonl",
+      "size_bytes": 94,
+      "sha256": "93d1328e27a3906814675f5fbffec6fcbf5d0087a9e2caf5c1504780d134e2c6"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/signals.jsonl",
+      "size_bytes": 4249394,
+      "sha256": "e00a6a3ae8fcda33fa573a532d79fe470c1b3fa11c2f984e1fe42184f3a7d575"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/error.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/monitor.log",
+      "size_bytes": 286,
+      "sha256": "3397c8f24b48485ce616339659f248b4711b5d76b9223c8226a5070e10501780"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/order.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/signal.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/system.log",
+      "size_bytes": 959,
+      "sha256": "c4234b4f53c8aa482c27e6592e88ad94b9a3f5462c482e28b056a3bbf1c1543c"
+    },
+    {
+      "path": "attempt-02/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/trade.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-02/run_iteration43_offline_cli.py",
+      "size_bytes": 17412,
+      "sha256": "b0cb56fcd985dfa118a029b4c393ec492d1fcaf3ecdb59de1aae6b56bff53afd"
+    },
+    {
+      "path": "attempt-02/run_iteration43_offline_cli_completion_r1.py",
+      "size_bytes": 17655,
+      "sha256": "0f4dc4f9a6371bcc24408cbaf68411f88dd49bac5b3d71bc64a0006a4bff13c2"
+    },
+    {
+      "path": "attempt-02/run_iteration43_offline_cli_completion_r2.py",
+      "size_bytes": 17657,
+      "sha256": "c482f7a46bf3cf2df0a2358533b3f2a4f581875f70962cbb3f516c7ebd5aa78d"
+    },
+    {
+      "path": "attempt-02/completion-r2/harness_failure.json",
+      "size_bytes": 321,
+      "sha256": "a8d4888e4ce0246790662242dd794c9fd1b1d389ec3cb014ac3dfe42953f07aa"
+    },
+    {
+      "path": "completion-r3/logs/012_1_midfreq_cross_exchange--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/012_1_midfreq_cross_exchange--dry.stdout.txt",
+      "size_bytes": 444,
+      "sha256": "01b684a4bd94d124baa34fa067ecc3074279b1264a84682a453e3b2f7be950b7"
+    },
+    {
+      "path": "completion-r3/logs/012_1_midfreq_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/012_1_midfreq_cross_exchange--replay.stdout.txt",
+      "size_bytes": 164,
+      "sha256": "1fdd3bc95e6a0f7a1d64285ce50266f5a23e36af88ccc8676ce02165eb4c6629"
+    },
+    {
+      "path": "completion-r3/logs/012_2_event_driven_cross_exchange--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/012_2_event_driven_cross_exchange--dry.stdout.txt",
+      "size_bytes": 449,
+      "sha256": "121d4b2de48c33ae6e8d5bd88ab058a727adeb13440b2e85c825a43288f059b6"
+    },
+    {
+      "path": "completion-r3/logs/012_2_event_driven_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/012_2_event_driven_cross_exchange--replay.stdout.txt",
+      "size_bytes": 164,
+      "sha256": "939e1d648656a46bbc92cc0cbba1345c8975d3ff27bb98a6cb13b5c8caa6a750"
+    },
+    {
+      "path": "completion-r3/logs/013_1_midfreq_cross_arbitrage--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/013_1_midfreq_cross_arbitrage--dry.stdout.txt",
+      "size_bytes": 585,
+      "sha256": "ac88d3449fd8e61a7040d3bc6dcc405632b0b1a481cb41a3d81863044eaca463"
+    },
+    {
+      "path": "completion-r3/logs/013_1_midfreq_cross_arbitrage--replay.stderr.txt",
+      "size_bytes": 2327779,
+      "sha256": "519fb1cf87bd4c3f082f5d112e6d48f75d88f537231be64653475fad98380c3b"
+    },
+    {
+      "path": "completion-r3/logs/013_1_midfreq_cross_arbitrage--replay.stdout.txt",
+      "size_bytes": 687,
+      "sha256": "157c142093704feb862f9471913347641b680feacfcb2bb915ea1b34017e1a4d"
+    },
+    {
+      "path": "completion-r3/logs/013_2_highfreq_calendar_arbitrage--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/013_2_highfreq_calendar_arbitrage--dry.stdout.txt",
+      "size_bytes": 592,
+      "sha256": "50e3b641a8f95a2fa7396de93da107b40ca54405458b3f2a23da075837a42b44"
+    },
+    {
+      "path": "completion-r3/logs/013_2_highfreq_calendar_arbitrage--replay.stderr.txt",
+      "size_bytes": 810699,
+      "sha256": "be55126cfa2c19fd70910fc7d1ce135f4de58837dc60cb69df2c7845ed182da7"
+    },
+    {
+      "path": "completion-r3/logs/013_2_highfreq_calendar_arbitrage--replay.stdout.txt",
+      "size_bytes": 691,
+      "sha256": "5dbe275aa942b02d1c6834b0340151df4242d68aef5e44bcc6b100de94c3e40c"
+    },
+    {
+      "path": "completion-r3/logs/013_3_sa_midfreq_simnow--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/013_3_sa_midfreq_simnow--dry.stdout.txt",
+      "size_bytes": 470,
+      "sha256": "e9c47ad6863a82f0469c37fd9a35fca913a3d97a4c6ab61a6eb0b6c95adffa52"
+    },
+    {
+      "path": "completion-r3/logs/013_3_sa_midfreq_simnow--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/013_3_sa_midfreq_simnow--replay.stdout.txt",
+      "size_bytes": 606,
+      "sha256": "5cad2c33efda71d44b89b3142a06e85b086feefb1b7e0ccc29c8c45d12e75142"
+    },
+    {
+      "path": "completion-r3/logs/014_1_ctp_options_lowfreq--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/014_1_ctp_options_lowfreq--dry.stdout.txt",
+      "size_bytes": 649,
+      "sha256": "4663354bb858884b3cf8db8beba9a629acfe7e843f62dd16003b563eb667ce96"
+    },
+    {
+      "path": "completion-r3/logs/014_1_ctp_options_lowfreq--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/014_1_ctp_options_lowfreq--replay.stdout.txt",
+      "size_bytes": 569,
+      "sha256": "6943bddc3e95d00efec8d8d63d0829f244c31ab6624da02bef4e8fd59bcf91d9"
+    },
+    {
+      "path": "completion-r3/logs/014_2_ctp_options_midfreq--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/014_2_ctp_options_midfreq--dry.stdout.txt",
+      "size_bytes": 701,
+      "sha256": "397c89f73cf731f6ba8d3ed1cdb9c36f958d53e8b765b2a252f852b526fbe78c"
+    },
+    {
+      "path": "completion-r3/logs/014_2_ctp_options_midfreq--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/014_2_ctp_options_midfreq--replay.stdout.txt",
+      "size_bytes": 568,
+      "sha256": "ee4a3169171d7eb0af10983caadfe928ea909d2e9b15fa0d8ba9458e4cfccdfa"
+    },
+    {
+      "path": "completion-r3/logs/015_ctp_options_highfreq--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/015_ctp_options_highfreq--dry.stdout.txt",
+      "size_bytes": 723,
+      "sha256": "899e6e97f765dbb0bbafb7f6c0c0d8940a40d1c0558454fb7442e93a5516a14d"
+    },
+    {
+      "path": "completion-r3/logs/015_ctp_options_highfreq--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/logs/015_ctp_options_highfreq--replay.stdout.txt",
+      "size_bytes": 616,
+      "sha256": "20423e46066a843246e996e27b7e11179187d428fe64fdaf8c16672c2f97caaf"
+    },
+    {
+      "path": "completion-r3/evidence/013_1_midfreq_cross_arbitrage/replay/report.json",
+      "size_bytes": 26746,
+      "sha256": "87764af765bd7033d2ee462568f3efba13bb554a8b7965de1ca498dc5796a005"
+    },
+    {
+      "path": "completion-r3/evidence/013_2_highfreq_calendar_arbitrage/replay/report.json",
+      "size_bytes": 26871,
+      "sha256": "f93324bcda21573a78238061aaf273c1107a62875458dfbd9a5d78407d3ba32b"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/bars.jsonl",
+      "size_bytes": 51962,
+      "sha256": "e62674ce334af80533b9d763e9b5957c4c6597c1c43b406a676b4aa64dcdb7d6"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/contract_selection.json",
+      "size_bytes": 129,
+      "sha256": "7dd6584521a37c5c9c36a17d5c90b7661c5ed7075e0e793b8b7661b4eb4179ce"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/daily_report.json",
+      "size_bytes": 200,
+      "sha256": "9545931d0677beb207384ed5322577d3df8eb6cc8f2020929787b7fd1eb04c5c"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/daily_report.md",
+      "size_bytes": 407,
+      "sha256": "7a8e745baea4cea85ae221861293c76f51ff7cc1addb0a72493f911b789a0f60"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/manifest.json",
+      "size_bytes": 4471,
+      "sha256": "360ef4ed65f601c5b16d292524cdc63df8f3a14df3c64140da3cf14a7f5c6814"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/preflight.json",
+      "size_bytes": 111,
+      "sha256": "cee76eb3a69575b3c6a348f0a9c9f2bd401a27643fa68e719f4bcd04e9b9982e"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/quotes.jsonl",
+      "size_bytes": 3853893,
+      "sha256": "a94d3e7c44f461ce9b902cdcf46a938ecb6a00728944d2bfaad8d348413520b2"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/reconciliation.json",
+      "size_bytes": 116,
+      "sha256": "b5650d2482372796c534535e9e6a8f138b2f7cf3ff8e5d32945864b309f21a61"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/replay-risk.json",
+      "size_bytes": 304,
+      "sha256": "931d201c9d83dc98eb8175da68a5001cf1fe4b05a67c1f4def7c5496bafec864"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/retention.json",
+      "size_bytes": 92,
+      "sha256": "a136b785ea1a8e243bb894db3b04ffd1ccf569495b5d3837a9e7186055420891"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/risk_events.jsonl",
+      "size_bytes": 94,
+      "sha256": "93d1328e27a3906814675f5fbffec6fcbf5d0087a9e2caf5c1504780d134e2c6"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/signals.jsonl",
+      "size_bytes": 4249394,
+      "sha256": "e00a6a3ae8fcda33fa573a532d79fe470c1b3fa11c2f984e1fe42184f3a7d575"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/error.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/monitor.log",
+      "size_bytes": 286,
+      "sha256": "4e82abeee73d70cb159c4ed89b5ca15de1758cedf78f6c88ba94d8953a7e58a6"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/order.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/signal.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/system.log",
+      "size_bytes": 959,
+      "sha256": "8d3540f9aac006cf789c2f283753ceca36e40d309e59fe9e94344463caddc91a"
+    },
+    {
+      "path": "completion-r3/evidence/013_3_sa_midfreq_simnow/replay/trade-logger/trade.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "completion-r3/evidence/014_1_ctp_options_lowfreq/replay/report.json",
+      "size_bytes": 582855,
+      "sha256": "b13d35d6b1143fb6deb214a7e86d33e011eabf1d56208967af95584ed95cac82"
+    },
+    {
+      "path": "completion-r3/evidence/014_2_ctp_options_midfreq/replay/report.json",
+      "size_bytes": 558581,
+      "sha256": "4590582d97ccf1869db0439a177e771296a2d20dc62bcd3280b9c0ec5cf23876"
+    },
+    {
+      "path": "completion-r3/evidence/015_ctp_options_highfreq/replay/report.json",
+      "size_bytes": 18536,
+      "sha256": "8a19584ab56a4018e2bd4f8167863577e239881977402df65454d9e99026d7d2"
+    },
+    {
+      "path": "completion-r3/evidence/015_ctp_options_highfreq/replay/run_manifest.json",
+      "size_bytes": 533,
+      "sha256": "be02a6350ac88d0c1b796af5d4dc188b8b76b78ae057fa7cb034a15145c7807a"
+    },
+    {
+      "path": "completion-r3/result.json",
+      "size_bytes": 215159,
+      "sha256": "b68a7f11555a692d8241caa193ea193207ede9c88ba3b6d46c7a68e5cb8c09be"
+    },
+    {
+      "path": "completion-r3/harness_failure.json",
+      "size_bytes": 257,
+      "sha256": "1083d676ba3138a0756e001c3307580f200bad66846b3df96b099cb561ecf8a6"
+    },
+    {
+      "path": "completion-r3/result_reconciled_r1.json",
+      "size_bytes": 212645,
+      "sha256": "fe63271bd89c27458cb705695e89f1dc91f35837979b367313f94e41ffe0589e"
+    },
+    {
+      "path": "completion-r3/run_iteration43_offline_cli_completion_r2.py",
+      "size_bytes": 17657,
+      "sha256": "c482f7a46bf3cf2df0a2358533b3f2a4f581875f70962cbb3f516c7ebd5aa78d"
+    },
+    {
+      "path": "attempt-01/run_iteration43_offline_cli.py",
+      "size_bytes": 16003,
+      "sha256": "db257877044a70357095186b49f49fc1109bb9e963b436d4e3ec03f30d95d6c6"
+    },
+    {
+      "path": "attempt-01/logs/012_1_midfreq_cross_exchange--dry.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-01/logs/012_1_midfreq_cross_exchange--dry.stdout.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-01/logs/012_1_midfreq_cross_exchange--replay.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-01/logs/012_1_midfreq_cross_exchange--replay.stdout.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/012_1_midfreq_cross_exchange/report.json",
+      "size_bytes": 462935,
+      "sha256": "f3ce5391edf87a6d32543f64f47f17a9df9797454d2d82d796da50b8c61b32cb"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/012_2_event_driven_cross_exchange/report.json",
+      "size_bytes": 34907,
+      "sha256": "e6e16b87bcfebee088a1accdba5e35dea3b652b5dce487186f06402109471d1b"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_1_midfreq_cross_arbitrage/report.json",
+      "size_bytes": 26746,
+      "sha256": "1be1bdcd8ef1794c1cbf3994396fd27a6c4ab2f226777805c80e51d5437040d6"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_2_highfreq_calendar_arbitrage/report.json",
+      "size_bytes": 26871,
+      "sha256": "7682d4c6b70882a98692b105eed4bdbe0fa2fbcfdc712e16b08c5b816f3ea364"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/bars.jsonl",
+      "size_bytes": 51962,
+      "sha256": "e62674ce334af80533b9d763e9b5957c4c6597c1c43b406a676b4aa64dcdb7d6"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/contract_selection.json",
+      "size_bytes": 129,
+      "sha256": "7dd6584521a37c5c9c36a17d5c90b7661c5ed7075e0e793b8b7661b4eb4179ce"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/daily_report.json",
+      "size_bytes": 200,
+      "sha256": "9545931d0677beb207384ed5322577d3df8eb6cc8f2020929787b7fd1eb04c5c"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/daily_report.md",
+      "size_bytes": 407,
+      "sha256": "7a8e745baea4cea85ae221861293c76f51ff7cc1addb0a72493f911b789a0f60"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/manifest.json",
+      "size_bytes": 4321,
+      "sha256": "bd132ce5acb8843b7c177053272e7424c826c4fc274c6ad878dec2837b1485ab"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/preflight.json",
+      "size_bytes": 111,
+      "sha256": "cee76eb3a69575b3c6a348f0a9c9f2bd401a27643fa68e719f4bcd04e9b9982e"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/quotes.jsonl",
+      "size_bytes": 3853893,
+      "sha256": "a94d3e7c44f461ce9b902cdcf46a938ecb6a00728944d2bfaad8d348413520b2"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/reconciliation.json",
+      "size_bytes": 116,
+      "sha256": "b5650d2482372796c534535e9e6a8f138b2f7cf3ff8e5d32945864b309f21a61"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/replay-risk.json",
+      "size_bytes": 304,
+      "sha256": "931d201c9d83dc98eb8175da68a5001cf1fe4b05a67c1f4def7c5496bafec864"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/retention.json",
+      "size_bytes": 92,
+      "sha256": "a136b785ea1a8e243bb894db3b04ffd1ccf569495b5d3837a9e7186055420891"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/risk_events.jsonl",
+      "size_bytes": 94,
+      "sha256": "93d1328e27a3906814675f5fbffec6fcbf5d0087a9e2caf5c1504780d134e2c6"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/signals.jsonl",
+      "size_bytes": 4249394,
+      "sha256": "e00a6a3ae8fcda33fa573a532d79fe470c1b3fa11c2f984e1fe42184f3a7d575"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/error.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/monitor.log",
+      "size_bytes": 286,
+      "sha256": "f0b614f0230367a73b13f12623de9b4262b0c2386a54ba7fa82d40f2a5f2cc96"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/order.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/signal.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/system.log",
+      "size_bytes": 959,
+      "sha256": "360488b94078babe2a6d3b359462509568a65f8cea1e2f4dd7c4146164a9d530"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/013_3_sa_midfreq_simnow/trade-logger/trade.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/014_1_ctp_options_lowfreq/report.json",
+      "size_bytes": 582824,
+      "sha256": "df5be11d86059b7c5b473ed7b02667ecfcb0dcb28ca106b5fbd148dc4397270e"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/014_2_ctp_options_midfreq/report.json",
+      "size_bytes": 558581,
+      "sha256": "4590582d97ccf1869db0439a177e771296a2d20dc62bcd3280b9c0ec5cf23876"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/015_ctp_options_highfreq/report.json",
+      "size_bytes": 18536,
+      "sha256": "8a19584ab56a4018e2bd4f8167863577e239881977402df65454d9e99026d7d2"
+    },
+    {
+      "path": "earlier-acceptance/offline_replays/015_ctp_options_highfreq/run_manifest.json",
+      "size_bytes": 533,
+      "sha256": "be02a6350ac88d0c1b796af5d4dc188b8b76b78ae057fa7cb034a15145c7807a"
+    },
+    {
+      "path": "completion-r3/reconcile_iteration43_offline_cli.py",
+      "size_bytes": 9460,
+      "sha256": "aabc76caee1d59d1640b78b29002fc651d8092a7496ebe6c49d387b0ac665d2f"
+    }
+  ],
+  "reconciled_result": "D:\\temp\\iteration43-offline-cli-20261012-02\\completion-r3\\result_reconciled_r1.json",
+  "reconciled_result_sha256": "fe63271bd89c27458cb705695e89f1dc91f35837979b367313f94e41ffe0589e"
+}

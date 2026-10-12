@@ -1,0 +1,74 @@
+{
+  "name": "i42reaccept",
+  "head": "4cf68a5722ba09963da3b5778f39971c2e8c7f3f",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration42_component_boundaries.py",
+    "tests/unit/test_iteration42_live_front_failure_evidence.py",
+    "tests/unit/test_iteration42_live_tick_provenance.py",
+    "tests/unit/test_iteration42_options_live_chain.py",
+    "tests/unit/test_iteration42_simnow_multiarm.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_i42reaccept",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\i42reaccept.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 11.125,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "tests/unit/test_iteration42_component_boundaries.py": {
+      "size_bytes": 5680,
+      "sha256": "595c1078dcf5376f4bee4d47a1ecc2cf8b37f4a2388e1dc20d25a846615c1c5f"
+    },
+    "tests/unit/test_iteration42_live_front_failure_evidence.py": {
+      "size_bytes": 8270,
+      "sha256": "68dfedd7c0a7431c7ef7449c2819b43228da2101f69ffee8af9951f7a51a9e0e"
+    },
+    "tests/unit/test_iteration42_live_tick_provenance.py": {
+      "size_bytes": 5612,
+      "sha256": "e971d65344e8f5f7840e7bce11d5397efbfd16001bdabed2248d07f1ef583c2e"
+    },
+    "tests/unit/test_iteration42_options_live_chain.py": {
+      "size_bytes": 15252,
+      "sha256": "f331106d16b4b7bf9b5ad6d1ee652331c025fb7ea1068ed39f78e67b46eb931b"
+    },
+    "tests/unit/test_iteration42_simnow_multiarm.py": {
+      "size_bytes": 9761,
+      "sha256": "c14adaeef9d9948dc706e398134d082110fecd8b651707cb431f890b5bd3c4bb"
+    }
+  },
+  "log": {
+    "size_bytes": 638,
+    "sha256": "e9336eddd3546455eaf0a2d82d2d3b4e06aacf2d001c53d86cd6592d69f2d20b"
+  },
+  "xml": {
+    "size_bytes": 11136,
+    "sha256": "e89558716241af53dbdca0918cf665b9407247bb0a0d4c9860108512f5655b94"
+  },
+  "environment_flags": {
+    "BT_I43_COPY_STRICT": null,
+    "MPLBACKEND": "Agg",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "harness": {
+    "size_bytes": 3744,
+    "sha256": "d269c9018967876c693c7040844d8cb0f159d3226984d39c8bea5970ed206d85"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 69,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "note": "Migration-regression reacceptance at the pinned source commit, before the separate write-health repair. Test groups elsewhere may overlap."
+}

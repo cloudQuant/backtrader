@@ -1,0 +1,148 @@
+{
+  "evidence_level": "FAILED_OR_INCOMPLETE_QA_DIAGNOSTICS_ONLY",
+  "attempts": [
+    "r2",
+    "r3",
+    "r4",
+    "r4b",
+    "r6",
+    "r6probe",
+    "r6probe2",
+    "r6probe3",
+    "r6b",
+    "r6c"
+  ],
+  "members": [
+    {
+      "path": "r2.json",
+      "size_bytes": 974,
+      "sha256": "17a449b731f24af69acb8d59d88aea06d928b74ef8494bd77147d34402609cd2"
+    },
+    {
+      "path": "r2.xml",
+      "size_bytes": 11066,
+      "sha256": "78ff2bc9eccf433bbf8557b7d8bc18bcadcdcccab8130b8f2d56f784465069b2"
+    },
+    {
+      "path": "r2.log",
+      "size_bytes": 4041,
+      "sha256": "dea2975951624a2b71c212898e8fa972046eebeb7ae0c4d3e6d2ab02cfd91e71"
+    },
+    {
+      "path": "r3.json",
+      "size_bytes": 3779,
+      "sha256": "76c5b2e3a9d778e2703482a4b0b04e20c9310511815e80767d94d3876e0bd1e1"
+    },
+    {
+      "path": "r3.xml",
+      "size_bytes": 8566,
+      "sha256": "aa75ea938aaff6acb644835a9f545e624b0868ef2baff47bc7638d21a94801ea"
+    },
+    {
+      "path": "r3.log",
+      "size_bytes": 1361,
+      "sha256": "a597817fd02850384db450ca85afeeeeea21725ed90da2a9c9f2fb8d457e4811"
+    },
+    {
+      "path": "r4.json",
+      "size_bytes": 3251,
+      "sha256": "2e8404eabf4da09e1e477307fbe629344697c39ad3ac1cb45ed514a421c18dd2"
+    },
+    {
+      "path": "r4.xml",
+      "size_bytes": 81185,
+      "sha256": "8b14f31505bb877dc1f5c867cdf5203c833172d126ef6242ad542a59ad621bc8"
+    },
+    {
+      "path": "r4.log",
+      "size_bytes": 110999,
+      "sha256": "07be3c797fd0c4c241aa5338b89f0781147f2176c671ccc0fa99e3b7b1ce96ab"
+    },
+    {
+      "path": "r4b.json",
+      "size_bytes": 3252,
+      "sha256": "8a4cbbfe4c7f721cd437711126c30997c06daff1009fd3f59e0043f1982ff5b0"
+    },
+    {
+      "path": "r4b.xml",
+      "size_bytes": 21935,
+      "sha256": "663df946b2dbea7635c0aba542b40a1ad92a5e62c50da45f2a433f1021f19b02"
+    },
+    {
+      "path": "r4b.log",
+      "size_bytes": 1932,
+      "sha256": "0803823aa70576f1408e32cf01b8329543a322a90b761725729d7ad78a7b5e55"
+    },
+    {
+      "path": "r6.log",
+      "size_bytes": 3,
+      "sha256": "ab5df625bc76dbd4e163bed2dd888df828f90159bb93556525c31821b6541d46"
+    },
+    {
+      "path": "r6probe.json",
+      "size_bytes": 3307,
+      "sha256": "1c3fdfdb77c475e70082f54a54485a6ebe15de369f1742b2413c97220ffaa504"
+    },
+    {
+      "path": "r6probe.xml",
+      "size_bytes": 1571,
+      "sha256": "7924997e1bb336c4b24844a603e9383f0505f2bb1708a363f8cd4e6ed134c764"
+    },
+    {
+      "path": "r6probe.log",
+      "size_bytes": 6160,
+      "sha256": "185d2c476c3dd6b215b516d723646984b79ba567b0a03fbc6a9a64a8b23099b6"
+    },
+    {
+      "path": "r6probe2.json",
+      "size_bytes": 3082,
+      "sha256": "f46ddc70c18ac6af4d8a9bd58dd743941f8debd7f10531411109f4f9c64ccfb9"
+    },
+    {
+      "path": "r6probe2.xml",
+      "size_bytes": 1571,
+      "sha256": "a416c2cd16e8b29cd66814950133d9153ca42f424b7e284b1269bc8773dd35f9"
+    },
+    {
+      "path": "r6probe2.log",
+      "size_bytes": 1740,
+      "sha256": "648e422ecc0074855bb9343cf2c90d95ebdfd396adefc955d8dd3c590c86e505"
+    },
+    {
+      "path": "r6probe3.json",
+      "size_bytes": 3265,
+      "sha256": "6d8551411145691c80c5d2c392cc1bb5c438c9895d3903a9fc79f4e08e63dbb8"
+    },
+    {
+      "path": "r6probe3.xml",
+      "size_bytes": 519,
+      "sha256": "c9cb8c89ae9cfa72d75d11ecc2c48669e4c96b6dcd21b3ffd6f7f8f724bf8267"
+    },
+    {
+      "path": "r6probe3.log",
+      "size_bytes": 649,
+      "sha256": "7aa8d0b9e50b8d7ec82d01c438bd9344b49243a0ff05080d1bc6902e5c9f7249"
+    },
+    {
+      "path": "r6b.json",
+      "size_bytes": 3700,
+      "sha256": "e4a9fe20748b709b7fb3722006257b57532e47e6fc42f0fa90d36282b3a969e3"
+    },
+    {
+      "path": "r6b.xml",
+      "size_bytes": 26293,
+      "sha256": "8c610962eaac741b92a28657c8fd35cad9e37dba9a546a3737223efc210f9eb9"
+    },
+    {
+      "path": "r6b.log",
+      "size_bytes": 8715,
+      "sha256": "b684949e885bf77d1f0ce1e57c4590317b93e0b5b5641c242b8633998a550f03"
+    },
+    {
+      "path": "r6c.log",
+      "size_bytes": 2,
+      "sha256": "5ec1f7e700f37c3d0b2981d04855fc34b94aaa15457b05ca571817442d228f81"
+    }
+  ],
+  "note": "Original failed/incomplete outputs remain unmodified. No process dumps, ignored inputs or private captures are archived. r6c has no completed result and is not counted as accepted. Manifest setup/byte-binding errors were resolved by the later accepted i42manifeste round."
+}
