@@ -427,6 +427,115 @@ def test_unconfirmed_front_close_health_blocks_and_prevents_retry(
     assert persisted["cleanup_error"] == summary["cleanup_error"], persisted
 
 
+def _secret_exception(kind: str, message: str) -> Exception:
+    if kind == "runtime":
+        return RuntimeError(message)
+    exception_type = type("DynamicSyntheticSecretType", (RuntimeError,), {})
+    return exception_type(message)
+
+
+@pytest.mark.parametrize(
+    ("failure_kind", "expected_type"),
+    [("runtime", "RuntimeError"), ("dynamic", "OtherException")],
+)
+def test_front_query_exception_is_sanitized_and_healthy_fallback_continues(
+    entry, monkeypatch, capsys, failure_kind: str, expected_type: str
+) -> None:
+    module, tmp_path, folder_root = entry
+    second = {**PAIR, "index": 1, "md_front": "m://fake:3", "td_front": "t://fake:4"}
+    _prepare(monkeypatch, module, folder_root, [PAIR, second])
+    failure = _secret_exception(failure_kind, "synthetic-secret-query")
+    original_query = FakeStore.registered_sim_query
+
+    def fail_first_query(self, kind, timeout=0.0, **filters):
+        if self.index == 0:
+            raise failure
+        return original_query(self, kind, timeout, **filters)
+
+    monkeypatch.setattr(FakeStore, "registered_sim_query", fail_first_query)
+    code = module.run_live_observe(_args(tmp_path, module))
+    output = capsys.readouterr().out
+    summary = json.loads(output.strip())
+    persisted = json.loads((tmp_path / "evidence" / "run.json").read_text(encoding="utf-8"))
+
+    assert code == 0, code
+    assert summary["status"] == persisted["status"] == "LIVE_OBSERVE_PASS", summary
+    first, selected = summary["admission_attempts"]
+    assert first["result"] == "error" and first["reason"] == expected_type, first
+    assert first["cleanup_status"] == "closed", first
+    assert selected["result"] == "observed", selected
+    assert summary["cleanup_status"] == persisted["cleanup_status"] == "closed", summary
+    assert [store.stop_calls for store in FakeStore.instances] == [1, 1]
+    assert module._OBSERVATION_CLEANUP_KEEPALIVE == []
+    serialized = json.dumps({"summary": summary, "persisted": persisted})
+    assert "synthetic-secret-query" not in output + serialized
+    assert "DynamicSyntheticSecretType" not in output + serialized
+
+
+def test_config_loader_exception_is_sanitized_before_evidence_creation(entry, monkeypatch, capsys) -> None:
+    module, tmp_path, folder_root = entry
+    _prepare(monkeypatch, module, folder_root, [PAIR])
+
+    def fail_config():
+        raise RuntimeError("synthetic-secret-config")
+
+    monkeypatch.setattr(module, "_load_config", fail_config)
+    code = module.run_live_observe(_args(tmp_path, module))
+    output = capsys.readouterr().out
+    summary = json.loads(output.strip())
+
+    assert code == module.EXIT_BLOCKED, code
+    assert summary["status"] == "REJECTED", summary
+    assert summary["error"] == "RuntimeError", summary
+    assert "synthetic-secret-config" not in output
+    assert not (tmp_path / "evidence" / "run.json").exists()
+    assert FakeStore.instances == []
+
+
+def test_front_selector_exception_is_sanitized_and_opens_no_store(entry, monkeypatch, capsys) -> None:
+    module, tmp_path, folder_root = entry
+    _prepare(monkeypatch, module, folder_root, [PAIR])
+    simnow = sys.modules["simnow_direct"]
+
+    def fail_selection(*args, **kwargs):
+        raise _secret_exception("dynamic", "synthetic-secret-selection")
+
+    monkeypatch.setattr(simnow, "select_front_pair", fail_selection)
+    code = module.run_live_observe(_args(tmp_path, module))
+    output = capsys.readouterr().out
+    summary = json.loads(output.strip())
+    persisted = json.loads((tmp_path / "evidence" / "run.json").read_text(encoding="utf-8"))
+
+    assert code == module.EXIT_BLOCKED, code
+    assert summary["status"] == persisted["status"] == "BLOCKED", summary
+    assert summary["reason"] == persisted["reason"] == "OtherException", summary
+    serialized = json.dumps({"summary": summary, "persisted": persisted})
+    assert "synthetic-secret-selection" not in output + serialized
+    assert "DynamicSyntheticSecretType" not in output + serialized
+    assert FakeStore.instances == []
+    assert module._OBSERVATION_CLEANUP_KEEPALIVE == []
+
+
+def test_observe_precheck_exception_is_sanitized_before_session_creation(entry, monkeypatch, capsys) -> None:
+    module, tmp_path, folder_root = entry
+    _prepare(monkeypatch, module, folder_root, [PAIR])
+
+    def fail_precheck(strict=False):
+        raise RuntimeError("synthetic-secret-precheck")
+
+    monkeypatch.setattr(module, "_ensure_dev_sdk_path", fail_precheck)
+    code = module.run_live_observe(_args(tmp_path, module))
+    output = capsys.readouterr().out
+    summary = json.loads(output.strip())
+
+    assert code == module.EXIT_BLOCKED, code
+    assert summary["status"] == "BLOCKED", summary
+    assert summary["reason"] == "RuntimeError", summary
+    assert "synthetic-secret-precheck" not in output
+    assert not (tmp_path / "evidence" / "run.json").exists()
+    assert FakeStore.instances == []
+
+
 def test_observe_blocks_when_no_pair_observable(entry, monkeypatch, capsys) -> None:
     module, tmp_path, folder_root = entry
     _prepare(monkeypatch, module, folder_root, [])

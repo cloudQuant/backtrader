@@ -1,0 +1,92 @@
+{
+  "name": "i42privacy",
+  "head": "cca4264e0800baccb85805d6af3ef256c34e2162",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration43_live_observation.py",
+    "tests/unit/test_iteration43_options_live_observation.py",
+    "tests/unit/test_iteration43_sa_live_observation.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_i42privacy",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\i42privacy.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 5.312,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py": {
+      "size_bytes": 73735,
+      "sha256": "b1e7d10a307f2fc0c89ce4fff3c0c7524da8565ee68c0d7c24b2ad19224548bc"
+    },
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py": {
+      "size_bytes": 74348,
+      "sha256": "fd0ea02e7c41a31cf444599abfe953581eac53376cb28804df68096bf5c448ce"
+    },
+    "examples/unified/013_3_sa_midfreq_simnow/run.py": {
+      "size_bytes": 73873,
+      "sha256": "4cf5952759507d485120df4feb8ab13ce366f020e2a4adce13244a7d706dee69"
+    },
+    "examples/unified/014_1_ctp_options_lowfreq/run.py": {
+      "size_bytes": 85007,
+      "sha256": "8bc6d47cd3993dde939600e603a73aeab39f358162fec844757de1c2f1d64c26"
+    },
+    "tests/unit/test_iteration43_live_observation.py": {
+      "size_bytes": 30674,
+      "sha256": "712d78794db532ead3ca6b0c3cdf0c86ea51b3b76f21e9516ae56463807154cd"
+    },
+    "tests/unit/test_iteration43_options_live_observation.py": {
+      "size_bytes": 27219,
+      "sha256": "aedd7430ef0e85db338dc51950ca7e4fbbe87af1d72467d681262b0bba52e758"
+    },
+    "tests/unit/test_iteration43_sa_live_observation.py": {
+      "size_bytes": 26983,
+      "sha256": "20ecc375b917bdea8ce455167f7b9ec8569d1009e03358ee5ad572cb0dbfb234"
+    }
+  },
+  "log": {
+    "size_bytes": 718,
+    "sha256": "656af28512fb962233101818a33c00702053bf3a4d4bfb1deabb1d138d071560"
+  },
+  "xml": {
+    "size_bytes": 23465,
+    "sha256": "c976d4ca7f3efc0bfe8dc80c6f7f0a737bf80ac1c97b3eeab163141eca5214fd"
+  },
+  "environment_flags": {
+    "BT_I43_COPY_STRICT": null,
+    "MPLBACKEND": "Agg",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "harness": {
+    "size_bytes": 3744,
+    "sha256": "d269c9018967876c693c7040844d8cb0f159d3226984d39c8bea5970ed206d85"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 130,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+    "examples/unified/013_3_sa_midfreq_simnow/run.py",
+    "examples/unified/014_1_ctp_options_lowfreq/run.py",
+    "tests/unit/test_iteration43_live_observation.py",
+    "tests/unit/test_iteration43_options_live_observation.py",
+    "tests/unit/test_iteration43_sa_live_observation.py"
+  ],
+  "parent_commit": "cca4264e0800baccb85805d6af3ef256c34e2162",
+  "branch": "dev",
+  "title": "sanitize-observer-generic-diagnostics",
+  "account_acceptance_added": 0
+}

@@ -656,7 +656,7 @@ def run_live_observe(args) -> int:
     try:
         config, _legacy_config, _config_path = _load_config()
     except Exception as exc:
-        _json_print({"status": "REJECTED", "mode": "live", "error": f"{type(exc).__name__}: {exc}"})
+        _json_print({"status": "REJECTED", "mode": "live", "error": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
         return EXIT_BLOCKED
     errors = _new_section_errors(config)
     if errors:
@@ -675,7 +675,7 @@ def run_live_observe(args) -> int:
         _json_print({"status": "BLOCKED", "mode": "live", "reason": exc.reason, "details": exc.details})
         return exc.exit_code
     except Exception as exc:
-        _json_print({"status": "BLOCKED", "mode": "live", "reason": f"{type(exc).__name__}: {exc}"})
+        _json_print({"status": "BLOCKED", "mode": "live", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
         return EXIT_BLOCKED
 
     timeouts = dict(config.get("timeouts") or {})
@@ -788,7 +788,7 @@ def run_live_observe(args) -> int:
             except LiveRejected as exc:
                 record.update({"result": "blocked", "reason": exc.reason, "details": dict(exc.details)})
             except Exception as exc:
-                record.update({"result": "error", "reason": f"{type(exc).__name__}: {exc}"})
+                record.update({"result": "error", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
             attempts.append(record)
             if record["result"] == "observed":
                 store = attempt_store
@@ -848,7 +848,7 @@ def run_live_observe(args) -> int:
             summary["cleanup_error"] = dict(exc.details.get("cleanup_error") or {})
         result_code = exc.exit_code
     except Exception as exc:
-        summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})
+        summary.update({"status": "BLOCKED", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
         result_code = EXIT_BLOCKED
     finally:
         if store is not None:
