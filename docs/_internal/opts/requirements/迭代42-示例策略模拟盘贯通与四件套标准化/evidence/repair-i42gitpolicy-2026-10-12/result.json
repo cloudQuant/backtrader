@@ -1,0 +1,91 @@
+{
+  "name": "i42gitpolicy",
+  "head": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration42_candidate_manifest_binding.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_i42gitpolicy",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\i42gitpolicy.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 7.125,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "examples/strategy-candidate-manifest.json": {
+      "size_bytes": 7029,
+      "sha256": "6446975f089e0b2fde4d450c4d3f78fb1127b380f803b7e2361123ad5f99bd49"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/cross_exchange_strategy.py": {
+      "size_bytes": 143138,
+      "sha256": "0bf237c86566fd138bf12644c22eaf070865f47b97d84cea791d30dcf027ec49"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/run.py": {
+      "size_bytes": 18574,
+      "sha256": "23e93b694941848d515b6f1e45da07431290f33edb929225ddca295b646a579d"
+    },
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3319,
+      "sha256": "a8cf3e8750b73fcf2f4b8d4c0fc14a52dd280428a3ec8de9fe91054504ce1cdf"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/event_driven_strategy.py": {
+      "size_bytes": 125224,
+      "sha256": "e0363508bf6bffa06b73eccb72b52b4a4da7cd5396ef54646503744d1fe7bd28"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/run.py": {
+      "size_bytes": 18875,
+      "sha256": "77bb37c1641ced8f5d49496da30963bb05d440c54f88f84593df79145111d9f3"
+    },
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json": {
+      "size_bytes": 3802,
+      "sha256": "a4f3ed3bda685ae2c7b7e3b4b788b7a807c4597b2d10c660958ae2b11bec8759"
+    },
+    "tests/unit/test_iteration42_candidate_manifest_binding.py": {
+      "size_bytes": 13264,
+      "sha256": "d8a46535d5ba7e1f17363592e2afde57a68836ad5ec61cae0dbd833f2e45fb98"
+    }
+  },
+  "log": {
+    "size_bytes": 638,
+    "sha256": "97cd205ca17cea7fad7640d0ed3310f4a15ee6822e51f1d5a0090f95804fd1c4"
+  },
+  "xml": {
+    "size_bytes": 2462,
+    "sha256": "a66b85714d4b09946848b2ca25903c6ce4edefb4090619ac30f62aeef63e4bd4"
+  },
+  "environment_flags": {
+    "BT_I43_COPY_STRICT": null,
+    "MPLBACKEND": "Agg",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "harness": {
+    "size_bytes": 3744,
+    "sha256": "d269c9018967876c693c7040844d8cb0f159d3226984d39c8bea5970ed206d85"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/strategy-candidate-manifest.json",
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json",
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json",
+    "tests/unit/test_iteration42_candidate_manifest_binding.py"
+  ],
+  "parent_commit": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+  "branch": "dev",
+  "title": "unify-git-source-fingerprint-policy",
+  "account_acceptance_added": 0
+}

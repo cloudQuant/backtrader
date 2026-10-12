@@ -74,9 +74,9 @@
         "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
       },
       "runner_sha256": "77bb37c1641ced8f5d49496da30963bb05d440c54f88f84593df79145111d9f3",
-      "strategy_sha256": "f14ae752dbbdd9fde856ca55c61a757990e879f1782a5d2cedf6a510a990c76a",
+      "strategy_sha256": "e0363508bf6bffa06b73eccb72b52b4a4da7cd5396ef54646503744d1fe7bd28",
       "config_sha256": "e57da86e9367ec445fccc1675fb23ea7fa91b53147ebe62b1329bdc61eb54397",
-      "candidate_sha256": "a99a442450142fcec03585a3a769642ea6df0e6957c3205d3a1ffea058d0ffa1",
+      "candidate_sha256": "593a7f3ef8fa9221d6c7607cc722eaddf038e88792f10d7b56c9cf0b0494e2cf",
       "demo_approval": {
         "status": "NOT_APPROVED",
         "receipt_path": null,

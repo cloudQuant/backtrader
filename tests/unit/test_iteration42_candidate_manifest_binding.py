@@ -192,6 +192,12 @@ def test_real_canonical_root_manifest_is_source_bound(strategy_id: str) -> None:
     public_config = _tracked_head_config(
         f"examples/unified/{strategy_id}/config.yaml"
     )
+    # Git's declared LF policy must survive a fresh checkout/copy, not merely
+    # match a stale CRLF working copy on the acceptance machine.
+    public_runner = _tracked_head_config(f"examples/unified/{strategy_id}/run.py")
+    public_strategy = _tracked_head_config(
+        f"examples/unified/{strategy_id}/{strategy_name}"
+    )
     assert expected_dir == runner.HERE
     assert runner.REPO_CANONICAL_MANIFEST.resolve() == MANIFEST_PATH.resolve()
     manifest, candidate, manifest_path = runner.load_candidate(
@@ -199,13 +205,27 @@ def test_real_canonical_root_manifest_is_source_bound(strategy_id: str) -> None:
     )
     assert manifest_path == MANIFEST_PATH.resolve()
     assert (manifest_path.parent / candidate["resolved_example_path"]).resolve() == expected_dir
-    assert candidate["runner_sha256"] == _sha256((expected_dir / "run.py").read_bytes())
-    assert candidate["strategy_sha256"] == _sha256((expected_dir / strategy_name).read_bytes())
+    assert candidate["runner_sha256"] == _sha256(public_runner)
+    assert candidate["strategy_sha256"] == _sha256(public_strategy)
     assert candidate["config_sha256"] == _sha256(public_config)
     assert candidate["candidate_sha256"] == _candidate_sha256(candidate)
     assert manifest["manifest_status"] == "RESEARCH_REJECTED_OPERATOR_DEMO_SIMULATION_ONLY"
     assert candidate["research_status"] == "RESEARCH_REJECTED"
     assert candidate["demo_approval"]["status"] == "NOT_APPROVED"
+
+
+@pytest.mark.parametrize("strategy_id", tuple(ENTRY_SOURCES))
+def test_real_legacy_loader_rejects_stale_strategy_source(
+    strategy_id: str, monkeypatch: pytest.MonkeyPatch, rebound_tree: dict[str, Any]
+) -> None:
+    runner = _load_actual_runner(strategy_id, monkeypatch, rebound_tree)
+    strategy_name, _module_name = ENTRY_SOURCES[strategy_id]
+    path = rebound_tree["example_dirs"][strategy_id] / strategy_name
+    path.write_bytes(path.read_bytes() + b"\n# stale public strategy fixture\n")
+    with pytest.raises(
+        runner.RunnerConfigurationError, match="strategy source fingerprint mismatch"
+    ):
+        runner.load_candidate(manifest_path=rebound_tree["manifest_path"])
 
 
 @pytest.mark.parametrize("strategy_id", tuple(ENTRY_SOURCES))
