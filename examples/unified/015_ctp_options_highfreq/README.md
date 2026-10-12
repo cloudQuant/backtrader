@@ -44,9 +44,11 @@ Store 登录与账户/持仓/合约元数据只读查询 → 3 × `BtApiFeed` ti
 | `fixtures/` | 冻结 cohort fixture 数据 |
 | `runtime/`、`run_runtime.py` | 迭代41 的 LOCAL_REPLAY_ONLY bt-runtime 登记路径 |
 
-## 迭代 41 配置入口：LOCAL_REPLAY_ONLY
+## 历史归档：迭代41 bt-runtime LOCAL_REPLAY_ONLY 入口
 
-日常入口是 `run_runtime.py`。它必须先读取本目录的
+> 当前标准日常入口是本 README 顶部的 `python run.py --dry`、`python run.py --replay` 和 `python run.py --live`。本节仅保留旧 `run_runtime.py` / `bt-runtime` 路径的历史约束，不要求当前四件套入口具备 `runtime/config.yaml`；本节中的旧入口命令不用于当前执行或重试。
+
+历史登记入口 `run_runtime.py`（由 `bt-runtime` 调度）要求读取本目录的
 `runtime/config.yaml`（schema v4），并且该目录必须是中央受审清单中的原始目录；缺少配置、
 复制目录、旧 schema、`--mode`/`--preset`/`--config` 等命令行覆写都会在导入策略、SDK 或
 provider 之前拒绝。配置由用户只维护 `runtime.mode`、`runtime.preset` 和可选的离线
@@ -54,7 +56,7 @@ provider 之前拒绝。配置由用户只维护 `runtime.mode`、`runtime.prese
 
 缺少 `runtime/config.yaml` 的稳定拒绝码是 `CONFIG_REQUIRED`；启动器不会从模板、当前目录或父目录回退读取。
 
-本例当前只有一个已验收的运行档案：
+旧 Iteration 41 登记路径在该历史快照中只有一个已验收档案：
 
 | `runtime.mode` / `runtime.preset` | 状态 | 实际行为 |
 | --- | --- | --- |
@@ -63,7 +65,7 @@ provider 之前拒绝。配置由用户只维护 `runtime.mode`、`runtime.prese
 | `simulation` / `shadow`、`paper`、`sandbox` | NOT_SUPPORTED | 不会连接公开行情、SimNow 或账户。 |
 | `live` / `managed_live_direct`、`managed_live_gateway` | NOT_SUPPORTED | 本例没有 execution child；配置不能产生真实交易权限。 |
 
-首次运行推荐只用 bootstrap 生成私有配置，然后运行受清单绑定的入口：
+以下仅记录旧 Iteration 41 登记路径的历史 bootstrap 和运行命令，不是当前入口或当前执行/重试授权：
 
 ```powershell
 bt-runtime bootstrap --strategy-dir examples/unified/015_ctp_options_highfreq/runtime
@@ -77,8 +79,8 @@ bt-runtime run --strategy-dir examples/unified/015_ctp_options_highfreq/runtime
 HFT 能力、真实行情、真实成交、盈利或交易准入证据。
 
 `run_runtime.py` 不读取 `.env`、不接受凭据、不启动 `simnow_launcher.py`，也不创建
-`BtApiStore` 或任何 provider。下面保留的 `run.py` 和工程观测说明是既有回归/诊断材料，
-不构成迭代 41 的操作入口，不能用来绕过上述 `runtime/config.yaml` 合同。
+`BtApiStore` 或任何 provider。本目录当前标准入口是顶部所列 `python run.py --dry`、`python run.py --replay` 和 `python run.py --live`；
+本节后续的 `run_runtime.py`、`legacy_runner.py` 与 `simnow_launcher.py` 命令均为历史归档示例，不用于当前执行或重试。
 
 本例使用 `Cerebro.run(channel=...)`、`Event`、`TickEvent` 和 `TickBroker`。策略只有
 `notify_tick` 能创建本地的普通候选 intent；`next`、`notify_bar` 和 `notify_idle` 只保留
@@ -142,12 +144,12 @@ L2 的原因是结构性的：`bt_api_ctp` 的 managed receipt 刻意不签发�
 
 ```bash
 cd examples/unified/015_ctp_options_highfreq
-/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install -e ../..
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install -e ../../..
 ```
 
 这是本例唯一的运行时库依赖；它不读取、不导入或通过路径注入依赖其它 `examples/` 目录。
 
-历史回归 API 的直接本地零写回放（日常操作请使用上方 `run_runtime.py`）：
+历史归档：冻结回归 API 的直接本地零写回放命令（不用于当前执行或重试；当前标准入口为 `python run.py --dry`、`python run.py --replay` 或 `python run.py --live`）：
 
 ```bash
 cd examples/unified/015_ctp_options_highfreq
@@ -157,12 +159,13 @@ cd examples/unified/015_ctp_options_highfreq
 可选 `--scenario valid_cohort --output-dir /tmp/iter25-options-replay` 生成本地报告；显式的
 `--mode replay --purpose formula` 与默认值相同。
 
-只读 live 观测（凭据只在本目录被忽略的 `.env`）：
+历史归档的只读 live 观测命令（不用于当前执行或重试；凭据只在本目录被忽略的 `.env`）：
 
 ```bash
 cd examples/unified/015_ctp_options_highfreq
 PYTHONPATH=/Users/yunjinqi/Documents/new_projects/backtrader \
 SIMNOW_LAUNCHER_RUN_SECONDS=60 \
+# 历史归档命令；不用于当前执行或重试。
 /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python simnow_launcher.py
 ```
 
@@ -202,17 +205,18 @@ bar、`next` 与无可信时钟的 idle 回调均不能创建普通意图。任�
 | `timing` | 单腿 1s、未对冲 3s、最大持仓 60s、idle 50ms | 缺失 SDK 只读风险 provider 时状态为 `OFFLINE_SIGNAL_ONLY`。 |
 | `execution` | 限价、2 次/s、每日普通/应急 80/20 | replay 不会调用该写入通道。 |
 
-## 历史回归 API 的输出与结论阅读
+## 历史归档 API 的输出与结论阅读（不用于当前执行或重试）
 
 ```bash
+# 历史归档命令；不用于当前执行或重试。
 python examples/unified/015_ctp_options_highfreq/legacy_runner.py --mode replay --purpose formula \
   --scenario valid_cohort --output-dir examples/unified/015_ctp_options_highfreq/reports/local-replay
 ```
 
-此命令只用于既有回归 API，不替代必需的 `runtime/config.yaml` 入口。输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
+此命令仅用于历史归档的回归 API，不用于当前执行或重试；当前标准入口是 `python run.py --dry`、`python run.py --replay` 和 `python run.py --live`，入口层级由套件根目录 `config.yaml` 的 `entry.tier` 决定。输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
 `external_write_requests=0`、`actual_fills=0`、`execution_basis=none` 与
 `hft_status=NOT_ADMITTED`。`valid_cohort` 仅展示一个本地 conversion intent；其它场景用于负例。
-`simnow_launcher.py` 只做有界、只读分层观测，且当前 L2 受上游资格签发阻断；它不能被用来
+历史归档的 `simnow_launcher.py` 命令只对应有界、只读分层观测，不用于当前执行或重试；它也不能被用来
 宣称下单、成交、PnL、队列延迟或 HFT 通过。
 
 

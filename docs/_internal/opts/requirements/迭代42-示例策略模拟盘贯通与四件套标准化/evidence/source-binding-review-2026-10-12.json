@@ -1,0 +1,12 @@
+{
+  "evidence_level": "READ_ONLY_PUBLIC_SOURCE_BINDING_REVIEW",
+  "reviewed_commit": "b3a6b7c712e92d57b3ca714bec0a98e51574f797",
+  "root_manifest_source_binding_test": "repair-i42manifeste-2026-10-12/result.json",
+  "qualification_artifact_path": "examples/unified/012_1_midfreq_cross_exchange/qualification-v3.json",
+  "artifact_outer_pin_matches_public_head": true,
+  "artifact_inner_config_pin_matches_public_head": false,
+  "research_status": "RESEARCH_REJECTED",
+  "approval_status": "NOT_APPROVED",
+  "formal_account_pass_delta": 0,
+  "note": "Qualification is an independent raw-hash gate. The existing mismatch was not changed or attributed to LF restoration. No qualification JSON, artifact pin, approval or admission threshold was changed. Static independent review only; no provider/account attempt."
+}

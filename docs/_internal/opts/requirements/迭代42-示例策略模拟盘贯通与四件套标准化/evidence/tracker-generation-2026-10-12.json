@@ -1,0 +1,48 @@
+{
+  "schema": "iteration42-tracker-integration-v1",
+  "two_generations_identical": true,
+  "observations": [
+    {
+      "stdout": "{\"json\": \"D:\\\\source_code\\\\backtrader\\\\docs\\\\_internal\\\\opts\\\\requirements\\\\迭代42-示例策略模拟盘贯通与四件套标准化\\\\evidence\\\\iteration42-example-tracker.json\", \"json_sha256\": \"e0289719bcaa5bccecacf3a3eb7d65e91bb4c3eaec4ac07be947ddc47ba532c1\", \"markdown\": \"D:\\\\source_code\\\\backtrader\\\\docs\\\\_internal\\\\opts\\\\requirements\\\\迭代42-示例策略模拟盘贯通与四件套标准化\\\\evidence\\\\iteration42-example-tracker.md\", \"markdown_sha256\": \"9123c81ad2f0e43913466e55a40f20ea3469255b7eaff7f96d73e766379c1994\"}",
+      "outputs": {
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.json": {
+          "size_bytes": 55936,
+          "sha256": "e0289719bcaa5bccecacf3a3eb7d65e91bb4c3eaec4ac07be947ddc47ba532c1"
+        },
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.md": {
+          "size_bytes": 34456,
+          "sha256": "9123c81ad2f0e43913466e55a40f20ea3469255b7eaff7f96d73e766379c1994"
+        }
+      }
+    },
+    {
+      "stdout": "{\"json\": \"D:\\\\source_code\\\\backtrader\\\\docs\\\\_internal\\\\opts\\\\requirements\\\\迭代42-示例策略模拟盘贯通与四件套标准化\\\\evidence\\\\iteration42-example-tracker.json\", \"json_sha256\": \"e0289719bcaa5bccecacf3a3eb7d65e91bb4c3eaec4ac07be947ddc47ba532c1\", \"markdown\": \"D:\\\\source_code\\\\backtrader\\\\docs\\\\_internal\\\\opts\\\\requirements\\\\迭代42-示例策略模拟盘贯通与四件套标准化\\\\evidence\\\\iteration42-example-tracker.md\", \"markdown_sha256\": \"9123c81ad2f0e43913466e55a40f20ea3469255b7eaff7f96d73e766379c1994\"}",
+      "outputs": {
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.json": {
+          "size_bytes": 55936,
+          "sha256": "e0289719bcaa5bccecacf3a3eb7d65e91bb4c3eaec4ac07be947ddc47ba532c1"
+        },
+        "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.md": {
+          "size_bytes": 34456,
+          "sha256": "9123c81ad2f0e43913466e55a40f20ea3469255b7eaff7f96d73e766379c1994"
+        }
+      }
+    }
+  ],
+  "exact_byte_rule_count": 22,
+  "reference_count": 18,
+  "existing_raw_blob_changes": [
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/acceptance-audit-2026-10-12.json",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r1-live-run-progress-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r4-implementation-and-smoke-record-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r5-implementation-record-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r6-0141-strict-live-adapter-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r7-0142-observation-tier-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r9-acceptance-audit-checklist-2026-10-10.md",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/monday-live-run-plan-2026-10-12.md",
+    "examples/_support/strategy_candidate_approval.py",
+    "examples/_support/demo-approval-trust-root.pem",
+    "examples/unified/015_ctp_options_highfreq/README.md"
+  ],
+  "no_account_operations": true
+}
