@@ -16,8 +16,12 @@ that boundary in the repository test net:
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import io
+import json
+import os
+import subprocess
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -45,31 +49,71 @@ ENTRIES = {
 OPTIONAL16 = REPO / "examples" / "live" / "000_live_certification" / "optional16"
 
 
-def _load_entry(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(f"iter42_entry_{name}", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def _load_entry(path: Path):
+    module_name = f"examples.unified.{path.parent.name}.run"
+    sys.modules.pop(module_name, None)
+    return importlib.import_module(module_name)
+
+
+_PACKAGE_IMPORT_PROBE = r"""
+import importlib
+import json
+import sys
+
+module_name = sys.argv[1]
+components = tuple(json.loads(sys.argv[2]))
+module = importlib.import_module(module_name)
+loaded = set(sys.modules)
+leaked = sorted(
+    name
+    for name in loaded
+    if any(name == package or name.startswith(package + ".") for package in components)
+)
+print(json.dumps({
+    "module_name": module.__name__,
+    "module_path": module.__file__,
+    "helper_path": module.entry_tier.__file__,
+    "component_modules": leaked,
+}))
+"""
 
 
 @pytest.mark.parametrize("name", sorted(ENTRIES), ids=sorted(ENTRIES))
 def test_standard_entry_import_never_pulls_a_component_package(name: str) -> None:
-    before = set(sys.modules)
-    _load_entry(name, ENTRIES[name])
-    newly_loaded = set(sys.modules) - before
-    leaked = sorted(
-        module
-        for module in newly_loaded
-        if any(module == pkg or module.startswith(pkg + ".") for pkg in COMPONENT_PACKAGES)
+    module_name = f"examples.unified.{ENTRIES[name].parent.name}.run"
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            _PACKAGE_IMPORT_PROBE,
+            module_name,
+            json.dumps(COMPONENT_PACKAGES),
+        ],
+        cwd=REPO,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    assert leaked == [], f"{name} entry imported component packages: {leaked}"
+    assert completed.returncode == 0, (
+        f"{name} package import failed without PYTHONPATH: {completed.stderr[-1000:]}"
+    )
+    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    assert payload["module_name"] == module_name
+    assert Path(payload["module_path"]).resolve() == ENTRIES[name].resolve()
+    expected_helper = (ENTRIES[name].parent / "entry_tier.py").resolve()
+    assert Path(payload["helper_path"]).resolve() == expected_helper
+    assert payload["component_modules"] == [], (
+        f"{name} entry imported component packages: {payload['component_modules']}"
+    )
 
 
 @pytest.mark.parametrize("name", sorted(ENTRIES), ids=sorted(ENTRIES))
 @pytest.mark.parametrize("flag", ("--execution", "--risk", "--monitor", "--gateway"))
 def test_standard_entry_rejects_component_mount_flags(name: str, flag: str) -> None:
-    module = _load_entry(f"{name}_{flag.strip('-')}", ENTRIES[name])
+    module = _load_entry(ENTRIES[name])
     buffer = io.StringIO()
     with redirect_stdout(buffer):
         code = module.main([flag])

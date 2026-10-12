@@ -298,7 +298,11 @@ def _resolve_live_contracts(config: Mapping[str, Any]) -> List[Tuple[str, str]]:
 
 
 # --------------------------------------------------------------------------- dry
-import entry_tier  # noqa: E402  (folder-local copy of examples/_support/entry_tier.py)
+# Resolve the folder-local helper for both package imports and direct script execution.
+if __package__:
+    from . import entry_tier  # noqa: E402
+else:
+    import entry_tier  # noqa: E402
 
 
 def run_dry(tier_evidence: Optional[Mapping[str, Any]] = None) -> int:

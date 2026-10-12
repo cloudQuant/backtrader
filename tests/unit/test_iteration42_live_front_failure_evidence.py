@@ -16,6 +16,7 @@ need heavier per-file scaffolding that adds no additional signal here).
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -131,13 +132,127 @@ def test_live_entry_persists_front_selection_failure_details(example_id, tmp_pat
 
 
 @pytest.mark.parametrize("example_id", sorted(ENTRIES))
-def test_every_live_entry_carries_the_dedicated_handler(example_id):
-    source = (ENTRIES[example_id] / "run.py").read_text(encoding="utf-8")
-    clause = "except simnow_direct.SimNowDirectError as exc:"
-    assert source.count(clause) == 1
-    generic = (
-        "except Exception as exc:\n"
-        '        summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})'
+def test_every_live_entry_preserves_typed_front_failure_before_generic(example_id):
+    tree = ast.parse((ENTRIES[example_id] / "run.py").read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    assert "run_live" in functions, f"{example_id} has no run_live handler"
+    function_names = ["run_live"]
+    if "run_live_observe" in functions:
+        function_names.append("run_live_observe")
+
+    for function_name in function_names:
+        assert _has_typed_front_handler(functions[function_name]), (
+            f"{example_id}.{function_name} must handle SimNowDirectError before Exception "
+            "and preserve its reason/details"
+        )
+
+
+def _dotted_name(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        return f"{prefix}.{node.attr}" if prefix else node.attr
+    return ""
+
+
+def _function_scope_nodes(function):
+    """Walk a function body without mistaking a nested helper for its handler."""
+
+    pending = list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        yield node
+        pending.extend(ast.iter_child_nodes(node))
+
+
+def _uses_exception_field(handler, field):
+    return bool(handler.name) and any(
+        isinstance(node, ast.Attribute)
+        and node.attr == field
+        and isinstance(node.value, ast.Name)
+        and node.value.id == handler.name
+        for node in ast.walk(handler)
     )
-    assert generic in source
-    assert source.index(clause) < source.index(generic)
+
+
+def _has_typed_front_handler(function):
+    for node in _function_scope_nodes(function):
+        if not isinstance(node, ast.Try):
+            continue
+        for index, handler in enumerate(node.handlers):
+            if _dotted_name(handler.type) != "simnow_direct.SimNowDirectError":
+                continue
+            generic_follows = any(
+                _dotted_name(later.type) == "Exception" for later in node.handlers[index + 1 :]
+            )
+            if (
+                generic_follows
+                and _uses_exception_field(handler, "reason")
+                and _uses_exception_field(handler, "details")
+            ):
+                return True
+    return False
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        pytest.param(
+            """def run_live():
+    try:
+        pass
+    except Exception as exc:
+        generic = str(exc)
+    except simnow_direct.SimNowDirectError as exc:
+        reason = exc.reason
+        details = exc.details
+""",
+            id="generic-first",
+        ),
+        pytest.param(
+            """def run_live():
+    try:
+        pass
+    except simnow_direct.SimNowDirectError as exc:
+        details = exc.details
+    except Exception as exc:
+        generic = str(exc)
+""",
+            id="missing-reason",
+        ),
+        pytest.param(
+            """def run_live():
+    try:
+        pass
+    except simnow_direct.SimNowDirectError as exc:
+        reason = exc.reason
+    except Exception as exc:
+        generic = str(exc)
+""",
+            id="missing-details",
+        ),
+        pytest.param(
+            """def run_live():
+    def nested_helper():
+        try:
+            pass
+        except simnow_direct.SimNowDirectError as exc:
+            reason = exc.reason
+            details = exc.details
+        except Exception as exc:
+            generic = str(exc)
+""",
+            id="nested-helper-only",
+        ),
+    ),
+)
+def test_typed_front_handler_guard_rejects_invalid_shapes(source):
+    function = ast.parse(source).body[0]
+    assert not _has_typed_front_handler(function)
