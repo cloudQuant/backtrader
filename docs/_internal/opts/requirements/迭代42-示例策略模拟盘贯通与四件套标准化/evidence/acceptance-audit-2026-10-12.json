@@ -1,0 +1,1140 @@
+{
+  "schema": "iteration42-readonly-acceptance-v1",
+  "audit_date_beijing": "2026-10-12",
+  "generated_at_beijing": "2026-10-12T13:17:27.274291+08:00",
+  "conclusion": "PARTIAL_NOT_COMPLETE",
+  "reviewed_head": "9ef0e00aa38da900ca8835d93b81f2c16cf782d9",
+  "branch": "dev",
+  "interpreter": "C:\\anaconda3\\python.exe",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "pytest": "8.0.0",
+  "scope": {
+    "implementation_modified": false,
+    "live_provider_invocations": 0,
+    "private_input_reads": false,
+    "historical_live_evidence": "TRACKED_PUBLIC_SANITIZED_RECORD_REVIEW_ONLY_NOT_RAW_LIVE_REVALIDATION"
+  },
+  "test_execution": {
+    "env": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": "D:\\source_code\\backtrader"
+    },
+    "pytest_flags": [
+      "--noconftest",
+      "-q",
+      "-o",
+      "addopts="
+    ],
+    "external_cache_and_basetemp": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e",
+    "conftest_reason": "Avoid repository conftest temp-directory cleanup during read-only acceptance; selected isolated tests, not a full CI claim."
+  },
+  "test_suites": [
+    {
+      "name": "iteration42_focused",
+      "test_files": [
+        "tests/unit/test_iteration42_component_boundaries.py",
+        "tests/unit/test_iteration42_live_front_failure_evidence.py",
+        "tests/unit/test_iteration42_live_tick_provenance.py",
+        "tests/unit/test_iteration42_options_live_chain.py",
+        "tests/unit/test_iteration42_simnow_multiarm.py"
+      ],
+      "selection": null,
+      "exit_code": 1,
+      "tests": 65,
+      "passed": 57,
+      "failed": 8,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 7.001,
+      "failures": [
+        {
+          "node": "tests/unit/test_iteration42_component_boundaries.py::test_standard_entry_import_never_pulls_a_component_package[012_1]",
+          "category": "entry_tier_module_import_contract",
+          "error_summary": "ModuleNotFoundError: No module named 'entry_tier'"
+        },
+        {
+          "node": "tests/unit/test_iteration42_component_boundaries.py::test_standard_entry_import_never_pulls_a_component_package[012_2]",
+          "category": "entry_tier_module_import_contract",
+          "error_summary": "ModuleNotFoundError: No module named 'entry_tier'"
+        },
+        {
+          "node": "tests/unit/test_iteration42_component_boundaries.py::test_standard_entry_import_never_pulls_a_component_package[013_1]",
+          "category": "entry_tier_module_import_contract",
+          "error_summary": "ModuleNotFoundError: No module named 'entry_tier'"
+        },
+        {
+          "node": "tests/unit/test_iteration42_component_boundaries.py::test_standard_entry_import_never_pulls_a_component_package[013_2]",
+          "category": "entry_tier_module_import_contract",
+          "error_summary": "ModuleNotFoundError: No module named 'entry_tier'"
+        },
+        {
+          "node": "tests/unit/test_iteration42_live_front_failure_evidence.py::test_every_live_entry_carries_the_dedicated_handler[013_1]",
+          "category": "stale_whole_file_handler_count_assertion",
+          "error_summary": "assert 3 == 1"
+        },
+        {
+          "node": "tests/unit/test_iteration42_live_front_failure_evidence.py::test_every_live_entry_carries_the_dedicated_handler[013_2]",
+          "category": "stale_whole_file_handler_count_assertion",
+          "error_summary": "assert 3 == 1"
+        },
+        {
+          "node": "tests/unit/test_iteration42_live_front_failure_evidence.py::test_every_live_entry_carries_the_dedicated_handler[013_3]",
+          "category": "stale_whole_file_handler_count_assertion",
+          "error_summary": "assert 3 == 1"
+        },
+        {
+          "node": "tests/unit/test_iteration42_live_front_failure_evidence.py::test_every_live_entry_carries_the_dedicated_handler[014_1]",
+          "category": "stale_whole_file_handler_count_assertion",
+          "error_summary": "assert 3 == 1"
+        }
+      ],
+      "skip_reasons": []
+    },
+    {
+      "name": "iteration43_offline",
+      "test_files": [
+        "tests/unit/test_iteration43_entry_tier.py",
+        "tests/unit/test_iteration43_entry_tier_dispatch.py",
+        "tests/unit/test_iteration43_example_layout_boundaries.py",
+        "tests/unit/test_iteration43_live_observation.py",
+        "tests/unit/test_iteration43_options_live_observation.py",
+        "tests/unit/test_iteration43_sa_live_observation.py"
+      ],
+      "selection": null,
+      "exit_code": 0,
+      "tests": 136,
+      "passed": 132,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 4,
+      "deselected": 0,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 148.338,
+      "failures": [],
+      "skip_reasons": [
+        {
+          "name": "test_replay_declaration_selects_handler_without_a_flag[013_2_highfreq_calendar_arbitrage]",
+          "reason": "replay rows are sampled; the gate rows pin the same decision path"
+        },
+        {
+          "name": "test_replay_declaration_selects_handler_without_a_flag[013_3_sa_midfreq_simnow]",
+          "reason": "replay rows are sampled; the gate rows pin the same decision path"
+        },
+        {
+          "name": "test_replay_declaration_selects_handler_without_a_flag[014_2_ctp_options_midfreq]",
+          "reason": "replay rows are sampled; the gate rows pin the same decision path"
+        },
+        {
+          "name": "test_unified_leaf_with_an_entry_keeps_its_tier_contract[007_ctp]",
+          "reason": "007_ctp has no run.py tier entry"
+        }
+      ]
+    },
+    {
+      "name": "optional16_fake_mount",
+      "test_files": [
+        "tests/unit/test_iteration42_optional16_mount_smoke.py"
+      ],
+      "selection": null,
+      "exit_code": 0,
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 1.755,
+      "failures": [],
+      "skip_reasons": []
+    },
+    {
+      "name": "self_contained",
+      "test_files": [
+        "tests/unit/test_examples_self_contained.py"
+      ],
+      "selection": null,
+      "exit_code": 1,
+      "tests": 45,
+      "passed": 42,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 3.121,
+      "failures": [
+        {
+          "node": "tests/unit/test_examples_self_contained.py::test_example_folder_is_self_contained[000_live_certification]",
+          "category": "known_baseline_out_of_iteration42",
+          "error_summary": "assert [\"live/000_li...ansport_zmq'\"] == []"
+        },
+        {
+          "node": "tests/unit/test_examples_self_contained.py::test_vendored_support_copy_matches_its_canonical_source[ctp_example_support.py0]",
+          "category": "semantic_vendored_support_drift",
+          "error_summary": "assert b'\"\"\"CTP Futu....cancel()\\r\\n' == b'\"\"\"CTP Futu... runner\")\\r\\n'"
+        },
+        {
+          "node": "tests/unit/test_examples_self_contained.py::test_vendored_support_copy_matches_its_canonical_source[ctp_example_support.py1]",
+          "category": "semantic_vendored_support_drift",
+          "error_summary": "assert b'\"\"\"CTP Futu....cancel()\\r\\n' == b'\"\"\"CTP Futu... runner\")\\r\\n'"
+        }
+      ],
+      "skip_reasons": []
+    },
+    {
+      "name": "copy_filter_unified",
+      "test_files": [
+        "tests/unit/test_iteration43_copy_out_runnable.py"
+      ],
+      "selection": "unified",
+      "exit_code": 0,
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 34,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 0.58,
+      "failures": [],
+      "skip_reasons": []
+    },
+    {
+      "name": "copy_startup_unified",
+      "test_files": [
+        "tests/unit/test_iteration43_copy_out_runnable.py"
+      ],
+      "selection": "copied_leaf and (012 or 013 or 014 or 015)",
+      "exit_code": 0,
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "deselected": 34,
+      "warnings": 1,
+      "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope",
+      "seconds": 29.957,
+      "failures": [],
+      "skip_reasons": []
+    }
+  ],
+  "offline_example_commands": [
+    {
+      "example": "012_1_midfreq_cross_exchange",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\012_1_midfreq_cross_exchange\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 5.578,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_1_midfreq_cross_exchange_dry.log",
+      "log_sha256": "a07567e910d5f13623de32f3bc87f48549778b30da1b86f2b80dd94940d32042"
+    },
+    {
+      "example": "012_1_midfreq_cross_exchange",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\012_1_midfreq_cross_exchange\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 6.828,
+      "status": "FORMULA_CHECK_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_1_midfreq_cross_exchange_replay.log",
+      "log_sha256": "ac1cace371a4461f5a7a1a5b8908d78f01d8623bd12aaba241dcebca02cba8b1"
+    },
+    {
+      "example": "012_2_event_driven_cross_exchange",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\012_2_event_driven_cross_exchange\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 5.64,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_2_event_driven_cross_exchange_dry.log",
+      "log_sha256": "a9bb97b2c0fab8306b34a90c5fe6e0e0e4bf39847034ca82896f7630d3b2807a"
+    },
+    {
+      "example": "012_2_event_driven_cross_exchange",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\012_2_event_driven_cross_exchange\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 5.656,
+      "status": "FORMULA_CHECK_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_2_event_driven_cross_exchange_replay.log",
+      "log_sha256": "696b61e7c41cdff0bacf06ca01913203a90f5f80d1bd9d35f159ffe234fff7ba"
+    },
+    {
+      "example": "013_1_midfreq_cross_arbitrage",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_1_midfreq_cross_arbitrage\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.219,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_1_midfreq_cross_arbitrage_dry.log",
+      "log_sha256": "36941047308ad755a7395469885f2d08a9d35573e0ede6833e2154579ab954e6"
+    },
+    {
+      "example": "013_1_midfreq_cross_arbitrage",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_1_midfreq_cross_arbitrage\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 5.532,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_1_midfreq_cross_arbitrage_replay.log",
+      "log_sha256": "36fb8f086f31032ff29de10b0b3c5a8ca4fafe1bcfb9a557b6efeeee835b68b3"
+    },
+    {
+      "example": "013_2_highfreq_calendar_arbitrage",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_2_highfreq_calendar_arbitrage\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.172,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_2_highfreq_calendar_arbitrage_dry.log",
+      "log_sha256": "55bbeac028e9286f0c45e2a2c4513f8cdd16715593c1ecc04a7dddcccd9a7a98"
+    },
+    {
+      "example": "013_2_highfreq_calendar_arbitrage",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_2_highfreq_calendar_arbitrage\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 4.656,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_2_highfreq_calendar_arbitrage_replay.log",
+      "log_sha256": "c980d2210d7c40c4b5253b1b937a63df4bd29939ff292fbb158b7ee723a43525"
+    },
+    {
+      "example": "013_3_sa_midfreq_simnow",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_3_sa_midfreq_simnow\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.39,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_3_sa_midfreq_simnow_dry.log",
+      "log_sha256": "4c83357ee37a1de5e00cf74532b134ca33b353980b9103c08993efa670e4d651"
+    },
+    {
+      "example": "013_3_sa_midfreq_simnow",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\013_3_sa_midfreq_simnow\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 13.672,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_3_sa_midfreq_simnow_replay.log",
+      "log_sha256": "00cd32786c9a92a2ee056badad4f0629d0e9b1871e2f4658593105112c72d95c"
+    },
+    {
+      "example": "014_1_ctp_options_lowfreq",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\014_1_ctp_options_lowfreq\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.546,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_1_ctp_options_lowfreq_dry.log",
+      "log_sha256": "499e7b06ceb4306dbb4a2aa858e7b887cc6bd134fae2278645366320fb7f14f8"
+    },
+    {
+      "example": "014_1_ctp_options_lowfreq",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\014_1_ctp_options_lowfreq\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 4.578,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_1_ctp_options_lowfreq_replay.log",
+      "log_sha256": "7c523ac242473d4e02fb1b3c3cac83b39fd57a5cbffb96bb4a6fae2c97add023"
+    },
+    {
+      "example": "014_2_ctp_options_midfreq",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\014_2_ctp_options_midfreq\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.375,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_2_ctp_options_midfreq_dry.log",
+      "log_sha256": "986e67920d3343a40f217193455a640e13eb41fda0975064f53b8953bcb60ac6"
+    },
+    {
+      "example": "014_2_ctp_options_midfreq",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\014_2_ctp_options_midfreq\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 6.704,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_2_ctp_options_midfreq_replay.log",
+      "log_sha256": "6e09db68cc3a3ae315f4caff5eca89b592f99430b31dffba0349e35c51650e35"
+    },
+    {
+      "example": "015_ctp_options_highfreq",
+      "mode": "dry",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--dry",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\015_ctp_options_highfreq\\dry"
+      ],
+      "exit_code": 0,
+      "seconds": 4.266,
+      "status": "DRY",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "dry",
+        "config_tier": null,
+        "effective_tier": "dry",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\015_ctp_options_highfreq_dry.log",
+      "log_sha256": "f9941286d652fa2b425d54d037fd8e153459c8c07185fd204d42217439dea07b"
+    },
+    {
+      "example": "015_ctp_options_highfreq",
+      "mode": "replay",
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "run.py",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline\\015_ctp_options_highfreq\\replay"
+      ],
+      "exit_code": 0,
+      "seconds": 4.235,
+      "status": "LOCAL_REPLAY_PASS",
+      "reason": null,
+      "entry_tier": {
+        "cli_tier": "replay",
+        "config_tier": null,
+        "effective_tier": "replay",
+        "tier_selection_reason": "cli_requested"
+      },
+      "log": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\015_ctp_options_highfreq_replay.log",
+      "log_sha256": "9bede30ee0318a087c69bf23b7940390d24949c4fe496bb3d62b218aa4c55b80"
+    }
+  ],
+  "readme_module_commands": [
+    {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "-m",
+        "examples.unified.012_1_midfreq_cross_exchange.run",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\module_0121"
+      ],
+      "exit_code": 1,
+      "error": "ModuleNotFoundError: No module named entry_tier",
+      "classification": "documented_module_startup_defect"
+    },
+    {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-B",
+        "-m",
+        "examples.unified.012_2_event_driven_cross_exchange.run",
+        "--replay",
+        "--evidence-dir",
+        "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\module_0122"
+      ],
+      "exit_code": 1,
+      "error": "ModuleNotFoundError: No module named entry_tier",
+      "classification": "documented_module_startup_defect"
+    }
+  ],
+  "local_manifest_check": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-B",
+      "scripts/refresh_cross_exchange_local_manifests.py",
+      "--check"
+    ],
+    "exit_code": 0,
+    "results": {
+      "012_1": "up to date",
+      "012_2": "up to date"
+    },
+    "scope": "FOLDER_LOCAL_MANIFEST_ONLY"
+  },
+  "registered_offline_smoke": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-B",
+      "scripts/ci/smoke_iteration41_registered_offline.py"
+    ],
+    "exit_code": 0,
+    "passed": 8,
+    "failed": 0,
+    "selected": 8,
+    "skipped_private_before_config_read": 2
+  },
+  "root_manifest_path_checks": [
+    {
+      "example": "012_1_midfreq_cross_exchange",
+      "root_manifest_path_field": "012_1_midfreq_cross_exchange",
+      "old_directory_exists": false,
+      "actual_directory": "examples/unified/012_1_midfreq_cross_exchange",
+      "resolved_path_matches_actual": false,
+      "evidence_level": "PUBLIC_SOURCE_AND_PATH_CHECK_NO_LIVE_CALL"
+    },
+    {
+      "example": "012_2_event_driven_cross_exchange",
+      "root_manifest_path_field": "012_2_event_driven_cross_exchange",
+      "old_directory_exists": false,
+      "actual_directory": "examples/unified/012_2_event_driven_cross_exchange",
+      "resolved_path_matches_actual": false,
+      "evidence_level": "PUBLIC_SOURCE_AND_PATH_CHECK_NO_LIVE_CALL"
+    }
+  ],
+  "source_findings": {
+    "remaining_live_acceptance": [
+      "013_3_fill_round_trip",
+      "014_1_three_leg_fill_round_trip",
+      "014_2_valid_minute_observation"
+    ],
+    "observer_health_error_still_pass": [
+      "013_1/run.py:704-707",
+      "013_2/run.py:705-708",
+      "013_3/run.py:672-675",
+      "014_1/run.py:815-818"
+    ],
+    "tracker_root": "REPO / examples (missing unified)",
+    "ctp_support_drift": "SEMANTIC_CODE_DRIFT_NOT_JUST_EOL"
+  },
+  "sdk_metadata": [
+    {
+      "path": "D:\\bt_api_py",
+      "head": "cfe6543e7bc9aaa3622624f1b490b4d5f99f3766",
+      "branch": "dev",
+      "tracked_dirty": false
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_risk",
+      "head": "126d90667a39c67bcd2da2cb2c63abd8cf8b7e7f",
+      "branch": "dev",
+      "tracked_dirty": false
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_execution",
+      "head": "bf67f062869cc2194e07b06a7ce7bb7f630c0161",
+      "branch": "dev",
+      "tracked_dirty": false
+    },
+    {
+      "path": "D:\\bt_api_py\\bt_api\\bt_api_monitor",
+      "head": "a2d108fb2ee8c0f2a034b9ffdbf3aed4bdd8f0c6",
+      "branch": "dev",
+      "tracked_dirty": false
+    }
+  ],
+  "pre_report_readonly_verification": {
+    "head_unchanged": true,
+    "index_unchanged": true,
+    "tracked_diff_unchanged": true,
+    "status_unchanged": true,
+    "checked_public_files": 219,
+    "changed_public_files": []
+  },
+  "baseline_index_sha256": "b1f0c332064c5c1578d5ea900f4524ea0d598ebdaf97bad880c07839d46c148a",
+  "baseline_tracked_diff_sha256": "9e790e9053c0081adc3d63c9474664a688b67231761fbeb4763212bf2f4750b1",
+  "public_input_sha256": {
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.json": "defd1e8b2ff5847d5760c0f3bf145a1b9e08e0883aedfc87cc9d775d198bbcd2",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-example-tracker.md": "d2c603e39b00c798589a633e837386943620f2b05b335a6be6eb47441fbbd646",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/monday-live-run-plan-2026-10-12.md": "b242cb91bb9bb032182e151e02406ba57606fd86ea1590638b4a809ab3ec2c6d",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r0-options-availability-probe-2026-10-09.md": "b5c4979ec9426e4cfeb97fb8b124c88efcc98e8190f1f61f412830217fd97002",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r1-acceptance-record-2026-10-10.md": "98d3d70863cfc4cc17077b195cd152ee829807fca7ac4a5b0f75e51ce28407a3",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r1-live-run-progress-2026-10-10.md": "94a79e9b9c579c776f16e7fd50f1e9b5588d12d59e90dcb939c24616e2e9386c",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r10-0133-simplification-2026-10-11.md": "1f825d722c3679b7639646b614e5fecc7d32528a6377dc9eb23501eb34f41de1",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r10-014x-simplification-2026-10-11.md": "efb2e578a33463804ab4bd183586d2757b2be8e80108d4ff65e3fd26a0d27a79",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r11-010-live-examples-retirement-2026-10-11.md": "00036c1f4c994dd944db546f3d3c41e47c7c8a7187b3a7ce2e3a3035c8ab1b2a",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r12-ctp-options-simnow-managed-l2-retirement-2026-10-11.md": "390f7a3537b5010f1c870f9decfd371a2a39e020fe4775bd55746fe2cd484647",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r2-acceptance-record-2026-10-10.md": "93f1773fa1fc7783d3b236387d7b32f83d371fab04a8179e95c45fc8cf1ddaed",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r3-acceptance-record-2026-10-10.md": "cd1ca39a3aa0fcdcf08e83770b2cdc9111412143c8eea3784e254c5f49361000",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r4-implementation-and-smoke-record-2026-10-10.md": "1e52d6a203f3813d1b64c0c995d2195c279c5e7d6db4eb05052094585fcdfce0",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r42-component-boundary-and-dry-matrix-2026-10-10.md": "896b6d09c54c5b95655f1d53d3e972169a9a89fa53f35a612ff1e8e71788018d",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r5-implementation-record-2026-10-10.md": "3442f7ffce09afc2df7d20b27ce6a17d2ad5fc62c9faa31a26f2903bb0419405",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r6-0141-strict-live-adapter-2026-10-10.md": "a8bd88210b7532425b7a065e9040d4390e39ca9ed57c2b7d3c4409627502015b",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r6-r8-options-conversion-and-live-scope-record-2026-10-10.md": "4d67503f1122854cac10dd2950fc41fab1fdab0bc1c28147b05e0c18ec4b4503",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r7-0142-observation-tier-2026-10-10.md": "e7252e53d307bc2a97294d3e4bf224394e8aa5390b4580619467f3c67a0144de",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r8-015-observation-tier-2026-10-10.md": "51be17859d45171d850931c422ed972c046d2ee6fa3edf31cb254b718a88565b",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r9-acceptance-audit-checklist-2026-10-10.md": "ee8bd9f9799af3c1b0735df842f36bd7db884c02702bb2ef689f02f27c2d4a75",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/r9-offline-sweep-2026-10-10.md": "28ed162747056cdc1ce93a369b8129acb071bef42538d0980192ac07107f2f0f",
+    "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/迭代计划.md": "6915c780d2da2410259ba86ed0d7d6e019ac4a0bcc202f2e5825d05e302382e1",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r0-baseline-freeze-2026-10-11.md": "a0c3486005f5cdcb25e31582dcbc24dc3295e828bfc29b80e8b8bf3950e39442",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r1-backtest-relocation-2026-10-11.md": "1f07f3a4742dc67a66b46418f559da4bab03233513d872b0b7cd57d2585564c0",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r2-unified-relocation-2026-10-11.md": "db74c591e2ea60e500ac5d166c385d7e4927fc51114d29cc4aa1c994f5d32495",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r3-live-suite-relocation-2026-10-11.md": "1ded27b5c1a77490911165e5a8b52fa183310922059738539920f8ad48234cbe",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r4-support-data-relocation-2026-10-11.md": "952974acc03d9856e9d2713de1ea74c42e0388f756412156488e5394291d9125",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r5a-tier-dispatch-015-template-2026-10-11.md": "34f0866d57d2754a21e5087865a5c0f9289271ead6c7f5d402f859dad9ffc6cc",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r5a-tier-dispatch-remaining-entries-2026-10-11.md": "4a595ec6266a496e7bae01bc72d7ae2d37913935db8009c0d2473b1265ff0fd7",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r5b-live-observation-2026-10-11.md": "1f2d5297cd3fc08ea0dee5d48fe8632005dd62613f069054a35a834539038533",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r6-index-layout-guard-2026-10-11.md": "00fbcb6516c0bfe493111a57239a5ca24a228a639dbb6c57d15e058474c391a3",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/r7-copy-out-self-containment-2026-10-11.md": "fa5fe33853908de6084eb086b0c111cac1d2c10d546620af06aa9f97d8578347",
+    "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/迭代计划.md": "e485588253de5e8445a15fbdc9b0ef7638aa1909b4bf107b1242d25978d6a7f0",
+    "examples/_support/clean_bond_data.py": "3cc5042884517f5e901d841ef7d20e6d01f09d3c0d412ddb1784edd644dcc262",
+    "examples/_support/cross_exchange_replay_rules.py": "7c6af656ebbc447efe2d9b3159505495eee69fd92216179405309f5463d43d49",
+    "examples/_support/demo-approval-trust-root.pem": "42212201b7ec9159a00fbf0a0d1f2d541a88d4b81eb3330d587658391916e3e7",
+    "examples/_support/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/_support/iteration41-runtime-inventory.json": "b859a93d3ef8db9781dfc7f73a72323cd0df4a9d2439dd9e3374bd4c7f74ab11",
+    "examples/_support/sample.py": "b27835bd70782ac5fbef152b225aa3407070ba738a5ad82888544f8d26088b3c",
+    "examples/_support/sample/README.md": "e1a1cdc9d1405d8ad025466500b84032d77e7e96005f61003e8277f128d9d8df",
+    "examples/_support/sample/runtime/.gitignore": "0fc36fbf69ec935c631c1f87049c9d2856ee052cfd37ec9a935cdb288eabe933",
+    "examples/_support/sample/runtime/config.example.yaml": "94b4035693eb542001b9eaa754ac732c67a41bbc11a3064957146370db5e1e9a",
+    "examples/_support/strategy_candidate_approval.py": "eec569d2c6fd6babc9d94b18e4c4deb8b6462212618559a5987d8cab167a7a2b",
+    "examples/unified/007_ctp/README.md": "8c7dc47768c6f8ac6f475ded2149f7cd0f7d3cd78427dce31c63420f771f25e8",
+    "examples/unified/007_ctp/ctp_bar_examples_common.py": "988fede854d2b65c7b850464de4bc05d24f14333e5a8c81440c98bdc19588eaf",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/README.md": "02dd4fd7f199b510d9ca7fca7dd392101ea5f1b74b88e0f174d2ca59b8a17182",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/backtest/pair_arbitrage.yaml": "c96ba58682c3f887344739a7079941e43636e4eff65fe3a722ebb2f17ee8cf4f",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/backtest/run.py": "d38b7ad4e7749a3cb18c4aca524631f33121690f4c96ffe7bb47f636661f0b00",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/backtest/single_symbol.yaml": "c749d3b8fb69ae022274c9c41b09cc0fa0a117d693c19421290ae52df5570261",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/live/pair_arbitrage.yaml": "16f954e1fdd397e7e4ce92791516900c0133af5cf1c48378432c15c0535e34cb",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/live/run.py": "770a6df5ba14d34373e8dc7a10aa9a24c8b36e7e65dc7a0e22c76abbf2d3286d",
+    "examples/unified/007_ctp/ctp_bbroker_5s_examples/live/single_symbol.yaml": "73c89df23a9d6760b0153a787f37f4624832fea1d2c51c28ab4f32711e5c17bb",
+    "examples/unified/007_ctp/ctp_example_support.py": "fa8aa4a397035773b09065f660ec9100babc3c6160d2b3e94f6cda15c78218a9",
+    "examples/unified/007_ctp/ctp_mix_examples_common.py": "069ef7fed5b2a816b77a2fdec1ea58ae74d15370c81696813bb1200c6db49754",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/README.md": "a9dff17dfb526ed61b1b65336eba067fb84f816aa12fb39d837aa4ac9cdb2539",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/backtest/pair_arbitrage.yaml": "26c7c24a45d72aea070d55959456f9edbd60f829e8e60ba45112e2541716b0b5",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/backtest/run.py": "040ed2f3e2aace491f9c1b2ae96c8344c389411ba4d486e99722dfada39af514",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/backtest/single_symbol.yaml": "01ec6e6eea6a2298fdddfaa189786794f1090c12f7c590bb2694a03b2fd8e73d",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/live/pair_arbitrage.yaml": "c9f35ca2f57257512a4bd33b04275a01d61579d64ea39686c858787b6a156bf1",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/live/run.py": "8e2dad8afedc6c23ef6694a24e943df7f98ba0d0597e7c997e8055e76d8e0eab",
+    "examples/unified/007_ctp/ctp_mixbroker_5s_examples/live/single_symbol.yaml": "3e083f2f0769e96f31b3c8d25c2edb9aa16cb7554ce953e18eccdd70e380afcb",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/README.md": "509e7549aff298a35d45fb0af175fc07d0710f9a26adb53b47aa1d186a91879b",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/backtest/pair_arbitrage.yaml": "bbfac64f2bec71936344d3bec6d76f05d1816943bb19ed2c310531dde37a1881",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/backtest/run.py": "2c8cd21845fe6f868198a6f58a0cbe26345b9cbf2f8f499b6d60eab3173abba2",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/backtest/single_symbol.yaml": "690cf5272512844ff2ef54ca9045f9f1ecb0344c8801e7d175894c6ad8e2bde6",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/live/pair_arbitrage.yaml": "2d7c5fdd8f8e8c1b1761da2d08a7daff389fb62a441b4428d65a6bc33d37208e",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/live/run.py": "92488c8d99e2994e7baa5e5092cb062beebbe6d1598e20735635a089f40a2f72",
+    "examples/unified/007_ctp/ctp_mixbroker_examples/live/single_symbol.yaml": "0757d5647cf5e461faf439db81dec4ffa74b19997ca5f57ea46bee86796a8e38",
+    "examples/unified/007_ctp/ctp_sa_dual_ma_strategy.py": "7d3805b43d5d8efe7fe5a0f5f1cd6a635203c07bb5ed262aae2291af6867ffa6",
+    "examples/unified/007_ctp/ctp_tick_examples_common.py": "ad56c3f2522a4d3c1a5a2a09b1d12cea5d1491057fec09a38388459ef4236381",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/README.md": "c82cc1814586ecf81886fb275a53ca80bb6e3c21c0fc5cdb2e0b8efc30ef9b3c",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/backtest/pair_arbitrage.yaml": "d2394ca2841ee37c70f523e812a0cd541cb47930605211219bdd7e833386cc9c",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/backtest/run.py": "9f385c351e57598a3f764eba69deac7cfc6c8b145f6311714e72ec5e6a94613d",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/backtest/single_symbol.yaml": "8d0d5ac46a974ca5e73c385171db59800c6dfb9ef47de676edca9e1d51b36245",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/live/pair_arbitrage.yaml": "20dbf0eec183cf14aabe729ec3315bc2902b810f54765a8f5b55a01966697f14",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/live/run.py": "e80b1a16b3f127bf043844b4c3a96e34a3f078c7f711e46149fd5ea392eac0ff",
+    "examples/unified/007_ctp/ctp_tickbroker_5s_examples/live/single_symbol.yaml": "56dd5b2d8180b5bdcf99d78f62a31857558cb0ae01bc1428c1ccb36dfb4f2a62",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/README.md": "8121661899d713e350363d89076625da1f35df623cb3656a88d2b6d3e3186cf0",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/backtest/pair_arbitrage.yaml": "29e7245a9842ae638ba00409215ae08cbe1b3ebe0173a0d49ca0aaffd79d8a7c",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/backtest/run.py": "037e70f06d1c28384fa03efa89918a32f7f94b7408577f5946abfe91c8f28b6b",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/backtest/single_symbol.yaml": "86642b70143e62c9d9b3977acc393a0343ed4fa8bc4706e35e54c1960ecbad27",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/live/pair_arbitrage.yaml": "a022b5917d649e60bb5ace3847f9a9137efa75da4578c052ee69c873b6e37bb6",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/live/run.py": "201f8de3cbd44c4a39c40b3fb2fa373c247e3f23aee4a8348543edf1a39ba0f2",
+    "examples/unified/007_ctp/ctp_tickbroker_examples/live/single_symbol.yaml": "4691819bca347731396157b2a607bbe3076509cdecc0dd04788d54b57f0fc743",
+    "examples/unified/007_ctp/run_runtime.py": "20eec15f84fd85ab1e8d5412d498960e0ed46148e4d04e2f6333acc32586bc04",
+    "examples/unified/007_ctp/runtime-production/.gitignore": "e3109e909d60f8b34b97e65269ec6e189ceb55e1061b844ab137bfb312841f02",
+    "examples/unified/007_ctp/runtime-production/README.md": "c1c6a7ded4ce9f25f090c8f8a45fd5693ed71c51d28c1a712940575eb9fe6632",
+    "examples/unified/007_ctp/runtime/.gitignore": "0fc36fbf69ec935c631c1f87049c9d2856ee052cfd37ec9a935cdb288eabe933",
+    "examples/unified/007_ctp/runtime/config.example.yaml": "18144328df479a645142ae7ea06bce6384d9eb9069a580e4f69e6dab7336b8f1",
+    "examples/unified/012_1_midfreq_cross_exchange/.env.example": "f912ca9621719666bd003e13eed019b82902cded8f291c27f12bf1ec79b93074",
+    "examples/unified/012_1_midfreq_cross_exchange/.gitattributes": "d8eb89839f65163f2c44a3a47728c686cb92e5e59bfc3803448dac8a55867ec3",
+    "examples/unified/012_1_midfreq_cross_exchange/.gitignore": "7fbca6da688644a64a90f0e14b0b9be085c3647dd95862d9ada31910a792b796",
+    "examples/unified/012_1_midfreq_cross_exchange/README.md": "97fb42b02bd4a68ef95da441f5b256359d066b79a4ea52199cc0a0173ad0ddf4",
+    "examples/unified/012_1_midfreq_cross_exchange/config.yaml": "82fa5771d05ebab3a2a3a7dd76bac611254bb0c9a3cde7d3c8b91dcc04069c0d",
+    "examples/unified/012_1_midfreq_cross_exchange/cross_exchange_strategy.py": "08d6ec995da75429f42c5e7cefb2739a113ac31eba54cf7d481ce45edeb1bf27",
+    "examples/unified/012_1_midfreq_cross_exchange/demo-approval-trust-root.pem": "42212201b7ec9159a00fbf0a0d1f2d541a88d4b81eb3330d587658391916e3e7",
+    "examples/unified/012_1_midfreq_cross_exchange/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/012_1_midfreq_cross_exchange/legacy_runner.py": "eb50b74be134233a887135c425b72e790e9ee49153eacf674f7b236ce2ae6dcd",
+    "examples/unified/012_1_midfreq_cross_exchange/qualification-v3.json": "da8363391ae3ab25c7df32c238a4440fe36970d64686b7bcdb67327299e39ee2",
+    "examples/unified/012_1_midfreq_cross_exchange/run.py": "9b834ec0cafd47df2bfdd4b8bfafc007a690f63c814aacaba30f44efff49050c",
+    "examples/unified/012_1_midfreq_cross_exchange/run_runtime.py": "3908ba6aca0221e67728fa14f008ec340796ab03ad680e86e2eef1710b51f817",
+    "examples/unified/012_1_midfreq_cross_exchange/runtime/.gitignore": "311fc12ec0963738105c4c3e6ea8ee74fcb4d204f4039dd20f1b2adc9c50c0c0",
+    "examples/unified/012_1_midfreq_cross_exchange/runtime/config.example.yaml": "9715af7b436b630a0899fa67cba02aeda117e90c17b0136f8d1da2906439a95f",
+    "examples/unified/012_1_midfreq_cross_exchange/strategy-candidate-manifest.json": "3a1dbdf163e6c416f89ab413345559737c14dc74ebbfbcf4b2722f9cf63e1869",
+    "examples/unified/012_1_midfreq_cross_exchange/strategy_candidate_approval.py": "eec569d2c6fd6babc9d94b18e4c4deb8b6462212618559a5987d8cab167a7a2b",
+    "examples/unified/012_2_event_driven_cross_exchange/.env.example": "f912ca9621719666bd003e13eed019b82902cded8f291c27f12bf1ec79b93074",
+    "examples/unified/012_2_event_driven_cross_exchange/.gitignore": "7fbca6da688644a64a90f0e14b0b9be085c3647dd95862d9ada31910a792b796",
+    "examples/unified/012_2_event_driven_cross_exchange/README.md": "9e8adb5278e267151b59c4c8fdb4c14eeb843d7143fc9834ecc8269fd5a6a563",
+    "examples/unified/012_2_event_driven_cross_exchange/config.yaml": "eaea93b75bcfc35320254bebc042d9e8f0c11e2ff6f708aa49c3ef028bb2c50a",
+    "examples/unified/012_2_event_driven_cross_exchange/demo-approval-trust-root.pem": "42212201b7ec9159a00fbf0a0d1f2d541a88d4b81eb3330d587658391916e3e7",
+    "examples/unified/012_2_event_driven_cross_exchange/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/012_2_event_driven_cross_exchange/event_driven_strategy.py": "f14ae752dbbdd9fde856ca55c61a757990e879f1782a5d2cedf6a510a990c76a",
+    "examples/unified/012_2_event_driven_cross_exchange/legacy_runner.py": "301f0c61002d09c5759fb9ba401d2dd50bbe8600c951a6d0de2ad2c19d4b2ac1",
+    "examples/unified/012_2_event_driven_cross_exchange/run.py": "117a9b86558cebf99b72408cb380ed92f15295906090f8b2d6073cd11155d37d",
+    "examples/unified/012_2_event_driven_cross_exchange/run_runtime.py": "43d93d14a363aae3d3c334ef4219a0a931a9982c9e877c62f68c887586e6d46e",
+    "examples/unified/012_2_event_driven_cross_exchange/runtime/.gitignore": "311fc12ec0963738105c4c3e6ea8ee74fcb4d204f4039dd20f1b2adc9c50c0c0",
+    "examples/unified/012_2_event_driven_cross_exchange/runtime/config.example.yaml": "e5e1bb9f3856a1a3e70f5ba03c510c70897403cec9f57a59e6548617a15e1ada",
+    "examples/unified/012_2_event_driven_cross_exchange/strategy-candidate-manifest.json": "8728846c757bc85d6f388ee8fe2704de08a8539a037554f6ef653a5aec4635bc",
+    "examples/unified/012_2_event_driven_cross_exchange/strategy_candidate_approval.py": "eec569d2c6fd6babc9d94b18e4c4deb8b6462212618559a5987d8cab167a7a2b",
+    "examples/unified/013_1_midfreq_cross_arbitrage/.gitignore": "f26de8e424fbd8c7894bdc9d1e99c9d003781f82747b6c0699c3b646450fe145",
+    "examples/unified/013_1_midfreq_cross_arbitrage/README.md": "e59a46f04b27fc1ed8ce4be0541a96f9dfab7f67c10b97802a7d2d62d57e1298",
+    "examples/unified/013_1_midfreq_cross_arbitrage/config.yaml": "bdb351075eaf6e5dd775c13b048720a03c42460750a6fa3391d6900c309b9f28",
+    "examples/unified/013_1_midfreq_cross_arbitrage/ctp_example_support.py": "003b9077211c76baf699e78b0adabe5e5e00cf1a98c1f46169a1dfc70050e4fc",
+    "examples/unified/013_1_midfreq_cross_arbitrage/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/013_1_midfreq_cross_arbitrage/legacy_runner.py": "f95c0a3179ea1b2db3685c97020772db9251f6c5767d86d2b61adde3d08da549",
+    "examples/unified/013_1_midfreq_cross_arbitrage/pair_arbitrage_strategy.py": "64bda35fe68a2f09c48d7408c16b548482ed096cfd5ecec393a5079d6bfbbc6c",
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py": "baf2eddf6447bd2d001dabfe10b1df65235fd5dce35c4237ea290222480f256b",
+    "examples/unified/013_1_midfreq_cross_arbitrage/run_runtime.py": "b4b1607b58aa348ea2f7d070977d2c55f3e7984fa54c130537c99f2c0268678c",
+    "examples/unified/013_1_midfreq_cross_arbitrage/runtime/.gitignore": "311fc12ec0963738105c4c3e6ea8ee74fcb4d204f4039dd20f1b2adc9c50c0c0",
+    "examples/unified/013_1_midfreq_cross_arbitrage/runtime/config.example.yaml": "67f5e5ee62e874ac4904799f426eaf2381c23030ec1aa2bc1a172b908c64995b",
+    "examples/unified/013_1_midfreq_cross_arbitrage/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/.gitignore": "f26de8e424fbd8c7894bdc9d1e99c9d003781f82747b6c0699c3b646450fe145",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/README.md": "1cd1c4e3a72ef8fceca74799b9fb225761dc8a582c434e497c3eebf7b8b09766",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/calendar_arbitrage_strategy.py": "6d0dd1b5e3778cc08e94ea96d44e861a615b315a0c04d10795f68cc29a86ea14",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/config.yaml": "d25a0665872f26af90e6385af3ddb79370150dd36d069497d61a7b958d544dbe",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/ctp_example_support.py": "a089efd8bd7cf4f2c2df3f8b4d5ebc31a5b710d78c6a2908c36e311754720e47",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/legacy_runner.py": "c17af1206b57c16b4d579520c76dd60cfec7bceaee362581d18bb7a7f9e58f05",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py": "dae61c21ec427ec3b05828024fa4d5cf4b9b7280b6f68bfb0ab2cac0b2d81659",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run_runtime.py": "09bbe946dc0133d1d63047e50eb732396e11386bf4fd14872bf19dd981b0ded8",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/runtime/.gitignore": "311fc12ec0963738105c4c3e6ea8ee74fcb4d204f4039dd20f1b2adc9c50c0c0",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/runtime/config.example.yaml": "cee661bd205176ea2c904b34fe8fe195a89269566ec67eac5041100410d78edd",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/013_3_sa_midfreq_simnow/.env.example": "e1ea9d3938385326637e15a56468e7850808564628a38a2ce38cde67e95b9735",
+    "examples/unified/013_3_sa_midfreq_simnow/.gitignore": "33813b62e59c263530dbbd188dcf9857f0fc66cd256b639cc5fa76ec3c3430e8",
+    "examples/unified/013_3_sa_midfreq_simnow/README.md": "0945f33ed4adcee7bf001a9aacea32f4bb6551c291b6f7802ce74820dadd80b4",
+    "examples/unified/013_3_sa_midfreq_simnow/__init__.py": "dff4be71179dc8b1d7f03cf432ebd520657378e4639409494bd6634133df5ce3",
+    "examples/unified/013_3_sa_midfreq_simnow/account_lock.py": "d50c02bf5527f0732e8a3c72b538b327f227375ee5f88d3e227a38c091a46ea9",
+    "examples/unified/013_3_sa_midfreq_simnow/config.yaml": "af1fff9a820cf050bd3cdd5dc0a63f1fae83b3b44876d7ee188d56e8335ab520",
+    "examples/unified/013_3_sa_midfreq_simnow/ctp-deployment-profiles.example.yaml": "0de786830f83a51712bfb047387c0e4d8a3a4e03bb65bf4750515bf9c6ab25ce",
+    "examples/unified/013_3_sa_midfreq_simnow/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/013_3_sa_midfreq_simnow/env.broker-production.NOT-SUPPORTED.example": "5b58015eb77283de7a66677b2fc52a540bbc4638957eecf702a75eb133a7a3f9",
+    "examples/unified/013_3_sa_midfreq_simnow/features.py": "baa60d455f515b0f490711c4b9a900c2b061082fe4b7187a5f285d3a7aad317e",
+    "examples/unified/013_3_sa_midfreq_simnow/fixtures/sa_v0_replay.json": "6809517706d02d104dd6609e5f433a12b102ee30e82f3ee6a8aa6dfba4e3387d",
+    "examples/unified/013_3_sa_midfreq_simnow/legacy_runner.py": "2d915c244954c4031f6598d655cc9784735e3cf66bb7a92d8584de9a68ce4d1b",
+    "examples/unified/013_3_sa_midfreq_simnow/reporting.py": "e5e4f44e31c158ee82372e0c64b2b7d372a23106a8f2415c3419e4246f401004",
+    "examples/unified/013_3_sa_midfreq_simnow/risk.py": "b2f3c37e5cecf37fb5fb374d8c61c229137253aa2b1c58f806deb23d3433b4b2",
+    "examples/unified/013_3_sa_midfreq_simnow/run.py": "98a436a405948cf5640ec6924cce6618d1be5c1bd33bce76bc38f45d0185f280",
+    "examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private/.gitignore": "ab9ee83d3c05eab728ba24ea275023a88725921358d785475d40e4d4ee5ab307",
+    "examples/unified/013_3_sa_midfreq_simnow/runtime-ctp-private/README.md": "a9d87acfd046265e89426aafccd629794008f63527c46132a054eaaff5ec8979",
+    "examples/unified/013_3_sa_midfreq_simnow/sa_midfreq_strategy.py": "51d599673021621902a6dfea146f5dfc387ad744bb5e4f95f9a277728fb404f1",
+    "examples/unified/013_3_sa_midfreq_simnow/signal_model.py": "d385fafdb7cf9a2e2f91dc6ed1ac9f6d2972df55fbef8f3778cd17bd64efc142",
+    "examples/unified/013_3_sa_midfreq_simnow/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/014_1_ctp_options_lowfreq/.env.example": "5b818cb4614522729e16d6015380579cf4c0aafcd62f402a2a95101d5ebb8190",
+    "examples/unified/014_1_ctp_options_lowfreq/.gitignore": "f26de8e424fbd8c7894bdc9d1e99c9d003781f82747b6c0699c3b646450fe145",
+    "examples/unified/014_1_ctp_options_lowfreq/README.md": "bd105fa3ce00a21d36c1318d926a81413ffe71858723d8d37c96537954741e80",
+    "examples/unified/014_1_ctp_options_lowfreq/__init__.py": "bf9e3a0bf102d576d6f858daa70f2cd33e8538672a45a16d08aabe7c21a657fe",
+    "examples/unified/014_1_ctp_options_lowfreq/config.yaml": "ff3d23b6393e2676baaa4e24c3adf61d60156a1f35242c66ed761376c033a5a3",
+    "examples/unified/014_1_ctp_options_lowfreq/ctp_options_lowfreq_strategy.py": "969140a21f50f9692b7ac413e4f734c61f8b839f11b50384954a1277dd8b886f",
+    "examples/unified/014_1_ctp_options_lowfreq/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/014_1_ctp_options_lowfreq/execution_timing.py": "0654fc0c5e07ac870cd1555c38090bee6f55e9f326213c95ef8b2b9e23deb5d5",
+    "examples/unified/014_1_ctp_options_lowfreq/legacy_runner.py": "e73fe38605e148f0af85829ef41e3dc10492d2c560637b59f14489b31338ba7b",
+    "examples/unified/014_1_ctp_options_lowfreq/run.py": "211204d2a2ce3c699ddcf64b3dab0c2715587048d7eec1991dde5fe45a7ac044",
+    "examples/unified/014_1_ctp_options_lowfreq/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/014_2_ctp_options_midfreq/.env.example": "13eee26cfb3ec0c3c40e98c70a1790e3dbec0e297ef308bebed544336224e72b",
+    "examples/unified/014_2_ctp_options_midfreq/.gitignore": "d18e61301e5e1a1440fcdbe8105f91a55cf78c1b79513a5fddacf81e564923ee",
+    "examples/unified/014_2_ctp_options_midfreq/README.md": "8bd9e607a4247ca8b75db187f2ec6c968823ad449cf472cc009eeba759f25265",
+    "examples/unified/014_2_ctp_options_midfreq/__init__.py": "25a9c951bbb6a89ad78b39f87cf842790fab03e0812e6045ec70a9c606008022",
+    "examples/unified/014_2_ctp_options_midfreq/config.yaml": "0212fc69ab24ec3c069913c0a22486ec8cbf0dd1371c61368a1255f70292a8cc",
+    "examples/unified/014_2_ctp_options_midfreq/ctp_options_midfreq_strategy.py": "2be4517f471f93f2acf0fd0a7ae96e71555b7fc4412b960385a15ef56b0fda9d",
+    "examples/unified/014_2_ctp_options_midfreq/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/014_2_ctp_options_midfreq/execution_fixture.py": "6a18eedc2497dde1d8bcc305846ed4a8ac0f28d1552819cbd94c5e4a7e08790e",
+    "examples/unified/014_2_ctp_options_midfreq/execution_timing.py": "e7ad7decce851bd7beb28b9421f7c1c47aef28209be1ab8945943a8e8b36f86c",
+    "examples/unified/014_2_ctp_options_midfreq/features.py": "57f90449aa7d8369ffd0e34fbce15f5f38e1ca14b37ae373de75c48051cd4372",
+    "examples/unified/014_2_ctp_options_midfreq/fq2_fixture.py": "686aa1964b529aa9c0646d32e3ede3fb8fc90124356d40032e9d634823bb2cfe",
+    "examples/unified/014_2_ctp_options_midfreq/legacy_runner.py": "c3b34a6f7eda772e8492885fd96a725dc56987cbc8c4ed642d1b79ce4ffc2a12",
+    "examples/unified/014_2_ctp_options_midfreq/run.py": "7c57751fa499cb082a5f5b0a377484aa0c2b4537f1bafdce2e1662df87b66027",
+    "examples/unified/014_2_ctp_options_midfreq/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/015_ctp_options_highfreq/.env.example": "eb54c1fd094df60c9347fa169010e37f3afb653bb10bc0d6dd0d4e27ccccd1d4",
+    "examples/unified/015_ctp_options_highfreq/.gitignore": "e9186e379664b5159d6a333b56b9c748e44540321c88f33e3118c7b4cd3d6b08",
+    "examples/unified/015_ctp_options_highfreq/README.md": "ea9cbd1eeecf6f9d85aee592f9c75fe9b8e2cc3d6d286968e58ef5524c47491f",
+    "examples/unified/015_ctp_options_highfreq/__init__.py": "41ad4f30a39bfdd61418ad760a16736f71d37031644adc8a8774caf695817765",
+    "examples/unified/015_ctp_options_highfreq/config.yaml": "36c3bc220e5fe9ad4b1f3f9e29ceb9007630f1d1e2cb4546f07dbba4423ef0d8",
+    "examples/unified/015_ctp_options_highfreq/ctp_options_highfreq_strategy.py": "ef337f6e023f8c4c15ce9131803dff65024f727013ebcc0e3402cc7ed72c979d",
+    "examples/unified/015_ctp_options_highfreq/engineering_smoke.py": "9b2ca12b74ea15cf8e12b78f3828dbe0f749bbfbeaf66eed6e16c39556905e9d",
+    "examples/unified/015_ctp_options_highfreq/entry_tier.py": "4f81fb4c9629177ff2db2691a89983948efc0d234117752d72d0fa145ee4c8f4",
+    "examples/unified/015_ctp_options_highfreq/execution_timing.py": "79b3034ac6833e9e49431b6f891d489016f8f614bc130aa32a04e116940e84e1",
+    "examples/unified/015_ctp_options_highfreq/fixtures/three_leg_tick_cohorts_v1.json": "272c548f3214c3f09b59e412d3a6300c67c3422570ea699301167157495672b2",
+    "examples/unified/015_ctp_options_highfreq/legacy_runner.py": "3f16170dd1972311b2be73a94ca16e764559b8bcbdee5edd72112dec3a2ceebe",
+    "examples/unified/015_ctp_options_highfreq/run.py": "1fcd44724cf637e14fc167a8b207daf7af15d9be03c769761de21e48b33afc96",
+    "examples/unified/015_ctp_options_highfreq/run_runtime.py": "4644081f9db6e430574f980a4d1da0ab4ec5bb24d70f523bb4bdc2b354754c48",
+    "examples/unified/015_ctp_options_highfreq/runtime/.gitignore": "311fc12ec0963738105c4c3e6ea8ee74fcb4d204f4039dd20f1b2adc9c50c0c0",
+    "examples/unified/015_ctp_options_highfreq/runtime/config.example.yaml": "5670d2a4184e2ba381207374ac2269cbb6105d92783d3f8402270a68c7e6baca",
+    "examples/unified/015_ctp_options_highfreq/simnow_direct.py": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3",
+    "examples/unified/015_ctp_options_highfreq/simnow_launcher.py": "8fa138e8f15377fce30b03d53ec30372439f761ce25fffef2e17bea81044139c",
+    "scripts/generate_iteration42_tracker.py": "3e336aad68de4b6c270817bebd8a3370112bd8f338622df8d33a9c10aa3f791d",
+    "tests/unit/test_iteration42_component_boundaries.py": "65df851a6364de1b50c8ec3e4beea674be0e157948ea3f0fa614f430d9de5c08",
+    "tests/unit/test_iteration42_live_front_failure_evidence.py": "ee87df179ac5bd673abcda2f072c678e2bb11edd5669912f09fa98ed6dc612b2",
+    "tests/unit/test_iteration42_live_tick_provenance.py": "e971d65344e8f5f7840e7bce11d5397efbfd16001bdabed2248d07f1ef583c2e",
+    "tests/unit/test_iteration42_optional16_mount_smoke.py": "b2936619650ed1a4b525cdc19d16aba5f00b78554dcbba81aafb4af296bd5efe",
+    "tests/unit/test_iteration42_options_live_chain.py": "f331106d16b4b7bf9b5ad6d1ee652331c025fb7ea1068ed39f78e67b46eb931b",
+    "tests/unit/test_iteration42_simnow_multiarm.py": "c14adaeef9d9948dc706e398134d082110fecd8b651707cb431f890b5bd3c4bb",
+    "tests/unit/test_iteration43_copy_out_runnable.py": "c619c9e09efa9e5212ce199ec2bfbad9a42161ad3a9a5769d35425cc0aa6df85",
+    "tests/unit/test_iteration43_entry_tier.py": "db65fb7ea496164a7d87c08faf4c963ec40a707f9f8d167a359da27b8c3bad88",
+    "tests/unit/test_iteration43_entry_tier_dispatch.py": "1e3de4d82db8003c73c307048d7b84555ee34f4bc104a9762c69c746038da449",
+    "tests/unit/test_iteration43_example_layout_boundaries.py": "2ba2054929a538ed6ad90ff8c2b04a392617cc421726f7a9cc7a1979b150dec7",
+    "tests/unit/test_iteration43_live_observation.py": "69da907292c859981454642df98bb8793bf32e26efb2bbf9b8faca11b34f771e",
+    "tests/unit/test_iteration43_options_live_observation.py": "1df2aa53b99d89ced032b3b683d5740a287e11839fa432a829dc68b8795e8a5b",
+    "tests/unit/test_iteration43_sa_live_observation.py": "8703be54f85779d7e8a522db931d57ff87c2f0adae9b8116b5409d03ddcf5267"
+  },
+  "external_raw_artifact_pins": [
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_1_midfreq_cross_exchange_dry.log",
+      "size_bytes": 452,
+      "sha256": "a07567e910d5f13623de32f3bc87f48549778b30da1b86f2b80dd94940d32042"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_1_midfreq_cross_exchange_replay.log",
+      "size_bytes": 569,
+      "sha256": "ac1cace371a4461f5a7a1a5b8908d78f01d8623bd12aaba241dcebca02cba8b1"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_2_event_driven_cross_exchange_dry.log",
+      "size_bytes": 457,
+      "sha256": "a9bb97b2c0fab8306b34a90c5fe6e0e0e4bf39847034ca82896f7630d3b2807a"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\012_2_event_driven_cross_exchange_replay.log",
+      "size_bytes": 574,
+      "sha256": "696b61e7c41cdff0bacf06ca01913203a90f5f80d1bd9d35f159ffe234fff7ba"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_1_midfreq_cross_arbitrage_dry.log",
+      "size_bytes": 593,
+      "sha256": "36941047308ad755a7395469885f2d08a9d35573e0ede6833e2154579ab954e6"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_1_midfreq_cross_arbitrage_replay.log",
+      "size_bytes": 2335659,
+      "sha256": "36fb8f086f31032ff29de10b0b3c5a8ca4fafe1bcfb9a557b6efeeee835b68b3"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_2_highfreq_calendar_arbitrage_dry.log",
+      "size_bytes": 600,
+      "sha256": "55bbeac028e9286f0c45e2a2c4513f8cdd16715593c1ecc04a7dddcccd9a7a98"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_2_highfreq_calendar_arbitrage_replay.log",
+      "size_bytes": 812907,
+      "sha256": "c980d2210d7c40c4b5253b1b937a63df4bd29939ff292fbb158b7ee723a43525"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_3_sa_midfreq_simnow_dry.log",
+      "size_bytes": 478,
+      "sha256": "4c83357ee37a1de5e00cf74532b134ca33b353980b9103c08993efa670e4d651"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\013_3_sa_midfreq_simnow_replay.log",
+      "size_bytes": 603,
+      "sha256": "00cd32786c9a92a2ee056badad4f0629d0e9b1871e2f4658593105112c72d95c"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_1_ctp_options_lowfreq_dry.log",
+      "size_bytes": 657,
+      "sha256": "499e7b06ceb4306dbb4a2aa858e7b887cc6bd134fae2278645366320fb7f14f8"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_1_ctp_options_lowfreq_replay.log",
+      "size_bytes": 566,
+      "sha256": "7c523ac242473d4e02fb1b3c3cac83b39fd57a5cbffb96bb4a6fae2c97add023"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_2_ctp_options_midfreq_dry.log",
+      "size_bytes": 709,
+      "sha256": "986e67920d3343a40f217193455a640e13eb41fda0975064f53b8953bcb60ac6"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\014_2_ctp_options_midfreq_replay.log",
+      "size_bytes": 565,
+      "sha256": "6e09db68cc3a3ae315f4caff5eca89b592f99430b31dffba0349e35c51650e35"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\015_ctp_options_highfreq_dry.log",
+      "size_bytes": 731,
+      "sha256": "f9941286d652fa2b425d54d037fd8e153459c8c07185fd204d42217439dea07b"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\015_ctp_options_highfreq_replay.log",
+      "size_bytes": 613,
+      "sha256": "9bede30ee0318a087c69bf23b7940390d24949c4fe496bb3d62b218aa4c55b80"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\baseline.json",
+      "size_bytes": 34120,
+      "sha256": "d5d00dc9b621df2e423e5d605b3b53a4af669365ad82ac729fbbda3b9a24ffbb"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\copy_out.log",
+      "size_bytes": 652,
+      "sha256": "56a6027feeeaf2f59c7188773bb3dbed2ff0a94089a56d5920aaa70a34d2fb74"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\copy_out.xml",
+      "size_bytes": 1529,
+      "sha256": "0b5845e9686e67108242571275095e2c5c885b120c0b3f97ce623e7594ab6d69"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\copy_run.log",
+      "size_bytes": 653,
+      "sha256": "a36233064029a3e15d5b33338684af9ac8a818450b95fd01e6ee3ea1187c148e"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\copy_run.xml",
+      "size_bytes": 1538,
+      "sha256": "fc52970432afe961dd39b3d7c97b7dfd3a8f1a4458fef61e42546fa44b59a878"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\module_0121.log",
+      "size_bytes": 421,
+      "sha256": "6fbbe51325425e786f6a424730e01a45e3449879ddf5f64b0ebb97f193ff5af5"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\module_0122.log",
+      "size_bytes": 426,
+      "sha256": "de8da5a2a43df3d5024adb7e964528b7cf9dc1e3fe6e47408b109bceedba67a5"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\mount.log",
+      "size_bytes": 634,
+      "sha256": "c59eebc1e94011e765373fd4cce9550b6a0bd1b18563ba7abfe30823694da4ad"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\mount.xml",
+      "size_bytes": 976,
+      "sha256": "fcb10977ad69a7b5d18c78b77ba3bfdd331264c24d55ccea6bf9f672e384304c"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\offline_matrix.json",
+      "size_bytes": 12332,
+      "sha256": "2f1f4ff7f9c1d57262e36d6dd37fb68464c4dc93782a50b373b68ed506e36dab"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\pytest42.log",
+      "size_bytes": 39976,
+      "sha256": "7bdf8ad1e20f759bc9b98ad9df65de522ca5b46fe3f9cfa77c333f99f405bd73"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\pytest42.xml",
+      "size_bytes": 50569,
+      "sha256": "85e0255be6437ba7dcfe7bb440e3059c68bcb7780f80906a85c67f2dbba2b5c7"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\pytest43.log",
+      "size_bytes": 743,
+      "sha256": "1d7460ff6aa4757fe6c47fedaa60b5d66a99d2fb743dc294918ad9fcb194eb4e"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\pytest43.xml",
+      "size_bytes": 24877,
+      "sha256": "31faf1ce18790cb4e893265bdb31a07a5b3e6ee2cacb1a94ca8b19282c718e04"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\readonly_postcheck.json",
+      "size_bytes": 185,
+      "sha256": "a29d50c9e4405a84dc5a26f5d520be9f680d300f7d407701bcbd97fed329d125"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\runtime_smoke.log",
+      "size_bytes": 549,
+      "sha256": "faff7e1ac8bb160a93c0383cb97f3d40007e6f925488fe3d3187fcb30ce4d3e3"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\sdk_metadata.json",
+      "size_bytes": 666,
+      "sha256": "8e5e5cd8fe4c5b9c191bd32e4cc57d3a37feb9b5978b2e487718233172a0f80d"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\self_contained.log",
+      "size_bytes": 3505,
+      "sha256": "bcef82f6e3d138e1bfd520d690d6f8c48440e76aa8d166540521216640647826"
+    },
+    {
+      "path": "D:\\temp\\iteration42_acceptance_20261012_9cb01d2e\\self_contained.xml",
+      "size_bytes": 9811,
+      "sha256": "0deaf4610bfdab3472ce88b2d682272e32950bb3d4a0360fb47f16e4ed776b3e"
+    }
+  ]
+}
