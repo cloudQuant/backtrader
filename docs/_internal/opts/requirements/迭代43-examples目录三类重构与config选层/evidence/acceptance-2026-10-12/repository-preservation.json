@@ -1,0 +1,45 @@
+{
+  "scope": "Before report creation and intentional documentation delivery only",
+  "checks": {
+    "head": true,
+    "branch": true,
+    "status": false,
+    "tracked_diff": true,
+    "cached_diff": true,
+    "index": true,
+    "selected_tracked_files": true
+  },
+  "selected_tracked_files_count": 2856,
+  "selected_scope": "All tracked *.py, all tracked examples/**, AGENTS.md, .gitattributes, .gitignore, pytest.ini, pyproject.toml, setup.py",
+  "head": "9ef0e00aa38da900ca8835d93b81f2c16cf782d9",
+  "branch": "dev",
+  "tracked_diff": {
+    "size_bytes": 5261,
+    "sha256": "9e790e9053c0081adc3d63c9474664a688b67231761fbeb4763212bf2f4750b1"
+  },
+  "cached_diff": {
+    "size_bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "raw_index": {
+    "size_bytes": 631559,
+    "sha256": "b1f0c332064c5c1578d5ea900f4524ea0d598ebdaf97bad880c07839d46c148a"
+  },
+  "original_status": " D 0\n M backtrader_runtime/ctp_configured_front_check.py\n M backtrader_runtime/ctp_simnow_operator.py\n M tests/unit/runtime/test_ctp_simnow_config_operator_route.py\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/README.md\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-bundle.zip\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-checkpoint.json\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-index.json\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review.json\n?? examples/test_results/test_2025_equity.csv\n?? examples/test_results/test_2025_equity_plot.html\n?? examples/test_results/test_2025_metrics.csv\n",
+  "final_status": " D 0\n M backtrader_runtime/ctp_configured_front_check.py\n M backtrader_runtime/ctp_simnow_operator.py\n M tests/unit/runtime/test_ctp_simnow_config_operator_route.py\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/README.md\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-bundle.zip\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-checkpoint.json\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review-index.json\n?? docs/_internal/opts/requirements/迭代1-穿透式认证/evidence/iteration41-zmq-combined-import-r5-terminal-independent-review-r1-2026-10-06/review.json\n?? docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/acceptance-audit-2026-10-12.md\n?? examples/test_results/test_2025_equity.csv\n?? examples/test_results/test_2025_equity_plot.html\n?? examples/test_results/test_2025_metrics.csv\n",
+  "status_added": [
+    "?? docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/evidence/acceptance-audit-2026-10-12.md"
+  ],
+  "status_removed": [],
+  "status_note": "One unrelated iteration42 untracked acceptance document appeared during the run. Not written by this acceptance task; preserved. Whole status equality is not claimed.",
+  "pre_snapshot": {
+    "size_bytes": 548392,
+    "sha256": "8e54ed940183228d0a973b731e7add4c6ad573d930fd92f28587245a47ceab71"
+  },
+  "final_snapshot": {
+    "size_bytes": 548527,
+    "sha256": "bb132588d3f5521dd5f9205183e1b0dd730039d8d8fcbf69008c892aebeb7625"
+  },
+  "all_selected_bytes_unchanged": true,
+  "limitations": "Does not assert arbitrary ignored files or retained-host state. Only public tracked selected paths were read."
+}

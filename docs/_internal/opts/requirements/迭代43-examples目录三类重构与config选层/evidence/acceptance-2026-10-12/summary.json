@@ -1,0 +1,569 @@
+{
+  "schema": "iteration43-readonly-acceptance/1",
+  "date": "2026-10-12",
+  "verdict": "NO_GO",
+  "task": "Acceptance completed; implementation not changed",
+  "repo": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "source_head": "9ef0e00aa38da900ca8835d93b81f2c16cf782d9",
+  "source_state": "Existing working checkout, including pre-existing uncommitted runtime/test changes; not a pristine HEAD build",
+  "baseline": "322e501c1",
+  "pytest": {
+    "groups": {
+      "data_consumers": {
+        "passed": 6
+      },
+      "portability_boundaries": {
+        "passed": 128,
+        "failed": 11
+      },
+      "runtime": {
+        "passed": 746,
+        "skipped": 23
+      },
+      "tier_layout_observe": {
+        "passed": 132,
+        "skipped": 4
+      }
+    },
+    "totals": {
+      "passed": 1012,
+      "failed": 11,
+      "skipped": 27
+    },
+    "per_file": {
+      "tests.functional.strategies.order_types.test_05_stop_order_strategy": {
+        "passed": 2
+      },
+      "tests.functional.strategies.special.test_02_multi_extend_data": {
+        "passed": 2
+      },
+      "tests.functional.strategies.trend_following.test_03_two_ma": {
+        "passed": 2
+      },
+      "tests.unit.test_iteration43_copy_out_runnable": {
+        "passed": 42
+      },
+      "tests.unit.test_examples_self_contained": {
+        "passed": 42,
+        "failed": 3
+      },
+      "tests.unit.test_iteration42_component_boundaries": {
+        "failed": 4,
+        "passed": 38
+      },
+      "tests.unit.test_iteration42_live_front_failure_evidence": {
+        "passed": 4,
+        "failed": 4
+      },
+      "tests.unit.scripts.test_iter28_fingerprint_probe": {
+        "passed": 2
+      },
+      "tests.unit.runtime.test_capability_imports": {
+        "passed": 10
+      },
+      "tests.unit.runtime.test_credential_resolver": {
+        "passed": 24,
+        "skipped": 6
+      },
+      "tests.unit.runtime.test_ctp_007_private_front_check": {
+        "passed": 8
+      },
+      "tests.unit.runtime.test_ctp_front_pair_probe": {
+        "passed": 34
+      },
+      "tests.unit.runtime.test_ctp_i10_artifact_provenance": {
+        "passed": 4
+      },
+      "tests.unit.runtime.test_ctp_preflight": {
+        "passed": 21
+      },
+      "tests.unit.runtime.test_ctp_private_config_setup": {
+        "passed": 58,
+        "skipped": 3
+      },
+      "tests.unit.runtime.test_ctp_private_runtime_git_hygiene": {
+        "passed": 1
+      },
+      "tests.unit.runtime.test_ctp_production_private_config": {
+        "passed": 34,
+        "skipped": 1
+      },
+      "tests.unit.runtime.test_ctp_queue_receipt": {
+        "passed": 27
+      },
+      "tests.unit.runtime.test_ctp_same_path_cli_gate": {
+        "passed": 1
+      },
+      "tests.unit.runtime.test_ctp_sandbox_readonly_admission": {
+        "passed": 24
+      },
+      "tests.unit.runtime.test_ctp_sdk_market_readonly": {
+        "passed": 45
+      },
+      "tests.unit.runtime.test_ctp_sdk_readonly": {
+        "passed": 31
+      },
+      "tests.unit.runtime.test_ctp_simnow_config_operator_route": {
+        "passed": 39
+      },
+      "tests.unit.runtime.test_ctp_simnow_operator_route": {
+        "passed": 27
+      },
+      "tests.unit.runtime.test_ctp_simnow_readonly_runtime": {
+        "passed": 29
+      },
+      "tests.unit.runtime.test_framework_projection_source_events": {
+        "passed": 8
+      },
+      "tests.unit.runtime.test_managed_allocation_reader": {
+        "passed": 10
+      },
+      "tests.unit.runtime.test_managed_execution_bridge": {
+        "passed": 64
+      },
+      "tests.unit.runtime.test_provider_deployment": {
+        "passed": 46
+      },
+      "tests.unit.runtime.test_provider_preflight": {
+        "passed": 19
+      },
+      "tests.unit.runtime.test_runtime_batch_bootstrap": {
+        "passed": 8
+      },
+      "tests.unit.runtime.test_runtime_config": {
+        "passed": 67,
+        "skipped": 8
+      },
+      "tests.unit.runtime.test_runtime_live_dispatch_guard": {
+        "passed": 1
+      },
+      "tests.unit.runtime.test_runtime_operator_flow": {
+        "passed": 17
+      },
+      "tests.unit.runtime.test_runtime_operator_guidance": {
+        "passed": 16
+      },
+      "tests.unit.runtime.test_runtime_package_import_boundary": {
+        "passed": 2
+      },
+      "tests.unit.runtime.test_runtime_runner": {
+        "passed": 36,
+        "skipped": 5
+      },
+      "tests.unit.runtime.test_test_execution_profile": {
+        "passed": 35
+      },
+      "tests.unit.test_iteration43_entry_tier": {
+        "passed": 26
+      },
+      "tests.unit.test_iteration43_entry_tier_dispatch": {
+        "passed": 80,
+        "skipped": 3
+      },
+      "tests.unit.test_iteration43_example_layout_boundaries": {
+        "passed": 14,
+        "skipped": 1
+      },
+      "tests.unit.test_iteration43_live_observation": {
+        "passed": 6
+      },
+      "tests.unit.test_iteration43_options_live_observation": {
+        "passed": 3
+      },
+      "tests.unit.test_iteration43_sa_live_observation": {
+        "passed": 3
+      }
+    },
+    "failures": [
+      {
+        "class": "tests.unit.test_examples_self_contained",
+        "name": "test_example_folder_is_self_contained[000_live_certification]",
+        "message": "assert [\"live/000_li...ansport_zmq'\"] == []\n  \n  Left contains 3 more items, first extra item: \"live/000_live_certification/optional16/components.py imports 'bt_api_monitor'\"\n  Use -v to get more diff"
+      },
+      {
+        "class": "tests.unit.test_examples_self_contained",
+        "name": "test_vendored_support_copy_matches_its_canonical_source[ctp_example_support.py0]",
+        "message": "assert b'\"\"\"CTP Futu....cancel()\\r\\n' == b'\"\"\"CTP Futu... runner\")\\r\\n'\n  \n  At index 525 diff: b'\\r' != b' '\n  Use -v to get more diff"
+      },
+      {
+        "class": "tests.unit.test_examples_self_contained",
+        "name": "test_vendored_support_copy_matches_its_canonical_source[ctp_example_support.py1]",
+        "message": "assert b'\"\"\"CTP Futu....cancel()\\r\\n' == b'\"\"\"CTP Futu... runner\")\\r\\n'\n  \n  At index 525 diff: b'\\r' != b' '\n  Use -v to get more diff"
+      },
+      {
+        "class": "tests.unit.test_iteration42_component_boundaries",
+        "name": "test_standard_entry_import_never_pulls_a_component_package[012_1]",
+        "message": "ModuleNotFoundError: No module named 'entry_tier'"
+      },
+      {
+        "class": "tests.unit.test_iteration42_component_boundaries",
+        "name": "test_standard_entry_import_never_pulls_a_component_package[012_2]",
+        "message": "ModuleNotFoundError: No module named 'entry_tier'"
+      },
+      {
+        "class": "tests.unit.test_iteration42_component_boundaries",
+        "name": "test_standard_entry_import_never_pulls_a_component_package[013_1]",
+        "message": "ModuleNotFoundError: No module named 'entry_tier'"
+      },
+      {
+        "class": "tests.unit.test_iteration42_component_boundaries",
+        "name": "test_standard_entry_import_never_pulls_a_component_package[013_2]",
+        "message": "ModuleNotFoundError: No module named 'entry_tier'"
+      },
+      {
+        "class": "tests.unit.test_iteration42_live_front_failure_evidence",
+        "name": "test_every_live_entry_carries_the_dedicated_handler[013_1]",
+        "message": "assert 3 == 1\n +  where 3 = <built-in method count of str object at 0x000001CE8C971E90>('except simnow_direct.SimNowDirectError as exc:')\n +    where <built-in method count of str object at 0x000001CE8C971E90> = '#!/usr/bin/env python\\n\"\"\"013_1 standard entry — dry self-check / offline replay / SimNow live run.\\n\\nUsage (any int...  if _bootstrap_path not in sys.path:\\n            sys.path.insert(0, _bootstrap_path)\\n    raise SystemExit(main())\\n'.count"
+      },
+      {
+        "class": "tests.unit.test_iteration42_live_front_failure_evidence",
+        "name": "test_every_live_entry_carries_the_dedicated_handler[013_2]",
+        "message": "assert 3 == 1\n +  where 3 = <built-in method count of str object at 0x000001CE8C9AF0B0>('except simnow_direct.SimNowDirectError as exc:')\n +    where <built-in method count of str object at 0x000001CE8C9AF0B0> = '#!/usr/bin/env python\\n\"\"\"013_2 standard entry — dry self-check / offline replay / SimNow live run.\\n\\nUsage (any int...  if _bootstrap_path not in sys.path:\\n            sys.path.insert(0, _bootstrap_path)\\n    raise SystemExit(main())\\n'.count"
+      },
+      {
+        "class": "tests.unit.test_iteration42_live_front_failure_evidence",
+        "name": "test_every_live_entry_carries_the_dedicated_handler[013_3]",
+        "message": "assert 3 == 1\n +  where 3 = <built-in method count of str object at 0x000001CE8C9CC780>('except simnow_direct.SimNowDirectError as exc:')\n +    where <built-in method count of str object at 0x000001CE8C9CC780> = '#!/usr/bin/env python\\n\"\"\"013_3 standard entry — dry self-check / offline replay / SimNow live run.\\n\\nUsage (any int...n        )\\n    return run_dry(decision.as_evidence())\\n\\n\\nif __name__ == \"__main__\":\\n    raise SystemExit(main())\\n'.count"
+      },
+      {
+        "class": "tests.unit.test_iteration42_live_front_failure_evidence",
+        "name": "test_every_live_entry_carries_the_dedicated_handler[014_1]",
+        "message": "assert 3 == 1\n +  where 3 = <built-in method count of str object at 0x000001CE8C9E9DF0>('except simnow_direct.SimNowDirectError as exc:')\n +    where <built-in method count of str object at 0x000001CE8C9E9DF0> = '#!/usr/bin/env python\\n\"\"\"014_1 standard entry — dry self-check / offline replay / SimNow live adapter.\\n\\nUsage (Pyt...portable; the entry imports the\\n    # legacy engine lazily inside its functions only.\\n    raise SystemExit(main())\\n'.count"
+      }
+    ],
+    "skips": [
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_config_yaml_resolver_rejects_permissions_changed_after_load[file-420-config_yaml_file_unsafe]",
+        "message": "POSIX private config permission recheck"
+      },
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_config_yaml_resolver_rejects_permissions_changed_after_load[directory-493-config_yaml_directory_unsafe]",
+        "message": "POSIX private config permission recheck"
+      },
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_config_yaml_resolver_rejects_hard_link_added_after_load",
+        "message": "POSIX private config hard-link recheck"
+      },
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_posix_runtime_secrets_is_bound_to_the_registered_directory",
+        "message": "runtime_secrets requires POSIX owner/permission checks"
+      },
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_posix_runtime_secrets_rejects_symlink_and_unsafe_permissions",
+        "message": "runtime_secrets requires POSIX descriptor operations"
+      },
+      {
+        "class": "tests.unit.runtime.test_credential_resolver",
+        "name": "test_posix_runtime_secrets_requires_non_following_leaf_open",
+        "message": "runtime_secrets requires POSIX descriptor operations"
+      },
+      {
+        "class": "tests.unit.runtime.test_ctp_private_config_setup",
+        "name": "test_posix_ancestor_symlink_is_rejected_before_target_acl_change",
+        "message": "POSIX ancestor symlink rejection"
+      },
+      {
+        "class": "tests.unit.runtime.test_ctp_private_config_setup",
+        "name": "test_posix_post_create_directory_sync_failure_removes_created_config",
+        "message": "POSIX post-create failure cleanup"
+      },
+      {
+        "class": "tests.unit.runtime.test_ctp_private_config_setup",
+        "name": "test_posix_post_create_cleanup_preserves_replacement_entry",
+        "message": "POSIX identity-bound cleanup"
+      },
+      {
+        "class": "tests.unit.runtime.test_ctp_production_private_config",
+        "name": "test_owner_only_production_config_loads_through_private_gate",
+        "message": "POSIX private config permission gate"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_private_config_permission_gate_rejects_unsafe_modes_before_read[file-420]",
+        "message": "POSIX private config permission gate"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_private_config_permission_gate_rejects_unsafe_modes_before_read[directory-493]",
+        "message": "POSIX private config permission gate"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_private_config_hard_link_is_rejected_before_read",
+        "message": "POSIX private config hard-link gate"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_private_config_permission_change_during_read_is_rejected[file]",
+        "message": "POSIX config permission race check"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_private_config_permission_change_during_read_is_rejected[directory]",
+        "message": "POSIX config permission race check"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_registered_directory_symlink_replacement_keeps_the_identity_error",
+        "message": "this platform does not permit test directory symlink creation"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_config_loader_rejects_a_symlink_before_opening_target",
+        "message": "this platform does not permit test symlink creation"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_config",
+        "name": "test_config_loader_uses_no_follow_when_the_platform_exposes_it",
+        "message": "O_NOFOLLOW is not exposed by this platform"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_runner",
+        "name": "test_posix_runtime_directory_capability_exposes_no_public_path_or_descriptor",
+        "message": "POSIX directory capability coverage"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_runner",
+        "name": "test_posix_runner_capability_keeps_local_output_off_a_replacement_path",
+        "message": "POSIX directory capability coverage"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_runner",
+        "name": "test_posix_runner_capability_rejects_a_symlinked_child_component",
+        "message": "POSIX directory capability coverage"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_runner",
+        "name": "test_real_legacy_replay_ignores_a_cwd_backtrader_shadow_in_a_fresh_process[ITERATION41_013_2_REGISTRATION-LOCAL_REPLAY_PASS]",
+        "message": "the fresh-process shadow test will not replace an operator config.yaml"
+      },
+      {
+        "class": "tests.unit.runtime.test_runtime_runner",
+        "name": "test_real_legacy_replay_ignores_a_cwd_backtrader_shadow_in_a_fresh_process[ITERATION41_015_REGISTRATION-LOCAL_REPLAY_PASS]",
+        "message": "the fresh-process shadow test will not replace an operator config.yaml"
+      },
+      {
+        "class": "tests.unit.test_iteration43_entry_tier_dispatch",
+        "name": "test_replay_declaration_selects_handler_without_a_flag[013_2_highfreq_calendar_arbitrage]",
+        "message": "replay rows are sampled; the gate rows pin the same decision path"
+      },
+      {
+        "class": "tests.unit.test_iteration43_entry_tier_dispatch",
+        "name": "test_replay_declaration_selects_handler_without_a_flag[013_3_sa_midfreq_simnow]",
+        "message": "replay rows are sampled; the gate rows pin the same decision path"
+      },
+      {
+        "class": "tests.unit.test_iteration43_entry_tier_dispatch",
+        "name": "test_replay_declaration_selects_handler_without_a_flag[014_2_ctp_options_midfreq]",
+        "message": "replay rows are sampled; the gate rows pin the same decision path"
+      },
+      {
+        "class": "tests.unit.test_iteration43_example_layout_boundaries",
+        "name": "test_unified_leaf_with_an_entry_keeps_its_tier_contract[007_ctp]",
+        "message": "007_ctp has no run.py tier entry"
+      }
+    ]
+  },
+  "new_pytest_failures_vs_frozen_baseline": 8,
+  "known_pytest_failures": 3,
+  "registry_smoke": {
+    "passed": 8,
+    "failed": 0,
+    "skipped_private_readonly": 2
+  },
+  "ruff_examples": {
+    "exit_code": 1,
+    "issues": 176,
+    "by_code": {
+      "F401": 29,
+      "F841": 11,
+      "F541": 7,
+      "SIM114": 1,
+      "E402": 96,
+      "PIE790": 6,
+      "C408": 12,
+      "B904": 5,
+      "RET505": 3,
+      "RET502": 1,
+      "SIM112": 4,
+      "RET501": 1
+    },
+    "baseline_count": 176,
+    "per_node_no_regression_not_claimed": true
+  },
+  "ruff_core_runtime": {
+    "exit_code": 0
+  },
+  "fresh_process_imports": {
+    "passed": 4,
+    "total": 8
+  },
+  "actual_explicit_offline_replays": {
+    "passed": 8,
+    "total": 8
+  },
+  "unknown_entry_key_fake_handler": {
+    "kind": "unknown_entry_key_fake_handler",
+    "exit_code": 0,
+    "stdout": "{\"unknown_entry_key_dispatched_handler\": [\"live\"], \"return_code\": 91, \"evidence_level\": \"SYNTHETIC_CONFIG_FAKE_HANDLER_ONLY\"}\n",
+    "stderr": ""
+  },
+  "fake_store_cleanup_probe": {
+    "rows": [
+      {
+        "entry": "013_1_midfreq_cross_arbitrage",
+        "evidence_level": "EXISTING_PUBLIC_FAKE_LEAF_FIXTURE_WITH_SYNTHETIC_STOP_FAILURE_ONLY",
+        "exit_code": 0,
+        "status": "LIVE_OBSERVE_PASS",
+        "fake_lifecycle": [
+          "start",
+          "wait_ready",
+          "stop_failed"
+        ],
+        "persisted_status": "LIVE_OBSERVE_PASS",
+        "cleanup_failure_reported": false
+      },
+      {
+        "entry": "013_2_highfreq_calendar_arbitrage",
+        "evidence_level": "EXISTING_PUBLIC_FAKE_LEAF_FIXTURE_WITH_SYNTHETIC_STOP_FAILURE_ONLY",
+        "exit_code": 0,
+        "status": "LIVE_OBSERVE_PASS",
+        "fake_lifecycle": [
+          "start",
+          "wait_ready",
+          "stop_failed"
+        ],
+        "persisted_status": "LIVE_OBSERVE_PASS",
+        "cleanup_failure_reported": false
+      },
+      {
+        "entry": "013_3_sa_midfreq_simnow",
+        "evidence_level": "EXISTING_PUBLIC_FAKE_LEAF_FIXTURE_WITH_SYNTHETIC_STOP_FAILURE_ONLY",
+        "exit_code": 0,
+        "status": "LIVE_OBSERVE_PASS",
+        "fake_lifecycle": [
+          "start",
+          "wait_ready",
+          "stop_failed"
+        ],
+        "persisted_status": "LIVE_OBSERVE_PASS",
+        "cleanup_failure_reported": false
+      },
+      {
+        "entry": "014_1_ctp_options_lowfreq",
+        "evidence_level": "EXISTING_PUBLIC_FAKE_LEAF_FIXTURE_WITH_SYNTHETIC_STOP_FAILURE_ONLY",
+        "exit_code": 0,
+        "status": "LIVE_OBSERVE_PASS",
+        "fake_lifecycle": [
+          "start",
+          "wait_ready",
+          "stop_failed"
+        ],
+        "persisted_status": "LIVE_OBSERVE_PASS",
+        "cleanup_failure_reported": false
+      }
+    ],
+    "false_passes_after_stop_failure": 4,
+    "probe_count": 4
+  },
+  "certification_copy_dry": {
+    "accepted_checks": 114,
+    "total_checks": 114,
+    "case_local": 99,
+    "alternate_cwd": 9,
+    "missing_synthetic_env": 3,
+    "missing_public_config": 3,
+    "tracked_public_files_copied": 339
+  },
+  "optional16_copy_dry": {
+    "case_runs": 32,
+    "exit_code": 0,
+    "topologies": 16,
+    "evidence_level": "SYNTHETIC_ENV_DRY_ONLY"
+  },
+  "case_payload_identity": {
+    "baseline": "322e501c1",
+    "current": "9ef0e00aa38da900ca8835d93b81f2c16cf782d9",
+    "case_files_compared": 297,
+    "same_git_blobs": true,
+    "mismatches": []
+  },
+  "environment_metadata": {
+    "installed_backtrader_probe": {
+      "command": [
+        "C:/anaconda3/python.exe",
+        "-B",
+        "-c",
+        "import backtrader,json; print(json.dumps({\"source\":backtrader.__file__,\"version\":backtrader.__version__}))"
+      ],
+      "cwd": "D:\\temp\\iteration43-acceptance-20261012-f5112bf7",
+      "exit_code": 0,
+      "stdout": "{\"source\": \"C:\\\\anaconda3\\\\Lib\\\\site-packages\\\\backtrader\\\\__init__.py\", \"version\": \"1.3.0\"}\n",
+      "stderr": ""
+    },
+    "ignore_metadata_probe": {
+      "paths": [
+        ".env",
+        "examples/live/000_live_certification/simnow_penetration/config.yaml",
+        "examples/live/000_live_certification/okx_penetration/config.yaml",
+        "examples/live/000_live_certification/binance_penetration/config.yaml",
+        "examples/live/000_live_certification/binance_penetration/secrets.yaml",
+        "examples/unified/013_3_sa_midfreq_simnow/config.runtime.private.yaml"
+      ],
+      "exit_code": 0,
+      "stdout": ".gitignore:123:.env\t.env\n.gitignore:176:examples/live/000_live_certification/*_penetration/config.yaml\texamples/live/000_live_certification/simnow_penetration/config.yaml\n.gitignore:176:examples/live/000_live_certification/*_penetration/config.yaml\texamples/live/000_live_certification/okx_penetration/config.yaml\n.gitignore:176:examples/live/000_live_certification/*_penetration/config.yaml\texamples/live/000_live_certification/binance_penetration/config.yaml\n.gitignore:177:examples/live/000_live_certification/*_penetration/secrets.yaml\texamples/live/000_live_certification/binance_penetration/secrets.yaml\n",
+      "stderr": ""
+    }
+  },
+  "private_or_account_acceptance_added": 0,
+  "findings": [
+    {
+      "id": "I43-A01",
+      "priority": "P1",
+      "finding": "Four observation handlers persist success despite fake stop failure",
+      "evidence": "Same-call synthetic leaf probe plus independent static source review"
+    },
+    {
+      "id": "I43-A02",
+      "priority": "P1",
+      "finding": "Four unified run modules cannot be imported normally",
+      "evidence": "Four existing boundary pytest failures plus four fresh-process import failures"
+    },
+    {
+      "id": "I43-A03",
+      "priority": "P2",
+      "finding": "Four legacy front-error tests fail on new handler count",
+      "evidence": "Four existing pytest failures; static count is three rather than one"
+    },
+    {
+      "id": "I43-A04",
+      "priority": "P2",
+      "finding": "Unknown nested entry key reaches fake live handler; falsey root YAML collapses to empty mapping",
+      "evidence": "014_2 synthetic config/fake handler plus static source review"
+    },
+    {
+      "id": "I43-A05",
+      "priority": "P2",
+      "finding": "Dispatcher/config/evidence coverage and test isolation are incomplete",
+      "evidence": "Static review; no provider invocation"
+    },
+    {
+      "id": "I43-A06",
+      "priority": "P2",
+      "finding": "Copy acceptance has origin, skip, coverage and artifact-assertion gaps",
+      "evidence": "42 current tests pass with zero copy skips, but source contract is weaker than general claim"
+    },
+    {
+      "id": "I43-A07",
+      "priority": "P2",
+      "finding": "Data and completion documentation exceed demonstrated capability",
+      "evidence": "Static review and frozen R6/R7 record comparison"
+    }
+  ]
+}
