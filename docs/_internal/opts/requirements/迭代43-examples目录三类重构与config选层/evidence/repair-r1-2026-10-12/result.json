@@ -1,0 +1,53 @@
+{
+  "name": "r1",
+  "head": "efd44f763dad343d0fa1c47d5ed9e234a6d4ed1b",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration43_live_observation.py",
+    "tests/unit/test_iteration43_sa_live_observation.py",
+    "tests/unit/test_iteration43_options_live_observation.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_r1",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\r1.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 5.391,
+  "unrelated_changes_preserved": true,
+  "log": {
+    "size_bytes": 632,
+    "sha256": "4f4a573e83117a04d3d426b36f66dace4c77084e7aef93cb8d96cf9a03920af3"
+  },
+  "xml": {
+    "size_bytes": 10050,
+    "sha256": "364b1850590b530fed865c2a24fa15bcbc786a80a78044229d50a8d8602d9596"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 56,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+    "examples/unified/013_3_sa_midfreq_simnow/run.py",
+    "examples/unified/014_1_ctp_options_lowfreq/run.py",
+    "tests/unit/test_iteration43_live_observation.py",
+    "tests/unit/test_iteration43_sa_live_observation.py",
+    "tests/unit/test_iteration43_options_live_observation.py"
+  ],
+  "parent_commit": "efd44f763dad343d0fa1c47d5ed9e234a6d4ed1b",
+  "branch": "dev",
+  "title": "require-confirmed-observation-cleanup",
+  "account_acceptance_added": 0
+}

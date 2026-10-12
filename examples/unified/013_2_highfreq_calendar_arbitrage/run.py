@@ -70,6 +70,57 @@ class LiveRejected(RuntimeError):
         self.exit_code = int(exit_code)
 
 
+_OBSERVATION_CLEANUP_KEEPALIVE: List[Any] = []
+
+
+def _observation_cleanup_error(exc: BaseException, *, phase: str) -> Dict[str, str]:
+    exception_type = type(exc).__name__
+    if len(exception_type) > 64 or not exception_type.isascii() or not exception_type.isidentifier():
+        exception_type = "Exception"
+    return {"phase": phase, "exception_type": exception_type}
+
+
+def _observation_close_health_error(health: Any, *, phase: str) -> Optional[Dict[str, str]]:
+    if not isinstance(health, Mapping):
+        return {"phase": phase, "reason": "health_not_mapping"}
+    false_fields = (
+        "worker_alive",
+        "close_thread_alive",
+        "funding_worker_alive",
+        "restart_blocked_by_worker",
+        "restart_blocked_by_close",
+        "funding_restart_blocked_by_worker",
+        "read_only_metadata_probe_active",
+        "funding_inflight",
+    )
+    zero_fields = (
+        "queue_depth",
+        "inflight",
+        "publications_pending",
+        "broker_update_queue_depth",
+        "funding_queue_depth",
+        "funding_pending",
+    )
+    try:
+        if "shutdown_state" not in health:
+            return {"phase": phase, "reason": "health_field_missing", "field": "shutdown_state"}
+        if health.get("shutdown_state") != "PASS":
+            return {"phase": phase, "reason": "shutdown_state_not_pass"}
+        for field in false_fields:
+            if field not in health:
+                return {"phase": phase, "reason": "health_field_missing", "field": field}
+            if type(health[field]) is not bool or health[field] is not False:
+                return {"phase": phase, "reason": "health_flag_not_false", "field": field}
+        for field in zero_fields:
+            if field not in health:
+                return {"phase": phase, "reason": "health_field_missing", "field": field}
+            if type(health[field]) is not int or health[field] != 0:
+                return {"phase": phase, "reason": "health_count_not_zero", "field": field}
+    except Exception:
+        return {"phase": phase, "reason": "health_unreadable"}
+    return None
+
+
 def _json_print(payload: Mapping[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
 
@@ -601,6 +652,8 @@ def run_live_observe(args) -> int:
             pass
 
     store = None
+    observation_ready_to_pass = False
+    result_code = EXIT_BLOCKED
     try:
         credentials = {
             "broker_id": _resolve_ref(
@@ -690,9 +743,21 @@ def run_live_observe(args) -> int:
                 store = attempt_store
                 break
             try:
-                attempt_store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
-            except Exception:
-                pass
+                close_health = attempt_store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
+            except Exception as exc:
+                cleanup_error = _observation_cleanup_error(exc, phase="front_attempt_stop")
+            else:
+                cleanup_error = _observation_close_health_error(close_health, phase="front_attempt_stop")
+            if cleanup_error is not None:
+                record.update({"cleanup_status": "uncertain", "cleanup_error": cleanup_error})
+                _OBSERVATION_CLEANUP_KEEPALIVE.append(attempt_store)
+                summary["admission_attempts"] = attempts
+                raise LiveRejected(
+                    "cleanup_uncertain",
+                    {"front_index": record["index"], "cleanup_error": cleanup_error},
+                )
+            else:
+                record["cleanup_status"] = "closed"
         summary["admission_attempts"] = attempts
         if store is None:
             raise LiveRejected("no_observable_front_pair", {"attempts": attempts})
@@ -705,33 +770,56 @@ def run_live_observe(args) -> int:
             summary["write_health"] = dict(store.registered_sim_write_health())
         except Exception as exc:
             summary["write_health_error"] = f"{type(exc).__name__}: {exc}"
-        summary["status"] = "LIVE_OBSERVE_PASS"
-        summary["boundary"] = "SESSION_AND_QUERY_OBSERVATION_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE"
-        _write_summary()
-        return EXIT_PASS
+        observation_ready_to_pass = True
     except simnow_direct.SimNowDirectError as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
-        _write_summary()
-        _json_print(summary)
-        return EXIT_BLOCKED
+        result_code = EXIT_BLOCKED
     except LiveRejected as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
-        _write_summary()
-        _json_print(summary)
-        return exc.exit_code
+        if exc.reason == "cleanup_uncertain":
+            summary["cleanup_status"] = "uncertain"
+            summary["cleanup_error"] = dict(exc.details.get("cleanup_error") or {})
+        result_code = exc.exit_code
     except Exception as exc:
         summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})
-        _write_summary()
-        _json_print(summary)
-        return EXIT_BLOCKED
+        result_code = EXIT_BLOCKED
     finally:
         if store is not None:
             try:
-                store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
-            except Exception:
-                pass
+                close_health = store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
+            except Exception as exc:
+                cleanup_error = _observation_cleanup_error(exc, phase="selected_store_stop")
+            else:
+                cleanup_error = _observation_close_health_error(close_health, phase="selected_store_stop")
+            if cleanup_error is not None:
+                _OBSERVATION_CLEANUP_KEEPALIVE.append(store)
+                summary.update(
+                    {
+                        "status": "BLOCKED",
+                        "reason": "cleanup_uncertain",
+                        "cleanup_status": "uncertain",
+                        "cleanup_error": cleanup_error,
+                    }
+                )
+                for record in summary.get("admission_attempts", []):
+                    if record.get("result") == "observed":
+                        record.update({"cleanup_status": "uncertain", "cleanup_error": cleanup_error})
+                        break
+                observation_ready_to_pass = False
+                result_code = EXIT_BLOCKED
+            else:
+                summary["cleanup_status"] = "closed"
+                for record in summary.get("admission_attempts", []):
+                    if record.get("result") == "observed":
+                        record["cleanup_status"] = "closed"
+                        break
+                if observation_ready_to_pass:
+                    summary["status"] = "LIVE_OBSERVE_PASS"
+                    summary["boundary"] = "SESSION_AND_QUERY_OBSERVATION_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE"
+                    result_code = EXIT_PASS
         _write_summary()
         _json_print(summary)
+    return result_code
 
 
 def run_live(args) -> int:
