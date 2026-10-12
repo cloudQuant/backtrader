@@ -790,9 +790,18 @@ def run_live_observe(args) -> int:
 
 
 def run_live(args) -> int:
+    tier_decision = getattr(args, "tier_decision", None)
+    tier_evidence = tier_decision.as_evidence() if tier_decision is not None else {}
+    write_grant_result = (
+        "requested_not_yet_admitted"
+        if getattr(args, "allow_write", False)
+        else "not_requested"
+    )
     if sys.version_info[:2] != (3, 11):
         _json_print(
             {
+                "entry_tier": dict(tier_evidence or {}),
+                "write_grant_result": write_grant_result,
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "live_tier_requires_python_3_11",
@@ -818,6 +827,8 @@ def run_live(args) -> int:
     if not args.allow_write:
         _json_print(
             {
+                "entry_tier": dict(tier_evidence or {}),
+                "write_grant_result": write_grant_result,
                 "status": "REJECTED",
                 "mode": "live",
                 "error": "write_consent_missing",
@@ -828,11 +839,27 @@ def run_live(args) -> int:
     try:
         config, legacy_config, config_path = _load_config()
     except Exception as exc:
-        _json_print({"status": "REJECTED", "mode": "live", "error": f"{type(exc).__name__}: {exc}"})
+        _json_print(
+            {
+                "entry_tier": dict(tier_evidence or {}),
+                "write_grant_result": write_grant_result,
+                "status": "REJECTED",
+                "mode": "live",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
         return EXIT_BLOCKED
     errors = _new_section_errors(config)
     if errors:
-        _json_print({"status": "REJECTED", "mode": "live", "errors": errors})
+        _json_print(
+            {
+                "entry_tier": dict(tier_evidence or {}),
+                "write_grant_result": write_grant_result,
+                "status": "REJECTED",
+                "mode": "live",
+                "errors": errors,
+            }
+        )
         return EXIT_BLOCKED
     env = _load_env()
     _ensure_dev_sdk_path(strict=True)
@@ -848,6 +875,8 @@ def run_live(args) -> int:
     output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
     output_directory.mkdir(parents=True, exist_ok=True)
     summary: Dict[str, Any] = {
+        "entry_tier": dict(tier_evidence or {}),
+        "write_grant_result": write_grant_result,
         "schema_version": 1,
         "run_id": run_id,
         "example_id": "013_3_sa_midfreq_simnow",
@@ -1043,6 +1072,8 @@ def run_live(args) -> int:
             "preflight_sha256": preflight_sha,
             "gate_state": arm_result.get("state"),
         }
+        if summary["admission"].get("admitted") is True:
+            summary["write_grant_result"] = "admitted"
 
         # The sealed-bar evidence chain consumes caller-owned tick provenance:
         # without it every live bar is rejected for a missing
@@ -1417,6 +1448,8 @@ def main(argv=None) -> int:
         print(
             json.dumps(
                 {
+                    "entry_tier": {},
+                    "write_grant_result": "not_evaluated",
                     "status": "REJECTED",
                     "error": "unknown_arguments_rejected",
                     "unknown_count": len(unknown),
@@ -1426,7 +1459,16 @@ def main(argv=None) -> int:
         )
         return EXIT_BLOCKED
     if args.allow_dangerous:
-        print(json.dumps({"status": "REJECTED", "error": "no_dangerous_actions_defined"}))
+        print(
+            json.dumps(
+                {
+                    "entry_tier": {},
+                    "write_grant_result": "not_evaluated",
+                    "status": "REJECTED",
+                    "error": "no_dangerous_actions_defined",
+                }
+            )
+        )
         return EXIT_BLOCKED
     # ``config.entry.tier`` selects the channel; a mode flag may only keep or
     # lower it, and a malformed declaration is rejected before any provider side
@@ -1434,7 +1476,14 @@ def main(argv=None) -> int:
     try:
         tier_config = _load_config()[0]
     except Exception as exc:  # a config that cannot be read is not a live request
-        _json_print({"status": "BLOCKED", "reason": f"tier_config_unreadable:{type(exc).__name__}"})
+        _json_print(
+            {
+                "entry_tier": {},
+                "write_grant_result": "not_evaluated",
+                "status": "BLOCKED",
+                "reason": f"tier_config_unreadable:{type(exc).__name__}",
+            }
+        )
         return EXIT_BLOCKED
     cli_tier = "live" if args.live else "replay" if args.replay else "dry" if args.dry else None
     decision = entry_tier.decide(tier_config, cli_tier)

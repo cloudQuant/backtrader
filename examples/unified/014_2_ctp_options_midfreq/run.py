@@ -1000,6 +1000,8 @@ def main(argv=None) -> int:
     if unknown:
         _json_print(
             {
+                "entry_tier": {},
+                "write_grant_result": "not_evaluated",
                 "status": "REJECTED",
                 "error": "unknown_arguments_rejected",
                 "unknown_count": len(unknown),
@@ -1007,7 +1009,14 @@ def main(argv=None) -> int:
         )
         return EXIT_BLOCKED
     if args.allow_dangerous:
-        _json_print({"status": "REJECTED", "error": "no_dangerous_actions_defined"})
+        _json_print(
+            {
+                "entry_tier": {},
+                "write_grant_result": "not_evaluated",
+                "status": "REJECTED",
+                "error": "no_dangerous_actions_defined",
+            }
+        )
         return EXIT_BLOCKED
     # ``config.entry.tier`` selects the channel; a mode flag may only keep or
     # lower it, and a malformed declaration is rejected before any provider side
@@ -1015,7 +1024,14 @@ def main(argv=None) -> int:
     try:
         tier_config = _load_raw_config()
     except Exception as exc:  # a config that cannot be read is not a live request
-        _json_print({"status": "BLOCKED", "reason": f"tier_config_unreadable:{type(exc).__name__}"})
+        _json_print(
+            {
+                "entry_tier": {},
+                "write_grant_result": "not_evaluated",
+                "status": "BLOCKED",
+                "reason": f"tier_config_unreadable:{type(exc).__name__}",
+            }
+        )
         return EXIT_BLOCKED
     cli_tier = "live" if args.live else "replay" if args.replay else "dry" if args.dry else None
     decision = entry_tier.decide(tier_config, cli_tier)
