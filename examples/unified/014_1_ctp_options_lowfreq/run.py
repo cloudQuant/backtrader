@@ -69,8 +69,21 @@ _OBSERVATION_CLEANUP_KEEPALIVE: List[Any] = []
 
 def _observation_cleanup_error(exc: BaseException, *, phase: str) -> Dict[str, str]:
     exception_type = type(exc).__name__
-    if len(exception_type) > 64 or not exception_type.isascii() or not exception_type.isidentifier():
-        exception_type = "Exception"
+    if exception_type not in {
+        "AttributeError",
+        "AssertionError",
+        "FileNotFoundError",
+        "ImportError",
+        "KeyError",
+        "LiveRejected",
+        "OSError",
+        "RuntimeError",
+        "SimNowDirectError",
+        "TimeoutError",
+        "TypeError",
+        "ValueError",
+    }:
+        exception_type = "OtherException"
     return {"phase": phase, "exception_type": exception_type}
 
 
@@ -123,6 +136,36 @@ def _load_legacy():
         import legacy_runner
     return legacy_runner
 
+
+
+def _close_registered_live_store(
+    store: Any, *, timeout: float, action: Optional[str], reason: str
+) -> Optional[Dict[str, Any]]:
+    """Run each selected cleanup operation once and require Store.stop health."""
+    failures: List[Dict[str, str]] = []
+    if action == "freeze":
+        try:
+            store.registered_sim_freeze(reason)
+        except Exception as exc:
+            failures.append(_observation_cleanup_error(exc, phase="registered_sim_freeze"))
+    elif action == "disarm":
+        try:
+            store.registered_sim_disarm(reason)
+        except Exception as exc:
+            failures.append(_observation_cleanup_error(exc, phase="registered_sim_disarm"))
+    try:
+        close_health = store.stop(timeout=timeout)
+    except Exception as exc:
+        failures.append(_observation_cleanup_error(exc, phase="store_stop"))
+    else:
+        close_error = _observation_close_health_error(close_health, phase="store_stop")
+        if close_error is not None:
+            failures.append(close_error)
+    if not failures:
+        return None
+    if not any(item is store for item in _OBSERVATION_CLEANUP_KEEPALIVE):
+        _OBSERVATION_CLEANUP_KEEPALIVE.append(store)
+    return {"phase": "store_cleanup", "failures": failures}
 
 def _observation_write_health_projection(
     health: Any,
@@ -1156,6 +1199,7 @@ def run_live(args) -> int:
 
     store = None
     frozen = False
+    result_code = EXIT_BLOCKED
     try:
         credentials = {
             "broker_id": _resolve_ref(
@@ -1329,18 +1373,37 @@ def run_live(args) -> int:
                 }
                 break
             except Exception as exc:
-                attempt_record["error"] = f"{type(exc).__name__}: {exc}"
+                attempt_record["error_type"] = _observation_cleanup_error(
+                    exc, phase="front_admission"
+                )["exception_type"]
                 if isinstance(exc, LiveRejected):
+                    attempt_record["error"] = exc.reason
                     attempt_record["error_details"] = dict(exc.details)
+                elif isinstance(exc, simnow_direct.SimNowDirectError):
+                    attempt_record["error"] = exc.reason
+                    attempt_record["error_details"] = dict(exc.details)
+                cleanup_error = _close_registered_live_store(
+                    attempt_store,
+                    timeout=float(timeouts.get("stop_seconds") or 12.0),
+                    action="disarm",
+                    reason="pair_attempt_failed",
+                )
+                if cleanup_error is not None:
+                    attempt_record["cleanup_status"] = "uncertain"
+                    attempt_record["cleanup_error"] = cleanup_error
+                    summary["cleanup_status"] = "uncertain"
+                    summary["cleanup_error"] = cleanup_error
+                    attempts.append(attempt_record)
+                    store = None
+                    summary["admission_attempts"] = attempts
+                    summary["cleanup_prior_outcome"] = {"business_error_type": attempt_record.get("error_type")}
+                    if attempt_record.get("error") is not None:
+                        summary["cleanup_prior_outcome"]["reason"] = attempt_record["error"]
+                    if attempt_record.get("error_details") is not None:
+                        summary["cleanup_prior_outcome"]["details"] = attempt_record["error_details"]
+                    raise LiveRejected("cleanup_uncertain", {"cleanup_error": cleanup_error})
+                attempt_record["cleanup_status"] = "closed"
                 attempts.append(attempt_record)
-                try:
-                    attempt_store.registered_sim_disarm("pair_attempt_failed")
-                except Exception:
-                    pass
-                try:
-                    attempt_store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
-                except Exception:
-                    pass
                 store = None
         summary["admission_attempts"] = attempts
         if armed is None:
@@ -1727,39 +1790,45 @@ def run_live(args) -> int:
             code_exit = EXIT_UNKNOWN
         summary["tier"] = "fill_round_trip" if summary["status"] == "PASS" else "lifecycle_only"
         summary["writes_policy"] = {"max_actions": policy.get("max_actions"), "allow_write": True}
-        _write_summary()
-        return code_exit
+        result_code = code_exit
     except simnow_direct.SimNowDirectError as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        _write_summary()
-        _json_print(summary)
-        return EXIT_BLOCKED
+        result_code = EXIT_BLOCKED
     except LiveRejected as exc:
         summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        _write_summary()
-        _json_print(summary)
-        return exc.exit_code
+        result_code = exc.exit_code
     except Exception as exc:
-        summary.update({"status": "BLOCKED", "reason": f"{type(exc).__name__}: {exc}"})
-        _write_summary()
-        _json_print(summary)
-        return EXIT_BLOCKED
+        failure = _observation_cleanup_error(exc, phase="live_handler")
+        summary.update({"status": "BLOCKED", "reason": "handler_exception", "business_error_type": failure["exception_type"]})
+        result_code = EXIT_BLOCKED
     finally:
         if store is not None:
-            try:
-                if frozen:
-                    store.registered_sim_freeze("residual_exposure_after_run")
-                else:
-                    store.registered_sim_disarm("run_finished")
-            except Exception:
-                pass
-            try:
-                store.stop(timeout=float((live.get("timeouts") or {}).get("stop_seconds") or 12.0))
-            except Exception:
-                pass
+            cleanup_error = _close_registered_live_store(
+                store,
+                timeout=float((live.get('timeouts') or {}).get("stop_seconds") or 12.0),
+                action="freeze" if frozen else "disarm",
+                reason="residual_exposure_after_run" if frozen else "run_finished",
+            )
+            if cleanup_error is None:
+                summary["cleanup_status"] = "closed"
+            else:
+                prior_outcome = {"status": summary.get("status")}
+                for field in ("reason", "business_error_type", "details"):
+                    if summary.get(field) is not None:
+                        prior_outcome[field] = summary.get(field)
+                summary["cleanup_prior_outcome"] = prior_outcome
+                summary.update(
+                    {
+                        "status": "BLOCKED",
+                        "reason": "cleanup_uncertain",
+                        "cleanup_status": "uncertain",
+                        "cleanup_error": cleanup_error,
+                    }
+                )
+                result_code = EXIT_BLOCKED
         _write_summary()
         _json_print(summary)
-
+    return result_code
 
 # -------------------------------------------------------------------------- main
 def main(argv=None) -> int:

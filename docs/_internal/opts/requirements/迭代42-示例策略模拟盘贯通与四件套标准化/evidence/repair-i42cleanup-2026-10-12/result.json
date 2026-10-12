@@ -1,0 +1,155 @@
+{
+  "name": "i42cleanup",
+  "head": "2edf40cb9b6b9d29d481b6819811e1fff9a5a489",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-B",
+    "-m",
+    "pytest",
+    "tests/unit/test_iteration42_live_final_cleanup.py",
+    "tests/unit/test_iteration42_observation_final_cleanup.py",
+    "tests/unit/test_iteration42_component_boundaries.py",
+    "tests/unit/test_iteration42_live_front_failure_evidence.py",
+    "tests/unit/test_iteration42_live_tick_provenance.py",
+    "tests/unit/test_iteration42_options_live_chain.py",
+    "tests/unit/test_iteration42_simnow_multiarm.py",
+    "tests/unit/test_iteration43_live_observation.py",
+    "tests/unit/test_iteration43_sa_live_observation.py",
+    "tests/unit/test_iteration43_options_live_observation.py",
+    "--noconftest",
+    "-q",
+    "-ra",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:\\temp\\iteration43-repair-20261012-efd44f76\\tmp_i42cleanup",
+    "--junitxml=D:\\temp\\iteration43-repair-20261012-efd44f76\\i42cleanup.xml"
+  ],
+  "cwd": "D:\\source_code\\backtrader",
+  "exit_code": 0,
+  "elapsed_seconds": 13.063,
+  "unrelated_changes_preserved": true,
+  "source_pins": {
+    "backtrader/stores/btapistore.py": {
+      "size_bytes": 804890,
+      "sha256": "4e312cc6eda7ed259aa59b3a99bcd15908d247b64fe79e5634d4499e62971943"
+    },
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py": {
+      "size_bytes": 73543,
+      "sha256": "9c7631643ef131029088776dfd9497f5d9ac13cb1dbf88c3634624facbcab994"
+    },
+    "examples/unified/013_1_midfreq_cross_arbitrage/simnow_direct.py": {
+      "size_bytes": 37341,
+      "sha256": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3"
+    },
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py": {
+      "size_bytes": 74156,
+      "sha256": "89275e88cab89b907c1ff4398fe3545b310fa7e2cb77395765544875f7046883"
+    },
+    "examples/unified/013_2_highfreq_calendar_arbitrage/simnow_direct.py": {
+      "size_bytes": 37341,
+      "sha256": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3"
+    },
+    "examples/unified/013_3_sa_midfreq_simnow/run.py": {
+      "size_bytes": 73681,
+      "sha256": "a845cd750e89ed05936d5bd82df1b881ab3c6c8bb0f88b2b824847f3c07af798"
+    },
+    "examples/unified/013_3_sa_midfreq_simnow/simnow_direct.py": {
+      "size_bytes": 37341,
+      "sha256": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3"
+    },
+    "examples/unified/014_1_ctp_options_lowfreq/run.py": {
+      "size_bytes": 84815,
+      "sha256": "13a3d0f4f767e250f928a437f8ee7e3f2454eed441e59c6877edd74a1d46cb44"
+    },
+    "examples/unified/014_1_ctp_options_lowfreq/simnow_direct.py": {
+      "size_bytes": 37341,
+      "sha256": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3"
+    },
+    "examples/unified/014_2_ctp_options_midfreq/run.py": {
+      "size_bytes": 51956,
+      "sha256": "98bb6f9caf7fa710dfcff9e43610d898cfdf8c697cf8f3e39ef891e92f512cf2"
+    },
+    "examples/unified/014_2_ctp_options_midfreq/simnow_direct.py": {
+      "size_bytes": 37341,
+      "sha256": "262fd127eb88be682cdf82dd47247d818143509426a44d5cbbdb99699e37c5c3"
+    },
+    "tests/unit/test_iteration42_component_boundaries.py": {
+      "size_bytes": 5680,
+      "sha256": "595c1078dcf5376f4bee4d47a1ecc2cf8b37f4a2388e1dc20d25a846615c1c5f"
+    },
+    "tests/unit/test_iteration42_live_final_cleanup.py": {
+      "size_bytes": 26187,
+      "sha256": "41aebb593f56e5b2c23f99c6011e8dddf032c3439d6b1adf2ca57d80e1302a2a"
+    },
+    "tests/unit/test_iteration42_live_front_failure_evidence.py": {
+      "size_bytes": 8270,
+      "sha256": "68dfedd7c0a7431c7ef7449c2819b43228da2101f69ffee8af9951f7a51a9e0e"
+    },
+    "tests/unit/test_iteration42_live_tick_provenance.py": {
+      "size_bytes": 5612,
+      "sha256": "e971d65344e8f5f7840e7bce11d5397efbfd16001bdabed2248d07f1ef583c2e"
+    },
+    "tests/unit/test_iteration42_observation_final_cleanup.py": {
+      "size_bytes": 19607,
+      "sha256": "755552cdec332746b83a01a2b0284ee92d054ca161e9be03177f6737a5f5596b"
+    },
+    "tests/unit/test_iteration42_options_live_chain.py": {
+      "size_bytes": 15252,
+      "sha256": "f331106d16b4b7bf9b5ad6d1ee652331c025fb7ea1068ed39f78e67b46eb931b"
+    },
+    "tests/unit/test_iteration42_simnow_multiarm.py": {
+      "size_bytes": 9761,
+      "sha256": "c14adaeef9d9948dc706e398134d082110fecd8b651707cb431f890b5bd3c4bb"
+    },
+    "tests/unit/test_iteration43_live_observation.py": {
+      "size_bytes": 25692,
+      "sha256": "fcf869ef44bbde1d0623e9445e93679b927da64ce46bae69c4e08e4981fdc4f1"
+    },
+    "tests/unit/test_iteration43_options_live_observation.py": {
+      "size_bytes": 22993,
+      "sha256": "3fc6c499c1e57ed45a9466d28faf8b81a498b93c7e37416a00f34ca0ac0474fc"
+    },
+    "tests/unit/test_iteration43_sa_live_observation.py": {
+      "size_bytes": 22683,
+      "sha256": "bd841358664a8caee7d701dbebb621b17a761d704389ef0cf756f22993b159d4"
+    }
+  },
+  "log": {
+    "size_bytes": 800,
+    "sha256": "d9721ad42374b3ecac2a674ac8090f433b1a9739159867ba69b9429c6f3f3634"
+  },
+  "xml": {
+    "size_bytes": 36420,
+    "sha256": "65bef15eae411a40af1278b276bc9c9b5fb7e07c75d0dec2b9a463d0770baca2"
+  },
+  "environment_flags": {
+    "BT_I43_COPY_STRICT": null,
+    "MPLBACKEND": "Agg",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "harness": {
+    "size_bytes": 3744,
+    "sha256": "d269c9018967876c693c7040844d8cb0f159d3226984d39c8bea5970ed206d85"
+  },
+  "evidence_level": "SOURCE_FAKE_AND_OFFLINE_ONLY",
+  "counts": {
+    "passed": 211,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "scope": [
+    "examples/unified/013_1_midfreq_cross_arbitrage/run.py",
+    "examples/unified/013_2_highfreq_calendar_arbitrage/run.py",
+    "examples/unified/013_3_sa_midfreq_simnow/run.py",
+    "examples/unified/014_1_ctp_options_lowfreq/run.py",
+    "examples/unified/014_2_ctp_options_midfreq/run.py",
+    "tests/unit/test_iteration42_live_final_cleanup.py",
+    "tests/unit/test_iteration42_observation_final_cleanup.py"
+  ],
+  "parent_commit": "2edf40cb9b6b9d29d481b6819811e1fff9a5a489",
+  "branch": "dev",
+  "title": "require-confirmed-live-final-cleanup",
+  "account_acceptance_added": 0
+}
