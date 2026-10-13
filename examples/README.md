@@ -77,12 +77,12 @@
 
 ## 5. 根目录遗留脚本与产物处理
 
-当前根目录有 **8 个脚本文件，按用途归为 7 组示例**（Bollinger 的训练和测试入口共用一个示例目录）。
-整理时逐组迁入 `backtest/`，补齐入口说明和数据/输出边界；迁移一组、验收一组，不一次性搬动所有脚本。
+根目录遗留清单最初有 **8 个脚本文件，按用途归为 7 组示例**（Bollinger 的训练和测试入口共用一个示例目录）。
+`sma_crossover.py` 已迁入 `backtest/018_sma_crossover/`；其余 7 个文件分为 6 组，逐组迁入 `backtest/`，补齐入口说明和数据/输出边界。
 
 | 当前路径 | 建议归属 | 迁移时必须处理 |
 |---|---|---|
-| `sma_crossover.py` | `backtest/018_sma_crossover/` | 现文件是策略定义；补可运行入口和最小配置。 |
+| `backtest/018_sma_crossover/` | 已完成 | 策略定义、运行入口、配置、README 与本地 CSV fixture 已归档在同一目录。 |
 | `bollinger_band_strategy_test.py`、`bollinger_band_strategy_train.py` | `backtest/019_bollinger_band_doge/` | 共用 DOGE 数据；结果写该目录的忽略输出目录，不写回源码目录。 |
 | `optimize_bollinger_strategy.py` | `backtest/020_bollinger_binance_optimizer/` | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
 | `optimize_strategy.py` | 与 `backtest/001_multi_extend_data/` 合并评估 | 两处都有 `BondConvertTwoFactor` 和转债数据入口；先比对行为再合并，避免复制第二份策略。 |

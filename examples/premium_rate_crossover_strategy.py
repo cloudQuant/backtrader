@@ -8,7 +8,7 @@ Strategy logic:
 3. Close position when 10-day MA crosses below 60-day MA (death cross)
 
 References:
-- examples/sma_crossover.py
+- examples/backtest/018_sma_crossover/sma_crossover_strategy.py
 - examples/optimized_strategy_1.py
 """
 import datetime

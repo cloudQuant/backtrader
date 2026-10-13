@@ -1,0 +1,4 @@
+data_file: data/2006-day-001.txt
+cash: 100000.0
+fast: 10
+slow: 30

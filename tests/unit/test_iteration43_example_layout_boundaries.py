@@ -28,7 +28,7 @@ REGISTERED_ROOT_FILES = {
     # Per-leaf ignore rules are part of the layout contract, so the file itself is registered.
     ".gitignore",
     "strategy-candidate-manifest.json",
-    # Pending promotion of seven example groups (eight files), registered in examples/README.md.
+    # Pending promotion of six example groups (seven files), registered in examples/README.md.
     "bollinger_band_strategy_test.py",
     "bollinger_band_strategy_train.py",
     "cryptohftdata_sma.py",
@@ -36,7 +36,6 @@ REGISTERED_ROOT_FILES = {
     "optimize_bollinger_strategy.py",
     "optimize_strategy.py",
     "premium_rate_crossover_strategy.py",
-    "sma_crossover.py",
 }
 CATEGORY_DIRS = set(CATEGORIES)
 # Tooling and rebuildable output may live in a hidden directory; the contract is

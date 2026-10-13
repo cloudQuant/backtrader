@@ -42,9 +42,13 @@ OPTIONAL16_DRY_SCRIPTS = {
     "examples/live/000_live_certification/optional16/gateway_server.py",
     "examples/live/000_live_certification/optional16/run_matrix.py",
 }
+UNCOMMITTED_PUBLIC_CONFIGS = {
+    "examples/backtest/018_sma_crossover/config.yaml",
+}
 
 # (leaf, argv, missing-input marker or None when the leaf must run)
 COPY_CONTRACT = (
+    ("backtest/018_sma_crossover", ["run.py"], None),
     (
         "backtest/002_hft_alignment_demo",
         ["run_backtrader.py", "--strategy", "plain_grid", "--max-decisions", "500"],
@@ -221,6 +225,8 @@ def _tracked_main_entrypoints() -> set[str]:
         if not relative.endswith(".py"):
             continue
         path = ROOT / relative
+        if not path.is_file():
+            continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         if any(
             isinstance(node, ast.If) and _is_main_guard(node.test)
@@ -273,6 +279,15 @@ def _entrypoint_classes() -> tuple[set[str], set[str]]:
 def test_every_tracked_main_entrypoint_is_classified() -> None:
     discovered = _tracked_main_entrypoints()
     copy_paths = {f"examples/{leaf}/{argv[0]}" for leaf, argv, _marker in COPY_CONTRACT}
+    for relative in copy_paths - discovered:
+        path = ROOT / relative
+        assert path.is_file(), f"copy contract entrypoint is missing: {relative}"
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        assert any(
+            isinstance(node, ast.If) and _is_main_guard(node.test)
+            for node in ast.walk(tree)
+        ), f"copy contract path is not an executable entrypoint: {relative}"
+        discovered.add(relative)
     frozen_paths, deferred_paths = _entrypoint_classes()
 
     classes = (copy_paths, frozen_paths, deferred_paths)
@@ -368,14 +383,25 @@ def _stage(leaf: str, destination: Path) -> None:
         target = destination / Path(relative[len(prefix) + 1 :])
         target.parent.mkdir(parents=True, exist_ok=True)
         if basename == "config.yaml":
-            template = subprocess.run(
-                ["git", "-C", str(ROOT), "show", f"HEAD:{relative}"],
+            tracked = subprocess.run(
+                ["git", "-C", str(ROOT), "ls-files", "--error-unmatch", "--", relative],
                 capture_output=True,
+                text=True,
             )
-            assert template.returncode == 0, (
-                f"{relative}: committed public config template is unavailable"
-            )
-            contents = template.stdout
+            if tracked.returncode == 0:
+                template = subprocess.run(
+                    ["git", "-C", str(ROOT), "show", f"HEAD:{relative}"],
+                    capture_output=True,
+                )
+                assert template.returncode == 0, (
+                    f"{relative}: committed public config template is unavailable"
+                )
+                contents = template.stdout
+            else:
+                assert relative in UNCOMMITTED_PUBLIC_CONFIGS, (
+                    f"{relative}: add a reviewed public config path before copy-out staging"
+                )
+                contents = (ROOT / relative).read_bytes()
         else:
             contents = (ROOT / relative).read_bytes()
         target.write_bytes(contents)
