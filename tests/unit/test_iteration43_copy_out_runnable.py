@@ -60,6 +60,11 @@ COPY_CONTRACT = (
         "DOGEUSDT_15m_20200710_20260126.csv",
     ),
     (
+        "backtest/020_bollinger_binance_optimizer",
+        ["optimize_bollinger_strategy.py", "--data-dir", "data"],
+        "No ZIP files found in data",
+    ),
+    (
         "backtest/002_hft_alignment_demo",
         ["run_backtrader.py", "--strategy", "plain_grid", "--max-decisions", "500"],
         None,

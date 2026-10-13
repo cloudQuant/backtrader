@@ -15,8 +15,8 @@ Optimized Parameters:
     - atr_mult: ATR stop loss multiplier (1.0-3.0)
 
 Usage:
-    python examples/optimize_bollinger_strategy.py --data-dir /path/to/data
-    python examples/optimize_bollinger_strategy.py --data-dir "J:/binance-public-data/data/futures/um/monthly/klines/MINAUSDT/15m" --start-date 2024-01-01 --end-date 2024-12-31
+    python examples/backtest/020_bollinger_binance_optimizer/optimize_bollinger_strategy.py --data-dir /path/to/data
+    python examples/backtest/020_bollinger_binance_optimizer/optimize_bollinger_strategy.py --data-dir "J:/binance-public-data/data/futures/um/monthly/klines/MINAUSDT/15m" --start-date 2024-01-01 --end-date 2024-12-31
 """
 
 import os
@@ -451,7 +451,8 @@ def run_optimization(data_dir: str,
                      start_date: str = None,
                      end_date: str = None,
                      use_multiprocessing: bool = True,
-                     cpu_usage: float = 0.8):
+                     cpu_usage: float = 0.8,
+                     output_dir: str = None):
     """Run parameter optimization.
 
     Args:
@@ -460,6 +461,7 @@ def run_optimization(data_dir: str,
         end_date: End date (YYYY-MM-DD).
         use_multiprocessing: Whether to use multiprocessing.
         cpu_usage: CPU usage ratio (0.1-1.0), default 0.8 (80%).
+        output_dir: Directory for results; defaults to this example's output folder.
 
     Returns:
         List of sorted result dictionaries.
@@ -591,7 +593,13 @@ def run_optimization(data_dir: str,
     print("=" * 70)
 
     # Save results to CSV
-    output_file = Path(data_dir).parent / 'optimization_results.csv'
+    result_dir = (
+        Path(output_dir).expanduser()
+        if output_dir is not None
+        else Path(__file__).resolve().parent / "output"
+    )
+    result_dir.mkdir(parents=True, exist_ok=True)
+    output_file = result_dir / 'optimization_results.csv'
     df_results = pd.DataFrame([
         {
             'period': r['params']['period'],
@@ -662,6 +670,12 @@ Examples:
         action='store_true',
         help='Disable multiprocessing'
     )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='Results directory (default: output/ beside this script)'
+    )
 
     args = parser.parse_args()
 
@@ -675,5 +689,6 @@ Examples:
         start_date=args.start_date,
         end_date=args.end_date,
         use_multiprocessing=not args.no_multiprocessing,
-        cpu_usage=args.cpu_usage
+        cpu_usage=args.cpu_usage,
+        output_dir=args.output_dir,
     )
