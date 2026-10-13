@@ -1,0 +1,102 @@
+# Backtrader Runtime 运行控制层优化计划
+
+状态：**计划草案，待评审**
+
+## 1. 目标
+
+将 `backtrader_runtime` 收敛为围绕 Backtrader 的配置校验、能力准入、运行器装配和生命周期控制层，让已登记的 backtest、replay 和只读运行入口具有明确、可重复、可观察的行为。
+
+风控规则、风险状态、订单风险判断和风险决策归 `bt_api_risk`。`backtrader_runtime` 不实现仓位、敞口、限额、损失、订单频率等风控算法；它只负责按运行配置解析所需的风险能力，校验其可用性和准入条件，并将受控运行连接到 `bt_api_risk` 提供的执行链路。
+
+本计划不开放生产 live 路由。live 能力仍须经过独立的执行适配器、进程监督、账户准入和真实环境验收后另行决策。
+
+## 2. 现状与边界
+
+当前 `backtrader_runtime` 提供 `bt-runtime` CLI、schema/preset 校验、代码登记表、runner 分发和部分执行投影。运行登记既包含 replay 路径，也包含当前没有 runner 的只读 profile 和包内 fixture；它们的可用状态应在 CLI 中清楚呈现。
+
+`policy.py` 已声明 `risk` capability，受管 live preset 也要求 execution、risk 和 monitor 能力；`runner.py` 仍在 live dispatch 阶段要求经过验证的 production admission。这些声明是准入合同，不等于已证明每笔订单都经过风险检查。当前状态以实际登记、runner 和验收证据为准。
+
+### 职责划分
+
+| 组件 | 本计划中的职责 |
+|---|---|
+| `backtrader_runtime` | 运行配置和 preset 校验、runtime/runner 登记、能力与依赖检查、准入结果、runner 生命周期、脱敏运行记录；传递 `risk_profile_id` 等有类型的风险策略引用。 |
+| `bt_api_risk` | 风险策略与策略版本、风险状态和限额、订单/改单风险决策、并发风险预留、拒绝原因与风险事件；保证风险检查位于受管写入的实际调用路径上。 |
+| Backtrader Store/Broker/执行桥 | 将 Backtrader 的订单生命周期和身份准确交给受控执行组件；不得另设绕过 `bt_api_risk` 的 managed 写入口。 |
+| provider/交易适配器 | 执行 venue-specific 参数校验和传输，报告 provider 回执；provider 接受与否不能由本地风险决策伪造。 |
+| OS 进程监督 | 对会加载 native SDK 或 provider 的进程实施有界启动、运行和关闭；runtime 内的 Python 检查不能代替操作系统隔离。 |
+
+策略引用只标识风险策略，不在 `backtrader_runtime` 中复制风险算法或影子状态。`bt_api_risk` 是风险配置语义和风险决策的权威来源；runtime 可校验引用格式、模式要求和依赖存在性。
+
+## 3. 设计原则
+
+1. **订单路径强制执行。** managed 模式中的新订单和改单必须先经过 `bt_api_risk` 再到 provider。仅在 CLI、配置加载或策略启动阶段检查不构成订单风控。
+2. **能力缺失时不启动写路径。** 需要风险能力的 profile 如果缺少受信任的 `bt_api_risk` 依赖、明确风险策略或有效账户状态，应在 provider 副作用前拒绝。
+3. **风险降低操作单独定义。** 撤单、减仓、平仓和 reduce-only 操作须有明确规则；异常时不能误拦风险处置，也不能将所有撤单都假设为无风险。
+4. **回测与实盘语义分开。** backtest/replay 可使用可重复的模拟风险策略；运行记录注明模拟来源。模拟策略、模拟账户状态和本地 PASS 不构成真实账户准入。
+5. **风险决定可审计。** 记录策略 ID/版本、订单关联 ID、决策结果、有限原因码和状态版本；不记录凭据、私有配置值或不必要的账户明细。
+6. **分层验收。** 源码、fake、隔离进程、只读 provider、paper 和真实写入证据分别标记，不能跨层继承。
+7. **每轮小范围提交。** 直接在现有各仓 `dev` 工作区工作；各 SDK 包先完成本仓验收和提交，再按需要更新父仓 gitlink，Backtrader runtime 集成单独提交。只提交本轮明确文件，保留无关改动，不创建新的开发 worktree。
+
+## 4. 目标运行流程
+
+```text
+bt-runtime validate / doctor
+        ↓
+解析已登记 runtime、mode、preset 和 risk_profile_id
+        ↓
+检查运行准入、执行/风险能力和适配器依赖
+        ↓
+构造 Backtrader Runner / Cerebro 与受控 Store/Broker
+        ↓
+订单 → bt_api_risk 风险检查与预留 → 执行适配器 → provider
+        ↓
+运行状态、风险事件、订单结果和脱敏 manifest
+```
+
+`bt-runtime` 负责流程编排。硬性风险判断必须由 `bt_api_risk` 的受管订单链路执行；如果策略能取得并直接调用未受控的 Store/SDK 写 API，该 profile 不得宣称拥有端到端风控保护。
+
+## 5. 分轮计划
+
+| 轮次 | 仓库与范围 | 交付内容 | 完成条件 |
+|---|---|---|---|
+| **R0 基线与接口盘点** | Backtrader、`bt_api_py`、`bt_api_risk` 的只读盘点；不改运行行为 | 当前 dev/依赖版本、runtime 注册和 profile 状态表；Backtrader 的 submit/modify/cancel/close 入口图；SDK 风险调用路径和绕过面；已知失败与验收级别 | 每条登记路径都有 `available`、`offline_only`、`blocked` 或 `fixture_only` 状态和理由；确认 `bt_api_risk` 的现有公共 API、测试环境、package pin；不把历史 fake 结果写成当前真实验收 |
+| **R1 Runtime 合同与状态呈现** | Backtrader | 给注册项补齐可用状态、能力、runner、mode/preset 支持和不可用原因；完善 `validate`/`doctor` 的脱敏输出；统一启动前阶段和稳定 reason code | 无 runner、缺 capability、mode 不允许、配置错误分别给出明确结果；拒绝发生在导入 provider/读取凭据/网络动作前；现有 replay/backtest 行为无新增回归 |
+| **R2 `bt_api_risk` 风险接口与订单拦截** | `bt_api_risk` 所属仓库；不在 Backtrader/runtime 实现风控规则 | 确认风险策略 ID/版本、订单检查决策类型、有限拒绝码、风险状态版本和并发预留接口；在受管 submit/modify 路径上强制调用；定义 cancel/close/reduce-only 的独立判定合同 | 超限订单与改单在 provider 调用前被拒；账户、持仓、挂单或行情等必要状态缺失/过期时拒绝增加风险；并发订单不会共同越过限额；provider 拒绝、部分成交、超时与状态恢复不造成风险预留重复释放或重复占用；测试使用 fake provider，不做真实写入 |
+| **R3 Backtrader 受控执行接线** | Backtrader；依赖已提交并固定版本的 `bt_api_risk` | 由 managed Store/Broker/执行桥调用 `bt_api_risk`；将订单 ID、策略/运行 ID、risk profile 版本和账户状态版本绑定；阻断 managed 策略直接获取绕过风险层的写入口 | 追踪 submit、modify、cancel、close 的完整调用路径；每个风险增加型写请求恰有一次可关联的风险决策；人为构造绕过调用时在本地受控边界被拒，provider fake 调用数为零；排查失败保持既有 UNKNOWN/不确定状态，不伪造拒绝或成交 |
+| **R4 Runtime 生命周期与运行记录** | Backtrader | 对齐 runner `prepare/start/status/stop/collect_result` 生命周期；增加稳定 run ID、脱敏 manifest、风险策略与 SDK 版本、source/config 摘要、开始/结束状态、阻断原因；native/provider 路径要求有界子进程监督 | 启动失败、超时、重复停止、部分初始化和异常退出均有确定状态；关闭后子进程/句柄按合同清零或明确标记不确定；manifest 不含密钥及私有值；只读 doctor 不触发 provider/network/native 操作 |
+| **R5 逐路径验收与状态发布** | 两仓按各自责任分别验收 | 建立 runtime × mode × capability 矩阵；分别记录 Backtrader runtime QA、`bt_api_risk` 包级 QA、两者 fake 集成、隔离进程及任何真实 provider 证据 | 每个已开放路径都有独立验收记录；源码/fake/local evidence 不升级成 provider/account/live PASS；live dispatch 保持关闭，直到另行批准的 production admission 和环境验收全部满足 |
+
+每轮完成约定验收后，只提交该轮已接受的精确文件到对应 `dev`。R2 包先提交；R3 使用已提交、可识别版本的风险包，不读取未 pin 的 dirty checkout 作为验收依赖。
+
+## 6. R2 风险合同范围
+
+R2 先冻结接口和数据来源，再实现规则。建议的第一批硬性检查包括：订单数量和价格精度、最小/最大订单金额、单笔和组合敞口、可用资金/保证金、单策略或账户仓位上限、订单频率、重复订单标识，以及交易状态/账户状态有效性。具体规则和适用账户由 `bt_api_risk` 定义，不能由 runtime 默认为任意 provider 都相同。
+
+每笔新订单或改单需要基于同一风险状态序列化检查并预留额度，避免两个并发订单各自通过后同时突破上限。provider 结果回报后，风险包按明确事件更新预留和真实占用。超时或状态不明时应保留不确定标记，不能把未知状态当作零持仓或已拒绝。
+
+取消、减仓和紧急停止应走明确的风险处置合同。`bt_api_risk` 要逐操作定义“允许、拒绝、需 reduce-only 或需额外状态”的条件，并覆盖保护性止损改单、撤单可能增加风险等边界。
+
+## 7. 运行模式与验收分层
+
+| 模式 | Runtime 责任 | `bt_api_risk` 责任 | 可声明的验收 |
+|---|---|---|---|
+| `local_backtest` / `replay` | 加载已登记 runner、保持配置确定性、输出模拟运行记录 | 可用确定性模拟账户/风险策略验证订单规则 | 本地 backtest/replay 或 fake 集成，不是 provider 证据 |
+| `shadow` / 只读 | 只装配获准的只读能力，阻止写路由 | 不将只读运行误标为写入风险已接线；若计算风险，仅作观察输出 | 只读 provider 观察，不代表下单路径已验收 |
+| `paper` / sandbox | 验证 runner 与风险依赖准入，绑定明确的 sandbox profile | 在订单出口前执行风险规则，并标记模拟账户与实际 provider 回执边界 | paper/sandbox 专项证据，不继承 production 结论 |
+| `live` | 只负责核验 production admission、依赖身份、审批和监督器后进行装配 | 在实际执行写入路径持续强制风险检查 | 本计划不开放；须另行通过真实环境验收 |
+
+## 8. 非目标
+
+- 不把风控算法、限额状态机或订单级决策实现进 `backtrader_runtime`。
+- 不复制或 vendor `bt_api_risk` 源码，不从未固定版本的环境隐式加载风险实现。
+- 不因 `CAPABILITY_RISK` 字段存在、CLI 检查通过或 fake 测试通过而开放 live。
+- 不改写 Backtrader 策略 API 来绕过既有 Store/Broker 合同；必要的桥接改动单列并验收。
+- 不在本计划中执行真实账户交易、provider 写入或已消耗的认证/验收调用。
+- 不以新增 CLI 命令、注册数量或测试数量作为完成标准；以端到端路径、拒绝边界和可核验结果为准。
+
+## 9. 参考实现
+
+- [LEAN Algorithm Framework](https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview)：Risk Management 在 portfolio target 与 Execution 之间；订单自身另有提交预检查。
+- [NautilusTrader Execution](https://nautilustrader.io/docs/latest/concepts/execution/)：RiskEngine 位于订单 submit/modify 路径，并定义与取消、查询不同的路由。
+- [Backtrader Broker](https://www.backtrader.com/docu/broker/) 与 [订单生命周期](https://www.backtrader.com/docu/order/)：Backtrader 提供 Broker 抽象和订单状态，受管运行需在实际连接的 Broker/Store/SDK 路径接入风险层。
