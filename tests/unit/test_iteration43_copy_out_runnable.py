@@ -64,6 +64,7 @@ COPY_CONTRACT = (
         ["run.py"],
         "no remote request made",
     ),
+    ("backtest/023_mixed_mode_backtest", ["run.py"], None),
     (
         "backtest/019_bollinger_band_doge",
         ["bollinger_band_strategy_train.py"],
@@ -121,6 +122,10 @@ COPY_CONTRACT = (
 LEAVES = tuple(sorted({leaf for leaf, _argv, _marker in COPY_CONTRACT}))
 
 OUTPUT_ARTIFACTS = {
+    ("backtest/023_mixed_mode_backtest", "run.py"): (
+        "output/tick_demo.csv",
+        "output/bar_demo.csv",
+    ),
     ("backtest/006_plots", "example_bokeh_charts.py"): (
         "output/bokeh_chart.html",
         "output/backend_bokeh_dispatch.html",

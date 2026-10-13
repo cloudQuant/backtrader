@@ -1,27 +1,31 @@
 #!/usr/bin/env python
-"""Example 2: Mixed Tick+Bar backtesting with MixBroker.
+"""Run a local synthetic mixed tick+bar backtest with MixBroker."""
 
-Demonstrates using MixBroker + Cerebro for hybrid matching: ticks first,
-bar fallback after timeout.
-
-Usage:
-    # First generate test data:
-    python tools/generate_test_data.py --type tick --rows 10000
-    python tools/generate_test_data.py --type bar --rows 1000
-
-    # Then run:
-    python examples/mixed_mode_backtest.py
-"""
-
-import os
+import argparse
+import csv
+from pathlib import Path
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+def _add_checkout_root() -> None:
+    """Use the source checkout in place; copied leaves use installed Backtrader."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "backtrader" / "__init__.py").is_file():
+            sys.path.insert(0, str(parent))
+            return
+
+
+_add_checkout_root()
 
 import backtrader as bt
-from backtrader.channels.tick import TickChannel
 from backtrader.channel import StreamingEventQueue
+from backtrader.channels.tick import TickChannel
 from backtrader.brokers.mixbroker import MixBroker
+from backtrader.events import BarEvent
+
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_OUTPUT_DIR = BASE_DIR / "output"
 
 
 class MixedStrategy(bt.Strategy):
@@ -98,24 +102,59 @@ class MixedStrategy(bt.Strategy):
         print(f"Strategy finished: {self.trades} trades")
 
 
-def main():
-    """Run the mixed-mode backtest demo.
+def generate_demo_data(output_dir: Path, symbol: str):
+    """Write a small deterministic tick/bar fixture under the ignored output dir."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    tick_path = output_dir / "tick_demo.csv"
+    bar_path = output_dir / "bar_demo.csv"
+    start = 1_700_000_000.0
 
-    Loads tick data from CSV file, creates a TickChannel with
-    StreamingEventQueue, and runs a backtest with MixBroker.
-    Demonstrates hybrid tick+bar matching with bar fallback timeout.
-    """
+    with tick_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("timestamp", "symbol", "price", "volume", "direction", "trade_id"))
+        for index in range(1800):
+            timestamp = start + index * 0.5
+            price = 99.0 if timestamp < start + 630.0 else 101.0
+            writer.writerow((timestamp, symbol, price, 0.05, "buy" if index % 2 else "sell", f"t{index}"))
+
+    with bar_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("timestamp", "symbol", "open", "high", "low", "close", "volume"))
+        for index in range(1, 16):
+            writer.writerow((start + index * 60.0, symbol, 100.0, 101.0, 99.0, 100.0, 100.0))
+
+    return tick_path, bar_path
+
+
+def load_bar_events(path: Path):
+    """Stream OHLCV rows as the BarEvents consumed by StreamingEventQueue."""
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            yield BarEvent(
+                timestamp=float(row["timestamp"]),
+                symbol=row["symbol"],
+                open=float(row["open"]),
+                high=float(row["high"]),
+                low=float(row["low"]),
+                close=float(row["close"]),
+                volume=float(row["volume"]),
+            )
+
+
+def main(argv=None):
+    """Generate local inputs and run the tick+bar event loop."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    args = parser.parse_args(argv)
     symbol = "BTC/USDT"
-    tick_file = os.path.join("tests", "datas", "tick_data", f'tick_{symbol.replace("/", "_")}.csv')
-
-    if not os.path.exists(tick_file):
-        print(f"Data file not found: {tick_file}")
-        print("Generate test data first: python tools/generate_test_data.py")
-        return
+    output_dir = args.output_dir.expanduser().resolve()
+    tick_file, bar_file = generate_demo_data(output_dir, symbol)
 
     # 1. Create channel + event queue
-    channel = TickChannel(symbol=symbol, dataname=tick_file)
-    queue = StreamingEventQueue(channels=[channel], preload_window=5.0)
+    channel = TickChannel(symbol=symbol, dataname=str(tick_file))
+    queue = StreamingEventQueue(
+        channels=[channel], bars=[load_bar_events(bar_file)], preload_window=5.0
+    )
 
     # 2. Set up Cerebro with MixBroker
     cerebro = bt.Cerebro()
@@ -138,7 +177,9 @@ def main():
     print(f"Trades executed:  {strat.trades}")
     print(f"Final cash:       {broker.getcash():.2f}")
     print(f"Portfolio value:  {broker.getvalue():.2f}")
+    print(f"Local fixtures:   {tick_file} and {bar_file}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
