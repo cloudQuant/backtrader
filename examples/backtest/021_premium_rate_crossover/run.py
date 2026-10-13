@@ -9,11 +9,10 @@ Strategy logic:
 
 References:
 - examples/backtest/018_sma_crossover/sma_crossover_strategy.py
-- examples/optimized_strategy_1.py
 """
-import datetime
-import sys
+import argparse
 import warnings
+from pathlib import Path
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -22,6 +21,10 @@ from matplotlib.ticker import FuncFormatter
 
 import backtrader as bt
 import backtrader.indicators as btind
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR.parents[1] / "data" / "113013.csv"
+OUTPUT_DIR = BASE_DIR / "output"
 
 # Set Chinese font
 plt.rcParams["font.sans-serif"] = ["SimHei"]  # For proper Chinese label display
@@ -226,7 +229,7 @@ def load_bond_data(csv_file):
     return df
 
 
-def run_strategy(csv_file="113013.csv", initial_cash=100000.0, commission=0.0003):
+def run_strategy(csv_file=DATA_FILE, initial_cash=100000.0, commission=0.0003):
     """
     Run backtest strategy.
 
@@ -311,7 +314,13 @@ def run_strategy(csv_file="113013.csv", initial_cash=100000.0, commission=0.0003
     return cerebro, results, time_return
 
 
-def plot_results(time_return, initial_cash=100000.0, csv_file="113013.csv"):
+def plot_results(
+    time_return,
+    initial_cash=100000.0,
+    csv_file=DATA_FILE,
+    output_file=None,
+    show=True,
+):
     """
     Plot backtest result charts.
 
@@ -319,6 +328,8 @@ def plot_results(time_return, initial_cash=100000.0, csv_file="113013.csv"):
         time_return: Time series returns
         initial_cash: Initial capital
         csv_file: Data filename (for title)
+        output_file: Chart path; defaults to this leaf's output/ directory.
+        show: Whether to display the generated chart interactively.
     """
     # Convert to DataFrame
     returns_df = pd.DataFrame(list(time_return.items()), columns=["date", "return"])
@@ -406,29 +417,54 @@ def plot_results(time_return, initial_cash=100000.0, csv_file="113013.csv"):
     plt.tight_layout()
 
     # Save image
-    output_file = csv_file.replace(".csv", "_strategy_result.png")
+    output_file = Path(output_file) if output_file else OUTPUT_DIR / f"{Path(csv_file).stem}_strategy_result.png"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_file, dpi=150, bbox_inches="tight")
     print(f"\nChart saved to: {output_file}")
 
     # Show figure
-    plt.show()
+    if show:
+        plt.show()
+
+
+def resolve_data_path(path):
+    """Resolve a caller path or the shared public example data fixture."""
+    candidate = Path(path).expanduser()
+    if candidate.is_absolute():
+        candidates = [candidate]
+    else:
+        candidates = [Path.cwd() / candidate, BASE_DIR / candidate]
+        shared_data = BASE_DIR.parents[1] / "data" / candidate
+        candidates.append(shared_data)
+
+    for item in candidates:
+        if item.is_file():
+            return item.resolve()
+    tried = ", ".join(str(item.resolve()) for item in candidates)
+    raise FileNotFoundError(f"Convertible-bond CSV not found: {path}. Tried: {tried}")
+
+
+def main(argv=None):
+    """Run the premium-rate crossover backtest and save its chart separately."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-file", type=Path, default=DATA_FILE)
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument("--no-show", action="store_true", help="save the chart without opening a window")
+    args = parser.parse_args(argv)
+    csv_file = resolve_data_path(args.data_file)
+    output_dir = args.output_dir.expanduser().resolve()
+
+    cerebro, results, time_return = run_strategy(csv_file=csv_file)
+    print("\nGenerating charts...")
+    plot_results(
+        time_return,
+        csv_file=csv_file,
+        output_file=output_dir / f"{csv_file.stem}_strategy_result.png",
+        show=not args.no_show,
+    )
+    print("\nBacktest completed")
+    return 0
 
 
 if __name__ == "__main__":
-    # Configuration parameters
-    CSV_FILE = "113013.csv"  # Convertible bond data file
-    INITIAL_CASH = 100000.0  # Initial capital: 100,000 yuan
-    COMMISSION = 0.0003  # Commission rate: 0.03%
-
-    # Run backtest
-    cerebro, results, time_return = run_strategy(
-        csv_file=CSV_FILE, initial_cash=INITIAL_CASH, commission=COMMISSION
-    )
-
-    # Plot results
-    print("\nGenerating charts...")
-    plot_results(time_return, initial_cash=INITIAL_CASH, csv_file=CSV_FILE)
-
-    print("\n" + "=" * 60)
-    print("Backtest completed")
-    print("=" * 60)
+    raise SystemExit(main())

@@ -55,6 +55,11 @@ COPY_CONTRACT = (
         "bond_index_000000.csv",
     ),
     (
+        "backtest/021_premium_rate_crossover",
+        ["run.py", "--data-file", "113013.csv", "--no-show"],
+        "113013.csv",
+    ),
+    (
         "backtest/019_bollinger_band_doge",
         ["bollinger_band_strategy_train.py"],
         "DOGEUSDT_15m_20200710_20260126.csv",
