@@ -22,9 +22,10 @@ C:/anaconda3/python.exe cases/<ID>/run.py --live --allow-write --allow-dangerous
   `OKX_DEMO_SECRET`, `OKX_DEMO_PASSPHRASE`); the client signs OKX v5 requests
   (HMAC-SHA256 base64) with the demo header `x-simulated-trading: 1` and compensates
   the server-time offset at connect.
-- Optional components (also selectable per invocation): `--transport direct|gateway_zmq`,
-  `--execution`, `--risk`, `--monitor` — see `../optional16/README.md`.  For risk notional
-  on contracts, the case policy carries `quantity_multiplier` (BTC-USDT-SWAP: 0.01).
+- The Optional16 component-acceptance matrix and live gateway-capability check are retired;
+  see `../optional16/README.md`. The per-case 33-case entry defaults are unchanged.
+  For risk notional on contracts, the case policy carries `quantity_multiplier`
+  (BTC-USDT-SWAP: 0.01).
 - Each run writes one JSON evidence file under `cases/<ID>/evidence/` (git-ignored) and
   prints a single-line summary; exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
 - `certlib/` is the small shared layer (env file reader, signed demo client, monitor

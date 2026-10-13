@@ -55,7 +55,8 @@
 
 `live/000_live_certification/`：`binance_penetration`、`okx_penetration`、`simnow_penetration`
 各 33 例 `cases/<ID>/{config.yaml,<ID>_strategy.py,run.py}`，内部拓扑保持迭代 41/42 原样；
-同级 `optional16/` 为可选组件 16 拓扑矩阵（**不得拆到 `live/optional16/`**）。
+同级 `optional16/` 保留历史组件矩阵源码与记录，其验收 CLI 已退休并返回
+`BLOCKED / optional16_acceptance_retired`（**不得拆到 `live/optional16/`**）。
 命令 `python cases/<ID>/run.py` 干跑 / `--live [--allow-write] [--allow-dangerous]`；
 私有 `.env` 与真实 `config.yaml` 不进仓库，因此副本内以 `env_keys_missing` 阻塞属设计结果。
 `examples/unified/007_ctp/` 是 CTP 认证套件根与注册 runtime，位置见上表。
@@ -100,7 +101,7 @@
 1. 根 `examples/strategy-candidate-manifest.json` 留在原位置。其行指纹含 `resolved_example_path`，移动会要求受控重绑和审批材料更新。
 2. 大数据统一 `--data-dir` 参数化另行处理（016/017 使用 `--config`）；`006` 的 `✓` 改纯 ASCII 输出；`001` 的 `log_data`→`log_bars` 参数名陈旧。
 3. `012_1` 的 checkout-only `backtrader` 栅栏是受控约束，放宽需单独治理。
-4. `live/000_live_certification` 的目录与私有凭据按迭代 41/42 设计绑定 checkout；保留 33-case 和相邻 `optional16/` 拓扑。
+4. `live/000_live_certification` 的目录与私有凭据按迭代 41/42 设计绑定 checkout；保留 33-case 默认路径；相邻 `optional16/` 验收入口已退休，历史文件留存。
 
 2026-10-12 修复复验：002 缺失 orderbook 默认路径已修复；006 必需 HTML 导出失败会返回失败。
 完整的运行/明确拒绝/暂缓入口分类与安装来源检查见复制验收测试及迭代43修复复验报告。

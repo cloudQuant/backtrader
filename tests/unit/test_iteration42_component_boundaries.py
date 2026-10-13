@@ -1,17 +1,17 @@
-"""Iteration-42 component interaction boundaries for the standard entries.
+"""Component boundaries for the standard entries and retired Optional16 CLIs.
 
-The four optional SDK components (``bt_api_gateway``, ``bt_api_risk``,
-``bt_api_monitor``, ``bt_api_execution``) are opt-in mounts for the sanctioned
-``000`` optional16 acceptance path; the iteration-42 example entries keep
-their reviewable routes closed (SimNow uses the direct registered-sim chain;
-disabled components must never be imported accidentally).  These tests pin
-that boundary in the repository test net:
+The Optional16 matrix and live gateway-capability acceptance commands are
+retired; their source remains for historical context. The iteration-42
+example entries keep their reviewable routes closed (SimNow uses the direct
+registered-sim chain; disabled components must never be imported accidentally).
+These tests pin that boundary in the repository test net:
 
 * importing any standard entry never imports a component package;
 * the entries reject component-mount-shaped flags instead of silently
   routing through a component;
-* the optional16 topology matrix (the component-positive path) stays a valid
-  2x2x2x2 grid whose combo ids/flag mapping do not drift.
+* the retired Optional16 command names stop before configuration, credential,
+  subprocess, or output-file operations; the lightweight spec remains usable
+  to interpret historical matrix records.
 """
 
 from __future__ import annotations
@@ -47,6 +47,36 @@ ENTRIES = {
     "015": REPO / "examples" / "unified" / "015_ctp_options_highfreq" / "run.py",
 }
 OPTIONAL16 = REPO / "examples" / "live" / "000_live_certification" / "optional16"
+
+
+@pytest.mark.parametrize("script", ("run_matrix.py", "gateway_capability_check.py"))
+@pytest.mark.parametrize("argv", ((), ("--dry",), ("--live",)))
+def test_optional16_acceptance_clis_are_retired_without_side_effects(
+    script, argv, tmp_path, monkeypatch
+) -> None:
+    path = OPTIONAL16 / script
+    module_name = "iter42_retired_" + script[:-3]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(Path, "read_text", lambda *_args, **_kwargs: pytest.fail("config read"))
+    monkeypatch.setattr(Path, "write_text", lambda *_args, **_kwargs: pytest.fail("artifact write"))
+    monkeypatch.setattr(Path, "mkdir", lambda *_args, **_kwargs: pytest.fail("journal creation"))
+    monkeypatch.setattr(subprocess, "run", lambda *_args, **_kwargs: pytest.fail("case process"))
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: pytest.fail("child process"))
+
+    output = io.StringIO()
+    with redirect_stdout(output):
+        assert module.main(list(argv)) == 2
+
+    assert json.loads(output.getvalue()) == {
+        "status": "BLOCKED",
+        "reason": "optional16_acceptance_retired",
+    }
+    assert list(tmp_path.iterdir()) == []
 
 
 def _load_entry(path: Path):

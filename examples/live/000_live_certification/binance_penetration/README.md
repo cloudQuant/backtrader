@@ -22,9 +22,9 @@ C:/anaconda3/python.exe cases/<ID>/run.py --live --allow-write --allow-dangerous
   `BINANCE_DEMO_SECRET`); the client measures the server-time offset at connect.
   EM01 additionally supports an optional restricted-permission key via
   `BINANCE_DEMO_RESTRICTED_API_KEY` / `BINANCE_DEMO_RESTRICTED_SECRET` (not required).
-- Optional components (also selectable per invocation): `--transport direct|gateway_zmq`,
-  `--execution`, `--risk`, `--monitor` — see `../optional16/README.md`; the 16-combination
-  live acceptance matrix lives at `../optional16/acceptance-matrix.json`.
+- The Optional16 component-acceptance matrix and live gateway-capability check are retired;
+  `../optional16/acceptance-matrix.json` is a historical record and is no longer refreshed.
+  This retirement leaves the per-case 33-case entry defaults unchanged.
 - Each run writes one JSON evidence file under `cases/<ID>/evidence/` (git-ignored) and
   prints a single-line summary; exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
 - `certlib/` is the small shared layer (env file reader, signed demo client, monitor
