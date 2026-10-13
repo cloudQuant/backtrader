@@ -28,8 +28,7 @@ REGISTERED_ROOT_FILES = {
     # Per-leaf ignore rules are part of the layout contract, so the file itself is registered.
     ".gitignore",
     "strategy-candidate-manifest.json",
-    # Pending promotion of two example groups (two files), registered in examples/README.md.
-    "cryptohftdata_sma.py",
+    # Pending promotion of one example group (one file), registered in examples/README.md.
     "mixed_mode_backtest.py",
 }
 CATEGORY_DIRS = set(CATEGORIES)

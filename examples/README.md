@@ -78,7 +78,7 @@
 ## 5. 根目录遗留脚本与产物处理
 
 根目录遗留清单最初有 **8 个脚本文件，按用途归为 7 组示例**（Bollinger 的训练和测试入口共用一个示例目录）。
-其中 SMA、DOGE Bollinger、Binance 优化器和溢价率回测已迁入 `backtest/018`–`021`；债券双因子脚本因策略行为不同，保留为独立的 `backtest/024_bond_two_factor_rank_legacy/`。目前剩余 2 个根目录脚本，按 2 组继续整理。
+其中 SMA、DOGE Bollinger、Binance 优化器、溢价率回测和 CryptoHFTData 已迁入 `backtest/018`–`022`；债券双因子脚本因策略行为不同，保留为独立的 `backtest/024_bond_two_factor_rank_legacy/`。目前剩余 1 个根目录脚本，继续整理混合模式示例。
 
 | 当前路径 | 建议归属 | 迁移时必须处理 |
 |---|---|---|
@@ -87,7 +87,7 @@
 | `backtest/020_bollinger_binance_optimizer/` | 已完成 | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
 | `backtest/024_bond_two_factor_rank_legacy/optimize_strategy.py` | 已完成，独立保留 | 与 `001_multi_extend_data` 的并列排名、排序和过期订单处理不同；合并会改变结果，因此单独归档并说明差异。 |
 | `backtest/021_premium_rate_crossover/` | 已完成 | 读取共享 `data/113013.csv`，生成图表写入独立输出目录；旧 PNG 保留在 reference。 |
-| `cryptohftdata_sma.py` | `backtest/022_cryptohftdata_sma/` | 明确可选 SDK、API key 和远端历史数据请求；缺少依赖或授权时明确阻塞。 |
+| `backtest/022_cryptohftdata_sma/` | 已完成 | 远端历史数据仅在 `--run` 显式授权后请求；先检查可选 SDK 与 API-key 环境变量，缺少条件时阻塞。 |
 | `mixed_mode_backtest.py` | `backtest/023_mixed_mode_backtest/` | 替换 `tests/datas/tick_data` 与 `tools/generate_test_data.py` 依赖为示例自有 fixture/生成器。 |
 
 `examples/test_results/` 是本地运行产物，已加入 `examples/.gitignore`；其中已有文件保留在工作区，不作为示例输入提交。

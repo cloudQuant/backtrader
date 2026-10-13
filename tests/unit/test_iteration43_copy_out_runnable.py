@@ -60,6 +60,11 @@ COPY_CONTRACT = (
         "113013.csv",
     ),
     (
+        "backtest/022_cryptohftdata_sma",
+        ["run.py"],
+        "no remote request made",
+    ),
+    (
         "backtest/019_bollinger_band_doge",
         ["bollinger_band_strategy_train.py"],
         "DOGEUSDT_15m_20200710_20260126.csv",

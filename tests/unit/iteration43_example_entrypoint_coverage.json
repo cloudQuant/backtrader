@@ -107,11 +107,6 @@
       "reason": "This invokes the separate optional hftbacktest engine and is not part of the copied data-preparation command."
     },
     {
-      "path": "examples/cryptohftdata_sma.py",
-      "category": "standalone_data_example",
-      "reason": "Root-level data-dependent example; separate data and copy contract is required."
-    },
-    {
       "path": "examples/mixed_mode_backtest.py",
       "category": "standalone_research_example",
       "reason": "Root-level backtest script, not a self-contained folder leaf in the copy command matrix."
