@@ -50,6 +50,11 @@ UNCOMMITTED_PUBLIC_CONFIGS = {
 COPY_CONTRACT = (
     ("backtest/018_sma_crossover", ["run.py"], None),
     (
+        "backtest/024_bond_two_factor_rank_legacy",
+        ["optimize_strategy.py"],
+        "bond_index_000000.csv",
+    ),
+    (
         "backtest/019_bollinger_band_doge",
         ["bollinger_band_strategy_train.py"],
         "DOGEUSDT_15m_20200710_20260126.csv",

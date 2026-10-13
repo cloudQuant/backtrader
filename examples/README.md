@@ -78,14 +78,14 @@
 ## 5. 根目录遗留脚本与产物处理
 
 根目录遗留清单最初有 **8 个脚本文件，按用途归为 7 组示例**（Bollinger 的训练和测试入口共用一个示例目录）。
-`sma_crossover.py` 已迁入 `backtest/018_sma_crossover/`；其余 7 个文件分为 6 组，逐组迁入 `backtest/`，补齐入口说明和数据/输出边界。
+其中 SMA、DOGE Bollinger、Binance 优化器已分别迁入 `backtest/018`–`020`；债券双因子脚本因策略行为不同，保留为独立的 `backtest/024_bond_two_factor_rank_legacy/`。目前剩余 3 个根目录脚本，按 3 组继续整理。
 
 | 当前路径 | 建议归属 | 迁移时必须处理 |
 |---|---|---|
 | `backtest/018_sma_crossover/` | 已完成 | 策略定义、运行入口、配置、README 与本地 CSV fixture 已归档在同一目录。 |
-| `bollinger_band_strategy_test.py`、`bollinger_band_strategy_train.py` | `backtest/019_bollinger_band_doge/` | 共用 DOGE 数据；结果写该目录的忽略输出目录，不写回源码目录。 |
-| `optimize_bollinger_strategy.py` | `backtest/020_bollinger_binance_optimizer/` | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
-| `optimize_strategy.py` | 与 `backtest/001_multi_extend_data/` 合并评估 | 两处都有 `BondConvertTwoFactor` 和转债数据入口；先比对行为再合并，避免复制第二份策略。 |
+| `backtest/019_bollinger_band_doge/` | 已完成 | 共用 `examples/data/` 中的 DOGE 数据；训练和测试产物写入该叶子的忽略 `output/` 目录。 |
+| `backtest/020_bollinger_binance_optimizer/` | 已完成 | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
+| `backtest/024_bond_two_factor_rank_legacy/optimize_strategy.py` | 已完成，独立保留 | 与 `001_multi_extend_data` 的并列排名、排序和过期订单处理不同；合并会改变结果，因此单独归档并说明差异。 |
 | `premium_rate_crossover_strategy.py` | `backtest/021_premium_rate_crossover/` | 默认 CSV 指向 `data/113013.csv`；图表写入输出目录。 |
 | `cryptohftdata_sma.py` | `backtest/022_cryptohftdata_sma/` | 明确可选 SDK、API key 和远端历史数据请求；缺少依赖或授权时明确阻塞。 |
 | `mixed_mode_backtest.py` | `backtest/023_mixed_mode_backtest/` | 替换 `tests/datas/tick_data` 与 `tools/generate_test_data.py` 依赖为示例自有 fixture/生成器。 |

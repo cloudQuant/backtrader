@@ -4,6 +4,7 @@ Convertible bond dual-factor strategy example.
 Demonstrates a two-factor strategy for convertible bonds using price and premium rate.
 """
 import datetime
+import os
 import platform
 import sys
 import time
@@ -29,18 +30,19 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data file based on script directory to avoid relative path read failures."""
-    path = BASE_DIR / filename
-    if path.exists():
-        return path
+    """Resolve leaf, shared example, optional data-dir, or caller-relative inputs."""
+    candidates = [BASE_DIR / filename, BASE_DIR.parents[1] / "data" / filename]
+    data_dir = os.environ.get("BACKTRADER_DATA_DIR")
+    if data_dir:
+        candidates.append(Path(data_dir).expanduser() / filename)
+    candidates.append(Path(filename))
 
-    fallback = Path(filename)
-    if fallback.exists():
-        return fallback
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
 
-    raise FileNotFoundError(
-        f"Data file not found: {filename}. Tried paths: {path} and {fallback.resolve()}"
-    )
+    searched = ", ".join(str(path.resolve()) for path in candidates)
+    raise FileNotFoundError(f"Data file not found: {filename}. Tried paths: {searched}")
 
 
 def setup_chinese_font():
@@ -93,7 +95,7 @@ def setup_chinese_font():
     # Set font configuration
     if selected_font:
         plt.rcParams["font.sans-serif"] = [selected_font] + plt.rcParams["font.sans-serif"]
-        print(f"✅ Font set: {selected_font}")
+        print(f"Font set: {selected_font}")
         return selected_font
     else:
         # Fallback: use system default sans-serif font
@@ -102,10 +104,10 @@ def setup_chinese_font():
 
         if available_fallback:
             plt.rcParams["font.sans-serif"] = available_fallback + plt.rcParams["font.sans-serif"]
-            print(f"⚠️  Using fallback font: {available_fallback[0]}")
+            print(f"Using fallback font: {available_fallback[0]}")
             return available_fallback[0]
         else:
-            print("❌ No suitable Chinese font found, using system default font")
+            print("No suitable Chinese font found, using system default font")
             return None
 
 

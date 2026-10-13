@@ -117,11 +117,6 @@
       "reason": "Root-level backtest script, not a self-contained folder leaf in the copy command matrix."
     },
     {
-      "path": "examples/optimize_strategy.py",
-      "category": "standalone_research_example",
-      "reason": "Root-level optimization script, not a self-contained folder leaf in the copy command matrix."
-    },
-    {
       "path": "examples/premium_rate_crossover_strategy.py",
       "category": "standalone_research_example",
       "reason": "Root-level research script, not a self-contained folder leaf in the copy command matrix."
