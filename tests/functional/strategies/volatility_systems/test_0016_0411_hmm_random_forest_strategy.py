@@ -827,6 +827,13 @@ def test_16_0016_0411_hmm_random_forest_strategy() -> None:
     _saved_argv = _sys.argv
     _sys.argv = [_sys.argv[0]]
 
+    # This regression validates fresh model calculations, never cached signals.
+    # The frozen mean disagreed with fresh Python and native predictions.
+    _orig_cache_is_fresh = _mod.cache_is_fresh
+    _orig_write_feature_cache = _mod.write_feature_cache
+    _mod.cache_is_fresh = lambda *_a, **_kw: False
+    _mod.write_feature_cache = lambda *_a, **_kw: None
+
     try:
         try:
             if hasattr(_mod, "main") and callable(_mod.main):
@@ -848,6 +855,8 @@ def test_16_0016_0411_hmm_random_forest_strategy() -> None:
             if "metrics" not in captured:
                 raise
     finally:
+        _mod.cache_is_fresh = _orig_cache_is_fresh
+        _mod.write_feature_cache = _orig_write_feature_cache
         _bt.Cerebro.run = _orig_run
         for _name, _orig in _hook_targets:
             setattr(_mod, _name, _orig)
@@ -870,7 +879,7 @@ def test_16_0016_0411_hmm_random_forest_strategy() -> None:
     _close(metrics.get('short_count'), 3.0, tol=3.000000e-06, key='short_count')
     _close(metrics.get('cover_count'), 3.0, tol=3.000000e-06, key='cover_count')
     _close(metrics.get('avg_state_confidence'), 0.9794221249099296, tol=1.000000e-06, key='avg_state_confidence')
-    _close(metrics.get('avg_up_probability'), 0.5302041921330451, tol=1.000000e-06, key='avg_up_probability')
+    _close(metrics.get('avg_up_probability'), 0.5304814030173988, tol=1.000000e-06, key='avg_up_probability')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
     _close(metrics.get('final_value'), 1019558.1781180002, tol=1.019558e+00, key='final_value')
     _close(metrics.get('net_pnl'), 19558.178118000156, tol=1.955818e-02, key='net_pnl')
