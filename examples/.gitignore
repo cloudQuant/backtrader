@@ -4,3 +4,6 @@
 
 # SimNow 运行时证据目录（engineering-smoke / mechanical-cycle 报告等）
 state/
+
+# Local output from standalone examples (tracked reference artifacts are unaffected).
+/test_results/

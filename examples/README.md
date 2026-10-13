@@ -75,17 +75,32 @@
 历史证据文档（`docs/_internal/**` 81 个文件）不改写，其旧路径按"已退役"读；
 `AGENTS.md` 只追加现状说明。
 
-本迭代刻意不做（归属已定）：
+## 5. 根目录遗留脚本与产物处理
 
-1. `examples/` 根 7 个散落脚本（`sma_crossover.py` 等）的四件套化 —— 独立后续轮。
-2. 根 `examples/strategy-candidate-manifest.json` 的归属与是否移入 `_support/` —— 待治理决定（其行指纹含
-   `resolved_example_path`，移动需受控重绑）。
-3. 大数据统一 `--data-dir` 参数化（目前各例能力不同，016/017 使用 `--config`）；`006` 的 `✓` 改纯 ASCII 输出；
-   `001` 的 `log_data`→`log_bars` 参数名陈旧；
-   策略回归会向跟踪文件 `backtest/017_fnn_embedding/reports/train_report.jsonl` 追加行（提交前须恢复原字节）。
-4. `012_1` 的 checkout-only `backtrader` 栅栏：它是受控约束，放宽是独立治理决定。
-5. 让 `live/000_live_certification` 满足"复制即可运行"：该套件根定位与私有凭据按迭代 41/42 设计绑定 checkout，
-   守卫据实断言其 `env_keys_missing` 阻塞，不为其放宽。
+当前根目录有 **8 个脚本文件，按用途归为 7 组示例**（Bollinger 的训练和测试入口共用一个示例目录）。
+整理时逐组迁入 `backtest/`，补齐入口说明和数据/输出边界；迁移一组、验收一组，不一次性搬动所有脚本。
+
+| 当前路径 | 建议归属 | 迁移时必须处理 |
+|---|---|---|
+| `sma_crossover.py` | `backtest/018_sma_crossover/` | 现文件是策略定义；补可运行入口和最小配置。 |
+| `bollinger_band_strategy_test.py`、`bollinger_band_strategy_train.py` | `backtest/019_bollinger_band_doge/` | 共用 DOGE 数据；结果写该目录的忽略输出目录，不写回源码目录。 |
+| `optimize_bollinger_strategy.py` | `backtest/020_bollinger_binance_optimizer/` | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
+| `optimize_strategy.py` | 与 `backtest/001_multi_extend_data/` 合并评估 | 两处都有 `BondConvertTwoFactor` 和转债数据入口；先比对行为再合并，避免复制第二份策略。 |
+| `premium_rate_crossover_strategy.py` | `backtest/021_premium_rate_crossover/` | 默认 CSV 指向 `data/113013.csv`；图表写入输出目录。 |
+| `cryptohftdata_sma.py` | `backtest/022_cryptohftdata_sma/` | 明确可选 SDK、API key 和远端历史数据请求；缺少依赖或授权时明确阻塞。 |
+| `mixed_mode_backtest.py` | `backtest/023_mixed_mode_backtest/` | 替换 `tests/datas/tick_data` 与 `tools/generate_test_data.py` 依赖为示例自有 fixture/生成器。 |
+
+`examples/test_results/` 是本地运行产物，已加入 `examples/.gitignore`；其中已有文件保留在工作区，不作为示例输入提交。
+`backtest/017_fnn_embedding/` 的模型缓存可能供默认回放使用，不能按普通临时文件删除；其结果 JSON/CSV/JSONL 与训练日志
+需要另行区分“固定参考结果”和“本次运行输出”，并让新输出写到忽略的独立目录。`examples/data/113013_strategy_result.png`
+是结果图而非输入数据，迁移时归入对应示例的参考报告或输出目录。三个 CSV 仍作为只读输入数据保留。
+
+## 6. 保持现有边界的事项
+
+1. 根 `examples/strategy-candidate-manifest.json` 留在原位置。其行指纹含 `resolved_example_path`，移动会要求受控重绑和审批材料更新。
+2. 大数据统一 `--data-dir` 参数化另行处理（016/017 使用 `--config`）；`006` 的 `✓` 改纯 ASCII 输出；`001` 的 `log_data`→`log_bars` 参数名陈旧。
+3. `012_1` 的 checkout-only `backtrader` 栅栏是受控约束，放宽需单独治理。
+4. `live/000_live_certification` 的目录与私有凭据按迭代 41/42 设计绑定 checkout；保留 33-case 和相邻 `optional16/` 拓扑。
 
 2026-10-12 修复复验：002 缺失 orderbook 默认路径已修复；006 必需 HTML 导出失败会返回失败。
 完整的运行/明确拒绝/暂缓入口分类与安装来源检查见复制验收测试及迭代43修复复验报告。

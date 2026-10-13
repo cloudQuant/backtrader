@@ -28,7 +28,7 @@ REGISTERED_ROOT_FILES = {
     # Per-leaf ignore rules are part of the layout contract, so the file itself is registered.
     ".gitignore",
     "strategy-candidate-manifest.json",
-    # Pending four-file promotion, registered in examples/README.md section 4.
+    # Pending promotion of seven example groups (eight files), registered in examples/README.md.
     "bollinger_band_strategy_test.py",
     "bollinger_band_strategy_train.py",
     "cryptohftdata_sma.py",
