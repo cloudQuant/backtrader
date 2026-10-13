@@ -25,8 +25,10 @@ from plotly.subplots import make_subplots
 warnings.filterwarnings('ignore')
 
 BASE_DIR = Path(__file__).resolve().parent
-TEST_RESULTS_DIR = BASE_DIR / "test_results"
-TEST_RESULTS_DIR.mkdir(exist_ok=True)
+DATA_PATH = BASE_DIR.parents[1] / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+OUTPUT_DIR = BASE_DIR / "output"
+TEST_RESULTS_DIR = OUTPUT_DIR / "test"
+TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class BollingerBandStrategy(bt.Strategy):
@@ -375,7 +377,7 @@ def main():
     print("="*70)
 
     # Load data
-    data_path = BASE_DIR / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+    data_path = DATA_PATH
     print(f"\nLoading data from: {data_path}")
 
     df = load_data(data_path)
@@ -459,7 +461,7 @@ def main():
     print("="*70)
 
     # Load training results
-    train_results_path = BASE_DIR / "backtest_results" / "equity_p280_dev2.5.csv"
+    train_results_path = BASE_DIR / "output" / "training" / "equity_p280_dev2.5.csv"
     if train_results_path.exists():
         train_df = pd.read_csv(train_results_path)
         train_return = (train_df['portfolio_value'].iloc[-1] / 1000000 - 1) * 100

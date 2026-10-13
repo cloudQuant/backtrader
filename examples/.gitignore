@@ -7,3 +7,4 @@ state/
 
 # Local output from standalone examples (tracked reference artifacts are unaffected).
 /test_results/
+/backtest/*/output/

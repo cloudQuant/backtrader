@@ -107,16 +107,6 @@
       "reason": "This invokes the separate optional hftbacktest engine and is not part of the copied data-preparation command."
     },
     {
-      "path": "examples/bollinger_band_strategy_test.py",
-      "category": "standalone_research_example",
-      "reason": "Root-level research script, not a self-contained folder leaf in the copy command matrix."
-    },
-    {
-      "path": "examples/bollinger_band_strategy_train.py",
-      "category": "standalone_research_example",
-      "reason": "Root-level training script, not a self-contained folder leaf in the copy command matrix."
-    },
-    {
       "path": "examples/cryptohftdata_sma.py",
       "category": "standalone_data_example",
       "reason": "Root-level data-dependent example; separate data and copy contract is required."

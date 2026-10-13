@@ -50,6 +50,16 @@ UNCOMMITTED_PUBLIC_CONFIGS = {
 COPY_CONTRACT = (
     ("backtest/018_sma_crossover", ["run.py"], None),
     (
+        "backtest/019_bollinger_band_doge",
+        ["bollinger_band_strategy_train.py"],
+        "DOGEUSDT_15m_20200710_20260126.csv",
+    ),
+    (
+        "backtest/019_bollinger_band_doge",
+        ["bollinger_band_strategy_test.py"],
+        "DOGEUSDT_15m_20200710_20260126.csv",
+    ),
+    (
         "backtest/002_hft_alignment_demo",
         ["run_backtrader.py", "--strategy", "plain_grid", "--max-decisions", "500"],
         None,

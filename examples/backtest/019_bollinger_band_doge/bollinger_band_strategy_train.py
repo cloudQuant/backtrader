@@ -37,8 +37,10 @@ from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 BASE_DIR = Path(__file__).resolve().parent
-RESULTS_DIR = BASE_DIR / "backtest_results"
-RESULTS_DIR.mkdir(exist_ok=True)
+DATA_PATH = BASE_DIR.parents[1] / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+OUTPUT_DIR = BASE_DIR / "output"
+RESULTS_DIR = OUTPUT_DIR / "training"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class BollingerBandStrategy(bt.Strategy):
@@ -325,7 +327,7 @@ def run_single_optimization(args):
         equity_file = None
         if save_equity:
             results_dir = Path(results_dir)
-            results_dir.mkdir(exist_ok=True)
+            results_dir.mkdir(parents=True, exist_ok=True)
             equity_file = results_dir / f"equity_p{period}_dev{devfactor}.csv"
 
         metrics = run_backtest(
@@ -393,7 +395,7 @@ def optimize_parameters(data_path, train_end_date, param_grid, initial_cash=1000
         results_dir = RESULTS_DIR
     else:
         results_dir = Path(results_dir)
-    results_dir.mkdir(exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
 
     args_list = [
         (data_path, train_end_date, period, devfactor, initial_cash, commission, save_equity, str(results_dir))
@@ -536,7 +538,7 @@ def main():
     print("BTC/USDT 15-minute Data | Training: 2020-2024")
     print("="*70)
 
-    data_path = BASE_DIR / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+    data_path = DATA_PATH
     print(f"\nLoading data from: {data_path}")
 
     df = load_data(data_path)
@@ -599,7 +601,7 @@ def main():
     print(top_results.to_string(index=False))
     print("="*70)
     
-    results_csv_path = BASE_DIR / "optimization_results.csv"
+    results_csv_path = OUTPUT_DIR / "optimization_results.csv"
     results_df.to_csv(results_csv_path, index=False)
     print(f"\nOptimization results saved to: {results_csv_path}")
     
@@ -609,7 +611,7 @@ def main():
     
     plot_heatmaps(
         results_df, 
-        save_path=BASE_DIR / "heatmap_optimization.png"
+        save_path=OUTPUT_DIR / "heatmap_optimization.png"
     )
     
     print("\n" + "="*70)
