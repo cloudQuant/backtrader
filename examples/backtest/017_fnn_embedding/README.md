@@ -37,11 +37,12 @@ python run.py --mode optimize
 python run.py --retrain --fromdate 2021-09-01 --todate 2021-10-31
 ```
 
-Outputs: `backtest_result.json` (standard metrics + encoder diagnostics),
-`signals.jsonl` (per-bar retrieval diagnostics with rejection reasons),
-`logs/` (TradeLogger), `reports/train_report.jsonl` (per-retrain loss,
-neighbourhood retention, Procrustes drift), `reports/sim_distribution.json`
-(diagnose mode), `models/` (cached rolling weights).
+New run outputs go under the ignored `output/` directory: the backtest result,
+optimisation CSV/JSON, signal diagnostics, TradeLogger files, training reports,
+and diagnostic reports. The committed result snapshots and old training/run
+logs are preserved under `reports/reference/` and are not overwritten by a
+new run. Cached rolling model weights remain under `models/`; the default
+configuration reuses those caches for replay.
 
 ## No-lookahead guarantees (G351-02, three defences)
 

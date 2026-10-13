@@ -42,7 +42,7 @@ backtest:
 
 logging:
   trade_logger: true          # single backtest only; forced off in optimize
-  log_dir: logs
+  log_dir: output/logs
   log_orders: true
   log_trades: true
   log_signals: true
@@ -52,7 +52,7 @@ logging:
   log_ticks: false
   log_bars: false
   log_system: true
-  signals_jsonl: signals.jsonl
+  signals_jsonl: output/signals.jsonl
 
 optimize:
   grid:                       # trading-layer params only; FNN hyperparams stay fixed
@@ -65,9 +65,9 @@ optimize:
   todate: "2023-12-31"
 
 outputs:
-  result_json: backtest_result.json
-  optimize_csv: optimize_results.csv
-  optimize_json: optimize_results.json
+  result_json: output/backtest_result.json
+  optimize_csv: output/optimize_results.csv
+  optimize_json: output/optimize_results.json
   models_dir: models
-  features_dir: features_cache
-  reports_dir: reports
+  features_dir: output/features_cache
+  reports_dir: output/reports

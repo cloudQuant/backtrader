@@ -120,6 +120,28 @@ def test_folder_local_data_copies_have_a_repository_original() -> None:
             assert "002_hft_alignment_demo" in str(data_file), f"{data_file} has no reviewed original"
 
 
+def test_fnn_example_separates_reference_outputs_from_run_outputs() -> None:
+    import yaml
+
+    leaf = EXAMPLES / "backtest" / "017_fnn_embedding"
+    config = yaml.safe_load((leaf / "config.yaml").read_text(encoding="utf-8"))
+    outputs = config["outputs"]
+    for key in ("result_json", "optimize_csv", "optimize_json", "features_dir", "reports_dir"):
+        assert outputs[key].startswith("output/"), (key, outputs[key])
+    assert outputs["models_dir"] == "models", "replay caches must remain available"
+    assert config["logging"]["log_dir"] == "output/logs"
+    assert config["logging"]["signals_jsonl"] == "output/signals.jsonl"
+    for name in (
+        "backtest_result.json",
+        "optimize_results.csv",
+        "optimize_results.json",
+        "signals.jsonl",
+        "train_report.jsonl",
+        "trial_registry.md",
+    ):
+        assert (leaf / "reports" / "reference" / name).is_file(), name
+
+
 def test_no_credential_bearing_file_is_tracked_under_examples() -> None:
     listing = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "examples"],

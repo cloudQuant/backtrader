@@ -91,9 +91,9 @@
 | `backtest/023_mixed_mode_backtest/` | 已完成 | 由入口生成本地确定性 tick/bar fixture，不依赖测试数据目录或全仓库生成工具。 |
 
 `examples/test_results/` 是本地运行产物，已加入 `examples/.gitignore`；其中已有文件保留在工作区，不作为示例输入提交。
-`backtest/017_fnn_embedding/` 的模型缓存可能供默认回放使用，不能按普通临时文件删除；其结果 JSON/CSV/JSONL 与训练日志
-需要另行区分“固定参考结果”和“本次运行输出”，并让新输出写到忽略的独立目录。`examples/data/113013_strategy_result.png`
-是结果图而非输入数据，迁移时归入对应示例的参考报告或输出目录。三个 CSV 仍作为只读输入数据保留。
+`backtest/017_fnn_embedding/` 的模型缓存可能供默认回放使用，保留在 `models/`；历史结果 JSON/CSV/JSONL 与训练日志已移到
+`reports/reference/`，本次运行的新结果、日志和诊断报告写到忽略的 `output/`。`examples/data/113013_strategy_result.png`
+是结果图而非输入数据，已归入对应示例的参考报告。三个 CSV 仍作为只读输入数据保留。
 
 ## 6. 保持现有边界的事项
 
