@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
@@ -558,3 +559,124 @@ def test_an_unstable_or_malformed_reference_is_never_published() -> None:
     adapter.submit_order(_limit_order(), _legacy_dispatch)
 
     assert client.submitted[0]["tags"] == {}
+
+
+def test_partial_and_complete_fills_are_projected_with_exact_figures() -> None:
+    client = _FakeClient(
+        submit_view=_view(
+            state="PARTIALLY_FILLED",
+            filled_quantity=Decimal("1.5"),
+            average_price=Decimal("101.25"),
+            cumulative_commission=Decimal("0.02"),
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+
+    response = adapter.submit_order(_limit_order(), _legacy_dispatch)
+
+    assert response["status"] == "partial"
+    assert response["filled"] == "1.5"
+    assert response["price"] == "101.25"
+    assert response["cumulative_commission"] == "0.02"
+    assert response["external_order_id"] == "provider-order-1"
+
+    client.submit_view = _view(
+        intent_id="intent-2",
+        state="FILLED",
+        filled_quantity=Decimal("2"),
+        average_price=Decimal("101.5"),
+    )
+    completed = adapter.submit_order(
+        _limit_order(info=_managed_info(managed_intent_id="intent-2")), _legacy_dispatch
+    )
+    assert completed["status"] == "completed"
+    assert completed["filled"] == "2"
+    assert completed["price"] == "101.5"
+
+
+def test_a_fill_without_exact_figures_is_never_booked_as_one() -> None:
+    client = _FakeClient(
+        submit_view=_view(
+            state="PARTIALLY_FILLED", filled_quantity=Decimal("1.5"), average_price=None
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+
+    response = adapter.submit_order(_limit_order(), _legacy_dispatch)
+
+    assert response["status"] == "accepted"
+    assert response["service_execution_fill_unprojected"] is True
+    assert "filled" not in response and "price" not in response
+
+
+def test_broker_applies_a_completed_service_record_once() -> None:
+    import backtrader as bt
+
+    client = _FakeClient(
+        submit_view=_view(
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
+        assert order.executed.price == pytest.approx(101.5)
+        assert provider.submitted_orders == []
+
+        # A repeated identical intent returns the same durable record and must
+        # not book the same fill a second time.
+        duplicate = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        assert duplicate.executed.size == pytest.approx(0.0)
+        assert len(client.submitted) == 2
+    finally:
+        store.stop()
+
+
+def test_broker_applies_a_partial_fill_from_the_service_record() -> None:
+    import backtrader as bt
+
+    client = _FakeClient(
+        submit_view=_view(
+            state="PARTIALLY_FILLED",
+            filled_quantity=Decimal("1"),
+            average_price=Decimal("101.25"),
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.25)
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()

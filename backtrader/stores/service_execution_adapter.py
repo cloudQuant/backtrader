@@ -58,8 +58,16 @@ _DEFINITIVE_REJECTION_CODES = frozenset(
     }
 )
 
-#: Durable states whose provider order identity is confirmed.
-_ACCEPTED_STATES = frozenset({"ACKED", "PARTIALLY_FILLED", "FILLED"})
+#: Durable states whose provider order identity is confirmed, mapped onto the
+#: status vocabulary the Broker already normalizes.
+_ACCEPTED_STATES = {
+    "ACKED": "accepted",
+    "PARTIALLY_FILLED": "partial",
+    "FILLED": "completed",
+}
+
+#: States that also carry provider fill facts worth projecting.
+_FILLED_STATES = frozenset({"PARTIALLY_FILLED", "FILLED"})
 
 #: Durable states that end the framework order locally.
 _REJECTED_STATES = frozenset({"REJECTED", "BLOCKED"})
@@ -97,6 +105,10 @@ class ServiceExecutionAdapter:
         self._client = client
         self._metadata_version = metadata_version
         self._order_ref_factory = order_ref_factory
+        #: Intent identities this adapter instance already returned to the
+        #: framework.  A durable record proves a provider dispatch; it is not
+        #: permission to mutate the current in-memory Broker twice.
+        self._returned_intents: set[str] = set()
 
     # -- submission ---------------------------------------------------------
 
@@ -141,7 +153,10 @@ class ServiceExecutionAdapter:
             )
         except Exception as error:  # noqa: BLE001 - mapped to a finite projection
             return _failure_projection(error, order=order, intent_id=identity["intent_id"])
-        return _submission_projection(view, order)
+        intent_id = identity["intent_id"]
+        replayed = intent_id in self._returned_intents
+        self._returned_intents.add(intent_id)
+        return _submission_projection(view, order, replayed=replayed)
 
     # -- cancellation -------------------------------------------------------
 
@@ -282,7 +297,7 @@ def _tags(order: Any, order_ref_factory: Optional[Callable[[Any], str]]) -> dict
 # -- projections ------------------------------------------------------------
 
 
-def _submission_projection(view: Any, order: Any) -> Mapping[str, Any]:
+def _submission_projection(view: Any, order: Any, *, replayed: bool = False) -> Mapping[str, Any]:
     state = _state_of(view)
     projection = {
         "kind": "service_execution_record",
@@ -295,8 +310,26 @@ def _submission_projection(view: Any, order: Any) -> Mapping[str, Any]:
         provider_order_id = _view_text(view, "provider_order_id")
         if provider_order_id is not None:
             projection["external_order_id"] = provider_order_id
-        projection["status"] = "accepted"
-        return projection
+        status = _ACCEPTED_STATES[state]
+        if state in _FILLED_STATES:
+            filled = _decimal_text(getattr(view, "filled_quantity", None))
+            price = _decimal_text(getattr(view, "average_price", None))
+            if filled is not None and price is not None:
+                projection["status"] = status
+                projection["filled"] = filled
+                projection["price"] = price
+                commission = _decimal_text(getattr(view, "cumulative_commission", None))
+                if commission is not None:
+                    projection["cumulative_commission"] = commission
+                return _mark_replay(projection, state) if replayed else projection
+            # A fill the framework cannot size or price exactly must not be
+            # reported as one; the order stays accepted and the caller
+            # reconciles the record instead of booking a guessed fill.
+            projection["status"] = "accepted"
+            projection["service_execution_fill_unprojected"] = True
+            return _mark_replay(projection, state) if replayed else projection
+        projection["status"] = status
+        return _mark_replay(projection, state) if replayed else projection
     if state == "UNKNOWN":
         projection.update(
             {
@@ -317,6 +350,20 @@ def _submission_projection(view: Any, order: Any) -> Mapping[str, Any]:
             "error_msg": f"Execution service recorded state {state} for this intent.",
         }
     )
+    return projection
+
+
+def _mark_replay(projection: dict[str, Any], state: str) -> dict[str, Any]:
+    """Mark a durable record this adapter already returned to the framework.
+
+    A durable record proves a provider dispatch, not permission to mutate the
+    current in-memory Broker a second time.  The Broker's dedicated replay
+    guard turns this into a precise rejection unless an audited recovery
+    receipt is available.
+    """
+
+    projection["managed_execution_replayed"] = True
+    projection["managed_execution_state"] = state
     return projection
 
 
@@ -469,6 +516,18 @@ _MANAGED_INFO_KEYS = (
 def _metadata_version_of(info: Mapping[str, Any], default: str) -> str:
     value = info.get("managed_metadata_version")
     return value if _reference(value) else default
+
+
+def _decimal_text(value: Any) -> Optional[str]:
+    """Return an exact decimal text, or None when the value is unusable."""
+
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return format(number, "f") if number.is_finite() else None
 
 
 def _data_name(order: Any) -> Optional[str]:

@@ -428,7 +428,10 @@ def test_backtrader_orders_route_through_a_real_execution_service(tmp_path):
         # The legacy provider route stayed untouched.
         assert provider.submitted_orders == []
 
-        # A repeated framework order with the same identity is not redispatched.
+        # A repeated framework order with the same identity is neither
+        # redispatched by the service nor booked a second time by the Broker:
+        # the durable record is a replay, and only an audited recovery receipt
+        # may project it again.
         duplicate = broker.buy(
             owner=None,
             data=data,
@@ -437,7 +440,9 @@ def test_backtrader_orders_route_through_a_real_execution_service(tmp_path):
             exectype=bt.Order.Limit,
             **_managed_broker_info("intent-1"),
         )
-        assert duplicate.info.get("external_order_id") == "provider-order-1"
+        assert duplicate.status == bt.Order.Rejected
+        assert duplicate.info.get("error_code") == "managed_execution_projection_replay_blocked"
+        assert duplicate.executed.size == pytest.approx(0.0)
         assert _command(host, "counts")[1] == ("intent-1",)
 
         # A provider failure is a durable UNKNOWN record and is not resent.
