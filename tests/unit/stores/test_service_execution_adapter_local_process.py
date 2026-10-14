@@ -502,6 +502,17 @@ def test_backtrader_orders_route_through_a_real_execution_service(tmp_path):
         assert filled_order.executed.size == pytest.approx(2.0)
         assert filled_order.executed.price == pytest.approx(101.5)
 
+        # The strategy sees each state once: a repeated refresh pass of an
+        # unchanged record must not notify again.
+        notifications: list[tuple[int, int]] = []
+        original_notify = broker.notify
+
+        def _recording_notify(order):
+            notifications.append((getattr(order, "ref", None), order.status))
+            return original_notify(order)
+
+        broker.notify = _recording_notify
+
         # A second live order stays accepted until the loop projects its record.
         accepted_order = broker.buy(
             owner=None,
@@ -524,6 +535,18 @@ def test_backtrader_orders_route_through_a_real_execution_service(tmp_path):
         assert filled_order.executed.size == pytest.approx(2.0)
         assert loop.stats.failures == 0
         assert _command(host, "counts")[1] == ("intent-1", "intent-2", "intent-3", "intent-4")
+
+        # The accepted order was notified once when it was submitted, and the
+        # refresh passes that found no new revision added nothing.
+        accepted_ref = accepted_order.ref
+        accepted_notifications = [item for item in notifications if item[0] == accepted_ref]
+        assert accepted_notifications == [(accepted_ref, bt.Order.Accepted)]
+        assert (
+            not [item for item in notifications if item[0] == filled_order.ref]
+            or [item for item in notifications if item[0] == filled_order.ref][-1][1]
+            == bt.Order.Completed
+        )
+        broker.notify = original_notify
 
         # Cancellation reaches the same account entry with the evidenced order.
         broker.cancel(order)
