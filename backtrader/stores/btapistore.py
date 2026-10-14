@@ -3615,6 +3615,11 @@ class BtApiStore(LiveStoreBase):
             )
             or (api is not None and callable(getattr(api, "poll_event", None)))
         )
+        self._service_read_only = (
+            type(getattr(api, "service_read_only", None)) is bool
+            and api.service_read_only is True
+        )
+        self._service_read_only_stopped = False
         self._sdk_exchanges = dict(
             sdk_options.get("exchange_kwargs") or getattr(api, "exchange_kwargs", {}) or {}
         )
@@ -4377,6 +4382,10 @@ class BtApiStore(LiveStoreBase):
 
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
+        if self._service_read_only_stopped:
+            raise BtApiStoreError(
+                "a stopped read-only service Store requires fresh client facades"
+            )
         with self._read_only_metadata_probe_condition:
             probe_worker = self._read_only_metadata_probe_thread
             if (
@@ -5410,6 +5419,28 @@ class BtApiStore(LiveStoreBase):
             self._shutdown_state = "INCOMPLETE"
             self._command_health["read_only_metadata_probe_shutdown_blocked"] += 1
             return self.get_command_health()
+        if self._service_read_only:
+            try:
+                if self._api is not None and callable(
+                    getattr(self._api, "disconnect", None)
+                ):
+                    self._api.disconnect()
+            except Exception:
+                self._shutdown_state = "INCOMPLETE"
+                self.emit_runtime_event(
+                    "store_disconnect_incomplete",
+                    status="incomplete",
+                    details={"reason": "service_facade_close_failed"},
+                )
+                raise
+            self._connected = False
+            self._started = False
+            self._subscribed_datanames.clear()
+            self._tick_consumers.clear()
+            self._shutdown_state = "PASS"
+            self._service_read_only_stopped = True
+            self.emit_runtime_event("store_disconnected", status="disconnected")
+            return self.get_command_health()
         deadline = time.monotonic() + (
             self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
         )
@@ -5644,6 +5675,9 @@ class BtApiStore(LiveStoreBase):
         callers must validate that result before submitting live or demo orders.
         """
         mode = str(mode or "net").strip().lower()
+        if self._service_read_only:
+            supports = getattr(self._api, "supports_position_mode", None)
+            return bool(callable(supports) and supports(mode))
         if mode != "dual_side":
             return True
 
@@ -5669,6 +5703,19 @@ class BtApiStore(LiveStoreBase):
 
     def get_balance(self, force: bool = False, raise_errors: bool = False):
         """Refresh cached cash and value from the API, if available."""
+        if self._service_read_only:
+            api = self._ensure_api_ready()
+            balance = api.get_balance()
+            normalized_balance = _normalise_account_balance_payload(balance)
+            if normalized_balance is None:
+                raise BtApiStoreError("read-only service valuation is incomplete")
+            cash, value = normalized_balance
+            if cash is None or value is None:
+                raise BtApiStoreError("read-only service valuation is incomplete")
+            self._cash = cash
+            self._value = value
+            self._last_balance_refresh = time.monotonic()
+            return {"cash": self._cash, "value": self._value}
         if not force and self._is_cache_fresh(
             self._last_balance_refresh,
             self._account_cache_ttl,
@@ -5722,6 +5769,16 @@ class BtApiStore(LiveStoreBase):
         raise_errors: bool = False,
     ) -> List[Dict[str, Any]]:
         """Return cached or queried positions."""
+        if self._service_read_only:
+            api = self._ensure_api_ready()
+            positions = api.get_positions()
+            if type(positions) is not list or any(
+                not isinstance(row, Mapping) for row in positions
+            ):
+                raise BtApiStoreError("read-only service positions are incomplete")
+            self._positions_cache = [dict(row) for row in positions]
+            self._last_positions_refresh = time.monotonic()
+            return deepcopy(self._positions_cache)
         if not force and self._is_cache_fresh(
             self._last_positions_refresh,
             self._positions_cache_ttl,
@@ -5815,6 +5872,16 @@ class BtApiStore(LiveStoreBase):
         if dataname in self._subscribed_datanames:
             return
 
+        if self._service_read_only:
+            api.subscribe(dataname)
+            self._subscribed_datanames.add(dataname)
+            self.emit_runtime_event(
+                "market_data_subscribe_request",
+                details={"data_name": dataname},
+                status="submitted",
+            )
+            return
+
         if hasattr(api, "subscribe"):
             if self._sdk_mode:
                 venue = self._sdk_exchange(dataname)
@@ -5837,6 +5904,18 @@ class BtApiStore(LiveStoreBase):
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Fetch normalized historical bars for a symbol."""
+        if self._service_read_only:
+            api = self._ensure_api_ready()
+            bars = api.fetch_bars(
+                dataname,
+                timeframe=timeframe,
+                compression=compression,
+                since=since,
+                limit=limit,
+            )
+            if type(bars) is not list:
+                raise BtApiStoreError("read-only service history is incomplete")
+            return [_normalize_bar(bar) for bar in bars]
         request_key = self._history_request_key(dataname, timeframe, compression, since, limit)
         if (
             self._is_default_history_request(timeframe, compression, since, limit)
@@ -5886,6 +5965,16 @@ class BtApiStore(LiveStoreBase):
         raise_errors: bool = False,
     ) -> List[Dict[str, Any]]:
         """Fetch the provider's currently open orders, if supported."""
+        if self._service_read_only:
+            api = self._ensure_api_ready()
+            orders = api.fetch_open_orders()
+            if type(orders) is not list or any(
+                not isinstance(order, Mapping) for order in orders
+            ):
+                raise BtApiStoreError("read-only service open-order snapshot is incomplete")
+            self._open_orders_cache = [dict(order) for order in orders]
+            self._last_open_orders_refresh = time.monotonic()
+            return deepcopy(self._open_orders_cache)
         if not force and self._is_cache_fresh(
             self._last_open_orders_refresh,
             self._open_orders_cache_ttl,
@@ -5936,6 +6025,10 @@ class BtApiStore(LiveStoreBase):
 
     def poll_live(self, dataname: str) -> Optional[Dict[str, Any]]:
         """Poll a single live bar from cache or the API."""
+        if self._service_read_only:
+            api = self._ensure_api_ready()
+            bar = api.poll_bar(dataname)
+            return None if bar is None else _normalize_bar(bar)
         if self._live_bars[dataname]:
             return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
 
@@ -7289,6 +7382,8 @@ class BtApiStore(LiveStoreBase):
     def enqueue_order(self, order) -> Dict[str, Any]:
         """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
 
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot enqueue orders")
         info = getattr(order, "info", {})
         get_info = getattr(info, "get", lambda *_args: None)
         recovery_exit = get_info("execution_role") == "recovery_exit"
@@ -7464,6 +7559,8 @@ class BtApiStore(LiveStoreBase):
 
     def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
         """Queue a typed cancellation while preserving its reserved capacity."""
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot enqueue cancellations")
         self._assert_write_route_identity()
         if (
             self._managed_execution_adapter is not None
@@ -7880,6 +7977,8 @@ class BtApiStore(LiveStoreBase):
         fact into an accidental provider write.
         """
 
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot submit orders")
         self._assert_write_route_identity()
         adapter = self._managed_execution_adapter
         if adapter is None:
@@ -8143,6 +8242,8 @@ class BtApiStore(LiveStoreBase):
         after it makes its durable admission decision.  No public route calls
         it following a managed-adapter failure.
         """
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot submit orders")
         api_was_missing = getattr(self, "_api", None) is None
         self._assert_write_route_identity()
         if self._is_ctp_write_provider():
@@ -8224,6 +8325,8 @@ class BtApiStore(LiveStoreBase):
 
     def cancel_order(self, order):
         """Cancel through the managed route when one is attached."""
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot cancel orders")
         if self._managed_execution_adapter is None and self._is_ctp_write_provider():
             raise BtApiStoreError("direct CTP Store cancellation is disabled")
         info = getattr(order, "info", None)
@@ -8265,6 +8368,8 @@ class BtApiStore(LiveStoreBase):
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel through managed execution or, when absent, the legacy Store path."""
 
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot cancel orders")
         adapter = self._managed_execution_adapter
         if adapter is None:
             return self._cancel_order_ref_legacy(order_ref, dataname=dataname)
@@ -8423,6 +8528,8 @@ class BtApiStore(LiveStoreBase):
 
     def _cancel_order_ref_legacy(self, order_ref, dataname: Optional[str] = None):
         """Run the historic provider cancellation mapping for a managed adapter port."""
+        if self._service_read_only:
+            raise BtApiStoreError("read-only service proxy cannot cancel orders")
         api_was_missing = getattr(self, "_api", None) is None
         self._assert_write_route_identity()
         if self._is_ctp_write_provider():
@@ -16912,6 +17019,24 @@ class BtApiStore(LiveStoreBase):
                 self._api = api_cls(**kwargs)
 
         if (
+            type(getattr(self._api, "service_read_only", None)) is bool
+            and self._api.service_read_only is True
+            and not self._service_read_only
+        ):
+            api = self._api
+            disconnect = getattr(api, "disconnect", None)
+            if callable(disconnect):
+                try:
+                    disconnect()
+                except Exception:
+                    _safe_log("warning", "btapistore:read_only_lazy_api_cleanup_failed")
+            if self._sdk_owned_api:
+                self._api = None
+            raise BtApiStoreError(
+                "read-only service proxies must be injected with api= before Store creation"
+            )
+
+        if (
             self._sdk_mode
             and not metadata_probe_requires_market_data_only
             and not self._is_sdk_market_data_only()
@@ -16992,7 +17117,7 @@ class BtApiStore(LiveStoreBase):
                 if self._sdk_owned_api:
                     self._api = None
                 self._sdk_configured = False
-            elif hasattr(self._api, "disconnect"):
+            elif not self._service_read_only and hasattr(self._api, "disconnect"):
                 self._api.disconnect()
             raise
         self.emit_runtime_event("store_ready", status="ready")

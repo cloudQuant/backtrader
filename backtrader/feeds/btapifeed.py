@@ -309,8 +309,16 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self.store.start(data=self)
             self.store.register(self)
 
+            service_read_only = bool(
+                getattr(self.store, "_service_read_only", False)
+            )
+            if service_read_only:
+                # Establish the bounded live cursor before history so bars
+                # published during backfill can be replayed and deduplicated.
+                self.store.subscribe(self._dataname)
+
             if self.p.backfill_start and not self._history and not self._history_backfilled:
-                try:
+                if service_read_only:
                     bars = self.store.fetch_history(
                         self._dataname,
                         timeframe=self._timeframe,
@@ -318,20 +326,30 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     )
                     self._history.extend(bars)
                     self._history_backfilled = True
-                except Exception as e:
-                    _safe_log("warning", "btapifeed:312 fallback on Exception")
-                    _safe_log("debug", "Failed to backfill history: %s", e)
+                else:
+                    try:
+                        bars = self.store.fetch_history(
+                            self._dataname,
+                            timeframe=self._timeframe,
+                            compression=self._compression,
+                        )
+                        self._history.extend(bars)
+                        self._history_backfilled = True
+                    except Exception as e:
+                        _safe_log("warning", "btapifeed:312 fallback on Exception")
+                        _safe_log("debug", "Failed to backfill history: %s", e)
 
-            claim = getattr(self.store, "claim_tick_consumer", None)
-            if (
-                callable(claim)
-                and not self.p.orderbook_as_ticks
-                and not self._tick_consumer_claimed
-            ):
-                claim(self._dataname, self)
-                self._tick_consumer_claimed = True
-                claimed_this_start = True
-            self.store.subscribe(self._dataname)
+            if not service_read_only:
+                claim = getattr(self.store, "claim_tick_consumer", None)
+                if (
+                    callable(claim)
+                    and not self.p.orderbook_as_ticks
+                    and not self._tick_consumer_claimed
+                ):
+                    claim(self._dataname, self)
+                    self._tick_consumer_claimed = True
+                    claimed_this_start = True
+                self.store.subscribe(self._dataname)
             self._session_active = True
         except Exception:
             _safe_log("error", "btapifeed:326 exception before re-raise (Exception)")

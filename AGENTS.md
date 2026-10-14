@@ -70,6 +70,16 @@ unbounded read of a private input.
 
 These correct common stale assumptions — verify before relying on docs:
 
+- Optional service reads can be explicitly injected through
+  `backtrader.stores.service_read_proxy.ServiceReadProxy` and
+  `BtApiStore(api=proxy)`. This bridge uses SDK account/market facades and neutral
+  `bt_api_base` contracts; it does not embed the four service components in a
+  strategy. Broker requires `market_data_only=True`, and Store write entrypoints
+  reject this proxy. Successful close is terminal; create fresh facades for a
+  new run. See `docs/source/developer-guide/optional-service-read-proxy.md` for
+  usage, scope, and the Round07 B acceptance record. This is not execution,
+  provider-account, reconnect, or full BT01/BT02 acceptance.
+
 - **Pure Python today.** Although `cython>=0.29.0` is a declared dependency and
   older docs reference `compile_cython_numba_files.py`, there are currently
   **no tracked `.pyx` files and no `ext_modules` in `setup.py`**. `pip install`

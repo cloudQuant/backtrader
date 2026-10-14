@@ -449,6 +449,7 @@ class BtApiBroker(BrokerBase):
         if self._live_started and self._startup_ready and self.store.is_connected:
             return
 
+        is_service_read_only = bool(getattr(self.store, "_service_read_only", False))
         if not self.supports_position_mode(self.get_param("position_mode")):
             raise ValueError(
                 f"Provider {self.provider!r} does not advertise support for "
@@ -457,6 +458,8 @@ class BtApiBroker(BrokerBase):
 
         is_sdk = bool(getattr(self.store, "_sdk_mode", False))
         market_data_only = self._is_market_data_only()
+        if is_service_read_only and not market_data_only:
+            raise ValueError("service read proxy requires market_data_only=True")
         self._startup_account_state_evidence = self._normalise_startup_account_state(
             self.get_param("startup_account_state")
         )
@@ -493,7 +496,7 @@ class BtApiBroker(BrokerBase):
             self._warm_contract_metadata()
             remote_open_orders = self._sync_remote_open_orders(
                 force=True,
-                raise_errors=is_sdk,
+                raise_errors=is_sdk or is_service_read_only,
             )
             if is_sdk and remote_open_orders and not recovery_requested and not market_data_only:
                 raise ValueError("SDK startup requires a proven empty remote open-order set")
@@ -555,7 +558,7 @@ class BtApiBroker(BrokerBase):
             _safe_log("error", "btapibroker:545 exception before re-raise (Exception)")
             self._live_started = False
             self._startup_ready = False
-            if is_sdk:
+            if is_sdk or is_service_read_only:
                 if recovery_requested:
                     try:
                         self.abort_execution_recovery("execution_recovery_startup_failed")
@@ -575,9 +578,10 @@ class BtApiBroker(BrokerBase):
                 self._position_audit_mismatch = None
                 self._position_audit_error = None
                 self._position_audit_blocked = False
-                freeze_openings = getattr(self.store, "freeze_openings", None)
-                if callable(freeze_openings):
-                    freeze_openings("broker_start_failed")
+                if is_sdk:
+                    freeze_openings = getattr(self.store, "freeze_openings", None)
+                    if callable(freeze_openings):
+                        freeze_openings("broker_start_failed")
             raise
 
     def get_execution_recovery(self):
@@ -974,6 +978,9 @@ class BtApiBroker(BrokerBase):
             otherwise.
         """
         mode = normalize_position_mode(mode)
+        if bool(getattr(self.store, "_service_read_only", False)):
+            supports = getattr(self.store, "supports_position_mode", None)
+            return bool(callable(supports) and supports(mode))
         if mode != POSITION_MODE_DUAL_SIDE:
             return True
         if self.store is not None and hasattr(self.store, "supports_position_mode"):
@@ -4384,7 +4391,13 @@ class BtApiBroker(BrokerBase):
 
     def _refresh_account(self, force=False, raise_errors=False):
         """Refresh cached cash and value from the store."""
+        service_read_only = bool(getattr(self.store, "_service_read_only", False))
+        if service_read_only:
+            force = True
+            raise_errors = True
         if self.store is None or not self._live_started or not self.store.is_connected:
+            if service_read_only:
+                raise RuntimeError("read-only service account snapshot is unavailable")
             return
         if not force and not self._should_refresh(
             self._last_account_refresh,
@@ -4396,6 +4409,8 @@ class BtApiBroker(BrokerBase):
             try:
                 balance = self.store.get_balance(force=force, raise_errors=raise_errors)
             except TypeError:
+                if service_read_only:
+                    raise
                 balance = self.store.get_balance()
             self._cash = float(balance.get("cash", self._cash))
             self._value = float(balance.get("value", self._value))
@@ -4414,9 +4429,19 @@ class BtApiBroker(BrokerBase):
         so neither a timed refresh nor ``force`` may replace that baseline.
         Remote audit reads remain available directly on the store.
         """
+        service_read_only = bool(getattr(self.store, "_service_read_only", False))
+        if service_read_only:
+            force = True
+            raise_errors = True
         if self.store is None or not self._live_started or not self.store.is_connected:
+            if service_read_only:
+                raise RuntimeError("read-only service positions are unavailable")
             return
-        if self.p.position_sync_policy == "startup" and self._positions_snapshot_loaded:
+        if (
+            self.p.position_sync_policy == "startup"
+            and self._positions_snapshot_loaded
+            and not service_read_only
+        ):
             return
         if not force and not self._should_refresh(
             self._last_positions_refresh,
@@ -4438,6 +4463,8 @@ class BtApiBroker(BrokerBase):
                     raise_errors=raise_errors,
                 )
             except TypeError:
+                if service_read_only:
+                    raise
                 position_rows = self.store.get_positions()
             tracked_aliases = self._tracked_position_alias_map()
             for item in position_rows:
@@ -4607,7 +4634,13 @@ class BtApiBroker(BrokerBase):
 
     def _sync_remote_open_orders(self, force=False, raise_errors=False):
         """Refresh the cached provider-side open-order snapshot."""
+        service_read_only = bool(getattr(self.store, "_service_read_only", False))
+        if service_read_only:
+            force = True
+            raise_errors = True
         if self.store is None or not self._live_started or not self.store.is_connected:
+            if service_read_only:
+                raise RuntimeError("read-only service open-order snapshot is unavailable")
             return deepcopy(self._remote_open_orders_snapshot)
         if not force and not self._should_refresh(
             self._last_open_orders_refresh,
@@ -4621,6 +4654,8 @@ class BtApiBroker(BrokerBase):
                     self.store.fetch_open_orders(force=force, raise_errors=raise_errors) or []
                 )
             except TypeError:
+                if service_read_only:
+                    raise
                 orders = list(self.store.fetch_open_orders() or [])
             self._remote_open_orders_snapshot = orders
             self._last_open_orders_refresh = time.monotonic()
