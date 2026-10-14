@@ -3069,11 +3069,25 @@ class BtApiBroker(BrokerBase):
                 continue
             if projection.get("managed_execution_replayed") is True:
                 continue
+            # A repeat projection of the same durable revision must not be
+            # applied again: applying it would notify the strategy a second
+            # time for a state it already saw.
+            fingerprint = (
+                projection.get("service_execution_state"),
+                projection.get("service_record_revision"),
+                projection.get("status"),
+                projection.get("execution_unknown"),
+                projection.get("filled"),
+                projection.get("price"),
+            )
+            if self._order_info_get(order, "service_refresh_applied") == fingerprint:
+                continue
             update = dict(projection)
             update.setdefault("bt_order_ref", getattr(order, "ref", None))
             update.setdefault("data_name", self._position_key(order.data))
             update.setdefault("side", "buy" if order.isbuy() else "sell")
             self._apply_order_update(update)
+            order.addinfo(service_refresh_applied=fingerprint)
             applied.append(getattr(order, "ref", None))
         return tuple(applied)
 

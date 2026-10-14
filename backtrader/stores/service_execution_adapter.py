@@ -351,6 +351,8 @@ def _submission_projection(
         "managed_intent_id": _view_text(view, "intent_id"),
         "service_execution_state": state,
         "service_dispatch_attempts": getattr(view, "dispatch_attempts", None),
+        # The durable revision lets a caller suppress a repeat projection.
+        "service_record_revision": getattr(view, "updated_at_ns", None),
         "data_name": data_name,
     }
     if state in _ACCEPTED_STATES:

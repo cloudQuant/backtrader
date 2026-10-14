@@ -690,11 +690,19 @@ class _QueryClient(_FakeClient):
         self.view = view
         self.error = error
         self.queries: list[str] = []
+        # When set, each query looks like a fresh revision so the adapter's own
+        # replay check cannot hide a Broker-level duplicate application.
+        self.force_fresh_revision = False
 
     def query(self, intent_id):
         self.queries.append(intent_id)
         if self.error is not None:
             raise self.error
+        if self.force_fresh_revision and self.view is not None:
+            self._revision_counter = getattr(self, "_revision_counter", 0) + 1
+            return SimpleNamespace(
+                **{**vars(self.view), "updated_at_ns": 1000 + self._revision_counter}
+            )
         return self.view
 
 
@@ -997,5 +1005,92 @@ def test_the_refresh_loop_drives_a_real_broker_pass() -> None:
         assert loop.run_once() == ()
         assert loop.stats.applied == 1
         assert loop.stats.failures == 0
+    finally:
+        store.stop()
+
+
+class _StaticProjectionAdapter:
+    """Duck-typed adapter that always reports the same durable revision.
+
+    It performs no replay marking of its own, so the Broker-level guarantee is
+    exercised in isolation: an unchanged durable revision must not be applied
+    or notified twice.
+    """
+
+    def __init__(self, projection):
+        self.projection = dict(projection)
+        self.refreshes = 0
+
+    def submit_order(self, order, legacy_dispatch):
+        del legacy_dispatch
+        return {
+            "kind": "service_execution_record",
+            "managed_intent_id": order.info.get("managed_intent_id"),
+            "service_execution_state": "ACKED",
+            "status": "accepted",
+            "external_order_id": "provider-order-1",
+            "data_name": "BTC-USDT",
+        }
+
+    def refresh_projection(self, intent_id):
+        self.refreshes += 1
+        return dict(self.projection, managed_intent_id=intent_id)
+
+
+def test_a_repeated_refresh_projection_does_not_notify_twice() -> None:
+    import backtrader as bt
+
+    notifications: list[int] = []
+    adapter = _StaticProjectionAdapter(
+        {
+            "kind": "service_execution_record",
+            "service_execution_state": "ACKED",
+            "service_record_revision": 7,
+            "status": "accepted",
+            "external_order_id": "provider-order-1",
+            "data_name": "BTC-USDT",
+        }
+    )
+    (store, data, broker), _provider = _broker_stack(adapter)
+    original_notify = broker.notify
+
+    def _recording_notify(order):
+        notifications.append(getattr(order, "ref", None))
+        return original_notify(order)
+
+    broker.notify = _recording_notify
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        notifications.clear()
+
+        first = broker.refresh_managed_orders()
+        after_first = len(notifications)
+        second = broker.refresh_managed_orders()
+
+        assert first == (order.ref,)
+        assert second == ()
+        assert adapter.refreshes == 2
+        assert len(notifications) == after_first
+
+        # A new durable revision that changes the state is applied again.
+        adapter.projection.update(
+            {
+                "service_record_revision": 8,
+                "service_execution_state": "FILLED",
+                "status": "completed",
+                "filled": "2",
+                "price": "101.5",
+            }
+        )
+        assert broker.refresh_managed_orders() == (order.ref,)
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
     finally:
         store.stop()
