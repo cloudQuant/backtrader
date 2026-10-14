@@ -954,3 +954,48 @@ def test_refresh_does_not_run_without_an_explicit_call() -> None:
         assert client.queries == []
     finally:
         store.stop()
+
+
+def test_the_refresh_loop_drives_a_real_broker_pass() -> None:
+    import backtrader as bt
+
+    from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    clock = [0.0]
+    loop = ManagedOrderRefreshLoop(broker, interval_seconds=2.0, monotonic_clock=lambda: clock[0])
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        assert order.status == bt.Order.Accepted
+
+        assert loop.run_once() == ()
+        assert order.status == bt.Order.Accepted
+
+        client.view = _view(
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+            updated_at_ns=9,
+        )
+        clock[0] = 2.0
+        assert loop.run_once() == (order.ref,)
+        assert order.status == bt.Order.Completed
+
+        # Not due yet, and the unchanged revision is skipped when it is.
+        assert loop.run_once() == ()
+        clock[0] = 4.0
+        assert loop.run_once() == ()
+        assert loop.stats.applied == 1
+        assert loop.stats.failures == 0
+    finally:
+        store.stop()
