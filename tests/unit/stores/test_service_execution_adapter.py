@@ -680,3 +680,138 @@ def test_broker_applies_a_partial_fill_from_the_service_record() -> None:
         assert provider.submitted_orders == []
     finally:
         store.stop()
+
+
+class _QueryClient(_FakeClient):
+    """Fake client whose durable record can be advanced between refreshes."""
+
+    def __init__(self, *, view=None, error=None):
+        super().__init__()
+        self.view = view
+        self.error = error
+        self.queries: list[str] = []
+
+    def query(self, intent_id):
+        self.queries.append(intent_id)
+        if self.error is not None:
+            raise self.error
+        return self.view
+
+
+def test_refresh_projects_the_current_durable_state() -> None:
+    client = _QueryClient(
+        view=_view(
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+            updated_at_ns=5,
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+
+    projection = adapter.refresh_projection("intent-1")
+
+    assert projection["status"] == "completed"
+    assert projection["filled"] == "2"
+    assert projection["price"] == "101.5"
+    assert projection["managed_intent_id"] == "intent-1"
+    assert "managed_execution_replayed" not in projection
+    assert client.queries == ["intent-1"]
+
+
+def test_refreshing_an_unchanged_record_is_a_replay() -> None:
+    client = _QueryClient(
+        view=_view(
+            state="PARTIALLY_FILLED",
+            filled_quantity=Decimal("1"),
+            average_price=Decimal("101.25"),
+            updated_at_ns=5,
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+
+    first = adapter.refresh_projection("intent-1")
+    second = adapter.refresh_projection("intent-1")
+
+    assert first["status"] == "partial"
+    assert "managed_execution_replayed" not in first
+    assert second["managed_execution_replayed"] is True
+    assert second["managed_execution_state"] == "PARTIALLY_FILLED"
+
+
+def test_a_new_revision_is_projected_even_after_an_earlier_refresh() -> None:
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+
+    assert adapter.refresh_projection("intent-1")["status"] == "accepted"
+    client.view = _view(
+        state="FILLED",
+        filled_quantity=Decimal("2"),
+        average_price=Decimal("101.5"),
+        updated_at_ns=9,
+    )
+    advanced = adapter.refresh_projection("intent-1")
+
+    assert advanced["status"] == "completed"
+    assert "managed_execution_replayed" not in advanced
+
+
+def test_refresh_reports_a_cancelled_record_as_terminal() -> None:
+    client = _QueryClient(view=_view(state="CANCELLED", provider_order_id="provider-order-1"))
+    adapter = ServiceExecutionAdapter(client)
+
+    projection = adapter.refresh_projection("intent-1")
+
+    assert projection["status"] == "cancelled"
+
+
+def test_refresh_keeps_an_unknown_record_reconcilable() -> None:
+    client = _QueryClient(view=_view(state="UNKNOWN", provider_order_id=None))
+    adapter = ServiceExecutionAdapter(client)
+
+    projection = adapter.refresh_projection("intent-1")
+
+    assert projection["status"] == "pending"
+    assert projection["execution_unknown"] is True
+
+
+def test_refresh_reports_a_missing_record_as_unknown_not_as_success() -> None:
+    client = _QueryClient(view=None)
+    adapter = ServiceExecutionAdapter(client)
+
+    projection = adapter.refresh_projection("intent-1")
+
+    assert projection["status"] == "pending"
+    assert projection["execution_unknown"] is True
+    assert projection["error_code"] == "service_execution_record_missing"
+
+
+def test_refresh_maps_an_unreadable_record_by_certainty() -> None:
+    client = _QueryClient(error=_StubError("BUSINESS_OUTCOME_UNKNOWN"))
+    adapter = ServiceExecutionAdapter(client)
+
+    unknown = adapter.refresh_projection("intent-1")
+    assert unknown["status"] == "pending"
+    assert unknown["execution_unknown"] is True
+
+    client.error = _StubError("SCOPE_DENIED")
+    refused = adapter.refresh_projection("intent-1")
+    assert refused["status"] == "rejected"
+    assert refused["error_code"] == "SCOPE_DENIED"
+
+
+def test_refresh_requires_a_reference_identifier() -> None:
+    adapter = ServiceExecutionAdapter(_QueryClient(view=None))
+
+    with pytest.raises(ServiceExecutionAdapterError, match="invalid intent id"):
+        adapter.refresh_projection(" bad ")
+
+
+def test_a_refresh_never_dispatches_and_never_touches_the_legacy_route() -> None:
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+
+    adapter.refresh_projection("intent-1")
+
+    assert client.submitted == []
+    assert client.cancelled == []

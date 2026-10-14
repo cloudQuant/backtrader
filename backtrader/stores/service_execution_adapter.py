@@ -109,6 +109,9 @@ class ServiceExecutionAdapter:
         #: framework.  A durable record proves a provider dispatch; it is not
         #: permission to mutate the current in-memory Broker twice.
         self._returned_intents: set[str] = set()
+        #: Last durable revision projected per intent, so a repeated refresh
+        #: of an unchanged record is reported as a replay.
+        self._projected_revisions: dict[str, Any] = {}
 
     # -- submission ---------------------------------------------------------
 
@@ -156,7 +159,49 @@ class ServiceExecutionAdapter:
         intent_id = identity["intent_id"]
         replayed = intent_id in self._returned_intents
         self._returned_intents.add(intent_id)
-        return _submission_projection(view, order, replayed=replayed)
+        self._projected_revisions[intent_id] = getattr(view, "updated_at_ns", None)
+        return _submission_projection(view, data_name=_data_name(order), replayed=replayed)
+
+    # -- refresh ------------------------------------------------------------
+
+    def refresh_projection(self, intent_id: str) -> Mapping[str, Any]:
+        """Project the current durable record for one intent.
+
+        This performs no provider dispatch: it only asks the service what the
+        journal already holds.  An unchanged revision is reported as a replay
+        so the framework cannot book the same state twice, and an unreadable
+        record is reported as unknown rather than as a clean rejection.
+        """
+
+        if not _reference(intent_id):
+            raise ServiceExecutionAdapterError("invalid intent id")
+        try:
+            view = self._client.query(intent_id)
+        except Exception as error:  # noqa: BLE001 - mapped to a finite projection
+            code = _error_code(error)
+            if code not in _DEFINITIVE_REJECTION_CODES:
+                return {
+                    "kind": "service_execution_record",
+                    "managed_intent_id": intent_id,
+                    "status": "pending",
+                    "execution_unknown": True,
+                    "error_code": code,
+                    "error_msg": "The durable record could not be read; reconcile before acting.",
+                }
+            return _rejection(code, "The durable record could not be read.", intent_id=intent_id)
+        if view is None:
+            return {
+                "kind": "service_execution_record",
+                "managed_intent_id": intent_id,
+                "status": "pending",
+                "execution_unknown": True,
+                "error_code": "service_execution_record_missing",
+                "error_msg": "The service holds no durable record for this intent.",
+            }
+        revision = getattr(view, "updated_at_ns", None)
+        replayed = revision is not None and self._projected_revisions.get(intent_id) == revision
+        self._projected_revisions[intent_id] = revision
+        return _submission_projection(view, data_name=None, replayed=replayed)
 
     # -- cancellation -------------------------------------------------------
 
@@ -297,14 +342,16 @@ def _tags(order: Any, order_ref_factory: Optional[Callable[[Any], str]]) -> dict
 # -- projections ------------------------------------------------------------
 
 
-def _submission_projection(view: Any, order: Any, *, replayed: bool = False) -> Mapping[str, Any]:
+def _submission_projection(
+    view: Any, *, data_name: Optional[str], replayed: bool = False
+) -> Mapping[str, Any]:
     state = _state_of(view)
     projection = {
         "kind": "service_execution_record",
         "managed_intent_id": _view_text(view, "intent_id"),
         "service_execution_state": state,
         "service_dispatch_attempts": getattr(view, "dispatch_attempts", None),
-        "data_name": _data_name(order),
+        "data_name": data_name,
     }
     if state in _ACCEPTED_STATES:
         provider_order_id = _view_text(view, "provider_order_id")
@@ -343,6 +390,11 @@ def _submission_projection(view: Any, order: Any, *, replayed: bool = False) -> 
             }
         )
         return projection
+    if state == "CANCELLED":
+        # A cancelled order record is terminal for the framework order; any
+        # late fill is reconciled from the same durable record.
+        projection["status"] = "cancelled"
+        return _mark_replay(projection, state) if replayed else projection
     projection.update(
         {
             "status": "rejected",
@@ -350,7 +402,7 @@ def _submission_projection(view: Any, order: Any, *, replayed: bool = False) -> 
             "error_msg": f"Execution service recorded state {state} for this intent.",
         }
     )
-    return projection
+    return _mark_replay(projection, state) if replayed else projection
 
 
 def _mark_replay(projection: dict[str, Any], state: str) -> dict[str, Any]:
