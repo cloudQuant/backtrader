@@ -279,22 +279,27 @@ class ExecutionMixin:
             final_value = self._read_broker_lifecycle_value("getvalue")
             final_bars = self._read_data_lifecycle_length(self.datas[0]) if self.datas else 0
 
-        # Stop broker
-        self._broker.stop()
-        # If predata is False, iterate data and stop each data
-        if not predata:
-            for data in self.datas:
-                data.stop()
-        # Iterate each feed and stop feed
-        for feed in self.feeds:
-            feed.stop()
-        # Iterate each store and stop store
-        for store in self.stores:
-            if getattr(store, "_cerebro_managed_lifecycle", True) is False:
-                continue
-            store.stop()
-        # Stop writer
-        self.stop_writers(runstrats)
+        # Final reports may read live broker/feed state. Preserve virtual writer
+        # dispatch while those resources are open, and clean up even on failure.
+        try:
+            try:
+                self.stop_writers(runstrats)
+            except Exception as exc:
+                if run_exception is None:
+                    run_exception = exc
+                else:
+                    logger.warning("writer report unavailable after failed run")
+        finally:
+            self._broker.stop()
+            if not predata:
+                for data in self.datas:
+                    data.stop()
+            for feed in self.feeds:
+                feed.stop()
+            for store in self.stores:
+                if getattr(store, "_cerebro_managed_lifecycle", True) is False:
+                    continue
+                store.stop()
         if run_exception is None and log_lifecycle:
             if final_value is None or initial_cash is None:
                 pnl = "unavailable"
@@ -330,6 +335,23 @@ class ExecutionMixin:
         Collects information from data feeds and strategies, writes
         the information to all registered writers, and stops them.
         """
+        first_error = None
+        try:
+            self._write_final_info(runstrats)
+        except BaseException as exc:
+            first_error = exc
+        finally:
+            for writer in self.runwriters:
+                try:
+                    writer.stop()
+                except BaseException as exc:
+                    if first_error is None:
+                        first_error = exc
+        if first_error is not None:
+            raise first_error
+
+    def _write_final_info(self, runstrats):
+        """Collect and emit final reports before broker/feed resources close."""
         # Cerebro info
         cerebroinfo = OrderedDict()
         # Data info
@@ -349,7 +371,6 @@ class ExecutionMixin:
         # Write cerebroinfo to file
         for writer in self.runwriters:
             writer.writedict({"Cerebro": cerebroinfo})
-            writer.stop()
 
     # Run writer's next
     def _next_writers(self, runstrats):
