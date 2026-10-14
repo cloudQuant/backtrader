@@ -8323,6 +8323,29 @@ class BtApiStore(LiveStoreBase):
             )
         return response
 
+    def refresh_managed_order_projection(self, order):
+        """Return the current durable projection for one managed order.
+
+        This is a read: it asks the attached adapter for the service journal's
+        current state and never dispatches, cancels or falls back to the
+        legacy route.  A store without a managed adapter, or an adapter that
+        cannot refresh, fails explicitly instead of returning a guess.
+        """
+
+        adapter = self._managed_execution_adapter
+        if adapter is None:
+            raise BtApiStoreError("managed execution adapter is not attached")
+        refresh = getattr(adapter, "refresh_projection", None)
+        if not callable(refresh):
+            raise BtApiStoreError("managed execution adapter does not support refresh")
+        info = getattr(order, "info", None)
+        info_get = getattr(info, "get", None)
+        intent_id = info_get("managed_intent_id") if callable(info_get) else None
+        if not isinstance(intent_id, str) or not intent_id:
+            raise BtApiStoreError("managed order has no intent identity to refresh")
+        self._assert_write_route_identity()
+        return refresh(intent_id)
+
     def cancel_order(self, order):
         """Cancel through the managed route when one is attached."""
         if self._service_read_only:

@@ -3038,6 +3038,45 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             raise
 
+    def refresh_managed_orders(self, *, limit: int = 32):
+        """Apply current durable service records to live managed orders.
+
+        The caller owns the schedule; this method performs one bounded pass and
+        returns the framework order refs whose state was applied.  Only live
+        orders carrying a managed intent are refreshed, each application goes
+        through the ordinary update path, and an unchanged durable revision is
+        skipped so the same state is never booked twice.  A store or adapter
+        without refresh support raises instead of silently doing nothing.
+        """
+
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("refresh limit must be a positive integer")
+        if self.store is None:
+            raise ValueError("BtApiBroker requires a BtApiStore instance")
+        refresh = getattr(self.store, "refresh_managed_order_projection", None)
+        if not callable(refresh):
+            raise ValueError("store does not support managed order refresh")
+        applied = []
+        for order in list(self.orders.values()):
+            if len(applied) >= limit:
+                break
+            if not order.alive():
+                continue
+            if not self._order_info_get(order, "managed_intent_id"):
+                continue
+            projection = refresh(order)
+            if not isinstance(projection, dict):
+                continue
+            if projection.get("managed_execution_replayed") is True:
+                continue
+            update = dict(projection)
+            update.setdefault("bt_order_ref", getattr(order, "ref", None))
+            update.setdefault("data_name", self._position_key(order.data))
+            update.setdefault("side", "buy" if order.isbuy() else "sell")
+            self._apply_order_update(update)
+            applied.append(getattr(order, "ref", None))
+        return tuple(applied)
+
     def cancel(self, order):
         """Cancel an existing order through the store."""
         if order is None:

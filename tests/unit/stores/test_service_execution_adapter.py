@@ -815,3 +815,142 @@ def test_a_refresh_never_dispatches_and_never_touches_the_legacy_route() -> None
 
     assert client.submitted == []
     assert client.cancelled == []
+
+
+def test_broker_refresh_applies_a_new_durable_revision_once() -> None:
+    import backtrader as bt
+
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        assert order.status == bt.Order.Accepted
+
+        # The service advances the durable record; the refresh projects it.
+        client.view = _view(
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+            updated_at_ns=9,
+        )
+        applied = broker.refresh_managed_orders()
+        assert applied == (order.ref,)
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
+        assert order.executed.price == pytest.approx(101.5)
+
+        # The unchanged revision is a replay and must not be booked again.
+        assert broker.refresh_managed_orders() == ()
+        assert order.executed.size == pytest.approx(2.0)
+        assert provider.submitted_orders == []
+        assert provider.cancelled_orders == []
+    finally:
+        store.stop()
+
+
+def test_broker_refresh_skips_orders_without_a_managed_intent() -> None:
+    import backtrader as bt
+
+    client = _QueryClient(view=_view(state="FILLED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        del order.info["managed_intent_id"]
+
+        assert broker.refresh_managed_orders() == ()
+        assert client.queries == []
+    finally:
+        store.stop()
+
+
+def test_broker_refresh_reports_an_unreadable_record_as_unknown() -> None:
+    import backtrader as bt
+
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        client.error = _StubError("BUSINESS_OUTCOME_UNKNOWN")
+
+        broker.refresh_managed_orders()
+
+        assert order.alive() is True
+        assert order.info.get("execution_unknown") is True
+    finally:
+        store.stop()
+
+
+def test_refresh_requires_a_managed_adapter_and_a_valid_limit() -> None:
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    try:
+        with pytest.raises(ValueError, match="positive integer"):
+            broker.refresh_managed_orders(limit=0)
+        with pytest.raises(ValueError, match="positive integer"):
+            broker.refresh_managed_orders(limit="many")
+
+        import backtrader as bt
+
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        store._managed_execution_adapter = None
+        with pytest.raises(Exception, match="managed execution adapter is not attached"):
+            broker.refresh_managed_orders()
+    finally:
+        store.stop()
+
+
+def test_refresh_does_not_run_without_an_explicit_call() -> None:
+    import backtrader as bt
+
+    client = _QueryClient(view=_view(state="FILLED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+
+        assert order.status == bt.Order.Accepted
+        assert client.queries == []
+    finally:
+        store.stop()
