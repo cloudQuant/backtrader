@@ -58,12 +58,16 @@ class _Provider:
         self.submitted: list[str] = []
         self.cancelled: list[str] = []
         self.fail_next_submit = False
+        self.fill_next_submit = False
 
     def submit(self, intent):
         self.submitted.append(intent.intent_id)
         if self.fail_next_submit:
             self.fail_next_submit = False
             raise TimeoutError("synthetic provider timeout")
+        if self.fill_next_submit:
+            self.fill_next_submit = False
+            return _filled_observation(intent.intent_id)
         return _observation(intent.intent_id)
 
     def cancel(self, intent):
@@ -75,6 +79,18 @@ def _observation(intent_id: str):
     from bt_api_execution import ProviderObservation
 
     return ProviderObservation.accepted(intent_id, "provider-order-1")
+
+
+def _filled_observation(intent_id: str):
+    from bt_api_execution import ExecutionState, ProviderObservation
+
+    return ProviderObservation(
+        intent_id=intent_id,
+        state=ExecutionState.FILLED,
+        provider_order_id="provider-order-1",
+        filled_quantity=Decimal("2"),
+        average_price=Decimal("101.5"),
+    )
 
 
 def _cancel_observation(intent):
@@ -301,6 +317,10 @@ def _host_process(control, raw_config, registry_path, keys, store_path):
                 provider.fail_next_submit = True
                 control.send(("armed",))
                 continue
+            if command == ("fill_next_submit",):
+                provider.fill_next_submit = True
+                control.send(("armed",))
+                continue
             raise AssertionError("unknown local execution host command")
     except BaseException as exc:
         if host is not None and host.state not in {"closed", "failed"}:
@@ -460,6 +480,50 @@ def test_backtrader_orders_route_through_a_real_execution_service(tmp_path):
         assert unknown.executed.size == pytest.approx(0.0)
         assert _command(host, "counts")[1] == ("intent-1", "intent-2")
         assert client.query("intent-2").state == "UNKNOWN"
+
+        # A filled durable record reaches the framework order through the
+        # refresh schedule: the service dispatches once, the loop projects it.
+        from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
+        clock = [0.0]
+        loop = ManagedOrderRefreshLoop(
+            broker, interval_seconds=1.0, monotonic_clock=lambda: clock[0]
+        )
+        assert _command(host, "fill_next_submit") == ("armed",)
+        filled_order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info("intent-3"),
+        )
+        assert filled_order.status == bt.Order.Completed
+        assert filled_order.executed.size == pytest.approx(2.0)
+        assert filled_order.executed.price == pytest.approx(101.5)
+
+        # A second live order stays accepted until the loop projects its record.
+        accepted_order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info("intent-4"),
+        )
+        assert accepted_order.status == bt.Order.Accepted
+        # A refresh pass projects whatever the journal now holds; an order whose
+        # record has not advanced must not change state, and the filled record
+        # was already projected at submit time.
+        loop.run_once()
+        clock[0] = 1.0
+        loop.run_once()
+        assert accepted_order.status == bt.Order.Accepted
+        assert accepted_order.executed.size == pytest.approx(0.0)
+        assert filled_order.status == bt.Order.Completed
+        assert filled_order.executed.size == pytest.approx(2.0)
+        assert loop.stats.failures == 0
+        assert _command(host, "counts")[1] == ("intent-1", "intent-2", "intent-3", "intent-4")
 
         # Cancellation reaches the same account entry with the evidenced order.
         broker.cancel(order)
