@@ -155,15 +155,22 @@ class ServiceExecutionAdapter:
 
         del legacy_dispatch
         info = _order_info(order_or_ref)
-        cancel_id = info.get("managed_cancel_intent_id")
         target_intent_id = info.get("managed_intent_id")
-        provider_order_id = info.get("external_order_id")
-        if not (_reference(cancel_id) and _reference(target_intent_id)):
+        if not _reference(target_intent_id):
             return _rejection(
                 "managed_cancel_metadata_missing",
-                "Cancellation requires the managed intent and cancel identifiers.",
+                "Cancellation requires the managed intent identifier.",
                 data_name=dataname,
             )
+        # One durable identity per cancellation attempt.  An explicit
+        # identifier wins; otherwise the framework convention derives a stable
+        # one from the intent, so re-cancelling the same intent is idempotent
+        # instead of creating a second cancellation record.
+        declared_cancel_id = info.get("managed_cancel_intent_id")
+        cancel_id = (
+            declared_cancel_id if _reference(declared_cancel_id) else f"cancel.{target_intent_id}"
+        )
+        provider_order_id = info.get("external_order_id")
         if not _reference(provider_order_id):
             return _rejection(
                 "managed_cancel_provider_identity_missing",

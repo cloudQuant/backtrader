@@ -448,3 +448,93 @@ def test_broker_keeps_an_unknown_service_outcome_nonterminal() -> None:
         assert provider.submitted_orders == []
     finally:
         store.stop()
+
+
+def test_cancel_identity_follows_the_framework_convention_when_absent() -> None:
+    client = _FakeClient(
+        cancel_view=SimpleNamespace(
+            state="ACKED",
+            cancel_id="cancel.intent-1",
+            target_intent_id="intent-1",
+            provider_order_id="provider-order-1",
+        )
+    )
+    adapter = ServiceExecutionAdapter(client)
+    order = _limit_order(info=_managed_info(external_order_id="provider-order-1"))
+
+    response = adapter.cancel_order(order, "BTC-USDT", _legacy_dispatch)
+
+    assert response["status"] == "cancel_requested"
+    assert client.cancelled[0]["cancel_id"] == "cancel.intent-1"
+
+
+def test_broker_cancel_routes_through_the_service_adapter() -> None:
+    import backtrader as bt
+
+    client = _FakeClient(
+        submit_view=_view(),
+        cancel_view=SimpleNamespace(
+            state="ACKED",
+            cancel_id="cancel.intent-1",
+            target_intent_id="intent-1",
+            provider_order_id="provider-order-1",
+        ),
+    )
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        assert order.info.get("external_order_id") == "provider-order-1"
+
+        broker.cancel(order)
+
+        assert client.cancelled == [
+            {
+                "cancel_id": "cancel.intent-1",
+                "target_intent_id": "intent-1",
+                "provider_order_id": "provider-order-1",
+                "metadata_version": "fixture.metadata.v1",
+            }
+        ]
+        # An acknowledged cancellation is not a terminal framework state: the
+        # broker keeps the order open and asks for reconciliation.
+        assert order.alive() is True
+        assert order.info.get("managed_execution_cancel_reconciliation_required") is True
+        assert provider.cancelled_orders == []
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()
+
+
+def test_broker_cancel_unknown_outcome_stays_reconcilable() -> None:
+    import backtrader as bt
+
+    client = _FakeClient(
+        submit_view=_view(),
+        cancel_error=_StubError("BUSINESS_OUTCOME_UNKNOWN"),
+    )
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        broker.cancel(order)
+
+        assert order.alive() is True
+        assert order.info.get("execution_unknown") is True
+        assert provider.cancelled_orders == []
+    finally:
+        store.stop()
