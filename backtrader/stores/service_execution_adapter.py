@@ -264,17 +264,19 @@ def _is_buy(order: Any, size: Decimal) -> bool:
 
 
 def _tags(order: Any, order_ref_factory: Optional[Callable[[Any], str]]) -> dict[str, str]:
-    tags: dict[str, str] = {}
-    reference = getattr(order, "ref", None)
-    if order_ref_factory is not None:
-        candidate = order_ref_factory(order)
-        if _reference(candidate):
-            tags["framework_order_ref"] = candidate
-    elif reference is not None:
-        candidate = f"backtrader-order-{reference}"
-        if _reference(candidate):
-            tags["framework_order_ref"] = candidate
-    return tags
+    """Return the stable tags for one intent.
+
+    The framework order reference is deliberately *not* sent by default: it is
+    a per-object counter, so including it would make the same logical intent
+    look like different content and the service would refuse it as a conflict
+    instead of returning the durable record.  A deployment that has its own
+    stable reference scheme may inject ``order_ref_factory`` to publish it.
+    """
+
+    if order_ref_factory is None:
+        return {}
+    candidate = order_ref_factory(order)
+    return {"framework_order_ref": candidate} if _reference(candidate) else {}
 
 
 # -- projections ------------------------------------------------------------

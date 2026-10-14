@@ -142,7 +142,9 @@ def test_accepted_intent_projects_the_provider_identity() -> None:
             "price": 101.0,
             "reduce_only": False,
             "metadata_version": "metadata-v1",
-            "tags": {"framework_order_ref": "backtrader-order-7"},
+            # A per-object framework reference is not published by default:
+            # it would break intent idempotency on a resubmit.
+            "tags": {},
         }
     ]
 
@@ -538,3 +540,21 @@ def test_broker_cancel_unknown_outcome_stays_reconcilable() -> None:
         assert provider.cancelled_orders == []
     finally:
         store.stop()
+
+
+def test_a_deployment_supplied_stable_reference_is_published_as_a_tag() -> None:
+    client = _FakeClient(submit_view=_view())
+    adapter = ServiceExecutionAdapter(client, order_ref_factory=lambda order: f"stable-{order.ref}")
+
+    adapter.submit_order(_limit_order(), _legacy_dispatch)
+
+    assert client.submitted[0]["tags"] == {"framework_order_ref": "stable-7"}
+
+
+def test_an_unstable_or_malformed_reference_is_never_published() -> None:
+    client = _FakeClient(submit_view=_view())
+    adapter = ServiceExecutionAdapter(client, order_ref_factory=lambda order: " bad ref ")
+
+    adapter.submit_order(_limit_order(), _legacy_dispatch)
+
+    assert client.submitted[0]["tags"] == {}
