@@ -12,7 +12,12 @@ from typing import Mapping, Optional, Sequence, TextIO
 
 from .config import load_runtime_config
 from .evidence_bundle import collect_iteration41_evidence
-from .errors import CONFIG_SCHEMA_UNSUPPORTED, PRESET_POLICY_VIOLATION, RuntimeConfigError
+from .errors import (
+    CONFIG_SCHEMA_UNSUPPORTED,
+    MIGRATION_REVIEW_REQUIRED,
+    PRESET_POLICY_VIOLATION,
+    RuntimeConfigError,
+)
 from .policy import get_preset_policy, preset_names
 from .registry import (
     RuntimeRegistry,
@@ -29,6 +34,18 @@ _OVERRIDE_ENVIRONMENT_NAMES = (
     "BT_RUNTIME_PRESET",
     "BACKTRADER_RUNTIME_MODE",
     "BACKTRADER_RUNTIME_PRESET",
+)
+_LEGACY_GATEWAY_ENVIRONMENT_NAMES = (
+    "BT_GATEWAY_COMMAND_ENDPOINT",
+    "BT_GATEWAY_EVENT_ENDPOINT",
+    "BT_GATEWAY_MARKET_ENDPOINT",
+    "BT_GATEWAY_ACCOUNT_ID",
+    "BT_GATEWAY_EXCHANGE_TYPE",
+    "BT_GATEWAY_ASSET_TYPE",
+    "BT_GATEWAY_STARTUP_TIMEOUT_SEC",
+    "BT_GATEWAY_COMMAND_TIMEOUT_SEC",
+    "BT_GATEWAY_STRATEGY_ID",
+    "BT_GATEWAY_START_LOCAL_RUNTIME",
 )
 _DISALLOWED_RUN_ARGUMENTS = ("--mode", "--preset", "--config", "--runtime-mode", "--runtime-preset")
 _REPORT_SUMMARY_FIELDS = (
@@ -1107,6 +1124,21 @@ def _environment_override_errors(environ: Mapping[str, str]) -> tuple:
     """Collect static mode/preset override attempts without applying any of them."""
 
     errors = []
+    legacy_gateway_setting = next(
+        (name for name in _LEGACY_GATEWAY_ENVIRONMENT_NAMES if environ.get(name)),
+        None,
+    )
+    if legacy_gateway_setting is not None:
+        errors.append(
+            RuntimeConfigError(
+                MIGRATION_REVIEW_REQUIRED,
+                "the retired BT_GATEWAY environment configuration cannot start through the "
+                "current runtime; convert it offline to the explicit service/client "
+                "configuration or keep the matching historical release",
+                field_path="environment.{0}".format(legacy_gateway_setting),
+                reason="legacy_gateway_environment_requires_migration",
+            )
+        )
     for name in _OVERRIDE_ENVIRONMENT_NAMES:
         value = environ.get(name)
         if value:

@@ -25,6 +25,7 @@ from .errors import (
     CONFIG_EXISTS,
     CONFIG_REQUIRED,
     CONFIG_SCHEMA_UNSUPPORTED,
+    MIGRATION_REVIEW_REQUIRED,
     MODE_PRESET_MISMATCH,
     PRESET_POLICY_VIOLATION,
     RuntimeConfigError,
@@ -55,6 +56,17 @@ _ROOT_FIELDS = frozenset(
         "ctp",
         "ctp_simnow",
         "ctp_production",
+    )
+)
+_LEGACY_REMOTE_ROOT_FIELDS = frozenset(
+    (
+        "BT_GATEWAY",
+        "forwarding",
+        "forwarding_config",
+        "gateway",
+        "gateway_config",
+        "register_to",
+        "transport_mode",
     )
 )
 _CTP_SIMNOW_FIELDS = frozenset(
@@ -1381,6 +1393,21 @@ def _validate_schema(
     if data is None:
         raise _config_error("config.yaml must not be empty", CONFIG_FILENAME, "empty_config")
     root = _require_mapping(data, CONFIG_FILENAME)
+    legacy_remote_fields = sorted(
+        field
+        for field in root
+        if field in _LEGACY_REMOTE_ROOT_FIELDS
+        or (isinstance(field, str) and field.startswith("BT_GATEWAY_"))
+    )
+    if legacy_remote_fields:
+        raise RuntimeConfigError(
+            MIGRATION_REVIEW_REQUIRED,
+            "legacy forwarding/GatewayConfig settings cannot start through the current runtime; "
+            "convert them offline to the explicit service/client configuration or keep the "
+            "matching historical release",
+            field_path=legacy_remote_fields[0],
+            reason="legacy_remote_config_requires_migration",
+        )
     _reject_unknown_fields(root, _ROOT_FIELDS, "")
 
     version = _require_field(root, "config_schema_version", "")
