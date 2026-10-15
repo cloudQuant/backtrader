@@ -63,6 +63,28 @@ class ServiceStrategyAccountBookView:
     basis. Cash and value are intentionally unavailable.
     """
 
+    __slots__ = (
+        "_runtime",
+        "_mount",
+        "_scope_ref",
+        "strategy_ref",
+        "account_ref",
+        "_owner_thread_id",
+        "_frozen",
+    )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if getattr(self, "_frozen", False):
+            raise AttributeError("strategy account-book views are immutable")
+        if name not in self.__slots__:
+            raise AttributeError("strategy account-book view fields are fixed")
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str) -> None:
+        if getattr(self, "_frozen", False):
+            raise AttributeError("strategy account-book views are immutable")
+        object.__delattr__(self, name)
+
     def __init__(
         self,
         runtime: Any,
@@ -77,12 +99,13 @@ class ServiceStrategyAccountBookView:
         for value in (mount, scope_ref, strategy_ref, account_ref):
             if type(value) is not str or not value or value != value.strip():
                 raise ServiceStrategyAccountBookError("INVALID_SCOPE")
-        self._runtime = runtime
-        self._mount = mount
-        self._scope_ref = scope_ref
-        self.strategy_ref = strategy_ref
-        self.account_ref = account_ref
-        self._owner_thread_id = threading.get_ident()
+        object.__setattr__(self, "_runtime", runtime)
+        object.__setattr__(self, "_mount", mount)
+        object.__setattr__(self, "_scope_ref", scope_ref)
+        object.__setattr__(self, "strategy_ref", strategy_ref)
+        object.__setattr__(self, "account_ref", account_ref)
+        object.__setattr__(self, "_owner_thread_id", threading.get_ident())
+        object.__setattr__(self, "_frozen", True)
 
     def snapshot(self) -> StrategyAccountBookSnapshot:
         """Read and validate the complete strategy-owned book projection."""

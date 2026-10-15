@@ -13,6 +13,7 @@ import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Callable, Optional
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "ServiceExecutionSessionCleanupError",
     "ServiceExecutionSessionConfigError",
     "ServiceExecutionSessionError",
+    "ServiceStrategyAccountBookRoute",
     "run_configured_cerebro",
 ]
 
@@ -27,6 +29,27 @@ _RUNTIME_OWNER_ATTRIBUTE = "_backtrader_service_execution_session_owner"
 _RUNTIME_OWNER_LOCK = threading.Lock()
 _WRITER_OPERATIONS = frozenset({"orders.submit", "orders.cancel"})
 _QUERY_OPERATIONS = frozenset({"orders.query"})
+_ACCOUNT_BOOK_OPERATION = "execution.account_books.query"
+_REPORT_UNSET = object()
+
+
+@dataclass(frozen=True)
+class ServiceStrategyAccountBookRoute:
+    """One explicit strategy/account read route for a managed Cerebro run.
+
+    ``owned=True`` transfers this runtime's start, renewal and close lifecycle
+    to the session. A borrowed runtime must already be registered; its external
+    owner remains responsible for renewal and close on the creating thread.
+    The primary execution runtime passed to :class:`ServiceExecutionSession` is
+    always owned by that session.
+    """
+
+    strategy_ref: str
+    account_ref: str
+    runtime: Any
+    mount: str
+    scope_ref: str
+    owned: bool = True
 
 
 class ServiceExecutionSessionError(RuntimeError):
@@ -81,6 +104,7 @@ class ServiceExecutionSession:
         backoff_factor: float = 2.0,
         limit: int = 32,
         monotonic_clock: Callable[[], float] = time.monotonic,
+        strategy_account_book_routes: tuple[ServiceStrategyAccountBookRoute, ...] = (),
     ) -> None:
         _validate_refresh_settings(
             refresh_interval_seconds,
@@ -119,6 +143,11 @@ class ServiceExecutionSession:
             code = _safe_code(error, "INVALID_EXECUTION_ROUTE")
             raise ServiceExecutionSessionConfigError(code) from None
 
+        account_book_routes = _coerce_strategy_account_book_routes(
+            runtime, strategy_account_book_routes, ServiceClientRuntime
+        )
+        owned_runtimes = _unique_owned_runtimes(runtime, account_book_routes)
+
         self.runtime = runtime
         self.client = client
         self.adapter = adapter
@@ -138,6 +167,12 @@ class ServiceExecutionSession:
         self._broker_stop_attempted = False
         self._broker_stop_errors = []
         self._runtime_close_attempted = False
+        self._account_book_route_specs = account_book_routes
+        self._owned_runtimes = owned_runtimes
+        self._runtime_start_attempted = set()
+        self._account_book_route_views = MappingProxyType({})
+        self._bound_strategy_views = {}
+        self._strategy_route_owners = {}
         self._state = "new"
         self._cleanup_report = ServiceExecutionCleanupReport(
             state="new",
@@ -152,14 +187,24 @@ class ServiceExecutionSession:
 
         # The runtime itself is the ownership fence. It is never silently
         # borrowed or handed to a second Backtrader session.
+        claimed = []
         with _RUNTIME_OWNER_LOCK:
-            if runtime.state != "new":
-                raise ServiceExecutionSessionConfigError("RUNTIME_NOT_NEW")
-            if hasattr(runtime, _RUNTIME_OWNER_ATTRIBUTE):
-                raise ServiceExecutionSessionConfigError("RUNTIME_ALREADY_OWNED")
+            for owned_runtime in owned_runtimes:
+                if owned_runtime.state != "new":
+                    raise ServiceExecutionSessionConfigError("RUNTIME_NOT_NEW")
+                if hasattr(owned_runtime, _RUNTIME_OWNER_ATTRIBUTE):
+                    raise ServiceExecutionSessionConfigError("RUNTIME_ALREADY_OWNED")
             try:
-                setattr(runtime, _RUNTIME_OWNER_ATTRIBUTE, self)
+                for owned_runtime in owned_runtimes:
+                    setattr(owned_runtime, _RUNTIME_OWNER_ATTRIBUTE, self)
+                    claimed.append(owned_runtime)
             except Exception:
+                for owned_runtime in reversed(claimed):
+                    try:
+                        if getattr(owned_runtime, _RUNTIME_OWNER_ATTRIBUTE, None) is self:
+                            delattr(owned_runtime, _RUNTIME_OWNER_ATTRIBUTE)
+                    except Exception:
+                        pass
                 raise ServiceExecutionSessionConfigError("RUNTIME_OWNER_UNAVAILABLE") from None
 
     @property
@@ -197,48 +242,111 @@ class ServiceExecutionSession:
             for value in (strategy_ref, account_ref)
         ):
             raise ServiceExecutionSessionConfigError("INVALID_STRATEGY_ACCOUNT_SCOPE")
+        view = self._account_book_route_views.get((strategy_ref, account_ref))
+        if view is None:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_UNAVAILABLE")
+        return view
+
+    def bind_strategy_account_book(
+        self,
+        strategy: Any,
+        *,
+        strategy_ref: str,
+        account_ref: str,
+    ) -> Any:
+        """Attach the exact read route to one real Strategy using explicit IDs."""
+
+        self._assert_creator_thread()
+        if self._state != "running" or self._broker is None:
+            raise ServiceExecutionSessionError("SESSION_NOT_RUNNING")
         try:
-            from bt_api_base.service_protocol import WireScope
-
-            from backtrader.stores.service_strategy_account_book import (
-                STRATEGY_ACCOUNT_BOOKS_OPERATION,
-                ServiceStrategyAccountBookView,
-            )
-
-            bindings = self.runtime.bindings
+            from backtrader.strategy import Strategy
         except Exception:
-            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_UNAVAILABLE") from None
-        if type(bindings) is not tuple:
-            raise ServiceExecutionSessionConfigError("RUNTIME_BINDINGS_INVALID")
-        try:
-            binding = _unique_active_route(
-                bindings,
-                self.query_mount,
-                self.query_scope_ref,
-                frozenset({STRATEGY_ACCOUNT_BOOKS_OPERATION}),
-            )
-        except ServiceExecutionSessionConfigError as error:
-            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_UNAVAILABLE") from error
-        scope = getattr(binding, "scope", None)
-        if type(scope) is not WireScope:
-            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_INVALID")
-        if (
-            scope.account_ref != account_ref
-            or scope.account_refs
-            or scope.strategy_ref != strategy_ref
-            or scope.manual_book_ref is not None
-            or scope.portfolio_ref is not None
-            or scope.group_id is not None
-            or scope.leg_id is not None
+            raise ServiceExecutionSessionConfigError("STRATEGY_TYPE_UNAVAILABLE") from None
+        if not isinstance(strategy, Strategy):
+            raise ServiceExecutionSessionConfigError("INVALID_STRATEGY_INSTANCE")
+        if getattr(strategy, "broker", None) is not self._broker:
+            raise ServiceExecutionSessionConfigError("STRATEGY_BROKER_MISMATCH")
+        if any(
+            type(value) is not str or not value or value != value.strip()
+            for value in (strategy_ref, account_ref)
         ):
-            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_MISMATCH")
-        return ServiceStrategyAccountBookView(
-            self.runtime,
-            mount=self.query_mount,
-            scope_ref=self.query_scope_ref,
+            raise ServiceExecutionSessionConfigError("INVALID_STRATEGY_ACCOUNT_SCOPE")
+        params = getattr(strategy, "p", None)
+        if (
+            getattr(params, "strategy_ref", None) != strategy_ref
+            or getattr(params, "account_ref", None) != account_ref
+        ):
+            raise ServiceExecutionSessionConfigError("STRATEGY_IDENTITY_MISMATCH")
+
+        key = (strategy_ref, account_ref)
+        view = self.strategy_account_book_view(
             strategy_ref=strategy_ref,
             account_ref=account_ref,
         )
+        object_key = id(strategy)
+        previous = self._bound_strategy_views.get(object_key)
+        if previous is not None:
+            previous_strategy, previous_key, previous_view = previous
+            if previous_strategy is strategy and previous_key == key:
+                return previous_view
+            raise ServiceExecutionSessionConfigError("STRATEGY_ALREADY_BOUND")
+        route_owner = self._strategy_route_owners.get(key)
+        if route_owner is not None and route_owner is not strategy:
+            raise ServiceExecutionSessionConfigError("STRATEGY_ROUTE_ALREADY_BOUND")
+        existing_view = getattr(strategy, "account_book", None)
+        if existing_view is not None and existing_view is not view:
+            raise ServiceExecutionSessionConfigError("STRATEGY_ACCOUNT_BOOK_ALREADY_BOUND")
+        try:
+            strategy.account_book = view
+        except Exception:
+            raise ServiceExecutionSessionConfigError("STRATEGY_ACCOUNT_BOOK_BIND_FAILED") from None
+        self._bound_strategy_views[object_key] = (strategy, key, view)
+        self._strategy_route_owners[key] = strategy
+        return view
+
+    def strategy_order_route_error(self, order: Any) -> Optional[str]:
+        """Return a finite rejection code if an explicit Strategy has another writer scope."""
+
+        self._assert_creator_thread()
+        if self._state != "running":
+            return None
+        owner = getattr(order, "owner", None)
+        if owner is None:
+            return None
+        params = getattr(owner, "p", None)
+        strategy_ref = getattr(params, "strategy_ref", None)
+        account_ref = getattr(params, "account_ref", None)
+        bound = self._bound_strategy_views.get(id(owner))
+        if strategy_ref is None and account_ref is None:
+            if bound is not None:
+                return "strategy_writer_identity_incomplete"
+            account_book = getattr(owner, "account_book", None)
+            if account_book is not None and any(
+                account_book is view for view in self._account_book_route_views.values()
+            ):
+                return "strategy_writer_strategy_not_bound"
+            return None
+        if any(
+            type(value) is not str or not value or value != value.strip()
+            for value in (strategy_ref, account_ref)
+        ):
+            return "strategy_writer_identity_incomplete"
+        key = (strategy_ref, account_ref)
+        if key != self._writer_scope_identity:
+            return "strategy_writer_route_mismatch"
+        if key in self._account_book_route_views:
+            if bound is None:
+                return "strategy_writer_strategy_not_bound"
+            bound_strategy, bound_key, bound_view = bound
+            if (
+                bound_strategy is not owner
+                or bound_key != key
+                or getattr(owner, "account_book", None) is not bound_view
+                or self._strategy_route_owners.get(key) is not owner
+            ):
+                return "strategy_writer_route_mismatch"
+        return None
 
     @property
     def cleanup_report(self) -> ServiceExecutionCleanupReport:
@@ -258,9 +366,10 @@ class ServiceExecutionSession:
         try:
             broker, store = self._preflight(cerebro, run_kwargs)
         except BaseException:
-            self._state = "rejected"
+            ownership_errors = self._release_runtime_ownership()
+            self._state = "close_failed" if ownership_errors else "rejected"
             self._record_report(
-                errors=("PREFLIGHT_REJECTED",),
+                errors=("PREFLIGHT_REJECTED", *ownership_errors),
                 store_connected=None,
                 runtime_close_attempted=False,
             )
@@ -269,17 +378,20 @@ class ServiceExecutionSession:
         # Cerebro's documented no-data behavior is an empty result. Consume the
         # session but do not attach it or start/close a runtime with no work.
         if not cerebro.datas and run_kwargs.get("channel") is None:
-            self._state = "closed_unstarted"
+            ownership_errors = self._release_runtime_ownership()
+            self._state = "close_failed" if ownership_errors else "closed_unstarted"
             self._record_report(
-                errors=(),
+                errors=ownership_errors,
                 store_connected=False,
                 runtime_close_attempted=False,
             )
+            if ownership_errors:
+                raise ServiceExecutionSessionCleanupError("SESSION_CLEANUP_UNCERTAIN")
             return []
 
-        from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
-
         try:
+            from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
             refresh_loop = ManagedOrderRefreshLoop(
                 broker,
                 interval_seconds=self._refresh_interval_seconds,
@@ -289,9 +401,10 @@ class ServiceExecutionSession:
                 monotonic_clock=self._monotonic_clock,
             )
         except BaseException:
-            self._state = "rejected"
+            ownership_errors = self._release_runtime_ownership()
+            self._state = "close_failed" if ownership_errors else "rejected"
             self._record_report(
-                errors=("REFRESH_LOOP_SETUP_FAILED",),
+                errors=("REFRESH_LOOP_SETUP_FAILED", *ownership_errors),
                 store_connected=False,
                 runtime_close_attempted=False,
             )
@@ -304,8 +417,11 @@ class ServiceExecutionSession:
         try:
             broker.attach_service_execution_session(self)
             store.attach_managed_execution_adapter(self.adapter)
-            self.runtime.start()
+            for owned_runtime in self._owned_runtimes:
+                self._runtime_start_attempted.add(id(owned_runtime))
+                owned_runtime.start()
             self._validate_registered_routes()
+            self._validate_strategy_account_book_routes()
             self._state = "running"
             result = cerebro.run(**run_kwargs)
         except BaseException as error:
@@ -329,20 +445,50 @@ class ServiceExecutionSession:
             if self._broker_stop_attempted and store_connected is True:
                 cleanup_errors.extend(("BROKER_STOP_FAILED", "STORE_STILL_CONNECTED"))
             self._runtime_close_attempted = True
-            try:
-                self.runtime.close()
-            except BaseException as error:
-                cleanup_errors.append(_safe_code(error, "RUNTIME_CLOSE_FAILED"))
-                if cleanup_exception is None:
-                    cleanup_exception = error
+            # Ownership transferred for every owned route at construction.
+            # Close even an owned runtime whose start was not reached after a
+            # prior runtime failed; borrowed runtimes are absent from this list.
+            close_candidates = self._owned_runtimes
+            for owned_runtime in reversed(close_candidates):
+                try:
+                    owned_runtime.close()
+                except BaseException as error:
+                    if owned_runtime is self.runtime:
+                        cleanup_errors.append(_safe_code(error, "RUNTIME_CLOSE_FAILED"))
+                    else:
+                        cleanup_errors.append("ACCOUNT_BOOK_RUNTIME_CLOSE_FAILED")
+                    if cleanup_exception is None:
+                        cleanup_exception = error
 
             runtime_state = _safe_runtime_state(self.runtime)
-            unregister_uncertainties = _safe_runtime_metric(
-                self.runtime, "unregister_uncertainties"
+            all_runtime_states = tuple(
+                _safe_runtime_state(owned_runtime) for owned_runtime in close_candidates
             )
-            cleanup_failures = _safe_runtime_metric(self.runtime, "cleanup_failures")
+            runtime_metrics = tuple(
+                tuple(
+                    _safe_runtime_metric(owned_runtime, metric_name)
+                    for metric_name in ("unregister_uncertainties", "cleanup_failures")
+                )
+                for owned_runtime in close_candidates
+            )
+            unregister_values = tuple(metrics[0] for metrics in runtime_metrics)
+            cleanup_values = tuple(metrics[1] for metrics in runtime_metrics)
+            unregister_uncertainties = (
+                sum(unregister_values)
+                if all(value is not None for value in unregister_values)
+                else None
+            )
+            cleanup_failures = (
+                sum(cleanup_values) if all(value is not None for value in cleanup_values) else None
+            )
             if runtime_state == "close_failed":
                 cleanup_errors.append("RUNTIME_CLOSE_FAILED")
+            if any(
+                state == "close_failed"
+                for managed_runtime, state in zip(close_candidates, all_runtime_states)
+                if managed_runtime is not self.runtime
+            ):
+                cleanup_errors.append("ACCOUNT_BOOK_RUNTIME_CLOSE_FAILED")
             if unregister_uncertainties is not None and unregister_uncertainties > 0:
                 cleanup_errors.append("UNREGISTER_UNCERTAIN")
 
@@ -390,7 +536,9 @@ class ServiceExecutionSession:
             or self._refresh_loop is None
         ):
             raise ServiceExecutionSessionError("SESSION_NOT_RUNNING")
-        self.runtime.maintain()
+        for owned_runtime in self._owned_runtimes:
+            if id(owned_runtime) in self._runtime_start_attempted:
+                owned_runtime.maintain()
         return self._refresh_loop.run_once()
 
     def broker_starting(self, broker: Any) -> None:
@@ -508,6 +656,86 @@ class ServiceExecutionSession:
             value = getattr(writer_scope, field, None)
             if type(value) is not str or not value:
                 raise ServiceExecutionSessionConfigError("EXECUTION_SCOPE_INCOMPLETE")
+        self._writer_scope_identity = (writer_scope.strategy_ref, writer_scope.account_ref)
+
+    def _validate_strategy_account_book_routes(self) -> None:
+        from bt_api_base.service_protocol import WireScope
+
+        from backtrader.stores.service_strategy_account_book import (
+            ServiceStrategyAccountBookView,
+        )
+
+        resolved = {}
+        try:
+            primary_bindings = self.runtime.bindings
+        except Exception:
+            raise ServiceExecutionSessionConfigError("RUNTIME_BINDINGS_UNAVAILABLE") from None
+        if type(primary_bindings) is not tuple:
+            raise ServiceExecutionSessionConfigError("RUNTIME_BINDINGS_INVALID")
+        try:
+            primary_binding = _unique_active_route(
+                primary_bindings,
+                self.query_mount,
+                self.query_scope_ref,
+                frozenset({_ACCOUNT_BOOK_OPERATION}),
+            )
+        except ServiceExecutionSessionConfigError as error:
+            if error.code not in {
+                "RUNTIME_ROUTE_OPERATION_MISSING",
+                "RUNTIME_ROUTE_MISSING_OR_AMBIGUOUS",
+            }:
+                raise
+        else:
+            scope = _strategy_account_book_scope(primary_binding, WireScope)
+            key = (scope.strategy_ref, scope.account_ref)
+            resolved[key] = (
+                self.runtime,
+                self.query_mount,
+                self.query_scope_ref,
+            )
+
+        for route in self._account_book_route_specs:
+            if route.runtime.state != "registered":
+                raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_RUNTIME_NOT_REGISTERED")
+            try:
+                bindings = route.runtime.bindings
+            except Exception:
+                raise ServiceExecutionSessionConfigError(
+                    "ACCOUNT_BOOK_RUNTIME_BINDINGS_UNAVAILABLE"
+                ) from None
+            if type(bindings) is not tuple:
+                raise ServiceExecutionSessionConfigError("RUNTIME_BINDINGS_INVALID")
+            try:
+                binding = _unique_active_route(
+                    bindings,
+                    route.mount,
+                    route.scope_ref,
+                    frozenset({_ACCOUNT_BOOK_OPERATION}),
+                )
+            except ServiceExecutionSessionConfigError as error:
+                raise ServiceExecutionSessionConfigError(
+                    "ACCOUNT_BOOK_ROUTE_UNAVAILABLE"
+                ) from error
+            scope = _strategy_account_book_scope(binding, WireScope)
+            if scope.strategy_ref != route.strategy_ref or scope.account_ref != route.account_ref:
+                raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_MISMATCH")
+            key = (route.strategy_ref, route.account_ref)
+            if key in resolved:
+                raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_AMBIGUOUS")
+            resolved[key] = (route.runtime, route.mount, route.scope_ref)
+
+        self._account_book_route_views = MappingProxyType(
+            {
+                key: ServiceStrategyAccountBookView(
+                    runtime,
+                    mount=mount,
+                    scope_ref=scope_ref,
+                    strategy_ref=key[0],
+                    account_ref=key[1],
+                )
+                for key, (runtime, mount, scope_ref) in resolved.items()
+            }
+        )
 
     def _record_report(
         self,
@@ -515,17 +743,17 @@ class ServiceExecutionSession:
         errors: tuple[str, ...],
         store_connected: Optional[bool],
         runtime_state: Optional[str] = None,
-        unregister_uncertainties: Optional[int] = None,
-        cleanup_failures: Optional[int] = None,
+        unregister_uncertainties: Any = _REPORT_UNSET,
+        cleanup_failures: Any = _REPORT_UNSET,
         runtime_close_attempted: bool,
     ) -> None:
         if runtime_state is None:
             runtime_state = _safe_runtime_state(self.runtime)
-        if unregister_uncertainties is None:
+        if unregister_uncertainties is _REPORT_UNSET:
             unregister_uncertainties = _safe_runtime_metric(
                 self.runtime, "unregister_uncertainties"
             )
-        if cleanup_failures is None:
+        if cleanup_failures is _REPORT_UNSET:
             cleanup_failures = _safe_runtime_metric(self.runtime, "cleanup_failures")
         self._cleanup_report = ServiceExecutionCleanupReport(
             state=self._state,
@@ -541,6 +769,19 @@ class ServiceExecutionSession:
     def _assert_creator_thread(self) -> None:
         if threading.get_ident() != self._creator_thread_id:
             raise ServiceExecutionSessionError("WRONG_SESSION_THREAD")
+
+    def _release_runtime_ownership(self) -> tuple[str, ...]:
+        """Release owned-runtime fences when this run never reached startup."""
+
+        errors = []
+        with _RUNTIME_OWNER_LOCK:
+            for runtime in reversed(self._owned_runtimes):
+                try:
+                    if getattr(runtime, _RUNTIME_OWNER_ATTRIBUTE, None) is self:
+                        delattr(runtime, _RUNTIME_OWNER_ATTRIBUTE)
+                except Exception:
+                    errors.append("RUNTIME_OWNER_RELEASE_FAILED")
+        return tuple(dict.fromkeys(errors))
 
 
 def run_configured_cerebro(
@@ -667,6 +908,86 @@ def _validate_refresh_settings(
         raise ServiceExecutionSessionConfigError("INVALID_INTERVAL")
     if not _finite_number(backoff) or _as_finite_float(backoff) < 1:
         raise ServiceExecutionSessionConfigError("INVALID_BACKOFF")
+
+
+def _coerce_strategy_account_book_routes(
+    primary_runtime: Any,
+    routes: tuple[ServiceStrategyAccountBookRoute, ...],
+    runtime_type: type,
+) -> tuple[ServiceStrategyAccountBookRoute, ...]:
+    if type(routes) is not tuple:
+        raise ServiceExecutionSessionConfigError("INVALID_ACCOUNT_BOOK_ROUTES")
+    seen_pairs = set()
+    runtime_modes = {}
+    for route in routes:
+        if type(route) is not ServiceStrategyAccountBookRoute:
+            raise ServiceExecutionSessionConfigError("INVALID_ACCOUNT_BOOK_ROUTE")
+        if any(
+            type(value) is not str or not value or value != value.strip()
+            for value in (
+                route.strategy_ref,
+                route.account_ref,
+                route.mount,
+                route.scope_ref,
+            )
+        ):
+            raise ServiceExecutionSessionConfigError("INVALID_ACCOUNT_BOOK_ROUTE")
+        if type(route.owned) is not bool or not isinstance(route.runtime, runtime_type):
+            raise ServiceExecutionSessionConfigError("INVALID_ACCOUNT_BOOK_ROUTE")
+        pair = (route.strategy_ref, route.account_ref)
+        if pair in seen_pairs:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_AMBIGUOUS")
+        seen_pairs.add(pair)
+
+        runtime = route.runtime
+        runtime_id = id(runtime)
+        previous_mode = runtime_modes.get(runtime_id)
+        if previous_mode is not None and previous_mode != route.owned:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_RUNTIME_OWNERSHIP_MISMATCH")
+        runtime_modes[runtime_id] = route.owned
+        if runtime is primary_runtime:
+            if not route.owned:
+                raise ServiceExecutionSessionConfigError("PRIMARY_RUNTIME_MUST_BE_OWNED")
+            continue
+        expected_state = "new" if route.owned else "registered"
+        if runtime.state != expected_state:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_RUNTIME_STATE_INVALID")
+        if hasattr(runtime, _RUNTIME_OWNER_ATTRIBUTE):
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_RUNTIME_ALREADY_OWNED")
+        try:
+            runtime.next_maintenance_delay()
+        except Exception:
+            raise ServiceExecutionSessionConfigError("WRONG_RUNTIME_THREAD") from None
+    return routes
+
+
+def _unique_owned_runtimes(
+    primary_runtime: Any,
+    routes: tuple[ServiceStrategyAccountBookRoute, ...],
+) -> tuple[Any, ...]:
+    ordered = [primary_runtime]
+    seen = {id(primary_runtime)}
+    for route in routes:
+        if route.owned and id(route.runtime) not in seen:
+            ordered.append(route.runtime)
+            seen.add(id(route.runtime))
+    return tuple(ordered)
+
+
+def _strategy_account_book_scope(binding: Any, wire_scope_type: type) -> Any:
+    scope = getattr(binding, "scope", None)
+    if type(scope) is not wire_scope_type:
+        raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_INVALID")
+    for name in ("strategy_ref", "account_ref"):
+        value = getattr(scope, name, None)
+        if type(value) is not str or not value or value != value.strip():
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_INVALID")
+    if any(
+        getattr(scope, name, None)
+        for name in ("account_refs", "manual_book_ref", "portfolio_ref", "group_id", "leg_id")
+    ):
+        raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_INVALID")
+    return scope
 
 
 def _positive_finite(value: Any) -> bool:

@@ -2797,6 +2797,29 @@ class BtApiBroker(BrokerBase):
             account_ref=account_ref,
         )
 
+    def bind_strategy_account_book(
+        self,
+        strategy,
+        *,
+        strategy_ref: str,
+        account_ref: str,
+    ):
+        """Attach one configured read-only book view to its actual Strategy.
+
+        The Strategy must supply matching ``strategy_ref`` and ``account_ref``
+        parameters and must already use this Broker. This operation does not
+        change order routing or the account-level Broker getters.
+        """
+
+        session = self._service_execution_session
+        if session is None:
+            raise ValueError("strategy account-book binding requires an active service session")
+        return session.bind_strategy_account_book(
+            strategy,
+            strategy_ref=strategy_ref,
+            account_ref=account_ref,
+        )
+
     def getcash(self) -> float:
         """Return current available cash."""
         if not self._uses_async_commands():
@@ -2849,6 +2872,18 @@ class BtApiBroker(BrokerBase):
 
     def submit(self, order):
         """Submit an order through the store."""
+        session = self._service_execution_session
+        route_error = (
+            session.strategy_order_route_error(order)
+            if session is not None
+            else None
+        )
+        if route_error is not None:
+            return self._reject_order(
+                order,
+                route_error,
+                "This Strategy does not match the active execution writer scope.",
+            )
         if getattr(self, "_managed_provider_projection_failed", False):
             return self._reject_order(
                 order,
@@ -3223,6 +3258,31 @@ class BtApiBroker(BrokerBase):
         """Cancel an existing order through the store."""
         if order is None:
             return None
+
+        session = self._service_execution_session
+        route_error = (
+            session.strategy_order_route_error(order)
+            if session is not None
+            else None
+        )
+        if route_error is not None:
+            order.addinfo(
+                cancel_requested_remote=False,
+                cancel_rejected_local=True,
+                error_code=route_error,
+                error_msg="This Strategy does not match the active execution writer scope.",
+            )
+            self.notify(order)
+            self._emit_runtime_event(
+                "order_cancel_rejected_local",
+                level="ERROR",
+                order_ref=getattr(order, "ref", None),
+                error_code=route_error,
+                error_msg="This Strategy does not match the active execution writer scope.",
+                status="rejected",
+                details={"data_name": self._position_key(order.data)},
+            )
+            return order
 
         if getattr(self, "_managed_provider_projection_failed", False):
             order.addinfo(

@@ -84,7 +84,12 @@ These correct common stale assumptions — verify before relying on docs:
   and a trusted runtime factory. `None` keeps the ordinary `cerebro.run()` path;
   invalid configured input never falls back. Its synthetic runnable example is
   documented at `examples/service_execution_session/README.md` and is not full
-  stage P7 or account acceptance.
+  stage P7 or account acceptance. A caller may additionally pass explicit
+  `ServiceStrategyAccountBookRoute` objects and bind each real Strategy through
+  the managed session/Broker; this provides owner-book position reads only.
+  Shared Broker cash/value/position getters keep their account-level meaning,
+  and the strategy view reports cash/value unavailable until Execution supplies
+  an authoritative accounting and valuation contract.
 
 - Optional service reads can be explicitly injected through
   `backtrader.stores.service_read_proxy.ServiceReadProxy` and
