@@ -180,6 +180,66 @@ class ServiceExecutionSession:
 
         return self._refresh_loop.stats if self._refresh_loop is not None else None
 
+    def strategy_account_book_view(self, *, strategy_ref: str, account_ref: str) -> Any:
+        """Return one explicit strategy/account view when the route opted in.
+
+        The execution account-book operation is an optional capability on the
+        existing ``broker.order_query`` mount. Runtime construction must
+        explicitly request and receive that operation; ordinary execution
+        sessions remain unchanged when it is absent.
+        """
+
+        self._assert_creator_thread()
+        if self._state != "running" or self._broker is None:
+            raise ServiceExecutionSessionError("SESSION_NOT_RUNNING")
+        if any(
+            type(value) is not str or not value or value != value.strip()
+            for value in (strategy_ref, account_ref)
+        ):
+            raise ServiceExecutionSessionConfigError("INVALID_STRATEGY_ACCOUNT_SCOPE")
+        try:
+            from bt_api_base.service_protocol import WireScope
+
+            from backtrader.stores.service_strategy_account_book import (
+                STRATEGY_ACCOUNT_BOOKS_OPERATION,
+                ServiceStrategyAccountBookView,
+            )
+
+            bindings = self.runtime.bindings
+        except Exception:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_UNAVAILABLE") from None
+        if type(bindings) is not tuple:
+            raise ServiceExecutionSessionConfigError("RUNTIME_BINDINGS_INVALID")
+        try:
+            binding = _unique_active_route(
+                bindings,
+                self.query_mount,
+                self.query_scope_ref,
+                frozenset({STRATEGY_ACCOUNT_BOOKS_OPERATION}),
+            )
+        except ServiceExecutionSessionConfigError as error:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_ROUTE_UNAVAILABLE") from error
+        scope = getattr(binding, "scope", None)
+        if type(scope) is not WireScope:
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_INVALID")
+        if (
+            scope.account_ref != account_ref
+            or scope.account_refs
+            or scope.strategy_ref != strategy_ref
+            or scope.manual_book_ref is not None
+            or scope.portfolio_ref is not None
+            or scope.group_id is not None
+            or scope.leg_id is not None
+        ):
+            raise ServiceExecutionSessionConfigError("ACCOUNT_BOOK_SCOPE_MISMATCH")
+        return ServiceStrategyAccountBookView(
+            self.runtime,
+            mount=self.query_mount,
+            scope_ref=self.query_scope_ref,
+            strategy_ref=strategy_ref,
+            account_ref=account_ref,
+        )
+
     @property
     def cleanup_report(self) -> ServiceExecutionCleanupReport:
         """Return the latest finite shutdown report."""

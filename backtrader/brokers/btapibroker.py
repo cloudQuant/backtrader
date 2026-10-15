@@ -2781,6 +2781,22 @@ class BtApiBroker(BrokerBase):
             raise ValueError("managed strategy allocation reader is unavailable")
         return reader(strategy_id)
 
+    def get_strategy_account_book_view(self, *, strategy_ref: str, account_ref: str):
+        """Return a service-authorized, explicitly bound strategy book view.
+
+        The ordinary Broker getters remain account-level. A caller that needs
+        strategy attribution must name both identities, and the active
+        service query route must grant that exact strategy/account pair.
+        """
+
+        session = self._service_execution_session
+        if session is None:
+            raise ValueError("strategy account-book view requires an active service session")
+        return session.strategy_account_book_view(
+            strategy_ref=strategy_ref,
+            account_ref=account_ref,
+        )
+
     def getcash(self) -> float:
         """Return current available cash."""
         if not self._uses_async_commands():
