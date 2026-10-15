@@ -79,6 +79,12 @@ These correct common stale assumptions — verify before relying on docs:
   supported by this execution entry. See
   `docs/source/developer-guide/optional-service-execution-session.md`; local
   synthetic-provider lifecycle tests are not full BT01/BT02 or account acceptance.
+  `run_configured_cerebro` is the narrow SDK-config composition entry: one
+  strategy client with required `broker.orders` and `broker.order_query` routes
+  and a trusted runtime factory. `None` keeps the ordinary `cerebro.run()` path;
+  invalid configured input never falls back. Its synthetic runnable example is
+  documented at `examples/service_execution_session/README.md` and is not full
+  stage P7 or account acceptance.
 
 - Optional service reads can be explicitly injected through
   `backtrader.stores.service_read_proxy.ServiceReadProxy` and

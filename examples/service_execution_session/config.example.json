@@ -1,0 +1,57 @@
+{
+  "client_config": {
+    "client_config_schema_version": 1,
+    "process_role": "strategy_client",
+    "registration": {
+      "strategy_ref": "local-synthetic-strategy"
+    },
+    "clients": {
+      "execution": {
+        "config_schema_version": 1,
+        "settings": {
+          "bindings": [
+            {
+              "mount": "broker.orders",
+              "service_id": "local-synthetic-execution",
+              "instance_id": "local-synthetic-execution-owner",
+              "scope_ref": "local-synthetic-orders-v1",
+              "transport_ref": "local-synthetic-rpc-v1",
+              "account_ref": "local-synthetic-account",
+              "required": true
+            },
+            {
+              "mount": "broker.order_query",
+              "service_id": "local-synthetic-execution",
+              "instance_id": "local-synthetic-execution-owner",
+              "scope_ref": "local-synthetic-order-query-v1",
+              "transport_ref": "local-synthetic-rpc-v1",
+              "account_ref": "local-synthetic-account",
+              "required": true
+            }
+          ],
+          "options": {
+            "request_timeout_ms": 2000
+          }
+        }
+      }
+    },
+    "communication": {
+      "config_schema_version": 1,
+      "profiles": {
+        "local-synthetic-rpc-v1": {
+          "backend": "zmq",
+          "config_schema_version": 1,
+          "endpoints": {
+            "rpc_connect": "tcp://127.0.0.1:17601"
+          },
+          "security_profile_ref": "local-synthetic-client-curve-v1",
+          "options": {
+            "request_timeout_ms": 2000,
+            "high_water_mark": 32,
+            "max_message_bytes": 65536
+          }
+        }
+      }
+    }
+  }
+}

@@ -29,6 +29,7 @@ from backtrader.stores.service_execution_session import (
     ServiceExecutionSessionCleanupError,
     ServiceExecutionSessionConfigError,
     ServiceExecutionSessionError,
+    run_configured_cerebro,
 )
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
 
@@ -240,6 +241,128 @@ def _session(runtime, *, clock=lambda: 0.0, **kwargs):
         monotonic_clock=clock,
         **kwargs,
     )
+
+
+def _raw_client_config(*, query_required=True):
+    return {
+        "client_config_schema_version": 1,
+        "process_role": "strategy_client",
+        "registration": {"strategy_ref": "strategy-a"},
+        "clients": {
+            "execution": {
+                "config_schema_version": 1,
+                "settings": {
+                    "bindings": [
+                        {
+                            "mount": "broker.orders",
+                            "service_id": _SERVICE_ID,
+                            "instance_id": _INSTANCE_ID,
+                            "scope_ref": "orders-scope",
+                            "account_ref": "account-a",
+                            "transport_ref": "execution-rpc",
+                        },
+                        {
+                            "mount": "broker.order_query",
+                            "service_id": _SERVICE_ID,
+                            "instance_id": _INSTANCE_ID,
+                            "scope_ref": "query-scope",
+                            "account_ref": "account-a",
+                            "transport_ref": "execution-rpc",
+                            "required": query_required,
+                        },
+                    ],
+                    "options": {"request_timeout_ms": 500},
+                },
+            }
+        },
+        "communication": {
+            "config_schema_version": 1,
+            "profiles": {
+                "execution-rpc": {
+                    "backend": "zmq",
+                    "config_schema_version": 1,
+                    "endpoints": {"rpc_connect": "tcp://127.0.0.1:7601"},
+                    "security_profile_ref": "local-test-keys",
+                }
+            },
+        },
+    }
+
+
+def test_run_configured_cerebro_builds_session_from_supported_sdk_routes(monkeypatch):
+    import backtrader.stores.service_execution_session as session_module
+
+    runtime = object()
+    sentinel = object()
+    captured = {}
+
+    class _Session:
+        def __init__(self, actual_runtime, **kwargs):
+            captured["runtime"] = actual_runtime
+            captured["session_kwargs"] = kwargs
+
+        def run(self, cerebro, **kwargs):
+            captured["cerebro"] = cerebro
+            captured["run_kwargs"] = kwargs
+            return sentinel
+
+    monkeypatch.setattr(session_module, "ServiceExecutionSession", _Session)
+    cerebro = object()
+    parsed_configs = []
+
+    def runtime_factory(parsed):
+        parsed_configs.append(parsed)
+        return runtime
+
+    result = run_configured_cerebro(
+        cerebro,
+        _raw_client_config(),
+        runtime_factory=runtime_factory,
+        session_options={"limit": 8},
+        runonce=False,
+    )
+
+    assert result is sentinel
+    assert len(parsed_configs) == 1
+    assert parsed_configs[0].process_role == "strategy_client"
+    assert captured["runtime"] is runtime
+    assert captured["session_kwargs"] == {
+        "mount": "broker.orders",
+        "scope_ref": "orders-scope",
+        "query_mount": "broker.order_query",
+        "query_scope_ref": "query-scope",
+        "limit": 8,
+    }
+    assert captured["cerebro"] is cerebro
+    assert captured["run_kwargs"] == {"runonce": False}
+
+
+def test_run_configured_cerebro_preserves_direct_path_when_config_is_absent():
+    calls = []
+
+    class _Cerebro:
+        def run(self, **kwargs):
+            calls.append(kwargs)
+            return ["ordinary-result"]
+
+    result = run_configured_cerebro(_Cerebro(), runonce=False, preload=False)
+
+    assert result == ["ordinary-result"]
+    assert calls == [{"runonce": False, "preload": False}]
+
+
+def test_run_configured_cerebro_rejects_optional_query_without_runtime_creation():
+    factory_calls = []
+
+    with pytest.raises(ServiceExecutionSessionConfigError) as raised:
+        run_configured_cerebro(
+            object(),
+            _raw_client_config(query_required=False),
+            runtime_factory=lambda parsed: factory_calls.append(parsed),
+        )
+
+    assert raised.value.code == "EXECUTION_BINDING_NOT_REQUIRED"
+    assert factory_calls == []
 
 
 def test_plain_broker_lifecycle_does_not_create_or_attach_a_session():

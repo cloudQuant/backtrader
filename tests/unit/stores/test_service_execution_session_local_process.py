@@ -442,3 +442,59 @@ def test_session_closes_runtime_store_and_host_when_strategy_start_raises(
         assert counts[1:] == ((), (), ())
     finally:
         _cleanup_after_failed_run(store, runtime)
+
+
+def test_public_configured_example_runs_cerebro_in_a_subprocess() -> None:
+    """The published config/CLI entry owns a real client and local host lifecycle."""
+
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repository = Path(__file__).resolve().parents[3]
+    config = repository / "examples" / "service_execution_session" / "config.example.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "examples.service_execution_session.run",
+            "--config",
+            str(config),
+        ],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        timeout=90,
+        check=False,
+    )
+
+    assert completed.returncode == 0, (completed.stdout, completed.stderr)
+    assert completed.stderr == ""
+    prefix = "SERVICE_EXECUTION_SESSION_DEMO "
+    records = [
+        line[len(prefix) :]
+        for line in completed.stdout.splitlines()
+        if line.startswith(prefix)
+    ]
+    assert len(records) == 1, completed.stdout
+    result = json.loads(records[0])
+    assert result == {
+        "account_cash_snapshot_observed": False,
+        "bars_seen": 3,
+        "evidence": "LOCAL_SYNTHETIC_PUBLIC_CEREBRO_ENTRY_ONLY",
+        "last_close": 103.0,
+        "legacy_position_and_order_inputs": "synthetic-empty",
+        "provider_cancel_calls": 0,
+        "provider_submit_calls": 0,
+        "configured_route_count": 2,
+        "remaining_runtime_binding_count": 0,
+        "runtime_cleanup_failures": 0,
+        "runtime_state": "closed",
+        "runtime_unregister_uncertainties": 0,
+        "service_host_exit_code": 0,
+        "service_host_state": "closed",
+        "status": "LOCAL_SYNTHETIC_COMPLETED",
+        "store_connected_after_run": False,
+        "synthetic_provider": "synthetic-no-write",
+    }

@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -19,6 +20,7 @@ __all__ = [
     "ServiceExecutionSessionCleanupError",
     "ServiceExecutionSessionConfigError",
     "ServiceExecutionSessionError",
+    "run_configured_cerebro",
 ]
 
 _RUNTIME_OWNER_ATTRIBUTE = "_backtrader_service_execution_session_owner"
@@ -479,6 +481,113 @@ class ServiceExecutionSession:
     def _assert_creator_thread(self) -> None:
         if threading.get_ident() != self._creator_thread_id:
             raise ServiceExecutionSessionError("WRONG_SESSION_THREAD")
+
+
+def run_configured_cerebro(
+    cerebro: Any,
+    client_config: Any = None,
+    *,
+    runtime_factory: Optional[Callable[[Any], Any]] = None,
+    session_options: Optional[dict[str, Any]] = None,
+    **run_kwargs: Any,
+) -> Any:
+    """Run ordinary Cerebro directly or through one configured execution session.
+
+    ``client_config`` is an already-decoded plain-data dict accepted by the
+    SDK's ``parse_client_config``.  The managed entry intentionally supports only a
+    strategy client with exactly two required execution bindings:
+    ``broker.orders`` and ``broker.order_query``.  Trusted deployment code
+    supplies ``runtime_factory``; configuration never imports code or resolves
+    identities, scopes, peers, or transport credentials by itself.
+
+    Passing ``None`` preserves the ordinary ``cerebro.run`` path.  Once a
+    configuration is supplied, parse, route, factory, and session errors
+    propagate without falling back to an unmanaged run.
+    """
+
+    if client_config is None:
+        return cerebro.run(**run_kwargs)
+
+    try:
+        from bt_api_py.service_config import parse_client_config
+    except ImportError as error:
+        raise ServiceExecutionSessionConfigError("SERVICE_SDK_UNAVAILABLE") from error
+
+    parsed = parse_client_config(client_config)
+    execution = _configured_execution_routes(parsed)
+    if not callable(runtime_factory):
+        raise ServiceExecutionSessionConfigError("RUNTIME_FACTORY_REQUIRED")
+    options = {} if session_options is None else session_options
+    if type(options) is not dict:
+        raise ServiceExecutionSessionConfigError("INVALID_SESSION_OPTIONS")
+    supported_options = {
+        "refresh_interval_seconds",
+        "max_refresh_interval_seconds",
+        "backoff_factor",
+        "limit",
+        "monotonic_clock",
+    }
+    if set(options) - supported_options:
+        raise ServiceExecutionSessionConfigError("UNSUPPORTED_SESSION_OPTION")
+
+    runtime = runtime_factory(parsed)
+    session = ServiceExecutionSession(
+        runtime,
+        mount="broker.orders",
+        scope_ref=execution["broker.orders"]["scope_ref"],
+        query_mount="broker.order_query",
+        query_scope_ref=execution["broker.order_query"]["scope_ref"],
+        **options,
+    )
+    return session.run(cerebro, **run_kwargs)
+
+
+def _configured_execution_routes(parsed: Any) -> dict[str, dict[str, str]]:
+    """Validate the deliberately narrow configuration subset used above."""
+
+    if getattr(parsed, "process_role", None) != "strategy_client":
+        raise ServiceExecutionSessionConfigError("UNSUPPORTED_CLIENT_ROLE")
+    clients = getattr(parsed, "clients", None)
+    if not isinstance(clients, Mapping):
+        raise ServiceExecutionSessionConfigError("CLIENTS_UNAVAILABLE")
+    if set(clients.keys()) != {"execution"}:
+        raise ServiceExecutionSessionConfigError("UNSUPPORTED_CLIENT_SET")
+
+    execution = clients.get("execution")
+    settings = execution.get("settings") if isinstance(execution, Mapping) else None
+    bindings = settings.get("bindings") if isinstance(settings, Mapping) else None
+    if type(bindings) is not tuple or len(bindings) != 2:
+        raise ServiceExecutionSessionConfigError("UNSUPPORTED_EXECUTION_BINDINGS")
+
+    by_mount: dict[str, Any] = {}
+    for binding in bindings:
+        if not isinstance(binding, Mapping):
+            raise ServiceExecutionSessionConfigError("INVALID_EXECUTION_BINDING")
+        mount = binding.get("mount")
+        if mount not in {"broker.orders", "broker.order_query"} or mount in by_mount:
+            raise ServiceExecutionSessionConfigError("UNSUPPORTED_EXECUTION_BINDINGS")
+        by_mount[mount] = binding
+
+    if set(by_mount) != {"broker.orders", "broker.order_query"}:
+        raise ServiceExecutionSessionConfigError("UNSUPPORTED_EXECUTION_BINDINGS")
+    shared_fields = ("service_id", "instance_id", "account_ref", "transport_ref")
+    writer = by_mount["broker.orders"]
+    query = by_mount["broker.order_query"]
+    if any(
+        type(writer.get(field)) is not str
+        or not writer.get(field)
+        or writer.get(field) != query.get(field)
+        for field in shared_fields
+    ):
+        raise ServiceExecutionSessionConfigError("EXECUTION_BINDING_MISMATCH")
+
+    routes = {}
+    for mount, binding in by_mount.items():
+        scope_ref = binding.get("scope_ref")
+        if binding.get("required") is not True or type(scope_ref) is not str or not scope_ref:
+            raise ServiceExecutionSessionConfigError("EXECUTION_BINDING_NOT_REQUIRED")
+        routes[mount] = {"scope_ref": scope_ref}
+    return routes
 
 
 def _validate_refresh_settings(
