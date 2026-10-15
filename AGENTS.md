@@ -70,6 +70,16 @@ unbounded read of a private input.
 
 These correct common stale assumptions — verify before relying on docs:
 
+- Optional managed execution can use the explicit one-shot
+  `backtrader.stores.service_execution_session.ServiceExecutionSession.run(cerebro)`
+  entry. It owns a new SDK client runtime; Broker polling maintains leases and
+  refreshes durable order projections on that same thread, and the entry closes
+  runtime after Broker shutdown handling. Unconfigured brokers keep the existing
+  path. Channel/optimization modes and the read-only `ServiceReadProxy` are not
+  supported by this execution entry. See
+  `docs/source/developer-guide/optional-service-execution-session.md`; local
+  synthetic-provider lifecycle tests are not full BT01/BT02 or account acceptance.
+
 - Optional service reads can be explicitly injected through
   `backtrader.stores.service_read_proxy.ServiceReadProxy` and
   `BtApiStore(api=proxy)`. This bridge uses SDK account/market facades and neutral

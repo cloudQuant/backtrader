@@ -302,6 +302,7 @@ class BtApiBroker(BrokerBase):
         self.provider = self.p.provider
         self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()
+        self._service_execution_session = None
         self._managed_refresh_order_queue = collections.deque()
         self.positions = collections.defaultdict(Position)
         self.long_positions = collections.defaultdict(Position)
@@ -443,6 +444,9 @@ class BtApiBroker(BrokerBase):
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
+        session = self._service_execution_session
+        if session is not None:
+            session.broker_starting(self)
         super().start()
 
         if self.store is None:
@@ -1079,6 +1083,27 @@ class BtApiBroker(BrokerBase):
         net_pos.adjbase = long_pos.adjbase if long_pos.size else short_pos.adjbase
         return net_pos
 
+    def attach_service_execution_session(self, session):
+        """Attach one explicit managed-execution owner before startup."""
+        from ..stores.service_execution_session import ServiceExecutionSession
+
+        if not isinstance(session, ServiceExecutionSession):
+            raise TypeError("session must be a ServiceExecutionSession")
+        if self._service_execution_session is not None:
+            raise RuntimeError("service execution session is already attached")
+        if (
+            self.store is None
+            or self._live_started
+            or self._startup_ready
+            or bool(getattr(self.store, "_started", False))
+            or bool(self.store.is_connected)
+            or bool(self.store.managed_execution_active)
+        ):
+            raise RuntimeError("service execution session must attach before startup")
+        session._bind_broker(self)
+        self._service_execution_session = session
+        return None
+
     @staticmethod
     def _store_shutdown_reserve(store, shutdown_timeout):
         """Return a bounded Store shutdown reserve when its bound is verifiable."""
@@ -1099,7 +1124,22 @@ class BtApiBroker(BrokerBase):
         return min(configured_timeout, shutdown_timeout / 2.0)
 
     def stop(self):
-        """Freeze exposure, reduce known risk, reconcile, and stop within a deadline."""
+        """Run the existing shutdown path and report its result to an owner."""
+        session = self._service_execution_session
+        if session is None:
+            return self._stop_live_resources()
+
+        session.broker_stopping(self)
+        try:
+            result = self._stop_live_resources()
+        except BaseException as error:
+            session.broker_stop_failed(self, error)
+            raise
+        session.broker_stopped(self, result)
+        return result
+
+    def _stop_live_resources(self):
+        """Freeze exposure, reduce known risk, reconcile, and stop as before."""
         self._startup_ready = False
         if self.store is None:
             self._live_started = False
@@ -3788,6 +3828,9 @@ class BtApiBroker(BrokerBase):
 
     def next(self):
         """Refresh cached balances and positions."""
+        session = self._service_execution_session
+        if session is not None:
+            session.poll(self)
         self._drain_store_updates()
         self._process_order_deadlines()
         if self._uses_async_commands():
