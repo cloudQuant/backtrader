@@ -301,6 +301,7 @@ class BtApiBroker(BrokerBase):
         self.provider = self.p.provider
         self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()
+        self._managed_refresh_order_queue = collections.deque()
         self.positions = collections.defaultdict(Position)
         self.long_positions = collections.defaultdict(Position)
         self.short_positions = collections.defaultdict(Position)
@@ -3042,11 +3043,14 @@ class BtApiBroker(BrokerBase):
         """Apply current durable service records to live managed orders.
 
         The caller owns the schedule; this method performs one bounded pass and
-        returns the framework order refs whose state was applied.  Only live
-        orders carrying a managed intent are refreshed, each application goes
-        through the ordinary update path, and an unchanged durable revision is
-        skipped so the same state is never booked twice.  A store or adapter
-        without refresh support raises instead of silently doing nothing.
+        returns the framework order refs whose state was applied.  ``limit``
+        bounds every adapter refresh attempt, including missing, replayed, or
+        unchanged projections.  Live managed orders rotate fairly between
+        passes so an unchanged early order cannot consume an unbounded pass or
+        starve later orders.  Each application goes through the ordinary update
+        path, and an unchanged durable revision is skipped so the same state is
+        never booked twice.  A store or adapter without refresh support raises
+        instead of silently doing nothing.
         """
 
         if type(limit) is not int or limit <= 0:
@@ -3056,14 +3060,51 @@ class BtApiBroker(BrokerBase):
         refresh = getattr(self.store, "refresh_managed_order_projection", None)
         if not callable(refresh):
             raise ValueError("store does not support managed order refresh")
-        applied = []
+
+        eligible_orders = []
+        eligible_order_ids = set()
         for order in list(self.orders.values()):
-            if len(applied) >= limit:
-                break
-            if not order.alive():
+            if not order.alive() or not self._order_info_get(order, "managed_intent_id"):
                 continue
-            if not self._order_info_get(order, "managed_intent_id"):
+            order_id = id(order)
+            if order_id not in eligible_order_ids:
+                eligible_order_ids.add(order_id)
+                eligible_orders.append(order)
+
+        # Keep the current round-robin position while pruning orders that were
+        # removed, became terminal, or stopped being managed between passes.
+        # Identity keys avoid relying on framework-order equality semantics.
+        eligible_by_id = {id(order): order for order in eligible_orders}
+        queue = collections.deque()
+        queued_order_ids = set()
+        for order in self._managed_refresh_order_queue:
+            order_id = id(order)
+            if order_id in eligible_by_id and order_id not in queued_order_ids:
+                queue.append(eligible_by_id[order_id])
+                queued_order_ids.add(order_id)
+        for order in eligible_orders:
+            order_id = id(order)
+            if order_id not in queued_order_ids:
+                queue.append(order)
+                queued_order_ids.add(order_id)
+        self._managed_refresh_order_queue = queue
+
+        applied = []
+        visits_remaining = len(queue)
+        attempts = 0
+        while visits_remaining and attempts < limit:
+            order = queue.popleft()
+            queue.append(order)
+            visits_remaining -= 1
+
+            # An update earlier in this pass, or another caller, may have made
+            # this candidate terminal before its turn arrives.
+            if not order.alive() or not self._order_info_get(order, "managed_intent_id"):
                 continue
+
+            # Rotate before entering Store/adapter code. If refresh raises, the
+            # following pass still begins with the next managed order.
+            attempts += 1
             projection = refresh(order)
             if not isinstance(projection, dict):
                 continue
