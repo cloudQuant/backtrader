@@ -1139,6 +1139,18 @@ def _environment_override_errors(environ: Mapping[str, str]) -> tuple:
                 reason="legacy_gateway_environment_requires_migration",
             )
         )
+    legacy_provider = str(environ.get("BT_STORE_PROVIDER") or "").strip().lower()
+    if legacy_provider == "gateway" or legacy_provider.endswith("_gateway"):
+        errors.append(
+            RuntimeConfigError(
+                MIGRATION_REVIEW_REQUIRED,
+                "BT_STORE_PROVIDER cannot select a retired Gateway backend through the "
+                "current runtime; convert it offline to the explicit service/client "
+                "configuration or keep the matching historical release",
+                field_path="environment.BT_STORE_PROVIDER",
+                reason="legacy_gateway_environment_requires_migration",
+            )
+        )
     for name in _OVERRIDE_ENVIRONMENT_NAMES:
         value = environ.get(name)
         if value:

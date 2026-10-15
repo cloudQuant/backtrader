@@ -289,6 +289,115 @@ def test_v4_local_backtest_keeps_direct_semantics_through_the_normal_entry(
     assert effects == []
 
 
+@pytest.mark.parametrize(
+    "provider_value, environ",
+    (
+        pytest.param(None, {}, id="unset"),
+        pytest.param("ctp", {"BT_STORE_PROVIDER": "ctp"}, id="direct-ctp"),
+    ),
+)
+def test_bt_store_provider_direct_or_unset_keeps_v4_legacy_entry_available(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    provider_value: str | None,
+    environ: dict[str, str],
+) -> None:
+    """Only the retired Gateway selector is fenced; local direct runs remain available."""
+
+    runtime_dir = tmp_path / "registered-runtime"
+    _write_config(runtime_dir)
+    runner_module = "cfg05_synthetic_runner"
+    registry = _runtime_registry(runtime_dir, runner_module)
+    module = types.ModuleType(runner_module)
+    dispatches: list[dict[str, object]] = []
+
+    def run_runtime(
+        _runtime_dir: Path | None,
+        *,
+        effective: Any,
+        registry: Any,
+        runtime_directory: Any = None,
+    ) -> dict[str, object]:
+        del registry, runtime_directory
+        dispatches.append(
+            {
+                "effective": effective.as_public_dict(),
+                "provider_selector": runtime_cli.os.environ.get("BT_STORE_PROVIDER"),
+            }
+        )
+        return {"status": "SYNTHETIC_LOCAL_BACKTEST"}
+
+    module.run_runtime = run_runtime  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, runner_module, module)
+    monkeypatch.setattr(runtime_cli, "default_runtime_registry", lambda: registry)
+    monkeypatch.setattr(runtime_cli.os, "environ", environ)
+    effects = _guard_service_side_effects(monkeypatch)
+    output = io.StringIO()
+    errors = io.StringIO()
+
+    with redirect_stdout(output), redirect_stderr(errors):
+        result = run_legacy_config_first_cli(runtime_dir, argv=[])
+    payload = json.loads(output.getvalue())
+
+    assert result == 0, errors.getvalue()
+    assert payload["status"] == "completed"
+    assert payload["runner_dispatch"] == "code_owned"
+    assert payload["report"]["result"]["status"] == "SYNTHETIC_LOCAL_BACKTEST"
+    assert len(dispatches) == 1
+    assert dispatches[0]["provider_selector"] == provider_value
+    assert dispatches[0]["effective"]["mode"] == "backtest"
+    assert dispatches[0]["effective"]["preset"] == "local_backtest"
+    assert dispatches[0]["effective"]["allows_network"] is False
+    assert effects == []
+
+
+@pytest.mark.parametrize(
+    "provider_selector",
+    (
+        pytest.param("ctp_gateway", id="gateway-suffix"),
+        pytest.param(" Gateway ", id="trimmed-exact-gateway"),
+        pytest.param(" MT5_GATEWAY ", id="trimmed-case-insensitive-suffix"),
+    ),
+)
+def test_bt_store_provider_gateway_selector_is_migration_rejected_by_legacy_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    provider_selector: str,
+) -> None:
+    """The original registered entry rejects the retired selector before runner effects."""
+
+    runtime_dir = tmp_path / "registered-runtime"
+    _write_config(runtime_dir)
+    registry = _runtime_registry(runtime_dir, "cfg05_synthetic_runner")
+    monkeypatch.setattr(runtime_cli, "default_runtime_registry", lambda: registry)
+    monkeypatch.setattr(runtime_cli.os, "environ", {"BT_STORE_PROVIDER": provider_selector})
+    effects = _guard_service_side_effects(monkeypatch)
+    dispatches: list[object] = []
+
+    def forbidden_dispatch(*args: object, **kwargs: object) -> dict:
+        dispatches.append((args, kwargs))
+        raise AssertionError("retired provider selector reached the code-owned runner")
+
+    monkeypatch.setattr(runtime_cli, "dispatch_registered_runtime", forbidden_dispatch)
+    result, stdout_payload, stderr_payload = _invoke_legacy_entry(runtime_dir)
+
+    assert result == 2
+    assert stdout_payload == {}
+    assert stderr_payload["error_code"] == MIGRATION_REVIEW_REQUIRED
+    assert stderr_payload["field_path"] == "environment.BT_STORE_PROVIDER"
+    assert stderr_payload["reason"] == "legacy_gateway_environment_requires_migration"
+    assert stderr_payload["diagnostic"]["offline"] is True
+    assert dispatches == []
+    assert effects == []
+    assert stderr_payload["message"] == (
+        "BT_STORE_PROVIDER cannot select a retired Gateway backend through the current "
+        "runtime; convert it offline to the explicit service/client configuration or "
+        "keep the matching historical release"
+    )
+    nonmessage_payload = {key: value for key, value in stderr_payload.items() if key != "message"}
+    assert provider_selector not in json.dumps(nonmessage_payload)
+
+
 def test_runtime_v5_is_not_claimed_as_supported_or_fallback_parsed(
     tmp_path: Path,
 ) -> None:
