@@ -11,6 +11,7 @@ import pytest
 from backtrader.stores.service_execution_adapter import (
     ServiceExecutionAdapter,
     ServiceExecutionAdapterError,
+    ServiceExecutionReadError,
 )
 
 
@@ -706,6 +707,26 @@ class _QueryClient(_FakeClient):
         return self.view
 
 
+class _MultiIntentQueryClient(_FakeClient):
+    """Return per-intent submission/read facts for partial-pass coverage."""
+
+    def __init__(self, *, views, failing_intent):
+        super().__init__()
+        self.views = views
+        self.failing_intent = failing_intent
+        self.queries: list[str] = []
+
+    def submit(self, **kwargs):
+        self.submitted.append(kwargs)
+        return _view(intent_id=kwargs["intent_id"], updated_at_ns=5)
+
+    def query(self, intent_id):
+        self.queries.append(intent_id)
+        if intent_id == self.failing_intent:
+            raise _StubError("SCOPE_DENIED")
+        return self.views[intent_id]
+
+
 def test_refresh_projects_the_current_durable_state() -> None:
     client = _QueryClient(
         view=_view(
@@ -794,18 +815,36 @@ def test_refresh_reports_a_missing_record_as_unknown_not_as_success() -> None:
     assert projection["error_code"] == "service_execution_record_missing"
 
 
-def test_refresh_maps_an_unreadable_record_by_certainty() -> None:
+def test_refresh_raises_a_typed_error_for_any_failed_durable_read() -> None:
     client = _QueryClient(error=_StubError("BUSINESS_OUTCOME_UNKNOWN"))
     adapter = ServiceExecutionAdapter(client)
 
-    unknown = adapter.refresh_projection("intent-1")
-    assert unknown["status"] == "pending"
-    assert unknown["execution_unknown"] is True
+    with pytest.raises(ServiceExecutionReadError) as unknown:
+        adapter.refresh_projection("intent-1")
+    assert unknown.value.code == "BUSINESS_OUTCOME_UNKNOWN"
+    assert unknown.value.applied_refs == ()
 
     client.error = _StubError("SCOPE_DENIED")
-    refused = adapter.refresh_projection("intent-1")
-    assert refused["status"] == "rejected"
-    assert refused["error_code"] == "SCOPE_DENIED"
+    with pytest.raises(ServiceExecutionReadError) as refused:
+        adapter.refresh_projection("intent-1")
+    assert refused.value.code == "SCOPE_DENIED"
+
+    client.error = TimeoutError()
+    with pytest.raises(ServiceExecutionReadError) as timed_out:
+        adapter.refresh_projection("intent-1")
+    assert timed_out.value.code == "service_execution_read_timeout"
+
+
+def test_a_previously_known_record_missing_from_a_successful_read_is_an_error() -> None:
+    client = _QueryClient(view=_view(updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    client.submit_view = _view(updated_at_ns=5)
+    assert adapter.submit_order(_limit_order(), _legacy_dispatch)["status"] == "accepted"
+
+    client.view = None
+    with pytest.raises(ServiceExecutionReadError) as missing:
+        adapter.refresh_projection("intent-1")
+    assert missing.value.code == "service_execution_record_missing"
 
 
 def test_refresh_requires_a_reference_identifier() -> None:
@@ -888,13 +927,23 @@ def test_broker_refresh_skips_orders_without_a_managed_intent() -> None:
         store.stop()
 
 
-def test_broker_refresh_reports_an_unreadable_record_as_unknown() -> None:
+def test_broker_refresh_backoff_preserves_order_and_recovers_same_revision() -> None:
     import backtrader as bt
+
+    from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
 
     client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
     adapter = ServiceExecutionAdapter(client)
-    (store, data, broker), _provider = _broker_stack(adapter)
+    (store, data, broker), provider = _broker_stack(adapter)
+    clock = [0.0]
+    loop = ManagedOrderRefreshLoop(
+        broker,
+        interval_seconds=1.0,
+        max_interval_seconds=8.0,
+        monotonic_clock=lambda: clock[0],
+    )
     try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
         order = broker.buy(
             owner=None,
             data=data,
@@ -903,12 +952,253 @@ def test_broker_refresh_reports_an_unreadable_record_as_unknown() -> None:
             exectype=bt.Order.Limit,
             **_managed_broker_info(),
         )
-        client.error = _StubError("BUSINESS_OUTCOME_UNKNOWN")
+        original_external_id = order.info.get("external_order_id")
+        original_executed_size = order.executed.size
+        original_executed_price = order.executed.price
 
-        broker.refresh_managed_orders()
+        client.error = _StubError("SCOPE_DENIED")
+        assert loop.run_once() == ()
 
         assert order.alive() is True
         assert order.info.get("execution_unknown") is True
+        assert order.info.get("service_refresh_error_code") == "SCOPE_DENIED"
+        assert order.status == bt.Order.Accepted
+        assert order.info.get("external_order_id") == original_external_id
+        assert order.executed.size == original_executed_size
+        assert order.executed.price == original_executed_price
+        assert loop.stats.failures == 1
+        assert loop.stats.last_error_code == "SCOPE_DENIED"
+        assert loop.stats.current_interval_seconds == pytest.approx(2.0)
+        assert len(client.submitted) == 1
+
+        clock[0] = 2.0
+        client.error = TimeoutError()
+        assert loop.run_once() == ()
+        assert order.alive() is True
+        assert order.info.get("service_refresh_error_code") == "service_execution_read_timeout"
+        assert loop.stats.current_interval_seconds == pytest.approx(4.0)
+
+        # The same durable revision is a replay, but its successful read must
+        # clear read uncertainty without applying or booking the order twice.
+        clock[0] = 6.0
+        client.error = None
+        client.view = _view(state="ACKED", updated_at_ns=5)
+        assert loop.run_once() == ()
+        assert order.status == bt.Order.Accepted
+        assert order.alive() is True
+        assert order.info.get("execution_unknown") is False
+        assert order.info.get("service_refresh_error_code") is None
+        assert order.info.get("service_read_unavailable") is False
+        assert loop.stats.failures == 2
+        assert loop.stats.last_error_code is None
+        assert loop.stats.current_interval_seconds == pytest.approx(1.0)
+        assert len(client.submitted) == 1
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()
+
+
+def test_a_successful_unknown_record_stays_business_unknown_without_backoff() -> None:
+    import backtrader as bt
+
+    from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    clock = [0.0]
+    loop = ManagedOrderRefreshLoop(broker, monotonic_clock=lambda: clock[0])
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        client.error = _StubError("SCOPE_DENIED")
+        assert loop.run_once() == ()
+        assert order.info.get("service_read_unavailable") is True
+        assert loop.stats.current_interval_seconds == pytest.approx(2.0)
+
+        clock[0] = 2.0
+        client.error = None
+        client.view = _view(state="UNKNOWN", provider_order_id=None, updated_at_ns=9)
+        assert loop.run_once() == (order.ref,)
+        assert order.status == bt.Order.Accepted
+        assert order.alive() is True
+        assert order.info.get("execution_unknown") is True
+        assert order.info.get("service_refresh_error_code") is None
+        assert order.info.get("service_read_unavailable") is False
+        assert loop.stats.failures == 1
+        assert loop.stats.last_error_code is None
+        assert loop.stats.current_interval_seconds == pytest.approx(1.0)
+        assert len(client.submitted) == 1
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()
+
+
+def test_same_partial_revision_recovers_read_failure_without_rebooking_fill() -> None:
+    import backtrader as bt
+
+    from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
+    partial = _view(
+        state="PARTIALLY_FILLED",
+        filled_quantity=Decimal("1"),
+        average_price=Decimal("100.5"),
+        updated_at_ns=8,
+    )
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    clock = [0.0]
+    loop = ManagedOrderRefreshLoop(broker, monotonic_clock=lambda: clock[0])
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+        client.view = partial
+        assert loop.run_once() == (order.ref,)
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(100.5)
+
+        clock[0] = 1.0
+        client.error = _StubError("SCOPE_DENIED")
+        assert loop.run_once() == ()
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(100.5)
+        assert order.info.get("execution_unknown") is True
+
+        clock[0] = 3.0
+        client.error = None
+        assert loop.run_once() == ()
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(100.5)
+        assert order.info.get("execution_unknown") is False
+        assert order.info.get("service_refresh_error_code") is None
+        assert loop.stats.failures == 1
+        assert loop.stats.current_interval_seconds == pytest.approx(1.0)
+        assert len(client.submitted) == 1
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()
+
+
+def test_partial_applied_refs_survive_a_later_read_failure() -> None:
+    import backtrader as bt
+
+    from backtrader.stores.service_refresh_loop import ManagedOrderRefreshLoop
+
+    views = {
+        f"intent-{index}": _view(
+            intent_id=f"intent-{index}",
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+            updated_at_ns=9,
+        )
+        for index in (1, 2)
+    }
+    client = _MultiIntentQueryClient(views=views, failing_intent="intent-3")
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), provider = _broker_stack(adapter)
+    clock = [0.0]
+    loop = ManagedOrderRefreshLoop(broker, monotonic_clock=lambda: clock[0], limit=3)
+    try:
+        orders = []
+        for index in (1, 2, 3):
+            order_info = _managed_broker_info()
+            order_info["managed_intent_id"] = f"intent-{index}"
+            order_info["managed_signal_id"] = f"signal.intent-{index}"
+            orders.append(
+                broker.buy(
+                    owner=None,
+                    data=data,
+                    size=2,
+                    price=101.0,
+                    exectype=bt.Order.Limit,
+                    **order_info,
+                )
+            )
+
+        assert loop.run_once() == ()
+        assert client.queries == ["intent-1", "intent-2", "intent-3"]
+        assert loop.stats.failures == 1
+        assert loop.stats.last_error_code == "SCOPE_DENIED"
+        assert loop.stats.applied == 2
+        assert loop.stats.last_applied_refs == (orders[0].ref, orders[1].ref)
+        assert orders[0].status == bt.Order.Completed
+        assert orders[1].status == bt.Order.Completed
+        assert orders[2].status == bt.Order.Accepted
+        assert orders[2].alive() is True
+        assert orders[2].info.get("execution_unknown") is True
+        assert orders[2].info.get("service_refresh_error_code") == "SCOPE_DENIED"
+        assert len(client.submitted) == 3
+        assert provider.submitted_orders == []
+    finally:
+        store.stop()
+
+
+def test_successful_cumulative_partial_snapshots_keep_average_fill_price() -> None:
+    import backtrader as bt
+
+    client = _QueryClient(view=_view(state="ACKED", updated_at_ns=5))
+    adapter = ServiceExecutionAdapter(client)
+    (store, data, broker), _provider = _broker_stack(adapter)
+    try:
+        client.submit_view = _view(state="ACKED", updated_at_ns=5)
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            **_managed_broker_info(),
+        )
+
+        client.view = _view(
+            state="PARTIALLY_FILLED",
+            filled_quantity=Decimal("1"),
+            average_price=Decimal("100.5"),
+            updated_at_ns=7,
+        )
+        projection = adapter.refresh_projection("intent-1")
+        assert projection["avg_price"] == projection["price"] == "100.5"
+        # Use a newer revision for the Broker pass after inspecting the shape.
+        client.view = _view(
+            state="PARTIALLY_FILLED",
+            filled_quantity=Decimal("1"),
+            average_price=Decimal("100.5"),
+            updated_at_ns=8,
+        )
+        assert broker.refresh_managed_orders() == (order.ref,)
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(100.5)
+
+        client.view = _view(
+            state="FILLED",
+            filled_quantity=Decimal("2"),
+            average_price=Decimal("101.5"),
+            updated_at_ns=9,
+        )
+        assert broker.refresh_managed_orders() == (order.ref,)
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
+        assert order.executed.price == pytest.approx(101.5)
     finally:
         store.stop()
 

@@ -13,9 +13,9 @@ publishes (``managed_intent_id``, ``managed_signal_id``, ``managed_instrument``,
 ``managed_position_effect``, ``managed_metadata_version``).  A response is
 always one of three shapes the broker already understands: an accepted
 projection carrying the provider order identity, a nonterminal unknown
-projection, or a structured rejection.  The adapter therefore raises no
-transport error into the strategy: an uncertain outcome must stay visible as an
-unreconciled order rather than as a failed call the strategy might retry.
+projection, or a structured rejection.  An uncertain submit outcome stays
+visible as an unreconciled order; a failed durable read raises a typed error so
+the broker can preserve that order and the caller can back off.
 """
 
 from __future__ import annotations
@@ -79,6 +79,28 @@ class ServiceExecutionAdapterError(ManagedExecutionAdapterError):
     """Finite local diagnostics for an unusable service execution adapter."""
 
 
+class ServiceExecutionReadError(ServiceExecutionAdapterError):
+    """A durable-record read failed and must not change order business state.
+
+    ``applied_refs`` is filled by the Broker when a later read in the same
+    refresh pass fails.  The refresh scheduler can then retain accurate apply
+    counters while still treating the pass as failed and backing off.
+    """
+
+    def __init__(self, code: str, *, applied_refs: tuple[Any, ...] = ()) -> None:
+        if (
+            type(code) is not str
+            or not code
+            or len(code) > 64
+            or not code.isascii()
+            or not all(character.isalnum() or character in "_.-" for character in code)
+        ):
+            code = "service_execution_read_failed"
+        self.code = code
+        self.applied_refs = tuple(applied_refs)
+        super().__init__(f"Managed service read failed ({code})")
+
+
 class ServiceExecutionAdapter:
     """Project framework orders onto one authenticated execution service."""
 
@@ -112,6 +134,8 @@ class ServiceExecutionAdapter:
         #: Last durable revision projected per intent, so a repeated refresh
         #: of an unchanged record is reported as a replay.
         self._projected_revisions: dict[str, Any] = {}
+        #: Intents for which this adapter has actually seen a durable record.
+        self._known_record_intents: set[str] = set()
 
     # -- submission ---------------------------------------------------------
 
@@ -160,6 +184,8 @@ class ServiceExecutionAdapter:
         replayed = intent_id in self._returned_intents
         self._returned_intents.add(intent_id)
         self._projected_revisions[intent_id] = getattr(view, "updated_at_ns", None)
+        if view is not None:
+            self._known_record_intents.add(intent_id)
         return _submission_projection(view, data_name=_data_name(order), replayed=replayed)
 
     # -- refresh ------------------------------------------------------------
@@ -169,27 +195,25 @@ class ServiceExecutionAdapter:
 
         This performs no provider dispatch: it only asks the service what the
         journal already holds.  An unchanged revision is reported as a replay
-        so the framework cannot book the same state twice, and an unreadable
-        record is reported as unknown rather than as a clean rejection.
+        so the framework cannot book the same state twice. Failed reads raise
+        a typed error so the Broker can preserve order state and the scheduler
+        can back off instead of treating an authorization failure as a rejection.
         """
 
         if not _reference(intent_id):
             raise ServiceExecutionAdapterError("invalid intent id")
         try:
             view = self._client.query(intent_id)
-        except Exception as error:  # noqa: BLE001 - mapped to a finite projection
-            code = _error_code(error)
-            if code not in _DEFINITIVE_REJECTION_CODES:
-                return {
-                    "kind": "service_execution_record",
-                    "managed_intent_id": intent_id,
-                    "status": "pending",
-                    "execution_unknown": True,
-                    "error_code": code,
-                    "error_msg": "The durable record could not be read; reconcile before acting.",
-                }
-            return _rejection(code, "The durable record could not be read.", intent_id=intent_id)
+        except Exception as error:  # noqa: BLE001 - converted to a finite read diagnostic
+            code = (
+                "service_execution_read_timeout"
+                if isinstance(error, TimeoutError)
+                else _error_code(error)
+            )
+            raise ServiceExecutionReadError(code) from None
         if view is None:
+            if intent_id in self._known_record_intents:
+                raise ServiceExecutionReadError("service_execution_record_missing")
             return {
                 "kind": "service_execution_record",
                 "managed_intent_id": intent_id,
@@ -198,6 +222,7 @@ class ServiceExecutionAdapter:
                 "error_code": "service_execution_record_missing",
                 "error_msg": "The service holds no durable record for this intent.",
             }
+        self._known_record_intents.add(intent_id)
         revision = getattr(view, "updated_at_ns", None)
         replayed = revision is not None and self._projected_revisions.get(intent_id) == revision
         self._projected_revisions[intent_id] = revision
@@ -367,6 +392,11 @@ def _submission_projection(
                 projection["status"] = status
                 projection["filled"] = filled
                 projection["price"] = price
+                # These are cumulative durable snapshots. The Broker uses
+                # avg_price to derive an incremental price from a changed
+                # cumulative quantity instead of treating the new average as
+                # the price of the entire increment.
+                projection["avg_price"] = price
                 commission = _decimal_text(getattr(view, "cumulative_commission", None))
                 if commission is not None:
                     projection["cumulative_commission"] = commission
@@ -634,4 +664,5 @@ def _instrument(value: Any) -> bool:
 __all__ = [
     "ServiceExecutionAdapter",
     "ServiceExecutionAdapterError",
+    "ServiceExecutionReadError",
 ]

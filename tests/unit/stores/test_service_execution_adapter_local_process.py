@@ -42,6 +42,7 @@ _QUERY_SCOPE_REF = "bt-strategy-order-query-a-v1"
 _REQUEST_TIMEOUT_MS = 3000
 _MAX_MESSAGE_BYTES = 65_536
 _TRADING_DAY = "20261014"
+_SERVICE_WRITER_ID = "execution-order-entry"
 _SCOPE = WireScope(_DOMAIN, account_ref=_ACCOUNT, strategy_ref=_STRATEGY)
 
 
@@ -320,6 +321,71 @@ def _host_process(control, raw_config, registry_path, keys, store_path):
             if command == ("fill_next_submit",):
                 provider.fill_next_submit = True
                 control.send(("armed",))
+                continue
+            if isinstance(command, tuple) and command and command[0] == "record_observation":
+                if len(command) != 5:
+                    raise AssertionError(
+                        "record_observation expects intent, state, quantity, price"
+                    )
+                from bt_api_execution import ExecutionState, ProviderObservation
+
+                _, intent_id, state_name, quantity_text, price_text = command
+                state = ExecutionState(state_name)
+                current = store.get(intent_id, scope=execution_scope)
+                if current is None or current.state not in {
+                    ExecutionState.ACKED,
+                    ExecutionState.PARTIALLY_FILLED,
+                }:
+                    raise AssertionError("observation requires an accepted durable order")
+                allowed_states = (
+                    {ExecutionState.PARTIALLY_FILLED}
+                    if current.state is ExecutionState.ACKED
+                    else {ExecutionState.FILLED, ExecutionState.CANCELLED}
+                )
+                if state not in allowed_states:
+                    raise AssertionError("unsupported synthetic provider observation")
+                if current.provider_order_id is None:
+                    raise AssertionError("accepted durable order has no provider identity")
+
+                # This controlled local-process hook injects synthetic provider
+                # evidence after acceptance; it is not a production callback
+                # adapter.  The service facade passes its configured writer id
+                # through unchanged (_facade_pair), whose current default is
+                # _SERVICE_WRITER_ID. Renew that same public lease and
+                # pass its current fence to the real journal transition. The
+                # fixture never edits SQLite rows directly.
+                writer_lease = store.acquire_or_renew_lease(execution_scope, _SERVICE_WRITER_ID)
+                if (
+                    writer_lease.owner_id != _SERVICE_WRITER_ID
+                    or writer_lease.scope_key != execution_scope.account_key
+                ):
+                    raise AssertionError("observation did not use the service's current lease")
+                store.assert_writer_lease(execution_scope, writer_lease)
+                observation = ProviderObservation(
+                    intent_id=intent_id,
+                    state=state,
+                    provider_order_id=current.provider_order_id,
+                    filled_quantity=Decimal(quantity_text),
+                    average_price=(None if price_text is None else Decimal(price_text)),
+                )
+                updated = store.record_observation(
+                    observation,
+                    scope=execution_scope,
+                    source="provider",
+                    writer_lease=writer_lease,
+                )
+                control.send(
+                    (
+                        "observation_recorded",
+                        current.state.value,
+                        updated.intent_id,
+                        updated.scope_key,
+                        updated.state.value,
+                        updated.provider_order_id,
+                        str(updated.filled_quantity),
+                        None if updated.average_price is None else str(updated.average_price),
+                    )
+                )
                 continue
             raise AssertionError("unknown local execution host command")
     except BaseException as exc:
@@ -600,7 +666,8 @@ def _close_host(host):
     if host["pipe"].closed:
         return
     host["pipe"].send(("close",))
-    assert _receive(host["pipe"], timeout=20.0)[0] == "closed"
+    closed = _receive(host["pipe"], timeout=20.0)
+    assert closed == ("closed", "closed"), closed
     host["process"].join(20)
     if host["process"].is_alive():
         host["process"].terminate()

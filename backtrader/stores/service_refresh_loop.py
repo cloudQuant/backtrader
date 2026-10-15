@@ -12,10 +12,13 @@ still visible through :meth:`stats`, so a silent stall is not possible.
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Optional
+
+from backtrader.stores.service_execution_adapter import ServiceExecutionReadError
 
 __all__ = [
     "ManagedOrderRefreshLoop",
@@ -66,9 +69,9 @@ class ManagedOrderRefreshLoop:
             raise RefreshLoopError("INVALID_CLOCK")
         if not _positive(interval_seconds) or not _positive(max_interval_seconds):
             raise RefreshLoopError("INVALID_INTERVAL")
-        if max_interval_seconds < interval_seconds:
+        if float(max_interval_seconds) < float(interval_seconds):
             raise RefreshLoopError("INVALID_INTERVAL")
-        if not isinstance(backoff_factor, (int, float)) or backoff_factor < 1:
+        if not _finite_number(backoff_factor) or float(backoff_factor) < 1:
             raise RefreshLoopError("INVALID_BACKOFF")
 
         self._broker = broker
@@ -101,7 +104,8 @@ class ManagedOrderRefreshLoop:
         """Run one pass if it is due; return the applied order refs.
 
         A due pass always advances the schedule, whether it succeeded or not,
-        so a failing service cannot turn into a busy loop.
+        so a failing service cannot turn into a busy loop. A failed pass returns
+        an empty tuple; any refs applied before the failure remain in ``stats``.
         """
 
         if not self.due():
@@ -110,8 +114,13 @@ class ManagedOrderRefreshLoop:
         try:
             applied = self._refresh(limit=self._limit)
         except Exception as error:  # noqa: BLE001 - a degraded pass must not break the caller
+            partial_refs = ()
+            if isinstance(error, ServiceExecutionReadError):
+                partial_refs = tuple(error.applied_refs)
             self._failures += 1
             self._last_error_code = _error_code(error)
+            self._applied += len(partial_refs)
+            self._last_applied_refs = partial_refs
             self._interval = min(self._max_interval, self._interval * self._backoff)
             self._next_due = self._clock() + self._interval
             return ()
@@ -136,7 +145,16 @@ class ManagedOrderRefreshLoop:
 
 
 def _positive(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and float(value) > 0
+    return _finite_number(value) and float(value) > 0
+
+
+def _finite_number(value: Any) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, ValueError):
+        return False
 
 
 def _error_code(error: BaseException) -> str:

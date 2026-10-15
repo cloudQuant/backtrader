@@ -38,6 +38,7 @@ from ..stores.managed_execution import (
     ManagedExecutionAdapterError,
     parse_ctp_managed_execution_projection,
 )
+from ..stores.service_execution_adapter import ServiceExecutionReadError
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -3105,9 +3106,38 @@ class BtApiBroker(BrokerBase):
             # Rotate before entering Store/adapter code. If refresh raises, the
             # following pass still begins with the next managed order.
             attempts += 1
-            projection = refresh(order)
+            try:
+                projection = refresh(order)
+            except ServiceExecutionReadError as error:
+                error.applied_refs = tuple(applied)
+                order.addinfo(
+                    execution_unknown=True,
+                    service_refresh_error_code=error.code,
+                    service_read_unavailable=True,
+                )
+                raise
             if not isinstance(projection, dict):
                 continue
+
+            # A successful durable read resolves the read failure even when
+            # the service returns the same revision and the projection is
+            # otherwise skipped below. A successful UNKNOWN or an unrecognized
+            # never-seen record remains a business uncertainty and keeps
+            # execution_unknown; a known record that disappeared raises above.
+            service_read_unavailable = bool(
+                self._order_info_get(order, "service_read_unavailable", False)
+            )
+            if service_read_unavailable:
+                order.addinfo(
+                    service_refresh_error_code=None,
+                    service_read_unavailable=False,
+                )
+                has_known_non_unknown_state = (
+                    projection.get("service_execution_state") not in (None, "UNKNOWN")
+                    and projection.get("execution_unknown") is not True
+                )
+                if has_known_non_unknown_state:
+                    order.addinfo(execution_unknown=False)
             if projection.get("managed_execution_replayed") is True:
                 continue
             # A repeat projection of the same durable revision must not be
@@ -3120,6 +3150,7 @@ class BtApiBroker(BrokerBase):
                 projection.get("execution_unknown"),
                 projection.get("filled"),
                 projection.get("price"),
+                projection.get("avg_price"),
             )
             if self._order_info_get(order, "service_refresh_applied") == fingerprint:
                 continue
