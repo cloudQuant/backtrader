@@ -105,6 +105,9 @@ class ServiceExecutionSession:
         limit: int = 32,
         monotonic_clock: Callable[[], float] = time.monotonic,
         strategy_account_book_routes: tuple[ServiceStrategyAccountBookRoute, ...] = (),
+        recovery_journal: Any = None,
+        logical_run_id: Optional[str] = None,
+        recovery_callback: Optional[Callable[[Any], Any]] = None,
     ) -> None:
         _validate_refresh_settings(
             refresh_interval_seconds,
@@ -121,6 +124,21 @@ class ServiceExecutionSession:
 
         if not isinstance(runtime, ServiceClientRuntime):
             raise ServiceExecutionSessionConfigError("INVALID_RUNTIME")
+        if recovery_journal is not None:
+            if (
+                type(logical_run_id) is not str
+                or not logical_run_id
+                or logical_run_id != getattr(runtime, "run_id", None)
+                or not callable(getattr(recovery_journal, "prepare_intent", None))
+                or not callable(getattr(recovery_journal, "prepare_cancel", None))
+            ):
+                raise ServiceExecutionSessionConfigError("INVALID_RECOVERY_CONFIGURATION")
+        elif logical_run_id is not None:
+            raise ServiceExecutionSessionConfigError("RECOVERY_JOURNAL_REQUIRED")
+        if recovery_callback is not None and (
+            recovery_journal is None or not callable(recovery_callback)
+        ):
+            raise ServiceExecutionSessionConfigError("RECOVERY_CALLBACK_REQUIRES_JOURNAL")
         if runtime.state != "new":
             raise ServiceExecutionSessionConfigError("RUNTIME_NOT_NEW")
         try:
@@ -138,7 +156,7 @@ class ServiceExecutionSession:
             )
             from backtrader.stores.service_execution_adapter import ServiceExecutionAdapter
 
-            adapter = ServiceExecutionAdapter(client)
+            adapter = ServiceExecutionAdapter(client, recovery_journal=recovery_journal)
         except Exception as error:
             code = _safe_code(error, "INVALID_EXECUTION_ROUTE")
             raise ServiceExecutionSessionConfigError(code) from None
@@ -155,6 +173,9 @@ class ServiceExecutionSession:
         self.scope_ref = scope_ref
         self.query_mount = query_mount
         self.query_scope_ref = query_scope_ref
+        self.recovery_journal = recovery_journal
+        self.logical_run_id = logical_run_id
+        self.recovery_callback = recovery_callback
         self._creator_thread_id = threading.get_ident()
         self._refresh_interval_seconds = refresh_interval_seconds
         self._max_refresh_interval_seconds = max_refresh_interval_seconds
@@ -422,6 +443,19 @@ class ServiceExecutionSession:
                 owned_runtime.start()
             self._validate_registered_routes()
             self._validate_strategy_account_book_routes()
+            if self.recovery_journal is not None:
+                from backtrader.stores.service_execution_recovery import (
+                    ServiceExecutionRecoveryNamespace,
+                )
+
+                strategy_ref, account_ref = self._writer_scope_identity
+                namespace = ServiceExecutionRecoveryNamespace(
+                    account_ref=account_ref,
+                    strategy_ref=strategy_ref,
+                    logical_run_id=self.logical_run_id,
+                )
+                self.adapter.bind_recovery_namespace(namespace)
+                self.adapter.initialize_recovery()
             self._state = "running"
             result = cerebro.run(**run_kwargs)
         except BaseException as error:
@@ -539,6 +573,10 @@ class ServiceExecutionSession:
         for owned_runtime in self._owned_runtimes:
             if id(owned_runtime) in self._runtime_start_attempted:
                 owned_runtime.maintain()
+        if self.recovery_journal is not None:
+            return self.adapter.refresh_recovery_events(
+                callback=self.recovery_callback,
+            )
         return self._refresh_loop.run_once()
 
     def broker_starting(self, broker: Any) -> None:

@@ -90,6 +90,12 @@ These correct common stale assumptions — verify before relying on docs:
   Shared Broker cash/value/position getters keep their account-level meaning,
   and the strategy view reports cash/value unavailable until Execution supplies
   an authoritative accounting and valuation contract.
+  The opt-in `ServiceExecutionRecoveryJournal` candidate persists immutable
+  logical-run intent/cancel manifests, restore-only snapshots, event receipts
+  and cursors, and callback work before invoking caller code. It does not
+  reconstruct arbitrary Backtrader Order/Strategy objects; callback delivery is
+  at-least-once, not exactly-once. Local tests do not establish BT02 or account
+  acceptance; the SDK-backed process-restart integration remains required.
 
 - Optional service reads can be explicitly injected through
   `backtrader.stores.service_read_proxy.ServiceReadProxy` and

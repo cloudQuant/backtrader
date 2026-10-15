@@ -13,6 +13,10 @@ from backtrader.stores.service_execution_adapter import (
     ServiceExecutionAdapterError,
     ServiceExecutionReadError,
 )
+from backtrader.stores.service_execution_recovery import (
+    ServiceExecutionRecoveryJournal,
+    ServiceExecutionRecoveryNamespace,
+)
 
 
 class _FakeClient:
@@ -1384,3 +1388,151 @@ def test_a_repeated_refresh_projection_does_not_notify_twice() -> None:
         assert order.executed.size == pytest.approx(2.0)
     finally:
         store.stop()
+
+
+class _RecoveryClient(_FakeClient):
+    def __init__(self, journal, namespace):
+        super().__init__(
+            submit_view=_view(
+                state="FILLED",
+                provider_order_id="provider-order-1",
+                filled_quantity="2",
+                average_price="101.5",
+                cumulative_commission="0.02",
+            ),
+            cancel_view=_view(state="CANCELLED"),
+        )
+        self.journal = journal
+        self.namespace = namespace
+        self.manifest_seen_before_submit = None
+        self.cancel_manifest_seen_before_rpc = None
+        self.query_calls = 0
+
+    def submit(self, **kwargs: Any) -> Any:
+        self.submitted.append(kwargs)
+        self.manifest_seen_before_submit = self.journal.intent_manifest(
+            self.namespace, kwargs["intent_id"]
+        )
+        return self.submit_view
+
+    def cancel(self, **kwargs: Any) -> Any:
+        self.cancelled.append(kwargs)
+        self.cancel_manifest_seen_before_rpc = self.journal.cancel_manifest(
+            self.namespace, kwargs["cancel_id"]
+        )
+        return self.cancel_view
+
+    def query(self, intent_id: str) -> Any:
+        self.query_calls += 1
+        raise AssertionError("recovery must use the durable event cursor, not query()")
+
+
+def _bind_recovery_owner(order: _StubOrder, *, strategy_ref: str = "strategy-a") -> None:
+    order.owner = SimpleNamespace(
+        p=SimpleNamespace(strategy_ref=strategy_ref, account_ref="account-a")
+    )
+
+
+def test_recovery_submit_persists_manifest_and_ignores_filled_reply_projection(tmp_path) -> None:
+    namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
+    journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery.sqlite3")
+    client = _RecoveryClient(journal, namespace)
+    adapter = ServiceExecutionAdapter(client, recovery_journal=journal)
+    adapter.bind_recovery_namespace(namespace)
+    order = _limit_order()
+    _bind_recovery_owner(order)
+
+    projection = adapter.submit_order(order, _legacy_dispatch)
+
+    manifest = client.manifest_seen_before_submit
+    assert manifest is not None
+    assert manifest["logical_run_id"] == "stable-run"
+    assert manifest["submit_payload"] == {
+        "intent_id": "intent-1",
+        "signal_id": "signal-1",
+        "instrument": "BTC-USDT",
+        "side": "BUY",
+        "position_effect": "OPEN",
+        "order_type": "LIMIT",
+        "quantity": "2",
+        "price": "101.0",
+        "time_in_force": "GTC",
+        "reduce_only": False,
+        "metadata_version": "metadata-v1",
+        "deadline_ns": None,
+        "tags": {},
+    }
+    assert projection["status"] == "pending"
+    assert projection["execution_unknown"] is True
+    assert projection["service_execution_recovery_required"] is True
+    assert "filled" not in projection
+    assert "price" not in projection
+    assert "external_order_id" not in projection
+    with pytest.raises(ServiceExecutionReadError, match="recovery_event_stream_required"):
+        adapter.refresh_projection("intent-1")
+    assert client.query_calls == 0
+    journal.close()
+
+
+def test_recovery_cancel_binds_target_before_rpc_and_stays_nonterminal(tmp_path) -> None:
+    namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
+    journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery.sqlite3")
+    client = _RecoveryClient(journal, namespace)
+    adapter = ServiceExecutionAdapter(client, recovery_journal=journal)
+    adapter.bind_recovery_namespace(namespace)
+    order = _limit_order()
+    _bind_recovery_owner(order)
+    adapter.submit_order(order, _legacy_dispatch)
+    # In the real flow this provider identity comes from a prior authenticated
+    # durable snapshot; this unit checks that it is bound before cancel RPC.
+    order.info["external_order_id"] = "provider-order-1"
+
+    projection = adapter.cancel_order(order, "BTC-USDT", _legacy_dispatch)
+
+    cancel_manifest = client.cancel_manifest_seen_before_rpc
+    assert cancel_manifest is not None
+    assert cancel_manifest["target_intent_id"] == "intent-1"
+    assert cancel_manifest["provider_order_id"] == "provider-order-1"
+    assert client.cancelled[0]["cancel_id"] == "cancel.intent-1"
+    assert projection["status"] == "cancel_requested"
+    assert projection["managed_execution_cancel_pending"] is True
+    assert projection["managed_execution_cancel_reconciliation_required"] is True
+    assert "service_execution_state" not in projection
+    journal.close()
+
+
+def test_recovery_submit_rejects_a_strategy_with_the_wrong_scope_before_rpc(tmp_path) -> None:
+    namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
+    journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery.sqlite3")
+    client = _RecoveryClient(journal, namespace)
+    adapter = ServiceExecutionAdapter(client, recovery_journal=journal)
+    adapter.bind_recovery_namespace(namespace)
+    order = _limit_order()
+    _bind_recovery_owner(order, strategy_ref="strategy-b")
+
+    projection = adapter.submit_order(order, _legacy_dispatch)
+
+    assert projection["status"] == "rejected"
+    assert projection["error_code"] == "service_execution_recovery_scope_mismatch"
+    assert client.submitted == []
+    assert journal.intent_manifest(namespace, "intent-1") is None
+    journal.close()
+
+
+def test_recovery_cancel_rejects_a_strategy_with_the_wrong_scope_before_rpc(tmp_path) -> None:
+    namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
+    journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery.sqlite3")
+    client = _RecoveryClient(journal, namespace)
+    adapter = ServiceExecutionAdapter(client, recovery_journal=journal)
+    adapter.bind_recovery_namespace(namespace)
+    order = _limit_order()
+    _bind_recovery_owner(order, strategy_ref="strategy-b")
+    order.info["external_order_id"] = "provider-order-1"
+
+    projection = adapter.cancel_order(order, "BTC-USDT", _legacy_dispatch)
+
+    assert projection["status"] == "rejected"
+    assert projection["error_code"] == "service_execution_recovery_scope_mismatch"
+    assert client.cancelled == []
+    assert journal.cancel_manifest(namespace, "cancel.intent-1") is None
+    journal.close()
