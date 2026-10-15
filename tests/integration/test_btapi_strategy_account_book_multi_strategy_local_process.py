@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import json
 import multiprocessing
+import os
 import socket
+import sqlite3
 import time
 from contextlib import suppress
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -65,7 +69,66 @@ _MAX_MESSAGE_BYTES = 65_536
 _INSTRUMENT = "PAPER:SIM:BTC-USDT"
 _WIRE_SCOPE_A = WireScope(_DOMAIN, account_ref=_ACCOUNT, strategy_ref=_STRATEGY_A)
 _WIRE_SCOPE_B = WireScope(_DOMAIN, account_ref=_ACCOUNT, strategy_ref=_STRATEGY_B)
-_STRATEGY_QUANTITY = {_STRATEGY_A: Decimal("0.25"), _STRATEGY_B: Decimal("0.75")}
+_FINANCIAL_BASELINE_CASH = {_STRATEGY_A: Decimal("1000"), _STRATEGY_B: Decimal("500")}
+_FINANCIAL_BASELINE_POSITION = {_STRATEGY_A: Decimal("2"), _STRATEGY_B: Decimal("1")}
+_FINANCIAL_BASELINE_COST = {_STRATEGY_A: Decimal("200"), _STRATEGY_B: Decimal("45")}
+_FINANCIAL_CASH_AFTER_FILL = {_STRATEGY_A: Decimal("939.97"), _STRATEGY_B: Decimal("500")}
+_FINANCIAL_POSITION_AFTER_FILL = {_STRATEGY_A: Decimal("2.5"), _STRATEGY_B: Decimal("1")}
+_FINANCIAL_COST_AFTER_FILL = {_STRATEGY_A: Decimal("260"), _STRATEGY_B: Decimal("45")}
+_FINANCIAL_FEES_AFTER_FILL = {_STRATEGY_A: Decimal("0.03"), _STRATEGY_B: Decimal("0")}
+_FINANCIAL_BASELINE_REF = "bt-multi-strategy-financial-baseline-r1"
+_FINANCIAL_DIRECTORY_REVISION = "bt-multi-strategy-financial-owners-r1"
+_FINANCIAL_METADATA_VERSION = "bt-multi-strategy-spot-r1"
+_FINANCIAL_FILL_ID = "bt-multi-strategy-financial-fill-1"
+_SOURCE_ROOT_ENV = {
+    "sdk": "BT_STRATEGY_FINANCIAL_SDK_ROOT",
+    "base": "BT_STRATEGY_FINANCIAL_BASE_ROOT",
+    "execution": "BT_STRATEGY_FINANCIAL_EXECUTION_ROOT",
+    "transport": "BT_STRATEGY_FINANCIAL_TRANSPORT_ROOT",
+}
+
+
+def _loaded_source_origins():
+    import bt_api_base.service_protocol as base_protocol
+    import bt_api_execution.store as execution_store
+    import bt_api_py.service_execution_account_books as account_books
+    import bt_api_py.service_host as service_host
+    import bt_api_py.service_runtime as service_runtime
+    import bt_api_transport_zmq.service_v2 as service_transport
+
+    return {
+        "sdk": {
+            "account_books": str(Path(account_books.__file__).resolve()),
+            "service_host": str(Path(service_host.__file__).resolve()),
+            "service_runtime": str(Path(service_runtime.__file__).resolve()),
+        },
+        "base": {"service_protocol": str(Path(base_protocol.__file__).resolve())},
+        "execution": {"store": str(Path(execution_store.__file__).resolve())},
+        "transport": {"service_v2": str(Path(service_transport.__file__).resolve())},
+    }
+
+
+def _assert_source_origins(origins):
+    for package, modules in origins.items():
+        configured_root = os.environ.get(_SOURCE_ROOT_ENV[package])
+        expected_root = Path(configured_root).resolve() if configured_root else None
+        for module_name, raw_path in modules.items():
+            module_path = Path(raw_path).resolve()
+            if not module_path.is_file():
+                raise AssertionError(f"{package}.{module_name} source file is missing")
+            if expected_root is not None and not module_path.is_relative_to(expected_root):
+                raise AssertionError(
+                    f"{package}.{module_name} loaded outside its fixed source export"
+                )
+    return origins
+
+
+def _report_source_origins(label, origins):
+    if any(os.environ.get(name) for name in _SOURCE_ROOT_ENV.values()):
+        print(
+            f"{label} source origins: {json.dumps(origins, sort_keys=True)}",
+            flush=True,
+        )
 
 
 def _endpoint() -> str:
@@ -197,13 +260,319 @@ class _ClosedAdmissionGate:
         raise AssertionError("the local read-only integration must not admit a cancel")
 
 
+class _FinancialSeedPermit:
+    def __init__(self, permit_id: str) -> None:
+        self.permit_id = permit_id
+
+
+class _FinancialSeedAdmission:
+    """Synthetic leaf used only to persist one typed local execution fill."""
+
+    def reserve(self, intent):
+        return _FinancialSeedPermit(f"financial-seed-{intent.intent_id}")
+
+    def validate(self, permit_id, intent):
+        if permit_id != f"financial-seed-{intent.intent_id}":
+            raise AssertionError("unexpected synthetic financial seed permit")
+        return _FinancialSeedPermit(permit_id)
+
+    def settle(self, permit_id):
+        if not permit_id.startswith("financial-seed-"):
+            raise AssertionError("unexpected synthetic financial seed permit")
+
+    def release(self, permit_id, reason):
+        if not permit_id.startswith("financial-seed-") or not reason:
+            raise AssertionError("unexpected synthetic financial seed release")
+
+
+def _financial_owner_directory(execution_scopes):
+    from bt_api_execution import (
+        FinancialOwnerDirectoryV1,
+        FinancialOwnerKind,
+        FinancialOwnerV1,
+    )
+
+    return FinancialOwnerDirectoryV1(
+        execution_scopes[0].account_key,
+        _FINANCIAL_DIRECTORY_REVISION,
+        "synthetic-trusted-bt-strategy-owner-directory-r1",
+        tuple(
+            FinancialOwnerV1(FinancialOwnerKind.STRATEGY, strategy_ref, scope.key)
+            for strategy_ref, scope in zip((_STRATEGY_A, _STRATEGY_B), execution_scopes)
+        ),
+    )
+
+
+def _seed_persisted_financial_projection(store, execution_scopes):
+    """Persist one typed baseline and one synthetic fill through Execution APIs."""
+
+    from bt_api_execution import (
+        AccountFinancialBaselineV1,
+        CurrencyAmountV1,
+        ExecutionState,
+        FinancialActivityBatchV1,
+        FinancialInstrumentSpecV1,
+        FinancialLedgerCutV1,
+        FinancialLedgerPolicyV1,
+        FinancialOwnerBaselineV1,
+        FinancialSourceKind,
+        FinancialWatermarkV1,
+        ManagedExecutionFacade,
+        OrderIntent,
+        OwnerPositionCostV1,
+        ProviderAccountFinancialSnapshotV1,
+        ProviderObservation,
+        Side,
+    )
+
+    directory = _financial_owner_directory(execution_scopes)
+    scope = execution_scopes[0]
+    facade = ManagedExecutionFacade(
+        store,
+        scope,
+        writer_id="bt-multi-strategy-financial-seed-writer",
+        admission_gate=_FinancialSeedAdmission(),
+    )
+    lease = None
+    try:
+        intent = OrderIntent.limit(
+            intent_id=_FINANCIAL_FILL_ID,
+            scope=scope,
+            signal_id="bt-multi-strategy-financial-fill-signal-1",
+            instrument=_INSTRUMENT,
+            side=Side.BUY,
+            quantity=Decimal("1.0"),
+            price=Decimal("120"),
+            metadata_version=_FINANCIAL_METADATA_VERSION,
+        )
+        facade.submit(
+            intent,
+            lambda order: ProviderObservation.accepted(
+                order.intent_id, "synthetic-provider-order-financial-fill-1"
+            ),
+        )
+        lease = facade.acquire_writer_lease()
+        execution_baseline = store.capture_account_financial_execution_cursors(scope, lease)
+        baseline_ns = max(time.time_ns(), execution_baseline.as_of_ns)
+        execution_wm = FinancialWatermarkV1(
+            FinancialSourceKind.EXECUTION_OUTBOX,
+            "sqlite-execution-outbox",
+            execution_baseline.journal_generation,
+            execution_baseline.cursor,
+            execution_baseline.as_of_ns,
+        )
+        facts_wm = FinancialWatermarkV1(
+            FinancialSourceKind.ACCOUNT_FACTS,
+            "synthetic-provider-financial-account-facts",
+            "bt-multi-book-provider-financial-facts-r1",
+            1,
+            baseline_ns,
+        )
+        activity_wm = FinancialWatermarkV1(
+            FinancialSourceKind.ACCOUNT_ACTIVITY,
+            "synthetic-provider-financial-account-activity",
+            "bt-multi-book-provider-financial-activity-r1",
+            0,
+            baseline_ns,
+        )
+        baseline_cut = FinancialLedgerCutV1(
+            scope.account_key,
+            directory.revision,
+            baseline_ns,
+            (execution_wm, facts_wm, activity_wm),
+        )
+        baseline_account = ProviderAccountFinancialSnapshotV1(
+            scope.account_key,
+            facts_wm.source_ref,
+            facts_wm.generation,
+            facts_wm.cursor,
+            facts_wm.as_of_ns,
+            (CurrencyAmountV1("USDT", Decimal("1500")),),
+            ((_INSTRUMENT, Decimal("3")),),
+            (CurrencyAmountV1("USDT", Decimal("0")),),
+        )
+        baseline = AccountFinancialBaselineV1(
+            scope.account_key,
+            _FINANCIAL_BASELINE_REF,
+            1,
+            "synthetic-trusted-baseline-authority-r1",
+            "synthetic-trusted-financial-baseline-source-r1",
+            directory.revision,
+            baseline_cut,
+            baseline_account,
+            tuple(
+                FinancialOwnerBaselineV1(
+                    owner,
+                    (CurrencyAmountV1("USDT", _FINANCIAL_BASELINE_CASH[owner.owner_ref]),),
+                    (
+                        OwnerPositionCostV1(
+                            _INSTRUMENT,
+                            _FINANCIAL_BASELINE_POSITION[owner.owner_ref],
+                            _FINANCIAL_BASELINE_COST[owner.owner_ref],
+                            "USDT",
+                            metadata_version=_FINANCIAL_METADATA_VERSION,
+                        ),
+                    ),
+                    (CurrencyAmountV1("USDT", Decimal("0")),),
+                )
+                for owner in directory.owners
+            ),
+            execution_cursors=execution_baseline,
+        )
+        store.install_account_financial_baseline(
+            baseline,
+            directory,
+            writer_scope=scope,
+            writer_lease=lease,
+        )
+
+        facade.record_provider_observation_event(
+            ProviderObservation(
+                intent.intent_id,
+                ExecutionState.PARTIALLY_FILLED,
+                provider_order_id="synthetic-provider-order-financial-fill-1",
+                filled_quantity=Decimal("0.5"),
+                average_price=Decimal("120"),
+                cumulative_commission=Decimal("0.03"),
+                cumulative_commission_currency="USDT",
+            )
+        )
+        now_ns = time.time_ns()
+        generation = str(store.journal_source_identity()["generation"])
+        _count, _first, _last, execution_cursor = store.execution_outbox_bounds()
+        current_execution = FinancialWatermarkV1(
+            FinancialSourceKind.EXECUTION_OUTBOX,
+            "sqlite-execution-outbox",
+            generation,
+            execution_cursor,
+            now_ns,
+        )
+        current_facts = FinancialWatermarkV1(
+            FinancialSourceKind.ACCOUNT_FACTS,
+            facts_wm.source_ref,
+            facts_wm.generation,
+            2,
+            now_ns,
+        )
+        current_activity = FinancialWatermarkV1(
+            FinancialSourceKind.ACCOUNT_ACTIVITY,
+            activity_wm.source_ref,
+            activity_wm.generation,
+            0,
+            now_ns,
+        )
+        current_cut = FinancialLedgerCutV1(
+            scope.account_key,
+            directory.revision,
+            now_ns,
+            (current_execution, current_facts, current_activity),
+        )
+        current_account = ProviderAccountFinancialSnapshotV1(
+            scope.account_key,
+            current_facts.source_ref,
+            current_facts.generation,
+            current_facts.cursor,
+            current_facts.as_of_ns,
+            (CurrencyAmountV1("USDT", Decimal("1439.97")),),
+            ((_INSTRUMENT, Decimal("3.5")),),
+            (CurrencyAmountV1("USDT", Decimal("0.03")),),
+        )
+        store.reconcile_account_financials(
+            baseline,
+            directory,
+            current_account=current_account,
+            current_cut=current_cut,
+            activity_batch=FinancialActivityBatchV1(
+                current_activity.source_ref,
+                current_activity.generation,
+                0,
+                0,
+                now_ns,
+                (),
+            ),
+            instrument_specs={
+                _INSTRUMENT: FinancialInstrumentSpecV1(
+                    _INSTRUMENT,
+                    _FINANCIAL_METADATA_VERSION,
+                    "SPOT",
+                    "BTC",
+                    "USDT",
+                )
+            },
+            policy=FinancialLedgerPolicyV1(
+                "USDT",
+                10**19,
+                10**19,
+                10**19,
+                "USDT",
+                10**19,
+                10**19,
+            ),
+            writer_scope=scope,
+            writer_lease=lease,
+            now_ns=now_ns,
+        )
+    finally:
+        if lease is not None:
+            store.release_lease(scope, lease.owner_id, fencing_token=lease.fencing_token)
+        facade.close()
+
+    persisted = store.read_account_financial_projection(
+        scope.account_key,
+        expected_directory=directory,
+    )
+    if not persisted.complete:
+        raise AssertionError("synthetic persisted financial projection is incomplete")
+    return directory
+
+
+def _financial_database_state(path):
+    with sqlite3.connect(path) as connection:
+        return (
+            connection.execute("SELECT COUNT(*) FROM execution_outbox").fetchone()[0],
+            connection.execute("SELECT COUNT(*) FROM account_financial_baselines").fetchone()[0],
+            connection.execute("SELECT COUNT(*) FROM account_financial_events").fetchone()[0],
+            connection.execute(
+                "SELECT baseline_version, scanned_sequence, projection_sha256, input_sha256 "
+                "FROM account_financial_ledger_heads"
+            ).fetchone(),
+        )
+
+
+def _stored_financial_execution_baseline(store, account_key):
+    row = store._connection.execute(
+        "SELECT execution_cursor, baseline_json FROM account_financial_baselines "
+        "WHERE account_key = ? AND version = 1",
+        (account_key,),
+    ).fetchone()
+    if row is None:
+        raise AssertionError("the trusted synthetic financial baseline was not persisted")
+    baseline_payload = json.loads(row[1])
+    cut = baseline_payload["cut"]
+    execution_watermark = next(
+        row for row in cut["watermarks"] if row["source_kind"] == "execution_outbox"
+    )
+    return int(row[0]), int(cut["captured_at_ns"]), execution_watermark["generation"]
+
+
 class _SyntheticOwnerFacts:
     """Complete deterministic facts for two owners within one account."""
 
-    def __init__(self, execution_scopes):
+    def __init__(
+        self,
+        execution_scopes,
+        financial_directory,
+        baseline_execution_cursor,
+        baseline_ns,
+        baseline_journal_generation,
+    ):
         self._execution_scopes = tuple(execution_scopes)
-        self._baseline_ns = time.time_ns()
+        self._financial_directory = financial_directory
+        self._baseline_execution_cursor = baseline_execution_cursor
+        self._baseline_ns = baseline_ns
+        self._baseline_journal_generation = baseline_journal_generation
         self.read_count = 0
+        self.financial_directory_read_count = 0
         self.last_cut = None
 
     def authorize_account_view(self, **_kwargs) -> bool:
@@ -211,6 +580,12 @@ class _SyntheticOwnerFacts:
 
     def authorize_manual_book_view(self, **_kwargs) -> bool:
         return False
+
+    def read_financial_owner_directory(self, *, account_key):
+        if account_key != self._execution_scopes[0].account_key:
+            raise AssertionError("financial directory requested for an unexpected account")
+        self.financial_directory_read_count += 1
+        return self._financial_directory
 
     def read_inputs(self, *, account_key, journal_generation, execution_cursor):
         from bt_api_execution import (
@@ -231,6 +606,8 @@ class _SyntheticOwnerFacts:
         self.read_count += 1
         self.last_cut = (journal_generation, execution_cursor)
         baseline_ns = self._baseline_ns
+        if journal_generation != self._baseline_journal_generation:
+            raise AssertionError("execution journal generation changed after baseline")
         current_ns = max(time.time_ns(), baseline_ns + 3)
         directory_revision = "synthetic-two-owner-directory-r1"
         provider_generation = "synthetic-two-owner-provider-r1"
@@ -255,15 +632,6 @@ class _SyntheticOwnerFacts:
             as_of_ns=current_ns,
             scopes=scopes,
         )
-        owner_positions = tuple(
-            OwnerPosition(
-                AllocationOwnerKind.STRATEGY,
-                strategy_ref,
-                _INSTRUMENT,
-                quantity,
-            )
-            for strategy_ref, quantity in _STRATEGY_QUANTITY.items()
-        )
         baseline_snapshot = ExecutionAccountSnapshot(
             account_key=account_key,
             source="synthetic-net-position-snapshot",
@@ -271,9 +639,9 @@ class _SyntheticOwnerFacts:
             generation=provider_generation,
             journal_generation=journal_generation,
             as_of_ns=baseline_ns,
-            execution_cursor=0,
+            execution_cursor=self._baseline_execution_cursor,
             position_mode="NET",
-            positions=(PositionFact(_INSTRUMENT, Decimal("1.0")),),
+            positions=(PositionFact(_INSTRUMENT, Decimal("3.0")),),
             cumulative_fees=(CurrencyAmount("USDT", Decimal("0")),),
             fee_coverage_start_ns=baseline_ns,
         )
@@ -286,8 +654,16 @@ class _SyntheticOwnerFacts:
             provider_generation=provider_generation,
             journal_generation=journal_generation,
             as_of_ns=baseline_ns,
-            execution_cursor=0,
-            positions=owner_positions,
+            execution_cursor=self._baseline_execution_cursor,
+            positions=tuple(
+                OwnerPosition(
+                    AllocationOwnerKind.STRATEGY,
+                    strategy_ref,
+                    _INSTRUMENT,
+                    _FINANCIAL_BASELINE_POSITION[strategy_ref],
+                )
+                for strategy_ref in (_STRATEGY_A, _STRATEGY_B)
+            ),
         )
         activity = ExternalActivitySnapshot(
             account_key=account_key,
@@ -308,8 +684,8 @@ class _SyntheticOwnerFacts:
             as_of_ns=current_ns,
             execution_cursor=execution_cursor,
             position_mode="NET",
-            positions=(PositionFact(_INSTRUMENT, Decimal("1.0")),),
-            cumulative_fees=(CurrencyAmount("USDT", Decimal("0")),),
+            positions=(PositionFact(_INSTRUMENT, Decimal("3.5")),),
+            cumulative_fees=(CurrencyAmount("USDT", Decimal("0.03")),),
             fee_coverage_start_ns=baseline_ns,
         )
         return ExecutionAccountBookReadInputsV1(
@@ -321,7 +697,9 @@ class _SyntheticOwnerFacts:
         )
 
 
-def _host_process(control, raw_config, registry_path: str, store_path: str, keys) -> None:
+def _host_process(
+    control, raw_config, registry_path: str, store_path: str, keys, seed_financial: bool
+) -> None:
     from bt_api_execution import ExecutionScope, SqliteExecutionStore
     from bt_api_py.service_components import ComponentResources
 
@@ -331,11 +709,30 @@ def _host_process(control, raw_config, registry_path: str, store_path: str, keys
         ExecutionScope("PAPER", "simulation", _ACCOUNT, _STRATEGY_A, "20261015"),
         ExecutionScope("PAPER", "simulation", _ACCOUNT, _STRATEGY_B, "20261015"),
     )
-    source = _SyntheticOwnerFacts(execution_scopes)
     dispatch = _NoOrderDispatch()
     gate = _ClosedAdmissionGate()
     host = None
     try:
+        if seed_financial:
+            financial_directory = _seed_persisted_financial_projection(store, execution_scopes)
+        else:
+            financial_directory = _financial_owner_directory(execution_scopes)
+            persisted = store.read_account_financial_projection(
+                execution_scopes[0].account_key,
+                expected_directory=financial_directory,
+            )
+            if not persisted.complete:
+                raise AssertionError("reopened synthetic financial projection is incomplete")
+        baseline_cursor, baseline_ns, baseline_generation = _stored_financial_execution_baseline(
+            store, execution_scopes[0].account_key
+        )
+        source = _SyntheticOwnerFacts(
+            execution_scopes,
+            financial_directory,
+            baseline_cursor,
+            baseline_ns,
+            baseline_generation,
+        )
         authority = TrustedServiceAuthority(
             identity=WireIdentity(WireRole.SERVICE, _SERVICE_PRINCIPAL, _SERVICE_ID),
             scope=WireScope(_DOMAIN),
@@ -370,9 +767,7 @@ def _host_process(control, raw_config, registry_path: str, store_path: str, keys
                                 "service.order_query",
                                 _QUERY_SCOPE_A,
                                 _WIRE_SCOPE_A,
-                                frozenset(
-                                    {"orders.query", "execution.account_books.query"}
-                                ),
+                                frozenset({"orders.query", "execution.account_books.query"}),
                             ),
                         ),
                     ),
@@ -386,9 +781,7 @@ def _host_process(control, raw_config, registry_path: str, store_path: str, keys
                                 "service.order_query",
                                 _QUERY_SCOPE_B,
                                 _WIRE_SCOPE_B,
-                                frozenset(
-                                    {"orders.query", "execution.account_books.query"}
-                                ),
+                                frozenset({"orders.query", "execution.account_books.query"}),
                             ),
                         ),
                     ),
@@ -415,14 +808,25 @@ def _host_process(control, raw_config, registry_path: str, store_path: str, keys
 
         host = ServiceHost(config, authority, registry_path, resource_provider)
         host.start()
-        control.send(("ready", host.endpoint, host.state))
+        execution_changes_at_ready = store._connection.total_changes
+        source_origins = _assert_source_origins(_loaded_source_origins())
+        control.send(("ready", host.endpoint, host.state, source_origins))
         while True:
             host.serve_once(timeout_ms=20)
             if not control.poll():
                 continue
             command = control.recv()
             if command == ("metrics",):
-                control.send(("metrics", source.read_count, dispatch.submit_count, dispatch.cancel_count))
+                control.send(
+                    (
+                        "metrics",
+                        source.read_count,
+                        source.financial_directory_read_count,
+                        dispatch.submit_count,
+                        dispatch.cancel_count,
+                        store._connection.total_changes - execution_changes_at_ready,
+                    )
+                )
             elif command == ("close",):
                 host.close()
                 store.close()
@@ -449,7 +853,7 @@ def _receive(pipe, timeout: float = 20.0):
     return pipe.recv()
 
 
-def _start_host(tmp_path):
+def _start_host(tmp_path, *, seed_financial: bool):
     context = multiprocessing.get_context("spawn")
     endpoint = _endpoint()
     server_public, server_secret = zmq.curve_keypair()
@@ -472,6 +876,7 @@ def _start_host(tmp_path):
             str(tmp_path / "multi-book-registry.sqlite3"),
             str(tmp_path / "multi-book-execution.sqlite3"),
             keys,
+            seed_financial,
         ),
         name="bt-multi-strategy-account-book-service",
     )
@@ -480,13 +885,15 @@ def _start_host(tmp_path):
     host = {"pipe": parent_pipe, "process": process, "forced_cleanup": False}
     try:
         ready = _receive(parent_pipe)
+        if not isinstance(ready, tuple) or not ready or ready[0] != "ready":
+            raise AssertionError(f"synthetic ServiceHost startup failed: {ready!r}")
+        assert ready[1] == endpoint
+        _assert_source_origins(ready[3])
+        host["source_origins"] = ready[3]
+        _report_source_origins("spawned ServiceHost", ready[3])
     except BaseException:
         _close_host(host, require_normal=False)
         raise
-    if ready[0] != "ready":
-        _close_host(host, require_normal=False)
-        raise AssertionError(f"synthetic ServiceHost startup failed: {ready!r}")
-    assert ready[1] == endpoint
     return endpoint, keys, host
 
 
@@ -551,15 +958,14 @@ def _client_runtime(endpoint, keys, *, strategy_ref, principal, client_suffix, s
         )
     )
     requested_operations = {
-        "broker.order_query": frozenset(
-            {"orders.query", "execution.account_books.query"}
-        )
+        "broker.order_query": frozenset({"orders.query", "execution.account_books.query"})
     }
     if client_suffix == "a":
         requested_operations["broker.orders"] = frozenset({"orders.submit", "orders.cancel"})
     return ServiceClientRuntime(
         config,
         identity=WireIdentity(WireRole.STRATEGY_CLIENT, principal, strategy_ref),
+        run_id=f"bt-multi-book-{strategy_ref}-same-run-r1",
         scope_resolver=scopes.__getitem__,
         peer_resolver=lambda _service_id: WireIdentity(
             WireRole.SERVICE, _SERVICE_PRINCIPAL, _SERVICE_ID
@@ -630,6 +1036,13 @@ class _AccountBookStrategy(bt.Strategy):
             "snapshot": snapshot,
             "book_position": book_position,
             "cash_error": cash_error,
+            "cash": self.account_book.getcash(currency="USDT"),
+            "cumulative_fees": snapshot.cumulative_fees_by_currency,
+            "position_cost": snapshot.position_costs.get(_INSTRUMENT),
+            "financial_source": snapshot.financial_source,
+            "financial_freshness": snapshot.financial_freshness,
+            "financial_cut_relationship": snapshot.financial_cut_relationship,
+            "financial_ledger_cut": snapshot.financial_ledger_cut,
             "value_error": value_error,
             "account_cash": self.broker.getcash(),
             "account_value": self.broker.getvalue(),
@@ -700,12 +1113,10 @@ def _cerebro(broker):
     return cerebro
 
 
-def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
-    endpoint, keys, host = _start_host(tmp_path)
+def _run_two_strategy_cerebro(endpoint, keys):
     primary_runtime = None
     second_runtime = None
     store = None
-    session = None
     try:
         primary_runtime = _client_runtime(
             endpoint,
@@ -722,6 +1133,10 @@ def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
             principal=_PRINCIPAL_B,
             client_suffix="b",
             scopes=_scope_resolver(_STRATEGY_B, _QUERY_SCOPE_B),
+        )
+        _report_source_origins(
+            "Cerebro client process",
+            _assert_source_origins(_loaded_source_origins()),
         )
         store = make_store(
             api=FakeBtApiClient(
@@ -756,52 +1171,7 @@ def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
         )
 
         strategies = session.run(_cerebro(broker))
-        assert session.state == "closed"
-        assert session.cleanup_report.errors == ()
-        assert session.cleanup_report.store_connected is False
-        assert session.cleanup_report.runtime_state == "closed"
-        assert primary_runtime.state == "closed"
-        assert second_runtime.state == "closed"
-        assert len(strategies) == 3
-        alpha, beta, duplicate = strategies
-        assert alpha.broker is beta.broker is duplicate.broker is broker
-        assert alpha.correct_binding is alpha.account_book
-        assert beta.correct_binding is beta.account_book
-        assert alpha.account_book.strategy_ref == _STRATEGY_A
-        assert beta.account_book.strategy_ref == _STRATEGY_B
-        with pytest.raises(AttributeError, match="immutable"):
-            beta.account_book.strategy_ref = _STRATEGY_A
-
-        for strategy, expected_ref, expected_quantity in (
-            (alpha, _STRATEGY_A, Decimal("0.25")),
-            (beta, _STRATEGY_B, Decimal("0.75")),
-        ):
-            assert strategy.wrong_account_route_code == "ACCOUNT_BOOK_ROUTE_UNAVAILABLE"
-            observation = strategy.account_observation
-            assert observation["snapshot"].strategy_ref == expected_ref
-            assert observation["snapshot"].account_ref == _ACCOUNT
-            assert observation["snapshot"].positions == {_INSTRUMENT: expected_quantity}
-            assert observation["book_position"].size == pytest.approx(float(expected_quantity))
-            assert observation["book_position"].price is None
-            assert observation["cash_error"] == "STRATEGY_CASH_UNAVAILABLE"
-            assert observation["value_error"] == "STRATEGY_VALUE_UNAVAILABLE"
-            assert observation["account_cash"] == pytest.approx(12_345.0)
-            assert observation["account_value"] == pytest.approx(54_321.0)
-            assert observation["account_position"].size == pytest.approx(9.0)
-            assert observation["risk_budget"] > observation["account_cash"]
-
-        assert beta.wrong_strategy_binding_code == "STRATEGY_IDENTITY_MISMATCH"
-        assert beta.rejected_order is not None
-        assert beta.rejected_order.getstatusname() == "Rejected"
-        assert beta.rejected_order.info.error_code == "strategy_writer_route_mismatch"
-        assert duplicate.duplicate_identity_code == "STRATEGY_ROUTE_ALREADY_BOUND"
-        assert duplicate.rejected_order is not None
-        assert duplicate.rejected_order.getstatusname() == "Rejected"
-        assert duplicate.rejected_order.info.error_code == "strategy_writer_strategy_not_bound"
-
-        host["pipe"].send(("metrics",))
-        metrics = _receive(host["pipe"])
-        assert metrics == ("metrics", 4, 0, 0)
+        return strategies, session, broker
     finally:
         if store is not None and store.is_connected:
             with suppress(Exception):
@@ -810,7 +1180,125 @@ def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
             if runtime is not None and runtime.state not in {"closed", "failed"}:
                 with suppress(Exception):
                     runtime.close()
+
+
+def _assert_two_owner_cerebro_result(strategies, session, broker):
+    assert session.state == "closed"
+    assert session.cleanup_report.errors == ()
+    assert session.cleanup_report.store_connected is False
+    assert session.cleanup_report.runtime_state == "closed"
+    assert len(strategies) == 3
+    alpha, beta, duplicate = strategies
+    assert alpha.broker is beta.broker is duplicate.broker is broker
+    assert alpha.correct_binding is alpha.account_book
+    assert beta.correct_binding is beta.account_book
+    assert alpha.account_book.strategy_ref == _STRATEGY_A
+    assert beta.account_book.strategy_ref == _STRATEGY_B
+    with pytest.raises(AttributeError, match="immutable"):
+        beta.account_book.strategy_ref = _STRATEGY_A
+
+    signatures = []
+    for strategy, expected_ref in ((alpha, _STRATEGY_A), (beta, _STRATEGY_B)):
+        expected_quantity = _FINANCIAL_POSITION_AFTER_FILL[expected_ref]
+        expected_cost = _FINANCIAL_COST_AFTER_FILL[expected_ref]
+        observation = strategy.account_observation
+        snapshot = observation["snapshot"]
+        assert strategy.wrong_account_route_code == "ACCOUNT_BOOK_ROUTE_UNAVAILABLE"
+        assert snapshot.strategy_ref == expected_ref
+        assert snapshot.account_ref == _ACCOUNT
+        assert snapshot.positions == {_INSTRUMENT: expected_quantity}
+        assert snapshot.financial_available is True
+        assert snapshot.cost_basis_complete is True
+        assert snapshot.financial_source == "PERSISTED_EXECUTION_FINANCIAL_PROJECTION"
+        assert snapshot.financial_freshness == "PERSISTED_CUT_NOT_LIVE_SOURCE_VERIFIED"
+        assert snapshot.financial_cut_relationship == "INDEPENDENT_OF_LEGACY_ACCOUNT_BOOK_CUT"
+        assert snapshot.financial_ledger_cut is not None
+        assert snapshot.financial_ledger_cut.account_key != _ACCOUNT
+        assert observation["book_position"].size == pytest.approx(float(expected_quantity))
+        assert observation["book_position"].price == pytest.approx(
+            float(expected_cost / expected_quantity)
+        )
+        assert observation["cash_error"] == "STRATEGY_CASH_CURRENCY_REQUIRED"
+        assert observation["cash"] == _FINANCIAL_CASH_AFTER_FILL[expected_ref]
+        assert observation["cumulative_fees"] == {"USDT": _FINANCIAL_FEES_AFTER_FILL[expected_ref]}
+        assert observation["position_cost"].cost_basis == expected_cost
+        assert observation["position_cost"].cost_currency == "USDT"
+        assert observation["position_cost"].product_model == "SPOT"
+        assert observation["position_cost"].metadata_version == _FINANCIAL_METADATA_VERSION
+        assert observation["financial_source"] == "PERSISTED_EXECUTION_FINANCIAL_PROJECTION"
+        assert observation["financial_freshness"] == "PERSISTED_CUT_NOT_LIVE_SOURCE_VERIFIED"
+        assert observation["financial_cut_relationship"] == "INDEPENDENT_OF_LEGACY_ACCOUNT_BOOK_CUT"
+        assert observation["financial_ledger_cut"].watermarks
+        assert observation["value_error"] == "STRATEGY_VALUE_UNAVAILABLE"
+        assert observation["account_cash"] == pytest.approx(12_345.0)
+        assert observation["account_value"] == pytest.approx(54_321.0)
+        assert observation["account_position"].size == pytest.approx(9.0)
+        assert observation["risk_budget"] > observation["account_cash"]
+        signatures.append(
+            (
+                snapshot.positions,
+                snapshot.cash_by_currency,
+                snapshot.position_costs,
+                snapshot.cumulative_fees_by_currency,
+                snapshot.current_execution_cursor,
+                snapshot.financial_ledger_cut,
+                observation["book_position"].size,
+                observation["book_position"].price,
+            )
+        )
+
+    assert beta.wrong_strategy_binding_code == "STRATEGY_IDENTITY_MISMATCH"
+    assert beta.rejected_order is not None
+    assert beta.rejected_order.getstatusname() == "Rejected"
+    assert beta.rejected_order.info.error_code == "strategy_writer_route_mismatch"
+    assert duplicate.duplicate_identity_code == "STRATEGY_ROUTE_ALREADY_BOUND"
+    assert duplicate.rejected_order is not None
+    assert duplicate.rejected_order.getstatusname() == "Rejected"
+    assert duplicate.rejected_order.info.error_code == "strategy_writer_strategy_not_bound"
+    return tuple(signatures)
+
+
+def _host_metrics(host):
+    host["pipe"].send(("metrics",))
+    return _receive(host["pipe"])
+
+
+def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
+    endpoint, keys, host = _start_host(tmp_path, seed_financial=True)
+    try:
+        before = _host_metrics(host)
+        assert before == ("metrics", 0, 0, 0, 0, 0)
+        first_strategies, first_session, first_broker = _run_two_strategy_cerebro(endpoint, keys)
+        first_signature = _assert_two_owner_cerebro_result(
+            first_strategies, first_session, first_broker
+        )
+        first_metrics = _host_metrics(host)
+        assert first_metrics == ("metrics", 6, 6, 0, 0, 0)
+    finally:
         _close_host(host, require_normal=True)
+
+    database_path = tmp_path / "multi-book-execution.sqlite3"
+    persisted_rows_before_restart = _financial_database_state(database_path)
+    assert persisted_rows_before_restart[1] == 1
+    assert persisted_rows_before_restart[2] >= 1
+    assert persisted_rows_before_restart[3] is not None
+
+    endpoint, keys, reopened_host = _start_host(tmp_path, seed_financial=False)
+    try:
+        before = _host_metrics(reopened_host)
+        assert before == ("metrics", 0, 0, 0, 0, 0)
+        second_strategies, second_session, second_broker = _run_two_strategy_cerebro(endpoint, keys)
+        second_signature = _assert_two_owner_cerebro_result(
+            second_strategies, second_session, second_broker
+        )
+        reopened_metrics = _host_metrics(reopened_host)
+        assert reopened_metrics == ("metrics", 6, 6, 0, 0, 0)
+    finally:
+        _close_host(reopened_host, require_normal=True)
+
+    persisted_rows_after_restart = _financial_database_state(database_path)
+    assert persisted_rows_after_restart == persisted_rows_before_restart
+    assert second_signature == first_signature
 
 
 def test_preflight_empty_run_and_refresh_setup_release_owned_runtime_claims(monkeypatch):
