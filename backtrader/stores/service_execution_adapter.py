@@ -120,6 +120,7 @@ class ServiceExecutionAdapter:
         metadata_version: str = _DEFAULT_METADATA_VERSION,
         order_ref_factory: Optional[Callable[[Any], str]] = None,
         recovery_journal: Optional[ServiceExecutionRecoveryJournal] = None,
+        require_recovery_baseline: bool = False,
     ) -> None:
         if not callable(getattr(client, "submit", None)):
             raise ServiceExecutionAdapterError("service execution adapter requires submit")
@@ -139,7 +140,12 @@ class ServiceExecutionAdapter:
         self._metadata_version = metadata_version
         self._order_ref_factory = order_ref_factory
         self._recovery_journal = recovery_journal
+        self._require_recovery_baseline = bool(require_recovery_baseline)
         self._recovery_namespace: Optional[ServiceExecutionRecoveryNamespace] = None
+        self._owner_book_reader: Optional[Callable[[], Any]] = None
+        self._owner_position_reconciliation: Optional[Mapping[str, Any]] = None
+        self._recovery_initialized = False
+        self._recovery_startup_cursor: Optional[int] = None
         #: Intent identities this adapter instance already returned to the
         #: framework.  A durable record proves a provider dispatch; it is not
         #: permission to mutate the current in-memory Broker twice.
@@ -165,6 +171,7 @@ class ServiceExecutionAdapter:
     def initialize_recovery(
         self,
         *,
+        owner_book_reader: Optional[Callable[[], Any]] = None,
         page_limit: int = 128,
         max_pages: int = 64,
     ) -> Mapping[str, Any]:
@@ -180,6 +187,18 @@ class ServiceExecutionAdapter:
         snapshot_reader = getattr(self._client, "query_recovery_snapshot", None)
         if not callable(snapshot_reader):
             raise ServiceExecutionReadError("recovery_snapshot_api_unavailable")
+        if self._require_recovery_baseline and not callable(owner_book_reader):
+            raise ServiceExecutionReadError("recovery_owner_book_route_unavailable")
+        if callable(owner_book_reader):
+            self._owner_book_reader = owner_book_reader
+            result = self._initialize_recovery_with_baseline(
+                snapshot_reader,
+                owner_book_reader,
+                page_limit=page_limit,
+                max_pages=max_pages,
+            )
+            self._mark_recovery_initialized(result)
+            return result
         try:
             snapshot = snapshot_reader()
             snapshot_changed = journal.install_snapshot(namespace, snapshot)
@@ -187,18 +206,137 @@ class ServiceExecutionAdapter:
             raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
         except Exception as error:  # noqa: BLE001 - service failure must not fall back
             raise self._recovery_read_error(error) from None
-        pages_applied = self._consume_recovery_pages(
-            page_limit=page_limit,
-            max_pages=max_pages,
-        )
+        pages_applied = self._consume_recovery_pages(page_limit=page_limit, max_pages=max_pages)
         cursor = journal.cursor(namespace)
-        return {
+        result = {
             "snapshot_changed": snapshot_changed,
             "pages_applied": pages_applied,
             "journal_generation": cursor["journal_generation"],
             "scope_directory_revision": cursor["scope_directory_revision"],
             "event_cursor": cursor["event_cursor"],
         }
+        self._mark_recovery_initialized(result)
+        return result
+
+    def _mark_recovery_initialized(self, result: Mapping[str, Any]) -> None:
+        cursor = result.get("event_cursor")
+        if type(cursor) is not int or cursor < 0:
+            raise ServiceExecutionReadError("recovery_event_cursor_invalid")
+        if self._recovery_startup_cursor is None:
+            self._recovery_startup_cursor = cursor
+        self._recovery_initialized = True
+
+    def refresh_recovery_cut(self) -> Mapping[str, Any]:
+        """Revalidate the current service cut before admitting a new intent.
+
+        The opening baseline stays immutable.  This performs a fresh snapshot,
+        event-tail read and owner-book comparison so order admission does not
+        rely on a stale startup reconciliation.
+        """
+
+        if not self._recovery_initialized:
+            return self.initialize_recovery(owner_book_reader=self._owner_book_reader)
+        if self._owner_book_reader is None:
+            raise ServiceExecutionReadError("recovery_owner_book_route_unavailable")
+        snapshot_reader = getattr(self._client, "query_recovery_snapshot", None)
+        if not callable(snapshot_reader):
+            raise ServiceExecutionReadError("recovery_snapshot_api_unavailable")
+        result = self._initialize_recovery_with_baseline(
+            snapshot_reader,
+            self._owner_book_reader,
+            page_limit=128,
+            max_pages=64,
+        )
+        # A refresh may advance the durable cursor, but the startup boundary
+        # remains fixed for the Broker's restore-only/live-event distinction.
+        self._mark_recovery_initialized(result)
+        return result
+
+    @property
+    def recovery_startup_cursor(self) -> Optional[int]:
+        return self._recovery_startup_cursor
+
+    def recovery_history(self) -> tuple[Mapping[str, Any], ...]:
+        journal, namespace = self._require_recovery()
+        return journal.ordered_event_history(namespace)
+
+    def recovery_baseline(self) -> Optional[Mapping[str, Any]]:
+        journal, namespace = self._require_recovery()
+        return journal.recovery_baseline(namespace)
+
+    @property
+    def recovery_owner_position_reconciliation(self) -> Optional[Mapping[str, Any]]:
+        """Return the latest local owner-book comparison, never an account projection."""
+
+        value = self._owner_position_reconciliation
+        return deepcopy(value) if isinstance(value, Mapping) else None
+
+    def recovery_manifest(self, intent_id: str) -> Optional[Mapping[str, Any]]:
+        journal, namespace = self._require_recovery()
+        return journal.intent_manifest(namespace, intent_id)
+
+    def claim_recovery_callback(self, receipt_id: str) -> Any:
+        journal, namespace = self._require_recovery()
+        return journal.claim_callback(namespace, receipt_id)
+
+    def acknowledge_recovery_callback(self, receipt_id: str) -> None:
+        journal, namespace = self._require_recovery()
+        journal.acknowledge_callback(namespace, receipt_id)
+
+    def _initialize_recovery_with_baseline(
+        self,
+        snapshot_reader: Callable[[], Any],
+        owner_book_reader: Callable[[], Any],
+        *,
+        page_limit: int,
+        max_pages: int,
+    ) -> Mapping[str, Any]:
+        journal, namespace = self._require_recovery()
+        pages_applied = 0
+        snapshot_changed = False
+        for _ in range(4):
+            try:
+                snapshot = snapshot_reader()
+                owner_book = _owner_book_payload(owner_book_reader())
+                _require_matching_owner_cut(snapshot, owner_book, namespace)
+                snapshot_changed = journal.install_recovery_baseline(
+                    namespace, snapshot, owner_book
+                ) or snapshot_changed
+                pages_applied += self._consume_recovery_pages(
+                    page_limit=page_limit, max_pages=max_pages
+                )
+                end_snapshot = snapshot_reader()
+                end_book = _owner_book_payload(owner_book_reader())
+                _require_matching_owner_cut(end_snapshot, end_book, namespace)
+                cursor = journal.cursor(namespace)
+                coverage = end_snapshot.get("coverage") if isinstance(end_snapshot, Mapping) else None
+                if (
+                    not isinstance(coverage, Mapping)
+                    or coverage.get("high_water_sequence") != cursor["event_cursor"]
+                ):
+                    continue
+                snapshot_changed = journal.install_snapshot(namespace, end_snapshot) or snapshot_changed
+                self._owner_position_reconciliation = journal.reconcile_owner_positions(
+                    namespace, end_book
+                )
+                return {
+                    "snapshot_changed": snapshot_changed,
+                    "pages_applied": pages_applied,
+                    "journal_generation": cursor["journal_generation"],
+                    "scope_directory_revision": cursor["scope_directory_revision"],
+                    "event_cursor": cursor["event_cursor"],
+                    "owner_positions_reconciled": True,
+                    "trade_projection_available": self._owner_position_reconciliation[
+                        "trade_projection_available"
+                    ],
+                }
+            except ServiceExecutionRecoveryError as error:
+                raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
+            except ServiceExecutionReadError:
+                raise
+            except Exception as error:  # noqa: BLE001 - no direct fallback
+                raise self._recovery_read_error(error) from None
+        raise ServiceExecutionReadError("recovery_owner_cut_not_stable")
 
     def refresh_recovery_events(
         self,
@@ -349,13 +487,44 @@ class ServiceExecutionAdapter:
                     intent_id=identity["intent_id"],
                 )
             submit_payload = _submit_payload(identity, content, tags)
+            recovery_binding = _order_recovery_binding(order)
+            if recovery_binding is None:
+                return _rejection(
+                    "service_execution_recovery_binding_missing",
+                    "Recovery requires a stable data name and integer trade id.",
+                    order=order,
+                    intent_id=identity["intent_id"],
+                )
             try:
+                if self._require_recovery_baseline:
+                    if self._owner_book_reader is None:
+                        raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+                    self.refresh_recovery_cut()
                 # The manifest is durable before the RPC. If the caller loses
                 # the reply, the same logical run can retry these exact facts.
                 self._recovery_journal.prepare_intent(
                     self._recovery_namespace,
                     intent_id=identity["intent_id"],
                     submit_payload=submit_payload,
+                    recovery_binding=recovery_binding,
+                )
+                prior_state = self._recovery_journal.intent_recovery_state(
+                    self._recovery_namespace, identity["intent_id"]
+                )
+                if prior_state is not None:
+                    order_state = _validate_recovery_state_binding(
+                        prior_state, submit_payload, recovery_binding
+                    )
+                    return {
+                        "kind": "service_execution_recovery_restore",
+                        "intent_id": identity["intent_id"],
+                        "submit_fingerprint": self._recovery_journal.intent_manifest(
+                            self._recovery_namespace, identity["intent_id"]
+                        )["submit_fingerprint"],
+                        "order_state": order_state,
+                    }
+                self._validate_recovery_dispatch_safety(
+                    submit_payload, recovery_binding
                 )
             except ServiceExecutionRecoveryError as error:
                 return _rejection(
@@ -404,6 +573,58 @@ class ServiceExecutionAdapter:
         if view is not None:
             self._known_record_intents.add(intent_id)
         return _submission_projection(view, data_name=_data_name(order), replayed=replayed)
+
+    def _validate_recovery_dispatch_safety(
+        self, submit_payload: Mapping[str, Any], binding: Mapping[str, Any]
+    ) -> None:
+        if not self._require_recovery_baseline:
+            return
+        reconciliation = self._owner_position_reconciliation
+        if not isinstance(reconciliation, Mapping) or reconciliation.get("positions_match") is not True:
+            raise ServiceExecutionRecoveryError("RECOVERY_OWNER_POSITION_UNVERIFIED")
+        if reconciliation.get("unresolved_intents"):
+            raise ServiceExecutionRecoveryError("RECOVERY_UNRESOLVED_OWNER_INTENT")
+        baseline = self._recovery_journal.recovery_baseline(self._recovery_namespace)
+        if baseline is None:
+            raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+        if submit_payload["position_effect"] == "OPEN":
+            if reconciliation.get("trade_projection_available") is True:
+                positions = self._recovery_journal.strategy_trade_positions(
+                    self._recovery_namespace
+                )
+                prior = positions.get((binding["data_name"], binding["tradeid"]), Decimal(0))
+                delta_sign = Decimal(1) if submit_payload["side"] == "BUY" else Decimal(-1)
+                if prior and prior * delta_sign < 0:
+                    raise ServiceExecutionRecoveryError("RECOVERY_OPEN_WOULD_REVERSE_TRADE")
+            else:
+                # A non-flat or uncosted baseline has no trustworthy trade-id
+                # attribution.  Do not let an OPEN intent silently close,
+                # reverse, or merge into an existing owner position.
+                baseline_quantity = Decimal(
+                    baseline["positions"].get(submit_payload["instrument"], "0")
+                )
+                current_positions = reconciliation.get("current_positions")
+                if not isinstance(current_positions, Mapping):
+                    raise ServiceExecutionRecoveryError("RECOVERY_OWNER_POSITION_UNVERIFIED")
+                current_quantity = Decimal(
+                    current_positions.get(submit_payload["instrument"], "0")
+                )
+                if baseline_quantity or current_quantity:
+                    raise ServiceExecutionRecoveryError("RECOVERY_OPEN_OWNER_POSITION_ATTRIBUTION_UNAVAILABLE")
+            return
+        if submit_payload["reduce_only"] is not True:
+            raise ServiceExecutionRecoveryError("RECOVERY_CLOSE_NOT_REDUCE_ONLY")
+        if reconciliation.get("trade_projection_available") is not True:
+            raise ServiceExecutionRecoveryError("RECOVERY_CLOSE_BASELINE_INCOMPLETE")
+        positions = self._recovery_journal.strategy_trade_positions(
+            self._recovery_namespace
+        )
+        key = (binding["data_name"], binding["tradeid"])
+        current = positions.get(key, Decimal(0))
+        delta_sign = Decimal(1) if submit_payload["side"] == "BUY" else Decimal(-1)
+        quantity = Decimal(submit_payload["quantity"])
+        if current == 0 or current * delta_sign >= 0 or quantity > abs(current):
+            raise ServiceExecutionRecoveryError("RECOVERY_CLOSE_CAPACITY_UNPROVEN")
 
     # -- refresh ------------------------------------------------------------
 
@@ -956,6 +1177,185 @@ def _decimal_text(value: Any) -> Optional[str]:
     except (InvalidOperation, ValueError, TypeError):
         return None
     return format(number, "f") if number.is_finite() else None
+
+
+def _owner_book_payload(snapshot: Any) -> dict[str, Any]:
+    """Convert the immutable public book DTO to the journal's strict payload."""
+
+    if isinstance(snapshot, Mapping):
+        values = dict(snapshot)
+    else:
+        names = (
+            "account_key",
+            "account_ref",
+            "strategy_ref",
+            "scope_directory_revision",
+            "journal_generation",
+            "baseline_execution_cursor",
+            "current_execution_cursor",
+            "positions",
+            "cash_by_currency",
+            "position_costs",
+            "financial_available",
+            "cost_basis_complete",
+        )
+        try:
+            values = {name: getattr(snapshot, name) for name in names}
+        except Exception as error:  # noqa: BLE001 - strict recovery input
+            raise ServiceExecutionReadError("recovery_owner_book_invalid") from error
+    costs = values.get("position_costs")
+    if isinstance(costs, Mapping):
+        values["position_costs"] = {
+            instrument: (
+                dict(row)
+                if isinstance(row, Mapping)
+                else {
+                    name: getattr(row, name, None)
+                    for name in (
+                        "quantity",
+                        "cost_basis",
+                        "cost_currency",
+                        "product_model",
+                        "metadata_version",
+                        "average_cost",
+                    )
+                }
+            )
+            for instrument, row in costs.items()
+        }
+    return values
+
+
+def _require_matching_owner_cut(
+    recovery_snapshot: Any,
+    owner_book: Mapping[str, Any],
+    namespace: ServiceExecutionRecoveryNamespace,
+) -> None:
+    coverage = (
+        recovery_snapshot.get("coverage")
+        if isinstance(recovery_snapshot, Mapping)
+        else None
+    )
+    if not isinstance(coverage, Mapping):
+        raise ServiceExecutionReadError("recovery_snapshot_coverage_invalid")
+    if (
+        coverage.get("owner_kind") != "STRATEGY"
+        or coverage.get("owner_ref") != namespace.strategy_ref
+        or coverage.get("account_key") != owner_book.get("account_key")
+        or coverage.get("journal_generation") != owner_book.get("journal_generation")
+        or coverage.get("scope_directory_revision")
+        != owner_book.get("scope_directory_revision")
+        or coverage.get("high_water_sequence") != owner_book.get("current_execution_cursor")
+        or owner_book.get("account_ref") != namespace.account_ref
+        or owner_book.get("strategy_ref") != namespace.strategy_ref
+    ):
+        raise ServiceExecutionReadError("recovery_owner_cut_mismatch")
+
+
+def _order_recovery_binding(order: Any) -> Optional[dict[str, Any]]:
+    tradeid = getattr(order, "tradeid", None)
+    data_name = _data_name(order)
+    if type(tradeid) is not int or not _reference(data_name):
+        return None
+    return {"tradeid": tradeid, "data_name": data_name}
+
+
+def _validate_recovery_state_binding(
+    state: Mapping[str, Any],
+    submit_payload: Mapping[str, Any],
+    binding: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    manifest = state.get("manifest")
+    if (
+        not isinstance(manifest, Mapping)
+        or manifest.get("submit_payload") != dict(submit_payload)
+        or manifest.get("recovery_binding") != dict(binding)
+        or not _reference(manifest.get("submit_fingerprint"))
+    ):
+        raise ServiceExecutionRecoveryError("RECOVERY_ORDER_MANIFEST_MISMATCH")
+    order = state.get("snapshot_order")
+    projection = state.get("event_projection")
+    event = projection.get("event") if isinstance(projection, Mapping) else None
+    if order is not None and not isinstance(order, Mapping):
+        raise ServiceExecutionRecoveryError("RECOVERY_ORDER_PROJECTION_INVALID")
+    if event is not None and not isinstance(event, Mapping):
+        raise ServiceExecutionRecoveryError("RECOVERY_ORDER_PROJECTION_INVALID")
+    expected_fingerprint = manifest.get("intent_fingerprint")
+    if order is not None:
+        if order.get("submit_fingerprint") != manifest.get("submit_fingerprint"):
+            raise ServiceExecutionRecoveryError("RECOVERY_ORDER_FINGERPRINT_MISMATCH")
+        for key in ("instrument", "side", "position_effect", "quantity"):
+            if order.get(key) != submit_payload.get(key):
+                raise ServiceExecutionRecoveryError("RECOVERY_ORDER_CONTENT_MISMATCH")
+        if expected_fingerprint not in (None, order.get("intent_fingerprint")):
+            raise ServiceExecutionRecoveryError("RECOVERY_ORDER_FINGERPRINT_MISMATCH")
+        result = dict(order)
+    elif event is not None:
+        if (
+            event.get("submit_fingerprint") != manifest.get("submit_fingerprint")
+            or expected_fingerprint not in (None, event.get("intent_fingerprint"))
+        ):
+            raise ServiceExecutionRecoveryError("RECOVERY_ORDER_FINGERPRINT_MISMATCH")
+        result = {
+            "scope_key": event["scope_key"],
+            "intent_id": event["intent_id"],
+            "intent_fingerprint": event["intent_fingerprint"],
+            "submit_fingerprint": event["submit_fingerprint"],
+            "signal_id": submit_payload["signal_id"],
+            "instrument": submit_payload["instrument"],
+            "side": submit_payload["side"],
+            "position_effect": submit_payload["position_effect"],
+            "order_type": submit_payload["order_type"],
+            "quantity": submit_payload["quantity"],
+            "price": submit_payload["price"],
+            "time_in_force": submit_payload["time_in_force"],
+            "reduce_only": submit_payload["reduce_only"],
+            "metadata_version": submit_payload["metadata_version"],
+            "deadline_ns": submit_payload["deadline_ns"],
+            "state": event["state"],
+            "provider_order_id": None,
+            "filled_quantity": "0",
+            "average_price": None,
+            "cumulative_commission": None,
+            "cumulative_commission_currency": None,
+            "dispatch_attempts": 0,
+            "unknown_reason_code": None,
+            "review_required": False,
+            "latest_source_sequence": event["sequence"],
+            "latest_source_event_id": event["event_id"],
+            "latest_observation_sequence": None,
+            "latest_observation_event_id": None,
+        }
+    else:
+        raise ServiceExecutionRecoveryError("RECOVERY_ORDER_PROJECTION_MISSING")
+    if event is not None and int(projection["sequence"]) > int(result["latest_source_sequence"]):
+        result["state"] = event["state"]
+        result["latest_source_sequence"] = event["sequence"]
+        result["latest_source_event_id"] = event["event_id"]
+        details = event.get("details", {})
+        if event["event_type"] in {
+            "provider_observation",
+            "reconciled_observation",
+            "provider_commission_evidence",
+            "cancelled_by_cancel_intent",
+        }:
+            for source, target in (
+                ("provider_order_id", "provider_order_id"),
+                ("filled_quantity", "filled_quantity"),
+                ("average_price", "average_price"),
+                ("cumulative_commission", "cumulative_commission"),
+                ("cumulative_commission_currency", "cumulative_commission_currency"),
+            ):
+                if source in details:
+                    result[target] = details[source]
+            result["latest_observation_sequence"] = event["sequence"]
+            result["latest_observation_event_id"] = event["event_id"]
+        if event["event_type"] in {"dispatch_unknown", "intent_blocked", "dispatch_blocked"}:
+            result["unknown_reason_code"] = details.get("reason_code")
+        if event["event_type"] == "manual_review_required":
+            result["review_required"] = True
+    result["recovery_receipts"] = state
+    return result
 
 
 def _data_name(order: Any) -> Optional[str]:

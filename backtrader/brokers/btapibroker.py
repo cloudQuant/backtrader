@@ -21,7 +21,7 @@ from ..comminfo import (
     ComminfoFuturesPercent,
 )
 from ..commissions.ctpoption import CtpOptionPremium, OptionAccountingError
-from ..order import BuyOrder, OrderBase, SellOrder
+from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
 from ..position import Position
 from ..position_modes import (
     POSITION_MODE_DUAL_SIDE,
@@ -303,6 +303,11 @@ class BtApiBroker(BrokerBase):
         self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()
         self._service_execution_session = None
+        self._recovery_queued_receipts = set()
+        self._recovery_applied_receipts = set()
+        self._recovery_orders_by_intent = {}
+        self._recovery_pending_snapshot_notifications = {}
+        self._service_execution_recovery_suppress_notifications = False
         self._managed_refresh_order_queue = collections.deque()
         self.positions = collections.defaultdict(Position)
         self.long_positions = collections.defaultdict(Position)
@@ -463,6 +468,7 @@ class BtApiBroker(BrokerBase):
             )
 
         is_sdk = bool(getattr(self.store, "_sdk_mode", False))
+        service_recovery = self._uses_service_execution_recovery()
         market_data_only = self._is_market_data_only()
         if is_service_read_only and not market_data_only:
             raise ValueError("service read proxy requires market_data_only=True")
@@ -504,12 +510,19 @@ class BtApiBroker(BrokerBase):
                 force=True,
                 raise_errors=is_sdk or is_service_read_only,
             )
-            if is_sdk and remote_open_orders and not recovery_requested and not market_data_only:
+            if (
+                is_sdk
+                and remote_open_orders
+                and not recovery_requested
+                and not service_recovery
+                and not market_data_only
+            ):
                 raise ValueError("SDK startup requires a proven empty remote open-order set")
             if (
                 not market_data_only
                 and bool(getattr(self.store, "requires_account_risk", False))
                 and not recovery_requested
+                and not service_recovery
             ):
                 initialize_risk = getattr(self.store, "initialize_account_risk_baseline", None)
                 if not callable(initialize_risk):
@@ -523,7 +536,11 @@ class BtApiBroker(BrokerBase):
                 ):
                     raise ValueError("SDK account-risk baseline is not proven")
             if is_sdk and not market_data_only:
-                if recovery_requested:
+                if service_recovery:
+                    # ServiceExecutionSession bound and reconciled the
+                    # authenticated recovery cut before entering Cerebro.
+                    pass
+                elif recovery_requested:
                     self._execution_recovery = self._validate_execution_recovery_startup(
                         remote_open_orders
                     )
@@ -544,7 +561,9 @@ class BtApiBroker(BrokerBase):
                 # for callers that retain a reference to it directly.
                 self._trading_enabled = False
             elif is_sdk:
-                if recovery_requested:
+                if service_recovery:
+                    self._trading_enabled = True
+                elif recovery_requested:
                     freeze_openings = getattr(self.store, "freeze_openings", None)
                     if callable(freeze_openings):
                         freeze_openings("execution_recovery_only")
@@ -855,6 +874,14 @@ class BtApiBroker(BrokerBase):
         """Return whether this broker instance must remain observation-only."""
         return bool(self.get_param("market_data_only"))
 
+    def _uses_service_execution_recovery(self):
+        session = self._service_execution_session
+        return bool(
+            session is not None
+            and getattr(session, "recovery_journal", None) is not None
+            and callable(getattr(getattr(session, "adapter", None), "recovery_history", None))
+        )
+
     @staticmethod
     def _normalise_startup_account_state(value):
         """Return a safe, non-final-state observation summary for shutdown.
@@ -1148,6 +1175,8 @@ class BtApiBroker(BrokerBase):
             if not self._live_started and not self.store.is_connected:
                 return dict(self._shutdown_summary)
             return self._stop_market_data_only()
+        if self._uses_service_execution_recovery():
+            return self._stop_service_execution_recovery()
         is_sdk = self._uses_async_commands()
         if not is_sdk or not self._live_started:
             self._live_started = False
@@ -1352,6 +1381,38 @@ class BtApiBroker(BrokerBase):
             details=dict(summary),
         )
         return dict(summary)
+
+    def _stop_service_execution_recovery(self):
+        """Close the Store without canceling or flattening recovered orders."""
+
+        self._startup_ready = False
+        self._trading_enabled = False
+        self._live_started = False
+        freeze = getattr(self.store, "freeze_openings", None)
+        if callable(freeze):
+            freeze("service_execution_recovery_broker_stop")
+        store_result = None
+        if (
+            self.store.is_connected
+            and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
+        ):
+            store_result = self.store.stop(
+                timeout=max(float(self.p.shutdown_timeout or 0.0), 0.0)
+            )
+        shutdown_state = (
+            store_result.get("shutdown_state")
+            if isinstance(store_result, dict)
+            else ("PASS" if not self.store.is_connected else "UNPROVEN")
+        )
+        summary = {
+            "status": "PASS" if shutdown_state == "PASS" else "FAIL",
+            "shutdown_state": shutdown_state,
+            "recovery_orders_retained": True,
+            "flat_proven": False,
+            "reason": "service_execution_recovery_orders_are_not_cancelled_on_shutdown",
+        }
+        self._shutdown_summary = dict(summary)
+        return summary
 
     def _stop_market_data_only(self):
         """Disconnect an observation-only broker without mutating account state.
@@ -2989,6 +3050,17 @@ class BtApiBroker(BrokerBase):
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
             response = self.store.submit_order(order)
             self._freeze_order_execution_contract(order, replace=True)
+            if (
+                isinstance(response, dict)
+                and response.get("kind") == "service_execution_recovery_restore"
+            ):
+                self.orders[order.ref] = order
+                self._restore_service_execution_order(order, response)
+                intent_id = self._order_info_get(order, "managed_intent_id")
+                if isinstance(intent_id, str):
+                    self._recovery_orders_by_intent[intent_id] = order
+                self._defer_service_execution_recovery_snapshot_notification(order)
+                return order
             try:
                 managed_projection = parse_ctp_managed_execution_projection(
                     response, expected_operation="submit"
@@ -3067,6 +3139,15 @@ class BtApiBroker(BrokerBase):
                     order.addinfo(execution_unknown=True)
 
             self.orders[order.ref] = order
+            if (
+                isinstance(response, dict)
+                and response.get("service_execution_recovery_required") is True
+            ):
+                self._bind_live_recovery_order(order)
+                # The submit reply is acceptance-only. A later durable
+                # event-page receipt is the only authority for a fill.
+                self.notify(order, recovery_restore_only=True)
+                return order
             self.notify(order)
             if not queued_receipt and not managed_projection_pending:
                 self._apply_submit_response_fill(order, response)
@@ -3908,9 +3989,13 @@ class BtApiBroker(BrokerBase):
         if session is not None:
             session.poll(self)
         self._drain_store_updates()
+        service_recovery = self._uses_service_execution_recovery()
+        if service_recovery:
+            self._process_service_execution_recovery()
         self._process_order_deadlines()
         if self._uses_async_commands():
-            self._schedule_sdk_reconcile()
+            if not service_recovery:
+                self._schedule_sdk_reconcile()
             return
         self._refresh_account()
         self._sync_positions()
@@ -3971,6 +4056,10 @@ class BtApiBroker(BrokerBase):
         now_ns = time.monotonic_ns()
         for order in list(self.orders.values()):
             if not order.alive():
+                continue
+            if bool(self._order_info_get(order, "service_execution_recovery_managed", False)):
+                # Recovery v1 does not authorize local deadline-driven retry
+                # or cancel of durable remote intent state.
                 continue
             self._retry_due_order_actions(order, now_ns)
             execution_deadline = self._execution_deadline(order)
@@ -4346,8 +4435,497 @@ class BtApiBroker(BrokerBase):
             order.addinfo(oco=oco)
         return self.submit(order)
 
-    def notify(self, order):
-        """Queue an order notification."""
+    def _bind_live_recovery_order(self, order):
+        """Bind this live Strategy order to its durable intent identity."""
+
+        intent_id = self._order_info_get(order, "managed_intent_id")
+        if not isinstance(intent_id, str) or not intent_id:
+            self._fence_service_execution_recovery(order, "recovery_intent_identity_missing")
+        order.addinfo(service_execution_recovery_managed=True)
+        self._recovery_orders_by_intent[intent_id] = order
+
+    def _defer_service_execution_recovery_snapshot_notification(self, order):
+        """Hold the snapshot notice until older durable receipts are queued."""
+
+        intent_id = self._order_info_get(order, "managed_intent_id")
+        if not isinstance(intent_id, str) or not intent_id:
+            self._fence_service_execution_recovery(order, "recovery_intent_identity_missing")
+        pending = self._recovery_pending_snapshot_notifications
+        existing = pending.get(intent_id)
+        if existing is not None:
+            if existing.ref != order.ref:
+                self._fence_service_execution_recovery(
+                    order, "recovery_duplicate_order_binding"
+                )
+            return
+        snapshot = order.clone()
+        snapshot.info = copy(order.info)
+        pending[intent_id] = snapshot
+
+    def _flush_service_execution_recovery_snapshot_notifications(
+        self, *, before_sequence=None, startup_cursor=None
+    ):
+        """Queue snapshots only after receipts at or before each order's cut."""
+
+        pending = self._recovery_pending_snapshot_notifications
+        startup_threshold = startup_cursor if type(startup_cursor) is int else 0
+        eligible = []
+        for insertion_order, (intent_id, snapshot) in enumerate(tuple(pending.items())):
+            if intent_id not in self._recovery_orders_by_intent:
+                continue
+            threshold = startup_threshold
+            snapshot_sequence = self._order_info_get(
+                snapshot, "service_execution_recovery_snapshot_sequence"
+            )
+            if type(snapshot_sequence) is int and snapshot_sequence >= 0:
+                threshold = max(threshold, snapshot_sequence)
+            if before_sequence is not None and before_sequence <= threshold:
+                continue
+            eligible.append((threshold, insertion_order, intent_id, snapshot))
+        for _threshold, _insertion_order, intent_id, snapshot in sorted(eligible):
+            self.notify(snapshot, recovery_restore_only=True)
+            pending.pop(intent_id, None)
+
+    def _restore_service_execution_order(self, order, response):
+        """Restore only order scalars; never replay snapshot fills into Broker state."""
+
+        adapter = getattr(self._service_execution_session, "adapter", None)
+        intent_id = self._order_info_get(order, "managed_intent_id")
+        row = response.get("order_state") if isinstance(response, Mapping) else None
+        if (
+            adapter is None
+            or not isinstance(intent_id, str)
+            or not isinstance(row, Mapping)
+            or response.get("intent_id") != intent_id
+            or row.get("intent_id") != intent_id
+            or response.get("submit_fingerprint") != row.get("submit_fingerprint")
+        ):
+            self._fence_service_execution_recovery(order, "recovery_order_binding_invalid")
+        try:
+            manifest = adapter.recovery_manifest(intent_id)
+        except Exception:
+            self._fence_service_execution_recovery(order, "recovery_order_manifest_unavailable")
+        if (
+            not isinstance(manifest, Mapping)
+            or manifest.get("submit_fingerprint") != row.get("submit_fingerprint")
+            or manifest.get("recovery_binding")
+            != {
+                "tradeid": getattr(order, "tradeid", None),
+                "data_name": self._position_key(order.data),
+            }
+        ):
+            self._fence_service_execution_recovery(order, "recovery_order_manifest_mismatch")
+        quantity = self._recovery_number(row.get("quantity"), nonnegative=True)
+        if quantity is None or abs(quantity - abs(float(order.size))) > 1e-12:
+            self._fence_service_execution_recovery(order, "recovery_order_quantity_mismatch")
+        manifest_payload = manifest.get("submit_payload")
+        expected_side = "BUY" if order.isbuy() else "SELL"
+        if not isinstance(manifest_payload, Mapping) or manifest_payload.get("side") != expected_side:
+            self._fence_service_execution_recovery(order, "recovery_order_side_mismatch")
+        snapshot_sequence = row.get("latest_source_sequence")
+        if type(snapshot_sequence) is not int or snapshot_sequence < 0:
+            self._fence_service_execution_recovery(order, "recovery_order_snapshot_cut_invalid")
+        self._bind_live_recovery_order(order)
+        self._set_service_recovery_order_scalars(order, row)
+        order.addinfo(service_execution_recovery_snapshot_sequence=snapshot_sequence)
+
+    @staticmethod
+    def _recovery_number(value, *, nonnegative=False):
+        if isinstance(value, bool) or value in (None, ""):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if not math.isfinite(number) or (nonnegative and number < 0):
+            return None
+        return number
+
+    def _set_service_recovery_order_scalars(self, order, row):
+        """Apply safe snapshot/event facts without creating execution bits."""
+
+        states = {
+            "PENDING_ADMISSION": order.Submitted,
+            "PENDING_DISPATCH": order.Submitted,
+            "DISPATCHING": order.Submitted,
+            "ACKED": order.Accepted,
+            "PARTIALLY_FILLED": order.Partial,
+            "FILLED": order.Completed,
+            "CANCELLED": order.Canceled,
+            "REJECTED": order.Rejected,
+            "BLOCKED": order.Rejected,
+            "UNKNOWN": order.Submitted,
+        }
+        state = row.get("state")
+        if state not in states:
+            self._fence_service_execution_recovery(order, "recovery_order_state_invalid")
+        filled = self._recovery_number(row.get("filled_quantity"), nonnegative=True)
+        quantity = self._recovery_number(row.get("quantity"), nonnegative=True)
+        if filled is None or quantity is None or filled > quantity + 1e-12:
+            self._fence_service_execution_recovery(order, "recovery_order_fill_invalid")
+        if getattr(order.executed, "exbits", ()):
+            self._fence_service_execution_recovery(order, "recovery_restore_order_has_local_fills")
+        sign = 1.0 if order.isbuy() else -1.0
+        order.status = states[state]
+        order.broker = self
+        order.executed.size = sign * filled
+        order.executed.remsize = float(order.size) - order.executed.size
+        average_price = self._recovery_number(row.get("average_price"), nonnegative=True)
+        # Always replace the scalar. In a historical notification clone, a
+        # missing as-of-event average must not inherit the later snapshot's
+        # execution price.
+        order.executed.price = average_price if average_price is not None else 0.0
+        commission = self._recovery_number(row.get("cumulative_commission"))
+        order.executed.comm = commission if commission is not None else 0.0
+        order.addinfo(
+            service_execution_recovery_managed=True,
+            service_execution_recovery_state=state,
+            service_execution_recovery_trade_history_unavailable=bool(filled),
+            service_execution_recovery_average_price=average_price,
+            execution_time_unavailable=bool(filled),
+            execution_price_unavailable=bool(filled and average_price is None),
+            execution_commission_unavailable=bool(filled and commission is None),
+            execution_pnl_unavailable=bool(filled),
+            recovery_review_required=row.get("review_required") is True,
+            execution_unknown=(
+                state in ("UNKNOWN", "BLOCKED")
+                or row.get("review_required") is True
+            ),
+            recovery_latest_source_sequence=row.get("latest_source_sequence"),
+            recovery_latest_source_event_id=row.get("latest_source_event_id"),
+        )
+        provider_order_id = row.get("provider_order_id")
+        if isinstance(provider_order_id, str) and provider_order_id:
+            order.addinfo(external_order_id=provider_order_id)
+        else:
+            order.info.pop("external_order_id", None)
+        commission_currency = row.get("cumulative_commission_currency")
+        if isinstance(commission_currency, str) and commission_currency:
+            order.addinfo(cumulative_commission_currency=commission_currency)
+        else:
+            order.info.pop("cumulative_commission_currency", None)
+        reason = row.get("unknown_reason_code")
+        if isinstance(reason, str) and reason:
+            order.addinfo(error_code=reason)
+        else:
+            order.info.pop("error_code", None)
+        # Recovery pages carry reason codes, never free-form error messages.
+        order.info.pop("error_msg", None)
+
+    def _process_service_execution_recovery(self):
+        """Project only matched, pending durable receipts onto rebound Orders."""
+
+        if getattr(self, "_managed_provider_projection_failed", False):
+            return
+        session = self._service_execution_session
+        adapter = getattr(session, "adapter", None)
+        if adapter is None:
+            self._fence_service_execution_recovery(None, "recovery_adapter_unavailable")
+        startup_cursor = adapter.recovery_startup_cursor
+        if type(startup_cursor) is not int or startup_cursor < 0:
+            self._fence_service_execution_recovery(None, "recovery_startup_cursor_invalid")
+        ordered_history = []
+        for receipt in adapter.recovery_history():
+            if not isinstance(receipt, Mapping) or receipt.get("matched_manifest") is not True:
+                continue
+            receipt_id = receipt.get("receipt_id")
+            event = receipt.get("event")
+            sequence = receipt.get("sequence")
+            if (
+                not isinstance(receipt_id, str)
+                or not isinstance(event, Mapping)
+                or type(sequence) is not int
+                or sequence < 0
+            ):
+                self._fence_service_execution_recovery(None, "recovery_receipt_invalid")
+            ordered_history.append((sequence, receipt_id, receipt))
+        ordered_history.sort(key=lambda item: (item[0], item[1]))
+        if len({sequence for sequence, _receipt_id, _receipt in ordered_history}) != len(
+            ordered_history
+        ):
+            self._fence_service_execution_recovery(None, "recovery_receipt_sequence_duplicate")
+        ordered_receipts = []
+        event_facts_by_receipt = {}
+        cumulative_by_intent = {}
+        for sequence, receipt_id, receipt in ordered_history:
+            event = receipt["event"]
+            intent_id = event.get("intent_id")
+            if not isinstance(intent_id, str) or not intent_id:
+                self._fence_service_execution_recovery(None, "recovery_receipt_intent_invalid")
+            facts = dict(
+                cumulative_by_intent.get(
+                    intent_id,
+                    {
+                        "filled_quantity": "0",
+                        "average_price": None,
+                        "cumulative_commission": "0",
+                        "cumulative_commission_currency": None,
+                        "provider_order_id": None,
+                    },
+                )
+            )
+            details = event.get("details")
+            if isinstance(details, Mapping) and "filled_quantity" in details:
+                facts.update(
+                    filled_quantity=details.get("filled_quantity"),
+                    average_price=details.get("average_price"),
+                    cumulative_commission=details.get("cumulative_commission"),
+                    cumulative_commission_currency=details.get(
+                        "cumulative_commission_currency"
+                    ),
+                    provider_order_id=details.get("provider_order_id"),
+                )
+                cumulative_by_intent[intent_id] = facts
+            event_facts_by_receipt[receipt_id] = facts
+            if receipt.get("callback_pending") is not True:
+                continue
+            if receipt_id not in self._recovery_queued_receipts:
+                ordered_receipts.append((sequence, receipt_id, receipt))
+        for sequence, receipt_id, receipt in ordered_receipts:
+            self._flush_service_execution_recovery_snapshot_notifications(
+                before_sequence=sequence, startup_cursor=startup_cursor
+            )
+            event = receipt.get("event")
+            intent_id = event.get("intent_id")
+            order = self._recovery_orders_by_intent.get(intent_id)
+            if order is None:
+                continue
+            if self._order_info_get(order, "managed_intent_id") != intent_id:
+                self._fence_service_execution_recovery(order, "recovery_order_intent_mismatch")
+            callback = adapter.claim_recovery_callback(receipt_id)
+            if callback is None:
+                continue
+            if (
+                callback.receipt_id != receipt_id
+                or callback.intent_id != intent_id
+                or callback.sequence != sequence
+                or callback.event != event
+            ):
+                self._fence_service_execution_recovery(order, "recovery_callback_claim_mismatch")
+            try:
+                snapshot_sequence = self._order_info_get(
+                    order, "service_execution_recovery_snapshot_sequence"
+                )
+                order_cut = max(
+                    startup_cursor,
+                    snapshot_sequence
+                    if type(snapshot_sequence) is int and snapshot_sequence >= 0
+                    else 0,
+                )
+                if sequence <= order_cut or receipt_id in self._recovery_applied_receipts:
+                    notification = order.clone()
+                    notification.info = copy(order.info)
+                    self._set_service_recovery_order_scalars(
+                        notification,
+                        self._recovery_order_row_from_event(
+                            order, event, event_facts_by_receipt[receipt_id]
+                        ),
+                    )
+                else:
+                    self._apply_service_execution_recovery_event(order, event)
+                    self._recovery_applied_receipts.add(receipt_id)
+                    notification = order
+                self._recovery_queued_receipts.add(receipt_id)
+                self.notify(
+                    notification,
+                    recovery_receipt_id=receipt_id,
+                    recovery_restore_only=True,
+                )
+            except Exception:
+                self._fence_service_execution_recovery(
+                    order, "recovery_receipt_projection_failed"
+                )
+        self._flush_service_execution_recovery_snapshot_notifications(
+            startup_cursor=startup_cursor
+        )
+
+    def _recovery_order_row_from_event(self, order, event, event_facts):
+        details = event.get("details") or {}
+        return {
+            "intent_id": event.get("intent_id"),
+            "state": event.get("state"),
+            "quantity": str(abs(float(order.size))),
+            "filled_quantity": event_facts["filled_quantity"],
+            "average_price": event_facts["average_price"],
+            "cumulative_commission": event_facts["cumulative_commission"],
+            "provider_order_id": event_facts["provider_order_id"],
+            "cumulative_commission_currency": details.get(
+                "cumulative_commission_currency",
+                event_facts["cumulative_commission_currency"],
+            ),
+            "unknown_reason_code": details.get("reason_code"),
+            "review_required": event.get("event_type") == "manual_review_required",
+            "latest_source_sequence": event.get("sequence"),
+            "latest_source_event_id": event.get("event_id"),
+        }
+
+    def _apply_service_execution_recovery_event(self, order, event):
+        event_type = event.get("event_type")
+        state = event.get("state")
+        details = event.get("details") or {}
+        fill_event_types = {
+            "provider_observation",
+            "reconciled_observation",
+            "provider_commission_evidence",
+            "cancelled_by_cancel_intent",
+        }
+        states = {
+            "PENDING_ADMISSION": order.Submitted,
+            "PENDING_DISPATCH": order.Submitted,
+            "DISPATCHING": order.Submitted,
+            "ACKED": order.Accepted,
+            "PARTIALLY_FILLED": order.Partial,
+            "FILLED": order.Completed,
+            "CANCELLED": order.Canceled,
+            "REJECTED": order.Rejected,
+            "BLOCKED": order.Rejected,
+            "UNKNOWN": order.Submitted,
+        }
+        if state not in states:
+            self._fence_service_execution_recovery(order, "recovery_event_state_invalid")
+        if event_type not in fill_event_types:
+            order.status = states[state]
+            order.broker = self
+            order.addinfo(
+                service_execution_recovery_state=state,
+                execution_unknown=(
+                    state == "UNKNOWN"
+                    or state == "BLOCKED"
+                    or event_type == "manual_review_required"
+                ),
+                recovery_review_required=(event_type == "manual_review_required"),
+                error_code=details.get("reason_code"),
+                execution_time_unavailable=True,
+            )
+            return
+        filled = self._recovery_number(details.get("filled_quantity"), nonnegative=True)
+        prior_filled = abs(float(order.executed.size or 0.0))
+        if filled is None or filled > abs(float(order.size)) + 1e-12 or filled < prior_filled - 1e-12:
+            self._fence_service_execution_recovery(order, "recovery_event_fill_regression")
+        cumulative_commission = self._recovery_number(details.get("cumulative_commission"))
+        previous_commission = self._recovery_number(order.executed.comm)
+        currency = details.get("cumulative_commission_currency") or self._order_info_get(
+            order, "cumulative_commission_currency"
+        )
+        if filled > prior_filled + 1e-12:
+            average_price = self._recovery_number(details.get("average_price"), nonnegative=True)
+            if (
+                average_price is None
+                or average_price <= 0
+                or cumulative_commission is None
+                or previous_commission is None
+                or self._order_info_get(order, "execution_commission_unavailable", False)
+                or not isinstance(currency, str)
+                or not currency
+            ):
+                self._fence_service_execution_recovery(
+                    order, "recovery_fill_economics_incomplete"
+                )
+            adapter = self._service_execution_session.adapter
+            baseline = adapter.recovery_baseline()
+            cash_by_currency = baseline.get("cash_by_currency") if isinstance(baseline, Mapping) else None
+            if not isinstance(cash_by_currency, Mapping) or currency not in cash_by_currency:
+                self._fence_service_execution_recovery(
+                    order, "recovery_fill_fee_currency_unproven"
+                )
+            status_by_state = {
+                "ACKED": "accepted",
+                "PARTIALLY_FILLED": "partial",
+                "FILLED": "completed",
+                "CANCELLED": "canceled",
+                "REJECTED": "rejected",
+            }
+            status = status_by_state.get(state)
+            if status not in {"partial", "completed", "canceled"}:
+                self._fence_service_execution_recovery(
+                    order, "recovery_fill_state_incompatible"
+                )
+            update = {
+                "kind": "order",
+                "bt_order_ref": order.ref,
+                "data_name": self._position_key(order.data),
+                "side": "buy" if order.isbuy() else "sell",
+                "status": status,
+                "filled": details["filled_quantity"],
+                "price": details["average_price"],
+                "avg_price": details["average_price"],
+                "cumulative_commission": details["cumulative_commission"],
+                "commission_normalized": True,
+                "execution_source": "cumulative",
+            }
+            prior_count = len(order.executed.exbits)
+            self._service_execution_recovery_suppress_notifications = True
+            try:
+                self._apply_order_update(update)
+            finally:
+                self._service_execution_recovery_suppress_notifications = False
+            if (
+                abs(float(order.executed.size or 0.0)) + 1e-12 < filled
+                or bool(self._order_info_get(order, "ledger_mismatch", False))
+                or len(order.executed.exbits) == prior_count
+            ):
+                self._fence_service_execution_recovery(
+                    order, "recovery_fill_not_projected"
+                )
+            # The v1 SDK does not provide provider execution time. Zero is
+            # Backtrader's missing-date sentinel; the strategy is told this
+            # receipt is restore-only and no Trade callback is synthesized.
+            order.executed.dt = 0.0
+            for execution_bit in list(order.executed.exbits)[prior_count:]:
+                execution_bit.dt = 0.0
+            order.addinfo(
+                service_execution_recovery_state=state,
+                service_execution_recovery_trade_history_unavailable=True,
+                cumulative_commission_currency=currency,
+                execution_time_unavailable=True,
+                execution_pnl_unavailable=True,
+            )
+        elif cumulative_commission is not None and previous_commission is not None:
+            if abs(cumulative_commission - previous_commission) > 1e-12:
+                self._fence_service_execution_recovery(
+                    order, "recovery_fee_correction_without_fill_unsupported"
+                )
+            order.status = states[state]
+        else:
+            order.status = states[state]
+        order.broker = self
+        order.addinfo(
+            service_execution_recovery_state=state,
+            recovery_latest_source_sequence=event.get("sequence"),
+            recovery_latest_source_event_id=event.get("event_id"),
+            execution_time_unavailable=True,
+        )
+
+    def _fence_service_execution_recovery(self, order, reason):
+        self._managed_provider_projection_failed = True
+        self._trading_enabled = False
+        self._startup_ready = False
+        if order is not None:
+            order.addinfo(
+                service_execution_recovery_managed=True,
+                service_execution_recovery_error=str(reason),
+                execution_unknown=True,
+            )
+        freeze = getattr(self.store, "freeze_openings", None)
+        if callable(freeze):
+            freeze("service_execution_recovery_projection_unavailable")
+        raise RuntimeError("service execution recovery projection unavailable") from None
+
+    def acknowledge_service_execution_recovery_receipt(self, receipt_id):
+        if not self._uses_service_execution_recovery():
+            raise RuntimeError("service execution recovery is not active")
+        self._service_execution_session.adapter.acknowledge_recovery_callback(receipt_id)
+        self._recovery_queued_receipts.discard(receipt_id)
+
+    def release_service_execution_recovery_receipt(self, receipt_id):
+        """Permit at-least-once callback retry after a strategy callback fails."""
+
+        self._recovery_queued_receipts.discard(receipt_id)
+
+    def notify(self, order, *, recovery_receipt_id=None, recovery_restore_only=False):
+        """Queue an order notification, optionally bound to one recovery receipt."""
+        if self._service_execution_recovery_suppress_notifications:
+            return
         # ``Order.clone`` deliberately clones execution state but retains the
         # original ``info`` mapping.  A later broker update can otherwise
         # rewrite a queued Accepted/UNKNOWN notification before Cerebro
@@ -4356,6 +4934,10 @@ class BtApiBroker(BrokerBase):
         # user-provided object identities stored as values such as OCO links.
         snapshot = order.clone()
         snapshot.info = copy(order.info)
+        if recovery_receipt_id is not None:
+            snapshot.addinfo(service_execution_recovery_receipt_id=recovery_receipt_id)
+        if recovery_restore_only:
+            snapshot.addinfo(service_execution_recovery_restore_only=True)
         self.notifs.append(snapshot)
 
     def data_started(self, data):

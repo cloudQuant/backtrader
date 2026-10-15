@@ -29,6 +29,7 @@ from threading import RLock
 from typing import AbstractSet, Any, Callable, Iterator, Optional
 
 _REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_CLOSE_POSITION_EFFECTS = frozenset({"CLOSE", "CLOSE_TODAY", "CLOSE_YESTERDAY"})
 
 
 class ServiceExecutionRecoveryError(RuntimeError):
@@ -79,7 +80,7 @@ class ServiceExecutionRecoveryJournal:
     crash before acknowledgement leaves it pending for at-least-once delivery.
     """
 
-    _SCHEMA_VERSION = 1
+    _SCHEMA_VERSION = 2
     _SUBMIT_FIELDS = frozenset(
         {
             "intent_id",
@@ -230,6 +231,7 @@ class ServiceExecutionRecoveryJournal:
         *,
         intent_id: str,
         submit_payload: Mapping[str, Any],
+        recovery_binding: Optional[Mapping[str, Any]] = None,
     ) -> str:
         """Persist exact scope-free immutable request facts before submit RPC."""
 
@@ -241,9 +243,21 @@ class ServiceExecutionRecoveryJournal:
         _validate_submit_payload(payload)
         payload_json = _canonical_json(payload)
         fingerprint = _sha256(payload_json.encode("utf-8"))
+        binding_json = None
+        if recovery_binding is not None:
+            binding = _validate_recovery_binding(recovery_binding, payload)
+            binding_json = _canonical_json(binding)
         now_ns = time.time_ns()
         with self._transaction() as cursor:
             self._ensure_namespace(cursor, namespace, now_ns)
+            if binding_json is not None:
+                baseline = cursor.execute(
+                    """SELECT 1 FROM service_recovery_baselines
+                       WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                    _namespace_values(namespace),
+                ).fetchone()
+                if baseline is None:
+                    raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
             prior = cursor.execute(
                 """SELECT logical_run_id, submit_fingerprint, payload_json
                    FROM service_recovery_intents
@@ -258,6 +272,16 @@ class ServiceExecutionRecoveryJournal:
                     or str(prior["payload_json"]) != payload_json
                 ):
                     raise ServiceExecutionRecoveryError("INTENT_MANIFEST_CONFLICT")
+                prior_binding = cursor.execute(
+                    """SELECT binding_json FROM service_recovery_intent_bindings
+                       WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
+                         AND logical_run_id = ?""",
+                    (*_intent_namespace_values(namespace, intent_id), namespace.logical_run_id),
+                ).fetchone()
+                if binding_json is not None and (
+                    prior_binding is None or str(prior_binding["binding_json"]) != binding_json
+                ):
+                    raise ServiceExecutionRecoveryError("INTENT_RECOVERY_BINDING_CONFLICT")
                 return fingerprint
             cursor.execute(
                 """INSERT INTO service_recovery_intents(
@@ -275,6 +299,13 @@ class ServiceExecutionRecoveryJournal:
                     now_ns,
                 ),
             )
+            if binding_json is not None:
+                cursor.execute(
+                    """INSERT INTO service_recovery_intent_bindings(
+                           account_ref, strategy_ref, intent_id, logical_run_id, binding_json
+                       ) VALUES (?, ?, ?, ?, ?)""",
+                    (*_intent_namespace_values(namespace, intent_id), namespace.logical_run_id, binding_json),
+                )
         return fingerprint
 
     def prepare_cancel(
@@ -361,6 +392,13 @@ class ServiceExecutionRecoveryJournal:
             ).fetchone()
         if row is None or str(row["logical_run_id"]) != namespace.logical_run_id:
             return None
+        with self._lock:
+            binding_row = self._connection.execute(
+                """SELECT binding_json FROM service_recovery_intent_bindings
+                   WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
+                     AND logical_run_id = ?""",
+                (*_intent_namespace_values(namespace, intent_id), namespace.logical_run_id),
+            ).fetchone()
         return {
             "intent_id": intent_id,
             "logical_run_id": str(row["logical_run_id"]),
@@ -368,6 +406,9 @@ class ServiceExecutionRecoveryJournal:
             "submit_payload": json.loads(str(row["payload_json"])),
             "scope_key": row["server_scope_key"],
             "intent_fingerprint": row["server_intent_fingerprint"],
+            "recovery_binding": (
+                json.loads(str(binding_row["binding_json"])) if binding_row is not None else None
+            ),
         }
 
     def cancel_manifest(
@@ -409,128 +450,212 @@ class ServiceExecutionRecoveryJournal:
 
         normalized = _json_mapping(snapshot)
         coverage, orders = self._validate_snapshot(namespace, normalized)
-        snapshot_json = _canonical_json({"coverage": coverage, "orders": orders})
-        snapshot_hash = _sha256(snapshot_json.encode("utf-8"))
+        snapshot_hash = _snapshot_hash(coverage, orders)
         now_ns = time.time_ns()
         with self._transaction() as cursor:
             self._ensure_namespace(cursor, namespace, now_ns)
-            current = cursor.execute(
-                """SELECT server_account_key, journal_generation,
-                          directory_revision, snapshot_hash, event_cursor
-                   FROM service_recovery_runs
+            return self._install_snapshot_cursor(
+                cursor, namespace, coverage, orders, snapshot_hash, now_ns
+            )
+
+    def install_recovery_baseline(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        snapshot: Mapping[str, Any],
+        owner_book: Mapping[str, Any],
+    ) -> bool:
+        """Atomically pin the first owner-book baseline and recovery snapshot.
+
+        Existing baselines are immutable. A legacy run with manifests but no
+        baseline cannot adopt a later restart snapshot as its opening state.
+        """
+
+        normalized = _json_mapping(snapshot)
+        coverage, orders = self._validate_snapshot(namespace, normalized)
+        baseline = self._validate_owner_book_baseline(namespace, coverage, owner_book)
+        baseline["snapshot_orders"] = orders
+        baseline_json = _canonical_json(baseline)
+        baseline_hash = _sha256(baseline_json.encode("utf-8"))
+        snapshot_hash = _snapshot_hash(coverage, orders)
+        now_ns = time.time_ns()
+        with self._transaction() as cursor:
+            self._ensure_namespace(cursor, namespace, now_ns)
+            existing = cursor.execute(
+                """SELECT baseline_hash, baseline_json FROM service_recovery_baselines
                    WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
                 _namespace_values(namespace),
             ).fetchone()
-            if current is None:
-                raise ServiceExecutionRecoveryError("RECOVERY_NAMESPACE_MISSING")
-            old_generation = current["journal_generation"]
-            old_directory = current["directory_revision"]
-            if old_generation is not None and str(old_generation) != coverage["journal_generation"]:
-                raise ServiceExecutionRecoveryError("RECOVERY_JOURNAL_GENERATION_CHANGED")
-            if (
-                old_directory is not None
-                and str(old_directory) != coverage["scope_directory_revision"]
-            ):
-                raise ServiceExecutionRecoveryError("RECOVERY_DIRECTORY_CHANGED")
-            if (
-                current["snapshot_hash"] is not None
-                and str(current["snapshot_hash"]) == snapshot_hash
-            ):
-                return False
-
-            cursor.execute(
-                """DELETE FROM service_recovery_snapshot_orders
-                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
-                _namespace_values(namespace),
-            )
-
-            for order in orders:
-                manifest = cursor.execute(
-                    """SELECT logical_run_id, submit_fingerprint,
-                              server_scope_key, server_intent_fingerprint
-                       FROM service_recovery_intents
-                       WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?""",
-                    (namespace.account_ref, namespace.strategy_ref, order["intent_id"]),
+            if existing is None:
+                manifests = cursor.execute(
+                    """SELECT COUNT(*) AS total FROM service_recovery_intents
+                       WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                    _namespace_values(namespace),
                 ).fetchone()
-                matched = False
-                if (
-                    manifest is not None
-                    and str(manifest["logical_run_id"]) == namespace.logical_run_id
-                ):
-                    if str(manifest["submit_fingerprint"]) != order["submit_fingerprint"]:
-                        raise ServiceExecutionRecoveryError("SNAPSHOT_INTENT_PAYLOAD_MISMATCH")
-                    if manifest["server_scope_key"] not in (None, order["scope_key"]):
-                        raise ServiceExecutionRecoveryError("SNAPSHOT_INTENT_SCOPE_CHANGED")
-                    if manifest["server_intent_fingerprint"] not in (
-                        None,
-                        order["intent_fingerprint"],
-                    ):
-                        raise ServiceExecutionRecoveryError("SNAPSHOT_INTENT_FINGERPRINT_CHANGED")
-                    cursor.execute(
-                        """UPDATE service_recovery_intents
-                           SET server_scope_key = ?, server_intent_fingerprint = ?,
-                               updated_at_ns = ?
-                           WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
-                             AND logical_run_id = ?""",
-                        (
-                            order["scope_key"],
-                            order["intent_fingerprint"],
-                            now_ns,
-                            namespace.account_ref,
-                            namespace.strategy_ref,
-                            order["intent_id"],
-                            namespace.logical_run_id,
-                        ),
+                if manifests is not None and int(manifests["total"]) != 0:
+                    raise ServiceExecutionRecoveryError(
+                        "RECOVERY_BASELINE_MISSING_FOR_EXISTING_MANIFEST"
                     )
-                    matched = True
+                prior_receipts = cursor.execute(
+                    """SELECT COUNT(*) AS total FROM service_recovery_event_receipts
+                       WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                    _namespace_values(namespace),
+                ).fetchone()
+                prior_pages = cursor.execute(
+                    """SELECT COUNT(*) AS total FROM service_recovery_pages
+                       WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                    _namespace_values(namespace),
+                ).fetchone()
+                if (
+                    (prior_receipts is not None and int(prior_receipts["total"]) != 0)
+                    or (prior_pages is not None and int(prior_pages["total"]) != 0)
+                ):
+                    raise ServiceExecutionRecoveryError(
+                        "RECOVERY_BASELINE_MISSING_FOR_EXISTING_RECEIPTS"
+                    )
+                existing_run = cursor.execute(
+                    """SELECT event_cursor FROM service_recovery_runs
+                       WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                    _namespace_values(namespace),
+                ).fetchone()
+                if (
+                    existing_run is not None
+                    and existing_run["event_cursor"] is not None
+                    and int(existing_run["event_cursor"]) != coverage["high_water_sequence"]
+                ):
+                    raise ServiceExecutionRecoveryError(
+                        "RECOVERY_BASELINE_MISSING_FOR_EXISTING_CURSOR"
+                    )
+                self._install_snapshot_cursor(
+                    cursor, namespace, coverage, orders, snapshot_hash, now_ns
+                )
                 cursor.execute(
-                    """INSERT INTO service_recovery_snapshot_orders(
-                           account_ref, strategy_ref, logical_run_id, scope_key,
-                           intent_id, matched_manifest, order_json, snapshot_hash
-                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                       ON CONFLICT(account_ref, strategy_ref, logical_run_id, scope_key, intent_id)
-                       DO UPDATE SET matched_manifest = excluded.matched_manifest,
-                                     order_json = excluded.order_json,
-                                     snapshot_hash = excluded.snapshot_hash""",
+                    """INSERT INTO service_recovery_baselines(
+                           account_ref, strategy_ref, logical_run_id,
+                           server_account_key, journal_generation, directory_revision,
+                           baseline_cursor, baseline_hash, baseline_json, created_at_ns
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        namespace.account_ref,
-                        namespace.strategy_ref,
-                        namespace.logical_run_id,
-                        order["scope_key"],
-                        order["intent_id"],
-                        int(matched),
-                        _canonical_json(order),
-                        snapshot_hash,
+                        *_namespace_values(namespace),
+                        coverage["account_key"],
+                        coverage["journal_generation"],
+                        coverage["scope_directory_revision"],
+                        coverage["high_water_sequence"],
+                        baseline_hash,
+                        baseline_json,
+                        now_ns,
                     ),
                 )
+                return True
+
+            if str(existing["baseline_hash"]) != _sha256(
+                str(existing["baseline_json"]).encode("utf-8")
+            ):
+                raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_CORRUPT")
+            self._install_snapshot_cursor(
+                cursor, namespace, coverage, orders, snapshot_hash, now_ns
+            )
+            return str(existing["baseline_hash"]) == baseline_hash
+
+    def _install_snapshot_cursor(
+        self,
+        cursor: sqlite3.Cursor,
+        namespace: ServiceExecutionRecoveryNamespace,
+        coverage: Mapping[str, Any],
+        orders: list[dict[str, Any]],
+        snapshot_hash: str,
+        now_ns: int,
+    ) -> bool:
+        current = cursor.execute(
+            """SELECT journal_generation, directory_revision, snapshot_hash
+               FROM service_recovery_runs
+               WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+            _namespace_values(namespace),
+        ).fetchone()
+        if current is None:
+            raise ServiceExecutionRecoveryError("RECOVERY_NAMESPACE_MISSING")
+        if current["journal_generation"] not in (None, coverage["journal_generation"]):
+            raise ServiceExecutionRecoveryError("RECOVERY_JOURNAL_GENERATION_CHANGED")
+        if current["directory_revision"] not in (
+            None,
+            coverage["scope_directory_revision"],
+        ):
+            raise ServiceExecutionRecoveryError("RECOVERY_DIRECTORY_CHANGED")
+        if current["snapshot_hash"] is not None and str(current["snapshot_hash"]) == snapshot_hash:
+            return False
+        cursor.execute(
+            """DELETE FROM service_recovery_snapshot_orders
+               WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+            _namespace_values(namespace),
+        )
+        for order in orders:
+            manifest = cursor.execute(
+                """SELECT logical_run_id, submit_fingerprint,
+                          server_scope_key, server_intent_fingerprint
+                   FROM service_recovery_intents
+                   WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?""",
+                (namespace.account_ref, namespace.strategy_ref, order["intent_id"]),
+            ).fetchone()
+            matched = False
+            if manifest is not None and str(manifest["logical_run_id"]) == namespace.logical_run_id:
+                if str(manifest["submit_fingerprint"]) != order["submit_fingerprint"]:
+                    raise ServiceExecutionRecoveryError("SNAPSHOT_INTENT_PAYLOAD_MISMATCH")
+                if manifest["server_scope_key"] not in (None, order["scope_key"]):
+                    raise ServiceExecutionRecoveryError("SNAPSHOT_INTENT_SCOPE_CHANGED")
+                if manifest["server_intent_fingerprint"] not in (
+                    None,
+                    order["intent_fingerprint"],
+                ):
+                    raise ServiceExecutionRecoveryError(
+                        "SNAPSHOT_INTENT_FINGERPRINT_CHANGED"
+                    )
+                cursor.execute(
+                    """UPDATE service_recovery_intents
+                       SET server_scope_key = ?, server_intent_fingerprint = ?, updated_at_ns = ?
+                       WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
+                         AND logical_run_id = ?""",
+                    (
+                        order["scope_key"], order["intent_fingerprint"], now_ns,
+                        namespace.account_ref, namespace.strategy_ref, order["intent_id"],
+                        namespace.logical_run_id,
+                    ),
+                )
+                matched = True
             cursor.execute(
-                """UPDATE service_recovery_runs
-                   SET server_account_key = ?, journal_generation = ?, directory_revision = ?,
-                       snapshot_high_water = ?, snapshot_hash = ?, updated_at_ns = ?
-                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                """INSERT INTO service_recovery_snapshot_orders(
+                       account_ref, strategy_ref, logical_run_id, scope_key,
+                       intent_id, matched_manifest, order_json, snapshot_hash
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(account_ref, strategy_ref, logical_run_id, scope_key, intent_id)
+                   DO UPDATE SET matched_manifest = excluded.matched_manifest,
+                                 order_json = excluded.order_json,
+                                 snapshot_hash = excluded.snapshot_hash""",
                 (
-                    coverage["account_key"],
-                    coverage["journal_generation"],
-                    coverage["scope_directory_revision"],
-                    coverage["high_water_sequence"],
-                    snapshot_hash,
-                    now_ns,
-                    *_namespace_values(namespace),
+                    namespace.account_ref, namespace.strategy_ref, namespace.logical_run_id,
+                    order["scope_key"], order["intent_id"], int(matched),
+                    _canonical_json(order), snapshot_hash,
                 ),
             )
-            # A first complete snapshot establishes the beginning of the local
-            # event tail. A later snapshot never skips an existing event cursor.
-            cursor.execute(
-                """UPDATE service_recovery_runs
-                   SET event_cursor = COALESCE(event_cursor, ?),
-                       scanned_through = COALESCE(scanned_through, ?)
-                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
-                (
-                    coverage["high_water_sequence"],
-                    coverage["high_water_sequence"],
-                    *_namespace_values(namespace),
-                ),
-            )
+        cursor.execute(
+            """UPDATE service_recovery_runs
+               SET server_account_key = ?, journal_generation = ?, directory_revision = ?,
+                   snapshot_high_water = ?, snapshot_hash = ?, updated_at_ns = ?
+               WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+            (
+                coverage["account_key"], coverage["journal_generation"],
+                coverage["scope_directory_revision"], coverage["high_water_sequence"],
+                snapshot_hash, now_ns, *_namespace_values(namespace),
+            ),
+        )
+        cursor.execute(
+            """UPDATE service_recovery_runs
+               SET event_cursor = COALESCE(event_cursor, ?),
+                   scanned_through = COALESCE(scanned_through, ?)
+               WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+            (
+                coverage["high_water_sequence"], coverage["high_water_sequence"],
+                *_namespace_values(namespace),
+            ),
+        )
         return True
 
     def apply_events_page(
@@ -685,6 +810,641 @@ class ServiceExecutionRecoveryJournal:
             rows = self._connection.execute(query, parameters).fetchall()
         return tuple(json.loads(str(row["order_json"])) for row in rows)
 
+    def recovery_baseline(
+        self, namespace: ServiceExecutionRecoveryNamespace
+    ) -> Optional[Mapping[str, Any]]:
+        """Return the immutable owner-book baseline for this logical run."""
+
+        with self._lock:
+            row = self._connection.execute(
+                """SELECT baseline_cursor, baseline_json, baseline_hash,
+                          journal_generation, directory_revision, server_account_key
+                   FROM service_recovery_baselines
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                _namespace_values(namespace),
+            ).fetchone()
+        if row is None:
+            return None
+        raw = str(row["baseline_json"])
+        if _sha256(raw.encode("utf-8")) != str(row["baseline_hash"]):
+            raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_CORRUPT")
+        value = json.loads(raw)
+        return {
+            "baseline_cursor": int(row["baseline_cursor"]),
+            "journal_generation": str(row["journal_generation"]),
+            "scope_directory_revision": str(row["directory_revision"]),
+            "account_key": str(row["server_account_key"]),
+            **value,
+        }
+
+    def intent_recovery_state(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        intent_id: str,
+    ) -> Optional[Mapping[str, Any]]:
+        """Read one manifest-bound order fact without a service query."""
+
+        if not _identifier(intent_id):
+            raise ServiceExecutionRecoveryError("INVALID_INTENT_ID")
+        manifest = self.intent_manifest(namespace, intent_id)
+        if manifest is None:
+            return None
+        snapshot_order = None
+        with self._lock:
+            row = self._connection.execute(
+                """SELECT order_json FROM service_recovery_snapshot_orders
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?
+                     AND intent_id = ? AND matched_manifest = 1
+                   ORDER BY snapshot_hash DESC LIMIT 1""",
+                (*_namespace_values(namespace), intent_id),
+            ).fetchone()
+            projection = self._connection.execute(
+                """SELECT event_json, sequence, receipt_id
+                   FROM service_recovery_intent_projections
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?
+                     AND intent_id = ?""",
+                (*_namespace_values(namespace), intent_id),
+            ).fetchone()
+        if row is not None:
+            snapshot_order = json.loads(str(row["order_json"]))
+        event_projection = None
+        if projection is not None:
+            event_projection = {
+                "event": json.loads(str(projection["event_json"])),
+                "sequence": int(projection["sequence"]),
+                "receipt_id": str(projection["receipt_id"]),
+            }
+        if snapshot_order is None and event_projection is None:
+            return None
+        return {
+            "manifest": manifest,
+            "snapshot_order": snapshot_order,
+            "event_projection": event_projection,
+        }
+
+    def ordered_event_history_page(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        *,
+        after_sequence: int,
+        through_sequence: Optional[int] = None,
+        limit: int = 128,
+    ) -> Mapping[str, Any]:
+        """Read one bounded, gap-checked page of durable owner receipts.
+
+        This includes unmatched owner-scope facts for reconciliation. The
+        caller must never bind or notify an unmatched event.
+        """
+
+        if type(after_sequence) is not int or after_sequence < 0:
+            raise ServiceExecutionRecoveryError("INVALID_HISTORY_CURSOR")
+        if type(limit) is not int or not 1 <= limit <= 256:
+            raise ServiceExecutionRecoveryError("INVALID_HISTORY_LIMIT")
+        baseline = self.recovery_baseline(namespace)
+        if baseline is None:
+            raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+        with self._lock:
+            run = self._connection.execute(
+                """SELECT event_cursor, journal_generation, directory_revision
+                   FROM service_recovery_runs
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?""",
+                _namespace_values(namespace),
+            ).fetchone()
+            if run is None or run["event_cursor"] is None:
+                raise ServiceExecutionRecoveryError("RECOVERY_CURSOR_MISSING")
+            high_water = int(run["event_cursor"])
+            through = high_water if through_sequence is None else through_sequence
+            if type(through) is not int or not after_sequence <= through <= high_water:
+                raise ServiceExecutionRecoveryError("INVALID_HISTORY_CURSOR")
+            if (
+                str(run["journal_generation"]) != baseline["journal_generation"]
+                or str(run["directory_revision"]) != baseline["scope_directory_revision"]
+            ):
+                raise ServiceExecutionRecoveryError("RECOVERY_HISTORY_CUT_CHANGED")
+            self._assert_history_coverage(
+                namespace,
+                baseline_cursor=baseline["baseline_cursor"],
+                through_sequence=through,
+                journal_generation=baseline["journal_generation"],
+                directory_revision=baseline["scope_directory_revision"],
+            )
+            rows = self._connection.execute(
+                """SELECT r.receipt_id, r.sequence, r.event_id, r.matched_manifest,
+                          r.event_json, c.acknowledged_at_ns, c.delivery_attempts
+                   FROM service_recovery_event_receipts AS r
+                   LEFT JOIN service_recovery_callbacks AS c
+                     ON c.account_ref = r.account_ref
+                    AND c.strategy_ref = r.strategy_ref
+                    AND c.logical_run_id = r.logical_run_id
+                    AND c.receipt_id = r.receipt_id
+                   WHERE r.account_ref = ? AND r.strategy_ref = ? AND r.logical_run_id = ?
+                     AND r.sequence > ? AND r.sequence <= ?
+                   ORDER BY r.sequence, r.event_id LIMIT ?""",
+                (*_namespace_values(namespace), after_sequence, through, limit + 1),
+            ).fetchall()
+        has_more = len(rows) > limit
+        selected = rows[:limit]
+        events = []
+        for row in selected:
+            event = json.loads(str(row["event_json"]))
+            binding = self._history_binding(namespace, event["intent_id"])
+            events.append(
+                {
+                    "receipt_id": str(row["receipt_id"]),
+                    "sequence": int(row["sequence"]),
+                    "event_id": str(row["event_id"]),
+                    "matched_manifest": bool(row["matched_manifest"]),
+                    "callback_pending": (
+                        row["acknowledged_at_ns"] is None
+                        if row["delivery_attempts"] is not None
+                        else False
+                    ),
+                    "callback_acknowledged": (
+                        row["acknowledged_at_ns"] is not None
+                        if row["delivery_attempts"] is not None
+                        else False
+                    ),
+                    "event": event,
+                    "binding": binding if bool(row["matched_manifest"]) else None,
+                }
+            )
+        if has_more:
+            scanned_through = events[-1]["sequence"] if events else after_sequence
+        else:
+            scanned_through = through
+        return {
+            "after_sequence": after_sequence,
+            "through_sequence": through,
+            "scanned_through": scanned_through,
+            "has_more": has_more,
+            "events": tuple(events),
+        }
+
+    def ordered_event_history(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        *,
+        limit: int = 128,
+        max_pages: int = 256,
+    ) -> tuple[Mapping[str, Any], ...]:
+        """Read the complete bounded receipt history or fail without truncation."""
+
+        if type(max_pages) is not int or not 1 <= max_pages <= 1024:
+            raise ServiceExecutionRecoveryError("INVALID_HISTORY_PAGE_BUDGET")
+        baseline = self.recovery_baseline(namespace)
+        if baseline is None:
+            raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+        cursor = baseline["baseline_cursor"]
+        through = self.cursor(namespace)["event_cursor"]
+        events: list[Mapping[str, Any]] = []
+        for _ in range(max_pages):
+            page = self.ordered_event_history_page(
+                namespace,
+                after_sequence=cursor,
+                through_sequence=through,
+                limit=limit,
+            )
+            events.extend(page["events"])
+            cursor = page["scanned_through"]
+            if page["has_more"] is False:
+                if cursor != through:
+                    raise ServiceExecutionRecoveryError("RECOVERY_HISTORY_GAP")
+                return tuple(events)
+        raise ServiceExecutionRecoveryError("RECOVERY_HISTORY_PAGE_BUDGET_EXHAUSTED")
+
+    def strategy_trade_positions(
+        self, namespace: ServiceExecutionRecoveryNamespace
+    ) -> Mapping[tuple[str, int], Decimal]:
+        """Project matched same-run trade quantities from ordered cumulative facts."""
+
+        baseline = self.recovery_baseline(namespace)
+        if baseline is None or baseline["trade_projection_available"] is not True:
+            raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BASELINE_INCOMPLETE")
+        histories = self.ordered_event_history(namespace)
+        cumulative: dict[str, Decimal] = {}
+        positions: dict[tuple[str, int], Decimal] = {}
+        manifests: dict[str, Mapping[str, Any]] = {}
+        for receipt in histories:
+            if receipt["matched_manifest"] is not True:
+                continue
+            event = receipt["event"]
+            binding = receipt["binding"]
+            if not isinstance(binding, Mapping):
+                raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
+            manifest = self.intent_manifest(namespace, event["intent_id"])
+            if manifest is None or manifest.get("recovery_binding") != binding:
+                raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISMATCH")
+            manifests[event["intent_id"]] = manifest
+            event_type = event["event_type"]
+            if event_type not in {
+                "provider_observation",
+                "reconciled_observation",
+                "provider_commission_evidence",
+                "cancelled_by_cancel_intent",
+            }:
+                continue
+            details = event["details"]
+            quantity = _decimal_value(details["filled_quantity"], nonnegative=True)
+            previous = cumulative.get(event["intent_id"], Decimal(0))
+            if quantity < previous:
+                raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
+            delta = quantity - previous
+            cumulative[event["intent_id"]] = quantity
+            if not delta:
+                continue
+            submit = manifest["submit_payload"]
+            key = (binding["data_name"], binding["tradeid"])
+            effect = submit["position_effect"]
+            self._apply_trade_delta(
+                positions,
+                key,
+                submit["side"],
+                effect,
+                delta,
+            )
+        return {key: value for key, value in positions.items() if value != 0}
+
+    @staticmethod
+    def _apply_trade_delta(positions, key, side, effect, delta):
+        signed = delta if side == "BUY" else -delta
+        prior = positions.get(key, Decimal(0))
+        if effect == "OPEN":
+            if prior and prior * signed < 0:
+                raise ServiceExecutionRecoveryError("RECOVERY_TRADE_REVERSAL_NOT_SPLIT")
+            positions[key] = prior + signed
+            return
+        if effect not in _CLOSE_POSITION_EFFECTS:
+            raise ServiceExecutionRecoveryError("RECOVERY_TRADE_POSITION_EFFECT_INVALID")
+        # Backtrader's recovered trade projection is aggregate by data/tradeid.
+        # Preserve the original close variant in the immutable submit manifest;
+        # this check does not prove provider-side today/yesterday bucket capacity.
+        if prior == 0 or prior * signed >= 0 or delta > abs(prior):
+            raise ServiceExecutionRecoveryError("RECOVERY_TRADE_CLOSE_CAPACITY_INVALID")
+        positions[key] = prior + signed
+
+    def _trade_projection_before(self, cursor, namespace, before_sequence):
+        rows = cursor.execute(
+            """SELECT r.intent_id, r.event_json, i.payload_json, b.binding_json
+               FROM service_recovery_event_receipts AS r
+               JOIN service_recovery_intents AS i
+                 ON i.account_ref = r.account_ref AND i.strategy_ref = r.strategy_ref
+                AND i.intent_id = r.intent_id AND i.logical_run_id = r.logical_run_id
+               LEFT JOIN service_recovery_intent_bindings AS b
+                 ON b.account_ref = r.account_ref AND b.strategy_ref = r.strategy_ref
+                AND b.intent_id = r.intent_id AND b.logical_run_id = r.logical_run_id
+               WHERE r.account_ref = ? AND r.strategy_ref = ? AND r.logical_run_id = ?
+                 AND r.matched_manifest = 1 AND r.sequence < ?
+                 AND r.event_type IN (
+                     'provider_observation', 'reconciled_observation',
+                     'provider_commission_evidence', 'cancelled_by_cancel_intent'
+                 )
+               ORDER BY r.sequence""",
+            (*_namespace_values(namespace), before_sequence),
+        ).fetchall()
+        cumulative = {}
+        positions = {}
+        for row in rows:
+            intent_id = str(row["intent_id"])
+            event = json.loads(str(row["event_json"]))
+            submit = json.loads(str(row["payload_json"]))
+            binding_raw = row["binding_json"]
+            if binding_raw is None:
+                raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
+            binding = json.loads(str(binding_raw))
+            filled = _decimal_value(event["details"]["filled_quantity"], nonnegative=True)
+            previous = cumulative.get(intent_id, Decimal(0))
+            if filled < previous:
+                raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
+            delta = filled - previous
+            cumulative[intent_id] = filled
+            if delta:
+                key = (binding["data_name"], binding["tradeid"])
+                self._apply_trade_delta(
+                    positions,
+                    key,
+                    submit["side"],
+                    submit["position_effect"],
+                    delta,
+                )
+        return positions, cumulative
+
+    def _history_binding(
+        self, namespace: ServiceExecutionRecoveryNamespace, intent_id: str
+    ) -> Optional[Mapping[str, Any]]:
+        with self._lock:
+            row = self._connection.execute(
+                """SELECT binding_json FROM service_recovery_intent_bindings
+                   WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
+                     AND logical_run_id = ?""",
+                (*_intent_namespace_values(namespace, intent_id), namespace.logical_run_id),
+            ).fetchone()
+        return json.loads(str(row["binding_json"])) if row is not None else None
+
+    def _assert_history_coverage(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        *,
+        baseline_cursor: int,
+        through_sequence: int,
+        journal_generation: str,
+        directory_revision: str,
+    ) -> None:
+        if through_sequence == baseline_cursor:
+            return
+        with self._lock:
+            pages = self._connection.execute(
+                """SELECT after_sequence, scanned_through FROM service_recovery_pages
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?
+                     AND journal_generation = ? AND directory_revision = ?
+                     AND after_sequence >= ? AND scanned_through <= ?
+                   ORDER BY after_sequence""",
+                (
+                    *_namespace_values(namespace), journal_generation, directory_revision,
+                    baseline_cursor, through_sequence,
+                ),
+            ).fetchall()
+        cursor = baseline_cursor
+        for row in pages:
+            if int(row["after_sequence"]) != cursor or int(row["scanned_through"]) <= cursor:
+                raise ServiceExecutionRecoveryError("RECOVERY_HISTORY_GAP")
+            cursor = int(row["scanned_through"])
+            if cursor == through_sequence:
+                break
+        if cursor != through_sequence:
+            raise ServiceExecutionRecoveryError("RECOVERY_HISTORY_GAP")
+
+    def reconcile_owner_positions(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        owner_book: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """Compare the original owner position with all persisted service fills."""
+
+        baseline = self.recovery_baseline(namespace)
+        if baseline is None:
+            raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+        current_orders = self.snapshot_orders(namespace, matched_only=False)
+        expected = {
+            key: Decimal(value) for key, value in baseline["positions"].items()
+        }
+        baseline_by_key = {
+            (row["scope_key"], row["intent_id"]): row
+            for row in baseline["snapshot_orders"]
+        }
+        current_by_key = {(row["scope_key"], row["intent_id"]): row for row in current_orders}
+        if len(current_by_key) != len(current_orders):
+            raise ServiceExecutionRecoveryError("RECOVERY_SNAPSHOT_ORDER_DUPLICATE")
+        for key, old in baseline_by_key.items():
+            if key not in current_by_key and Decimal(old["filled_quantity"]) != 0:
+                raise ServiceExecutionRecoveryError("RECOVERY_OWNER_POSITION_HISTORY_MISSING")
+        unresolved = []
+        with self._lock:
+            matched_rows = self._connection.execute(
+                """SELECT scope_key, intent_id FROM service_recovery_snapshot_orders
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?
+                     AND matched_manifest = 1""",
+                _namespace_values(namespace),
+            ).fetchall()
+        matched_keys = {
+            (str(row["scope_key"]), str(row["intent_id"])) for row in matched_rows
+        }
+        matched_changes: dict[str, Decimal] = {}
+        for key, row in current_by_key.items():
+            old = baseline_by_key.get(key)
+            old_quantity = Decimal(old["filled_quantity"]) if old is not None else Decimal(0)
+            new_quantity = Decimal(row["filled_quantity"])
+            if new_quantity < old_quantity:
+                raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
+            delta = new_quantity - old_quantity
+            if delta:
+                signed = delta if row["side"] == "BUY" else -delta
+                instrument = row["instrument"]
+                expected[instrument] = expected.get(instrument, Decimal(0)) + signed
+                if key in matched_keys:
+                    matched_changes[instrument] = matched_changes.get(
+                        instrument, Decimal(0)
+                    ) + signed
+            if row["state"] == "UNKNOWN" or row["review_required"] is True:
+                unresolved.append(row["intent_id"])
+            if old is not None and (
+                old["instrument"] != row["instrument"] or old["side"] != row["side"]
+            ):
+                raise ServiceExecutionRecoveryError("RECOVERY_OWNER_ORDER_BINDING_CHANGED")
+        actual_positions = {
+            key: Decimal(value) for key, value in owner_book["positions"].items()
+        }
+        expected = {key: value for key, value in expected.items() if value != 0}
+        actual_positions = {key: value for key, value in actual_positions.items() if value != 0}
+        if expected != actual_positions:
+            raise ServiceExecutionRecoveryError("RECOVERY_OWNER_POSITION_MISMATCH")
+        actual_changes = {
+            instrument: quantity - Decimal(baseline["positions"].get(instrument, "0"))
+            for instrument, quantity in actual_positions.items()
+        }
+        for instrument, baseline_quantity in baseline["positions"].items():
+            actual_changes.setdefault(instrument, -Decimal(baseline_quantity))
+        actual_changes = {key: value for key, value in actual_changes.items() if value != 0}
+        matched_changes = {key: value for key, value in matched_changes.items() if value != 0}
+        trade_events_complete = self._trade_projection_events_complete(
+            namespace, baseline
+        )
+        trade_projection_available = bool(
+            baseline["trade_projection_available"]
+            and owner_book["financial_available"] is True
+            and owner_book["cost_basis_complete"] is True
+            and trade_events_complete
+            and not unresolved
+            and matched_changes == actual_changes
+        )
+        trade_projection_unavailable_reason = None
+        if not trade_projection_available:
+            if baseline["trade_projection_available"] and not trade_events_complete:
+                # Recovery v1 carries cumulative economics but no provider
+                # execution time.  The journal's created_at_ns is only the
+                # local append time and must not be used for OrderExecutionBit.dt.
+                trade_projection_unavailable_reason = "provider_execution_time_unavailable"
+            elif not baseline["trade_projection_available"]:
+                trade_projection_unavailable_reason = "opening_trade_baseline_incomplete"
+            elif unresolved:
+                trade_projection_unavailable_reason = "unresolved_owner_intent"
+            elif matched_changes != actual_changes:
+                trade_projection_unavailable_reason = "owner_position_attribution_incomplete"
+            else:
+                trade_projection_unavailable_reason = "owner_financial_cut_incomplete"
+        return {
+            "positions_match": True,
+            "current_positions": dict(owner_book["positions"]),
+            "unresolved_intents": tuple(sorted(unresolved)),
+            "trade_projection_available": trade_projection_available,
+            "trade_projection_unavailable_reason": trade_projection_unavailable_reason,
+            "baseline_cursor": baseline["baseline_cursor"],
+            "current_cursor": owner_book["current_execution_cursor"],
+        }
+
+    def _trade_projection_events_complete(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        baseline: Mapping[str, Any],
+    ) -> bool:
+        """Return whether event facts can support exact Strategy Trade values.
+
+        Backtrader's Trade ledger has no separate fee-only update operation.
+        Missing fill price/fee currency or a fee/notional correction without a
+        quantity increment therefore disables Trade projection rather than
+        inventing a zero-cost fill.
+        """
+
+        history = self.ordered_event_history(namespace)
+        previous: dict[str, tuple[Decimal, Optional[Decimal], Optional[str]]] = {}
+        allowed_currencies = set(baseline["cash_by_currency"])
+        currencies_by_trade: dict[tuple[str, int], str] = {}
+        for receipt in history:
+            if receipt["matched_manifest"] is not True:
+                continue
+            event = receipt["event"]
+            if event["event_type"] not in {
+                "provider_observation",
+                "reconciled_observation",
+                "provider_commission_evidence",
+                "cancelled_by_cancel_intent",
+            }:
+                continue
+            details = event["details"]
+            filled = Decimal(details["filled_quantity"])
+            cumulative_fee = (
+                None
+                if details["cumulative_commission"] is None
+                else Decimal(details["cumulative_commission"])
+            )
+            currency = details.get("cumulative_commission_currency")
+            prior_filled, prior_fee, prior_currency = previous.get(
+                event["intent_id"], (Decimal(0), Decimal(0), None)
+            )
+            if filled < prior_filled:
+                raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
+            quantity_delta = filled - prior_filled
+            if quantity_delta:
+                if (
+                    details["average_price"] is None
+                    or cumulative_fee is None
+                    or not isinstance(currency, str)
+                    or currency not in allowed_currencies
+                ):
+                    return False
+                binding = receipt["binding"]
+                if not isinstance(binding, Mapping):
+                    return False
+                trade_key = (binding["data_name"], binding["tradeid"])
+                prior_trade_currency = currencies_by_trade.setdefault(trade_key, currency)
+                if prior_trade_currency != currency:
+                    return False
+                if prior_currency not in (None, currency):
+                    return False
+                # The v1 event DTO intentionally omits provider execution
+                # time.  created_at_ns is a local journal timestamp, not an
+                # execution-time substitute, so historical Strategy Trade
+                # reconstruction is unavailable for this fill.
+                return False
+            elif cumulative_fee != prior_fee:
+                # A rebate/correction without new units cannot be represented
+                # by OrderExecutionBit and Trade.update without a fabricated
+                # zero-quantity execution.
+                return False
+            previous[event["intent_id"]] = (
+                filled,
+                cumulative_fee,
+                currency if currency is not None else prior_currency,
+            )
+        return True
+
+    def _validate_owner_book_baseline(
+        self,
+        namespace: ServiceExecutionRecoveryNamespace,
+        coverage: Mapping[str, Any],
+        raw: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        required = {
+            "account_key",
+            "account_ref",
+            "strategy_ref",
+            "scope_directory_revision",
+            "journal_generation",
+            "baseline_execution_cursor",
+            "current_execution_cursor",
+            "positions",
+            "cash_by_currency",
+            "position_costs",
+            "financial_available",
+            "cost_basis_complete",
+        }
+        if not isinstance(raw, Mapping) or frozenset(raw) != required:
+            raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_BASELINE")
+        if (
+            raw["account_key"] != coverage["account_key"]
+            or not _identifier(raw["account_key"])
+            or raw["account_ref"] != namespace.account_ref
+            or raw["strategy_ref"] != namespace.strategy_ref
+            or raw["scope_directory_revision"] != coverage["scope_directory_revision"]
+            or raw["journal_generation"] != coverage["journal_generation"]
+            or type(raw["baseline_execution_cursor"]) is not int
+            or type(raw["current_execution_cursor"]) is not int
+            or raw["current_execution_cursor"] != coverage["high_water_sequence"]
+            or raw["baseline_execution_cursor"] > raw["current_execution_cursor"]
+            or type(raw["financial_available"]) is not bool
+            or type(raw["cost_basis_complete"]) is not bool
+            or not isinstance(raw["positions"], Mapping)
+            or not isinstance(raw["cash_by_currency"], Mapping)
+            or not isinstance(raw["position_costs"], Mapping)
+        ):
+            raise ServiceExecutionRecoveryError("OWNER_BOOK_RECOVERY_CUT_MISMATCH")
+        positions: dict[str, str] = {}
+        for instrument, quantity in raw["positions"].items():
+            if not _identifier(instrument):
+                raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_BASELINE")
+            positions[instrument] = _canonical_decimal_text(quantity)
+        cash: dict[str, str] = {}
+        for currency, amount in raw["cash_by_currency"].items():
+            if not _identifier(currency):
+                raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_BASELINE")
+            cash[currency] = _canonical_decimal_text(amount)
+        costs: dict[str, dict[str, Any]] = {}
+        for instrument, row in raw["position_costs"].items():
+            if not _identifier(instrument) or not isinstance(row, Mapping) or frozenset(row) != {
+                "quantity", "cost_basis", "cost_currency", "product_model",
+                "metadata_version", "average_cost",
+            }:
+                raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_BASELINE")
+            costs[instrument] = {
+                "quantity": _canonical_decimal_text(row["quantity"]),
+                "cost_basis": (
+                    None if row["cost_basis"] is None else _canonical_decimal_text(row["cost_basis"])
+                ),
+                "cost_currency": row["cost_currency"],
+                "product_model": _identifier_or_none(row["product_model"]),
+                "metadata_version": _identifier_or_none(row["metadata_version"]),
+                "average_cost": (
+                    None if row["average_cost"] is None else _canonical_decimal_text(row["average_cost"])
+                ),
+            }
+        all_flat = all(Decimal(quantity) == 0 for quantity in positions.values())
+        return {
+            "account_key": raw["account_key"],
+            "account_ref": namespace.account_ref,
+            "strategy_ref": namespace.strategy_ref,
+            "scope_directory_revision": coverage["scope_directory_revision"],
+            "journal_generation": coverage["journal_generation"],
+            "baseline_execution_cursor": raw["baseline_execution_cursor"],
+            "current_execution_cursor": raw["current_execution_cursor"],
+            "positions": positions,
+            "cash_by_currency": cash,
+            "position_costs": costs,
+            "financial_available": raw["financial_available"],
+            "cost_basis_complete": raw["cost_basis_complete"],
+            "trade_projection_available": bool(
+                raw["financial_available"] and raw["cost_basis_complete"] and all_flat
+            ),
+        }
+
     def claim_pending_callbacks(
         self,
         namespace: ServiceExecutionRecoveryNamespace,
@@ -736,6 +1496,53 @@ class ServiceExecutionRecoveryJournal:
                 delivery_attempt=int(row["delivery_attempts"]) + 1,
             )
             for row in rows
+        )
+
+    def claim_callback(
+        self, namespace: ServiceExecutionRecoveryNamespace, receipt_id: str
+    ) -> Optional[ServiceExecutionRecoveryCallback]:
+        """Claim one pending order callback by its durable event receipt.
+
+        The broker uses this narrower claim after it has rebound the stable
+        intent to a live Strategy Order.  Claiming the whole callback queue
+        would consume receipts for orders the caller has not reconstructed.
+        """
+
+        if not _digest(receipt_id):
+            raise ServiceExecutionRecoveryError("INVALID_CALLBACK_RECEIPT")
+        with self._transaction() as cursor:
+            row = cursor.execute(
+                """SELECT c.delivery_attempts, c.acknowledged_at_ns, r.intent_id,
+                          r.event_type, r.sequence, r.event_json
+                   FROM service_recovery_callbacks AS c
+                   JOIN service_recovery_event_receipts AS r
+                     ON r.account_ref = c.account_ref
+                    AND r.strategy_ref = c.strategy_ref
+                    AND r.logical_run_id = c.logical_run_id
+                    AND r.receipt_id = c.receipt_id
+                   WHERE c.account_ref = ? AND c.strategy_ref = ? AND c.logical_run_id = ?
+                     AND c.receipt_id = ?""",
+                (*_namespace_values(namespace), receipt_id),
+            ).fetchone()
+            if row is None or row["acknowledged_at_ns"] is not None:
+                return None
+            attempt = int(row["delivery_attempts"]) + 1
+            cursor.execute(
+                """UPDATE service_recovery_callbacks
+                   SET delivery_attempts = ?, last_attempt_at_ns = ?
+                   WHERE account_ref = ? AND strategy_ref = ? AND logical_run_id = ?
+                     AND receipt_id = ? AND acknowledged_at_ns IS NULL""",
+                (attempt, time.time_ns(), *_namespace_values(namespace), receipt_id),
+            )
+            if cursor.rowcount != 1:
+                raise ServiceExecutionRecoveryError("CALLBACK_RECEIPT_CLAIM_CONFLICT")
+        return ServiceExecutionRecoveryCallback(
+            receipt_id=receipt_id,
+            intent_id=str(row["intent_id"]),
+            event_type=str(row["event_type"]),
+            sequence=int(row["sequence"]),
+            event=json.loads(str(row["event_json"])),
+            delivery_attempt=attempt,
         )
 
     def acknowledge_callback(
@@ -1098,7 +1905,7 @@ class ServiceExecutionRecoveryJournal:
             return
 
         manifest = cursor.execute(
-            """SELECT logical_run_id, submit_fingerprint, server_scope_key,
+            """SELECT logical_run_id, submit_fingerprint, payload_json, server_scope_key,
                       server_intent_fingerprint
                FROM service_recovery_intents
                WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?""",
@@ -1131,6 +1938,42 @@ class ServiceExecutionRecoveryJournal:
                 ),
             )
             matched = True
+        if matched and event["event_type"] in {
+            "provider_observation",
+            "reconciled_observation",
+            "provider_commission_evidence",
+            "cancelled_by_cancel_intent",
+        }:
+            positions, cumulative = self._trade_projection_before(
+                cursor, namespace, int(event["sequence"])
+            )
+            details = event["details"]
+            filled = _decimal_value(details["filled_quantity"], nonnegative=True)
+            previous = cumulative.get(str(event["intent_id"]), Decimal(0))
+            if filled < previous:
+                raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
+            delta = filled - previous
+            if delta:
+                binding_row = cursor.execute(
+                    """SELECT binding_json FROM service_recovery_intent_bindings
+                       WHERE account_ref = ? AND strategy_ref = ? AND intent_id = ?
+                         AND logical_run_id = ?""",
+                    (
+                        *_intent_namespace_values(namespace, str(event["intent_id"])),
+                        namespace.logical_run_id,
+                    ),
+                ).fetchone()
+                if binding_row is None:
+                    raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
+                binding = json.loads(str(binding_row["binding_json"]))
+                submit = json.loads(str(manifest["payload_json"]))
+                self._apply_trade_delta(
+                    positions,
+                    (binding["data_name"], binding["tradeid"]),
+                    submit["side"],
+                    submit["position_effect"],
+                    delta,
+                )
         cursor.execute(
             """INSERT INTO service_recovery_event_receipts(
                    account_ref, strategy_ref, logical_run_id, scope_key,
@@ -1244,6 +2087,27 @@ class ServiceExecutionRecoveryJournal:
                     updated_at_ns INTEGER NOT NULL,
                     PRIMARY KEY(account_ref, strategy_ref, intent_id)
                 );
+                CREATE TABLE IF NOT EXISTS service_recovery_intent_bindings (
+                    account_ref TEXT NOT NULL,
+                    strategy_ref TEXT NOT NULL,
+                    intent_id TEXT NOT NULL,
+                    logical_run_id TEXT NOT NULL,
+                    binding_json TEXT NOT NULL,
+                    PRIMARY KEY(account_ref, strategy_ref, intent_id)
+                );
+                CREATE TABLE IF NOT EXISTS service_recovery_baselines (
+                    account_ref TEXT NOT NULL,
+                    strategy_ref TEXT NOT NULL,
+                    logical_run_id TEXT NOT NULL,
+                    server_account_key TEXT NOT NULL,
+                    journal_generation TEXT NOT NULL,
+                    directory_revision TEXT NOT NULL,
+                    baseline_cursor INTEGER NOT NULL,
+                    baseline_hash TEXT NOT NULL,
+                    baseline_json TEXT NOT NULL,
+                    created_at_ns INTEGER NOT NULL,
+                    PRIMARY KEY(account_ref, strategy_ref, logical_run_id)
+                );
                 CREATE TABLE IF NOT EXISTS service_recovery_cancels (
                     account_ref TEXT NOT NULL,
                     strategy_ref TEXT NOT NULL,
@@ -1329,8 +2193,13 @@ class ServiceExecutionRecoveryJournal:
                 row = cursor.execute(
                     "SELECT value FROM service_recovery_meta WHERE key = 'schema_version'"
                 ).fetchone()
-                if row is None or str(row["value"]) != str(self._SCHEMA_VERSION):
+                if row is None or str(row["value"]) not in {"1", str(self._SCHEMA_VERSION)}:
                     raise ServiceExecutionRecoveryError("RECOVERY_SCHEMA_VERSION_UNSUPPORTED")
+                if str(row["value"]) == "1":
+                    cursor.execute(
+                        "UPDATE service_recovery_meta SET value = ? WHERE key = 'schema_version'",
+                        (str(self._SCHEMA_VERSION),),
+                    )
             finally:
                 cursor.close()
 
@@ -1610,6 +2479,50 @@ def _validate_event_details(event_type: str, details: Mapping[str, Any]) -> None
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _snapshot_hash(coverage: Mapping[str, Any], orders: list[dict[str, Any]]) -> str:
+    payload = _canonical_json({"coverage": coverage, "orders": orders})
+    return _sha256(payload.encode("utf-8"))
+
+
+def _intent_namespace_values(
+    namespace: ServiceExecutionRecoveryNamespace, intent_id: str
+) -> tuple[str, str, str]:
+    return namespace.account_ref, namespace.strategy_ref, intent_id
+
+
+def _validate_recovery_binding(
+    raw: Mapping[str, Any], submit_payload: Mapping[str, Any]
+) -> dict[str, Any]:
+    if not isinstance(raw, Mapping) or frozenset(raw) != {"tradeid", "data_name"}:
+        raise ServiceExecutionRecoveryError("INVALID_INTENT_RECOVERY_BINDING")
+    if type(raw["tradeid"]) is not int or not _identifier(raw["data_name"]):
+        raise ServiceExecutionRecoveryError("INVALID_INTENT_RECOVERY_BINDING")
+    return {"tradeid": raw["tradeid"], "data_name": raw["data_name"]}
+
+
+def _canonical_decimal_text(value: Any) -> str:
+    if type(value) is Decimal:
+        number = value
+    elif type(value) is str:
+        try:
+            number = Decimal(value)
+        except Exception as error:  # noqa: BLE001 - finite local contract error
+            raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_DECIMAL") from error
+    else:
+        raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_DECIMAL")
+    if not number.is_finite():
+        raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_DECIMAL")
+    return format(number, "f")
+
+
+def _identifier_or_none(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if not _identifier(value):
+        raise ServiceExecutionRecoveryError("INVALID_OWNER_BOOK_IDENTIFIER")
+    return value
 
 
 def _receipt_id(*parts: str) -> str:

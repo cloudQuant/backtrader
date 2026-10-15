@@ -2034,6 +2034,34 @@ class Strategy(StrategyBase):
         # If not simulated trading, add order to pending orders
         if not order.p.simulated:
             self._orderspending.append(order)
+        recovery_info = getattr(order, "info", None)
+        recovery_receipt = (
+            recovery_info.get("service_execution_recovery_receipt_id")
+            if callable(getattr(recovery_info, "get", None))
+            else None
+        )
+        recovery_restore_only = bool(
+            recovery_info.get("service_execution_recovery_restore_only", False)
+            if callable(getattr(recovery_info, "get", None))
+            else False
+        )
+        if recovery_restore_only:
+            # Snapshot and v1 event facts have no provider execution time.
+            # They can notify order state but cannot create Strategy Trade
+            # history or a second fill projection.
+            if quicknotify:
+                self._notify(qorders=[order], qtrades=[])
+            return
+        seen_recovery_trades = getattr(
+            self, "_service_execution_recovery_trade_receipts", None
+        )
+        if seen_recovery_trades is None:
+            seen_recovery_trades = set()
+            self._service_execution_recovery_trade_receipts = seen_recovery_trades
+        if recovery_receipt and recovery_receipt in seen_recovery_trades:
+            if quicknotify:
+                self._notify(qorders=[order], qtrades=[])
+            return
         # If in quick notify mode, initialize qorders and qtrades
         if quicknotify:
             qorders = [order]
@@ -2116,11 +2144,57 @@ class Strategy(StrategyBase):
                 # If quick notify needed, copy trade and add to qtrades
                 if quicknotify:
                     qtrades.append(copy.copy(trade))
+        if recovery_receipt:
+            seen_recovery_trades.add(recovery_receipt)
         # If quick notify needed, call _notify
         if quicknotify:
             self._notify(qorders=qorders, qtrades=qtrades)
 
     def _notify(self, qorders=None, qtrades=None):
+        """Deliver notifications and acknowledge durable receipts on success."""
+
+        try:
+            quicknotify_enabled = self._quicknotify
+        except AttributeError:
+            quicknotify_enabled = self.cerebro.p.quicknotify
+        tracked_orders = (qorders or []) if quicknotify_enabled else self._orderspending
+        receipt_ids = []
+        seen = set()
+        for order in tracked_orders:
+            info = getattr(order, "info", None)
+            receipt_id = (
+                info.get("service_execution_recovery_receipt_id")
+                if callable(getattr(info, "get", None))
+                else None
+            )
+            if isinstance(receipt_id, str) and receipt_id not in seen:
+                seen.add(receipt_id)
+                receipt_ids.append(receipt_id)
+        try:
+            self._notify_inner(qorders=qorders, qtrades=qtrades)
+        except BaseException:
+            broker = getattr(self, "broker", None)
+            release = getattr(broker, "release_service_execution_recovery_receipt", None)
+            if callable(release):
+                for receipt_id in receipt_ids:
+                    release(receipt_id)
+            raise
+        broker = getattr(self, "broker", None)
+        acknowledge = getattr(broker, "acknowledge_service_execution_recovery_receipt", None)
+        if callable(acknowledge):
+            for receipt_id in receipt_ids:
+                try:
+                    acknowledge(receipt_id)
+                except BaseException:
+                    release = getattr(
+                        broker, "release_service_execution_recovery_receipt", None
+                    )
+                    if callable(release):
+                        for pending_receipt in receipt_ids:
+                            release(pending_receipt)
+                    raise
+
+    def _notify_inner(self, qorders=None, qtrades=None):
         """Notify order and trade events to strategy and analyzers.
 
         Args:
