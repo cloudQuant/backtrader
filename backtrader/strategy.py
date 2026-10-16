@@ -43,6 +43,7 @@ import datetime
 import itertools
 import math
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase

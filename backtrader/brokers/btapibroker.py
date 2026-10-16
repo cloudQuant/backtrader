@@ -5118,6 +5118,14 @@ class BtApiBroker(BrokerBase):
             event = receipt.get("event")
             intent_id = event.get("intent_id")
             order = self._recovery_orders_by_intent.get(intent_id)
+            if order is None and self._uses_service_execution_recovery_v2():
+                # A fresh process never re-submits the durable intent, so the
+                # pending callback outlives its live Strategy Order. Rebuild the
+                # durable order identity; the V2 replay branch below remains the
+                # only path that projects the already-checkpointed Trade.
+                order = self._reconstruct_service_execution_recovery_order(
+                    intent_id, receipt
+                )
             if order is None:
                 continue
             if self._order_info_get(order, "managed_intent_id") != intent_id:
@@ -5239,6 +5247,106 @@ class BtApiBroker(BrokerBase):
         self._flush_service_execution_recovery_snapshot_notifications(
             startup_cursor=startup_cursor
         )
+
+    def _reconstruct_service_execution_recovery_order(self, intent_id, receipt):
+        """Rebuild the durable identity of one pending V2 callback's order.
+
+        A restart can hold a pending fill callback for an intent whose Strategy
+        never re-submitted it in this process. The replay order carries only
+        immutable identity plus the manifest economics; the fill projection
+        stays the sole authority for what the Strategy projects.
+        """
+
+        adapter = getattr(self._service_execution_session, "adapter", None)
+        binding = receipt.get("binding")
+        if (
+            adapter is None
+            or not isinstance(binding, Mapping)
+            or frozenset(binding) != {"data_name", "tradeid"}
+        ):
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_binding_invalid"
+            )
+        data_name = binding.get("data_name")
+        tradeid = binding.get("tradeid")
+        if (
+            not isinstance(data_name, str)
+            or not data_name
+            or type(tradeid) is not int
+            or tradeid < 0
+        ):
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_binding_invalid"
+            )
+        feed = self.service_execution_recovery_feed(data_name)
+        if feed is None or getattr(feed, "_compensate", None) is not None:
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_feed_unavailable"
+            )
+        try:
+            manifest = adapter.recovery_manifest(intent_id)
+        except Exception:
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_manifest_unavailable"
+            )
+        payload = manifest.get("submit_payload") if isinstance(manifest, Mapping) else None
+        if (
+            not isinstance(payload, Mapping)
+            or payload.get("intent_id") != intent_id
+            or payload.get("order_type") != "MARKET"
+            or payload.get("time_in_force") != "FOK"
+            or payload.get("price") is not None
+            or payload.get("position_effect") != "OPEN"
+            or payload.get("reduce_only") is not False
+            or payload.get("side") not in {"BUY", "SELL"}
+            or not isinstance(payload.get("instrument"), str)
+            or not payload.get("instrument")
+        ):
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_manifest_invalid"
+            )
+        manifest_binding = manifest.get("recovery_binding")
+        if (
+            not isinstance(manifest_binding, Mapping)
+            or manifest_binding.get("data_name") != data_name
+            or manifest_binding.get("tradeid") != tradeid
+        ):
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_binding_mismatch"
+            )
+        try:
+            quantity = Decimal(str(payload.get("quantity")))
+        except (InvalidOperation, TypeError, ValueError):
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_quantity_invalid"
+            )
+        if not quantity.is_finite() or quantity <= 0:
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_quantity_invalid"
+            )
+        strategy = self._service_execution_recovery_strategy
+        if strategy is None:
+            self._fence_service_execution_recovery(
+                None, "recovery_v2_replay_strategy_missing"
+            )
+        is_buy = payload.get("side") == "BUY"
+        order_class = BuyOrder if is_buy else SellOrder
+        order = order_class(
+            owner=strategy,
+            data=feed,
+            size=float(quantity) if is_buy else -float(quantity),
+            exectype=OrderBase.Market,
+            tradeid=tradeid,
+        )
+        order.broker = self
+        order.addcomminfo(self.getcommissioninfo(feed))
+        order.addinfo(
+            managed_intent_id=intent_id,
+            managed_instrument=payload.get("instrument"),
+            service_execution_recovery_managed=True,
+        )
+        self._recovery_orders_by_intent[intent_id] = order
+        return order
 
     @staticmethod
     def _service_recovery_match_datetime(match_time_ns):

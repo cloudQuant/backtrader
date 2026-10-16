@@ -21,6 +21,7 @@ the broker can preserve that order and the caller can back off.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
