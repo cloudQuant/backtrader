@@ -12,17 +12,21 @@ from __future__ import annotations
 
 def make_client(config, env, topology):
     """Build the venue session for this suite."""
-    from .ctp_client import SimNowSession, ensure_sdk_importable, select_front_pair
-
-    sdk = config.get("sdk", {})
-    sdk_root = env.get(sdk.get("root_env", ""), "") or sdk.get("default_root")
-    provenance = ensure_sdk_importable(sdk_root)
     transport = topology.get("transport", "direct")
     if transport != "direct":
         raise RuntimeError(f"transport_not_implemented:{transport}")
     for flag in ("execution", "risk", "monitor"):
         if topology.get(flag):
             raise RuntimeError(f"component_not_implemented:{flag}")
+
+    # Refuse unavailable normal backends before importing the CTP client or
+    # resolving its SDK root. A blocked request should not import the provider
+    # client merely to report that the backend is not implemented.
+    from .ctp_client import SimNowSession, ensure_sdk_importable, select_front_pair
+
+    sdk = config.get("sdk", {})
+    sdk_root = env.get(sdk.get("root_env", ""), "") or sdk.get("default_root")
+    provenance = ensure_sdk_importable(sdk_root)
     pair, attempts = select_front_pair(config.get("fronts", {}), env)
     credentials = config.get("credentials", {})
     return SimNowSession(
