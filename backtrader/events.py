@@ -298,6 +298,7 @@ class OrderBookSnapshot(EventData):
 
     bids: List[Tuple[float, float]] = field(default_factory=list)
     asks: List[Tuple[float, float]] = field(default_factory=list)
+    recovery_snapshot: bool = False
 
     def __init__(
         self,
@@ -320,6 +321,7 @@ class OrderBookSnapshot(EventData):
         stale: bool = False,
         stale_reason: str = "",
         source: str = "",
+        recovery_snapshot: bool = False,
         event_id: Optional[str] = None,
         coalesced_count: int = 1,
     ) -> None:
@@ -361,6 +363,7 @@ class OrderBookSnapshot(EventData):
         )
         self.bids = list(bids or ())
         self.asks = list(asks or ())
+        self.recovery_snapshot = recovery_snapshot
 
     @property
     def event_type(self) -> str:
@@ -406,7 +409,7 @@ class OrderBookSnapshot(EventData):
             - Best ask > best bid (positive spread)
             - All prices > 0 and quantities > 0
         """
-        if not super().validate():
+        if not super().validate() or type(self.recovery_snapshot) is not bool:
             return False
         if not self.bids or not self.asks:
             return False

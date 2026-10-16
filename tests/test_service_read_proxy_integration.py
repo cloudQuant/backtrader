@@ -6,13 +6,16 @@ import io
 import multiprocessing
 import socket
 import threading
+import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import backtrader as bt
 import zmq
+import pytest
 from bt_api_base.account_protocol import (
     AccountBalance,
     AccountKey,
@@ -27,7 +30,11 @@ from bt_api_base.market_history_protocol import (
     MarketHistoryPage,
     MarketHistoryRequest,
 )
-from bt_api_base.market_protocol import MarketInstrumentKey, MarketSubscriptionKey
+from bt_api_base.market_protocol import (
+    MarketInstrumentKey,
+    MarketSourceDescriptor,
+    MarketSubscriptionKey,
+)
 from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
 from bt_api_gateway import GatewayCommandKind, GatewayEventJournal, GatewayPrincipal
 from bt_api_gateway.account_session_worker import GatewayAccountSessionWorker
@@ -43,7 +50,12 @@ from bt_api_py.service_registry import PrincipalGrant, ResourceGrant
 from bt_api_py.service_runtime import ClientCurveKeys, ServiceClientRuntime, ZmqTransportFactory
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.stores.btapistore import BtApiStore
-from backtrader.stores.service_read_proxy import ServiceFeedBinding, ServiceReadProxy
+from backtrader.stores.service_read_proxy import (
+    SERVICE_ORDERBOOK_SCHEMA_VERSION,
+    ServiceFeedBinding,
+    ServiceOrderBookBinding,
+    ServiceReadProxy,
+)
 
 _DOMAIN_REF = "paper:read-proxy-integration"
 _STRATEGY_REF = "strategy-read-proxy-integration"
@@ -83,6 +95,13 @@ _MARKET_KEY = MarketSubscriptionKey(
     instrument=_INSTRUMENT,
     channel="bar",
     timeframe="1m",
+)
+_ORDERBOOK_KEY = MarketSubscriptionKey(
+    source_ref="synthetic-orderbook-source",
+    entitlement_ref="synthetic-orderbook-entitlement",
+    instrument=_INSTRUMENT,
+    channel="orderbook",
+    depth=2,
 )
 _ACCOUNT_OPERATIONS = frozenset({"account.snapshot"})
 _MARKET_OPERATIONS = frozenset(
@@ -366,14 +385,15 @@ def _account_observation(sequence: int) -> AccountObservation:
 class _SyntheticMarketProvider:
     """Count one source acquisition and publish only owner-thread fixtures."""
 
-    def __init__(self) -> None:
+    def __init__(self, key: MarketSubscriptionKey = _MARKET_KEY) -> None:
         self.starts = 0
         self.stops = 0
         self.generation: str | None = None
         self.hub: GatewayMarketHub | None = None
+        self.key = key
 
     def subscribe(self, key: MarketSubscriptionKey, *, generation: str) -> object:
-        if key != _MARKET_KEY or not generation or self.generation is not None:
+        if key != self.key or not generation or self.generation is not None:
             raise AssertionError("unexpected synthetic market acquisition")
         self.starts += 1
         self.generation = generation
@@ -382,7 +402,7 @@ class _SyntheticMarketProvider:
     def unsubscribe(self, handle: object) -> bool:
         if not isinstance(handle, tuple) or handle != (
             "synthetic-stream",
-            _MARKET_KEY.stream_id,
+            self.key.stream_id,
             self.generation,
         ):
             raise AssertionError("synthetic market release used an unknown handle")
@@ -390,12 +410,64 @@ class _SyntheticMarketProvider:
         self.generation = None
         return True
 
+    def describe_source(
+        self,
+        handle: object,
+        *,
+        key: MarketSubscriptionKey,
+        generation: str,
+        stream_id: str,
+        epoch: str,
+    ) -> MarketSourceDescriptor:
+        if (
+            key != self.key
+            or generation != self.generation
+            or handle != ("synthetic-stream", key.stream_id, generation)
+            or stream_id != key.stream_id
+        ):
+            raise AssertionError("synthetic source descriptor is not bound to its stream")
+        return MarketSourceDescriptor(
+            key=key,
+            stream_id=stream_id,
+            epoch=epoch,
+            provider=key.instrument.provider,
+            source="synthetic.servicehost.market",
+            connection_generation=self.starts,
+            clock_domain_id="synthetic-provider-clock",
+            clock_source_session_id=f"synthetic-session-{self.starts}",
+            clock_source="synthetic-provider-clock",
+        )
+
     def publish(self, index: int) -> int:
         if self.hub is None or self.generation is None or type(index) is not int:
             raise AssertionError("synthetic market publisher is not ready")
+        if self.key.channel == "orderbook":
+            if index != 0:
+                raise AssertionError("synthetic orderbook fixture has one fixed snapshot")
+            data = {
+                "schema_version": SERVICE_ORDERBOOK_SCHEMA_VERSION,
+                "complete_state": True,
+                "timestamp": datetime.now(UTC).timestamp(),
+                "symbol": self.key.instrument.native_symbol,
+                "exchange": self.key.instrument.venue,
+                "asset_type": self.key.instrument.product_type,
+                "bids": [["100", "3"], ["99.5", "2"]],
+                "asks": [["100.5", "4"], ["101", "5"]],
+                "sequence": 1,
+                "previous_sequence": None,
+                "snapshot_or_delta": "snapshot",
+                "continuity_status": "snapshot",
+                "stale": False,
+                "stale_reason": "",
+                "recovery_snapshot": False,
+            }
+        else:
+            if not 0 <= index < len(_LIVE_BARS):
+                raise AssertionError("synthetic bar index is outside the fixed fixture")
+            data = _LIVE_BARS[index].to_dict()
         event = self.hub.publish(
-            _MARKET_KEY,
-            _LIVE_BARS[index].to_dict(),
+            self.key,
+            data,
             _utc_now(),
             generation=self.generation,
         )
@@ -593,9 +665,10 @@ def _market_service_process(
     registry_path: str,
     server_keys: tuple[bytes, bytes],
     client_key: bytes,
+    market_key: MarketSubscriptionKey = _MARKET_KEY,
 ) -> None:
     host = None
-    provider = _SyntheticMarketProvider()
+    provider = _SyntheticMarketProvider(market_key)
     history = _SyntheticHistoryProvider()
     try:
         config = parse_service_config(raw_config)
@@ -607,8 +680,8 @@ def _market_service_process(
         scope = WireScope(_DOMAIN_REF)
         hub = GatewayMarketHub(
             provider,
-            key_universe=frozenset({_MARKET_KEY}),
-            principal_allowed_keys={_CLIENT_PRINCIPAL: frozenset({_MARKET_KEY})},
+            key_universe=frozenset({market_key}),
+            principal_allowed_keys={_CLIENT_PRINCIPAL: frozenset({market_key})},
             service_identity=identity,
             service_scope=scope,
             history_provider=history,
@@ -712,7 +785,13 @@ def _market_status(host, hub, provider, history) -> dict[str, Any]:
 
 def _start_process(context, target, args, label: str) -> dict[str, Any]:
     parent, child = context.Pipe(duplex=True)
-    process = context.Process(target=target, args=(child, *args), name=label)
+    try:
+        process = context.Process(target=target, args=(child, *args), name=label)
+    except BaseException:
+        for connection in (parent, child):
+            with suppress(BaseException):
+                connection.close()
+        raise
     record: dict[str, Any] = {
         "label": label,
         "process": process,
@@ -734,6 +813,67 @@ def _start_process(context, target, args, label: str) -> dict[str, Any]:
 def _receive(pipe, timeout: float = 12.0):
     assert pipe.poll(timeout), "spawned service host missed its response bound"
     return pipe.recv()
+
+
+def _join_publisher_bounded(publisher, cleanup_failures, *, timeout: float) -> None:
+    if publisher is None or not publisher.is_alive():
+        return
+    publisher.join(timeout)
+    if publisher.is_alive():
+        cleanup_failures.append("publisher_thread_join_timeout")
+
+
+def test_start_process_closes_both_pipes_when_process_construction_fails():
+    class Pipe:
+        def __init__(self, *, fail_close: bool = False) -> None:
+            self.close_calls = 0
+            self.fail_close = fail_close
+
+        def close(self) -> None:
+            self.close_calls += 1
+            if self.fail_close:
+                raise OSError("synthetic close failure")
+
+    parent = Pipe(fail_close=True)
+    child = Pipe()
+    construction_error = RuntimeError("synthetic process construction failure")
+
+    class Context:
+        @staticmethod
+        def Pipe(*, duplex: bool):
+            assert duplex is True
+            return parent, child
+
+        @staticmethod
+        def Process(**kwargs):
+            raise construction_error
+
+    try:
+        _start_process(Context, target=object(), args=(), label="synthetic")
+    except RuntimeError as exc:
+        assert exc is construction_error
+    else:
+        raise AssertionError("Process construction failure was not propagated")
+    assert parent.close_calls == 1
+    assert child.close_calls == 1
+
+
+def test_publisher_cleanup_records_a_bounded_join_timeout():
+    class StuckPublisher:
+        def __init__(self) -> None:
+            self.join_timeouts: list[float] = []
+
+        def is_alive(self) -> bool:
+            return True
+
+        def join(self, timeout: float) -> None:
+            self.join_timeouts.append(timeout)
+
+    publisher = StuckPublisher()
+    cleanup_failures: list[str] = []
+    _join_publisher_bounded(publisher, cleanup_failures, timeout=2.0)
+    assert publisher.join_timeouts == [2.0]
+    assert cleanup_failures == ["publisher_thread_join_timeout"]
 
 
 def _host_command(record: dict[str, Any], *command, timeout: float = 8.0):
@@ -1188,5 +1328,274 @@ def test_cerebro_store_reads_account_and_history_then_streams_deduplicated_bars(
         if forced_cleanup or cleanup_failures:
             raise AssertionError(
                 "integration cleanup was not normal: "
+                f"forced={tuple(forced_cleanup)}, failures={tuple(cleanup_failures)}"
+            )
+
+
+def test_cerebro_store_feed_consumes_service_orderbook_with_bound_source(tmp_path):
+    """A real local ServiceHost delivers one typed L2 image through the Feed."""
+
+    context = multiprocessing.get_context("spawn")
+    market_rpc, market_pub = _free_endpoints(2)
+    market_server_keys = zmq.curve_keypair()
+    client_public, client_secret = zmq.curve_keypair()
+    raw_market_service = _service_config(
+        service_id=_MARKET_SERVICE_ID,
+        scope_ref=_MARKET_SCOPE_REF,
+        transport_ref=_MARKET_TRANSPORT_REF,
+        instance_id=_MARKET_INSTANCE_ID,
+        bind_ports=["service.market_source"],
+        options={"role": "market_hub"},
+        rpc_bind=market_rpc,
+        security_ref=_MARKET_SECURITY_REF,
+        market_bind=market_pub,
+    )
+    market_service = _start_process(
+        context,
+        _market_service_process,
+        (
+            raw_market_service,
+            str(tmp_path / "orderbook-market-registry.sqlite3"),
+            market_server_keys,
+            client_public,
+            _ORDERBOOK_KEY,
+        ),
+        "synthetic-orderbook-service-host",
+    )
+    runtime: ServiceClientRuntime | None = None
+    proxy: ServiceReadProxy | None = None
+    broker: BtApiBroker | None = None
+    publisher: threading.Thread | None = None
+    watchdog: threading.Timer | None = None
+    forced_cleanup: list[str] = []
+    cleanup_failures: list[str] = []
+    try:
+        market_ready = _receive(market_service["pipe"])
+        assert market_ready[0] == "ready", market_ready
+        assert market_ready[1:3] == (market_rpc, market_pub)
+        assert market_ready[3]["host"] == "started"
+        assert market_ready[3]["readiness"]["ready"] is True
+        assert market_ready[3]["source_starts"] == 0
+
+        raw_client = _client_config("tcp://127.0.0.1:1", market_rpc, market_pub)
+        client_settings = raw_client["clients"]["gateway"]["settings"]
+        client_settings["bindings"] = [
+            binding
+            for binding in client_settings["bindings"]
+            if binding["mount"] == "store.market"
+        ]
+        raw_client["communication"]["profiles"].pop(_ACCOUNT_CLIENT_TRANSPORT_REF)
+        config = parse_client_config(raw_client)
+        identity = WireIdentity(
+            WireRole.STRATEGY_CLIENT,
+            _CLIENT_PRINCIPAL,
+            _STRATEGY_REF,
+        )
+        market_client_keys = ClientCurveKeys(
+            market_server_keys[0],
+            client_public,
+            client_secret,
+        )
+        runtime = ServiceClientRuntime(
+            config,
+            identity=identity,
+            scope_resolver=lambda scope_ref: {
+                _MARKET_SCOPE_REF: WireScope(_DOMAIN_REF, strategy_ref=_STRATEGY_REF)
+            }[scope_ref],
+            peer_resolver=lambda service_id: {
+                _MARKET_SERVICE_ID: WireIdentity(
+                    WireRole.SERVICE,
+                    "principal-market-service",
+                    _MARKET_SERVICE_ID,
+                )
+            }[service_id],
+            transport_factory=ZmqTransportFactory(
+                {_MARKET_SECURITY_REF: market_client_keys}
+            ),
+            requested_operations={"store.market": _MARKET_OPERATIONS},
+        )
+        runtime.start()
+        assert runtime.healthy is True
+        assert len(runtime.bindings) == 1
+        assert runtime.bindings[0].mount == "store.market"
+
+        market_client = ServiceMarketClient(
+            runtime,
+            "store.market",
+            _ORDERBOOK_KEY,
+            subscriber_factory=ZmqMarketTransportFactory(
+                {_MARKET_SECURITY_REF: market_client_keys}
+            ),
+            stream_scope=WireScope(_DOMAIN_REF),
+            head_check_interval_seconds=0.25,
+            require_source_descriptor=True,
+        )
+
+        class _SyntheticReadOnlyAccountClient:
+            expected_account = _ACCOUNT_KEY
+            required_coverage = (_RESOURCE,)
+            require_open_orders = True
+
+            def __init__(self):
+                self.closed = False
+                self.read_calls = 0
+                self.view = SimpleNamespace(observation=_account_observation(2))
+
+            def refresh(self):
+                self.read_calls += 1
+                return self.view
+
+            def snapshot(self):
+                return self.view
+
+            def close(self):
+                self.closed = True
+
+        account_client = _SyntheticReadOnlyAccountClient()
+        binding = ServiceOrderBookBinding(
+            market_client,
+            _RESOURCE,
+            "unit",
+            quantity_multiplier="2",
+            max_depth=2,
+            max_event_age_seconds="5",
+        )
+        proxy = ServiceReadProxy(
+            account_client,
+            {_SYMBOL: binding},
+            valuation_currency="USD",
+            position_mode="net",
+            clock=lambda: datetime.now(UTC),
+        )
+        assert not callable(getattr(proxy, "submit_order", None))
+        store = BtApiStore(api=proxy)
+        broker = store.getbroker(
+            market_data_only=True,
+            position_mode="net",
+            force_refresh_queries=True,
+        )
+        cerebro = bt.Cerebro(stdstats=False)
+        cerebro.setbroker(broker)
+        data = store.getdata(
+            dataname=_SYMBOL,
+            timeframe=bt.TimeFrame.Ticks,
+            compression=1,
+            backfill_start=False,
+            dispatch_orderbooks=True,
+            orderbook_as_ticks=True,
+            qcheck=0.01,
+        )
+        cerebro.adddata(data, name=_SYMBOL)
+
+        class _OneOrderBookStrategy(bt.Strategy):
+            params = (("proxy", None),)
+
+            def __init__(self):
+                self.received = []
+
+            def notify_orderbook(self, book):
+                descriptor = self.p.proxy.orderbook_source_descriptor(_SYMBOL)
+                self.received.append((book, descriptor, float(self.data.close[0])))
+                self.env.runstop()
+
+        cerebro.addstrategy(_OneOrderBookStrategy, proxy=proxy)
+        publish_errors: list[str] = []
+        publish_receipts: list[tuple[Any, ...]] = []
+
+        def publish_after_subscribe():
+            deadline = time.monotonic() + 10.0
+            try:
+                while time.monotonic() < deadline:
+                    status = _host_command(market_service, "status", timeout=8.0)
+                    if status[1]["source_starts"] == 1:
+                        publish_receipts.append(
+                            _host_command(market_service, "publish", 0, timeout=8.0)
+                        )
+                        return
+                    time.sleep(0.02)
+                publish_errors.append("market_subscription_timeout")
+                cerebro.runstop()
+            except BaseException as exc:
+                publish_errors.append(type(exc).__name__)
+                cerebro.runstop()
+
+        publisher = threading.Thread(
+            target=publish_after_subscribe,
+            name="synthetic-orderbook-publisher",
+            daemon=True,
+        )
+        watchdog = threading.Timer(15.0, cerebro.runstop)
+        watchdog.daemon = True
+        watchdog.start()
+        publisher.start()
+        strategies = cerebro.run(runonce=False, preload=False)
+        watchdog.cancel()
+        publisher.join(12.0)
+        assert not publisher.is_alive(), "synthetic orderbook publisher exceeded its bound"
+        assert publish_errors == []
+        assert len(publish_receipts) == 1
+        assert publish_receipts[0][0] == "published"
+        assert strategies and len(strategies[0].received) == 1
+
+        book, descriptor, midpoint = strategies[0].received[0]
+        assert type(book).__name__ == "OrderBookSnapshot"
+        assert descriptor.key == _ORDERBOOK_KEY
+        assert descriptor.stream_id == _ORDERBOOK_KEY.stream_id
+        assert descriptor.provider == _INSTRUMENT.provider
+        assert descriptor.epoch
+        assert descriptor.connection_generation == 1
+        assert book.source == descriptor.source
+        assert book.symbol == _SYMBOL
+        assert book.exchange == _INSTRUMENT.venue
+        assert book.sequence == 1
+        assert book.previous_sequence is None
+        assert book.snapshot_or_delta == "snapshot"
+        assert book.continuity_status == "snapshot"
+        assert book.stale is False
+        assert book.bids == [(100.0, 6.0), (99.5, 4.0)]
+        assert book.asks == [(100.5, 8.0), (101.0, 10.0)]
+        assert midpoint == 100.25
+        assert account_client.read_calls == 1
+        assert proxy.is_connected is False
+        assert account_client.closed is True
+        assert market_client.healthy is False
+
+        market_status = _host_command(market_service, "status")
+        assert market_status[1]["source_starts"] == 1
+        assert market_status[1]["source_stops"] == 1
+        assert market_status[1]["readiness"]["active_upstreams"] == 0
+        assert market_status[1]["readiness"]["active_registrations"] == 0
+        runtime.close()
+        assert runtime.state == "closed"
+        assert runtime.cleanup_failures == 0
+        market_closed = _close_host_normally(market_service)
+        assert market_closed[1]["host"] == "closed"
+        assert market_closed[1]["source_starts"] == 1
+        assert market_closed[1]["source_stops"] == 1
+    finally:
+        if watchdog is not None:
+            watchdog.cancel()
+            watchdog.join(2.0)
+        _join_publisher_bounded(publisher, cleanup_failures, timeout=2.0)
+        if broker is not None:
+            try:
+                broker.stop()
+            except Exception as exc:
+                cleanup_failures.append(f"broker_stop:{type(exc).__name__}")
+        if proxy is not None:
+            try:
+                proxy.close()
+            except Exception as exc:
+                cleanup_failures.append(f"proxy_close:{type(exc).__name__}")
+        if runtime is not None and runtime.state != "closed":
+            try:
+                runtime.close()
+            except Exception as exc:
+                cleanup_failures.append(f"runtime_close:{type(exc).__name__}")
+        if market_service is not None:
+            _bounded_reap_test_process(market_service, forced_cleanup, cleanup_failures)
+        if forced_cleanup or cleanup_failures:
+            raise AssertionError(
+                "orderbook integration cleanup was not normal: "
                 f"forced={tuple(forced_cleanup)}, failures={tuple(cleanup_failures)}"
             )

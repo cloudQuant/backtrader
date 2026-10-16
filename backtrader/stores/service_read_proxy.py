@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import re
 import threading
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,7 @@ from bt_api_base.market_protocol import (
     MARKET_EVENT_SCHEMA,
     MARKET_EVENT_SCHEMA_VERSION,
     MarketInstrumentKey,
+    MarketSourceDescriptor,
     MarketSubscriptionKey,
 )
 from bt_api_base.service_protocol import (
@@ -39,6 +41,34 @@ from bt_api_base.service_protocol import (
 )
 
 from ..dataseries import TimeFrame
+from ..events import OrderBookSnapshot
+
+SERVICE_ORDERBOOK_SCHEMA_VERSION = "backtrader.orderbook.snapshot.v1"
+
+_ORDERBOOK_EVENT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "complete_state",
+        "timestamp",
+        "symbol",
+        "exchange",
+        "asset_type",
+        "bids",
+        "asks",
+        "sequence",
+        "previous_sequence",
+        "snapshot_or_delta",
+        "continuity_status",
+        "stale",
+        "stale_reason",
+        "recovery_snapshot",
+    }
+)
+_ORDERBOOK_HEALTHY_CONTINUITY = frozenset({"continuous", "ok", "recovered", "snapshot"})
+_ORDERBOOK_UNHEALTHY_CONTINUITY = frozenset(
+    {"checksum_failed", "disconnected", "gap", "out_of_order", "stale"}
+)
+_ORDERBOOK_CONTINUITY = _ORDERBOOK_HEALTHY_CONTINUITY | _ORDERBOOK_UNHEALTHY_CONTINUITY
 
 
 class ServiceReadProxyError(RuntimeError):
@@ -129,6 +159,51 @@ class ServiceCtpTickBinding:
             raise ValueError("feed resource product_type must match its instrument")
 
 
+@dataclass(frozen=True)
+class ServiceOrderBookBinding:
+    """Bind one bounded complete L2 stream to an explicit account resource.
+
+    The proxy expects ``SERVICE_ORDERBOOK_SCHEMA_VERSION`` in each event data
+    mapping. The generic SDK market envelope transports the event but does not
+    itself assert that every provider emits this Backtrader projection schema.
+    """
+
+    market_client: Any
+    resource: AccountResourceKey
+    qty_unit: str
+    quantity_multiplier: str = "1"
+    max_depth: int = 50
+    max_event_age_seconds: str = "2"
+
+    def __post_init__(self) -> None:
+        if type(self.resource) is not AccountResourceKey:
+            raise TypeError("resource must be an AccountResourceKey")
+        _check_text(self.qty_unit, "qty_unit")
+        if _decimal(self.quantity_multiplier, "quantity_multiplier") <= 0:
+            raise ValueError("quantity_multiplier must be positive")
+        if type(self.max_depth) is not int or not 1 <= self.max_depth <= 1000:
+            raise ValueError("max_depth must be between 1 and 1000")
+        if _decimal(self.max_event_age_seconds, "max_event_age_seconds") <= 0:
+            raise ValueError("max_event_age_seconds must be positive")
+        key = getattr(self.market_client, "key", None)
+        if type(key) is not MarketSubscriptionKey:
+            raise TypeError("market_client.key must be a MarketSubscriptionKey")
+        if type(getattr(self.market_client, "stream_scope", None)) is not WireScope:
+            raise TypeError("market_client.stream_scope must be a WireScope")
+        for method in ("start", "poll", "close"):
+            if not callable(getattr(self.market_client, method, None)):
+                raise TypeError(f"market_client must provide {method}()")
+        if (
+            key.channel != "orderbook"
+            or key.timeframe is not None
+            or type(key.depth) is not int
+            or not 1 <= key.depth <= self.max_depth
+        ):
+            raise ValueError("orderbook key requires a bounded explicit depth")
+        if key.instrument.product_type != self.resource.product_type:
+            raise ValueError("feed resource product_type must match its instrument")
+
+
 class ServiceReadProxy:
     """Borrowed-facade adapter implementing the observation-only Store API."""
 
@@ -138,7 +213,9 @@ class ServiceReadProxy:
     def __init__(
         self,
         account_client: Any,
-        feeds: Mapping[str, ServiceFeedBinding | ServiceCtpTickBinding],
+        feeds: Mapping[
+            str, ServiceFeedBinding | ServiceCtpTickBinding | ServiceOrderBookBinding
+        ],
         *,
         valuation_currency: str,
         position_mode: str,
@@ -168,13 +245,19 @@ class ServiceReadProxy:
             raise ValueError("account coverage must not contain duplicates")
         if not isinstance(feeds, Mapping) or not feeds:
             raise TypeError("feeds must be a non-empty mapping")
-        copied: dict[str, ServiceFeedBinding | ServiceCtpTickBinding] = {}
+        copied: dict[
+            str, ServiceFeedBinding | ServiceCtpTickBinding | ServiceOrderBookBinding
+        ] = {}
         market_clients: set[int] = set()
         for dataname, binding in feeds.items():
             _check_text(dataname, "dataname")
-            if type(binding) not in {ServiceFeedBinding, ServiceCtpTickBinding}:
+            if type(binding) not in {
+                ServiceFeedBinding,
+                ServiceCtpTickBinding,
+                ServiceOrderBookBinding,
+            }:
                 raise TypeError(
-                    "feed mappings must contain ServiceFeedBinding or ServiceCtpTickBinding values"
+                    "feed mappings must contain a supported typed service binding"
                 )
             if id(binding.market_client) in market_clients:
                 raise ValueError("each feed requires its own market client")
@@ -220,9 +303,13 @@ class ServiceReadProxy:
         self._started_clients: set[str] = set()
         self._stream_epochs: dict[str, str] = {}
         self._ctp_tick_source_descriptors: dict[str, Any] = {}
+        self._orderbook_source_descriptors: dict[str, MarketSourceDescriptor] = {}
         self._last_sequences: dict[str, int] = {}
+        self._orderbook_sequences: dict[str, int] = {}
+        self._orderbook_recovery_required: set[str] = set()
         self._bootstrap_bars: dict[str, dict[str, Any]] = {}
         self._bootstrap_ticks: dict[str, dict[str, Any]] = {}
+        self._bootstrap_orderbooks: dict[str, OrderBookSnapshot] = {}
         self._ctp_tick_scopes: dict[str, tuple[int, int]] = {}
         self._ctp_tick_sequences: dict[str, int] = {}
         self._pending_bars: dict[str, dict[str, Any]] = {}
@@ -417,10 +504,13 @@ class ServiceReadProxy:
             return
         client = binding.market_client
         is_tick_binding = type(binding) is ServiceCtpTickBinding
+        is_orderbook_binding = type(binding) is ServiceOrderBookBinding
         if is_tick_binding:
             # A descriptor belongs to one validated subscribe reply. Never
             # reuse a previously bound source identity for a new start.
             self._ctp_tick_source_descriptors.pop(dataname, None)
+        elif is_orderbook_binding:
+            self._orderbook_source_descriptors.pop(dataname, None)
         bootstrap = client.start()
         if (
             getattr(client, "healthy", None) is not True
@@ -430,9 +520,14 @@ class ServiceReadProxy:
         key = client.key
         if type(key) is not MarketSubscriptionKey:
             raise ServiceReadProxyError("MARKET_KEY_INVALID")
-        if (is_tick_binding and key.channel != "ctp.quote.v2") or (
-            not is_tick_binding and key.channel != "bar"
-        ):
+        expected_channel = (
+            "ctp.quote.v2"
+            if is_tick_binding
+            else "orderbook"
+            if is_orderbook_binding
+            else "bar"
+        )
+        if key.channel != expected_channel:
             raise ServiceReadProxyError("MARKET_KEY_INVALID")
         epoch = getattr(bootstrap, "snapshot_epoch", None)
         sequence = getattr(bootstrap, "snapshot_sequence", None)
@@ -452,6 +547,10 @@ class ServiceReadProxy:
             self._bind_ctp_tick_source_descriptor(
                 dataname, binding, bootstrap, expected_epoch=epoch
             )
+        elif is_orderbook_binding:
+            self._bind_orderbook_source_descriptor(
+                dataname, binding, bootstrap, expected_epoch=epoch
+            )
         self._stream_epochs[dataname] = epoch
         self._last_sequences[dataname] = sequence
         snapshot = getattr(bootstrap, "snapshot", None)
@@ -460,6 +559,10 @@ class ServiceReadProxy:
                 raise ServiceReadProxyError("MARKET_BOOTSTRAP_INVALID")
             if is_tick_binding:
                 self._bootstrap_ticks[dataname] = self._event_tick(
+                    dataname, snapshot, expected_sequence=sequence
+                )
+            elif is_orderbook_binding:
+                self._bootstrap_orderbooks[dataname] = self._event_orderbook(
                     dataname, snapshot, expected_sequence=sequence
                 )
             else:
@@ -485,6 +588,17 @@ class ServiceReadProxy:
             raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
         return self._current_ctp_tick_source_descriptor(dataname, binding)
 
+    def orderbook_source_descriptor(self, dataname: str) -> MarketSourceDescriptor:
+        """Return the authenticated source descriptor for a started L2 feed."""
+
+        self._assert_connected()
+        binding = self._binding(dataname)
+        if type(binding) is not ServiceOrderBookBinding:
+            raise ServiceReadProxyError("ORDERBOOK_FEED_UNBOUND")
+        if dataname not in self._started_clients:
+            raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
+        return self._current_orderbook_source_descriptor(dataname, binding)
+
     def fetch_bars(
         self,
         dataname: str,
@@ -497,8 +611,13 @@ class ServiceReadProxy:
         """Read bounded, paginated history after the market stream is started."""
         self._assert_connected()
         binding = self._binding(dataname)
-        if type(binding) is ServiceCtpTickBinding:
-            raise ServiceReadProxyError("CTP_TICK_HISTORY_UNSUPPORTED")
+        if type(binding) is not ServiceFeedBinding:
+            code = (
+                "ORDERBOOK_HISTORY_UNSUPPORTED"
+                if type(binding) is ServiceOrderBookBinding
+                else "CTP_TICK_HISTORY_UNSUPPORTED"
+            )
+            raise ServiceReadProxyError(code)
         if dataname not in self._started_clients:
             raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
         requested_timeframe = _backtrader_timeframe(timeframe, compression)
@@ -609,7 +728,7 @@ class ServiceReadProxy:
         """Return one ordered closed bar; never silently recover from a stream gap."""
         self._assert_connected()
         binding = self._binding(dataname)
-        if type(binding) is ServiceCtpTickBinding:
+        if type(binding) is not ServiceFeedBinding:
             if dataname not in self._started_clients:
                 raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
             self._assert_market_stream_healthy(binding)
@@ -649,13 +768,11 @@ class ServiceReadProxy:
         """Return one original CTP V2 tick after validating transport and source identity."""
         self._assert_connected()
         binding = self._binding(dataname)
-        if type(binding) is ServiceFeedBinding:
+        if type(binding) is not ServiceCtpTickBinding:
             # BtApiFeed may probe for ticks while consuming a bar service feed.
             # This binding has no tick capability, so preserve the normal idle
             # result and keep its bar polling path independent.
             return None
-        if type(binding) is not ServiceCtpTickBinding:
-            raise ServiceReadProxyError("TICK_FEED_UNBOUND")
         if dataname not in self._started_clients:
             raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
         bootstrap = self._bootstrap_ticks.pop(dataname, None)
@@ -671,9 +788,33 @@ class ServiceReadProxy:
         self._last_sequences[dataname] = event.header.sequence
         return tick
 
+    def poll_orderbook(self, dataname: str) -> OrderBookSnapshot | None:
+        """Return one service-delivered complete-depth image for an L2 feed."""
+
+        self._assert_connected()
+        binding = self._binding(dataname)
+        if type(binding) is not ServiceOrderBookBinding:
+            # BtApiFeed probes this method for every live feed. Other explicit
+            # bindings have no orderbook capability and remain idle here.
+            return None
+        if dataname not in self._started_clients:
+            raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
+        bootstrap = self._bootstrap_orderbooks.pop(dataname, None)
+        if bootstrap is not None:
+            return bootstrap
+        self._assert_market_stream_healthy(binding)
+        event = binding.market_client.poll(timeout_ms=0)
+        self._assert_market_stream_healthy(binding)
+        if event is None:
+            return None
+        expected_sequence = self._last_sequences[dataname] + 1
+        book = self._event_orderbook(dataname, event, expected_sequence=expected_sequence)
+        self._last_sequences[dataname] = event.header.sequence
+        return book
+
     @staticmethod
     def _assert_market_stream_healthy(
-        binding: ServiceFeedBinding | ServiceCtpTickBinding,
+        binding: ServiceFeedBinding | ServiceCtpTickBinding | ServiceOrderBookBinding,
     ) -> None:
         client = binding.market_client
         if (
@@ -825,6 +966,216 @@ class ServiceReadProxy:
         except Exception:
             raise ServiceReadProxyError("CTP_TICK_EVENT_INVALID") from None
 
+    def _event_orderbook(
+        self,
+        dataname: str,
+        event: Any,
+        *,
+        expected_sequence: int,
+    ) -> OrderBookSnapshot:
+        """Validate service and provider cursors before exposing a full L2 image."""
+
+        binding = self._binding(dataname)
+        if type(binding) is not ServiceOrderBookBinding:
+            raise ServiceReadProxyError("ORDERBOOK_FEED_UNBOUND")
+        descriptor = self._current_orderbook_source_descriptor(dataname, binding)
+        client = binding.market_client
+        key = client.key
+        if type(event) is not WireEnvelope:
+            raise ServiceReadProxyError("MARKET_EVENT_INVALID")
+        try:
+            validate_event(
+                event,
+                expected_scope=client.stream_scope,
+                expected_stream_id=key.stream_id,
+                expected_stream_epoch=self._stream_epochs.get(dataname),
+                expected_sequence=expected_sequence,
+            )
+            header = event.header
+            if (
+                header.kind is not WireMessageKind.EVENT
+                or header.operation != MARKET_EVENT_OPERATION
+                or header.schema_id != MARKET_EVENT_SCHEMA
+                or header.schema_version != MARKET_EVENT_SCHEMA_VERSION
+                or set(event.payload) != {"key", "data"}
+            ):
+                raise ValueError
+            event_key = MarketSubscriptionKey.from_dict(event.payload["key"])
+            if event_key != key:
+                raise ValueError
+            # The service envelope was consumed even if its provider payload is
+            # rejected below. Keep that transport cursor aligned so a later
+            # recovery snapshot can be considered without replaying this event.
+            self._last_sequences[dataname] = header.sequence
+            sent_at = _parse_utc(header.sent_at_utc, "sent_at_utc")
+            now = self._clock()
+            if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+                raise ValueError
+            now = now.astimezone(timezone.utc)
+            if sent_at > now:
+                raise ValueError
+            raw = event.payload["data"]
+            if not isinstance(raw, Mapping) or set(raw) != _ORDERBOOK_EVENT_FIELDS:
+                raise ValueError
+            if (
+                raw["schema_version"] != SERVICE_ORDERBOOK_SCHEMA_VERSION
+                or raw["complete_state"] is not True
+                or raw["symbol"] != key.instrument.native_symbol
+                or raw["exchange"] != key.instrument.venue
+                or raw["asset_type"] != key.instrument.product_type
+            ):
+                raise ValueError
+
+            timestamp = _market_float(raw["timestamp"], "timestamp")
+            sequence = raw["sequence"]
+            previous_sequence = raw["previous_sequence"]
+            snapshot_kind = raw["snapshot_or_delta"]
+            continuity = raw["continuity_status"]
+            if (
+                type(sequence) is not int
+                or sequence <= 0
+                or (
+                    previous_sequence is not None
+                    and (type(previous_sequence) is not int or previous_sequence < 0)
+                )
+                or snapshot_kind not in {"snapshot", "delta"}
+                or continuity not in _ORDERBOOK_CONTINUITY
+                or type(raw["stale"]) is not bool
+                or type(raw["recovery_snapshot"]) is not bool
+                or type(raw["stale_reason"]) is not str
+                or len(raw["stale_reason"]) > 128
+                or not raw["stale_reason"].isprintable()
+                or (raw["stale"] and not raw["stale_reason"])
+                or (not raw["stale"] and raw["stale_reason"])
+                or (snapshot_kind == "delta" and previous_sequence is None)
+                or (raw["recovery_snapshot"] and snapshot_kind != "snapshot")
+            ):
+                raise ValueError
+            previous = self._orderbook_sequences.get(dataname)
+            if previous is None and snapshot_kind != "snapshot" and not raw["recovery_snapshot"]:
+                self._orderbook_recovery_required.add(dataname)
+                raise ServiceReadProxyError("ORDERBOOK_INITIAL_DELTA")
+            if previous is not None:
+                if sequence <= previous:
+                    self._orderbook_recovery_required.add(dataname)
+                    raise ServiceReadProxyError("ORDERBOOK_SEQUENCE_INVALID")
+                if snapshot_kind == "delta" and previous_sequence != previous:
+                    self._orderbook_recovery_required.add(dataname)
+                    raise ServiceReadProxyError("ORDERBOOK_SEQUENCE_GAP")
+
+            bids = _orderbook_levels(raw["bids"], key.depth, "bids", descending=True)
+            asks = _orderbook_levels(raw["asks"], key.depth, "asks", descending=False)
+            if not bids or not asks or bids[0][0] >= asks[0][0]:
+                raise ValueError
+            quantity_multiplier = _decimal(
+                binding.quantity_multiplier, "quantity_multiplier"
+            )
+            bids = [
+                (price, _finite_float(Decimal(str(quantity)) * quantity_multiplier, "bid quantity"))
+                for price, quantity in bids
+            ]
+            asks = [
+                (price, _finite_float(Decimal(str(quantity)) * quantity_multiplier, "ask quantity"))
+                for price, quantity in asks
+            ]
+
+            event_age = Decimal(str((now - sent_at).total_seconds()))
+            stale = raw["stale"] or event_age > _decimal(
+                binding.max_event_age_seconds, "max_event_age_seconds"
+            )
+            stale_reason = (
+                raw["stale_reason"]
+                if raw["stale"]
+                else "gateway_event_age_exceeded"
+                if stale
+                else ""
+            )
+            if continuity in _ORDERBOOK_UNHEALTHY_CONTINUITY:
+                stale = True
+                stale_reason = stale_reason or continuity
+
+            recovery_required = dataname in self._orderbook_recovery_required
+            if recovery_required and not (
+                snapshot_kind == "snapshot"
+                and continuity in _ORDERBOOK_HEALTHY_CONTINUITY
+                and not stale
+            ):
+                stale = True
+                stale_reason = stale_reason or "orderbook_recovery_snapshot_required"
+            book = OrderBookSnapshot(
+                timestamp=timestamp,
+                symbol=key.instrument.native_symbol,
+                exchange=key.instrument.venue,
+                asset_type=key.instrument.product_type,
+                local_time=now.timestamp(),
+                bids=bids,
+                asks=asks,
+                exchange_time=timestamp,
+                received_wall_time=now.timestamp(),
+                received_monotonic_ns=time.monotonic_ns(),
+                sequence=sequence,
+                previous_sequence=previous_sequence,
+                snapshot_or_delta=snapshot_kind,
+                continuity_status=continuity,
+                stale=stale,
+                stale_reason=stale_reason,
+                source=descriptor.source,
+                recovery_snapshot=raw["recovery_snapshot"],
+            )
+            if not book.validate():
+                raise ValueError
+            if stale or continuity in _ORDERBOOK_UNHEALTHY_CONTINUITY:
+                self._orderbook_recovery_required.add(dataname)
+            else:
+                self._orderbook_recovery_required.discard(dataname)
+            self._orderbook_sequences[dataname] = sequence
+            return book
+        except ServiceReadProxyError:
+            raise
+        except Exception:
+            raise ServiceReadProxyError("ORDERBOOK_EVENT_INVALID") from None
+
+    def _bind_orderbook_source_descriptor(
+        self,
+        dataname: str,
+        binding: ServiceOrderBookBinding,
+        bootstrap: Any,
+        *,
+        expected_epoch: str,
+    ) -> None:
+        descriptor = getattr(bootstrap, "source_descriptor", None)
+        current = getattr(binding.market_client, "source_descriptor", None)
+        key = binding.market_client.key
+        if (
+            type(descriptor) is not MarketSourceDescriptor
+            or type(current) is not MarketSourceDescriptor
+            or descriptor != current
+            or descriptor.key != key
+            or descriptor.stream_id != key.stream_id
+            or descriptor.epoch != expected_epoch
+            or descriptor.stream_id != getattr(bootstrap, "stream_id", None)
+            or descriptor.provider != key.instrument.provider
+        ):
+            raise ServiceReadProxyError("ORDERBOOK_SOURCE_DESCRIPTOR_INVALID")
+        self._orderbook_source_descriptors[dataname] = descriptor
+
+    def _current_orderbook_source_descriptor(
+        self, dataname: str, binding: ServiceOrderBookBinding
+    ) -> MarketSourceDescriptor:
+        descriptor = self._orderbook_source_descriptors.get(dataname)
+        current = getattr(binding.market_client, "source_descriptor", None)
+        key = binding.market_client.key
+        if (
+            type(descriptor) is not MarketSourceDescriptor
+            or type(current) is not MarketSourceDescriptor
+            or current != descriptor
+            or descriptor.key != key
+            or descriptor.stream_id != key.stream_id
+            or descriptor.epoch != self._stream_epochs.get(dataname)
+        ):
+            raise ServiceReadProxyError("ORDERBOOK_SOURCE_SCOPE_CHANGED")
+        return descriptor
+
     def _bind_ctp_tick_source_descriptor(
         self,
         dataname: str,
@@ -911,7 +1262,7 @@ class ServiceReadProxy:
 
     def _position_binding(
         self, resource: AccountResourceKey, instrument: MarketInstrumentKey
-    ) -> tuple[str, ServiceFeedBinding | ServiceCtpTickBinding]:
+    ) -> tuple[str, ServiceFeedBinding | ServiceCtpTickBinding | ServiceOrderBookBinding]:
         dataname = self._position_bindings.get((resource, instrument))
         if dataname is None:
             raise ServiceReadProxyError("ACCOUNT_INSTRUMENT_UNMAPPED")
@@ -957,7 +1308,9 @@ class ServiceReadProxy:
         ):
             raise ServiceReadProxyError("VALUATION_CURRENCY_MISMATCH")
 
-    def _binding(self, dataname: str) -> ServiceFeedBinding | ServiceCtpTickBinding:
+    def _binding(
+        self, dataname: str
+    ) -> ServiceFeedBinding | ServiceCtpTickBinding | ServiceOrderBookBinding:
         if type(dataname) is not str or dataname not in self._feeds:
             raise ServiceReadProxyError("FEED_UNBOUND")
         return self._feeds[dataname]
@@ -1002,6 +1355,50 @@ def _finite_float(value: Any, field: str) -> float:
     if decimal_value != 0 and result == 0.0:
         raise ServiceReadProxyError("NUMBER_UNDERFLOW")
     return result
+
+
+def _market_float(value: Any, field: str) -> float:
+    if isinstance(value, bool) or type(value) not in (str, int, float, Decimal):
+        raise TypeError(f"{field} must be a finite JSON number")
+    if type(value) is str and len(value) > 128:
+        raise ValueError(f"{field} exceeds its size limit")
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        raise ValueError(f"{field} is invalid") from None
+    if not parsed.is_finite():
+        raise ValueError(f"{field} must be finite")
+    result = float(parsed)
+    if not math.isfinite(result) or (parsed != 0 and result == 0.0):
+        raise ValueError(f"{field} is outside the supported range")
+    return result
+
+
+def _orderbook_levels(
+    value: Any,
+    depth: int,
+    field: str,
+    *,
+    descending: bool,
+) -> list[tuple[float, float]]:
+    if type(value) not in (list, tuple) or len(value) > depth:
+        raise ValueError(f"{field} exceeds its explicitly bound depth")
+    levels: list[tuple[float, float]] = []
+    previous: float | None = None
+    for raw_level in value:
+        if type(raw_level) not in (list, tuple) or len(raw_level) != 2:
+            raise ValueError(f"{field} contains a malformed level")
+        price = _market_float(raw_level[0], f"{field}.price")
+        quantity = _market_float(raw_level[1], f"{field}.quantity")
+        if price <= 0 or quantity <= 0:
+            raise ValueError(f"{field} price and quantity must be positive")
+        if previous is not None and (
+            (descending and price >= previous) or (not descending and price <= previous)
+        ):
+            raise ValueError(f"{field} must be strictly price ordered")
+        levels.append((price, quantity))
+        previous = price
+    return levels
 
 
 def _optional_float(value: str | None, field: str) -> float | None:
@@ -1124,6 +1521,8 @@ def _bar_identity(bar: Mapping[str, Any]) -> tuple[Any, ...]:
 __all__ = [
     "ServiceCtpTickBinding",
     "ServiceFeedBinding",
+    "ServiceOrderBookBinding",
     "ServiceReadProxy",
     "ServiceReadProxyError",
+    "SERVICE_ORDERBOOK_SCHEMA_VERSION",
 ]
