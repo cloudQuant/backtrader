@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bt-api-binance-certlib"
+version = "0.1.0"
+description = "Shared certification helpers for the Binance USD-M demo cases."
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0,<7"]
+
+[tool.setuptools]
+packages = ["certlib"]
+package-dir = { certlib = "." }
+include-package-data = false
