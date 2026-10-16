@@ -696,6 +696,104 @@ def test_normal_l02_entry_preserves_read_only_service_log_contract(
         sys.modules.update(previous_modules)
 
 
+def test_unsupported_service_case_is_blocked_before_backend_or_provider_io(
+    tmp_path, monkeypatch, capsys
+):
+    package_name, runner, previous_modules = _load_runner()
+    case_dir = _CASE_DIR.parent / "T01"
+    config_path = tmp_path / "T01-service-config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "case_id": "T01",
+                "credentials": {},
+                "environment": {},
+                "topology": {},
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    env_loads = []
+    strategy_loads = []
+    client_builds = []
+
+    try:
+        runner.make_client(
+            {"case_id": "T01"}, {}, {"transport": "service"}
+        )
+    except runner.BackendNotImplemented as exc:
+        assert exc.code == "service_case_not_implemented"
+        assert exc.target == "T01"
+        assert str(exc) == "service_case_not_implemented:T01"
+    else:
+        raise AssertionError("direct factory caller did not receive a capability block")
+    assert f"{package_name}.service_backend" not in sys.modules
+
+    def forbidden_client_factory(*args, **kwargs):
+        client_builds.append((args, kwargs))
+        raise AssertionError("unsupported service backend reached client factory")
+
+    monkeypatch.setattr(
+        runner.envfile,
+        "load_env",
+        lambda names: (env_loads.append(tuple(names)) or ({}, [])),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_load_strategy",
+        lambda *args: (strategy_loads.append(args) or (None, "READ")),
+    )
+    monkeypatch.setattr(
+        runner,
+        "make_client",
+        forbidden_client_factory,
+    )
+    monkeypatch.setattr(sys, "argv", [str(case_dir / "run.py")])
+    try:
+        exit_code = runner.main_case(
+            [
+                "--live",
+                "--allow-write",
+                "--transport",
+                "service",
+                "--config",
+                str(config_path),
+                "--evidence-dir",
+                str(tmp_path / "T01-evidence"),
+            ]
+        )
+        output_lines = [
+            line for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+        ]
+        summary = json.loads(output_lines[-1])
+
+        assert exit_code == 2, summary
+        assert summary["case"] == "T01"
+        assert summary["status"] == "BLOCKED"
+        assert summary["reason"] == "service_case_not_implemented"
+        assert summary["facts"] == {
+            "requested_backend": "T01",
+            "credential_lookup": "not_attempted",
+            "provider_attempted": False,
+        }
+        assert env_loads == []
+        assert strategy_loads == []
+        assert client_builds == []
+        assert f"{package_name}.service_backend" not in sys.modules
+        evidence = json.loads(Path(summary["evidence"]).read_text(encoding="utf-8"))
+        assert evidence["status"] == "BLOCKED"
+        assert evidence["reason"] == "service_case_not_implemented"
+        assert evidence["facts"] == summary["facts"]
+        assert evidence["client"] is None
+        assert evidence["calls"] == []
+    finally:
+        for name in tuple(sys.modules):
+            if name == package_name or name.startswith(package_name + "."):
+                sys.modules.pop(name, None)
+        sys.modules.update(previous_modules)
+
+
 def test_service_close_failure_downgrades_pass_to_unknown(tmp_path, monkeypatch, capsys):
     package_name, runner, previous_modules = _load_runner()
 

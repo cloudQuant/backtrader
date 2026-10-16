@@ -18,6 +18,18 @@ fail-closed until their normal SDK-backed case paths are implemented.
 from __future__ import annotations
 
 
+class BackendNotImplemented(RuntimeError):
+    """A requested normal backend is not available for this case."""
+
+    def __init__(self, code: str, target: str) -> None:
+        self.code = code
+        self.target = target
+        super().__init__(f"{code}:{target}")
+
+
+_SERVICE_CASES = frozenset({"C01", "L02"})
+
+
 def _request_timeout(config) -> float:
     return float(config.get("timeouts", {}).get("request_seconds", 10.0))
 
@@ -46,12 +58,17 @@ def make_client(config, env, topology, *, config_dir=None):
     """
     transport = topology.get("transport", "direct")
     if transport not in {"direct", "service"}:
-        raise RuntimeError(f"transport_not_implemented:{transport}")
+        raise BackendNotImplemented("transport_not_implemented", str(transport))
     for flag in ("execution", "risk", "monitor"):
         if topology.get(flag):
-            raise RuntimeError(f"component_not_implemented:{flag}")
+            raise BackendNotImplemented("component_not_implemented", flag)
 
     if transport == "service":
+        case_id = config.get("case_id")
+        if case_id not in _SERVICE_CASES:
+            raise BackendNotImplemented(
+                "service_case_not_implemented", str(case_id or "missing")
+            )
         from .service_backend import make_service_client
 
         return make_service_client(config, env, config_dir=config_dir)

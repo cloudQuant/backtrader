@@ -18,7 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import context, envfile, make_client
+from . import BackendNotImplemented, context, envfile, make_client
 
 RISK_LEVEL = {"READ": 0, "WRITE": 1, "DANGEROUS": 2}
 EXIT_CODES = {"PASS": 0, "FAIL": 1, "BLOCKED": 2, "UNKNOWN": 3}
@@ -106,6 +106,25 @@ def _topology(config: dict, args) -> dict:
     return effective
 
 
+def _unsupported_backend(venue: str, case_id: str, topology: dict) -> tuple[str, str] | None:
+    """Return a finite capability block before loading strategy credentials."""
+    transport = topology.get("transport", "direct")
+    if transport not in {"direct", "service"}:
+        return "transport_not_implemented", str(transport)
+
+    for flag in ("execution", "risk", "monitor"):
+        if topology.get(flag):
+            return "component_not_implemented", flag
+
+    if venue == "binance" and transport == "service":
+        if case_id in {"C01", "L02"}:
+            return None
+        return "service_case_not_implemented", case_id
+    if transport != "direct":
+        return "transport_not_implemented", str(transport)
+    return None
+
+
 def _cleanup_tracked_orders(client, ctx, result_facts):
     """Best-effort compensating cancel for orders still marked open."""
     open_entries = [entry for entry in ctx.tracked_orders if entry.get("state") == "open"]
@@ -141,8 +160,63 @@ def main_case(argv=None):
         print(json.dumps({"case": case_id, "status": "BLOCKED", "reason": "config_case_id_mismatch"}))
         return 2
 
-    strategy, risk = _load_strategy(case_dir, case_id)
     topology = _topology(config, args)
+    backend_block = _unsupported_backend(venue, case_id, topology)
+    if backend_block is not None:
+        reason, target = backend_block
+        result = context.CaseResult(
+            case_id,
+            "BLOCKED",
+            reason,
+            {
+                "requested_backend": target,
+                "credential_lookup": "not_attempted",
+                "provider_attempted": False,
+            },
+        )
+        started = context.utc_now()
+        finished = context.utc_now()
+        evidence = context.build_evidence(
+            venue=venue,
+            case_id=case_id,
+            case_dir=case_dir,
+            config=config,
+            topology=topology,
+            live=bool(args.live),
+            result=result,
+            client=None,
+            ctx=None,
+            started_utc=started,
+            finished_utc=finished,
+            config_path=config_path,
+            env_names_present=[],
+            env_names_missing=[],
+            grants={
+                "allow_write": bool(args.allow_write),
+                "allow_dangerous": bool(args.allow_dangerous),
+            },
+        )
+        evidence_path = context.write_evidence(
+            Path(args.evidence_dir) if args.evidence_dir else case_dir / "evidence",
+            evidence,
+        )
+        print(
+            json.dumps(
+                {
+                    "case": case_id,
+                    "venue": venue,
+                    "status": result.status,
+                    "reason": result.reason,
+                    "evidence": str(evidence_path),
+                    "facts": result.facts,
+                },
+                ensure_ascii=False,
+                default=str,
+            )
+        )
+        return EXIT_CODES["BLOCKED"]
+
+    strategy, risk = _load_strategy(case_dir, case_id)
     env_names = _env_names(config, topology)
     optional_names = [
         n for n in _optional_env_names(config, topology) if n not in env_names
@@ -196,6 +270,13 @@ def main_case(argv=None):
         result = strategy.run(ctx)
         if not isinstance(result, context.CaseResult):
             result = context.CaseResult(case_id, "FAIL", "strategy_returned_invalid_result")
+    except BackendNotImplemented as exc:
+        result = context.CaseResult(
+            case_id,
+            "BLOCKED",
+            exc.code,
+            {"requested_backend": exc.target},
+        )
     except Exception as exc:
         result = context.CaseResult(case_id, "FAIL", f"exception:{type(exc).__name__}", {"error": str(exc)[:500]})
     finally:
