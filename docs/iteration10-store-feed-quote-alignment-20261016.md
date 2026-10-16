@@ -1,0 +1,9 @@
+# Iteration10 Store/Feed 行情与成交上下文对齐
+
+Tick feed 收到可出队的一条line bar后结束本次 drain，避免在加载首bar前继续消费第二tick，使冻结quote cursor错误绑定下一tick。aggregate bar原有sequence判断保持；不丢后续行情。
+
+Root新unit在r2通过，验证两tick各自bar/cursor/as-of相符；同轮集成因把四条同intent生命周期收据误当一条而失败。按真实合同精确核对recorded/admitted/dispatch_claimed/provider_observation四事件及唯一FILLED回调后，r3只运行集成节点：1passed/13.76s/exit0/1既有Quandl warning，stderr空，819pins及5HEAD不变。unit未重复，生产feed未在r2后修改。
+
+集成为真实Store→BtApiFeed→Cerebro→Broker/ServiceExecutionSession→本机V2 ServiceHost/SQLite，只有行情/quote provider为合成叶。持久qty1.25/price10.02、cursor1/source/generation/as-of/feed/bar1精确绑定，callback ACK和trade/account-book事实核对通过；Host/runner正常exit0、无forcedcleanup、两组pipe均关闭。原r1生产quote错位失败、r2收据断言错误及各轮原始QA保留。
+
+独立review_bt_store_feed对最终d8fe4a63…集成与b4ef255c…生产源静态GO。本轮仅三文件加本记录提交，父7a9c4453556a3c5d703d6b114d75aa2177f0659c，实际提交SHA见Git历史。原CTP/operator及其他WIP未纳入。该正向合成场景不单独建立完整BT01/BT02或真实账户通过；formal状态在SDK合并其他已接受条款后裁定。

@@ -650,6 +650,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
         while True:
             bar_sequence_before = self._bar_sequence
+            queued_bars_before = len(self._live)
             tick = self.store.poll_tick(self._dataname)
             if tick is None:
                 break
@@ -678,7 +679,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
             self._ingest_tick(tick)
             self._flush_ready_bars(reason="tick")
-            if self._bar_sequence != bar_sequence_before:
+            # Tick-timeframe feeds queue one line bar per ingested tick but do
+            # not advance _bar_sequence (which tracks completed aggregates).
+            # Stop as soon as either path queues a bar so _load_bar freezes
+            # the quote observed for that bar before a later tick can replace
+            # the feed's latest quote binding.
+            if (
+                self._bar_sequence != bar_sequence_before
+                or len(self._live) > queued_bars_before
+            ):
                 break
         return drained
 
