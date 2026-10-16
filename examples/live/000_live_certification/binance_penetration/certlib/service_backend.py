@@ -108,6 +108,7 @@ class BinanceServiceClient:
         self.calls.append(
             {
                 "operation": "account.server_time_probe",
+                "method": "GET",
                 "observation_id": observation.observation_id,
                 "session_generation": observation.session_generation,
                 "collected_at_utc": observation.collected_at_utc,
@@ -134,6 +135,7 @@ class BinanceServiceClient:
         self.calls.append(
             {
                 "operation": "account.configuration",
+                "method": "GET",
                 "observation_id": observation.observation_id,
                 "session_generation": observation.session_generation,
                 "collected_at_utc": observation.collected_at_utc,
@@ -233,6 +235,7 @@ class BinanceServiceClient:
             self.calls.append(
                 {
                     "operation": "account.snapshot",
+                    "method": "GET",
                     "observation_id": view.observation.observation_id,
                     "snapshot_id": view.snapshot_id,
                     "snapshot_cursor": view.cursor,

@@ -260,11 +260,11 @@ def _service_config(endpoint: str) -> dict:
     }
 
 
-def _client_config(endpoint: str) -> dict:
+def _client_config(endpoint: str, strategy_ref: str = _STRATEGY_REF) -> dict:
     return {
         "client_config_schema_version": 1,
         "process_role": "strategy_client",
-        "registration": {"strategy_ref": _STRATEGY_REF},
+        "registration": {"strategy_ref": strategy_ref},
         "clients": {
             "gateway": {
                 "config_schema_version": 1,
@@ -307,8 +307,9 @@ def _client_config(endpoint: str) -> dict:
 
 
 class _LocalServiceHost:
-    def __init__(self, tmp_path: Path) -> None:
+    def __init__(self, tmp_path: Path, *, strategy_ref: str = _STRATEGY_REF) -> None:
         self.endpoint = _free_endpoint()
+        self.strategy_ref = strategy_ref
         self.provider = _TrackedBinanceDemoProvider(_SyntheticBinanceHttpTransport())
         self.client_keys = zmq.curve_keypair()
         self.server_keys = zmq.curve_keypair()
@@ -346,7 +347,7 @@ class _LocalServiceHost:
                 journal_account_scope=journal_scope,
                 account_read_strategy_scope=state_scope,
                 shared_account_facts_scope=state_scope,
-                shared_fact_strategy_refs=frozenset({_STRATEGY_REF}),
+                shared_fact_strategy_refs=frozenset({self.strategy_ref}),
             )
             principal = GatewayPrincipal(
                 principal_id=_PRINCIPAL_REF,
@@ -392,11 +393,13 @@ class _LocalServiceHost:
                     internal_ports={"service.provider_session": worker},
                 )
 
-            identity = WireIdentity(WireRole.STRATEGY_CLIENT, _PRINCIPAL_REF, _STRATEGY_REF)
+            identity = WireIdentity(
+                WireRole.STRATEGY_CLIENT, _PRINCIPAL_REF, self.strategy_ref
+            )
             rpc_scope = WireScope(
                 _DOMAIN_REF,
                 account_ref=_ACCOUNT_REF,
-                strategy_ref=_STRATEGY_REF,
+                strategy_ref=self.strategy_ref,
             )
             grant = ResourceGrant(
                 _INSTANCE_ID,
@@ -582,6 +585,109 @@ def test_normal_c01_entry_uses_service_runtime_and_preserves_case_contract(
         assert "synthetic-c01-api-secret" not in evidence_text
         assert "1000.00" not in evidence_text
         assert "900.00" not in evidence_text
+    finally:
+        host.close()
+        for name in tuple(sys.modules):
+            if name == package_name or name.startswith(package_name + "."):
+                sys.modules.pop(name, None)
+        sys.modules.update(previous_modules)
+
+
+def test_normal_l02_entry_preserves_read_only_service_log_contract(
+    tmp_path, monkeypatch, capsys
+):
+    package_name, runner, previous_modules = _load_runner()
+    strategy_ref = "binance-l02-session-log"
+    host = _LocalServiceHost(tmp_path, strategy_ref=strategy_ref)
+    case_dir = _CASE_DIR.parent / "L02"
+    try:
+        host.start()
+        client_config_path = tmp_path / "service-client.yaml"
+        client_config_path.write_text(
+            yaml.safe_dump(_client_config(host.endpoint, strategy_ref), sort_keys=False),
+            encoding="utf-8",
+        )
+        case_config = yaml.safe_load((case_dir / "config.yaml").read_text(encoding="utf-8"))
+        case_config["service_client"] = {
+            "client_config_path": "service-client.yaml",
+            "principal_ref": _PRINCIPAL_REF,
+            "domain_ref": _DOMAIN_REF,
+            "service_principal_ref": _SERVICE_PRINCIPAL_REF,
+            "curve_keys": {
+                _SECURITY_REF: {
+                    "server_key_env": "L02_SERVER_PUBLIC",
+                    "public_key_env": "L02_CLIENT_PUBLIC",
+                    "secret_key_env": "L02_CLIENT_SECRET",
+                }
+            },
+            "account": {
+                "account_ref": _ACCOUNT_REF,
+                "account_key": _ACCOUNT_KEY.to_dict(),
+                "required_coverage": [
+                    {"product_type": _RESOURCE.product_type, "margin_pool": _RESOURCE.margin_pool}
+                ],
+            },
+        }
+        config_path = tmp_path / "L02-service-config.yaml"
+        config_path.write_text(yaml.safe_dump(case_config, sort_keys=False), encoding="utf-8")
+        values = {
+            "L02_SERVER_PUBLIC": host.server_keys[0].decode("ascii"),
+            "L02_CLIENT_PUBLIC": host.client_keys[0].decode("ascii"),
+            "L02_CLIENT_SECRET": host.client_keys[1].decode("ascii"),
+        }
+        loaded_names = []
+
+        def load_env(names):
+            loaded_names.extend(names)
+            return values, []
+
+        monkeypatch.setattr(runner.envfile, "load_env", load_env)
+        monkeypatch.setattr(sys, "argv", [str(case_dir / "run.py")])
+        exit_code = runner.main_case(
+            [
+                "--live",
+                "--transport",
+                "service",
+                "--config",
+                str(config_path),
+                "--evidence-dir",
+                str(tmp_path / "L02-evidence"),
+            ]
+        )
+        output_lines = [
+            line for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+        ]
+        summary = json.loads(output_lines[-1])
+
+        assert exit_code == 0
+        assert summary["case"] == "L02"
+        assert summary["venue"] == "binance"
+        assert summary["status"] == "PASS"
+        assert summary["reason"] == ""
+        assert summary["facts"]["connect_events"] == 1
+        assert summary["facts"]["read_events"] == summary["facts"]["total_calls"] == 2
+        assert summary["facts"]["write_events"] == 0
+        assert summary["facts"]["call_counts"] == {"GET": 2}
+        assert summary["facts"]["server_time_ms"] == host.provider.server_time_ms
+        assert summary["facts"]["can_trade"] is True
+        assert set(loaded_names) == {
+            "L02_SERVER_PUBLIC",
+            "L02_CLIENT_PUBLIC",
+            "L02_CLIENT_SECRET",
+        }
+        evidence_text = Path(summary["evidence"]).read_text(encoding="utf-8")
+        evidence = json.loads(evidence_text)
+        assert evidence["topology"]["transport"] == "service"
+        assert evidence["client"]["transport"] == "service"
+        assert evidence["client"]["strategy_ref"] == strategy_ref
+        assert [entry["operation"] for entry in evidence["calls"]] == [
+            "account.server_time_probe",
+            "account.configuration",
+        ]
+        assert all(entry["method"] == "GET" for entry in evidence["calls"])
+        assert evidence["artifacts"]["session_log"] == evidence["calls"]
+        assert "synthetic-c01-api-key" not in evidence_text
+        assert "synthetic-c01-api-secret" not in evidence_text
     finally:
         host.close()
         for name in tuple(sys.modules):
