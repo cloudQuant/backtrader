@@ -46,6 +46,9 @@ from backtrader.stores.service_execution_session import (  # noqa: E402
 from backtrader.stores.service_strategy_account_book import (  # noqa: E402
     ServiceStrategyAccountBookError,
 )
+from backtrader.sizers import (  # noqa: E402
+    StrategyAccountBookPercentSizer,
+)
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store  # noqa: E402
 
 _DOMAIN = "paper:backtrader-multi-strategy-book"
@@ -987,6 +990,8 @@ class _AccountBookStrategy(bt.Strategy):
         ("account_ref", None),
         ("risk_budget", None),
         ("attempt_order", False),
+        ("measure_sizing", False),
+        ("use_sized_order", False),
     )
 
     def start(self):
@@ -1049,9 +1054,15 @@ class _AccountBookStrategy(bt.Strategy):
             "account_position": self.broker.getposition(self.data),
             "risk_budget": self.p.risk_budget,
         }
+        if self.p.measure_sizing:
+            self.sizer_buy_size = self.getsizing(data=self.data, isbuy=True)
+            self.sizer_sell_size = self.getsizing(data=self.data, isbuy=False)
         if self.p.attempt_order and not self._order_attempted:
             self._order_attempted = True
-            self.rejected_order = self.buy(data=self.data, size=1.0)
+            if self.p.use_sized_order:
+                self.rejected_order = self.buy(data=self.data)
+            else:
+                self.rejected_order = self.buy(data=self.data, size=1.0)
 
 
 class _DuplicateIdentityStrategy(bt.Strategy):
@@ -1081,7 +1092,7 @@ class _DuplicateIdentityStrategy(bt.Strategy):
             self.rejected_order = self.buy(data=self.data, size=1.0)
 
 
-def _cerebro(broker):
+def _cerebro(broker, *, strategy_account_book_sizer: bool = False):
     frame = pandas.DataFrame(
         {
             "open": [100.0],
@@ -1096,11 +1107,18 @@ def _cerebro(broker):
     cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
     cerebro.setbroker(broker)
     cerebro.adddata(bt.feeds.PandasData(dataname=frame), name=_INSTRUMENT)
+    if strategy_account_book_sizer:
+        cerebro.addsizer(
+            StrategyAccountBookPercentSizer,
+            currency="USDT",
+            percents=50,
+        )
     cerebro.addstrategy(
         _AccountBookStrategy,
         strategy_ref=_STRATEGY_A,
         account_ref=_ACCOUNT,
         risk_budget=9_999_999.0,
+        measure_sizing=strategy_account_book_sizer,
     )
     cerebro.addstrategy(
         _AccountBookStrategy,
@@ -1108,12 +1126,14 @@ def _cerebro(broker):
         account_ref=_ACCOUNT,
         risk_budget=8_888_888.0,
         attempt_order=True,
+        measure_sizing=False,
+        use_sized_order=strategy_account_book_sizer,
     )
     cerebro.addstrategy(_DuplicateIdentityStrategy)
     return cerebro
 
 
-def _run_two_strategy_cerebro(endpoint, keys):
+def _run_two_strategy_cerebro(endpoint, keys, *, strategy_account_book_sizer=False):
     primary_runtime = None
     second_runtime = None
     store = None
@@ -1170,7 +1190,9 @@ def _run_two_strategy_cerebro(endpoint, keys):
             ),
         )
 
-        strategies = session.run(_cerebro(broker))
+        strategies = session.run(
+            _cerebro(broker, strategy_account_book_sizer=strategy_account_book_sizer)
+        )
         return strategies, session, broker
     finally:
         if store is not None and store.is_connected:
@@ -1299,6 +1321,45 @@ def test_two_strategies_bind_distinct_read_books_on_one_shared_broker(tmp_path):
     persisted_rows_after_restart = _financial_database_state(database_path)
     assert persisted_rows_after_restart == persisted_rows_before_restart
     assert second_signature == first_signature
+
+
+def test_strategy_account_book_sizer_uses_owner_cash_and_position(tmp_path):
+    endpoint, keys, host = _start_host(tmp_path, seed_financial=True)
+    try:
+        before = _host_metrics(host)
+        assert before == ("metrics", 0, 0, 0, 0, 0)
+        strategies, session, broker = _run_two_strategy_cerebro(
+            endpoint, keys, strategy_account_book_sizer=True
+        )
+        assert session.state == "closed"
+        assert session.cleanup_report.errors == ()
+        assert len(strategies) == 3
+        alpha, beta, duplicate = strategies
+        assert alpha.broker is beta.broker is duplicate.broker is broker
+        assert alpha.sizer_buy_size == pytest.approx(
+            float(_FINANCIAL_CASH_AFTER_FILL[_STRATEGY_A] * Decimal("0.5") / Decimal("100.5"))
+        )
+        assert alpha.sizer_sell_size == pytest.approx(
+            float(_FINANCIAL_POSITION_AFTER_FILL[_STRATEGY_A])
+        )
+        # The beta order is denied before writer dispatch because this runtime
+        # has no order capability; its rejected proposal still carries the
+        # owner-book size, not 50% of the shared Broker's 12,345 USDT cash.
+        assert beta.rejected_order is not None
+        assert beta.rejected_order.getstatusname() == "Rejected"
+        assert beta.rejected_order.info.error_code == "strategy_writer_route_mismatch"
+        assert beta.rejected_order.size == pytest.approx(
+            float(_FINANCIAL_CASH_AFTER_FILL[_STRATEGY_B] * Decimal("0.5") / Decimal("100.5"))
+        )
+        assert beta.account_observation["account_cash"] == pytest.approx(12_345.0)
+        assert beta.account_observation["account_value"] == pytest.approx(54_321.0)
+        assert beta.account_observation["account_position"].size == pytest.approx(9.0)
+        assert duplicate.duplicate_identity_code == "STRATEGY_ROUTE_ALREADY_BOUND"
+        assert duplicate.rejected_order.info.error_code == "strategy_writer_strategy_not_bound"
+        after = _host_metrics(host)
+        assert after == ("metrics", 11, 11, 0, 0, 0)
+    finally:
+        _close_host(host, require_normal=True)
 
 
 def test_preflight_empty_run_and_refresh_setup_release_owned_runtime_claims(monkeypatch):
