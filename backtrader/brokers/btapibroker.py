@@ -11,6 +11,7 @@ import threading
 import time
 from collections.abc import Mapping
 from copy import copy, deepcopy
+from decimal import Decimal, InvalidOperation
 from typing import Any, DefaultDict, Dict, List, Optional
 
 from ..broker import BrokerBase
@@ -21,7 +22,7 @@ from ..comminfo import (
     ComminfoFuturesPercent,
 )
 from ..commissions.ctpoption import CtpOptionPremium, OptionAccountingError
-from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
+from ..order import BuyOrder, OrderBase, OrderData, OrderExecutionBit, SellOrder
 from ..position import Position
 from ..position_modes import (
     POSITION_MODE_DUAL_SIDE,
@@ -39,6 +40,7 @@ from ..stores.managed_execution import (
     parse_ctp_managed_execution_projection,
 )
 from ..stores.service_execution_adapter import ServiceExecutionReadError
+from ..utils.dateintern import date2num
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -307,6 +309,9 @@ class BtApiBroker(BrokerBase):
         self._recovery_applied_receipts = set()
         self._recovery_orders_by_intent = {}
         self._recovery_pending_snapshot_notifications = {}
+        self._service_execution_recovery_feeds = {}
+        self._service_execution_recovery_feed_names = {}
+        self._service_execution_recovery_strategy = None
         self._service_execution_recovery_suppress_notifications = False
         self._managed_refresh_order_queue = collections.deque()
         self.positions = collections.defaultdict(Position)
@@ -469,6 +474,7 @@ class BtApiBroker(BrokerBase):
 
         is_sdk = bool(getattr(self.store, "_sdk_mode", False))
         service_recovery = self._uses_service_execution_recovery()
+        service_recovery_v2 = self._uses_service_execution_recovery_v2()
         market_data_only = self._is_market_data_only()
         if is_service_read_only and not market_data_only:
             raise ValueError("service read proxy requires market_data_only=True")
@@ -539,7 +545,24 @@ class BtApiBroker(BrokerBase):
                 if service_recovery:
                     # ServiceExecutionSession bound and reconciled the
                     # authenticated recovery cut before entering Cerebro.
-                    pass
+                    if service_recovery_v2:
+                        adapter = session.adapter
+                        reconciliation = adapter.recovery_owner_position_reconciliation
+                        if (
+                            not isinstance(reconciliation, Mapping)
+                            or reconciliation.get("trade_projection_available") is not True
+                            or not self._service_execution_recovery_feeds
+                        ):
+                            raise ValueError(
+                                "managed paper recovery does not have a complete Trade projection"
+                            )
+                        baseline = adapter.recovery_baseline()
+                        if (
+                            not isinstance(baseline, Mapping)
+                            or type(baseline.get("baseline_cursor")) is not int
+                            or not baseline.get("journal_generation")
+                        ):
+                            raise ValueError("managed paper recovery baseline is unavailable")
                 elif recovery_requested:
                     self._execution_recovery = self._validate_execution_recovery_startup(
                         remote_open_orders
@@ -881,6 +904,413 @@ class BtApiBroker(BrokerBase):
             and getattr(session, "recovery_journal", None) is not None
             and callable(getattr(getattr(session, "adapter", None), "recovery_history", None))
         )
+
+    def _uses_service_execution_recovery_v2(self):
+        return bool(
+            self._uses_service_execution_recovery()
+            and getattr(self._service_execution_session, "recovery_event_version", None) == 2
+        )
+
+    @staticmethod
+    def _service_recovery_feed_name(data):
+        for attribute in ("_name", "dataname", "name"):
+            value = getattr(data, attribute, None)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    @staticmethod
+    def _service_recovery_context_scalar(value):
+        if value is None or type(value) in (str, bool, int):
+            return value
+        if isinstance(value, Decimal):
+            if not value.is_finite():
+                raise ValueError("recovery context decimal is not finite")
+            return format(value, "f")
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError("recovery context float is not finite")
+            return value.hex()
+        raise ValueError("recovery context value is not a supported scalar")
+
+    @classmethod
+    def _service_recovery_comminfo_context(cls, comminfo):
+        if comminfo is None:
+            raise ValueError("recovery commission information is unavailable")
+        params = getattr(comminfo, "p", None)
+        if params is None:
+            raise ValueError("recovery commission parameters are unavailable")
+        names = (
+            "commission",
+            "mult",
+            "margin",
+            "commtype",
+            "stocklike",
+            "percabs",
+            "interest",
+            "interest_long",
+            "leverage",
+            "automargin",
+        )
+        values = {}
+        for name in names:
+            try:
+                value = getattr(params, name)
+            except Exception as error:
+                raise ValueError("recovery commission parameter is unavailable") from error
+            values[name] = cls._service_recovery_context_scalar(value)
+        cls_name = type(comminfo)
+        return {
+            "class_module": cls_name.__module__,
+            "class_name": cls_name.__qualname__,
+            "params": values,
+        }
+
+    @classmethod
+    def _service_recovery_feed_context(cls, data, data_name, instrument):
+        timeframe = getattr(data, "_timeframe", None)
+        compression = getattr(data, "_compression", None)
+        if type(timeframe) is not int or type(compression) is not int:
+            raise ValueError("recovery feed timeframe is not exact")
+        raw_dataname = getattr(data, "_dataname", None)
+        dataname = raw_dataname if isinstance(raw_dataname, str) else None
+        timezone = getattr(data, "_tz", None)
+        timezone = None if timezone is None else str(timezone)
+        if timezone == "":
+            timezone = None
+        feed_type = type(data)
+        feed_name = cls._service_recovery_feed_name(data)
+        if not isinstance(feed_name, str) or not feed_name:
+            raise ValueError("recovery feed name is unavailable")
+        return {
+            "data_name": data_name,
+            "instrument": instrument,
+            "feed_class": f"{feed_type.__module__}.{feed_type.__qualname__}",
+            "feed_name": feed_name,
+            "dataname": dataname,
+            "timeframe": timeframe,
+            "compression": compression,
+            "timezone": timezone,
+        }
+
+    @classmethod
+    def _service_recovery_quote_binding(
+        cls, data, *, data_name, instrument, bar_index, datetime_hex
+    ):
+        """Capture the feed's explicit quote cursor for this exact decision bar.
+
+        The feed adapter owns the quote-source mapping.  Broker recovery never
+        derives a quote revision from a bar index, timestamp, or later fill.
+        """
+
+        reader = getattr(data, "service_execution_recovery_quote_binding", None)
+        if not callable(reader):
+            raise ValueError("recovery feed has no trusted quote binding")
+        binding = reader()
+        required = {"source_ref", "generation", "cursor", "instrument", "as_of_ns"}
+        if not isinstance(binding, Mapping) or frozenset(binding) != required:
+            raise ValueError("recovery feed quote binding has an invalid shape")
+        source_ref = binding.get("source_ref")
+        generation = binding.get("generation")
+        quote_instrument = binding.get("instrument")
+        cursor = binding.get("cursor")
+        as_of_ns = binding.get("as_of_ns")
+        if (
+            type(source_ref) is not str
+            or not source_ref
+            or type(generation) is not str
+            or not generation
+            or type(quote_instrument) is not str
+            or quote_instrument != instrument
+            or type(cursor) is not int
+            or cursor < 0
+            or type(as_of_ns) is not int
+            or as_of_ns <= 0
+            or type(data_name) is not str
+            or not data_name
+            or type(bar_index) is not int
+            or bar_index < 1
+            or type(datetime_hex) is not str
+        ):
+            raise ValueError("recovery feed quote binding is invalid")
+        return {
+            "source_ref": source_ref,
+            "generation": generation,
+            "cursor": cursor,
+            "instrument": quote_instrument,
+            "as_of_ns": as_of_ns,
+            "data_name": data_name,
+            "bar_index": bar_index,
+            "datetime_hex": datetime_hex,
+        }
+
+    def configure_service_execution_recovery_feeds(self, feeds):
+        """Bind stable configured feed names before a V2 recovery run starts."""
+
+        if not self._uses_service_execution_recovery_v2():
+            raise RuntimeError("service execution recovery v2 is not active")
+        if not isinstance(feeds, (tuple, list)) or not feeds:
+            raise ValueError("recovery feed set is empty")
+        by_name = {}
+        by_identity = {}
+        for data in feeds:
+            data_name = self._service_recovery_feed_name(data)
+            if not isinstance(data_name, str) or not data_name or data_name in by_name:
+                raise ValueError("recovery feed name is missing or ambiguous")
+            by_name[data_name] = data
+            by_identity[id(data)] = data_name
+        if self._service_execution_recovery_feeds:
+            if (
+                tuple(self._service_execution_recovery_feeds.items())
+                != tuple(by_name.items())
+            ):
+                raise RuntimeError("service execution recovery feeds already bound")
+            return None
+        self._service_execution_recovery_feeds = by_name
+        self._service_execution_recovery_feed_names = by_identity
+        return None
+
+    def service_execution_recovery_feed(self, data_name):
+        """Resolve only a feed from the frozen V2 composition map."""
+
+        if not isinstance(data_name, str):
+            return None
+        return self._service_execution_recovery_feeds.get(data_name)
+
+    def bind_service_execution_recovery_strategy(self, strategy):
+        """Bind the single Strategy whose empty ledger is covered by V2 genesis."""
+
+        if not self._uses_service_execution_recovery_v2():
+            raise RuntimeError("service execution recovery v2 is not active")
+        if getattr(strategy, "broker", None) is not self:
+            raise ValueError("recovery Strategy is not bound to this Broker")
+        current = self._service_execution_recovery_strategy
+        if current is not None and current is not strategy:
+            raise ValueError("service execution recovery supports one Strategy")
+        self._service_execution_recovery_strategy = strategy
+        return self._service_execution_session.adapter
+
+    @staticmethod
+    def _service_recovery_decimal(value, *, positive=False, nonnegative=False):
+        if type(value) not in (str, Decimal, int):
+            raise ValueError("recovery decimal source is not exact text")
+        try:
+            number = value if isinstance(value, Decimal) else Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError) as error:
+            raise ValueError("recovery decimal source is invalid") from error
+        if (
+            not number.is_finite()
+            or (positive and number <= 0)
+            or (nonnegative and number < 0)
+        ):
+            raise ValueError("recovery decimal source is outside its bounds")
+        return number
+
+    @staticmethod
+    def _service_recovery_local_decimal(value, *, positive=False, nonnegative=False):
+        """Read a Backtrader numeric projection without accepting bool/NaN."""
+
+        if type(value) is float:
+            if not math.isfinite(value):
+                raise ValueError("recovery local number is not finite")
+            text = repr(value)
+        elif type(value) is int:
+            text = str(value)
+        elif type(value) is Decimal:
+            if not value.is_finite():
+                raise ValueError("recovery local number is not finite")
+            text = format(value, "f")
+        else:
+            raise ValueError("recovery local number has an unsupported type")
+        return BtApiBroker._service_recovery_decimal(
+            text, positive=positive, nonnegative=nonnegative
+        )
+
+    def recovery_intent_context(self, order):
+        """Capture the immutable configured-feed/bar/comminfo facts for one intent."""
+
+        try:
+            if not self._uses_service_execution_recovery_v2():
+                raise ValueError("service execution recovery v2 is not active")
+            strategy = self._service_execution_recovery_strategy
+            if strategy is None or getattr(strategy, "broker", None) is not self:
+                raise ValueError("recovery Strategy is unavailable")
+            if bool(getattr(strategy, "_tradehistoryon", False)):
+                raise ValueError("recovery Trade history is unsupported")
+            if any(
+                trades
+                for by_trade_id in getattr(strategy, "_trades", {}).values()
+                for trades in by_trade_id.values()
+            ):
+                raise ValueError("recovery intent requires an empty Strategy Trade ledger")
+            data = getattr(order, "data", None)
+            data_name = self._service_execution_recovery_feed_names.get(id(data))
+            if data_name is None or self._service_execution_recovery_feeds.get(data_name) is not data:
+                raise ValueError("recovery order feed is not the configured feed")
+            info = getattr(order, "info", None)
+            instrument = info.get("managed_instrument") if callable(getattr(info, "get", None)) else None
+            if not isinstance(instrument, str) or not instrument:
+                raise ValueError("recovery order instrument is unavailable")
+            if (
+                info.get("managed_position_effect") != "OPEN"
+                or bool(info.get("reduce_only", False))
+                or self._is_dual_side_mode()
+            ):
+                raise ValueError("only net-mode OPEN recovery orders are supported")
+            feed = self._service_recovery_feed_context(data, data_name, instrument)
+            bar_index = len(data)
+            if type(bar_index) is not int or bar_index < 1:
+                raise ValueError("recovery decision bar is unavailable")
+            decision_time = data.datetime[0]
+            if isinstance(decision_time, bool):
+                raise ValueError("recovery decision datetime is invalid")
+            decision_time = float(decision_time)
+            if not math.isfinite(decision_time) or decision_time <= 0:
+                raise ValueError("recovery decision datetime is invalid")
+            decision_datetime_hex = decision_time.hex()
+            quote_binding = self._service_recovery_quote_binding(
+                data,
+                data_name=data_name,
+                instrument=instrument,
+                bar_index=bar_index,
+                datetime_hex=decision_datetime_hex,
+            )
+            comminfo = getattr(order, "comminfo", None) or self.getcommissioninfo(data)
+            return {
+                "feed": feed,
+                "decision": {
+                    "bar_index": bar_index,
+                    "datetime_hex": decision_datetime_hex,
+                },
+                "comminfo": self._service_recovery_comminfo_context(comminfo),
+                "quote_binding": quote_binding,
+            }
+        except Exception:
+            self._fence_service_execution_recovery(order, "recovery_intent_context_unavailable")
+
+    def resolve_service_execution_recovery_event_context(
+        self, namespace, event, manifest, execution_context
+    ):
+        """Bind the validated paper fill to its stored bar and configured feed facts."""
+
+        try:
+            if not self._uses_service_execution_recovery_v2():
+                raise ValueError("service execution recovery v2 is not active")
+            if not all(isinstance(value, Mapping) for value in (event, manifest, execution_context)):
+                raise ValueError("recovery event context source is incomplete")
+            binding = manifest.get("recovery_binding")
+            submit = manifest.get("submit_payload")
+            feed_context = execution_context.get("feed")
+            decision = execution_context.get("decision")
+            comminfo = execution_context.get("comminfo")
+            quote_binding = execution_context.get("quote_binding")
+            if not all(
+                isinstance(value, Mapping)
+                for value in (binding, submit, feed_context, decision, comminfo, quote_binding)
+            ):
+                raise ValueError("recovery event context binding is incomplete")
+            data_name = binding.get("data_name")
+            data = self._service_execution_recovery_feeds.get(data_name)
+            if data is None:
+                raise ValueError("recovery event feed is not configured")
+            instrument = submit.get("instrument")
+            current_feed_context = self._service_recovery_feed_context(data, data_name, instrument)
+            if dict(current_feed_context) != dict(feed_context):
+                raise ValueError("recovery feed identity changed")
+            current_comminfo = self._service_recovery_comminfo_context(
+                getattr(data, "comminfo", None) or self.getcommissioninfo(data)
+            )
+            if current_comminfo != dict(comminfo):
+                raise ValueError("recovery commission mapping changed")
+            details = event.get("details")
+            fill = details.get("paper_fill_v2") if isinstance(details, Mapping) else None
+            if not isinstance(fill, Mapping):
+                raise ValueError("managed paper V2 fill is unavailable")
+            if (
+                event.get("event_type") != "provider_observation"
+                or event.get("state") != "FILLED"
+                or details.get("source") != "provider"
+                or submit.get("position_effect") != "OPEN"
+                or submit.get("reduce_only") is not False
+                or submit.get("order_type") != "MARKET"
+                or submit.get("time_in_force") != "FOK"
+                or submit.get("price") is not None
+                or fill.get("commission_model_id") != "quote_notional_rate"
+                or fill.get("commission_model_version") != "1"
+                or fill.get("instrument") not in (None, instrument)
+                or fill.get("scope_key") != event.get("scope_key")
+                or fill.get("event_id") != event.get("event_id")
+                or fill.get("event_sequence") != event.get("sequence")
+                or fill.get("journal_generation") != event.get("journal_generation")
+                or fill.get("intent_id") != event.get("intent_id")
+                or fill.get("intent_fingerprint") != event.get("intent_fingerprint")
+                or fill.get("account_ref") != getattr(namespace, "account_ref", None)
+                or fill.get("strategy_ref") != getattr(namespace, "strategy_ref", None)
+                or fill.get("quote_instrument") != instrument
+            ):
+                raise ValueError("managed paper V2 fill binding is inconsistent")
+            if (
+                frozenset(quote_binding)
+                != {
+                    "source_ref",
+                    "generation",
+                    "cursor",
+                    "instrument",
+                    "as_of_ns",
+                    "data_name",
+                    "bar_index",
+                    "datetime_hex",
+                }
+                or quote_binding.get("source_ref") != fill.get("quote_source_ref")
+                or quote_binding.get("generation") != fill.get("quote_generation")
+                or quote_binding.get("cursor") != fill.get("quote_cursor")
+                or quote_binding.get("instrument") != fill.get("quote_instrument")
+                or quote_binding.get("data_name") != data_name
+                or quote_binding.get("bar_index") != decision.get("bar_index")
+                or quote_binding.get("datetime_hex") != decision.get("datetime_hex")
+                or type(quote_binding.get("as_of_ns")) is not int
+                or quote_binding.get("as_of_ns") <= 0
+            ):
+                raise ValueError("managed paper quote is not bound to the persisted feed bar")
+            quantity = self._service_recovery_decimal(fill.get("quantity"), positive=True)
+            price = self._service_recovery_decimal(fill.get("price"), positive=True)
+            commission = self._service_recovery_decimal(fill.get("commission"))
+            if (
+                self._service_recovery_decimal(submit.get("quantity"), positive=True) != quantity
+                or self._service_recovery_decimal(details.get("filled_quantity"), nonnegative=True) != quantity
+                or self._service_recovery_decimal(details.get("average_price"), positive=True) != price
+                or self._service_recovery_decimal(details.get("cumulative_commission")) != commission
+            ):
+                raise ValueError("managed paper V2 economics do not match the order event")
+            currency = fill.get("commission_currency")
+            baseline = self._service_execution_session.adapter.recovery_baseline()
+            cash = baseline.get("cash_by_currency") if isinstance(baseline, Mapping) else None
+            if not isinstance(currency, str) or not currency or not isinstance(cash, Mapping) or currency not in cash:
+                raise ValueError("managed paper fee currency is not in the owner baseline")
+            match_ns = fill.get("match_time_ns")
+            if (
+                type(match_ns) is not int
+                or match_ns <= 0
+                or match_ns < quote_binding["as_of_ns"]
+            ):
+                raise ValueError("managed paper match time is invalid")
+            return {
+                "data_name": data_name,
+                "instrument": instrument,
+                "bar_index": decision.get("bar_index"),
+                "datetime_hex": decision.get("datetime_hex"),
+                "comminfo": dict(comminfo),
+                "commission_currency": currency,
+                "quote_source_ref": fill.get("quote_source_ref"),
+                "quote_generation": fill.get("quote_generation"),
+                "quote_cursor": fill.get("quote_cursor"),
+                "quote_instrument": fill.get("quote_instrument"),
+                "quote_as_of_ns": quote_binding.get("as_of_ns"),
+            }
+        except Exception:
+            # The journal turns mapper errors into REPLAY_UNAVAILABLE.  Do not
+            # replace a missing or changed source fact with the current bar.
+            return None
 
     @staticmethod
     def _normalise_startup_account_state(value):
@@ -4703,6 +5133,77 @@ class BtApiBroker(BrokerBase):
             ):
                 self._fence_service_execution_recovery(order, "recovery_callback_claim_mismatch")
             try:
+                if self._uses_service_execution_recovery_v2():
+                    projection = adapter.recovery_fill_projection(receipt_id)
+                    if not isinstance(projection, Mapping):
+                        self._fence_service_execution_recovery(
+                            order, "recovery_v2_fill_projection_missing"
+                        )
+                    projection_status = projection.get("status")
+                    if projection_status == "READY_TO_PROJECT":
+                        if receipt_id in self._recovery_applied_receipts:
+                            self._fence_service_execution_recovery(
+                                order, "recovery_v2_uncheckpointed_fill_replay"
+                            )
+                        self._apply_service_execution_recovery_v2_event(
+                            order, receipt_id, event, projection
+                        )
+                        self._recovery_applied_receipts.add(receipt_id)
+                        notification = order
+                    elif projection_status == "READY":
+                        notification = order.clone()
+                        notification.info = copy(order.info)
+                        self._set_service_recovery_order_scalars(
+                            notification,
+                            self._recovery_order_row_from_event(
+                                order, event, event_facts_by_receipt[receipt_id]
+                            ),
+                        )
+                        fill = projection.get("fill")
+                        if not isinstance(fill, Mapping):
+                            self._fence_service_execution_recovery(
+                                order, "recovery_v2_ready_fill_missing"
+                            )
+                        match_time_ns = fill.get("match_time_ns")
+                        match_datenum = date2num(
+                            self._service_recovery_match_datetime(match_time_ns)
+                        )
+                        event_context = projection.get("event_context")
+                        if (
+                            not isinstance(event_context, Mapping)
+                            or type(event_context.get("bar_index")) is not int
+                            or event_context.get("bar_index") < 1
+                            or not math.isfinite(match_datenum)
+                            or match_datenum <= 0.0
+                        ):
+                            self._fence_service_execution_recovery(
+                                order, "recovery_v2_ready_time_invalid"
+                            )
+                        notification.executed.dt = match_datenum
+                        notification.addinfo(
+                            service_execution_recovery_trade_history_unavailable=False,
+                            service_execution_recovery_receipt_id=receipt_id,
+                            service_execution_recovery_fill_id=fill.get("fill_id"),
+                            service_execution_recovery_match_time_ns=match_time_ns,
+                            service_execution_recovery_v2_match_datenum=match_datenum,
+                            service_execution_recovery_v2_trade_bar_index=event_context[
+                                "bar_index"
+                            ],
+                            service_execution_recovery_v2_trade_time_verified=True,
+                            execution_time_unavailable=False,
+                            execution_pnl_unavailable=False,
+                        )
+                    else:
+                        self._fence_service_execution_recovery(
+                            order, "recovery_v2_trade_projection_unavailable"
+                        )
+                    self._recovery_queued_receipts.add(receipt_id)
+                    self.notify(
+                        notification,
+                        recovery_receipt_id=receipt_id,
+                        recovery_fill_projection=projection,
+                    )
+                    continue
                 snapshot_sequence = self._order_info_get(
                     order, "service_execution_recovery_snapshot_sequence"
                 )
@@ -4738,6 +5239,287 @@ class BtApiBroker(BrokerBase):
         self._flush_service_execution_recovery_snapshot_notifications(
             startup_cursor=startup_cursor
         )
+
+    @staticmethod
+    def _service_recovery_match_datetime(match_time_ns):
+        if type(match_time_ns) is not int or match_time_ns <= 0:
+            raise ValueError("managed paper match time is invalid")
+        seconds, remainder = divmod(match_time_ns, 1_000_000_000)
+        value = _dt.datetime.fromtimestamp(seconds, _dt.timezone.utc).replace(tzinfo=None)
+        return value + _dt.timedelta(microseconds=remainder // 1_000)
+
+    def _apply_service_execution_recovery_v2_event(
+        self, order, receipt_id, event, projection
+    ):
+        """Apply one exact managed-paper fill to a Backtrader Order once."""
+
+        adapter = self._service_execution_session.adapter
+        intent_id = self._order_info_get(order, "managed_intent_id")
+        if not isinstance(intent_id, str) or not intent_id or event.get("intent_id") != intent_id:
+            self._fence_service_execution_recovery(order, "recovery_v2_intent_mismatch")
+        if (
+            projection.get("status") != "READY_TO_PROJECT"
+            or projection.get("reason") is not None
+            or projection.get("trade_state") is not None
+            or projection.get("trade_notification") is not None
+            or event.get("event_type") != "provider_observation"
+            or event.get("state") != "FILLED"
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_source_not_projectable")
+        fill = projection.get("fill")
+        intent_context = projection.get("intent_context")
+        event_context = projection.get("event_context")
+        details = event.get("details")
+        if not all(isinstance(value, Mapping) for value in (fill, intent_context, event_context, details)):
+            self._fence_service_execution_recovery(order, "recovery_v2_source_incomplete")
+
+        expected_fill_fields = {
+            "schema", "time_source", "fill_id", "match_time_ns", "quantity", "price",
+            "commission", "commission_currency", "commission_model_id",
+            "commission_model_version", "event_id", "event_sequence", "journal_generation",
+            "scope_key", "intent_id", "intent_fingerprint", "account_ref", "strategy_ref",
+            "quote_source_ref", "quote_generation", "quote_cursor", "quote_instrument",
+            "receipt_sha256",
+        }
+        expected_event_context_fields = {
+            "data_name", "instrument", "bar_index", "datetime_hex", "comminfo",
+            "commission_currency", "quote_source_ref", "quote_generation", "quote_cursor",
+            "quote_instrument", "quote_as_of_ns",
+        }
+        if (
+            frozenset(fill) != expected_fill_fields
+            or frozenset(event_context) != expected_event_context_fields
+            or fill.get("schema") != "managed_paper_fill.v2"
+            or fill.get("time_source") != "MANAGED_PAPER_MATCH"
+            or fill.get("commission_model_id") != "quote_notional_rate"
+            or fill.get("commission_model_version") != "1"
+            or fill.get("event_id") != event.get("event_id")
+            or fill.get("event_sequence") != event.get("sequence")
+            or fill.get("journal_generation") != event.get("journal_generation")
+            or fill.get("scope_key") != event.get("scope_key")
+            or fill.get("intent_id") != intent_id
+            or fill.get("intent_fingerprint") != event.get("intent_fingerprint")
+            or fill.get("fill_id") != f"paper:{fill.get('journal_generation')}:{fill.get('event_id')}"
+            or type(fill.get("match_time_ns")) is not int
+            or fill.get("match_time_ns") <= 0
+            or type(fill.get("quote_cursor")) is not int
+            or fill.get("quote_cursor") < 0
+            or type(fill.get("event_sequence")) is not int
+            or type(event_context.get("bar_index")) is not int
+            or event_context.get("bar_index") < 1
+            or type(event_context.get("datetime_hex")) is not str
+            or not isinstance(event_context.get("comminfo"), Mapping)
+            or type(event_context.get("quote_as_of_ns")) is not int
+            or event_context.get("quote_as_of_ns") <= 0
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_source_binding_invalid")
+
+        manifest = adapter.recovery_manifest(intent_id)
+        stored_context = adapter.recovery_intent_execution_context(intent_id)
+        if (
+            not isinstance(manifest, Mapping)
+            or not isinstance(stored_context, Mapping)
+            or dict(stored_context) != dict(intent_context)
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_manifest_unavailable")
+        binding = manifest.get("recovery_binding")
+        payload = manifest.get("submit_payload")
+        quote_binding = intent_context.get("quote_binding")
+        if (
+            not isinstance(binding, Mapping)
+            or not isinstance(payload, Mapping)
+            or not isinstance(quote_binding, Mapping)
+            or frozenset(quote_binding)
+            != {
+                "source_ref",
+                "generation",
+                "cursor",
+                "instrument",
+                "as_of_ns",
+                "data_name",
+                "bar_index",
+                "datetime_hex",
+            }
+            or binding.get("data_name") != event_context.get("data_name")
+            or binding.get("tradeid") != order.tradeid
+            or event_context.get("instrument") != payload.get("instrument")
+            or event_context.get("quote_instrument") != payload.get("instrument")
+            or quote_binding.get("source_ref") != fill.get("quote_source_ref")
+            or quote_binding.get("generation") != fill.get("quote_generation")
+            or quote_binding.get("cursor") != fill.get("quote_cursor")
+            or quote_binding.get("instrument") != fill.get("quote_instrument")
+            or quote_binding.get("as_of_ns") != event_context.get("quote_as_of_ns")
+            or quote_binding.get("data_name") != event_context.get("data_name")
+            or quote_binding.get("bar_index") != event_context.get("bar_index")
+            or quote_binding.get("datetime_hex") != event_context.get("datetime_hex")
+            or event_context.get("quote_source_ref") != fill.get("quote_source_ref")
+            or event_context.get("quote_generation") != fill.get("quote_generation")
+            or event_context.get("quote_cursor") != fill.get("quote_cursor")
+            or event_context.get("commission_currency") != fill.get("commission_currency")
+            or event_context.get("comminfo") != intent_context.get("comminfo")
+            or intent_context.get("feed", {}).get("data_name") != event_context.get("data_name")
+            or intent_context.get("feed", {}).get("instrument") != event_context.get("instrument")
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_binding_changed")
+
+        side = "BUY" if order.isbuy() else "SELL"
+        quantity = self._service_recovery_decimal(fill.get("quantity"), positive=True)
+        price = self._service_recovery_decimal(fill.get("price"), positive=True)
+        commission = self._service_recovery_decimal(fill.get("commission"))
+        requested_quantity = self._service_recovery_decimal(payload.get("quantity"), positive=True)
+        order_quantity = self._service_recovery_local_decimal(
+            abs(order.size), positive=True
+        )
+        detail_quantity = self._service_recovery_decimal(
+            details.get("filled_quantity"), positive=True
+        )
+        detail_price = self._service_recovery_decimal(details.get("average_price"), positive=True)
+        detail_commission = self._service_recovery_decimal(details.get("cumulative_commission"))
+        provider_order_id = details.get("provider_order_id")
+        adapter_baseline = adapter.recovery_baseline()
+        cash_by_currency = (
+            adapter_baseline.get("cash_by_currency")
+            if isinstance(adapter_baseline, Mapping)
+            else None
+        )
+        actual_comminfo = self._service_recovery_comminfo_context(
+            getattr(order, "comminfo", None) or self.getcommissioninfo(order.data)
+        )
+        if (
+            payload.get("side") != side
+            or payload.get("position_effect") != "OPEN"
+            or payload.get("order_type") != "MARKET"
+            or payload.get("time_in_force") != "FOK"
+            or payload.get("price") is not None
+            or payload.get("reduce_only") is not False
+            or quantity != requested_quantity
+            or quantity != order_quantity
+            or quantity != detail_quantity
+            or order.exectype != order.Market
+            or order.price is not None
+            or price != detail_price
+            or commission != detail_commission
+            or details.get("cumulative_commission_currency") != fill.get("commission_currency")
+            or details.get("source") != "provider"
+            or not isinstance(provider_order_id, str)
+            or not provider_order_id
+            or not isinstance(cash_by_currency, Mapping)
+            or fill.get("commission_currency") not in cash_by_currency
+            or event_context.get("comminfo") != actual_comminfo
+            or event_context.get("data_name") != self._position_key(order.data)
+            or event_context.get("instrument")
+            != self._order_info_get(order, "managed_instrument")
+            or self._is_dual_side_mode()
+            or bool(self._order_info_get(order, "reduce_only", False))
+            or self._order_info_get(order, "managed_position_effect") != "OPEN"
+            or type(quote_binding.get("as_of_ns")) is not int
+            or quote_binding.get("as_of_ns") <= 0
+            or fill.get("match_time_ns") < quote_binding.get("as_of_ns")
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_order_contract_mismatch")
+
+        positions = adapter_baseline.get("positions")
+        if not isinstance(positions, Mapping):
+            self._fence_service_execution_recovery(order, "recovery_v2_position_baseline_missing")
+        baseline_instrument = self._service_recovery_decimal(
+            positions.get(event_context["instrument"], "0")
+        )
+        signed_quantity = quantity if order.isbuy() else -quantity
+        if baseline_instrument != 0:
+            self._fence_service_execution_recovery(order, "recovery_v2_trade_baseline_nonflat")
+
+        position_key = self._position_key(order.data)
+        live_position = self.positions.get(position_key)
+        current_size = (
+            Decimal(0)
+            if live_position is None
+            else self._service_recovery_local_decimal(live_position.size or 0.0)
+        )
+        position_override = None
+        if current_size == signed_quantity:
+            if live_position is None or Decimal(str(live_position.price)) != price:
+                self._fence_service_execution_recovery(
+                    order, "recovery_v2_position_snapshot_conflict"
+                )
+            # The account snapshot already includes this one fill. Build the
+            # OrderExecutionBit from an isolated zero position so the Broker
+            # does not book that same owner position a second time.
+            position_override = Position()
+        elif current_size != 0:
+            self._fence_service_execution_recovery(
+                order, "recovery_v2_position_snapshot_conflict"
+            )
+
+        if getattr(order.executed, "exbits", ()):
+            self._fence_service_execution_recovery(order, "recovery_v2_order_has_execution_bits")
+        existing_fill = self._service_recovery_local_decimal(
+            abs(order.executed.size or 0.0), nonnegative=True
+        )
+        if existing_fill not in (Decimal(0), quantity):
+            self._fence_service_execution_recovery(order, "recovery_v2_order_snapshot_conflict")
+        # A snapshot row contains only cumulative scalars. The durable V2
+        # receipt is the one authoritative source for the single Trade bit.
+        order.executed = OrderData(remsize=order.size)
+        order.accept(self)
+        match_dt = self._service_recovery_match_datetime(fill["match_time_ns"])
+        match_datenum = date2num(match_dt)
+        order.addinfo(
+            service_execution_recovery_v2_match_datenum=match_datenum,
+            service_execution_recovery_v2_trade_bar_index=event_context["bar_index"],
+            service_execution_recovery_v2_trade_time_verified=True,
+            service_execution_recovery_match_time_ns=fill["match_time_ns"],
+            external_order_id=provider_order_id,
+        )
+        update = {
+            "kind": "trade",
+            "trade_id": fill["fill_id"],
+            "external_order_id": provider_order_id,
+            "bt_order_ref": order.ref,
+            "data_name": event_context["data_name"],
+            "instrument": event_context["instrument"],
+            "side": "buy" if order.isbuy() else "sell",
+            "position_effect": "OPEN",
+            "position_mode": self.get_param("position_mode"),
+            "offset": "open",
+            "size": float(quantity),
+            "price": float(price),
+            "commission": float(commission),
+            "commission_normalized": True,
+            "timestamp": match_dt,
+        }
+        self._service_execution_recovery_suppress_notifications = True
+        try:
+            result = self._apply_trade_update(
+                update,
+                defer_unmatched=False,
+                position_override=position_override,
+            )
+        finally:
+            self._service_execution_recovery_suppress_notifications = False
+        if result != "applied" or len(order.executed.exbits) != 1:
+            self._fence_service_execution_recovery(order, "recovery_v2_fill_not_applied")
+        bit = order.executed.exbits[0]
+        if (
+            Decimal(str(abs(bit.opened))) != quantity
+            or Decimal(str(abs(bit.closed))) != 0
+            or Decimal(str(abs(order.executed.size))) != quantity
+            or abs(float(order.executed.remsize)) > 1e-12
+            or order.status != order.Completed
+        ):
+            self._fence_service_execution_recovery(order, "recovery_v2_fill_projection_invalid")
+        order.executed.dt = match_datenum
+        bit.dt = match_datenum
+        order.addinfo(
+            service_execution_recovery_state="FILLED",
+            service_execution_recovery_trade_history_unavailable=False,
+            service_execution_recovery_receipt_id=receipt_id,
+            service_execution_recovery_fill_id=fill["fill_id"],
+            service_execution_recovery_match_time_ns=fill["match_time_ns"],
+            execution_time_unavailable=False,
+            execution_pnl_unavailable=False,
+            cumulative_commission_currency=fill["commission_currency"],
+        )
+        return order
 
     def _recovery_order_row_from_event(self, order, event, event_facts):
         details = event.get("details") or {}
@@ -4911,6 +5693,13 @@ class BtApiBroker(BrokerBase):
             freeze("service_execution_recovery_projection_unavailable")
         raise RuntimeError("service execution recovery projection unavailable") from None
 
+    def fail_service_execution_recovery_projection(self, order, reason):
+        """Latch the managed recovery fence after a Strategy projection failure."""
+
+        if not self._uses_service_execution_recovery():
+            raise RuntimeError("service execution recovery is not active")
+        self._fence_service_execution_recovery(order, reason)
+
     def acknowledge_service_execution_recovery_receipt(self, receipt_id):
         if not self._uses_service_execution_recovery():
             raise RuntimeError("service execution recovery is not active")
@@ -4922,7 +5711,14 @@ class BtApiBroker(BrokerBase):
 
         self._recovery_queued_receipts.discard(receipt_id)
 
-    def notify(self, order, *, recovery_receipt_id=None, recovery_restore_only=False):
+    def notify(
+        self,
+        order,
+        *,
+        recovery_receipt_id=None,
+        recovery_restore_only=False,
+        recovery_fill_projection=None,
+    ):
         """Queue an order notification, optionally bound to one recovery receipt."""
         if self._service_execution_recovery_suppress_notifications:
             return
@@ -4938,6 +5734,12 @@ class BtApiBroker(BrokerBase):
             snapshot.addinfo(service_execution_recovery_receipt_id=recovery_receipt_id)
         if recovery_restore_only:
             snapshot.addinfo(service_execution_recovery_restore_only=True)
+        if recovery_fill_projection is not None:
+            snapshot.addinfo(
+                service_execution_recovery_fill_projection=deepcopy(
+                    recovery_fill_projection
+                )
+            )
         self.notifs.append(snapshot)
 
     def data_started(self, data):
@@ -8619,7 +9421,14 @@ class BtApiBroker(BrokerBase):
             return exc.code, str(exc)
         return None
 
-    def _apply_trade_update(self, update, *, defer_unmatched=True, from_cumulative_status=False):
+    def _apply_trade_update(
+        self,
+        update,
+        *,
+        defer_unmatched=True,
+        from_cumulative_status=False,
+        position_override=None,
+    ):
         """Apply a normalized remote trade fill to the local order/position state."""
         trade_key = None if from_cumulative_status else self._trade_dedupe_key(update)
         if trade_key and trade_key in self._seen_trade_ids:
@@ -8769,7 +9578,9 @@ class BtApiBroker(BrokerBase):
         signed_fill = fill_qty if self._trade_update_is_buy(update, order) else -fill_qty
 
         key = self._position_key(order.data)
-        position = self.positions[key]
+        position = (
+            position_override if position_override is not None else self.positions[key]
+        )
         old_size = position.size
         old_price = position.price
         comminfo = None
@@ -9755,6 +10566,19 @@ class BtApiBroker(BrokerBase):
     @staticmethod
     def _order_execution_dt(order):
         """Pick a stable execution dt compatible with backtrader order bookkeeping."""
+        if BtApiBroker._order_info_get(
+            order, "service_execution_recovery_v2_trade_time_verified", False
+        ) is True:
+            match_datenum = BtApiBroker._order_info_get(
+                order, "service_execution_recovery_v2_match_datenum"
+            )
+            if (
+                type(match_datenum) is not float
+                or not math.isfinite(match_datenum)
+                or match_datenum <= 0.0
+            ):
+                raise ValueError("managed paper execution time projection is invalid")
+            return match_datenum
         try:
             if len(order.data):
                 return order.data.datetime[0]

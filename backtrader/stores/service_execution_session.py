@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -108,6 +109,7 @@ class ServiceExecutionSession:
         recovery_journal: Any = None,
         logical_run_id: Optional[str] = None,
         recovery_callback: Optional[Callable[[Any], Any]] = None,
+        recovery_event_version: int = 1,
     ) -> None:
         _validate_refresh_settings(
             refresh_interval_seconds,
@@ -139,6 +141,14 @@ class ServiceExecutionSession:
             recovery_journal is None or not callable(recovery_callback)
         ):
             raise ServiceExecutionSessionConfigError("RECOVERY_CALLBACK_REQUIRES_JOURNAL")
+        if recovery_callback is not None and recovery_event_version == 2:
+            raise ServiceExecutionSessionConfigError(
+                "RECOVERY_CALLBACK_USES_STRATEGY_NOTIFICATIONS"
+            )
+        if type(recovery_event_version) is not int or recovery_event_version not in {1, 2}:
+            raise ServiceExecutionSessionConfigError("INVALID_RECOVERY_EVENT_VERSION")
+        if recovery_event_version == 2 and recovery_journal is None:
+            raise ServiceExecutionSessionConfigError("RECOVERY_JOURNAL_REQUIRED")
         if runtime.state != "new":
             raise ServiceExecutionSessionConfigError("RUNTIME_NOT_NEW")
         try:
@@ -156,7 +166,14 @@ class ServiceExecutionSession:
             )
             from backtrader.stores.service_execution_adapter import ServiceExecutionAdapter
 
-            adapter = ServiceExecutionAdapter(client, recovery_journal=recovery_journal)
+            adapter = ServiceExecutionAdapter(
+                client,
+                recovery_journal=recovery_journal,
+                require_recovery_baseline=(
+                    recovery_journal is not None and recovery_event_version == 2
+                ),
+                recovery_event_version=recovery_event_version,
+            )
         except Exception as error:
             code = _safe_code(error, "INVALID_EXECUTION_ROUTE")
             raise ServiceExecutionSessionConfigError(code) from None
@@ -175,6 +192,9 @@ class ServiceExecutionSession:
         self.query_scope_ref = query_scope_ref
         self.recovery_journal = recovery_journal
         self.logical_run_id = logical_run_id
+        self.recovery_event_version = recovery_event_version
+        self._recovery_consumer_token = uuid.uuid4().hex
+        self._recovery_consumer_lease_acquired = False
         self.recovery_callback = recovery_callback
         self._creator_thread_id = threading.get_ident()
         self._refresh_interval_seconds = refresh_interval_seconds
@@ -438,6 +458,15 @@ class ServiceExecutionSession:
         try:
             broker.attach_service_execution_session(self)
             store.attach_managed_execution_adapter(self.adapter)
+            if self.recovery_journal is not None and self.recovery_event_version == 2:
+                broker.configure_service_execution_recovery_feeds(tuple(cerebro.datas))
+                self.adapter.configure_recovery_event_context_resolver(
+                    broker.resolve_service_execution_recovery_event_context
+                )
+                if self.recovery_event_version == 2:
+                    self.adapter.configure_recovery_intent_context_resolver(
+                        broker.recovery_intent_context
+                    )
             for owned_runtime in self._owned_runtimes:
                 self._runtime_start_attempted.add(id(owned_runtime))
                 owned_runtime.start()
@@ -455,7 +484,23 @@ class ServiceExecutionSession:
                     logical_run_id=self.logical_run_id,
                 )
                 self.adapter.bind_recovery_namespace(namespace)
-                self.adapter.initialize_recovery()
+                if self.recovery_event_version == 2:
+                    self.adapter.acquire_recovery_consumer_lease(
+                        self._recovery_consumer_token
+                    )
+                    self._recovery_consumer_lease_acquired = True
+                    owner_book_view = self._account_book_route_views.get(
+                        (strategy_ref, account_ref)
+                    )
+                    if owner_book_view is None:
+                        raise ServiceExecutionSessionConfigError(
+                            "RECOVERY_OWNER_BOOK_ROUTE_REQUIRED"
+                        )
+                    self.adapter.initialize_recovery(
+                        owner_book_reader=owner_book_view.snapshot,
+                    )
+                else:
+                    self.adapter.initialize_recovery()
             self._state = "running"
             result = cerebro.run(**run_kwargs)
         except BaseException as error:
@@ -478,6 +523,16 @@ class ServiceExecutionSession:
                     cleanup_exception = error
             if self._broker_stop_attempted and store_connected is True:
                 cleanup_errors.extend(("BROKER_STOP_FAILED", "STORE_STILL_CONNECTED"))
+            if self._recovery_consumer_lease_acquired:
+                try:
+                    self.adapter.release_recovery_consumer_lease(
+                        self._recovery_consumer_token
+                    )
+                    self._recovery_consumer_lease_acquired = False
+                except BaseException as error:
+                    cleanup_errors.append("RECOVERY_CONSUMER_LEASE_RELEASE_FAILED")
+                    if cleanup_exception is None:
+                        cleanup_exception = error
             self._runtime_close_attempted = True
             # Ownership transferred for every owned route at construction.
             # Close even an owned runtime whose start was not reached after a
@@ -574,8 +629,10 @@ class ServiceExecutionSession:
             if id(owned_runtime) in self._runtime_start_attempted:
                 owned_runtime.maintain()
         if self.recovery_journal is not None:
+            if self.recovery_event_version == 2:
+                self.adapter.renew_recovery_consumer_lease(self._recovery_consumer_token)
             return self.adapter.refresh_recovery_events(
-                callback=self.recovery_callback,
+                callback=(self.recovery_callback if self.recovery_event_version == 1 else None),
             )
         return self._refresh_loop.run_once()
 
@@ -865,6 +922,7 @@ def run_configured_cerebro(
         "backoff_factor",
         "limit",
         "monotonic_clock",
+        "recovery_event_version",
     }
     if set(options) - supported_options:
         raise ServiceExecutionSessionConfigError("UNSUPPORTED_SESSION_OPTION")

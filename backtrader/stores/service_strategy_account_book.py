@@ -89,6 +89,7 @@ class StrategyAccountBookSnapshot:
     financial_freshness: str | None = None
     financial_cut_relationship: str | None = None
     financial_ledger_cut: StrategyFinancialLedgerCut | None = None
+    account_key: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "positions", MappingProxyType(dict(self.positions)))
@@ -244,6 +245,11 @@ def _snapshot_from_reply(
         raise ServiceStrategyAccountBookError("STRATEGY_BOOK_COVERAGE_INCOMPLETE")
     revision = _required_text(coverage.get("scope_directory_revision"), "INVALID_COVERAGE")
     generation = _required_text(coverage.get("journal_generation"), "INVALID_COVERAGE")
+    # The legacy per-strategy account key stays optional at this layer: when the
+    # server omits it, only the financial ledger projection is unavailable
+    # (STRATEGY_FINANCIAL_ACCOUNT_KEY_UNAVAILABLE).  Managed-paper recovery V2
+    # additionally compares this key against its durable owner cut and fails
+    # closed on a missing or different key.
     legacy_account_key = coverage.get("account_key")
     baseline_cursor = _cursor(coverage.get("baseline_execution_cursor"))
     current_cursor = _cursor(coverage.get("current_execution_cursor"))
@@ -288,6 +294,7 @@ def _snapshot_from_reply(
     return StrategyAccountBookSnapshot(
         strategy_ref=strategy_ref,
         account_ref=account_ref,
+        account_key=legacy_account_key,
         scope_directory_revision=revision,
         journal_generation=generation,
         baseline_execution_cursor=baseline_cursor,

@@ -20,6 +20,7 @@ Example:
 """
 
 import itertools
+import math
 
 from .utils import AutoOrderedDict
 from .utils.date import num2date
@@ -378,8 +379,34 @@ class Trade:
         self.justopened = bool(not oldsize and size)
         # If position just opened, update baropen, dtopen and long
         if self.justopened:
-            self.baropen = data_len
-            self.dtopen = 0.0 if order.p.simulated else data_dt
+            info = getattr(order, "info", None)
+            getter = getattr(info, "get", None)
+            recovery_time_verified = (
+                getter("service_execution_recovery_v2_trade_time_verified", None)
+                if callable(getter)
+                else None
+            )
+            if recovery_time_verified is True:
+                recovery_bar = getter("service_execution_recovery_v2_trade_bar_index")
+                recovery_match_ns = getter("service_execution_recovery_match_time_ns")
+                recovery_datenum = getter("service_execution_recovery_v2_match_datenum")
+                if (
+                    type(recovery_bar) is not int
+                    or recovery_bar < 1
+                    or type(recovery_match_ns) is not int
+                    or recovery_match_ns <= 0
+                    or type(recovery_datenum) is not float
+                    or not math.isfinite(recovery_datenum)
+                    or recovery_datenum <= 0.0
+                ):
+                    raise ValueError("managed paper Trade open time is invalid")
+                self.baropen = recovery_bar
+                self.dtopen = recovery_datenum
+            elif recovery_time_verified is None or recovery_time_verified is False:
+                self.baropen = data_len
+                self.dtopen = 0.0 if order.p.simulated else data_dt
+            else:
+                raise ValueError("managed paper Trade time marker is invalid")
             self.long = self.size > 0
 
         # Any size means the trade was opened

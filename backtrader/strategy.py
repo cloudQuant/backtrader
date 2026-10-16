@@ -41,6 +41,8 @@ import collections
 import copy
 import datetime
 import itertools
+import math
+from collections.abc import Mapping
 from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase
@@ -75,12 +77,43 @@ from .signal import (
 )
 from .sizers.fixedsize import FixedSize
 from .trade import Trade
-from .utils import AutoDictList, AutoOrderedDict
+from .utils import AutoDictList, AutoOrderedDict, date2num
 from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 logger = get_logger(__name__)
 _INF = float("inf")
+_SERVICE_RECOVERY_TRADE_STATE_SCHEMA = "backtrader.managed_paper_trade.v1"
+_SERVICE_RECOVERY_TRADE_STATE_FIELDS = frozenset(
+    {
+        "schema",
+        "data_name",
+        "tradeid",
+        "receipt_id",
+        "fill_id",
+        "match_time_ns",
+        "status",
+        "long",
+        "size",
+        "price",
+        "value",
+        "commission",
+        "pnl",
+        "pnlcomm",
+        "justopened",
+        "isopen",
+        "isclosed",
+        "baropen",
+        "dtopen",
+        "barclose",
+        "dtclose",
+        "barlen",
+        "historyon",
+    }
+)
+_SERVICE_RECOVERY_TRADE_NOTIFICATION_FIELDS = frozenset(
+    {"callback", "data_name", "tradeid"}
+)
 
 
 def _set_current_datetime(line, value):
@@ -1791,6 +1824,7 @@ class Strategy(StrategyBase):
         )
         # Current minimum period status defaults to MAXINT (start in prenext)
         self._minperstatus = MAXINT
+        self._initialize_service_execution_recovery_v2()
         # Call user's start()
         self.start()
         self._quicknotify = self.cerebro.p.quicknotify
@@ -2024,6 +2058,739 @@ class Strategy(StrategyBase):
         self._orderspending = []
         self._tradespending = []
 
+    @staticmethod
+    def _service_recovery_trade_float_hex(value, *, positive=False, nonzero=False):
+        if type(value) not in (float, int) or isinstance(value, bool):
+            raise ValueError("recovery Trade number has an unsupported type")
+        number = float(value)
+        if (
+            not math.isfinite(number)
+            or (positive and number <= 0.0)
+            or (nonzero and number == 0.0)
+        ):
+            raise ValueError("recovery Trade number is outside its bounds")
+        return number.hex()
+
+    @staticmethod
+    def _service_recovery_trade_float_from_hex(value, *, positive=False, nonzero=False):
+        if type(value) is not str:
+            raise ValueError("recovery Trade number is not canonical text")
+        try:
+            number = float.fromhex(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("recovery Trade number is invalid") from error
+        if (
+            not math.isfinite(number)
+            or number.hex() != value
+            or (positive and number <= 0.0)
+            or (nonzero and number == 0.0)
+        ):
+            raise ValueError("recovery Trade number is outside its bounds")
+        return number
+
+    @classmethod
+    def _service_recovery_trade_state(
+        cls, trade, *, data_name, tradeid, receipt_id, fill_id, match_time_ns
+    ):
+        if (
+            not isinstance(data_name, str)
+            or not data_name
+            or type(tradeid) is not int
+            or not isinstance(receipt_id, str)
+            or len(receipt_id) != 64
+            or any(char not in "0123456789abcdef" for char in receipt_id)
+            or not isinstance(fill_id, str)
+            or not fill_id
+            or type(match_time_ns) is not int
+            or match_time_ns <= 0
+            or trade.data is None
+            or trade.tradeid != tradeid
+            or trade.status != Trade.Open
+            or trade.justopened is not True
+            or trade.isopen is not True
+            or trade.isclosed is not False
+            or trade.historyon is not False
+            or type(trade.long) is not bool
+            or type(trade.baropen) is not int
+            or trade.baropen < 1
+            or type(trade.barlen) is not int
+            or trade.barlen != 0
+            or type(trade.barclose) is not int
+            or trade.barclose != 0
+            or trade.history
+        ):
+            raise ValueError("recovery Trade state is not a single open fill")
+        size = cls._service_recovery_trade_float_hex(trade.size, nonzero=True)
+        if trade.long is not (float.fromhex(size) > 0.0):
+            raise ValueError("recovery Trade direction is inconsistent")
+        if cls._service_recovery_trade_float_hex(trade.pnl) not in {
+            "0x0.0p+0",
+            "-0x0.0p+0",
+        }:
+            raise ValueError("recovery Trade opening PnL is not zero")
+        dtclose = cls._service_recovery_trade_float_hex(trade.dtclose)
+        if float.fromhex(dtclose) != 0.0:
+            raise ValueError("open recovery Trade has a close time")
+        return {
+            "schema": _SERVICE_RECOVERY_TRADE_STATE_SCHEMA,
+            "data_name": data_name,
+            "tradeid": tradeid,
+            "receipt_id": receipt_id,
+            "fill_id": fill_id,
+            "match_time_ns": match_time_ns,
+            "status": Trade.Open,
+            "long": trade.long,
+            "size": size,
+            "price": cls._service_recovery_trade_float_hex(trade.price, positive=True),
+            "value": cls._service_recovery_trade_float_hex(trade.value),
+            "commission": cls._service_recovery_trade_float_hex(trade.commission),
+            "pnl": cls._service_recovery_trade_float_hex(trade.pnl),
+            "pnlcomm": cls._service_recovery_trade_float_hex(trade.pnlcomm),
+            "justopened": True,
+            "isopen": True,
+            "isclosed": False,
+            "baropen": trade.baropen,
+            "dtopen": cls._service_recovery_trade_float_hex(trade.dtopen, positive=True),
+            "barclose": 0,
+            "dtclose": dtclose,
+            "barlen": 0,
+            "historyon": False,
+        }
+
+    @classmethod
+    def _service_recovery_trade_from_state(cls, data, state, *, data_name, tradeid):
+        if (
+            not isinstance(state, Mapping)
+            or frozenset(state) != _SERVICE_RECOVERY_TRADE_STATE_FIELDS
+            or state.get("schema") != _SERVICE_RECOVERY_TRADE_STATE_SCHEMA
+            or state.get("data_name") != data_name
+            or type(state.get("tradeid")) is not int
+            or state.get("tradeid") != tradeid
+            or type(state.get("status")) is not int
+            or state.get("status") != Trade.Open
+            or type(state.get("long")) is not bool
+            or type(state.get("justopened")) is not bool
+            or state.get("justopened") is not True
+            or type(state.get("isopen")) is not bool
+            or state.get("isopen") is not True
+            or type(state.get("isclosed")) is not bool
+            or state.get("isclosed") is not False
+            or type(state.get("historyon")) is not bool
+            or state.get("historyon") is not False
+            or type(state.get("baropen")) is not int
+            or state.get("baropen") < 1
+            or type(state.get("barlen")) is not int
+            or state.get("barlen") != 0
+            or type(state.get("barclose")) is not int
+            or state.get("barclose") != 0
+            or type(state.get("receipt_id")) is not str
+            or len(state.get("receipt_id")) != 64
+            or any(char not in "0123456789abcdef" for char in state.get("receipt_id"))
+            or type(state.get("fill_id")) is not str
+            or not state.get("fill_id")
+            or type(state.get("match_time_ns")) is not int
+            or state.get("match_time_ns") <= 0
+        ):
+            raise ValueError("recovery Trade checkpoint is invalid")
+        decoded = {
+            name: cls._service_recovery_trade_float_from_hex(
+                state[name],
+                positive=name in {"price", "dtopen"},
+                nonzero=name == "size",
+            )
+            for name in (
+                "size",
+                "price",
+                "value",
+                "commission",
+                "pnl",
+                "pnlcomm",
+                "dtopen",
+                "dtclose",
+            )
+        }
+        if (
+            state["long"] is not (decoded["size"] > 0.0)
+            or decoded["pnl"] != 0.0
+            or decoded["dtclose"] != 0.0
+        ):
+            raise ValueError("recovery Trade checkpoint economics are inconsistent")
+        trade = Trade(data=data, tradeid=tradeid, historyon=False)
+        trade.status = Trade.Open
+        trade.long = state["long"]
+        trade.size = decoded["size"]
+        trade.price = decoded["price"]
+        trade.value = decoded["value"]
+        trade.commission = decoded["commission"]
+        trade.pnl = decoded["pnl"]
+        trade.pnlcomm = decoded["pnlcomm"]
+        trade.justopened = True
+        trade.isopen = True
+        trade.isclosed = False
+        trade.baropen = state["baropen"]
+        trade.dtopen = decoded["dtopen"]
+        trade.barclose = 0
+        trade.dtclose = 0.0
+        trade.barlen = 0
+        trade.historyon = False
+        trade.service_execution_recovery_receipt_id = state["receipt_id"]
+        trade.service_execution_recovery_fill_id = state["fill_id"]
+        trade.service_execution_recovery_match_time_ns = state["match_time_ns"]
+        return trade
+
+    @staticmethod
+    def _service_recovery_trade_notifications(value, *, data_name, tradeid):
+        if type(value) is not list or len(value) != 1 or not isinstance(value[0], Mapping):
+            raise ValueError("recovery Trade notification checkpoint is invalid")
+        notification = value[0]
+        if (
+            frozenset(notification) != _SERVICE_RECOVERY_TRADE_NOTIFICATION_FIELDS
+            or notification.get("callback") != "notify_trade"
+            or notification.get("data_name") != data_name
+            or type(notification.get("tradeid")) is not int
+            or notification.get("tradeid") != tradeid
+        ):
+            raise ValueError("recovery Trade notification binding is invalid")
+        return [{"callback": "notify_trade", "data_name": data_name, "tradeid": tradeid}]
+
+    def _initialize_service_execution_recovery_v2(self):
+        broker = getattr(self, "broker", None)
+        active = getattr(broker, "_uses_service_execution_recovery_v2", None)
+        if not callable(active) or not active():
+            return
+        adapter = broker.bind_service_execution_recovery_strategy(self)
+        if (
+            type(getattr(self, "_tradehistoryon", None)) is not bool
+            or self._tradehistoryon is not False
+        ):
+            raise RuntimeError("managed paper recovery requires Trade history to be disabled")
+        ledger_empty = not any(
+            trades
+            for by_trade_id in self._trades.values()
+            for trades in by_trade_id.values()
+        )
+        baseline = adapter.recovery_baseline()
+        if not isinstance(baseline, Mapping):
+            raise RuntimeError("managed paper recovery baseline is unavailable")
+        expected_genesis = {
+            "baseline_cursor": baseline.get("baseline_cursor"),
+            "journal_generation": baseline.get("journal_generation"),
+            "scope_directory_revision": baseline.get("scope_directory_revision"),
+            "trade_ledger_empty": True,
+        }
+        if not ledger_empty:
+            raise RuntimeError("managed paper recovery requires an empty Trade ledger")
+        genesis = adapter.ensure_strategy_genesis(trade_ledger_empty=True)
+        if not isinstance(genesis, Mapping) or dict(genesis) != expected_genesis:
+            raise RuntimeError("managed paper recovery genesis does not match its baseline")
+        reconciliation = adapter.recovery_owner_position_reconciliation
+        if (
+            not isinstance(reconciliation, Mapping)
+            or reconciliation.get("trade_projection_available") is not True
+        ):
+            raise RuntimeError("managed paper Trade projection baseline is unavailable")
+
+        checkpoints = adapter.recovery_trade_checkpoints()
+        if type(checkpoints) is not tuple:
+            raise RuntimeError("managed paper Trade checkpoints are unavailable")
+        seen = set()
+        for checkpoint in checkpoints:
+            if (
+                not isinstance(checkpoint, Mapping)
+                or frozenset(checkpoint) != {"data_name", "tradeid", "state", "receipt_id"}
+            ):
+                raise RuntimeError("managed paper Trade checkpoint row is invalid")
+            data_name = checkpoint["data_name"]
+            tradeid = checkpoint["tradeid"]
+            receipt_id = checkpoint["receipt_id"]
+            state = checkpoint["state"]
+            key = (data_name, tradeid)
+            if key in seen:
+                raise RuntimeError("managed paper Trade checkpoint is ambiguous")
+            seen.add(key)
+            feed = broker.service_execution_recovery_feed(data_name)
+            if feed is None or getattr(feed, "_compensate", None) is not None:
+                raise RuntimeError("managed paper Trade checkpoint feed is unavailable")
+            projection = adapter.recovery_fill_projection(receipt_id)
+            if (
+                not isinstance(projection, Mapping)
+                or projection.get("status") != "READY"
+                or projection.get("reason") is not None
+                or projection.get("trade_state") != state
+            ):
+                raise RuntimeError("managed paper Trade checkpoint receipt is not ready")
+            notification = self._service_recovery_trade_notifications(
+                projection.get("trade_notification"),
+                data_name=data_name,
+                tradeid=tradeid,
+            )
+            trade = self._service_recovery_trade_from_state(
+                feed, state, data_name=data_name, tradeid=tradeid
+            )
+            fill = projection.get("fill")
+            intent_context = projection.get("intent_context")
+            event_context = projection.get("event_context")
+            decision = (
+                intent_context.get("decision")
+                if isinstance(intent_context, Mapping)
+                else None
+            )
+            quote_binding = (
+                intent_context.get("quote_binding")
+                if isinstance(intent_context, Mapping)
+                else None
+            )
+            manifest = adapter.recovery_manifest(
+                fill.get("intent_id") if isinstance(fill, Mapping) else ""
+            )
+            payload = manifest.get("submit_payload") if isinstance(manifest, Mapping) else None
+            current_feed_context = (
+                broker._service_recovery_feed_context(
+                    feed, data_name, fill.get("quote_instrument")
+                )
+                if isinstance(fill, Mapping)
+                else None
+            )
+            current_comminfo = broker._service_recovery_comminfo_context(
+                getattr(feed, "comminfo", None) or broker.getcommissioninfo(feed)
+            )
+            if (
+                not isinstance(fill, Mapping)
+                or not isinstance(intent_context, Mapping)
+                or frozenset(intent_context)
+                != {"feed", "decision", "comminfo", "quote_binding"}
+                or not isinstance(event_context, Mapping)
+                or frozenset(event_context)
+                != {
+                    "data_name",
+                    "instrument",
+                    "bar_index",
+                    "datetime_hex",
+                    "comminfo",
+                    "commission_currency",
+                    "quote_source_ref",
+                    "quote_generation",
+                    "quote_cursor",
+                    "quote_instrument",
+                    "quote_as_of_ns",
+                }
+                or not isinstance(quote_binding, Mapping)
+                or frozenset(quote_binding)
+                != {
+                    "source_ref",
+                    "generation",
+                    "cursor",
+                    "instrument",
+                    "as_of_ns",
+                    "data_name",
+                    "bar_index",
+                    "datetime_hex",
+                }
+                or not isinstance(payload, Mapping)
+                or not isinstance(decision, Mapping)
+                or frozenset(decision) != {"bar_index", "datetime_hex"}
+                or payload.get("order_type") != "MARKET"
+                or payload.get("time_in_force") != "FOK"
+                or payload.get("price") is not None
+                or payload.get("position_effect") != "OPEN"
+                or payload.get("reduce_only") is not False
+                or payload.get("side") not in {"BUY", "SELL"}
+                or payload.get("instrument") != fill.get("quote_instrument")
+                or payload.get("intent_id") != fill.get("intent_id")
+                or payload.get("quantity") != fill.get("quantity")
+                or state.get("long") is not (payload.get("side") == "BUY")
+                or current_feed_context != dict(intent_context.get("feed", {}))
+                or current_comminfo != dict(intent_context.get("comminfo", {}))
+                or event_context.get("data_name") != data_name
+                or event_context.get("instrument") != fill.get("quote_instrument")
+                or event_context.get("bar_index") != state.get("baropen")
+                or event_context.get("datetime_hex") != decision.get("datetime_hex")
+                or decision.get("bar_index") != state.get("baropen")
+                or event_context.get("comminfo") != dict(intent_context.get("comminfo", {}))
+                or event_context.get("commission_currency") != fill.get("commission_currency")
+                or event_context.get("quote_as_of_ns") != quote_binding.get("as_of_ns")
+                or quote_binding.get("source_ref") != fill.get("quote_source_ref")
+                or quote_binding.get("generation") != fill.get("quote_generation")
+                or quote_binding.get("cursor") != fill.get("quote_cursor")
+                or quote_binding.get("instrument") != fill.get("quote_instrument")
+                or quote_binding.get("data_name") != data_name
+                or quote_binding.get("bar_index") != state.get("baropen")
+                or quote_binding.get("bar_index") != decision.get("bar_index")
+                or quote_binding.get("datetime_hex") != event_context.get("datetime_hex")
+                or type(quote_binding.get("as_of_ns")) is not int
+                or quote_binding.get("as_of_ns") <= 0
+                or type(fill.get("match_time_ns")) is not int
+                or fill.get("match_time_ns") < quote_binding.get("as_of_ns")
+                or fill.get("fill_id") != trade.service_execution_recovery_fill_id
+                or fill.get("match_time_ns") != trade.service_execution_recovery_match_time_ns
+                or receipt_id != trade.service_execution_recovery_receipt_id
+                or float.fromhex(state["size"])
+                != (float(fill["quantity"]) if payload.get("side") == "BUY" else -float(fill["quantity"]))
+                or float.fromhex(state["price"]) != float(fill["price"])
+                or float.fromhex(state["commission"]) != float(fill["commission"])
+                or projection.get("trade_notification") != notification
+            ):
+                raise RuntimeError("managed paper Trade checkpoint fill binding is invalid")
+            self._trades[feed][tradeid].append(trade)
+
+    def _service_execution_recovery_v2_trade(self, order, receipt_id, projection):
+        broker = self.broker
+        adapter = broker.bind_service_execution_recovery_strategy(self)
+        if (
+            not isinstance(projection, Mapping)
+            or projection.get("status") not in {"READY_TO_PROJECT", "READY"}
+            or projection.get("reason") is not None
+        ):
+            raise ValueError("managed paper fill projection is not ready")
+        fill = projection.get("fill")
+        intent_context = projection.get("intent_context")
+        event_context = projection.get("event_context")
+        if not all(isinstance(value, Mapping) for value in (fill, intent_context, event_context)):
+            raise ValueError("managed paper fill projection is incomplete")
+        expected_fill_fields = {
+            "schema",
+            "time_source",
+            "fill_id",
+            "match_time_ns",
+            "quantity",
+            "price",
+            "commission",
+            "commission_currency",
+            "commission_model_id",
+            "commission_model_version",
+            "event_id",
+            "event_sequence",
+            "journal_generation",
+            "scope_key",
+            "intent_id",
+            "intent_fingerprint",
+            "account_ref",
+            "strategy_ref",
+            "quote_source_ref",
+            "quote_generation",
+            "quote_cursor",
+            "quote_instrument",
+            "receipt_sha256",
+        }
+        if (
+            frozenset(fill) != expected_fill_fields
+            or fill.get("schema") != "managed_paper_fill.v2"
+            or fill.get("time_source") != "MANAGED_PAPER_MATCH"
+            or fill.get("commission_model_id") != "quote_notional_rate"
+            or fill.get("commission_model_version") != "1"
+            or type(fill.get("match_time_ns")) is not int
+            or fill.get("match_time_ns") <= 0
+            or type(fill.get("event_sequence")) is not int
+            or fill.get("event_sequence") <= 0
+            or type(fill.get("quote_cursor")) is not int
+            or fill.get("quote_cursor") < 0
+            or type(fill.get("journal_generation")) is not str
+            or not fill.get("journal_generation")
+            or type(fill.get("event_id")) is not str
+            or not fill.get("event_id")
+            or fill.get("fill_id")
+            != f"paper:{fill.get('journal_generation')}:{fill.get('event_id')}"
+            or type(fill.get("intent_fingerprint")) is not str
+            or len(fill.get("intent_fingerprint")) != 64
+            or any(char not in "0123456789abcdef" for char in fill.get("intent_fingerprint"))
+            or type(fill.get("receipt_sha256")) is not str
+            or len(fill.get("receipt_sha256")) != 64
+            or any(char not in "0123456789abcdef" for char in fill.get("receipt_sha256"))
+            or not isinstance(fill.get("account_ref"), str)
+            or not fill.get("account_ref")
+            or not isinstance(fill.get("strategy_ref"), str)
+            or not fill.get("strategy_ref")
+        ):
+            raise ValueError("managed paper fill source binding is invalid")
+        info = getattr(order, "info", None)
+        if not callable(getattr(info, "get", None)):
+            raise ValueError("managed paper order metadata is unavailable")
+        intent_id = info.get("managed_intent_id")
+        if (
+            not isinstance(intent_id, str)
+            or not intent_id
+            or fill.get("intent_id") != intent_id
+            or info.get("service_execution_recovery_receipt_id") != receipt_id
+            or info.get("service_execution_recovery_fill_id") != fill.get("fill_id")
+            or info.get("service_execution_recovery_match_time_ns") != fill.get("match_time_ns")
+            or info.get("service_execution_recovery_state") != "FILLED"
+            or info.get("service_execution_recovery_trade_history_unavailable") is not False
+            or order.status != order.Completed
+            or order.exectype != order.Market
+            or order.price is not None
+            or order.p.simulated
+            or getattr(order, "comminfo", None) is None
+        ):
+            raise ValueError("managed paper order state is not eligible for Trade projection")
+        if frozenset(event_context) != {
+            "data_name",
+            "instrument",
+            "bar_index",
+            "datetime_hex",
+            "comminfo",
+            "commission_currency",
+            "quote_source_ref",
+            "quote_generation",
+            "quote_cursor",
+            "quote_instrument",
+            "quote_as_of_ns",
+        }:
+            raise ValueError("managed paper execution context has unknown fields")
+        if (
+            frozenset(intent_context) != {"feed", "decision", "comminfo", "quote_binding"}
+            or not all(
+                isinstance(intent_context.get(key), Mapping)
+                for key in ("feed", "decision", "comminfo", "quote_binding")
+            )
+        ):
+            raise ValueError("managed paper intent context is invalid")
+        feed_context = intent_context["feed"]
+        decision = intent_context["decision"]
+        quote_binding = intent_context["quote_binding"]
+        expected_quote_fields = {
+            "source_ref",
+            "generation",
+            "cursor",
+            "instrument",
+            "as_of_ns",
+            "data_name",
+            "bar_index",
+            "datetime_hex",
+        }
+        if (
+            frozenset(feed_context)
+            != {
+                "data_name",
+                "instrument",
+                "feed_class",
+                "feed_name",
+                "dataname",
+                "timeframe",
+                "compression",
+                "timezone",
+            }
+            or frozenset(decision) != {"bar_index", "datetime_hex"}
+            or decision.get("bar_index") != event_context.get("bar_index")
+            or decision.get("datetime_hex") != event_context.get("datetime_hex")
+            or event_context.get("comminfo") != intent_context.get("comminfo")
+            or frozenset(quote_binding) != expected_quote_fields
+            or type(quote_binding.get("source_ref")) is not str
+            or not quote_binding.get("source_ref")
+            or type(quote_binding.get("generation")) is not str
+            or not quote_binding.get("generation")
+            or type(quote_binding.get("cursor")) is not int
+            or quote_binding.get("cursor") < 0
+            or type(quote_binding.get("instrument")) is not str
+            or not quote_binding.get("instrument")
+            or type(quote_binding.get("as_of_ns")) is not int
+            or quote_binding.get("as_of_ns") <= 0
+            or quote_binding.get("data_name") != feed_context.get("data_name")
+            or quote_binding.get("bar_index") != decision.get("bar_index")
+            or quote_binding.get("datetime_hex") != decision.get("datetime_hex")
+            or type(event_context.get("quote_as_of_ns")) is not int
+            or event_context.get("quote_as_of_ns") != quote_binding.get("as_of_ns")
+        ):
+            raise ValueError("managed paper bar or commission context changed")
+        decision_time = self._service_recovery_trade_float_from_hex(
+            decision.get("datetime_hex"), positive=True
+        )
+        if (
+            type(decision.get("bar_index")) is not int
+            or decision.get("bar_index") < 1
+            or self._service_recovery_trade_float_from_hex(
+                event_context.get("datetime_hex"), positive=True
+            )
+            != decision_time
+            or type(event_context.get("bar_index")) is not int
+            or event_context.get("bar_index") < 1
+            or not isinstance(event_context.get("comminfo"), Mapping)
+        ):
+            raise ValueError("managed paper decision context is invalid")
+        manifest = adapter.recovery_manifest(intent_id)
+        if not isinstance(manifest, Mapping):
+            raise ValueError("managed paper intent manifest is unavailable")
+        binding = manifest.get("recovery_binding")
+        payload = manifest.get("submit_payload")
+        data_name = event_context.get("data_name")
+        instrument = event_context.get("instrument")
+        if (
+            not isinstance(binding, Mapping)
+            or frozenset(binding) != {"tradeid", "data_name"}
+            or not isinstance(payload, Mapping)
+            or binding.get("data_name") != data_name
+            or binding.get("tradeid") != order.tradeid
+            or payload.get("intent_id") != intent_id
+            or payload.get("instrument") != instrument
+            or payload.get("instrument") != event_context.get("quote_instrument")
+            or payload.get("side") != ("BUY" if order.isbuy() else "SELL")
+            or payload.get("position_effect") != "OPEN"
+            or payload.get("order_type") != "MARKET"
+            or payload.get("time_in_force") != "FOK"
+            or payload.get("price") is not None
+            or payload.get("reduce_only") is not False
+            or broker._service_recovery_feed_name(order.data) != data_name
+            or event_context.get("instrument") != info.get("managed_instrument")
+            or event_context.get("quote_source_ref") != fill.get("quote_source_ref")
+            or event_context.get("quote_generation") != fill.get("quote_generation")
+            or event_context.get("quote_cursor") != fill.get("quote_cursor")
+            or event_context.get("quote_instrument") != fill.get("quote_instrument")
+            or quote_binding.get("source_ref") != fill.get("quote_source_ref")
+            or quote_binding.get("generation") != fill.get("quote_generation")
+            or quote_binding.get("cursor") != fill.get("quote_cursor")
+            or quote_binding.get("instrument") != fill.get("quote_instrument")
+            or quote_binding.get("instrument") != instrument
+            or quote_binding.get("data_name") != data_name
+            or quote_binding.get("bar_index") != event_context.get("bar_index")
+            or quote_binding.get("datetime_hex") != event_context.get("datetime_hex")
+            or fill.get("match_time_ns") < quote_binding.get("as_of_ns")
+            or event_context.get("commission_currency") != fill.get("commission_currency")
+            or info.get("cumulative_commission_currency") != fill.get("commission_currency")
+            or feed_context.get("data_name") != data_name
+            or feed_context.get("instrument") != instrument
+            or broker.service_execution_recovery_feed(data_name) is not order.data
+            or getattr(order.data, "_compensate", None) is not None
+            or broker._service_recovery_feed_context(order.data, data_name, instrument)
+            != dict(feed_context)
+            or broker._service_recovery_comminfo_context(order.comminfo)
+            != dict(intent_context["comminfo"])
+        ):
+            raise ValueError("managed paper intent binding does not match the Order")
+        actual_intent_context = adapter.recovery_intent_execution_context(intent_id)
+        if not isinstance(actual_intent_context, Mapping) or dict(actual_intent_context) != dict(
+            intent_context
+        ):
+            raise ValueError("managed paper execution context changed")
+
+        quantity = broker._service_recovery_decimal(fill.get("quantity"), positive=True)
+        price = broker._service_recovery_decimal(fill.get("price"), positive=True)
+        commission = broker._service_recovery_decimal(fill.get("commission"))
+        if quantity != broker._service_recovery_decimal(payload.get("quantity"), positive=True):
+            raise ValueError("managed paper fill quantity differs from its intent")
+
+        def _matches(value, expected):
+            local = broker._service_recovery_local_decimal(value)
+            projected = Decimal(str(float(expected)))
+            return local == projected
+
+        status = projection.get("status")
+        bits = getattr(order.executed, "exbits", ())
+        if status == "READY_TO_PROJECT":
+            if len(bits) != 1:
+                raise ValueError("new managed paper Order must have one execution bit")
+            bit = bits[0]
+        elif status == "READY":
+            if bits:
+                raise ValueError("replayed managed paper Order must not execute twice")
+            bit = None
+        else:
+            raise ValueError("managed paper Trade projection state is unsupported")
+        expected_signed = quantity if order.isbuy() else -quantity
+        if (
+            not _matches(abs(order.size), quantity)
+            or not _matches(order.executed.size, expected_signed)
+            or not _matches(order.executed.price, price)
+            or not _matches(order.executed.comm, commission)
+            or not _matches(order.executed.remsize, Decimal(0))
+            or (bit is not None and not _matches(bit.opened, expected_signed))
+            or (bit is not None and not _matches(bit.closed, Decimal(0)))
+            or (bit is not None and not _matches(bit.price, price))
+            or (bit is not None and not _matches(bit.openedcomm, commission))
+        ):
+            raise ValueError("managed paper execution economics differ from its fill")
+        match_time_ns = fill["match_time_ns"]
+        seconds, remainder = divmod(match_time_ns, 1_000_000_000)
+        match_dt = datetime.datetime.fromtimestamp(
+            seconds, datetime.timezone.utc
+        ).replace(tzinfo=None) + datetime.timedelta(microseconds=remainder // 1_000)
+        match_datenum = date2num(match_dt)
+        if (
+            not math.isfinite(match_datenum)
+            or match_datenum <= 0.0
+            or not _matches(order.executed.dt, Decimal(str(match_datenum)))
+            or (bit is not None and not _matches(bit.dt, Decimal(str(match_datenum))) )
+        ):
+            raise ValueError("managed paper execution time differs from its fill")
+        tradeid = trade_key_from_order(order)
+        if type(tradeid) is not int or tradeid != binding.get("tradeid"):
+            raise ValueError("managed paper Trade id is unsupported")
+        trade_notifications = [
+            {"callback": "notify_trade", "data_name": data_name, "tradeid": tradeid}
+        ]
+        if status == "READY_TO_PROJECT":
+            if projection.get("trade_state") is not None or projection.get("trade_notification") is not None:
+                raise ValueError("uncheckpointed managed paper fill has Trade state")
+            by_trade_id = self._trades.get(order.data)
+            existing = None if by_trade_id is None else by_trade_id.get(tradeid)
+            if existing:
+                raise ValueError("managed paper Trade ledger already contains this fill")
+            trade = Trade(data=order.data, tradeid=tradeid, historyon=False)
+            trade.update(
+                order,
+                bit.opened,
+                bit.price,
+                bit.openedvalue,
+                bit.openedcomm,
+                bit.pnl,
+                comminfo=order.comminfo,
+            )
+            trade.baropen = event_context["bar_index"]
+            trade.dtopen = match_datenum
+            trade.barlen = 0
+            trade.justopened = True
+            trade.service_execution_recovery_receipt_id = receipt_id
+            trade.service_execution_recovery_fill_id = fill["fill_id"]
+            trade.service_execution_recovery_match_time_ns = match_time_ns
+            trade_state = self._service_recovery_trade_state(
+                trade,
+                data_name=data_name,
+                tradeid=tradeid,
+                receipt_id=receipt_id,
+                fill_id=fill["fill_id"],
+                match_time_ns=match_time_ns,
+            )
+            persisted = adapter.persist_recovery_trade_projection(
+                receipt_id,
+                data_name=data_name,
+                tradeid=tradeid,
+                trade_state=trade_state,
+                trade_notifications=trade_notifications,
+            )
+            if (
+                not isinstance(persisted, Mapping)
+                or persisted.get("status") != "READY"
+                or persisted.get("trade_state") != trade_state
+                or persisted.get("trade_notification") != trade_notifications
+            ):
+                raise ValueError("managed paper Trade projection did not persist exactly")
+            self._trades[order.data][tradeid].append(trade)
+        elif status == "READY":
+            persisted_state = projection.get("trade_state")
+            persisted_notifications = self._service_recovery_trade_notifications(
+                projection.get("trade_notification"),
+                data_name=data_name,
+                tradeid=tradeid,
+            )
+            if not isinstance(persisted_state, Mapping):
+                raise ValueError("managed paper persisted Trade state is unavailable")
+            by_trade_id = self._trades.get(order.data)
+            current = None if by_trade_id is None else by_trade_id.get(tradeid)
+            if not isinstance(current, list) or len(current) != 1:
+                raise ValueError("managed paper Trade was not hydrated before callback replay")
+            trade = current[0]
+            actual_state = self._service_recovery_trade_state(
+                trade,
+                data_name=data_name,
+                tradeid=tradeid,
+                receipt_id=receipt_id,
+                fill_id=fill["fill_id"],
+                match_time_ns=match_time_ns,
+            )
+            if actual_state != dict(persisted_state) or persisted_notifications != trade_notifications:
+                raise ValueError("managed paper Trade replay differs from its durable checkpoint")
+        else:
+            raise ValueError("managed paper Trade projection state is unsupported")
+        return copy.copy(trade)
+
     def _addnotification(self, order, quicknotify=False):
         """Add order notification and process trade updates.
 
@@ -2066,6 +2833,37 @@ class Strategy(StrategyBase):
         if quicknotify:
             qorders = [order]
             qtrades: list = []
+        recovery_projection = (
+            recovery_info.get("service_execution_recovery_fill_projection")
+            if callable(getattr(recovery_info, "get", None))
+            else None
+        )
+        if recovery_projection is not None:
+            try:
+                trade = self._service_execution_recovery_v2_trade(
+                    order, recovery_receipt, recovery_projection
+                )
+            except Exception:
+                broker = getattr(self, "broker", None)
+                fail = getattr(
+                    broker, "fail_service_execution_recovery_projection", None
+                )
+                if callable(fail):
+                    fail(order, "strategy_trade_projection_invalid")
+                raise
+            if quicknotify:
+                qtrades.append(trade)
+                self._notify(qorders=qorders, qtrades=qtrades)
+            else:
+                self._tradespending.append(trade)
+            return
+        broker = getattr(self, "broker", None)
+        active_v2 = getattr(broker, "_uses_service_execution_recovery_v2", None)
+        if recovery_receipt and callable(active_v2) and active_v2():
+            fail = getattr(broker, "fail_service_execution_recovery_projection", None)
+            if callable(fail):
+                fail(order, "strategy_trade_projection_missing")
+            raise RuntimeError("managed paper Trade projection is missing")
         # If order has no executed volume
         if not order.executed.size:
             # If in quick notify mode, call _notify with info

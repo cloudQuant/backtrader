@@ -20,6 +20,7 @@ from ..utils.log_message import get_logger
 from .barrier import BarEvidence
 from .ctpcohort import CtpCohortNow
 from .livefeed import LiveFeedBase
+from .service_recovery_quotes import ServiceRecoveryQuoteBindingMixin
 
 logger = get_logger(__name__)
 _LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
@@ -185,7 +186,7 @@ def _causal_event_kwargs(event):
     }
 
 
-class BtApiFeed(DataBase, LiveFeedBase):
+class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
     """Data feed that backfills and streams bars through BtApiStore.
 
     ``orderbook_as_ticks=True`` exposes each depth snapshot as a zero-volume
@@ -216,6 +217,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
         # Default off; overflow drops the oldest record and flags the bucket.
         ("closed_bar_quote_capture", False),
         ("closed_bar_quote_limit", 240),
+        # Opt-in trusted quote-to-bar binding for managed-paper recovery V2.
+        # When enabled, every bar delivery freezes the latest trusted quote
+        # observation noted from this feed's own tick stream, and the recovery
+        # Broker reads it through ``service_execution_recovery_quote_binding``.
+        # ``service_recovery_quote_source_ref`` names that quote stream and is
+        # required whenever the binding is enabled.  Default off: the method
+        # then fails closed instead of exposing an unbound revision.
+        ("service_recovery_quote_binding", False),
+        ("service_recovery_quote_source_ref", None),
         # A caller-owned, calibrated provider invoked at the synchronous
         # strategy-dispatch boundary for strict ctp.quote.v2 ticks.  It must
         # return CtpCohortNow in the event's exact monotonic clock domain.
@@ -256,6 +266,13 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self.p.closed_bar_evidence_provider
         ):
             raise ValueError("closed_bar_evidence_provider must be callable")
+        if bool(self.p.service_recovery_quote_binding):
+            source_ref = self.p.service_recovery_quote_source_ref
+            if type(source_ref) is not str or not source_ref:
+                raise ValueError(
+                    "service_recovery_quote_binding requires an explicit "
+                    "service_recovery_quote_source_ref"
+                )
         self.store = self.p.store
         self.provider = self.p.provider
         self._history = collections.deque(
@@ -607,6 +624,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self.lines.close[0] = bar["close"]
         self.lines.volume[0] = bar["volume"]
         self.lines.openinterest[0] = bar["openinterest"]
+        if bool(self.p.service_recovery_quote_binding):
+            # The trusted recovery binding is frozen at the exact delivery
+            # boundary of this bar: the bar index the strategy will observe
+            # and the datetime written into the line.  Recovery never
+            # re-derives either fact later.
+            self._record_service_recovery_quote_bar(
+                bar_index=len(self),
+                datetime_hex=float(self.lines.datetime[0]).hex(),
+            )
         return True
 
     def _drain_live_ticks(self):
@@ -748,6 +774,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 ),
                 tick_dt,
             )
+            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
         bucket_start = self._get_bucket_start(tick_dt)
@@ -758,6 +785,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self._bar_builders[bucket_start] = current
             self._bar_builders.move_to_end(bucket_start)
             self._bar_builder = current
+            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
         if bucket_start == current["bucket_start"]:
@@ -781,6 +809,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     current["quality_flags"].add(mismatch_flag)
             current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
             self._capture_quote(current, tick)
+            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
     def _new_bar_builder(self, bucket_start, tick, price, volume, openinterest):
@@ -813,6 +842,33 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
             "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
         }
+
+    def _note_service_recovery_quote_from_tick(self, tick, tick_ts):
+        """Ingest one accepted tick as a trusted recovery quote observation.
+
+        The recovery quote revision of this feed *is* its own ingested tick
+        stream: the configured source reference names the stream, the tick's
+        connection generation and ingest sequence are its generation and
+        cursor, and the tick event time is its as-of time.  Malformed, stale
+        or duplicated observations are dropped here; the per-bar reader then
+        fails closed instead of inventing a revision.
+        """
+
+        if not bool(self.p.service_recovery_quote_binding):
+            return False
+        try:
+            as_of_ns = int(round(float(tick_ts) * 1_000_000_000))
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return self.try_note_service_recovery_quote(
+            source_ref=self.p.service_recovery_quote_source_ref,
+            generation=_tick_value(
+                tick, "connection_generation", "stream_generation", default=None
+            ),
+            cursor=_tick_value(tick, "ingest_seq", "sequence", default=None),
+            instrument=self._dataname,
+            as_of_ns=as_of_ns,
+        )
 
     def _capture_quote(self, builder, tick):
         """Freeze one prepared tick into the bucket's bounded quote window."""

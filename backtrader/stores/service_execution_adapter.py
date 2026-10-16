@@ -121,6 +121,7 @@ class ServiceExecutionAdapter:
         order_ref_factory: Optional[Callable[[Any], str]] = None,
         recovery_journal: Optional[ServiceExecutionRecoveryJournal] = None,
         require_recovery_baseline: bool = False,
+        recovery_event_version: int = 1,
     ) -> None:
         if not callable(getattr(client, "submit", None)):
             raise ServiceExecutionAdapterError("service execution adapter requires submit")
@@ -135,14 +136,26 @@ class ServiceExecutionAdapter:
             for name in ("prepare_intent", "prepare_cancel")
         ):
             raise ServiceExecutionAdapterError("invalid recovery journal")
+        if type(recovery_event_version) is not int or recovery_event_version not in {1, 2}:
+            raise ServiceExecutionAdapterError("invalid recovery event version")
+        if recovery_event_version == 2 and (
+            recovery_journal is None or not require_recovery_baseline
+        ):
+            raise ServiceExecutionAdapterError(
+                "recovery event version requires a durable owner baseline"
+            )
 
         self._client = client
         self._metadata_version = metadata_version
         self._order_ref_factory = order_ref_factory
         self._recovery_journal = recovery_journal
         self._require_recovery_baseline = bool(require_recovery_baseline)
+        self._recovery_event_version = recovery_event_version
         self._recovery_namespace: Optional[ServiceExecutionRecoveryNamespace] = None
         self._owner_book_reader: Optional[Callable[[], Any]] = None
+        self._recovery_event_context_resolver: Optional[Callable[..., Any]] = None
+        self._recovery_intent_context_resolver: Optional[Callable[[Any], Any]] = None
+        self._recovery_consumer_token: Optional[str] = None
         self._owner_position_reconciliation: Optional[Mapping[str, Any]] = None
         self._recovery_initialized = False
         self._recovery_startup_cursor: Optional[int] = None
@@ -166,7 +179,84 @@ class ServiceExecutionAdapter:
             raise ServiceExecutionAdapterError("recovery_namespace_unavailable")
         if self._recovery_namespace is not None and self._recovery_namespace != namespace:
             raise ServiceExecutionAdapterError("recovery_namespace_already_bound")
+        try:
+            self._recovery_journal.bind_event_version(namespace, self._recovery_event_version)
+        except ServiceExecutionRecoveryError as error:
+            raise ServiceExecutionAdapterError(f"recovery_{error.code.lower()}") from None
         self._recovery_namespace = namespace
+
+    def configure_recovery_event_context_resolver(self, resolver: Callable[..., Any]) -> None:
+        """Install the Broker's immutable paper-fill-to-feed context mapper."""
+
+        if not callable(resolver):
+            raise ServiceExecutionAdapterError("invalid recovery event context resolver")
+        current = self._recovery_event_context_resolver
+        if current is not None and current is not resolver:
+            raise ServiceExecutionAdapterError("recovery event context resolver already configured")
+        self._recovery_event_context_resolver = resolver
+
+    def configure_recovery_intent_context_resolver(
+        self, resolver: Callable[[Any], Any]
+    ) -> None:
+        """Install the Broker's stable feed/bar/commission context producer."""
+
+        if not callable(resolver):
+            raise ServiceExecutionAdapterError("invalid recovery intent context resolver")
+        current = self._recovery_intent_context_resolver
+        if current is not None and current is not resolver:
+            raise ServiceExecutionAdapterError("recovery intent context resolver already configured")
+        self._recovery_intent_context_resolver = resolver
+
+    def ensure_strategy_genesis(self, *, trade_ledger_empty: bool) -> Mapping[str, Any]:
+        """Bind V2 recovery to the run's original cut and an empty Strategy ledger."""
+
+        journal, namespace = self._require_recovery()
+        if self._recovery_event_version != 2:
+            raise ServiceExecutionReadError("strategy_genesis_requires_recovery_v2")
+        try:
+            baseline = journal.recovery_baseline(namespace)
+            if baseline is None:
+                raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
+            genesis = {
+                "baseline_cursor": baseline["baseline_cursor"],
+                "journal_generation": baseline["journal_generation"],
+                "scope_directory_revision": baseline["scope_directory_revision"],
+                "trade_ledger_empty": trade_ledger_empty,
+            }
+            journal.install_strategy_genesis(
+                namespace,
+                genesis,
+                owner_token=self._recovery_consumer_token,
+            )
+            return journal.strategy_genesis(namespace)
+        except ServiceExecutionRecoveryError as error:
+            raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
+
+    def acquire_recovery_consumer_lease(self, owner_token: str) -> None:
+        journal, namespace = self._require_recovery()
+        try:
+            journal.acquire_consumer_lease(namespace, owner_token)
+        except ServiceExecutionRecoveryError as error:
+            raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
+        self._recovery_consumer_token = owner_token
+
+    def renew_recovery_consumer_lease(self, owner_token: str) -> None:
+        journal, namespace = self._require_recovery()
+        if self._recovery_consumer_token != owner_token:
+            raise ServiceExecutionReadError("recovery_consumer_lease_lost")
+        try:
+            journal.renew_consumer_lease(namespace, owner_token)
+        except ServiceExecutionRecoveryError as error:
+            raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
+
+    def release_recovery_consumer_lease(self, owner_token: str) -> None:
+        journal, namespace = self._require_recovery()
+        try:
+            journal.release_consumer_lease(namespace, owner_token)
+        except ServiceExecutionRecoveryError as error:
+            raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
+        if self._recovery_consumer_token == owner_token:
+            self._recovery_consumer_token = None
 
     def initialize_recovery(
         self,
@@ -201,7 +291,11 @@ class ServiceExecutionAdapter:
             return result
         try:
             snapshot = snapshot_reader()
-            snapshot_changed = journal.install_snapshot(namespace, snapshot)
+            snapshot_changed = journal.install_snapshot(
+                namespace,
+                snapshot,
+                owner_token=self._recovery_consumer_token,
+            )
         except ServiceExecutionRecoveryError as error:
             raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
         except Exception as error:  # noqa: BLE001 - service failure must not fall back
@@ -275,13 +369,51 @@ class ServiceExecutionAdapter:
         journal, namespace = self._require_recovery()
         return journal.intent_manifest(namespace, intent_id)
 
+    def recovery_intent_execution_context(
+        self, intent_id: str
+    ) -> Optional[Mapping[str, Any]]:
+        journal, namespace = self._require_recovery()
+        return journal.intent_execution_context(namespace, intent_id)
+
     def claim_recovery_callback(self, receipt_id: str) -> Any:
         journal, namespace = self._require_recovery()
-        return journal.claim_callback(namespace, receipt_id)
+        return journal.claim_callback(
+            namespace, receipt_id, owner_token=self._recovery_consumer_token
+        )
 
     def acknowledge_recovery_callback(self, receipt_id: str) -> None:
         journal, namespace = self._require_recovery()
-        journal.acknowledge_callback(namespace, receipt_id)
+        journal.acknowledge_callback(
+            namespace, receipt_id, owner_token=self._recovery_consumer_token
+        )
+
+    def recovery_fill_projection(self, receipt_id: str) -> Optional[Mapping[str, Any]]:
+        journal, namespace = self._require_recovery()
+        return journal.recovery_fill_projection(namespace, receipt_id)
+
+    def persist_recovery_trade_projection(
+        self,
+        receipt_id: str,
+        *,
+        data_name: str,
+        tradeid: int,
+        trade_state: Mapping[str, Any],
+        trade_notifications: Any,
+    ) -> Mapping[str, Any]:
+        journal, namespace = self._require_recovery()
+        return journal.persist_recovery_trade_projection(
+            namespace,
+            receipt_id,
+            data_name=data_name,
+            tradeid=tradeid,
+            trade_state=trade_state,
+            trade_notifications=trade_notifications,
+            owner_token=self._recovery_consumer_token,
+        )
+
+    def recovery_trade_checkpoints(self) -> tuple[Mapping[str, Any], ...]:
+        journal, namespace = self._require_recovery()
+        return journal.recovery_trade_checkpoints(namespace)
 
     def _initialize_recovery_with_baseline(
         self,
@@ -300,7 +432,10 @@ class ServiceExecutionAdapter:
                 owner_book = _owner_book_payload(owner_book_reader())
                 _require_matching_owner_cut(snapshot, owner_book, namespace)
                 snapshot_changed = journal.install_recovery_baseline(
-                    namespace, snapshot, owner_book
+                    namespace,
+                    snapshot,
+                    owner_book,
+                    owner_token=self._recovery_consumer_token,
                 ) or snapshot_changed
                 pages_applied += self._consume_recovery_pages(
                     page_limit=page_limit, max_pages=max_pages
@@ -315,7 +450,11 @@ class ServiceExecutionAdapter:
                     or coverage.get("high_water_sequence") != cursor["event_cursor"]
                 ):
                     continue
-                snapshot_changed = journal.install_snapshot(namespace, end_snapshot) or snapshot_changed
+                snapshot_changed = journal.install_snapshot(
+                    namespace,
+                    end_snapshot,
+                    owner_token=self._recovery_consumer_token,
+                ) or snapshot_changed
                 self._owner_position_reconciliation = journal.reconcile_owner_positions(
                     namespace, end_book
                 )
@@ -365,6 +504,7 @@ class ServiceExecutionAdapter:
                     namespace,
                     callback,
                     limit=callback_limit,
+                    owner_token=self._recovery_consumer_token,
                 )
             except ServiceExecutionRecoveryError as error:
                 raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
@@ -410,13 +550,23 @@ class ServiceExecutionAdapter:
             ):
                 raise ServiceExecutionReadError("recovery_snapshot_required")
             try:
+                request = {
+                    "after_sequence": after_sequence,
+                    "expected_journal_generation": generation,
+                    "expected_directory_revision": directory_revision,
+                    "limit": page_limit,
+                }
+                if self._recovery_event_version == 2:
+                    request["version"] = 2
                 page = page_reader(
-                    after_sequence=after_sequence,
-                    expected_journal_generation=generation,
-                    expected_directory_revision=directory_revision,
-                    limit=page_limit,
+                    **request,
                 )
-                page_changed = journal.apply_events_page(namespace, page)
+                page_changed = journal.apply_events_page(
+                    namespace,
+                    page,
+                    event_context_resolver=self._recovery_event_context_resolver,
+                    owner_token=self._recovery_consumer_token,
+                )
             except ServiceExecutionRecoveryError as error:
                 raise ServiceExecutionReadError(f"recovery_{error.code.lower()}") from None
             except Exception as error:  # noqa: BLE001 - never downgrade to direct calls
@@ -468,6 +618,17 @@ class ServiceExecutionAdapter:
                 order=order,
                 intent_id=identity["intent_id"],
             )
+        if (
+            self._recovery_journal is not None
+            and self._recovery_event_version == 2
+            and content["order_type"] != "MARKET"
+        ):
+            return _rejection(
+                "service_execution_recovery_v2_requires_market_order",
+                "Managed-paper recovery V2 accepts only MARKET/FOK intents.",
+                order=order,
+                intent_id=identity["intent_id"],
+            )
 
         tags = _tags(order, self._order_ref_factory)
         if self._recovery_journal is not None:
@@ -486,7 +647,10 @@ class ServiceExecutionAdapter:
                     order=order,
                     intent_id=identity["intent_id"],
                 )
-            submit_payload = _submit_payload(identity, content, tags)
+            time_in_force = "FOK" if self._recovery_event_version == 2 else "GTC"
+            submit_payload = _submit_payload(
+                identity, content, tags, time_in_force=time_in_force
+            )
             recovery_binding = _order_recovery_binding(order)
             if recovery_binding is None:
                 return _rejection(
@@ -496,6 +660,30 @@ class ServiceExecutionAdapter:
                     intent_id=identity["intent_id"],
                 )
             try:
+                execution_context = None
+                if self._recovery_event_version == 2:
+                    prior_manifest = self._recovery_journal.intent_manifest(
+                        self._recovery_namespace, identity["intent_id"]
+                    )
+                    if prior_manifest is not None:
+                        execution_context = self._recovery_journal.intent_execution_context(
+                            self._recovery_namespace, identity["intent_id"]
+                        )
+                        if execution_context is None:
+                            raise ServiceExecutionRecoveryError(
+                                "RECOVERY_INTENT_CONTEXT_UNAVAILABLE"
+                            )
+                    else:
+                        resolver = self._recovery_intent_context_resolver
+                        if not callable(resolver):
+                            raise ServiceExecutionRecoveryError(
+                                "RECOVERY_INTENT_CONTEXT_UNAVAILABLE"
+                            )
+                        execution_context = resolver(order)
+                        if not isinstance(execution_context, Mapping):
+                            raise ServiceExecutionRecoveryError(
+                                "RECOVERY_INTENT_CONTEXT_UNAVAILABLE"
+                            )
                 if self._require_recovery_baseline:
                     if self._owner_book_reader is None:
                         raise ServiceExecutionRecoveryError("RECOVERY_BASELINE_REQUIRED")
@@ -507,6 +695,8 @@ class ServiceExecutionAdapter:
                     intent_id=identity["intent_id"],
                     submit_payload=submit_payload,
                     recovery_binding=recovery_binding,
+                    execution_context=execution_context,
+                    owner_token=self._recovery_consumer_token,
                 )
                 prior_state = self._recovery_journal.intent_recovery_state(
                     self._recovery_namespace, identity["intent_id"]
@@ -551,7 +741,12 @@ class ServiceExecutionAdapter:
                 order_type=content["order_type"],
                 quantity=content["quantity"],
                 price=content["price"],
-                time_in_force="GTC",
+                time_in_force=(
+                    "FOK"
+                    if self._recovery_journal is not None
+                    and self._recovery_event_version == 2
+                    else "GTC"
+                ),
                 reduce_only=identity["reduce_only"],
                 metadata_version=identity["metadata_version"],
                 deadline_ns=None,
@@ -729,6 +924,7 @@ class ServiceExecutionAdapter:
                     target_intent_id=target_intent_id,
                     provider_order_id=provider_order_id,
                     metadata_version=_metadata_version_of(info, self._metadata_version),
+                    owner_token=self._recovery_consumer_token,
                 )
             except ServiceExecutionRecoveryError as error:
                 return _rejection(
@@ -863,7 +1059,11 @@ def _tags(order: Any, order_ref_factory: Optional[Callable[[Any], str]]) -> dict
 
 
 def _submit_payload(
-    identity: Mapping[str, Any], content: Mapping[str, Any], tags: Mapping[str, str]
+    identity: Mapping[str, Any],
+    content: Mapping[str, Any],
+    tags: Mapping[str, str],
+    *,
+    time_in_force: str = "GTC",
 ) -> dict[str, Any]:
     """Return the exact scope-free OrderIntent payload sent by this adapter."""
 
@@ -878,7 +1078,7 @@ def _submit_payload(
         "order_type": content["order_type"],
         "quantity": format(quantity, "f"),
         "price": None if price is None else format(price, "f"),
-        "time_in_force": "GTC",
+        "time_in_force": time_in_force,
         "reduce_only": identity["reduce_only"],
         "metadata_version": identity["metadata_version"],
         "deadline_ns": None,
