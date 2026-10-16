@@ -1897,6 +1897,39 @@ def main(argv=None) -> int:
         return EXIT_BLOCKED
     args.tier_decision = decision
     if decision.effective_tier == "live":
+        live_section = tier_config.get(LIVE_ADAPTER_KEY) or {}
+        if not isinstance(live_section, Mapping):
+            _json_print(
+                {
+                    "status": "BLOCKED",
+                    "mode": "live",
+                    "reason": "live_adapter_invalid",
+                    "entry_tier": decision.as_evidence(),
+                    "write_grant_result": "not_evaluated",
+                }
+            )
+            return EXIT_BLOCKED
+        backend = live_section.get("backend", "direct")
+        if backend == "service":
+            if __package__:
+                from . import service_live_backend
+            else:
+                import service_live_backend
+            return service_live_backend.run_live_service(
+                args, tier_config, decision, sys.modules[__name__]
+            )
+        if backend != "direct":
+            _json_print(
+                {
+                    "status": "BLOCKED",
+                    "mode": "live",
+                    "reason": "live_backend_unsupported",
+                    "supported_backends": ["direct", "service"],
+                    "entry_tier": decision.as_evidence(),
+                    "write_grant_result": "not_evaluated",
+                }
+            )
+            return EXIT_BLOCKED
         # The write drill keeps its explicit grant; without a grant the live tier
         # becomes this zero-write observation session instead of refusing to start.
         return run_live(args) if args.allow_write else run_live_observe(args)
