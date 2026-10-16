@@ -3653,6 +3653,7 @@ class BtApiStore(LiveStoreBase):
         self._managed_execution_adapter = require_managed_execution_adapter(
             managed_execution_adapter
         )
+        self._service_execution_group_adapter = None
         self._api = api
         self._api_cls = api_cls
         self._config = dict(config or {})
@@ -4000,6 +4001,85 @@ class BtApiStore(LiveStoreBase):
         """
 
         return self._managed_execution_adapter is not None
+
+    @property
+    def service_execution_group_active(self) -> bool:
+        """Return whether an explicit Strategy group route is attached."""
+
+        return self._service_execution_group_adapter is not None
+
+    def attach_service_execution_group_adapter(self, adapter: Any) -> None:
+        """Attach the validated optional Strategy group bridge before startup."""
+
+        if self._started or self._connected:
+            raise BtApiStoreError("service group adapter must attach before Store startup")
+        if self._service_execution_group_adapter is not None:
+            raise BtApiStoreError("service group adapter is already attached")
+        try:
+            from backtrader.stores.service_execution_group import (
+                require_service_execution_group_adapter,
+            )
+
+            self._service_execution_group_adapter = (
+                require_service_execution_group_adapter(adapter)
+            )
+        except Exception as error:
+            raise BtApiStoreError("invalid service group adapter") from error
+
+    def bind_strategy_execution_group(self, strategy: Any, broker: Any) -> None:
+        """Bind one actual Strategy object to its registered group route."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group route is unavailable")
+        adapter.bind_strategy(strategy, broker)
+
+    def submit_group_order(self, strategy: Any, broker: Any, intent: Any) -> Any:
+        """Submit one typed P5A group through the registered coordinator route."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group route is unavailable")
+        return adapter.submit(strategy, broker, intent)
+
+    def query_group_order(self, strategy: Any, broker: Any, group_id: str) -> Any:
+        """Query one existing group ID through the registered coordinator route."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group route is unavailable")
+        return adapter.query(strategy, broker, group_id)
+
+    def recover_group_order(
+        self,
+        strategy: Any,
+        broker: Any,
+        group_id: str,
+        cursor: Any = None,
+        *,
+        limit: int = 32,
+    ) -> Any:
+        """Read the original group ID and resume its caller-owned monitor cursor."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group route is unavailable")
+        return adapter.recover(strategy, broker, group_id, cursor, limit=limit)
+
+    def read_group_residuals(
+        self,
+        strategy: Any,
+        broker: Any,
+        cursor: Any = None,
+        *,
+        limit: int = 32,
+    ) -> Any:
+        """Read a repeatable, durable Monitor residual page without acknowledging it."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group route is unavailable")
+        return adapter.read_residuals(strategy, broker, cursor, limit=limit)
 
     def attach_managed_execution_adapter(self, adapter: ManagedExecutionAdapter) -> None:
         """Attach one already-composed managed route before Store startup.

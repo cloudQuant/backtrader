@@ -106,6 +106,7 @@ class ServiceExecutionSession:
         limit: int = 32,
         monotonic_clock: Callable[[], float] = time.monotonic,
         strategy_account_book_routes: tuple[ServiceStrategyAccountBookRoute, ...] = (),
+        strategy_group_routes: tuple[Any, ...] = (),
         recovery_journal: Any = None,
         logical_run_id: Optional[str] = None,
         recovery_callback: Optional[Callable[[Any], Any]] = None,
@@ -181,7 +182,23 @@ class ServiceExecutionSession:
         account_book_routes = _coerce_strategy_account_book_routes(
             runtime, strategy_account_book_routes, ServiceClientRuntime
         )
-        owned_runtimes = _unique_owned_runtimes(runtime, account_book_routes)
+        group_routes = _coerce_strategy_group_routes(
+            runtime, strategy_group_routes, ServiceClientRuntime
+        )
+        all_routes = account_book_routes + group_routes
+        owned_runtimes = _unique_owned_runtimes(runtime, all_routes)
+
+        group_adapter = None
+        if group_routes:
+            try:
+                from backtrader.stores.service_execution_group import (
+                    ServiceExecutionGroupAdapter,
+                )
+
+                group_adapter = ServiceExecutionGroupAdapter(self, group_routes)
+            except Exception as error:
+                code = _safe_code(error, "INVALID_GROUP_CONFIGURATION")
+                raise ServiceExecutionSessionConfigError(code) from None
 
         self.runtime = runtime
         self.client = client
@@ -209,6 +226,8 @@ class ServiceExecutionSession:
         self._broker_stop_errors = []
         self._runtime_close_attempted = False
         self._account_book_route_specs = account_book_routes
+        self._strategy_group_route_specs = group_routes
+        self._service_execution_group_adapter = group_adapter
         self._owned_runtimes = owned_runtimes
         self._runtime_start_attempted = set()
         self._account_book_route_views = MappingProxyType({})
@@ -458,6 +477,10 @@ class ServiceExecutionSession:
         try:
             broker.attach_service_execution_session(self)
             store.attach_managed_execution_adapter(self.adapter)
+            if self._service_execution_group_adapter is not None:
+                store.attach_service_execution_group_adapter(
+                    self._service_execution_group_adapter
+                )
             if self.recovery_journal is not None and self.recovery_event_version == 2:
                 broker.configure_service_execution_recovery_feeds(tuple(cerebro.datas))
                 self.adapter.configure_recovery_event_context_resolver(
@@ -472,6 +495,8 @@ class ServiceExecutionSession:
                 owned_runtime.start()
             self._validate_registered_routes()
             self._validate_strategy_account_book_routes()
+            if self._service_execution_group_adapter is not None:
+                self._service_execution_group_adapter.validate_registered_routes()
             if self.recovery_journal is not None:
                 from backtrader.stores.service_execution_recovery import (
                     ServiceExecutionRecoveryNamespace,
@@ -506,6 +531,8 @@ class ServiceExecutionSession:
         except BaseException as error:
             primary_error = error
         finally:
+            if self._service_execution_group_adapter is not None:
+                self._service_execution_group_adapter.deactivate()
             cleanup_errors = list(self._broker_stop_errors)
             if self._broker is broker and not self._broker_stop_attempted:
                 try:
@@ -715,6 +742,7 @@ class ServiceExecutionSession:
             or bool(getattr(store, "_started", False))
             or bool(store.is_connected)
             or bool(store.managed_execution_active)
+            or bool(store.service_execution_group_active)
             or getattr(store, "_cerebro_managed_lifecycle", True) is False
             or getattr(broker, "_service_execution_session", None) is not None
         ):
@@ -1059,15 +1087,102 @@ def _coerce_strategy_account_book_routes(
 
 def _unique_owned_runtimes(
     primary_runtime: Any,
-    routes: tuple[ServiceStrategyAccountBookRoute, ...],
+    routes: tuple[Any, ...],
 ) -> tuple[Any, ...]:
     ordered = [primary_runtime]
     seen = {id(primary_runtime)}
+    modes = {id(primary_runtime): True}
     for route in routes:
-        if route.owned and id(route.runtime) not in seen:
+        runtime_id = id(route.runtime)
+        previous_mode = modes.get(runtime_id)
+        if previous_mode is not None and previous_mode != route.owned:
+            raise ServiceExecutionSessionConfigError("RUNTIME_OWNERSHIP_MODE_MISMATCH")
+        modes[runtime_id] = route.owned
+        if route.owned and runtime_id not in seen:
             ordered.append(route.runtime)
-            seen.add(id(route.runtime))
+            seen.add(runtime_id)
     return tuple(ordered)
+
+
+def _coerce_strategy_group_routes(
+    primary_runtime: Any,
+    routes: tuple[Any, ...],
+    runtime_type: type,
+) -> tuple[Any, ...]:
+    if type(routes) is not tuple:
+        raise ServiceExecutionSessionConfigError("INVALID_GROUP_ROUTES")
+    if not routes:
+        return ()
+
+    try:
+        from bt_api_base.service_protocol import WireIdentity, WireRole
+        from backtrader.stores.service_execution_group import ServiceStrategyGroupRoute
+    except ImportError as error:
+        raise ServiceExecutionSessionConfigError("GROUP_SDK_UNAVAILABLE") from error
+
+    seen_keys = set()
+    runtime_modes = {id(primary_runtime): True}
+    runtime_strategies = {}
+    for route in routes:
+        if type(route) is not ServiceStrategyGroupRoute:
+            raise ServiceExecutionSessionConfigError("INVALID_GROUP_ROUTE")
+        if (
+            any(
+                type(value) is not str or not value or value != value.strip()
+                for value in (
+                    route.strategy_ref,
+                    route.portfolio_ref,
+                    route.group_scope_ref,
+                    route.monitor_scope_ref,
+                )
+            )
+            or type(route.account_refs) is not tuple
+            or not route.account_refs
+            or any(
+                type(value) is not str or not value or value != value.strip()
+                for value in route.account_refs
+            )
+            or tuple(sorted(set(route.account_refs))) != route.account_refs
+            or type(route.owned) is not bool
+            or not isinstance(route.runtime, runtime_type)
+        ):
+            raise ServiceExecutionSessionConfigError("INVALID_GROUP_ROUTE")
+        key = (route.strategy_ref, route.portfolio_ref)
+        if key in seen_keys:
+            raise ServiceExecutionSessionConfigError("GROUP_ROUTE_AMBIGUOUS")
+        seen_keys.add(key)
+
+        identity = getattr(route.runtime, "identity", None)
+        if (
+            type(identity) is not WireIdentity
+            or identity.role is not WireRole.STRATEGY_CLIENT
+            or identity.actor_ref != route.strategy_ref
+        ):
+            raise ServiceExecutionSessionConfigError("GROUP_RUNTIME_STRATEGY_MISMATCH")
+        previous_strategy = runtime_strategies.get(id(route.runtime))
+        if previous_strategy is not None and previous_strategy != route.strategy_ref:
+            raise ServiceExecutionSessionConfigError("GROUP_RUNTIME_STRATEGY_AMBIGUOUS")
+        runtime_strategies[id(route.runtime)] = route.strategy_ref
+
+        runtime_id = id(route.runtime)
+        previous_mode = runtime_modes.get(runtime_id)
+        if previous_mode is not None and previous_mode != route.owned:
+            raise ServiceExecutionSessionConfigError("RUNTIME_OWNERSHIP_MODE_MISMATCH")
+        runtime_modes[runtime_id] = route.owned
+        if route.runtime is primary_runtime:
+            if not route.owned:
+                raise ServiceExecutionSessionConfigError("PRIMARY_RUNTIME_MUST_BE_OWNED")
+            continue
+        expected_state = "new" if route.owned else "registered"
+        if route.runtime.state != expected_state:
+            raise ServiceExecutionSessionConfigError("GROUP_RUNTIME_STATE_INVALID")
+        if hasattr(route.runtime, _RUNTIME_OWNER_ATTRIBUTE):
+            raise ServiceExecutionSessionConfigError("GROUP_RUNTIME_ALREADY_OWNED")
+        try:
+            route.runtime.next_maintenance_delay()
+        except Exception:
+            raise ServiceExecutionSessionConfigError("WRONG_RUNTIME_THREAD") from None
+    return routes
 
 
 def _strategy_account_book_scope(binding: Any, wire_scope_type: type) -> Any:

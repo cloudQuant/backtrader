@@ -3407,6 +3407,41 @@ class Strategy(StrategyBase):
         """
         self.broker.cancel(order)
 
+    def bind_service_execution_group(self):
+        """Bind this Strategy to its explicit managed group-order route."""
+        binder = getattr(self.broker, "bind_strategy_execution_group", None)
+        if not callable(binder):
+            raise RuntimeError("service execution group route is unavailable")
+        return binder(self)
+
+    def submit_group_order(self, intent):
+        """Submit one typed P5A group intent through the managed Broker."""
+        submitter = getattr(self.broker, "submit_group_order", None)
+        if not callable(submitter):
+            raise RuntimeError("service execution group route is unavailable")
+        return submitter(self, intent)
+
+    def query_group_order(self, group_id):
+        """Query an existing group ID without placing another group."""
+        query = getattr(self.broker, "query_group_order", None)
+        if not callable(query):
+            raise RuntimeError("service execution group route is unavailable")
+        return query(self, group_id)
+
+    def recover_group_order(self, group_id, cursor=None, *, limit=32):
+        """Query the original group ID and resume its durable residual cursor."""
+        recover = getattr(self.broker, "recover_group_order", None)
+        if not callable(recover):
+            raise RuntimeError("service execution group route is unavailable")
+        return recover(self, group_id, cursor, limit=limit)
+
+    def read_group_residuals(self, cursor=None, *, limit=32):
+        """Read one durable residual page and return its caller-owned cursor."""
+        read = getattr(self.broker, "read_group_residuals", None)
+        if not callable(read):
+            raise RuntimeError("service execution group route is unavailable")
+        return read(self, cursor, limit=limit)
+
     def buy(
         self,
         data=None,

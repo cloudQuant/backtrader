@@ -3311,6 +3311,50 @@ class BtApiBroker(BrokerBase):
             account_ref=account_ref,
         )
 
+    def bind_strategy_execution_group(self, strategy):
+        """Bind this real Strategy to an explicitly configured group route."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("strategy group binding requires an active service session")
+        return self.store.bind_strategy_execution_group(strategy, self)
+
+    def submit_group_order(self, strategy, intent):
+        """Submit one typed group intent without degrading it to ordinary orders."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group submission requires an active service session")
+        return self.store.submit_group_order(strategy, self, intent)
+
+    def query_group_order(self, strategy, group_id):
+        """Read the coordinator snapshot for one existing group ID."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group query requires an active service session")
+        return self.store.query_group_order(strategy, self, group_id)
+
+    def recover_group_order(self, strategy, group_id, cursor=None, *, limit=32):
+        """Query the original group ID and continue the durable Monitor cursor."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group recovery requires an active service session")
+        return self.store.recover_group_order(
+            strategy, self, group_id, cursor, limit=limit
+        )
+
+    def read_group_residuals(self, strategy, cursor=None, *, limit=32):
+        """Read a repeatable residual page without mutating Monitor delivery state."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group residual read requires an active service session")
+        return self.store.read_group_residuals(
+            strategy, self, cursor, limit=limit
+        )
+
     def getcash(self) -> float:
         """Return current available cash."""
         if not self._uses_async_commands():
