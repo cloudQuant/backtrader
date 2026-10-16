@@ -98,6 +98,37 @@ class ServiceFeedBinding:
                 raise ValueError("history start must precede history end")
 
 
+@dataclass(frozen=True)
+class ServiceCtpTickBinding:
+    """Explicit binding for an unmodified provider ``ctp.quote.v2`` tick stream."""
+
+    market_client: Any
+    resource: AccountResourceKey
+    qty_unit: str
+    clock_domain_id: str
+    quantity_multiplier: str = "1"
+
+    def __post_init__(self) -> None:
+        if type(self.resource) is not AccountResourceKey:
+            raise TypeError("resource must be an AccountResourceKey")
+        _check_text(self.qty_unit, "qty_unit")
+        _check_text(self.clock_domain_id, "clock_domain_id")
+        if _decimal(self.quantity_multiplier, "quantity_multiplier") <= 0:
+            raise ValueError("quantity_multiplier must be positive")
+        key = getattr(self.market_client, "key", None)
+        if type(key) is not MarketSubscriptionKey:
+            raise TypeError("market_client.key must be a MarketSubscriptionKey")
+        if type(getattr(self.market_client, "stream_scope", None)) is not WireScope:
+            raise TypeError("market_client.stream_scope must be a WireScope")
+        for method in ("start", "poll", "close"):
+            if not callable(getattr(self.market_client, method, None)):
+                raise TypeError(f"market_client must provide {method}()")
+        if key.channel != "ctp.quote.v2" or key.timeframe is not None or key.depth is not None:
+            raise ValueError("CTP quote binding requires the fixed ctp.quote.v2 event channel")
+        if key.instrument.product_type != self.resource.product_type:
+            raise ValueError("feed resource product_type must match its instrument")
+
+
 class ServiceReadProxy:
     """Borrowed-facade adapter implementing the observation-only Store API."""
 
@@ -107,7 +138,7 @@ class ServiceReadProxy:
     def __init__(
         self,
         account_client: Any,
-        feeds: Mapping[str, ServiceFeedBinding],
+        feeds: Mapping[str, ServiceFeedBinding | ServiceCtpTickBinding],
         *,
         valuation_currency: str,
         position_mode: str,
@@ -137,12 +168,14 @@ class ServiceReadProxy:
             raise ValueError("account coverage must not contain duplicates")
         if not isinstance(feeds, Mapping) or not feeds:
             raise TypeError("feeds must be a non-empty mapping")
-        copied: dict[str, ServiceFeedBinding] = {}
+        copied: dict[str, ServiceFeedBinding | ServiceCtpTickBinding] = {}
         market_clients: set[int] = set()
         for dataname, binding in feeds.items():
             _check_text(dataname, "dataname")
-            if type(binding) is not ServiceFeedBinding:
-                raise TypeError("feed mappings must contain ServiceFeedBinding values")
+            if type(binding) not in {ServiceFeedBinding, ServiceCtpTickBinding}:
+                raise TypeError(
+                    "feed mappings must contain ServiceFeedBinding or ServiceCtpTickBinding values"
+                )
             if id(binding.market_client) in market_clients:
                 raise ValueError("each feed requires its own market client")
             market_clients.add(id(binding.market_client))
@@ -188,6 +221,9 @@ class ServiceReadProxy:
         self._stream_epochs: dict[str, str] = {}
         self._last_sequences: dict[str, int] = {}
         self._bootstrap_bars: dict[str, dict[str, Any]] = {}
+        self._bootstrap_ticks: dict[str, dict[str, Any]] = {}
+        self._ctp_tick_scopes: dict[str, tuple[int, int]] = {}
+        self._ctp_tick_sequences: dict[str, int] = {}
         self._pending_bars: dict[str, dict[str, Any]] = {}
         self._history_by_open: dict[str, dict[str, tuple[Any, ...]]] = {}
         self._last_emitted_open: dict[str, str] = {}
@@ -256,7 +292,7 @@ class ServiceReadProxy:
         return type(mode) is str and mode == self._position_mode
 
     def supports_live_streaming(self, dataname: str) -> bool:
-        """Tell BtApiFeed that this explicitly bound facade has a live bar poll."""
+        """Tell BtApiFeed that this explicitly bound facade has a live poll."""
         return type(dataname) is str and dataname in self._feeds
 
     def get_balance(self) -> dict[str, float]:
@@ -385,7 +421,12 @@ class ServiceReadProxy:
         ):
             raise ServiceReadProxyError("MARKET_START_UNHEALTHY")
         key = client.key
-        if type(key) is not MarketSubscriptionKey or key.channel != "bar":
+        if type(key) is not MarketSubscriptionKey:
+            raise ServiceReadProxyError("MARKET_KEY_INVALID")
+        is_tick_binding = type(binding) is ServiceCtpTickBinding
+        if (is_tick_binding and key.channel != "ctp.quote.v2") or (
+            not is_tick_binding and key.channel != "bar"
+        ):
             raise ServiceReadProxyError("MARKET_KEY_INVALID")
         epoch = getattr(bootstrap, "snapshot_epoch", None)
         sequence = getattr(bootstrap, "snapshot_sequence", None)
@@ -407,9 +448,14 @@ class ServiceReadProxy:
         if snapshot is not None:
             if sequence == 0:
                 raise ServiceReadProxyError("MARKET_BOOTSTRAP_INVALID")
-            self._bootstrap_bars[dataname] = self._event_bar(
-                dataname, snapshot, expected_sequence=sequence
-            )
+            if is_tick_binding:
+                self._bootstrap_ticks[dataname] = self._event_tick(
+                    dataname, snapshot, expected_sequence=sequence
+                )
+            else:
+                self._bootstrap_bars[dataname] = self._event_bar(
+                    dataname, snapshot, expected_sequence=sequence
+                )
         elif sequence != 0:
             raise ServiceReadProxyError("MARKET_BOOTSTRAP_INVALID")
         self._started_clients.add(dataname)
@@ -426,6 +472,8 @@ class ServiceReadProxy:
         """Read bounded, paginated history after the market stream is started."""
         self._assert_connected()
         binding = self._binding(dataname)
+        if type(binding) is ServiceCtpTickBinding:
+            raise ServiceReadProxyError("CTP_TICK_HISTORY_UNSUPPORTED")
         if dataname not in self._started_clients:
             raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
         requested_timeframe = _backtrader_timeframe(timeframe, compression)
@@ -536,6 +584,14 @@ class ServiceReadProxy:
         """Return one ordered closed bar; never silently recover from a stream gap."""
         self._assert_connected()
         binding = self._binding(dataname)
+        if type(binding) is ServiceCtpTickBinding:
+            if dataname not in self._started_clients:
+                raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
+            self._assert_market_stream_healthy(binding)
+            # BtApiFeed polls for a bar after draining the tick route. A tick-only
+            # binding has no bar result, so an idle None keeps the normal Feed loop
+            # running without reading Kline history or synthesizing a bar.
+            return None
         if dataname not in self._started_clients:
             raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
         pending = self._pending_bars.get(dataname)
@@ -564,8 +620,36 @@ class ServiceReadProxy:
             return None
         return self._remember_emitted(dataname, bar)
 
+    def poll_tick(self, dataname: str) -> dict[str, Any] | None:
+        """Return one original CTP V2 tick after validating transport and source identity."""
+        self._assert_connected()
+        binding = self._binding(dataname)
+        if type(binding) is ServiceFeedBinding:
+            # BtApiFeed may probe for ticks while consuming a bar service feed.
+            # This binding has no tick capability, so preserve the normal idle
+            # result and keep its bar polling path independent.
+            return None
+        if type(binding) is not ServiceCtpTickBinding:
+            raise ServiceReadProxyError("TICK_FEED_UNBOUND")
+        if dataname not in self._started_clients:
+            raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
+        bootstrap = self._bootstrap_ticks.pop(dataname, None)
+        if bootstrap is not None:
+            return dict(bootstrap)
+        self._assert_market_stream_healthy(binding)
+        event = binding.market_client.poll(timeout_ms=0)
+        self._assert_market_stream_healthy(binding)
+        if event is None:
+            return None
+        sequence = self._last_sequences[dataname] + 1
+        tick = self._event_tick(dataname, event, expected_sequence=sequence)
+        self._last_sequences[dataname] = event.header.sequence
+        return tick
+
     @staticmethod
-    def _assert_market_stream_healthy(binding: ServiceFeedBinding) -> None:
+    def _assert_market_stream_healthy(
+        binding: ServiceFeedBinding | ServiceCtpTickBinding,
+    ) -> None:
         client = binding.market_client
         if (
             getattr(client, "healthy", None) is not True
@@ -627,6 +711,88 @@ class ServiceReadProxy:
         except Exception:
             raise ServiceReadProxyError("MARKET_EVENT_INVALID") from None
 
+    def _event_tick(
+        self,
+        dataname: str,
+        event: Any,
+        *,
+        expected_sequence: int,
+    ) -> dict[str, Any]:
+        """Validate CTP source scope separately from the authenticated wire cursor."""
+        binding = self._binding(dataname)
+        if type(binding) is not ServiceCtpTickBinding:
+            raise ServiceReadProxyError("TICK_FEED_UNBOUND")
+        key = binding.market_client.key
+        if type(event) is not WireEnvelope:
+            raise ServiceReadProxyError("MARKET_EVENT_INVALID")
+        try:
+            validate_event(
+                event,
+                expected_scope=binding.market_client.stream_scope,
+                expected_stream_id=key.stream_id,
+                expected_stream_epoch=self._stream_epochs.get(dataname),
+                expected_sequence=expected_sequence,
+            )
+            header = event.header
+            if (
+                header.kind is not WireMessageKind.EVENT
+                or header.operation != MARKET_EVENT_OPERATION
+                or header.schema_id != MARKET_EVENT_SCHEMA
+                or header.schema_version != MARKET_EVENT_SCHEMA_VERSION
+                or set(event.payload) != {"key", "data"}
+            ):
+                raise ValueError
+            event_key = MarketSubscriptionKey.from_dict(event.payload["key"])
+            if event_key != key:
+                raise ValueError
+            raw = event.payload["data"]
+            if not isinstance(raw, Mapping):
+                raise ValueError
+            tick = dict(raw)
+            if (
+                tick.get("schema_version") != "ctp.quote.v2"
+                or tick.get("symbol") != key.instrument.native_symbol
+                or tick.get("instrument_id") != key.instrument.instrument_id
+                or tick.get("exchange_id") != key.instrument.venue
+                or tick.get("clock_domain_id") != binding.clock_domain_id
+            ):
+                raise ValueError
+            generation = tick.get("connection_generation")
+            subscription_epoch = tick.get("subscription_epoch")
+            ingest_sequence = tick.get("ingest_seq")
+            if (
+                type(generation) is not int
+                or generation <= 0
+                or type(subscription_epoch) is not int
+                or subscription_epoch <= 0
+                or type(ingest_sequence) is not int
+                or ingest_sequence <= 0
+            ):
+                raise ValueError
+            event_time = _parse_utc(tick.get("event_time_utc"), "event_time_utc")
+            receive_time = _parse_utc(tick.get("recv_time_utc"), "recv_time_utc")
+            recv_monotonic_ns = tick.get("recv_monotonic_ns")
+            if (
+                receive_time < event_time - timedelta(seconds=0.5)
+                or type(recv_monotonic_ns) is not int
+                or recv_monotonic_ns <= 0
+            ):
+                raise ValueError
+            scope = (generation, subscription_epoch)
+            previous_scope = self._ctp_tick_scopes.get(dataname)
+            previous_sequence = self._ctp_tick_sequences.get(dataname)
+            if previous_scope is not None and scope != previous_scope:
+                raise ServiceReadProxyError("CTP_SOURCE_SCOPE_CHANGED")
+            if previous_sequence is not None and ingest_sequence <= previous_sequence:
+                raise ServiceReadProxyError("CTP_INGEST_SEQUENCE_INVALID")
+            self._ctp_tick_scopes[dataname] = scope
+            self._ctp_tick_sequences[dataname] = ingest_sequence
+            return tick
+        except ServiceReadProxyError:
+            raise
+        except Exception:
+            raise ServiceReadProxyError("CTP_TICK_EVENT_INVALID") from None
+
     def _remember_emitted(self, dataname: str, bar: dict[str, Any]) -> dict[str, Any] | None:
         open_time = bar["timestamp"]
         previous_open = self._last_emitted_open.get(dataname)
@@ -644,7 +810,7 @@ class ServiceReadProxy:
 
     def _position_binding(
         self, resource: AccountResourceKey, instrument: MarketInstrumentKey
-    ) -> tuple[str, ServiceFeedBinding]:
+    ) -> tuple[str, ServiceFeedBinding | ServiceCtpTickBinding]:
         dataname = self._position_bindings.get((resource, instrument))
         if dataname is None:
             raise ServiceReadProxyError("ACCOUNT_INSTRUMENT_UNMAPPED")
@@ -678,7 +844,7 @@ class ServiceReadProxy:
         ):
             raise ServiceReadProxyError("VALUATION_CURRENCY_MISMATCH")
 
-    def _binding(self, dataname: str) -> ServiceFeedBinding:
+    def _binding(self, dataname: str) -> ServiceFeedBinding | ServiceCtpTickBinding:
         if type(dataname) is not str or dataname not in self._feeds:
             raise ServiceReadProxyError("FEED_UNBOUND")
         return self._feeds[dataname]
@@ -842,4 +1008,9 @@ def _bar_identity(bar: Mapping[str, Any]) -> tuple[Any, ...]:
     )
 
 
-__all__ = ["ServiceFeedBinding", "ServiceReadProxy", "ServiceReadProxyError"]
+__all__ = [
+    "ServiceCtpTickBinding",
+    "ServiceFeedBinding",
+    "ServiceReadProxy",
+    "ServiceReadProxyError",
+]

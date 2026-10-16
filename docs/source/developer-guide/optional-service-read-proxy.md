@@ -11,8 +11,10 @@
 并绑定明确的账户及资源覆盖范围；每个 feed 使用独立的行情 facade。
 当前接入使用 `bt_api_base>=0.15.8` 的合同及 SDK 的
 `ServiceAccountClient`、`ServiceMarketClient`；这不是已发布 wheel 的安装声明。
-行情授权需包含订阅、快照、重放、head 和 `market.history`。服务端必须提供
-实际历史 provider，才能声明和授予历史读取能力。
+bar 行情授权需包含订阅、快照、重放、head 和 `market.history`。服务端必须提供
+实际历史 provider，才能声明和授予历史读取能力。CTP 实时行情可单独使用
+`ServiceCtpTickBinding` 订阅 `ctp.quote.v2`；它只向 Feed 交付经验证的原始 tick，
+没有 Kline 历史或 tick→bar 投影。
 
 下面假设 `runtime` 已启动，`account_client`、`market_client`、`resource`
 已按同一部署图构造；完整可运行的合成服务装配见
@@ -56,11 +58,16 @@ finally:
   写操作；此代理不能用于实盘执行。
 - 未成交订单未知和完整空集合有不同含义。订单事实缺失、不完整、单位错误或
   合约未映射时拒绝读取；启动后账户失去有效基线时也会传播错误，不返回旧缓存。
-- Feed 先建立实时订阅，再分页读取历史。历史和实时重叠的相同闭合 K 线只输出
-  一次；内容冲突、乱序、流代次改变或无法恢复的缺口会报错。
+- bar Feed 先建立实时订阅，再分页读取历史。历史和实时重叠的相同闭合 K 线只输出
+  一次；内容冲突、乱序、流代次改变或无法恢复的缺口会报错。CTP tick Feed 不读
+  history；authenticated wire scope、stream epoch 和 sequence 连续性分别校验。Provider
+  connection generation 与 subscription epoch 在绑定期间保持不变；provider `ingest_seq`
+  只要求严格递增（不要求连续，因为上游可跨订阅共享游标）。wire 缺口或 source scope
+  改变会失败关闭，provider tick 数据字段保持原样。
 - 历史页数、行数和去重状态有上限。仅处理固定时长、UTC 对齐的闭合 K 线；
-  不支持 tick、订单簿或带交易日历锚点的周/月/年线。未收盘事件会被拒绝，
-  上游应只发布已收盘 bar。
+  bar Feed 不支持 tick、订单簿或带交易日历锚点的周/月/年线。CTP tick binding
+  必须显式设置 `backfill_start=False`，因为该来源不提供 K 线历史，且不把 tick 合成为
+  K 线历史。未收盘事件会被拒绝，上游 bar 仍应只发布已收盘事件。
 - facade 与 runtime 的所有操作应在所属线程执行，并持续维护租约。代理关闭
   自己使用的 facade，调用方负责最后关闭共享 runtime；关闭失败可显式重试。
   成功关闭是终态，重新运行须创建新 facade 和代理，不自动重连或回退到 direct。
