@@ -595,6 +595,60 @@ def run_live(args) -> int:
         )
         return EXIT_BLOCKED
 
+    # Backend selection is config-first.  The explicit service route must be
+    # chosen before importing the direct SimNow adapter or reading the root
+    # .env; an unsupported value never falls back to the direct provider.
+    try:
+        raw_config = _load_raw_config()
+    except Exception as exc:
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": f"config_unreadable:{type(exc).__name__}",
+                "entry_tier": dict(decision_evidence),
+                "write_grant_result": "not_evaluated",
+            }
+        )
+        return EXIT_BLOCKED
+    raw_live = raw_config.get(LIVE_ADAPTER_KEY) or {}
+    if not isinstance(raw_live, Mapping):
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "live_adapter_invalid",
+                "entry_tier": dict(decision_evidence),
+                "write_grant_result": "not_evaluated",
+            }
+        )
+        return EXIT_BLOCKED
+    live = dict(raw_live)
+    backend = live.get("backend", "direct")
+    if backend == "service":
+        if __package__:
+            from . import service_live_backend
+        else:
+            import service_live_backend
+        return service_live_backend.run_live_service(
+            args,
+            raw_config,
+            decision,
+            sys.modules[__name__],
+        )
+    if backend != "direct":
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "live_backend_unsupported",
+                "supported_backends": ["direct", "service"],
+                "entry_tier": dict(decision_evidence),
+                "write_grant_result": "not_evaluated",
+            }
+        )
+        return EXIT_BLOCKED
+
     # The dev SDK source paths must precede any bt_api_ctp import: importing
     # simnow_direct eagerly builds the CTP wrapper class, and an installed
     # site-packages bt_api_ctp must never be bound.  The strict origin check
@@ -609,12 +663,10 @@ def run_live(args) -> int:
     import backtrader as bt
     from backtrader.brokers.btapibroker import BtApiBroker
     try:
-        raw_config = _load_raw_config()
         legacy_config = legacy_runner.load_config()
     except Exception as exc:
         _json_print({"status": "REJECTED", "mode": "live", "error": f"{type(exc).__name__}: {exc}"})
         return EXIT_BLOCKED
-    live = dict(raw_config.get(LIVE_ADAPTER_KEY) or {})
     errors = _live_section_errors(live)
     if errors:
         _json_print({"status": "REJECTED", "mode": "live", "errors": errors})

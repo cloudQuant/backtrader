@@ -20,6 +20,7 @@ from bt_api_base.market_protocol import (
     MARKET_EVENT_SCHEMA,
     MARKET_EVENT_SCHEMA_VERSION,
     MarketInstrumentKey,
+    MarketSourceDescriptor,
     MarketSubscriptionKey,
 )
 from bt_api_base.service_protocol import (
@@ -59,6 +60,26 @@ _SCOPE = WireScope("ctp-market-domain", strategy_ref="ctp_options_midfreq")
 _CLOCK_DOMAIN = "ctp-md-clock-v1"
 _ACCOUNT_SESSION_GENERATION = "account-session-generation-1"
 _QUOTE_STREAM_GENERATION = 7
+_CLOCK_SOURCE_SESSION = "ctp-clock-session-1"
+_CLOCK_SOURCE = "time.monotonic"
+_UNSET = object()
+
+
+def _source_descriptor(**changes):
+    key = changes.get("key", _KEY)
+    values = {
+        "key": key,
+        "stream_id": key.stream_id,
+        "epoch": "market-epoch-1",
+        "provider": "ctp",
+        "source": "ctp.native.md",
+        "connection_generation": _QUOTE_STREAM_GENERATION,
+        "clock_domain_id": _CLOCK_DOMAIN,
+        "clock_source_session_id": _CLOCK_SOURCE_SESSION,
+        "clock_source": _CLOCK_SOURCE,
+    }
+    values.update(changes)
+    return MarketSourceDescriptor(**values)
 
 
 def _tick(*, generation=7, subscription_epoch=3, ingest_seq=20, **changes):
@@ -74,6 +95,8 @@ def _tick(*, generation=7, subscription_epoch=3, ingest_seq=20, **changes):
         "subscription_epoch": subscription_epoch,
         "ingest_seq": ingest_seq,
         "clock_domain_id": _CLOCK_DOMAIN,
+        "clock_source_session_id": _CLOCK_SOURCE_SESSION,
+        "clock_source": _CLOCK_SOURCE,
         "source": "ctp.native.md",
         "volume_semantics": "delta",
         "delta_volume": 1.0,
@@ -152,13 +175,21 @@ class _MarketClient:
     healthy = True
     recovery_required = False
 
-    def __init__(self, events=()):
+    def __init__(self, events=(), *, descriptor=_UNSET, bootstrap_descriptor=None):
         self.events = deque(events)
         self.started = False
         self.closed = False
+        self._source_descriptor = descriptor
+        self.bootstrap_descriptor = bootstrap_descriptor
+
+    @property
+    def source_descriptor(self):
+        return self._source_descriptor
 
     def start(self):
         self.started = True
+        if self._source_descriptor is _UNSET:
+            self._source_descriptor = _source_descriptor(key=self.key)
         return SimpleNamespace(
             snapshot=None,
             snapshot_kind="latest_event",
@@ -168,6 +199,11 @@ class _MarketClient:
             snapshot_epoch="market-epoch-1",
             snapshot_sequence=0,
             resync_required=False,
+            source_descriptor=(
+                self._source_descriptor
+                if self.bootstrap_descriptor is None
+                else self.bootstrap_descriptor
+            ),
         )
 
     def poll(self, *, timeout_ms=0):
@@ -185,12 +221,15 @@ def _proxy(
     events=(),
     *,
     scope=_SCOPE,
-    clock_domain=_CLOCK_DOMAIN,
     observation=None,
     account_session_generation=_ACCOUNT_SESSION_GENERATION,
     current_account_session_generation=_ACCOUNT_SESSION_GENERATION,
+    descriptor=_UNSET,
+    bootstrap_descriptor=None,
 ):
-    market = _MarketClient(events)
+    market = _MarketClient(
+        events, descriptor=descriptor, bootstrap_descriptor=bootstrap_descriptor
+    )
     if scope != _SCOPE:
         market.stream_scope = scope
     account = _AccountClient(observation, current_account_session_generation)
@@ -202,8 +241,6 @@ def _proxy(
                 _RESOURCE,
                 "contracts",
                 account_session_generation,
-                clock_domain,
-                _QUOTE_STREAM_GENERATION,
             )
         },
         valuation_currency="CNY",
@@ -238,6 +275,8 @@ def test_poll_tick_preserves_provider_payload_and_validates_both_cursors():
         (_event(2, _tick()), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(), stream_epoch="wrong-market-epoch"), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(clock_domain_id="other-clock")), "CTP_TICK_EVENT_INVALID"),
+        (_event(1, _tick(clock_source_session_id="other-session")), "CTP_TICK_EVENT_INVALID"),
+        (_event(1, _tick(clock_source="other-clock-impl")), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(source="configured.source")), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(symbol="CZCE.SA701P1080")), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(connection_generation=True)), "CTP_TICK_EVENT_INVALID"),
@@ -259,7 +298,35 @@ def test_poll_tick_rejects_wrong_authenticated_scope():
         proxy.poll_tick(_INSTRUMENT.native_symbol)
 
 
-def test_ctp_market_metadata_is_rejected_after_account_session_changes():
+def test_ctp_subscription_requires_exact_current_typed_source_descriptor():
+    key = MarketSubscriptionKey(
+        "other-source", "ctp-md-entitlement", _INSTRUMENT, "ctp.quote.v2"
+    )
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_DESCRIPTOR_INVALID"):
+        _proxy(descriptor=_source_descriptor(key=key, stream_id=key.stream_id))
+
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_DESCRIPTOR_INVALID"):
+        _proxy(descriptor=_source_descriptor(source="configured.source"))
+
+
+def test_ctp_subscription_rejects_missing_or_mismatched_source_descriptor():
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_DESCRIPTOR_INVALID"):
+        _proxy(descriptor=None)
+
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_DESCRIPTOR_INVALID"):
+        _proxy(bootstrap_descriptor=_source_descriptor(epoch="stale-epoch"))
+
+
+def test_ctp_tick_rejects_descriptor_rotation_after_subscription():
+    proxy, market = _proxy((_event(1, _tick()),))
+    market._source_descriptor = _source_descriptor(
+        clock_source_session_id="rotated-session"
+    )
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_SCOPE_CHANGED"):
+        proxy.poll_tick(_INSTRUMENT.native_symbol)
+
+
+def test_ctp_account_binding_is_rejected_after_account_session_changes():
     proxy, _ = _proxy()
     proxy._account_client.session_generation = "account-session-generation-2"
 
@@ -278,8 +345,6 @@ def test_stale_ctp_account_metadata_fails_before_market_start():
                 _RESOURCE,
                 "contracts",
                 _ACCOUNT_SESSION_GENERATION,
-                _CLOCK_DOMAIN,
-                _QUOTE_STREAM_GENERATION,
             )
         },
         valuation_currency="CNY",
@@ -291,7 +356,7 @@ def test_stale_ctp_account_metadata_fails_before_market_start():
     assert market.started is False
 
 
-def test_poll_tick_rejects_generation_outside_trusted_quote_source_metadata():
+def test_poll_tick_rejects_generation_outside_authenticated_market_descriptor():
     proxy, _ = _proxy((_event(1, _tick(generation=_QUOTE_STREAM_GENERATION + 1)),))
 
     with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_SCOPE_CHANGED"):
@@ -316,7 +381,7 @@ def test_poll_tick_rejects_provider_generation_change_and_nonmonotonic_source_se
         proxy.poll_tick(_INSTRUMENT.native_symbol)
 
 
-def test_ctp_tick_binding_rejects_bar_route_or_missing_clock_domain():
+def test_ctp_tick_binding_rejects_non_tick_route():
     market = _MarketClient()
     market.key = MarketSubscriptionKey(
         "ctp-md-source", "ctp-md-entitlement", _INSTRUMENT, "bar", timeframe="1m"
@@ -327,26 +392,6 @@ def test_ctp_tick_binding_rejects_bar_route_or_missing_clock_domain():
             _RESOURCE,
             "contracts",
             _ACCOUNT_SESSION_GENERATION,
-            _CLOCK_DOMAIN,
-            _QUOTE_STREAM_GENERATION,
-        )
-    with pytest.raises(ValueError, match="clock_domain_id"):
-        ServiceCtpTickBinding(
-            _MarketClient(),
-            _RESOURCE,
-            "contracts",
-            _ACCOUNT_SESSION_GENERATION,
-            "",
-            _QUOTE_STREAM_GENERATION,
-        )
-    with pytest.raises(ValueError, match="quote_stream_generation"):
-        ServiceCtpTickBinding(
-            _MarketClient(),
-            _RESOURCE,
-            "contracts",
-            _ACCOUNT_SESSION_GENERATION,
-            _CLOCK_DOMAIN,
-            0,
         )
 
 

@@ -100,14 +100,12 @@ class ServiceFeedBinding:
 
 @dataclass(frozen=True)
 class ServiceCtpTickBinding:
-    """Bind CTP ticks to trusted account and market-session metadata."""
+    """Bind CTP ticks to an account generation and market subscription."""
 
     market_client: Any
     resource: AccountResourceKey
     qty_unit: str
     account_session_generation: str
-    clock_domain_id: str
-    quote_stream_generation: int
     quantity_multiplier: str = "1"
 
     def __post_init__(self) -> None:
@@ -115,9 +113,6 @@ class ServiceCtpTickBinding:
             raise TypeError("resource must be an AccountResourceKey")
         _check_text(self.qty_unit, "qty_unit")
         _check_text(self.account_session_generation, "account_session_generation")
-        _check_text(self.clock_domain_id, "clock_domain_id")
-        if type(self.quote_stream_generation) is not int or self.quote_stream_generation <= 0:
-            raise ValueError("quote_stream_generation must be a positive integer")
         if _decimal(self.quantity_multiplier, "quantity_multiplier") <= 0:
             raise ValueError("quantity_multiplier must be positive")
         key = getattr(self.market_client, "key", None)
@@ -224,6 +219,7 @@ class ServiceReadProxy:
         self._closed_facade_ids: set[int] = set()
         self._started_clients: set[str] = set()
         self._stream_epochs: dict[str, str] = {}
+        self._ctp_tick_source_descriptors: dict[str, Any] = {}
         self._last_sequences: dict[str, int] = {}
         self._bootstrap_bars: dict[str, dict[str, Any]] = {}
         self._bootstrap_ticks: dict[str, dict[str, Any]] = {}
@@ -420,6 +416,11 @@ class ServiceReadProxy:
         if dataname in self._started_clients:
             return
         client = binding.market_client
+        is_tick_binding = type(binding) is ServiceCtpTickBinding
+        if is_tick_binding:
+            # A descriptor belongs to one validated subscribe reply. Never
+            # reuse a previously bound source identity for a new start.
+            self._ctp_tick_source_descriptors.pop(dataname, None)
         bootstrap = client.start()
         if (
             getattr(client, "healthy", None) is not True
@@ -429,7 +430,6 @@ class ServiceReadProxy:
         key = client.key
         if type(key) is not MarketSubscriptionKey:
             raise ServiceReadProxyError("MARKET_KEY_INVALID")
-        is_tick_binding = type(binding) is ServiceCtpTickBinding
         if (is_tick_binding and key.channel != "ctp.quote.v2") or (
             not is_tick_binding and key.channel != "bar"
         ):
@@ -448,6 +448,10 @@ class ServiceReadProxy:
             or getattr(bootstrap, "full_baseline_available", None) is not False
         ):
             raise ServiceReadProxyError("MARKET_BOOTSTRAP_INVALID")
+        if is_tick_binding:
+            self._bind_ctp_tick_source_descriptor(
+                dataname, binding, bootstrap, expected_epoch=epoch
+            )
         self._stream_epochs[dataname] = epoch
         self._last_sequences[dataname] = sequence
         snapshot = getattr(bootstrap, "snapshot", None)
@@ -465,6 +469,21 @@ class ServiceReadProxy:
         elif sequence != 0:
             raise ServiceReadProxyError("MARKET_BOOTSTRAP_INVALID")
         self._started_clients.add(dataname)
+
+    def ctp_tick_source_descriptor(self, dataname: str) -> Any:
+        """Return the current typed source identity for a started CTP feed.
+
+        This is identity/provenance only. It does not qualify a clock mapping,
+        receive quality, freshness, or execution eligibility.
+        """
+
+        self._assert_connected()
+        binding = self._binding(dataname)
+        if type(binding) is not ServiceCtpTickBinding:
+            raise ServiceReadProxyError("TICK_FEED_UNBOUND")
+        if dataname not in self._started_clients:
+            raise ServiceReadProxyError("MARKET_NOT_SUBSCRIBED")
+        return self._current_ctp_tick_source_descriptor(dataname, binding)
 
     def fetch_bars(
         self,
@@ -728,6 +747,7 @@ class ServiceReadProxy:
         binding = self._binding(dataname)
         if type(binding) is not ServiceCtpTickBinding:
             raise ServiceReadProxyError("TICK_FEED_UNBOUND")
+        descriptor = self._current_ctp_tick_source_descriptor(dataname, binding)
         key = binding.market_client.key
         if type(event) is not WireEnvelope:
             raise ServiceReadProxyError("MARKET_EVENT_INVALID")
@@ -760,8 +780,11 @@ class ServiceReadProxy:
                 or tick.get("symbol") != key.instrument.native_symbol
                 or tick.get("instrument_id") != key.instrument.instrument_id
                 or tick.get("exchange_id") != key.instrument.venue
-                or tick.get("clock_domain_id") != binding.clock_domain_id
-                or tick.get("source") != "ctp.native.md"
+                or tick.get("source") != descriptor.source
+                or tick.get("clock_domain_id") != descriptor.clock_domain_id
+                or tick.get("clock_source_session_id")
+                != descriptor.clock_source_session_id
+                or tick.get("clock_source") != descriptor.clock_source
             ):
                 raise ValueError
             generation = tick.get("connection_generation")
@@ -776,7 +799,7 @@ class ServiceReadProxy:
                 or ingest_sequence <= 0
             ):
                 raise ValueError
-            if generation != binding.quote_stream_generation:
+            if generation != descriptor.connection_generation:
                 raise ServiceReadProxyError("CTP_SOURCE_SCOPE_CHANGED")
             event_time = _parse_utc(tick.get("event_time_utc"), "event_time_utc")
             receive_time = _parse_utc(tick.get("recv_time_utc"), "recv_time_utc")
@@ -801,6 +824,75 @@ class ServiceReadProxy:
             raise
         except Exception:
             raise ServiceReadProxyError("CTP_TICK_EVENT_INVALID") from None
+
+    def _bind_ctp_tick_source_descriptor(
+        self,
+        dataname: str,
+        binding: ServiceCtpTickBinding,
+        bootstrap: Any,
+        *,
+        expected_epoch: str,
+    ) -> None:
+        """Bind a source only from this authenticated market subscribe reply."""
+
+        try:
+            from bt_api_base.market_protocol import MarketSourceDescriptor
+        except (ImportError, AttributeError):
+            raise ServiceReadProxyError("CTP_SOURCE_DESCRIPTOR_UNAVAILABLE") from None
+
+        descriptor = getattr(bootstrap, "source_descriptor", None)
+        current = getattr(binding.market_client, "source_descriptor", None)
+        if (
+            type(descriptor) is not MarketSourceDescriptor
+            or type(current) is not MarketSourceDescriptor
+            or descriptor != current
+        ):
+            raise ServiceReadProxyError("CTP_SOURCE_DESCRIPTOR_INVALID")
+        key = binding.market_client.key
+        if (
+            type(descriptor.key) is not MarketSubscriptionKey
+            or descriptor.key != key
+            or descriptor.stream_id != key.stream_id
+            or descriptor.epoch != expected_epoch
+            or descriptor.stream_id != getattr(bootstrap, "stream_id", None)
+            or descriptor.provider != key.instrument.provider
+            or descriptor.provider != "ctp"
+            or descriptor.source != "ctp.native.md"
+            or type(descriptor.connection_generation) is not int
+            or descriptor.connection_generation <= 0
+            or any(
+                type(value) is not str or not value or value != value.strip()
+                for value in (
+                    descriptor.clock_domain_id,
+                    descriptor.clock_source_session_id,
+                    descriptor.clock_source,
+                )
+            )
+        ):
+            raise ServiceReadProxyError("CTP_SOURCE_DESCRIPTOR_INVALID")
+        self._ctp_tick_source_descriptors[dataname] = descriptor
+
+    def _current_ctp_tick_source_descriptor(
+        self, dataname: str, binding: ServiceCtpTickBinding
+    ) -> Any:
+        descriptor = self._ctp_tick_source_descriptors.get(dataname)
+        if descriptor is None:
+            raise ServiceReadProxyError("CTP_SOURCE_DESCRIPTOR_UNAVAILABLE")
+        try:
+            from bt_api_base.market_protocol import MarketSourceDescriptor
+        except (ImportError, AttributeError):
+            raise ServiceReadProxyError("CTP_SOURCE_DESCRIPTOR_UNAVAILABLE") from None
+        current = getattr(binding.market_client, "source_descriptor", None)
+        if type(current) is not MarketSourceDescriptor or current != descriptor:
+            raise ServiceReadProxyError("CTP_SOURCE_SCOPE_CHANGED")
+        key = binding.market_client.key
+        if (
+            descriptor.key != key
+            or descriptor.stream_id != key.stream_id
+            or descriptor.epoch != self._stream_epochs.get(dataname)
+        ):
+            raise ServiceReadProxyError("CTP_SOURCE_SCOPE_CHANGED")
+        return descriptor
 
     def _remember_emitted(self, dataname: str, bar: dict[str, Any]) -> dict[str, Any] | None:
         open_time = bar["timestamp"]

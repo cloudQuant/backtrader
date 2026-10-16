@@ -158,3 +158,13 @@ entry:
 
 本目录的 live 通道按契约**只观察不下单**：`--allow-write` 在 `run_live` 的第一条语句就被拒绝（`write_tier_not_implemented_for_decision_only_strategy`），因此可用它来证明确实分发到了 live 通道而不产生任何 provider 副作用。
 本目录的 live 通道按契约**只观察不下单**，其 summary 自迭代 43 R5b 起在**所有出口路径**都带 `entry_tier`（通道决策）与 `write_grant_result`（写授权结果）两个字段，与既有的结果层级标签 `tier` 分列。严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。
+
+## 可选 SDK Service 只读后端（014_2）
+
+`live_adapter.backend` 未设置时，`run.py --live` 保持现有直连 SimNow 路径。仅当本地受信配置明确设为 `service`，入口才会选择 SDK `ServiceClientRuntime`；配置缺失、mount 不符或后端不支持时会 BLOCKED，不会回退到直连 provider。`--allow-write` 仍在任何 provider 连接之前拒绝。
+
+Service 配置由操作者在 `live_adapter.service` 中提供：正常 SDK `client_config`、策略身份引用、两个服务 principal、`curve_key_envs`、account binding 和 market binding。Curve 项只保存进程环境变量名；服务路径只从当前进程环境取密钥，不读取仓库 `.env`。account binding 必须显式给出固定 `AccountKey`、完整 `required_coverage`、future/call/put 各自的 `AccountResourceKey`、估值币种、持仓模式和数量单位；market binding 必须固定 mount、source 与 entitlement。每个三腿资源都必须落在账户明确覆盖集合内。
+
+入口先执行 `account.snapshot`，再通过同一账户 session 的 `account.instrument_metadata` 读取各合约元数据。市场订阅的 `MarketInstrumentKey` 使用 provider 返回的交易所、`asset_type` 和 CTP 原生裸 instrument ID；`EXCHANGE.ID` 完整合约身份仍保留在 BT strategy/feed 名称层，不作为 CTP 订阅原生 symbol。该字段不会被拿来推断账户的 `product_type` 或 `margin_pool` 覆盖。元数据当前明确报告 CTP instrument query 没有提供涨跌停价，不能以配置值或行情深度伪造该事实。
+
+Service feed 订阅原生 `ctp.quote.v2` tick，并要求 `market.subscribe` 返回当前活动订阅的 typed source descriptor。BT 将它的完整 key、Hub stream/epoch、provider/source、CTP connection generation 与 clock domain/session/implementation 逐项绑定到事件；账户元数据里的行情时钟字段不会用于这条独立 MarketHub 来源链。subscription epoch、Hub event sequence 与 provider ingest sequence 仍分别校验；不把行情转换成 K 线接口，也不调用历史 bars 路由。descriptor 只证明来源身份，不提供跨进程时钟映射或 freshness qualification，因此该路径会将运行结果标为 `BLOCKED` / `NOT_QUALIFIED`，不构成观察 PASS。CTP futures/options 的完整账户资源覆盖也必须由可信账户 snapshot 证明；无法证明时 fail-closed。合成 ServiceHost/HTTP/CTP leaves 只用于本机链路验证，不能替代真实 provider 或账户验收。
