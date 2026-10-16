@@ -31,9 +31,16 @@ __all__ = [
 
 _REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_RPC_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,95}$")
 _DECIMAL_TEXT = re.compile(r"^[-+]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$")
 _GROUP_MOUNT = "broker.order_groups"
 _GROUP_OPERATIONS = frozenset({"groups.submit", "groups.query"})
+# In the accepted SDK coordinator service, this is the only submit rejection
+# emitted before ``advance_group`` can reach a provider. Every other valid
+# business rejection may describe work that already started and stays unknown.
+_DEFINITE_PRE_DISPATCH_GROUP_SUBMIT_REJECTIONS = frozenset(
+    {"GROUP_ACCEPTANCE_REJECTED"}
+)
 _MONITOR_MOUNT = "broker.group_monitor"
 _MONITOR_OPERATIONS = frozenset({"monitor.read_after"})
 _RESIDUAL_EVENT_TYPE = "group.residual"
@@ -317,7 +324,7 @@ class ServiceExecutionGroupAdapter:
         if type(intent) is not GroupOrderIntent:
             raise ServiceExecutionGroupError("GROUP_INTENT_TYPE_INVALID")
         if (
-            intent.version != 1
+            intent.version not in {1, 3}
             or intent.budget_quote is not None
             or intent.strategy_id != route.strategy_ref
             or intent.portfolio_ref != route.portfolio_ref
@@ -328,15 +335,26 @@ class ServiceExecutionGroupAdapter:
             "group_id": intent.group_id,
             "deadline_ns": intent.deadline_ns,
             "first_leg_id": intent.first_leg_id,
-            "legs": [
-                {
-                    "leg_id": leg.leg_id,
-                    "account_ref": leg.account_ref,
-                    "intent": leg.maximum_intent.to_payload(),
-                }
-                for leg in intent.legs
-            ],
         }
+        if intent.version == 3:
+            arguments["version"] = 3
+        arguments["legs"] = []
+        for leg in intent.legs:
+            leg_payload = {
+                "leg_id": leg.leg_id,
+                "account_ref": leg.account_ref,
+                "intent": leg.maximum_intent.to_payload(),
+            }
+            if intent.version == 3:
+                # The versioned service contract requires an exact decimal
+                # string on every leg; legacy v1 bodies keep their original
+                # key set and serialization unchanged.
+                if leg.ratio is None:
+                    raise ServiceExecutionGroupError(
+                        "GROUP_INTENT_RATIO_INVALID", group_id=intent.group_id
+                    )
+                leg_payload["ratio"] = format(leg.ratio, "f")
+            arguments["legs"].append(leg_payload)
         runtime = route.runtime
         try:
             result = runtime.call(
@@ -349,7 +367,18 @@ class ServiceExecutionGroupAdapter:
         except Exception as error:
             _raise_submit_error(error, intent.group_id)
         try:
-            snapshot = _snapshot_from_reply(result, expected_intent=intent)
+            body = _group_reply_result(result, group_id=intent.group_id)
+            snapshot = _snapshot_from_reply(body, expected_intent=intent)
+        except ServiceExecutionGroupError as error:
+            if error.code in _DEFINITE_PRE_DISPATCH_GROUP_SUBMIT_REJECTIONS:
+                raise
+            # The SDK can return a business failure after it persisted an
+            # accepted group and advanced into provider dispatch. Preserve the
+            # caller's original ID for query/recovery; never infer that an
+            # arbitrary {ok: false, code: ...} response means "not sent".
+            raise ServiceExecutionGroupUnknownOutcomeError(
+                group_id=intent.group_id
+            ) from None
         except Exception:
             raise ServiceExecutionGroupUnknownOutcomeError(group_id=intent.group_id) from None
         return snapshot
@@ -368,15 +397,18 @@ class ServiceExecutionGroupAdapter:
         except Exception:
             raise ServiceExecutionGroupError("GROUP_QUERY_FAILED", group_id=group_id) from None
         try:
-            if not isinstance(result, Mapping) or frozenset(result) != frozenset(
+            body = _group_reply_result(result, group_id=group_id)
+            if not isinstance(body, Mapping) or frozenset(body) != frozenset(
                 {"found", "snapshot"}
-            ) or type(result["found"]) is not bool:
+            ) or type(body["found"]) is not bool:
                 raise ValueError
-            if result["found"] is False:
-                if result["snapshot"] is not None:
+            if body["found"] is False:
+                if body["snapshot"] is not None:
                     raise ValueError
                 return None
-            return _snapshot_from_reply(result, expected_identity=route, group_id=group_id)
+            return _snapshot_from_reply(body, expected_identity=route, group_id=group_id)
+        except ServiceExecutionGroupError:
+            raise
         except Exception:
             raise ServiceExecutionGroupError("GROUP_QUERY_RESPONSE_INVALID", group_id=group_id) from None
 
@@ -601,18 +633,35 @@ def _snapshot_from_reply(
     snapshot = GroupOrderSnapshot.from_payload(snapshot_payload)
     request = snapshot.request
     if expected_intent is not None:
+        # ``coordinator_principal_ref`` and ``received_at_ns`` are supplied by
+        # the authenticated coordinator when it normalizes the wire body.
+        # They are deliberately absent from ``groups.submit`` and therefore
+        # cannot be compared with the strategy's local hints.  Only compare
+        # caller-selected fields that are present on the wire (plus the
+        # strategy/portfolio/account facts checked against the bound route).
+        accepted_version_matches = request.version == expected_intent.version or (
+            expected_intent.version == 1
+            and request.version == 2
+            and request.budget_quote is not None
+        )
         if (
             request.group_id != expected_intent.group_id
             or request.strategy_id != expected_intent.strategy_id
             or request.portfolio_ref != expected_intent.portfolio_ref
             or request.deadline_ns != expected_intent.deadline_ns
             or request.first_leg_id != expected_intent.first_leg_id
-            or request.version != 1
+            or request.recovery_policy != expected_intent.recovery_policy
+            or not accepted_version_matches
+            or (request.version == 3 and request.budget_quote is None)
             or tuple(
                 (
                     item.leg_id,
                     item.account_ref,
                     item.maximum_intent.to_payload(),
+                    item.base_units_per_order_unit,
+                    item.quantity_step,
+                    item.metadata_valid_until_ns,
+                    item.ratio,
                 )
                 for item in request.legs
             )
@@ -621,6 +670,10 @@ def _snapshot_from_reply(
                     item.leg_id,
                     item.account_ref,
                     item.maximum_intent.to_payload(),
+                    item.base_units_per_order_unit,
+                    item.quantity_step,
+                    item.metadata_valid_until_ns,
+                    item.ratio,
                 )
                 for item in expected_intent.legs
             )
@@ -635,6 +688,34 @@ def _snapshot_from_reply(
     if group_id is not None and request.group_id != group_id:
         raise ValueError
     return snapshot
+
+
+def _group_reply_result(value: object, *, group_id: str) -> Mapping[str, Any]:
+    """Validate the SDK handler envelope and return its business payload.
+
+    ``ServiceClientRuntime.call`` removes the outer transport envelope, but
+    ``GroupOrderCoordinatorService`` deliberately returns its own
+    ``{ok, code, result}`` contract inside that payload. A valid negative
+    envelope only identifies the service's business code; submit callers must
+    separately decide whether that code proves pre-dispatch rejection.
+    """
+
+    if not isinstance(value, Mapping) or frozenset(value) != frozenset(
+        {"ok", "code", "result"}
+    ):
+        raise ValueError("group service reply envelope is invalid")
+    ok = value["ok"]
+    code = value["code"]
+    result = value["result"]
+    if type(ok) is not bool or not isinstance(result, Mapping):
+        raise ValueError("group service reply envelope is invalid")
+    if ok is False:
+        if type(code) is not str or _RPC_ERROR_CODE.fullmatch(code) is None or code == "OK":
+            raise ValueError("group service rejection code is invalid")
+        raise ServiceExecutionGroupError(code, group_id=group_id)
+    if code != "OK":
+        raise ValueError("group service success code is invalid")
+    return result
 
 
 def _parse_residual_event(value: object, route: ServiceStrategyGroupRoute) -> ServiceGroupResidual:
