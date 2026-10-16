@@ -669,6 +669,11 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                     "FEED_EVIDENCE_CLOCK_MODE",
                     f"{self._config['mode']} Feed evidence requires {expected_clock_mode} clock mode",
                 )
+        self._feed_sealed_symbols: Tuple[str, str, str] = (
+            contracts["future"],
+            contracts["call"],
+            contracts["put"],
+        )
         self._feed_data_by_symbol: Dict[str, Any] = {}
         if self._feed_evidence_mode:
             expected_symbols = tuple(contracts[field] for field in ("future", "call", "put"))
@@ -676,9 +681,13 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                 raise ConfigurationError(
                     "FEED_EVIDENCE_FEEDS", "Feed-sealed mode requires exactly three C/P/F feeds"
                 )
+            # Cerebro's configured feed name is the contract identity carried
+            # by sealed bars and quote windows; ``_dataname`` remains the
+            # provider's bare subscription key.
             self._feed_data_by_symbol = {
                 symbol: self.datas[index] for index, symbol in enumerate(expected_symbols)
             }
+            self._feed_sealed_symbols = expected_symbols
             if tuple(getattr(data, "_name", None) for data in self.datas) != expected_symbols:
                 raise ConfigurationError(
                     "FEED_EVIDENCE_FEEDS",
@@ -703,14 +712,21 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             self._init_timing_only()
             return
         feature_policy_type, self._feature_reason, self._compute_features = _load_feature_module()
+        # Feed-sealed bars and their quote windows use the configured full
+        # contract identities, matching the FQ2 policy and replay route.
+        feature_symbols = (
+            self._feed_sealed_symbols
+            if self._feed_evidence_mode
+            else (contracts["future"], contracts["call"], contracts["put"])
+        )
         self._policy = feature_policy_type(
-            symbols=(contracts["future"], contracts["call"], contracts["put"]),
+            symbols=feature_symbols,
             multiplier=candidate["multiplier"],
             strike=candidate["strike"],
             discount_factor=candidate["discount_factor"],
             price_tick_by_symbol={
-                contracts[field]: candidate["price_ticks"][field]
-                for field in ("future", "call", "put")
+                feature_symbols[index]: candidate["price_ticks"][field]
+                for index, field in enumerate(("future", "call", "put"))
             },
             history_bars=self._config["signal"]["history_bars"],
             short_window_seconds=self._config["features"]["short_window_seconds"],
@@ -748,8 +764,7 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         self._tokens = _TokenLedger()
         self._barrier = MultiLegBarBarrier(
             expected_legs=tuple(
-                BarLeg(contracts[field], candidate["exchange"])
-                for field in ("future", "call", "put")
+                BarLeg(symbol, candidate["exchange"]) for symbol in feature_symbols
             ),
             candidate_id=candidate["candidate_id"],
             expected_rules_hash=candidate["rules_hash"],

@@ -895,12 +895,22 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             events.pop(0)
         events.append(mapping)
 
+    def _evidence_symbol(self):
+        """Return the public feed identity used by downstream evidence.
+
+        ``dataname`` remains the provider subscription key.  Cerebro's
+        explicit feed name is the identity shared with strategy contracts and
+        is therefore used for sealed bars and their quote window when present.
+        """
+        name = getattr(self, "_name", None)
+        return name if isinstance(name, str) and name else self._dataname
+
     def _quote_capture_mapping(self, tick):
         """Freeze a prepared tick as a live bar-bound quote record.
 
-        Every identity field comes from the tick's own (possibly stamped)
-        provenance; there is deliberately no process-state fallback.  The
-        caller-owned evidence provider may add its candidate id on hand-off.
+        Tick provenance supplies the event fields; the explicit Cerebro feed
+        name supplies the shared contract identity.  The caller-owned evidence
+        provider may add its candidate id on hand-off.
         """
         raw_event = _tick_value(tick, "event_time_utc", default=None)
         event_time = _as_utc_datetime(
@@ -926,7 +936,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         if not isinstance(received_mono, int) or received_mono <= 0:
             return None
         return {
-            "symbol": self._dataname,
+            "symbol": self._evidence_symbol(),
             "exchange": str(
                 _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default="") or ""
             ),
@@ -1490,7 +1500,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
             completed = BarEvent(
                 timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
-                symbol=self._dataname,
+                symbol=self._evidence_symbol(),
                 exchange=current["exchange"],
                 asset_type=current["asset_type"],
                 local_time=available_ts,

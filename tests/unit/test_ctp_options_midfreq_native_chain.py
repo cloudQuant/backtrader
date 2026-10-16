@@ -25,6 +25,7 @@ from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
 runner = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.legacy_runner")
+run_module = importlib.import_module("examples.unified.014_2_ctp_options_midfreq.run")
 strategy_module = importlib.import_module(
     "examples.unified.014_2_ctp_options_midfreq.ctp_options_midfreq_strategy"
 )
@@ -108,7 +109,7 @@ class FiniteCtpFixtureClient(FakeBtApiClient):
         self._interleave_symbols = tuple(interleave_symbols)
         self._next_interleave_symbol = 0
         self.delivered_source_ticks: Dict[str, list[Mapping[str, Any]]] = {
-            symbol: [] for symbol in SYMBOLS
+            symbol: [] for symbol in self.live_ticks
         }
 
     def is_source_exhausted(self, symbol: str) -> bool:
@@ -573,6 +574,154 @@ def test_feed_sealed_bars_reach_midfreq_strategy_without_raw_reconstruction(
     registry.assert_decision_matches_source(decision)
     assert strategy.build_report()["input_boundary"] == "feed_sealed_closed_bar_evidence"
     assert strategy.build_report()["feed_evidence"]["fault"] is None
+    _assert_zero_write(client, broker)
+
+
+def test_live_observation_provider_accepts_full_named_feed_identity() -> None:
+    """The normal live evidence provider sees the Cerebro full contract name.
+
+    Provider subscriptions deliberately use the bare code, as ``run_live``
+    does, while Cerebro names each feed with its exchange-qualified contract.
+    The CTP ticks and clock are local fixtures; BtApiFeed sealing, the actual
+    run.py evidence provider, and the strategy's dispatch-token validator stay
+    on their production code paths.
+    """
+
+    full_symbols = (
+        "CZCE.SA701",
+        "CZCE.SA701C1080",
+        "CZCE.SA701P1080",
+    )
+    live_exchange = "CZCE"
+    symbol_codes = tuple(run_module._split_symbol(symbol)[0] for symbol in full_symbols)
+    assert len(set(symbol_codes)) == 3
+    assert tuple(run_module._split_symbol(symbol)[1] for symbol in full_symbols) == (
+        live_exchange,
+        live_exchange,
+        live_exchange,
+    )
+
+    live_clock = ClockMapping(
+        mapping_id="iter24-local-live-provider-mapping",
+        wall_utc_at_anchor=BASE,
+        mono_ns_at_anchor=1_000_000_000,
+        clock_domain_id=CLOCK_DOMAIN,
+        connection_generation=7,
+        source="iter24.local-observation-provider.fixture",
+        error_bound_ns=0,
+        valid_until_mono_ns=1_000_000_000_000_000_000,
+        rules_hash=RULES_HASH,
+        synthetic=False,
+    )
+    provider = run_module._ObservationEvidenceProvider(
+        live_clock,
+        run_module.LIVE_CANDIDATE_ID,
+        timeframe_seconds=60.0,
+    )
+    live_config = run_module._live_strategy_config(
+        CONFIG,
+        {
+            "live_candidate": {
+                "exchange": live_exchange,
+                "contracts": {
+                    "future": full_symbols[0],
+                    "call": full_symbols[1],
+                    "put": full_symbols[2],
+                },
+                "strike": CANDIDATE["strike"],
+                "multiplier": CANDIDATE["multiplier"],
+                "discount_factor": CANDIDATE["discount_factor"],
+                "option_style": CANDIDATE["option_style"],
+                "quantities": CANDIDATE["quantities"],
+                "price_ticks": CANDIDATE["price_ticks"],
+            }
+        },
+        RULES_HASH,
+    )
+
+    class ProvenanceObservingStrategy(strategy_module.CTPOptionsMidFrequencyStrategy):
+        def __init__(self) -> None:
+            self.provenance_observations: list[tuple[Any, ...]] = []
+            super().__init__()
+
+        def _feed_bar_has_expected_provenance(self, bar: Any, evidence: BarEvidence) -> bool:
+            accepted = super()._feed_bar_has_expected_provenance(bar, evidence)
+            self.provenance_observations.append(
+                (
+                    bar.symbol,
+                    evidence.symbol,
+                    tuple(item["symbol"] for item in evidence.quote_events),
+                    accepted,
+                )
+            )
+            return accepted
+
+    source_ticks = _native_ticks(2)
+    ticks_by_code = {}
+    for source_symbol, full_symbol, code in zip(SYMBOLS, full_symbols, symbol_codes):
+        ticks = source_ticks[source_symbol]
+        for tick in ticks:
+            tick.symbol = full_symbol
+            tick.exchange = live_exchange
+        ticks_by_code[code] = ticks
+    client = FiniteCtpFixtureClient(
+        live_ticks=ticks_by_code,
+        final_watermark=BASE + dt.timedelta(minutes=2, milliseconds=500),
+        interleave_symbols=symbol_codes,
+    )
+    store = BtApiStore(provider="btapi", api=client, market_data_only=True)
+    broker = BtApiBroker(
+        store=store,
+        provider="btapi",
+        market_data_only=True,
+        sdk_preflight=False,
+        flatten_on_stop=False,
+        force_refresh_queries=False,
+    )
+    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+    cerebro.setbroker(broker)
+    feeds = []
+    for code, full_symbol in zip(symbol_codes, full_symbols):
+        feed = store.getdata(
+            dataname=code,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=1,
+            backfill_start=False,
+            dispatch_ticks=False,
+            dispatch_bars=True,
+            qcheck=0,
+            price_tick=1.0,
+            clock=FixedClock(),
+            closed_bar_evidence_provider=provider,
+            closed_bar_quote_capture=True,
+            closed_bar_quote_limit=240,
+        )
+        feeds.append(feed)
+        cerebro.adddata(feed, name=full_symbol)
+    cerebro.addstrategy(
+        ProvenanceObservingStrategy,
+        config=live_config,
+        require_feed_bar_evidence=True,
+        feed_evidence_clock_mode="live",
+        feed_evidence_clock_domain=CLOCK_DOMAIN,
+    )
+
+    [strategy] = cerebro.run(preload=False, runonce=False)
+
+    assert tuple((feed._dataname, feed._name) for feed in feeds) == tuple(
+        zip(symbol_codes, full_symbols)
+    )
+    assert client.subscriptions == list(symbol_codes)
+    assert strategy.provenance_observations
+    assert {
+        bar_symbol for bar_symbol, *_ in strategy.provenance_observations
+    } == set(full_symbols)
+    for bar_symbol, evidence_symbol, quote_symbols, accepted in strategy.provenance_observations:
+        assert bar_symbol == evidence_symbol
+        assert quote_symbols and set(quote_symbols) == {bar_symbol}
+        assert accepted
+    assert "FEED_CLOSED_BAR_PROVENANCE_REQUIRED" not in strategy._rejections
+    assert "FEED_CLOSED_BAR_EVIDENCE_REQUIRED" not in strategy._rejections
     _assert_zero_write(client, broker)
 
 
