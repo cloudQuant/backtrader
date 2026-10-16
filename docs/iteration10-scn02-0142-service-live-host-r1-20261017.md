@@ -2,7 +2,7 @@
 
 Date: 2026-10-17. Repository: `D:/source_code/backtrader`, branch `dev`.
 
-This round verifies the existing `014_2` normal `run_live` entry through the explicitly selected read-only service backend, SDK market/account clients, Store/Feed, the unchanged strategy, and Cerebro. It supplements the source round committed at `2a108caa8f28e72695adc66de4245f609539ed58`. The test uses local `ServiceHost`/CURVE endpoints and synthetic CTP Trader/MD leaves; it does not connect to a real account or venue.
+This round verifies `014_2` through `service_backend.run_live_service`, SDK market/account clients, Store/Feed, the unchanged strategy, and Cerebro. The preceding source round committed at `2a108caa8f28e72695adc66de4245f609539ed58` wires the public `run.py:run_live` selector to this backend, and a unit test covers that selector; this Host node calls `run_live_service` directly and does not exercise CLI/config selector dispatch. The test uses local `ServiceHost`/CURVE endpoints and synthetic CTP Trader/MD leaves; it does not connect to a real account or venue.
 
 ## Accepted local result
 
@@ -15,7 +15,7 @@ C:/anaconda3/python.exe -m pytest -p no:asyncio -q tests/integration/test_0142_s
 
 The warning is the existing `asyncio_default_fixture_loop_scope` pytest configuration warning. The test records the expected `BLOCKED / ctp_source_clock_mapping_unqualified` and `NOT_QUALIFIED` result, zero order writes, all three C/P/F tick legs, matching authenticated market source identity, closed account and market deployments, one account provider close, zero remaining market handles, all three native instruments accounted for across subscribe/unsubscribe, and one typed native stream stop/wait. The first run reached shutdown but failed a fixture assertion because successfully unsubscribed symbols had been removed from the fixture's active list. The assertion was corrected to compare the union of active and unsubscribed symbols; the following run passed. No extra audit assertions added after that pass are included in this test.
 
-The result demonstrates the local service-backed normal consumer path and shutdown using synthetic provider leaves. It does not demonstrate real CTP provider/account behavior, clock calibration, source freshness, exchange event-time mapping, or write eligibility. Source descriptor identity and a common clock-domain label do not establish qualified same-clock timing. There is no formal SCN02 case-count increase in this round.
+The result demonstrates the local service-backed consumer path and shutdown using synthetic provider leaves. It does not demonstrate real CTP provider/account behavior, closed-minute/sealed-bar behavior, clock calibration, source freshness, exchange event-time mapping, or write eligibility. Source descriptor identity and a common clock-domain label do not establish qualified same-clock timing. There is no formal SCN02 case-count increase in this round.
 
 ## Exact test pin
 
@@ -38,7 +38,7 @@ The formal plan requires all nine unified directories to have their read/write c
 | `013_2_highfreq_calendar_arbitrage` | Same-account calendar group, contract/expiry identity, timing and group execution evidence remain separate; the name does not qualify HFT. |
 | `013_3_sa_midfreq_simnow` | The single-contract CTP read path and its separately admitted write drill are not covered here. |
 | `014_1_ctp_options_lowfreq` | Its three-leg closed-bar and separately authorized write-drill path remains separate. |
-| `014_2_ctp_options_midfreq` | Local synthetic service path is verified; real provider/account evidence and qualified run-owned clock mapping/freshness remain absent, so the normal result stays blocked and zero-write. |
+| `014_2_ctp_options_midfreq` | Local synthetic service consumer path is verified; this Host node bypasses the public selector and does not verify closed-minute/sealed-bar behavior. Real provider/account evidence and qualified run-owned clock mapping/freshness remain absent, so the normal result stays blocked and zero-write. |
 | `015_ctp_options_highfreq` | Tick-only cohort, freshness/latency and qualified same-clock evidence remain absent; no HFT eligibility is inferred. |
 
-The exact formal acceptance gate is `SCN02` in `docs/迭代计划/迭代10-可选组件与可配置通信/正式迭代计划.md`; its nine-directory inventory is in `场景覆盖与旧转发迁移清单.md`. This record reports the narrow local result and does not replace the formal tracker or claim full SCN02 completion.
+The independent static audit accepted this as narrow, safe service-consumer evidence. The formal acceptance gate is `SCN02` in `docs/迭代计划/迭代10-可选组件与可配置通信/正式迭代计划.md`; its nine-directory inventory is in `场景覆盖与旧转发迁移清单.md`. The overall matrix remains pending Root adjudication of prior evidence for the other directories. This record reports the narrow local result and does not replace the formal tracker or claim full SCN02 completion.
