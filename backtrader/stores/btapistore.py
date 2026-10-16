@@ -1608,6 +1608,32 @@ def _canonical_ctp_scope(symbol: Any, exchange_id: Any = "") -> str:
     return f"{exchange}.{instrument}"
 
 
+_CTP_CZCE_OPTION_INSTRUMENT_RE = re.compile(r"^([A-Z]{1,2})(\d{3})([CP])(\d{3,5})$")
+
+
+def _infer_ctp_instrument_exchange(instrument: Any) -> str:
+    """Infer a bare CTP instrument's exchange when the venue omits ExchangeID.
+
+    CZCE product codes in ``_CZCE_PRODUCT_PREFIXES`` exist only on CZCE, so a
+    bare code carrying one of them (the venue form uses three-digit delivery
+    months) can only be a CZCE scope.  This mirrors the existing CZCE inference
+    in ``_normalize_ctp_instrument`` / ``_canonical_ctp_scope`` and extends it
+    to the CZCE option form ``PRODUCT + month + C/P + strike``.  Callers use
+    this only for payloads whose ``ExchangeID`` is empty; a venue-provided
+    exchange is never replaced.
+    """
+    text = _coerce_text(instrument)
+    if not text:
+        return ""
+    scope = _canonical_ctp_scope(text)
+    if scope:
+        return scope.split(".", 1)[0]
+    match = _CTP_CZCE_OPTION_INSTRUMENT_RE.fullmatch(text.upper())
+    if match is not None and match.group(1) in _CZCE_PRODUCT_PREFIXES:
+        return "CZCE"
+    return ""
+
+
 def _positive_int_lot(value: Any, field_name: str) -> int:
     if isinstance(value, bool) or value in (None, ""):
         raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot")
@@ -1887,6 +1913,10 @@ def _create_ctp_wrapper_class():
             self._positions_cache = []
             self._tick_queues = collections.defaultdict(collections.deque)
             self._instrument_aliases = collections.defaultdict(set)
+            # Exchange resolved for each subscribed instrument (typed alias or
+            # CZCE inference); consulted only when a venue tick omits
+            # ExchangeID so venue-provided values stay untouched.
+            self._instrument_exchanges = {}
             self._subscribed_aliases = set()
             self._last_total_volume = {}
             self._last_tick_price = {}
@@ -2162,11 +2192,17 @@ def _create_ctp_wrapper_class():
                 instruments = []
                 for symbol in symbols:
                     alias = str(symbol or "").strip()
-                    instrument, _exchange = _split_ctp_symbol(alias)
+                    instrument, exchange = _split_ctp_symbol(alias)
                     if not instrument:
                         continue
                     self._subscribed_aliases.add(alias)
                     self._instrument_aliases[instrument].add(alias)
+                    if exchange:
+                        self._instrument_exchanges[instrument] = exchange
+                    elif instrument not in self._instrument_exchanges:
+                        inferred = _infer_ctp_instrument_exchange(instrument)
+                        if inferred:
+                            self._instrument_exchanges[instrument] = inferred
                     instruments.append(instrument)
 
                 if instruments:
@@ -2854,6 +2890,12 @@ def _create_ctp_wrapper_class():
                 return
 
             exchange_id = str(getattr(payload, "ExchangeID", "") or "").strip().upper()
+            if not exchange_id:
+                # Venue payload omitted ExchangeID (observed with SimNow CTP
+                # depth data).  Fall back to the exchange resolved for this
+                # instrument at subscribe() time; a venue-provided value is
+                # never replaced.
+                exchange_id = self._instrument_exchanges.get(instrument, "")
             total_volume = _coerce_float(getattr(payload, "Volume", None))
             previous_total = self._last_total_volume.get(instrument)
             tick_volume = (
