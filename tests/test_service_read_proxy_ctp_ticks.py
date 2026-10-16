@@ -57,6 +57,8 @@ _KEY = MarketSubscriptionKey(
 )
 _SCOPE = WireScope("ctp-market-domain", strategy_ref="ctp_options_midfreq")
 _CLOCK_DOMAIN = "ctp-md-clock-v1"
+_ACCOUNT_SESSION_GENERATION = "account-session-generation-1"
+_QUOTE_STREAM_GENERATION = 7
 
 
 def _tick(*, generation=7, subscription_epoch=3, ingest_seq=20, **changes):
@@ -72,6 +74,7 @@ def _tick(*, generation=7, subscription_epoch=3, ingest_seq=20, **changes):
         "subscription_epoch": subscription_epoch,
         "ingest_seq": ingest_seq,
         "clock_domain_id": _CLOCK_DOMAIN,
+        "source": "ctp.native.md",
         "volume_semantics": "delta",
         "delta_volume": 1.0,
         "cum_volume": 101.0,
@@ -107,12 +110,16 @@ class _AccountClient:
     required_coverage = (_RESOURCE,)
     require_open_orders = True
 
-    def __init__(self, observation=None):
+    def __init__(self, observation=None, session_generation=_ACCOUNT_SESSION_GENERATION):
         self.observation = observation
+        self.session_generation = session_generation
 
     def refresh(self):
         if self.observation is not None:
-            return SimpleNamespace(observation=self.observation)
+            return SimpleNamespace(
+                observation=self.observation,
+                session_generation=self.session_generation,
+            )
         observation = AccountObservation(
             account_key=_ACCOUNT,
             observation_id="account-observation-1",
@@ -128,7 +135,10 @@ class _AccountClient:
             open_orders=(),
             open_orders_complete=True,
         )
-        return SimpleNamespace(observation=observation)
+        return SimpleNamespace(
+            observation=observation,
+            session_generation=self.session_generation,
+        )
 
     snapshot = refresh
 
@@ -144,9 +154,11 @@ class _MarketClient:
 
     def __init__(self, events=()):
         self.events = deque(events)
+        self.started = False
         self.closed = False
 
     def start(self):
+        self.started = True
         return SimpleNamespace(
             snapshot=None,
             snapshot_kind="latest_event",
@@ -169,18 +181,29 @@ class _MarketClient:
         self.closed = True
 
 
-def _proxy(events=(), *, scope=_SCOPE, clock_domain=_CLOCK_DOMAIN, observation=None):
+def _proxy(
+    events=(),
+    *,
+    scope=_SCOPE,
+    clock_domain=_CLOCK_DOMAIN,
+    observation=None,
+    account_session_generation=_ACCOUNT_SESSION_GENERATION,
+    current_account_session_generation=_ACCOUNT_SESSION_GENERATION,
+):
     market = _MarketClient(events)
     if scope != _SCOPE:
         market.stream_scope = scope
+    account = _AccountClient(observation, current_account_session_generation)
     proxy = ServiceReadProxy(
-        _AccountClient(observation),
+        account,
         {
             _INSTRUMENT.native_symbol: ServiceCtpTickBinding(
                 market,
                 _RESOURCE,
                 "contracts",
+                account_session_generation,
                 clock_domain,
+                _QUOTE_STREAM_GENERATION,
             )
         },
         valuation_currency="CNY",
@@ -215,6 +238,7 @@ def test_poll_tick_preserves_provider_payload_and_validates_both_cursors():
         (_event(2, _tick()), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(), stream_epoch="wrong-market-epoch"), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(clock_domain_id="other-clock")), "CTP_TICK_EVENT_INVALID"),
+        (_event(1, _tick(source="configured.source")), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(symbol="CZCE.SA701P1080")), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(connection_generation=True)), "CTP_TICK_EVENT_INVALID"),
         (_event(1, _tick(ingest_seq=0)), "CTP_TICK_EVENT_INVALID"),
@@ -232,6 +256,45 @@ def test_poll_tick_rejects_wrong_authenticated_scope():
     proxy, _ = _proxy((_event(1, _tick(), scope=wrong_scope),))
 
     with pytest.raises(ServiceReadProxyError, match="CTP_TICK_EVENT_INVALID"):
+        proxy.poll_tick(_INSTRUMENT.native_symbol)
+
+
+def test_ctp_market_metadata_is_rejected_after_account_session_changes():
+    proxy, _ = _proxy()
+    proxy._account_client.session_generation = "account-session-generation-2"
+
+    with pytest.raises(ServiceReadProxyError, match="CTP_ACCOUNT_SCOPE_CHANGED"):
+        proxy.get_positions()
+
+
+def test_stale_ctp_account_metadata_fails_before_market_start():
+    market = _MarketClient()
+    account = _AccountClient(session_generation="account-session-generation-2")
+    proxy = ServiceReadProxy(
+        account,
+        {
+            _INSTRUMENT.native_symbol: ServiceCtpTickBinding(
+                market,
+                _RESOURCE,
+                "contracts",
+                _ACCOUNT_SESSION_GENERATION,
+                _CLOCK_DOMAIN,
+                _QUOTE_STREAM_GENERATION,
+            )
+        },
+        valuation_currency="CNY",
+        position_mode="net",
+    )
+
+    with pytest.raises(ServiceReadProxyError, match="CTP_ACCOUNT_SCOPE_CHANGED"):
+        proxy.connect()
+    assert market.started is False
+
+
+def test_poll_tick_rejects_generation_outside_trusted_quote_source_metadata():
+    proxy, _ = _proxy((_event(1, _tick(generation=_QUOTE_STREAM_GENERATION + 1)),))
+
+    with pytest.raises(ServiceReadProxyError, match="CTP_SOURCE_SCOPE_CHANGED"):
         proxy.poll_tick(_INSTRUMENT.native_symbol)
 
 
@@ -259,9 +322,32 @@ def test_ctp_tick_binding_rejects_bar_route_or_missing_clock_domain():
         "ctp-md-source", "ctp-md-entitlement", _INSTRUMENT, "bar", timeframe="1m"
     )
     with pytest.raises(ValueError, match="fixed ctp.quote.v2"):
-        ServiceCtpTickBinding(market, _RESOURCE, "contracts", _CLOCK_DOMAIN)
+        ServiceCtpTickBinding(
+            market,
+            _RESOURCE,
+            "contracts",
+            _ACCOUNT_SESSION_GENERATION,
+            _CLOCK_DOMAIN,
+            _QUOTE_STREAM_GENERATION,
+        )
     with pytest.raises(ValueError, match="clock_domain_id"):
-        ServiceCtpTickBinding(_MarketClient(), _RESOURCE, "contracts", "")
+        ServiceCtpTickBinding(
+            _MarketClient(),
+            _RESOURCE,
+            "contracts",
+            _ACCOUNT_SESSION_GENERATION,
+            "",
+            _QUOTE_STREAM_GENERATION,
+        )
+    with pytest.raises(ValueError, match="quote_stream_generation"):
+        ServiceCtpTickBinding(
+            _MarketClient(),
+            _RESOURCE,
+            "contracts",
+            _ACCOUNT_SESSION_GENERATION,
+            _CLOCK_DOMAIN,
+            0,
+        )
 
 
 def test_ctp_tick_route_never_reads_or_emits_bars():

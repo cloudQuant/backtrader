@@ -100,10 +100,12 @@ These correct common stale assumptions — verify before relying on docs:
 - Optional service reads can be explicitly injected through
   `backtrader.stores.service_read_proxy.ServiceReadProxy` and
   `BtApiStore(api=proxy)`. This bridge uses SDK account/market facades and neutral
-  `bt_api_base` contracts; explicit `ServiceCtpTickBinding` routes preserve the
-  contiguous authenticated market-event cursor and original CTP quote generation,
-  subscription epoch, and strictly increasing provider ingest sequence without
-  creating bars. It does not embed the four service components in a strategy.
+  `bt_api_base` contracts; explicit `ServiceCtpTickBinding` routes bind the
+  account-session generation and authenticated CTP source/clock domain/quote
+  generation, then preserve the contiguous market-event cursor, subscription
+  epoch, and strictly increasing provider ingest sequence without creating
+  bars. Source identity alone does not qualify clock mapping or freshness. It
+  does not embed the four service components in a strategy.
   Broker requires `market_data_only=True`, and Store write entrypoints
   reject this proxy. Successful close is terminal; create fresh facades for a
   new run. See `docs/source/developer-guide/optional-service-read-proxy.md` for

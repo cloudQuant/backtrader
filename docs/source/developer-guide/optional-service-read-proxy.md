@@ -67,7 +67,10 @@ finally:
 - 历史页数、行数和去重状态有上限。仅处理固定时长、UTC 对齐的闭合 K 线；
   bar Feed 不支持 tick、订单簿或带交易日历锚点的周/月/年线。CTP tick binding
   必须显式设置 `backfill_start=False`，因为该来源不提供 K 线历史，且不把 tick 合成为
-  K 线历史。未收盘事件会被拒绝，上游 bar 仍应只发布已收盘事件。
+  K 线历史。它还必须绑定可信 CTP metadata 的 account session generation、
+  `clock_domain_id` 和正数 `quote_stream_generation`；新账户 session 不得复用旧 metadata，
+  事件必须标识 `source=ctp.native.md` 并与可信来源和 generation 相符。
+  未收盘事件会被拒绝，上游 bar 仍应只发布已收盘事件。
 - facade 与 runtime 的所有操作应在所属线程执行，并持续维护租约。代理关闭
   自己使用的 facade，调用方负责最后关闭共享 runtime；关闭失败可显式重试。
   成功关闭是终态，重新运行须创建新 facade 和代理，不自动重连或回退到 direct。

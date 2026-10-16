@@ -100,19 +100,24 @@ class ServiceFeedBinding:
 
 @dataclass(frozen=True)
 class ServiceCtpTickBinding:
-    """Explicit binding for an unmodified provider ``ctp.quote.v2`` tick stream."""
+    """Bind CTP ticks to trusted account and market-session metadata."""
 
     market_client: Any
     resource: AccountResourceKey
     qty_unit: str
+    account_session_generation: str
     clock_domain_id: str
+    quote_stream_generation: int
     quantity_multiplier: str = "1"
 
     def __post_init__(self) -> None:
         if type(self.resource) is not AccountResourceKey:
             raise TypeError("resource must be an AccountResourceKey")
         _check_text(self.qty_unit, "qty_unit")
+        _check_text(self.account_session_generation, "account_session_generation")
         _check_text(self.clock_domain_id, "clock_domain_id")
+        if type(self.quote_stream_generation) is not int or self.quote_stream_generation <= 0:
+            raise ValueError("quote_stream_generation must be a positive integer")
         if _decimal(self.quantity_multiplier, "quantity_multiplier") <= 0:
             raise ValueError("quantity_multiplier must be positive")
         key = getattr(self.market_client, "key", None)
@@ -250,6 +255,7 @@ class ServiceReadProxy:
             return
         view = self._account_client.refresh()
         self._validate_observation(getattr(view, "observation", None))
+        self._validate_ctp_account_generations(view)
         self._connected = True
 
     start = connect
@@ -755,6 +761,7 @@ class ServiceReadProxy:
                 or tick.get("instrument_id") != key.instrument.instrument_id
                 or tick.get("exchange_id") != key.instrument.venue
                 or tick.get("clock_domain_id") != binding.clock_domain_id
+                or tick.get("source") != "ctp.native.md"
             ):
                 raise ValueError
             generation = tick.get("connection_generation")
@@ -769,6 +776,8 @@ class ServiceReadProxy:
                 or ingest_sequence <= 0
             ):
                 raise ValueError
+            if generation != binding.quote_stream_generation:
+                raise ServiceReadProxyError("CTP_SOURCE_SCOPE_CHANGED")
             event_time = _parse_utc(tick.get("event_time_utc"), "event_time_utc")
             receive_time = _parse_utc(tick.get("recv_time_utc"), "recv_time_utc")
             recv_monotonic_ns = tick.get("recv_monotonic_ns")
@@ -824,7 +833,19 @@ class ServiceReadProxy:
             view = self._account_client.refresh()
         observation = getattr(view, "observation", None)
         self._validate_observation(observation)
+        self._validate_ctp_account_generations(view)
         return observation
+
+    def _validate_ctp_account_generations(self, view: Any) -> None:
+        """Do not pair refreshed account facts with metadata from an older session."""
+
+        for binding in self._feeds.values():
+            if (
+                type(binding) is ServiceCtpTickBinding
+                and getattr(view, "session_generation", None)
+                != binding.account_session_generation
+            ):
+                raise ServiceReadProxyError("CTP_ACCOUNT_SCOPE_CHANGED")
 
     def _validate_observation(self, observation: Any) -> None:
         if type(observation) is not AccountObservation:
