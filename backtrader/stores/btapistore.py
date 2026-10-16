@@ -4050,6 +4050,33 @@ class BtApiStore(LiveStoreBase):
             raise BtApiStoreError("strategy group route is unavailable")
         return adapter.query(strategy, broker, group_id)
 
+    def submit_group_roll_exit(
+        self,
+        strategy: Any,
+        broker: Any,
+        group_id: str,
+        source_leg_id: str,
+        limit_price: Any,
+    ) -> Any:
+        """Request one source-bound group CLOSE through the coordinator adapter."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group roll-exit route is unavailable")
+        return adapter.roll_exit(
+            strategy, broker, group_id, source_leg_id, limit_price
+        )
+
+    def query_group_roll_exit(
+        self, strategy: Any, broker: Any, action_id: str
+    ) -> Any:
+        """Read roll-exit status through its registered read capability."""
+
+        adapter = self._service_execution_group_adapter
+        if adapter is None:
+            raise BtApiStoreError("strategy group roll-exit route is unavailable")
+        return adapter.query_roll_exit(strategy, broker, action_id)
+
     def recover_group_order(
         self,
         strategy: Any,

@@ -16,6 +16,7 @@ import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from types import MappingProxyType
 from typing import Any, Optional
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "ServiceExecutionGroupNotSentError",
     "ServiceExecutionGroupRecovery",
     "ServiceExecutionGroupUnknownOutcomeError",
+    "ServiceGroupRollExitUnknownOutcomeError",
     "ServiceGroupResidual",
     "ServiceGroupResidualCursor",
     "ServiceGroupResidualPage",
@@ -38,11 +40,44 @@ _RPC_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,95}$")
 _DECIMAL_TEXT = re.compile(r"^[-+]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$")
 _GROUP_MOUNT = "broker.order_groups"
 _GROUP_OPERATIONS = frozenset({"groups.submit", "groups.query"})
+_GROUP_ROLL_EXIT_OPERATIONS = _GROUP_OPERATIONS | frozenset(
+    {"groups.roll_exit", "groups.query_roll_exit"}
+)
 # In the accepted SDK coordinator service, this is the only submit rejection
 # emitted before ``advance_group`` can reach a provider. Every other valid
 # business rejection may describe work that already started and stays unknown.
 _DEFINITE_PRE_DISPATCH_GROUP_SUBMIT_REJECTIONS = frozenset(
     {"GROUP_ACCEPTANCE_REJECTED"}
+)
+_DEFINITE_PRE_DISPATCH_ROLL_EXIT_REJECTIONS = frozenset(
+    {
+        "INVALID_REQUEST",
+        "GROUP_ID_INVALID",
+        "GROUP_LEG_INVALID",
+        "GROUP_ROLL_EXIT_PRICE_INVALID",
+        "GROUP_ROLL_EXIT_NOT_AUTHORIZED",
+        "GROUP_ROLL_EXIT_SOURCE_LEG_INVALID",
+        "GROUP_ROLL_EXIT_TARGET_UNAVAILABLE",
+        "GROUP_ROLL_EXIT_PREPARE_UNAVAILABLE",
+        "OPERATION_NOT_GRANTED",
+        "REGISTRATION_EXPIRED",
+    }
+)
+_ROLL_EXIT_PHASES = frozenset(
+    {"PREPARED", "SUBMIT_STARTED", "STATUS_OBSERVED", "UNKNOWN", "RESOLVED"}
+)
+_ROLL_EXIT_CLOSE_STATES = frozenset(
+    {
+        "PENDING_ADMISSION",
+        "PENDING_DISPATCH",
+        "DISPATCHING",
+        "ACKED",
+        "PARTIALLY_FILLED",
+        "UNKNOWN",
+        "FILLED",
+        "CANCELLED",
+        "REJECTED",
+    }
 )
 _MONITOR_MOUNT = "broker.group_monitor"
 _MONITOR_OPERATIONS = frozenset({"monitor.read_after"})
@@ -118,6 +153,26 @@ class ServiceExecutionGroupUnknownOutcomeError(ServiceExecutionGroupError):
 
     def __init__(self, *, group_id: str) -> None:
         super().__init__("REQUEST_OUTCOME_UNKNOWN", group_id=group_id)
+
+
+class ServiceGroupRollExitUnknownOutcomeError(ServiceExecutionGroupUnknownOutcomeError):
+    """A roll-exit call may have advanced and needs identical-request recovery.
+
+    Until the caller receives a stable action ID, it must retry only the same
+    group/source-leg/limit-price request through the coordinator. It must not
+    send a different close or fall back to an ordinary Broker order.
+    """
+
+    def __init__(
+        self,
+        *,
+        group_id: str,
+        source_leg_id: str,
+        detail_code: Optional[str] = None,
+    ) -> None:
+        super().__init__(group_id=group_id)
+        self.source_leg_id = source_leg_id
+        self.detail_code = detail_code
 
 
 @dataclass(frozen=True)
@@ -232,6 +287,7 @@ class ServiceExecutionGroupAdapter:
         }
         self._owners: dict[tuple[str, str], Any] = {}
         self._bound_by_object: dict[int, tuple[Any, tuple[str, str]]] = {}
+        self._roll_exit_route_keys: frozenset[tuple[str, str]] = frozenset()
         self._registered = False
         self._owner_thread_id = threading.get_ident()
 
@@ -242,6 +298,7 @@ class ServiceExecutionGroupAdapter:
         from bt_api_py.service_runtime import RegisteredBinding
 
         resolved = set()
+        roll_exit_route_keys = set()
         runtime_owner: dict[int, str] = {}
         for route in self._routes:
             runtime = route.runtime
@@ -271,8 +328,8 @@ class ServiceExecutionGroupAdapter:
                 type(binding) is not RegisteredBinding for binding in bindings
             ):
                 raise ServiceExecutionGroupError("GROUP_RUNTIME_BINDINGS_INVALID")
-            group_binding = _unique_binding(
-                bindings, _GROUP_MOUNT, route.group_scope_ref, _GROUP_OPERATIONS
+            group_binding = _unique_group_binding(
+                bindings, _GROUP_MOUNT, route.group_scope_ref
             )
             monitor_binding = _unique_binding(
                 bindings, _MONITOR_MOUNT, route.monitor_scope_ref, _MONITOR_OPERATIONS
@@ -289,6 +346,9 @@ class ServiceExecutionGroupAdapter:
             if key in resolved:
                 raise ServiceExecutionGroupError("GROUP_ROUTE_AMBIGUOUS")
             resolved.add(key)
+            if group_binding.operations == _GROUP_ROLL_EXIT_OPERATIONS:
+                roll_exit_route_keys.add(key)
+        self._roll_exit_route_keys = frozenset(roll_exit_route_keys)
         self._registered = True
 
     def deactivate(self) -> None:
@@ -421,6 +481,123 @@ class ServiceExecutionGroupAdapter:
             raise
         except Exception:
             raise ServiceExecutionGroupError("GROUP_QUERY_RESPONSE_INVALID", group_id=group_id) from None
+
+    def roll_exit(
+        self,
+        strategy: Any,
+        broker: Any,
+        group_id: str,
+        source_leg_id: str,
+        limit_price: Decimal,
+    ) -> Mapping[str, Any]:
+        """Ask the coordinator to recover or submit one source-bound group CLOSE.
+
+        The coordinator and Risk service derive the close side, instrument,
+        and quantity from the accepted OPEN source. This bridge sends only the
+        exact source selectors and a positive limit price; it never converts
+        the request into an ordinary Broker order.
+        """
+
+        route = self._route_for(strategy, broker)
+        route_key = (route.strategy_ref, route.portfolio_ref)
+        if route_key not in self._roll_exit_route_keys:
+            raise ServiceExecutionGroupError(
+                "GROUP_ROLL_EXIT_ROUTE_UNAVAILABLE", group_id=group_id
+            )
+        _require_reference(group_id, "INVALID_GROUP_ID")
+        _require_reference(source_leg_id, "INVALID_GROUP_LEG_ID")
+        try:
+            from bt_api_py.service_group_roll_exit import GroupRollExitRequestV1
+        except ImportError:
+            raise ServiceExecutionGroupError(
+                "GROUP_ROLL_EXIT_CONTRACT_UNAVAILABLE", group_id=group_id
+            ) from None
+        try:
+            request = GroupRollExitRequestV1(
+                portfolio_ref=route.portfolio_ref,
+                group_id=group_id,
+                source_leg_id=source_leg_id,
+                limit_price=limit_price,
+            )
+        except Exception:
+            raise ServiceExecutionGroupError(
+                "GROUP_ROLL_EXIT_REQUEST_INVALID", group_id=group_id
+            ) from None
+        arguments = {
+            "group_id": request.group_id,
+            "source_leg_id": request.source_leg_id,
+            "limit_price": format(request.limit_price, "f"),
+        }
+        try:
+            result = route.runtime.call(
+                _GROUP_MOUNT,
+                "groups.roll_exit",
+                arguments,
+                portfolio_ref=route.portfolio_ref,
+                scope_ref=route.group_scope_ref,
+            )
+        except Exception as error:
+            _raise_roll_exit_call_error(error, group_id, source_leg_id)
+        try:
+            body = _group_reply_result(result, group_id=group_id)
+            return _roll_exit_reply(
+                body,
+                group_id=group_id,
+                source_leg_id=source_leg_id,
+                action_id=None,
+                allow_not_found=False,
+            )
+        except ServiceExecutionGroupError as error:
+            if error.code in _DEFINITE_PRE_DISPATCH_ROLL_EXIT_REJECTIONS:
+                raise
+            raise ServiceGroupRollExitUnknownOutcomeError(
+                group_id=group_id,
+                source_leg_id=source_leg_id,
+                detail_code=error.code,
+            ) from None
+        except Exception:
+            raise ServiceGroupRollExitUnknownOutcomeError(
+                group_id=group_id, source_leg_id=source_leg_id
+            ) from None
+
+    def query_roll_exit(
+        self,
+        strategy: Any,
+        broker: Any,
+        action_id: str,
+    ) -> Mapping[str, Any]:
+        """Read one persisted roll-exit projection without dispatching work."""
+
+        route = self._route_for(strategy, broker)
+        route_key = (route.strategy_ref, route.portfolio_ref)
+        if route_key not in self._roll_exit_route_keys:
+            raise ServiceExecutionGroupError("GROUP_ROLL_EXIT_ROUTE_UNAVAILABLE")
+        _require_reference(action_id, "INVALID_GROUP_ROLL_EXIT_ACTION_ID")
+        try:
+            result = route.runtime.call(
+                _GROUP_MOUNT,
+                "groups.query_roll_exit",
+                {"action_id": action_id},
+                portfolio_ref=route.portfolio_ref,
+                scope_ref=route.group_scope_ref,
+            )
+        except Exception:
+            raise ServiceExecutionGroupError("GROUP_ROLL_EXIT_QUERY_FAILED") from None
+        try:
+            body = _group_reply_result(result, group_id=action_id)
+            return _roll_exit_reply(
+                body,
+                group_id=None,
+                source_leg_id=None,
+                action_id=action_id,
+                allow_not_found=True,
+            )
+        except ServiceExecutionGroupError:
+            raise
+        except Exception:
+            raise ServiceExecutionGroupError(
+                "GROUP_ROLL_EXIT_QUERY_RESPONSE_INVALID"
+            ) from None
 
     def read_residuals(
         self,
@@ -594,6 +771,24 @@ def _unique_binding(
     return matches[0]
 
 
+def _unique_group_binding(
+    bindings: tuple[Any, ...], mount: str, scope_ref: str
+) -> Any:
+    matches = tuple(
+        binding
+        for binding in bindings
+        if binding.active is True
+        and binding.mount == mount
+        and binding.scope_ref == scope_ref
+    )
+    if len(matches) != 1 or matches[0].operations not in {
+        _GROUP_OPERATIONS,
+        _GROUP_ROLL_EXIT_OPERATIONS,
+    }:
+        raise ServiceExecutionGroupError("GROUP_ROUTE_MISSING_OR_AMBIGUOUS")
+    return matches[0]
+
+
 def _valid_group_scope(
     route: ServiceStrategyGroupRoute, runtime: Any, scope: Any
 ) -> bool:
@@ -726,6 +921,181 @@ def _group_reply_result(value: object, *, group_id: str) -> Mapping[str, Any]:
     if code != "OK":
         raise ValueError("group service success code is invalid")
     return result
+
+
+def _roll_exit_reply(
+    value: object,
+    *,
+    group_id: Optional[str],
+    source_leg_id: Optional[str],
+    action_id: Optional[str],
+    allow_not_found: bool,
+) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or frozenset(value) != frozenset(
+        {"found", "action"}
+    ) or type(value["found"]) is not bool:
+        raise ValueError("roll-exit reply result is invalid")
+    if value["found"] is False:
+        if not allow_not_found or value["action"] is not None:
+            raise ValueError("roll-exit action was not found")
+        result = MappingProxyType({"found": False, "action": None})
+        return MappingProxyType({"ok": True, "code": "OK", "result": result})
+
+    action = value["action"]
+    fields = frozenset(
+        {
+            "action_id",
+            "group_id",
+            "source_leg_id",
+            "phase",
+            "close_state",
+            "requested_quantity",
+            "filled_quantity",
+            "order_revision",
+            "detail_code",
+            "updated_at_ns",
+        }
+    )
+    if not isinstance(action, Mapping) or frozenset(action) != fields:
+        raise ValueError("roll-exit action projection is invalid")
+    for name in ("action_id", "group_id", "source_leg_id"):
+        _require_reference(action[name], "GROUP_ROLL_EXIT_ACTION_INVALID")
+    if (
+        action_id is not None
+        and action["action_id"] != action_id
+        or group_id is not None
+        and action["group_id"] != group_id
+        or source_leg_id is not None
+        and action["source_leg_id"] != source_leg_id
+    ):
+        raise ValueError("roll-exit action identity is inconsistent")
+
+    phase = action["phase"]
+    close_state = action["close_state"]
+    if type(phase) is not str or phase not in _ROLL_EXIT_PHASES or (
+        close_state is not None
+        and (
+            type(close_state) is not str
+            or close_state not in _ROLL_EXIT_CLOSE_STATES
+        )
+    ):
+        raise ValueError("roll-exit action phase is invalid")
+    requested = _roll_exit_decimal(action["requested_quantity"], positive=True)
+    filled = _roll_exit_decimal(action["filled_quantity"], positive=False)
+    if filled > requested:
+        raise ValueError("roll-exit action fill exceeds requested quantity")
+
+    revision = action["order_revision"]
+    if revision is not None and (type(revision) is not int or revision <= 0):
+        raise ValueError("roll-exit action revision is invalid")
+    detail_code = action["detail_code"]
+    if detail_code is not None and (
+        type(detail_code) is not str or _RPC_ERROR_CODE.fullmatch(detail_code) is None
+    ):
+        raise ValueError("roll-exit action detail code is invalid")
+    updated_at_ns = action["updated_at_ns"]
+    if type(updated_at_ns) is not int or updated_at_ns <= 0:
+        raise ValueError("roll-exit action timestamp is invalid")
+
+    if phase == "PREPARED":
+        valid_state = (
+            close_state is None
+            and filled == 0
+            and revision is None
+            and detail_code is None
+        )
+    elif phase == "SUBMIT_STARTED":
+        valid_state = (
+            close_state
+            in {None, "PENDING_ADMISSION", "PENDING_DISPATCH", "DISPATCHING"}
+            and filled == 0
+        )
+    elif phase == "STATUS_OBSERVED":
+        valid_state = (
+            close_state in {"PENDING_ADMISSION", "PENDING_DISPATCH", "DISPATCHING", "ACKED", "PARTIALLY_FILLED"}
+            and revision is not None
+            and (
+                (close_state == "PARTIALLY_FILLED" and 0 < filled < requested)
+                or (close_state != "PARTIALLY_FILLED" and filled == 0)
+            )
+        )
+    elif phase == "UNKNOWN":
+        valid_state = close_state == "UNKNOWN"
+    else:  # RESOLVED
+        valid_state = (
+            close_state in {"FILLED", "CANCELLED", "REJECTED"}
+            and revision is not None
+            and (close_state != "FILLED" or filled == requested)
+            and (close_state != "REJECTED" or filled == 0)
+        )
+    if not valid_state:
+        raise ValueError("roll-exit action phase conflicts with its close status")
+
+    projection = MappingProxyType(
+        {
+            "action_id": action["action_id"],
+            "group_id": action["group_id"],
+            "source_leg_id": action["source_leg_id"],
+            "phase": phase,
+            "close_state": close_state,
+            "requested_quantity": action["requested_quantity"],
+            "filled_quantity": action["filled_quantity"],
+            "order_revision": revision,
+            "detail_code": detail_code,
+            "updated_at_ns": updated_at_ns,
+        }
+    )
+    result = MappingProxyType({"found": True, "action": projection})
+    return MappingProxyType({"ok": True, "code": "OK", "result": result})
+
+
+def _roll_exit_decimal(value: object, *, positive: bool) -> Decimal:
+    if (
+        type(value) is not str
+        or len(value) > 256
+        or _DECIMAL_TEXT.fullmatch(value) is None
+    ):
+        raise ValueError("roll-exit quantity is invalid")
+    try:
+        parsed = Decimal(value)
+    except (InvalidOperation, ValueError):
+        raise ValueError("roll-exit quantity is invalid") from None
+    if (
+        not parsed.is_finite()
+        or (positive and parsed <= 0)
+        or (not positive and parsed < 0)
+        or format(parsed, "f") != value
+    ):
+        raise ValueError("roll-exit quantity is invalid")
+    return parsed
+
+
+def _raise_roll_exit_call_error(
+    error: BaseException, group_id: str, source_leg_id: str
+) -> None:
+    try:
+        from bt_api_py.service_runtime import (
+            ServiceCallOutcomeUnknownError,
+            ServiceRuntimeError,
+            ServiceRuntimeRequestNotSentError,
+        )
+    except ImportError:
+        raise ServiceGroupRollExitUnknownOutcomeError(
+            group_id=group_id, source_leg_id=source_leg_id
+        ) from None
+    if isinstance(error, ServiceRuntimeRequestNotSentError):
+        raise ServiceExecutionGroupNotSentError(group_id=group_id) from None
+    if isinstance(error, ServiceCallOutcomeUnknownError):
+        raise ServiceGroupRollExitUnknownOutcomeError(
+            group_id=group_id, source_leg_id=source_leg_id
+        ) from None
+    if isinstance(error, ServiceRuntimeError):
+        raise ServiceExecutionGroupError(
+            "GROUP_REQUEST_REJECTED", group_id=group_id
+        ) from None
+    raise ServiceGroupRollExitUnknownOutcomeError(
+        group_id=group_id, source_leg_id=source_leg_id
+    ) from None
 
 
 def _parse_residual_event(value: object, route: ServiceStrategyGroupRoute) -> ServiceGroupResidual:

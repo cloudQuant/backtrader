@@ -3335,6 +3335,26 @@ class BtApiBroker(BrokerBase):
             raise ValueError("group query requires an active service session")
         return self.store.query_group_order(strategy, self, group_id)
 
+    def submit_group_roll_exit(
+        self, strategy, group_id, source_leg_id, limit_price
+    ):
+        """Request a source-bound group CLOSE through the coordinator."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group roll-exit requires an active service session")
+        return self.store.submit_group_roll_exit(
+            strategy, self, group_id, source_leg_id, limit_price
+        )
+
+    def query_group_roll_exit(self, strategy, action_id):
+        """Read a roll-exit status projection without creating or submitting work."""
+
+        session = self._service_execution_session
+        if session is None or self.store is None:
+            raise ValueError("group roll-exit query requires an active service session")
+        return self.store.query_group_roll_exit(strategy, self, action_id)
+
     def recover_group_order(self, strategy, group_id, cursor=None, *, limit=32):
         """Query the original group ID and continue the durable Monitor cursor."""
 

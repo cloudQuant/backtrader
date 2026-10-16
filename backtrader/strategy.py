@@ -3428,6 +3428,25 @@ class Strategy(StrategyBase):
             raise RuntimeError("service execution group route is unavailable")
         return query(self, group_id)
 
+    def submit_group_roll_exit(self, group_id, source_leg_id, limit_price):
+        """Close an accepted source leg through the coordinator's roll-exit path.
+
+        Risk reconstructs the accepted OPEN source and derives its instrument,
+        side, and closable quantity. This Strategy API accepts no quantity or
+        ordinary order fields.
+        """
+        submitter = getattr(self.broker, "submit_group_roll_exit", None)
+        if not callable(submitter):
+            raise RuntimeError("service execution group roll-exit route is unavailable")
+        return submitter(self, group_id, source_leg_id, limit_price)
+
+    def query_group_roll_exit(self, action_id):
+        """Read the coordinator's durable roll-exit projection without dispatch."""
+        query = getattr(self.broker, "query_group_roll_exit", None)
+        if not callable(query):
+            raise RuntimeError("service execution group roll-exit route is unavailable")
+        return query(self, action_id)
+
     def recover_group_order(self, group_id, cursor=None, *, limit=32):
         """Query the original group ID and resume its durable residual cursor."""
         recover = getattr(self.broker, "recover_group_order", None)
