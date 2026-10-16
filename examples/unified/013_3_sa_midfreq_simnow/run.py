@@ -616,6 +616,74 @@ def _preflight_fee(store, instrument: str, exchange: str, config: Mapping[str, A
 
 
 
+# ------------------------------------------------------------------ service observe
+def _run_service_observation(args, config: Mapping[str, Any], tier_evidence: Mapping[str, Any]) -> int:
+    from backtrader_runtime.service_observation import ServiceObservationError, observe_service_contracts
+
+    run_id = (
+        f"service-observe-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f"-{uuid.uuid4().hex[:8]}"
+    )
+    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
+    summary: Dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "example_id": "013_3_sa_midfreq_simnow",
+        "mode": "live",
+        "channel": "observe",
+        "backend": "service",
+        "status": "BLOCKED",
+        "entry_tier": dict(tier_evidence),
+        "write_grant_result": "not_requested_read_only",
+        "trade_execution": "not_run",
+        "evidence_directory": str(output_directory),
+    }
+    try:
+        live_contract = config.get("live_contract") or {}
+        instrument = _resolve_ref(
+            live_contract.get("instrument"), os.environ, field="live_contract.instrument"
+        )
+        exchange = _resolve_ref(
+            live_contract.get("exchange"), os.environ, field="live_contract.exchange"
+        )
+        report = observe_service_contracts(
+            getattr(args, "service_config", None),
+            [(instrument, exchange)],
+            timeout_ms=getattr(args, "service_timeout_ms", 2000),
+            environ=os.environ,
+        )
+        summary["case_contract"] = {"instrument": instrument, "exchange": exchange}
+        summary["observation"] = dict(report)
+        summary["status"] = report["status"]
+        result_code = EXIT_PASS if report["status"] == "OBSERVED" else EXIT_BLOCKED
+    except ServiceObservationError as exc:
+        summary["reason"] = exc.code
+        if exc.code == "SERVICE_CLEANUP_UNCONFIRMED":
+            summary["status"] = "UNKNOWN"
+            result_code = EXIT_UNKNOWN
+        else:
+            result_code = EXIT_BLOCKED
+    except LiveRejected as exc:
+        summary["reason"] = exc.reason
+        result_code = EXIT_BLOCKED
+    except Exception as exc:
+        summary["reason"] = _observation_cleanup_error(exc, phase="service_observation")["exception_type"]
+        result_code = EXIT_BLOCKED
+    try:
+        output_directory.mkdir(parents=True, exist_ok=True)
+        (output_directory / "run.json").write_text(
+            json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str),
+            encoding="utf-8",
+        )
+    except OSError:
+        summary["evidence_write"] = "failed"
+        if summary["status"] == "OBSERVED":
+            summary["status"] = "UNKNOWN"
+            result_code = EXIT_UNKNOWN
+    _json_print(summary)
+    return result_code
+
+
 # ------------------------------------------------------------------ live observe
 def run_live_observe(args) -> int:
     """Open a real SimNow session, read it, and close it. Writes stay unreachable.
@@ -646,11 +714,6 @@ def run_live_observe(args) -> int:
         )
         return EXIT_BLOCKED
 
-    # Import order matters, exactly as in the drill: the dev SDK source paths must
-    # precede any bt_api_ctp binding, and simnow_direct builds the wrapper eagerly.
-    _ensure_dev_sdk_path()
-    import simnow_direct
-
     decision = getattr(args, "tier_decision", None)
     tier_evidence = decision.as_evidence() if decision is not None else {}
     try:
@@ -658,6 +721,8 @@ def run_live_observe(args) -> int:
     except Exception as exc:
         _json_print({"status": "REJECTED", "mode": "live", "error": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
         return EXIT_BLOCKED
+    if getattr(args, "backend", "direct") == "service":
+        return _run_service_observation(args, config, tier_evidence)
     errors = _new_section_errors(config)
     if errors:
         _json_print({"status": "REJECTED", "mode": "live", "errors": errors})
@@ -677,6 +742,11 @@ def run_live_observe(args) -> int:
     except Exception as exc:
         _json_print({"status": "BLOCKED", "mode": "live", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
         return EXIT_BLOCKED
+
+    # Import order matters, exactly as in the direct drill: the dev SDK source
+    # paths precede any bt_api_ctp binding, and simnow_direct builds eagerly.
+    _ensure_dev_sdk_path()
+    import simnow_direct
 
     timeouts = dict(config.get("timeouts") or {})
     query_timeout = float(timeouts.get("query_seconds") or 8.0)
@@ -897,6 +967,17 @@ def run_live(args) -> int:
         if getattr(args, "allow_write", False)
         else "not_requested"
     )
+    if getattr(args, "backend", "direct") == "service":
+        _json_print(
+            {
+                "entry_tier": dict(tier_evidence or {}),
+                "write_grant_result": "rejected_service_write_request",
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "service_write_backend_unsupported",
+            }
+        )
+        return EXIT_BLOCKED
     if sys.version_info[:2] != (3, 11):
         _json_print(
             {
@@ -1552,14 +1633,13 @@ def run_live(args) -> int:
 # -------------------------------------------------------------------------- main
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    try:
-        _ensure_dev_sdk_path()
-    except Exception:
-        pass
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--replay", action="store_true", help="offline frozen-fixture replay")
     mode.add_argument("--dry", action="store_true", help="force the offline config self-check")
     mode.add_argument("--live", action="store_true", help="run against the SimNow simulation account")
+    parser.add_argument("--backend", choices=("direct", "service"), default="direct")
+    parser.add_argument("--service-config", default=None, help="service-only client config for read-only observation")
+    parser.add_argument("--service-timeout-ms", type=int, default=2000)
     parser.add_argument("--allow-write", action="store_true", help="grant bounded real write actions")
     parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
     parser.add_argument("--scenario", default=None, help="replay scenario name")
@@ -1585,6 +1665,18 @@ def main(argv=None) -> int:
                 sort_keys=True,
             )
         )
+        return EXIT_BLOCKED
+    if args.backend == "service" and args.allow_write:
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "reason": "service_write_backend_unsupported",
+                "write_grant_result": "rejected_before_provider_io",
+            }
+        )
+        return EXIT_BLOCKED
+    if args.service_config and args.backend != "service":
+        _json_print({"status": "REJECTED", "reason": "service_config_requires_service_backend"})
         return EXIT_BLOCKED
     if args.allow_dangerous:
         print(
