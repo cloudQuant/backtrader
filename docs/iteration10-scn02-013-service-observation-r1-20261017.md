@@ -18,6 +18,8 @@ The warning is the existing `asyncio_default_fixture_loop_scope` pytest configur
 
 The fixture assertions confirm runtime and facades closed without cleanup uncertainty, account-provider `close_count == 1`, both Host deployment threads joined with deployments closed, and zero active market handles. No 014_2 or prior accepted node was rerun.
 
+The 013 entry node exercised only the CTP `ctp.quote.v2` subscription and `ServiceCtpTickBinding` path. It did not exercise ordinary bar bindings, the orderbook projection, Strategy/Cerebro execution, or qualified clock mapping. The helper's optional orderbook path depends on the separate typed proxy closure committed as `b69cf008c44071d5791682f6c9e6c0f35758d97f`; that dependency does not expand the 013 evidence. The prior orderbook Host/Cerebro run used earlier integration-test bytes, so no current-pin Host PASS is claimed for that closure.
+
 The helper unit test passed 5 tests with the same existing warning. Ruff passed on the helper and both new tests; `py_compile` passed on the helper, tests, and three example entry files. `git diff --check` passed for the three changed entry files.
 
 The accepted source/test bytes retain one final empty line in the helper and the new integration test. Those exact bytes were used by the recorded QA; the scoped staged whitespace check therefore excludes only `blank-at-eof` while retaining CR-at-EOL and all other whitespace checks.
