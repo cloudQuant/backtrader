@@ -570,9 +570,12 @@ def _host_thread(deployment_factory, name: str):
     return startup, stop, thread, holder
 
 
-@pytest.mark.integration
-def test_0142_run_live_service_reaches_three_leg_cerebro_through_gateway_hosts(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def _run_0142_service_host_cerebro(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    through_public_selector: bool,
 ) -> None:
     monkeypatch.setattr(live_ctp_feed.ctp_client, "MdClient", _SyntheticMdClient)
     monkeypatch.setattr(live_ctp_feed.ctp_client, "CThostFtdcReqUserLoginField", _SyntheticLoginField)
@@ -966,7 +969,11 @@ def test_0142_run_live_service_reaches_three_leg_cerebro_through_gateway_hosts(
     )
 
     try:
-        exit_code = service_backend.run_live_service(args, raw_config, decision, runner)
+        if through_public_selector:
+            monkeypatch.setattr(runner, "_load_raw_config", lambda: raw_config)
+            exit_code = runner.run_live(args)
+        else:
+            exit_code = service_backend.run_live_service(args, raw_config, decision, runner)
         output = capsys.readouterr().out.strip().splitlines()[-1]
         summary = json.loads(output)
     finally:
@@ -1034,3 +1041,21 @@ def test_0142_run_live_service_reaches_three_leg_cerebro_through_gateway_hosts(
     assert set(market_md_client.subscribed) | set(market_md_client.unsubscribed) == expected_native_symbols
     assert market_md_client.stop_calls == 1
     assert market_md_client.stop_wait_calls == 1
+
+
+@pytest.mark.integration
+def test_0142_run_live_service_reaches_three_leg_cerebro_through_gateway_hosts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _run_0142_service_host_cerebro(
+        monkeypatch, tmp_path, capsys, through_public_selector=False
+    )
+
+
+@pytest.mark.integration
+def test_0142_run_live_config_selector_reaches_service_gateway_hosts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _run_0142_service_host_cerebro(
+        monkeypatch, tmp_path, capsys, through_public_selector=True
+    )
