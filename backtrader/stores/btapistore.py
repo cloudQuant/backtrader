@@ -364,7 +364,7 @@ def _sdk_cross_venue_contracts():
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
 _GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway", "mt5_gateway"})
-_BACKENDS = frozenset({"direct", "gateway", "forwarding"})
+_BACKENDS = frozenset({"direct"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
 _CZCE_PRODUCT_PREFIXES = frozenset(
     {
@@ -638,6 +638,24 @@ _CTP_QUERY_RECORD_FIELDS = tuple(
 
 class BtApiStoreError(Exception):
     """Base error for btapi store failures."""
+
+
+class LegacyGatewayMigrationRequiredError(BtApiStoreError):
+    """An old Store gateway/forwarding entry point requires offline migration."""
+
+    code = "MIGRATION_REVIEW_REQUIRED"
+
+    def __init__(self, target: str) -> None:
+        self.target = str(target)
+        super().__init__(
+            f"BtApiStore legacy entry point {self.target!r} is retired "
+            f"({self.code}); use bt_api_py.service_runtime.ServiceClientRuntime with a typed "
+            "ServiceMarketClient, ServiceAccountClient, or ServiceExecutionClient. "
+            "For managed Backtrader execution, configure "
+            "backtrader.stores.service_execution_session.ServiceExecutionSession(...) "
+            "and then call .run(cerebro). "
+            "Keep a matching historical release when no service binding exists."
+        )
 
 
 class ManagedCtpHandoffError(BtApiStoreError):
@@ -3555,17 +3573,27 @@ def _is_gateway_provider(provider: Any) -> bool:
     return text in _GATEWAY_PROVIDERS or text.endswith("_gateway")
 
 
+def _legacy_gateway_entrypoint(provider: Any, backend: Any = None) -> Optional[str]:
+    backend_text = str(backend or "").strip().lower()
+    provider_text = str(provider or "").strip().lower()
+    if backend_text in {"gateway", "forwarding"}:
+        return f"backend={backend_text!r}"
+    if provider_text == "forwarding":
+        return "provider='forwarding'"
+    if _is_gateway_provider(provider_text):
+        return f"provider={provider_text!r}"
+    return None
+
+
 def _resolve_backend(provider: Any, backend: Any = None) -> str:
+    legacy_entrypoint = _legacy_gateway_entrypoint(provider, backend)
+    if legacy_entrypoint is not None:
+        raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
     text = str(backend or "").strip().lower()
     if text:
         if text not in _BACKENDS:
             raise ValueError(f"Unsupported BtApiStore backend {backend!r}")
         return text
-    provider_text = str(provider or "").strip().lower()
-    if provider_text == "forwarding":
-        return "forwarding"
-    if _is_gateway_provider(provider_text):
-        return "gateway"
     return "direct"
 
 
@@ -3599,7 +3627,7 @@ class BtApiStore(LiveStoreBase):
         """Initialize the BtApiStore.
 
         Args:
-            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            provider: A direct provider name (e.g., 'btapi' or 'ctp').
             api: Optional pre-configured API instance.
             api_cls: Optional API class to instantiate.
             config: Optional configuration dictionary.
@@ -3613,7 +3641,7 @@ class BtApiStore(LiveStoreBase):
             historical_bars: Pre-seeded historical bars by symbol.
             live_bars: Pre-seeded live bars by symbol.
             contract_metadata: Contract metadata by symbol.
-            backend: Runtime backend: direct, gateway or forwarding.
+            backend: Runtime backend. Only ``direct`` remains supported here.
             managed_execution_adapter: A trusted Iteration 41 adapter attached
                 only after configuration-first capability resolution.  The
                 Store never discovers or constructs this from user config.
@@ -3895,7 +3923,9 @@ class BtApiStore(LiveStoreBase):
 
     def _resolve_provider(self, provider: str) -> str:
         env_provider = str(os.environ.get("BT_STORE_PROVIDER") or "").strip().lower()
-        if str(provider).strip().lower() == "ctp" and _is_gateway_provider(env_provider):
+        if str(provider).strip().lower() == "ctp" and (
+            env_provider == "forwarding" or _is_gateway_provider(env_provider)
+        ):
             return env_provider
         return provider
 
@@ -4424,6 +4454,9 @@ class BtApiStore(LiveStoreBase):
 
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
+        legacy_entrypoint = _legacy_gateway_entrypoint(self.provider, self.backend)
+        if legacy_entrypoint is not None:
+            raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only_stopped:
             raise BtApiStoreError(
                 "a stopped read-only service Store requires fresh client facades"
@@ -8019,6 +8052,9 @@ class BtApiStore(LiveStoreBase):
         fact into an accidental provider write.
         """
 
+        legacy_entrypoint = _legacy_gateway_entrypoint(self.provider, self.backend)
+        if legacy_entrypoint is not None:
+            raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot submit orders")
         self._assert_write_route_identity()
@@ -8390,6 +8426,9 @@ class BtApiStore(LiveStoreBase):
 
     def cancel_order(self, order):
         """Cancel through the managed route when one is attached."""
+        legacy_entrypoint = _legacy_gateway_entrypoint(self.provider, self.backend)
+        if legacy_entrypoint is not None:
+            raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot cancel orders")
         if self._managed_execution_adapter is None and self._is_ctp_write_provider():
@@ -8433,6 +8472,9 @@ class BtApiStore(LiveStoreBase):
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel through managed execution or, when absent, the legacy Store path."""
 
+        legacy_entrypoint = _legacy_gateway_entrypoint(self.provider, self.backend)
+        if legacy_entrypoint is not None:
+            raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot cancel orders")
         adapter = self._managed_execution_adapter
@@ -17022,6 +17064,11 @@ class BtApiStore(LiveStoreBase):
 
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""
+        legacy_entrypoint = _legacy_gateway_entrypoint(
+            getattr(self, "provider", None), getattr(self, "backend", None)
+        )
+        if legacy_entrypoint is not None:
+            raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         metadata_probe_requires_market_data_only = bool(
             getattr(self, "_bounded_metadata_probe_requires_sdk_market_data_only", False)
         )
@@ -17189,52 +17236,8 @@ class BtApiStore(LiveStoreBase):
         return self._api
 
     def _create_forwarding_client(self):
-        """Create an embedded or ZMQ forwarding client from store kwargs."""
-        try:
-            from bt_api_py.forwarding import ForwardingClient, ZmqForwardingClient
-        except ImportError as exc:
-            _safe_log("error", "btapistore:14867 re-raising ImportError")
-            raise BtApiMissingDependencyError(
-                "bt_api_py.forwarding is required for BtApiStore backend='forwarding'"
-            ) from exc
-
-        kwargs = dict(self._config)
-        kwargs.update(self._api_kwargs)
-        market_endpoint = kwargs.get("market_endpoint") or kwargs.get("gateway_market_endpoint")
-        command_endpoint = kwargs.get("command_endpoint") or kwargs.get("gateway_command_endpoint")
-        private_endpoint = kwargs.get("private_endpoint") or kwargs.get("gateway_event_endpoint")
-        exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
-        market_type = kwargs.get("market_type") or kwargs.get("asset_type") or "SPOT"
-        account_id = kwargs.get("account_id") or "paper"
-        strategy_id = kwargs.get("strategy_id") or "default"
-        event_cache_size = kwargs.get("event_cache_size", 4096)
-        if market_endpoint or command_endpoint:
-            if not market_endpoint or not command_endpoint:
-                raise ValueError(
-                    "BtApiStore backend='forwarding' requires both market_endpoint "
-                    "and command_endpoint for ZeroMQ forwarding"
-                )
-            return ZmqForwardingClient(
-                market_endpoint=str(market_endpoint),
-                command_endpoint=str(command_endpoint),
-                private_endpoint=str(private_endpoint) if private_endpoint else None,
-                exchange=str(exchange),
-                market_type=str(market_type),
-                account_id=str(account_id),
-                strategy_id=str(strategy_id),
-                command_timeout_ms=int(kwargs.get("command_timeout_ms", 2000) or 2000),
-                event_cache_size=event_cache_size,
-            )
-        return ForwardingClient(
-            bus=kwargs.get("bus"),
-            exchange=str(exchange),
-            market_type=str(market_type),
-            account_id=str(account_id),
-            strategy_id=str(strategy_id),
-            replay=int(kwargs.get("replay", 0) or 0),
-            command_timeout=float(kwargs.get("command_timeout", 2.0) or 2.0),
-            event_cache_size=event_cache_size,
-        )
+        """Reject direct re-entry into the retired forwarding runtime."""
+        raise LegacyGatewayMigrationRequiredError("backend='forwarding'")
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""

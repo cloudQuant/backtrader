@@ -16,6 +16,7 @@ from backtrader.stores.btapistore import (
     BtApiProviderNotImplementedError,
     BtApiStore,
     BtApiStoreError,
+    LegacyGatewayMigrationRequiredError,
     _build_ctp_tick_datetime,
     _create_ctp_gateway_wrapper_class,
     _create_ctp_wrapper_class,
@@ -2663,8 +2664,8 @@ def test_store_open_order_queries_fall_back_to_empty_list_when_unsupported():
     assert store.getopenorders() == []
 
 
-def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
-    """Test that CTP provider switches to gateway from env."""
+def test_ctp_gateway_provider_from_env_requires_migration(monkeypatch):
+    """An environment-selected CTP gateway route is rejected before setup."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
@@ -2674,41 +2675,38 @@ def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
     monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "FUTURE")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
 
-    store = BtApiStore(provider="ctp")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ctp")
 
-    assert store.provider == "ctp_gateway"
-    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
-    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
-    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
-    assert store._api_kwargs["account_id"] == "acc-1"
-    assert store._api_kwargs["exchange_type"] == "CTP"
-    assert store._api_kwargs["asset_type"] == "FUTURE"
-    assert store._api_kwargs["gateway_start_local_runtime"] is False
+    assert raised.value.target == "provider='ctp_gateway'"
+    assert raised.value.code == "MIGRATION_REVIEW_REQUIRED"
 
 
-def test_gateway_env_uses_trading_instance_as_strategy_id(monkeypatch):
-    """Gateway stores should tag commands with the live instance identity."""
+def test_ctp_gateway_trading_instance_env_requires_migration(monkeypatch):
+    """The live-instance identity cannot revive the retired CTP gateway route."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
     monkeypatch.setenv("BT_TRADING_INSTANCE_ID", "instance-42")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
 
-    store = BtApiStore(provider="ctp")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ctp")
 
-    assert store.provider == "ctp_gateway"
-    assert store._api_kwargs["strategy_id"] == "instance-42"
+    assert raised.value.target == "provider='ctp_gateway'"
+    assert raised.value.code == "MIGRATION_REVIEW_REQUIRED"
 
 
-def test_gateway_strategy_env_does_not_override_explicit_strategy_id(monkeypatch):
-    """Explicit strategy identity must win over live-trading env defaults."""
+def test_ctp_gateway_strategy_env_conflict_requires_migration(monkeypatch):
+    """Conflicting strategy identities do not bypass gateway route retirement."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
     monkeypatch.setenv("BT_GATEWAY_STRATEGY_ID", "env-strategy")
     monkeypatch.setenv("BT_TRADING_INSTANCE_ID", "instance-42")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
 
-    store = BtApiStore(provider="ctp", strategy_id="explicit-strategy")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ctp", strategy_id="explicit-strategy")
 
-    assert store.provider == "ctp_gateway"
-    assert store._api_kwargs["strategy_id"] == "explicit-strategy"
+    assert raised.value.target == "provider='ctp_gateway'"
+    assert raised.value.code == "MIGRATION_REVIEW_REQUIRED"
 
 
 def test_create_ctp_wrapper_patches_missing_spi_callbacks():
@@ -3606,8 +3604,8 @@ def test_ctp_wrapper_submit_order_rejects_non_integer_lots(size):
         )
 
 
-def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):
-    """Test that CTP provider switches to generic gateway from env."""
+def test_legacy_gateway_provider_from_env_fails_with_migration_error(monkeypatch):
+    """A retired environment-selected gateway provider fails before Store setup."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "gateway")
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
@@ -3617,20 +3615,14 @@ def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):
     monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "STK")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
 
-    store = BtApiStore(provider="ctp")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ctp")
 
-    assert store.provider == "gateway"
-    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
-    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
-    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
-    assert store._api_kwargs["account_id"] == "du123456"
-    assert store._api_kwargs["exchange_type"] == "IB_WEB"
-    assert store._api_kwargs["asset_type"] == "STK"
-    assert store._api_kwargs["gateway_start_local_runtime"] is False
+    assert raised.value.target == "provider='gateway'"
 
 
-def test_explicit_ib_web_gateway_provider_reads_gateway_env(monkeypatch):
-    """Test that explicit IB web gateway provider reads gateway env."""
+def test_explicit_legacy_gateway_provider_fails_with_migration_error(monkeypatch):
+    """An explicit gateway provider is rejected before applying legacy env config."""
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
     monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "ipc://market")
@@ -3639,20 +3631,14 @@ def test_explicit_ib_web_gateway_provider_reads_gateway_env(monkeypatch):
     monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "FUT")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "1")
 
-    store = BtApiStore(provider="ib_web_gateway")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ib_web_gateway")
 
-    assert store.provider == "ib_web_gateway"
-    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
-    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
-    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
-    assert store._api_kwargs["account_id"] == "du654321"
-    assert store._api_kwargs["exchange_type"] == "IB_WEB"
-    assert store._api_kwargs["asset_type"] == "FUT"
-    assert store._api_kwargs["gateway_start_local_runtime"] is True
+    assert raised.value.target == "provider='ib_web_gateway'"
 
 
-def test_mt5_gateway_provider_is_recognized(monkeypatch):
-    """mt5_gateway should be treated as a gateway provider."""
+def test_mt5_gateway_provider_from_env_fails_with_migration_error(monkeypatch):
+    """Environment-selected gateway aliases no longer choose a legacy Store route."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "mt5_gateway")
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "tcp://127.0.0.1:33000")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "tcp://127.0.0.1:33001")
@@ -3662,12 +3648,10 @@ def test_mt5_gateway_provider_is_recognized(monkeypatch):
     monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "OTC")
     monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
 
-    store = BtApiStore(provider="ctp")
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as raised:
+        BtApiStore(provider="ctp")
 
-    assert store.provider == "mt5_gateway"
-    assert store._api_kwargs["exchange_type"] == "MT5"
-    assert store._api_kwargs["asset_type"] == "OTC"
-    assert store._api_kwargs["account_id"] == "mt5-12345678"
+    assert raised.value.target == "provider='mt5_gateway'"
 
 
 def test_gateway_wrapper_fetch_bars_proxies(fake_client):
@@ -3882,36 +3866,39 @@ def test_missing_dependency_raises_without_api(monkeypatch):
     "provider,exchange",
     [("ctp", "CTP"), ("btapi", "CTP___FUTURE")],
 )
-def test_ctp_forwarding_store_direct_writes_fail_closed_before_api(provider, exchange):
+def test_ctp_forwarding_store_direct_writes_fail_closed_before_api(
+    provider, exchange, monkeypatch
+):
     """CTP provider or exchange routes may not use the generic forwarding writer."""
-    store = object.__new__(BtApiStore)
-    store.provider = provider
-    store.backend = "forwarding"
-    store._sdk_mode = False
-    store._config = {"exchange": exchange}
-    store._api_kwargs = {"exchange": exchange}
-    store._managed_execution_adapter = None
+    monkeypatch.delenv("BT_STORE_PROVIDER", raising=False)
     calls = []
     fake_api = types.SimpleNamespace(
         submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
         cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
         or {"ok": True, "status": "accepted"},
     )
-    store._ensure_api_ready = lambda: fake_api
-    store._order_to_payload = lambda order: {"symbol": "IF2506", "side": "buy"}
-    store._extract_external_order_id = lambda response: None
-    store._submit_response_looks_accepted = lambda response: True
-    store.emit_runtime_event = lambda *args, **kwargs: None
-    store._extract_dataname = lambda data: "IF2506"
+    store = BtApiStore(
+        provider=provider,
+        api=fake_api,
+        backend="direct",
+        config={"exchange": exchange},
+        api_kwargs={"exchange": exchange},
+    )
+    # Start from a valid direct Store/API route, then simulate stale runtime
+    # mutation so both public entrypoints and injected legacy ports hit guards.
+    store.backend = "forwarding"
 
-    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as submit_error:
         store.submit_order(object())
+    assert submit_error.value.target == "backend='forwarding'"
     with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
         store._submit_order_legacy(object())
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_error:
         store.cancel_order(object())
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+    assert cancel_error.value.target == "backend='forwarding'"
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_ref_error:
         store.cancel_order_ref("fake-order", dataname="IF2506")
+    assert cancel_ref_error.value.target == "backend='forwarding'"
     with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
         store._cancel_order_ref_legacy("fake-order", dataname="IF2506")
     assert calls == []
@@ -3939,10 +3926,12 @@ def test_forwarding_ctp_signal_in_lower_precedence_config_fails_closed():
     store.emit_runtime_event = lambda *args, **kwargs: None
     store._extract_dataname = lambda data: "IF2506"
 
-    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as submit_error:
         store.submit_order(object())
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+    assert submit_error.value.target == "backend='forwarding'"
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_error:
         store.cancel_order_ref("fake-order", dataname="IF2506")
+    assert cancel_error.value.target == "backend='forwarding'"
     assert calls == []
 
 
@@ -3975,35 +3964,58 @@ def test_forwarding_ctp_signal_fails_closed_through_adapter_legacy_ports():
     store.emit_runtime_event = lambda *args, **kwargs: None
     store._extract_dataname = lambda data: "IF2506"
 
-    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as submit_error:
         store.submit_order(object())
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+    assert submit_error.value.target == "backend='forwarding'"
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_error:
         store.cancel_order_ref("fake-order", dataname="IF2506")
+    assert cancel_error.value.target == "backend='forwarding'"
     assert calls == []
 
 
-def test_non_ctp_forwarding_store_legacy_order_route_remains_available():
-    """The CTP fail-close predicate must preserve non-CTP forwarding behavior."""
-    store = object.__new__(BtApiStore)
-    store.provider = "btapi"
-    store.backend = "forwarding"
-    store._sdk_mode = False
-    store._config = {"exchange": "CTP"}
-    store._api_kwargs = {"exchange": "BINANCE___SPOT", "exchange_type": "CTP"}
-    store._managed_execution_adapter = None
-    calls = []
-    fake_api = types.SimpleNamespace(
-        submit_order=lambda payload: calls.append(("submit", payload)) or {"ok": True},
-        cancel_order=lambda ref, dataname=None: calls.append(("cancel", ref, dataname))
-        or {"ok": True, "status": "accepted"},
-    )
-    store._ensure_api_ready = lambda: fake_api
-    store._order_to_payload = lambda order: {"symbol": "BTC-USDT", "side": "buy"}
-    store._extract_external_order_id = lambda response: None
-    store._submit_response_looks_accepted = lambda response: True
-    store.emit_runtime_event = lambda *args, **kwargs: None
-    store._extract_dataname = lambda data: "BTC-USDT"
+def test_non_ctp_forwarding_backend_rejects_public_order_routes():
+    """A valid Store cannot regain the retired backend through public write APIs."""
 
-    assert store.submit_order(object()) == {"ok": True}
-    assert store.cancel_order_ref("fake-order", dataname="BTC-USDT") == {"ok": True, "status": "accepted"}
-    assert [call[0] for call in calls] == ["submit", "cancel"]
+    class CountingFakeClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.api_calls = []
+
+        def connect(self):
+            self.api_calls.append(("connect",))
+            return super().connect()
+
+        def submit_order(self, payload):
+            self.api_calls.append(("submit", payload))
+            return super().submit_order(payload)
+
+        def cancel_order(self, order_ref, dataname=None):
+            self.api_calls.append(("cancel", order_ref, dataname))
+            return super().cancel_order(order_ref, dataname=dataname)
+
+    client = CountingFakeClient()
+    store = make_store(api=client, provider="binance")
+    assert store.backend == "direct"
+
+    # Construct normally first, then emulate a stale or mutated legacy Store.
+    store.backend = "forwarding"
+
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as submit_error:
+        store.submit_order(object())
+    assert submit_error.value.target == "backend='forwarding'"
+    assert submit_error.value.code == "MIGRATION_REVIEW_REQUIRED"
+
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_error:
+        store.cancel_order(object())
+    assert cancel_error.value.target == "backend='forwarding'"
+    assert cancel_error.value.code == "MIGRATION_REVIEW_REQUIRED"
+
+    with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_ref_error:
+        store.cancel_order_ref("fake-order", dataname="BTC-USDT")
+    assert cancel_ref_error.value.target == "backend='forwarding'"
+    assert cancel_ref_error.value.code == "MIGRATION_REVIEW_REQUIRED"
+
+    assert client.api_calls == []
+    assert client.connected is False
+    assert client.submitted_orders == []
+    assert client.cancelled_orders == []

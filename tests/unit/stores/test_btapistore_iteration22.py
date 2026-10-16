@@ -904,7 +904,7 @@ def _recovery_report(*, status="RECOVERABLE", cancels=False):
 
 def test_ctp_preflight_preserves_all_typed_completion_evidence():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609")
 
@@ -936,7 +936,7 @@ def test_ctp_preflight_normalizes_missing_unmatched_count_only_for_disabled_empt
         "unknown_ids": [],
         "active_orders": None,
     }
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
 
@@ -1053,7 +1053,7 @@ def test_ctp_bundle_preflight_preserves_exact_dce_option_ids_and_uses_only_publi
 
 def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
     client = ExecutionReferenceBundleClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1105,7 +1105,7 @@ def test_ctp_bundle_execution_reference_deadline_does_not_call_provider(monkeypa
     """An expired execution-reference slot must fail closed before provider I/O."""
 
     client = ExecutionReferenceBundleClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     preflight = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
     assert preflight["evidence_complete"] is True
     monkeypatch.setattr(
@@ -1130,7 +1130,7 @@ def test_ctp_bundle_execution_reference_deadline_does_not_call_provider(monkeypa
 def test_ctp_bundle_execution_reference_rejects_non_native_depth_request_ids(invalid_request_id):
     client = ExecutionReferenceBundleClient()
     client.request_id_override["depth_market_data"] = invalid_request_id
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1145,7 +1145,7 @@ def test_ctp_bundle_execution_reference_rejects_non_native_depth_request_ids(inv
 def test_ctp_bundle_execution_reference_rejects_duplicate_request_ids_across_queries():
     client = ExecutionReferenceBundleClient()
     client.request_id_override["depth_market_data"] = 701
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1175,7 +1175,7 @@ def test_ctp_bundle_execution_reference_rejects_unsafe_depth_quote(quote_change)
     client.rows["depth_market_data"][1].update(
         {"InstrumentID": "m2701-C-3400", "ExchangeID": "DCE", **quote_change}
     )
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1190,7 +1190,7 @@ def test_ctp_bundle_execution_reference_rejects_unsafe_depth_quote(quote_change)
 def test_ctp_bundle_execution_reference_rejects_foreign_or_duplicate_depth_identity():
     client = ExecutionReferenceBundleClient()
     client.rows["depth_market_data"][1]["InstrumentID"] = "m2701-P-3400"
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1204,7 +1204,7 @@ def test_ctp_bundle_execution_reference_rejects_foreign_or_duplicate_depth_ident
 def test_ctp_bundle_execution_reference_rejects_query_identity_generation_shift():
     client = ExecutionReferenceBundleClient()
     client.generation_override["depth_market_data"] = 99
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1222,7 +1222,7 @@ def test_ctp_bundle_execution_reference_rejects_zero_option_cost_input_path():
         return original(*args, **kwargs)
 
     client.query_option_instrument_trade_cost_result = capture
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
     assert snapshot["evidence_complete"] is True
@@ -1232,7 +1232,7 @@ def test_ctp_bundle_execution_reference_rejects_zero_option_cost_input_path():
 def test_ctp_bundle_execution_reference_rejects_incomplete_broker_contract_metadata():
     client = ExecutionReferenceBundleClient()
     del client.rows["margin_rate"][0]["ShortMarginRatioByMoney"]
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
@@ -1251,7 +1251,7 @@ def _frozen_quote_reference_store():
         taken before any quote-reference query.
     """
     client = ExecutionReferenceBundleClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     frozen = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
     assert frozen["evidence_complete"] is True
     client.reference_requests.clear()
@@ -1261,7 +1261,7 @@ def _frozen_quote_reference_store():
 
 def test_ctp_bundle_quote_reference_requires_frozen_bundle_without_queries():
     client = ExecutionReferenceBundleClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     before_counts = dict(client.request_counts)
 
     snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
@@ -3340,7 +3340,7 @@ def test_store_rejects_invalid_sdk_arm_result_and_keeps_openings_frozen():
 def test_empty_incomplete_query_is_not_interpreted_as_zero_records():
     client = CompleteQueryClient()
     client.incomplete.add("positions")
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_preflight_snapshot("SA609")
 
@@ -3352,7 +3352,7 @@ def test_empty_incomplete_query_is_not_interpreted_as_zero_records():
 def test_query_generation_mismatch_fails_closed():
     client = CompleteQueryClient()
     client.generation_override["trades"] = 4
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3363,7 +3363,7 @@ def test_query_generation_mismatch_fails_closed():
 def test_query_generation_must_match_the_current_session():
     client = CompleteQueryClient()
     client.session_generation = 4
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3375,7 +3375,7 @@ def test_session_identity_change_during_queries_fails_closed():
     client = CompleteQueryClient()
     client.session_generation_sequence = [3, 4]
     client.session_fingerprint_sequence = ["acct-sha256", "acct-new-sha256"]
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3387,7 +3387,7 @@ def test_session_identity_change_during_queries_fails_closed():
 def test_trading_day_cannot_change_during_query_group():
     client = CompleteQueryClient()
     client.session_trading_day_sequence = ["20260909", "20260910"]
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot(timeout=0)
 
@@ -3398,7 +3398,7 @@ def test_trading_day_cannot_change_during_query_group():
 def test_session_account_fingerprint_is_mandatory():
     client = CompleteQueryClient()
     client.session_fingerprint = ""
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3409,7 +3409,7 @@ def test_session_account_fingerprint_is_mandatory():
 def test_query_request_type_mismatch_fails_closed():
     client = CompleteQueryClient()
     client.request_type_override["positions"] = "orders"
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3420,7 +3420,7 @@ def test_query_request_type_mismatch_fails_closed():
 def test_malformed_query_records_cannot_be_coerced_to_an_empty_success():
     client = CompleteQueryClient()
     client.records_override["positions"] = None
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot()
 
@@ -3431,7 +3431,7 @@ def test_malformed_query_records_cannot_be_coerced_to_an_empty_success():
 
 def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     complete = client._result("positions")
     nested_failure = {
         **complete,
@@ -3453,7 +3453,7 @@ def test_nested_query_failure_cannot_be_overridden_by_outer_success_fields():
 def test_duplicate_query_request_ids_fail_closed_across_reference_queries():
     client = CompleteQueryClient()
     client.request_id_override.update({"margin_rate": 77, "commission_rate": 77})
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_preflight_snapshot("SA609")
 
@@ -3464,7 +3464,7 @@ def test_duplicate_query_request_ids_fail_closed_across_reference_queries():
 def test_read_only_preflight_requires_auto_settlement_confirm_disabled():
     store = make_store(
         api=CompleteQueryClient(auto_settlement_confirm=True),
-        provider="ctp_gateway",
+        provider="ctp",
     )
 
     snapshot = store.get_ctp_preflight_snapshot("SA609")
@@ -3579,7 +3579,7 @@ def test_preflight_scopes_stage_b_trades_to_the_frozen_instrument():
 
 def test_preflight_keeps_legacy_direct_instrument_query_compatible_without_product_filter():
     client = LegacyInstrumentSignatureClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     stage_b = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
 
@@ -3604,7 +3604,7 @@ def test_preflight_rejects_trade_rows_outside_the_requested_scope():
     client.rows["trades"] = [
         {"ExchangeID": "SHFE", "InstrumentID": "RB701", "TradingDay": "20260908"}
     ]
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
 
@@ -3802,7 +3802,7 @@ def test_explicit_settlement_preparation_returns_counter_evidence():
 
 def test_cached_preflight_is_bound_to_current_session_generation_and_identity():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     assert store.get_ctp_preflight_snapshot("SA609", timeout=0)["evidence_complete"] is True
 
     client.session_generation = 4
@@ -3818,7 +3818,7 @@ def test_cached_preflight_expires_after_the_configured_maximum_age():
     client = CompleteQueryClient()
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         auto_settlement_confirm=False,
         ctp_query_max_age_seconds=30.0,
     )
@@ -3833,7 +3833,7 @@ def test_cached_preflight_expires_after_the_configured_maximum_age():
 
 def test_cached_preflight_is_invalidated_at_the_trading_day_boundary():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     assert store.get_ctp_preflight_snapshot("SA609", timeout=0)["evidence_complete"] is True
 
     client.trading_day = "20260910"
@@ -3845,7 +3845,7 @@ def test_cached_preflight_is_invalidated_at_the_trading_day_boundary():
 
 def test_reconciliation_fingerprint_is_bound_to_the_trading_day():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     first = store.get_ctp_reconciliation_snapshot(timeout=0)
     client.trading_day = "20260910"
@@ -3858,7 +3858,7 @@ def test_reconciliation_fingerprint_is_bound_to_the_trading_day():
 
 def test_legacy_ctp_reconciliation_worker_stops_and_discards_stale_completion():
     client = CompleteQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     receipt = store.enqueue_ctp_reconciliation(timeout=0)
     assert receipt["queued"] is True
@@ -3885,7 +3885,7 @@ def test_legacy_ctp_stop_does_not_disconnect_under_an_inflight_query():
             return super().query_account_result(timeout=timeout)
 
     client = BlockingQueryClient()
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     assert store.enqueue_ctp_reconciliation(timeout=1.0)["queued"] is True
     assert entered.wait(1.0)
 
@@ -3917,7 +3917,7 @@ def test_ctp_query_group_obeys_minimum_start_interval():
         return original(name)
 
     client._result = record_start
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     snapshot = store.get_ctp_reconciliation_snapshot(timeout=1.0)
 
@@ -3931,7 +3931,7 @@ def test_ctp_query_group_timeout_zero_keeps_immediate_probe_mode(monkeypatch):
 
     client = CompleteQueryClient()
     client.ctp_query_min_interval_seconds = 1.0
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
 
     def unexpected_slot_reservation(_deadline):
         raise AssertionError("zero timeout must not sleep")
@@ -3947,7 +3947,7 @@ def test_ctp_query_group_timeout_zero_keeps_immediate_probe_mode(monkeypatch):
 def test_ctp_query_timeout_is_one_total_deadline_for_the_group():
     client = CompleteQueryClient()
     client.ctp_query_min_interval_seconds = 0.03
-    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    store = make_store(api=client, provider="ctp", auto_settlement_confirm=False)
     started = time.monotonic()
 
     snapshot = store.get_ctp_reconciliation_snapshot(timeout=0.04)

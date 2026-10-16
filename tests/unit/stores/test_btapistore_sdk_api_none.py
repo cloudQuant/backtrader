@@ -1,4 +1,4 @@
-"""Fake-only tests for direct CTP/gateway/forwarding sdk_api denial."""
+"""Fake-only tests for direct CTP sdk_api denial."""
 
 from types import SimpleNamespace
 
@@ -43,14 +43,10 @@ class FakeApi:
     [
         {"provider": "ctp"},
         {"provider": "btapi", "exchange_kwargs": {"CTP___FUTURE": {}}},
-        {"provider": "ctp_gateway", "backend": "gateway", "api_kwargs": {"exchange_type": "CTP"}},
-        {"provider": "okx", "backend": "gateway"},
-        {"provider": "btapi", "backend": "forwarding", "config": {"exchange": "CTP"}},
-        {"provider": "btapi", "backend": "forwarding", "config": {"exchange": "BINANCE"}},
     ],
-    ids=["direct-ctp", "direct-ctp-sdk", "ctp-gateway", "nonctp-gateway", "ctp-forwarding", "nonctp-forwarding"],
+    ids=["direct-ctp", "direct-ctp-sdk"],
 )
-def test_ctp_gateway_and_forwarding_sdk_api_are_none(store_options):
+def test_direct_ctp_sdk_api_is_none(store_options):
     api = FakeApi()
     store = BtApiStore(**store_options, api=api)
     assert store.sdk_api is None
