@@ -8,6 +8,8 @@ registered routes; this adapter only makes bounded calls through the public
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 import threading
@@ -31,6 +33,7 @@ __all__ = [
 
 _REFERENCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_SERVICE_EVENT_ID = re.compile(r"^service-event:[0-9a-f]{64}$")
 _RPC_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,95}$")
 _DECIMAL_TEXT = re.compile(r"^[-+]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$")
 _GROUP_MOUNT = "broker.order_groups"
@@ -89,6 +92,9 @@ class ServiceStrategyGroupRoute:
     group_scope_ref: str
     monitor_scope_ref: str
     owned: bool = True
+    monitor_producer_principal_ref: Optional[str] = None
+    monitor_producer_actor_ref: Optional[str] = None
+    monitor_producer_delegate_ref: Optional[str] = None
 
 
 class ServiceExecutionGroupError(RuntimeError):
@@ -239,6 +245,10 @@ class ServiceExecutionGroupAdapter:
         runtime_owner: dict[int, str] = {}
         for route in self._routes:
             runtime = route.runtime
+            if not _valid_monitor_producer_binding(route):
+                raise ServiceExecutionGroupError(
+                    "GROUP_MONITOR_PRODUCER_IDENTITY_INVALID"
+                )
             if getattr(runtime, "state", None) != "registered":
                 raise ServiceExecutionGroupError("GROUP_RUNTIME_NOT_REGISTERED")
             identity = getattr(runtime, "identity", None)
@@ -724,6 +734,49 @@ def _parse_residual_event(value: object, route: ServiceStrategyGroupRoute) -> Se
     ):
         raise ServiceExecutionGroupError("RESIDUAL_EVENT_INVALID")
     data = value["data"]
+    source_event_id = None
+    if isinstance(data, Mapping) and frozenset(data) == _RESIDUAL_DATA_FIELDS:
+        # Older local Monitor readers returned the projection as the event data.
+        # Preserve that accepted shape while the authenticated ingress reader
+        # returns its canonical producer/source/payload envelope below.
+        pass
+    elif isinstance(data, Mapping) and frozenset(data) == {
+        "producer",
+        "source_event_id",
+        "payload",
+    }:
+        producer = data.get("producer")
+        source_event_id = data.get("source_event_id")
+        projection = data.get("payload")
+        if (
+            not isinstance(producer, Mapping)
+            or frozenset(producer)
+            != {"role", "principal_ref", "actor_ref", "delegate_ref"}
+            or type(producer.get("role")) is not str
+            or producer.get("role") != "service"
+            or not _valid_reference(producer.get("principal_ref"))
+            or not _valid_reference(producer.get("actor_ref"))
+            or (
+                producer.get("delegate_ref") is not None
+                and not _valid_reference(producer.get("delegate_ref"))
+            )
+            or not _valid_monitor_producer_binding(route)
+            or producer.get("principal_ref") != route.monitor_producer_principal_ref
+            or producer.get("actor_ref") != route.monitor_producer_actor_ref
+            or producer.get("delegate_ref") != route.monitor_producer_delegate_ref
+            or not isinstance(projection, Mapping)
+            or frozenset(projection) != _RESIDUAL_DATA_FIELDS
+            or type(source_event_id) is not str
+            or _SERVICE_EVENT_ID.fullmatch(source_event_id) is None
+            or type(value.get("event_id")) is not str
+            or _SERVICE_EVENT_ID.fullmatch(value["event_id"]) is None
+        ):
+            raise ServiceExecutionGroupError("RESIDUAL_EVENT_INVALID")
+        data = projection
+    else:
+        # In particular, reject a wrapper mixed with flattened projection
+        # fields instead of choosing one representation by precedence.
+        raise ServiceExecutionGroupError("RESIDUAL_EVENT_INVALID")
     if (
         value["event_type"] != _RESIDUAL_EVENT_TYPE
         or type(value["sequence"]) is not int
@@ -765,6 +818,8 @@ def _parse_residual_event(value: object, route: ServiceStrategyGroupRoute) -> Se
         or not set(account_refs).issubset(route.account_refs)
     ):
         raise ServiceExecutionGroupError("RESIDUAL_EVENT_INVALID")
+    if source_event_id is not None and source_event_id != _projected_residual_event_id(data):
+        raise ServiceExecutionGroupError("RESIDUAL_EVENT_INVALID")
     residual_base_units = _optional_decimal_text(data.get("residual_base_units"))
     first_leg_id = _optional_reference(data.get("first_leg_id"))
     second_leg_id = _optional_reference(data.get("second_leg_id"))
@@ -803,6 +858,39 @@ def _parse_residual_event(value: object, route: ServiceStrategyGroupRoute) -> Se
         source_revision=data["source_revision"],
         source_created_at_ns=data["source_created_at_ns"],
     )
+
+
+def _valid_monitor_producer_binding(route: ServiceStrategyGroupRoute) -> bool:
+    principal_ref = route.monitor_producer_principal_ref
+    actor_ref = route.monitor_producer_actor_ref
+    delegate_ref = route.monitor_producer_delegate_ref
+    if principal_ref is None and actor_ref is None and delegate_ref is None:
+        return True
+    return (
+        _valid_reference(principal_ref)
+        and _valid_reference(actor_ref)
+        and (delegate_ref is None or _valid_reference(delegate_ref))
+    )
+
+
+def _projected_residual_event_id(data: Mapping[str, Any]) -> str:
+    """Recreate the SDK relay's stable source ID from its projection fields."""
+
+    digest_input = {
+        "schema": _RESIDUAL_SCHEMA,
+        "generation": data["journal_generation"],
+        "portfolio_ref": data["portfolio_ref"],
+        "group_id": data["group_id"],
+        "source_event_sha256": data["source_event_sha256"],
+    }
+    canonical = json.dumps(
+        digest_input,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
+    return "service-event:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _raise_submit_error(error: BaseException, group_id: str) -> None:
