@@ -1,0 +1,32 @@
+client_config_schema_version: 1
+process_role: strategy_client
+registration:
+  strategy_ref: binance-c01
+clients:
+  gateway:
+    config_schema_version: 1
+    settings:
+      bindings:
+        - mount: store.account
+          service_id: binance-demo-account-service
+          instance_id: binance-account-session-gateway
+          scope_ref: binance-demo-account-v1
+          account_ref: binance-demo-account
+          transport_ref: binance-c01-account-rpc-v1
+          required: true
+      options:
+        request_timeout_ms: 5000
+        heartbeat_interval_seconds: 5
+communication:
+  config_schema_version: 1
+  profiles:
+    binance-c01-account-rpc-v1:
+      backend: zmq
+      config_schema_version: 1
+      endpoints:
+        rpc_connect: tcp://127.0.0.1:15500
+      security_profile_ref: binance-c01-account-curve-v1
+      options:
+        request_timeout_ms: 5000
+        high_water_mark: 32
+        max_message_bytes: 65536

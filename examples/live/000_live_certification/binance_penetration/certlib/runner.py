@@ -5,7 +5,7 @@ Usage (from a case directory):
     python run.py                 # dry self-check: config + credential names
     python run.py --live --allow-write
     python run.py --live --allow-dangerous
-    python run.py --live --transport gateway_zmq --monitor
+    python run.py --live --transport service
 
 Exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
 """
@@ -31,7 +31,7 @@ def _parse_args(argv):
     parser.add_argument("--allow-dangerous", action="store_true", help="grant dangerous actions")
     parser.add_argument("--evidence-dir", default=None)
     parser.add_argument("--config", default=None)
-    parser.add_argument("--transport", choices=("direct", "gateway_zmq"), default=None)
+    parser.add_argument("--transport", choices=("direct", "service", "gateway_zmq"), default=None)
     parser.add_argument("--execution", action="store_true", default=None)
     parser.add_argument("--risk", action="store_true", default=None)
     parser.add_argument("--monitor", action="store_true", default=None)
@@ -62,16 +62,31 @@ def _load_strategy(case_dir: Path, case_id: str):
     return strategy, str(risk)
 
 
-def _env_names(config: dict) -> list:
+def _env_names(config: dict, topology: dict | None = None) -> list:
+    if topology and topology.get("transport") == "service":
+        service = config.get("service_client", {})
+        curve_keys = service.get("curve_keys", {}) if isinstance(service, dict) else {}
+        names = []
+        if isinstance(curve_keys, dict):
+            for binding in curve_keys.values():
+                if not isinstance(binding, dict):
+                    continue
+                names.extend(
+                    binding.get(field)
+                    for field in ("server_key_env", "public_key_env", "secret_key_env")
+                )
+        return list(dict.fromkeys(name for name in names if isinstance(name, str) and name))
     section = config.get("credentials", {})
     names = [section.get("api_key_env"), section.get("secret_env"), section.get("passphrase_env")]
     return [name for name in names if name]
 
 
-def _optional_env_names(config: dict) -> list:
+def _optional_env_names(config: dict, topology: dict | None = None) -> list:
     """Names loaded when present but not required to run (e.g. restricted keys)."""
+    if topology and topology.get("transport") == "service":
+        return []
     section = config.get("credentials", {})
-    required = set(_env_names(config))
+    required = set(_env_names(config, topology))
     names = [section.get("restricted_api_key_env"), section.get("restricted_secret_env")]
     return [name for name in names if name and name not in required]
 
@@ -128,8 +143,10 @@ def main_case(argv=None):
 
     strategy, risk = _load_strategy(case_dir, case_id)
     topology = _topology(config, args)
-    env_names = _env_names(config)
-    optional_names = [n for n in _optional_env_names(config) if n not in env_names]
+    env_names = _env_names(config, topology)
+    optional_names = [
+        n for n in _optional_env_names(config, topology) if n not in env_names
+    ]
     env_values, env_missing = envfile.load_env(env_names + optional_names)
     required_missing = [name for name in env_missing if name in env_names]
 
@@ -165,7 +182,7 @@ def main_case(argv=None):
     started = context.utc_now()
     ctx = None
     try:
-        client = make_client(config, env_values, topology)
+        client = make_client(config, env_values, topology, config_dir=config_path.resolve().parent)
         evidence_dir = Path(args.evidence_dir) if args.evidence_dir else case_dir / "evidence"
         ctx = context.CaseContext(
             venue=venue, case_id=case_id, config=config, topology=topology,
@@ -193,12 +210,21 @@ def main_case(argv=None):
             try:
                 client.close()
             except Exception:
-                pass
+                if topology.get("transport") == "service":
+                    facts["service_cleanup"] = "unconfirmed"
+                    if result.status == "PASS":
+                        result = context.CaseResult(
+                            case_id,
+                            "UNKNOWN",
+                            "service_cleanup_unconfirmed",
+                            facts,
+                        )
 
     finished = context.utc_now()
     evidence = context.build_evidence(
         venue=venue, case_id=case_id, case_dir=case_dir, config=config, topology=topology, live=True,
         result=result, client=client, ctx=ctx, started_utc=started, finished_utc=finished,
+        config_path=config_path,
         env_names_present=[n for n in env_names if n not in env_missing], env_names_missing=env_missing,
         grants={"allow_write": bool(args.allow_write), "allow_dangerous": bool(args.allow_dangerous)},
     )

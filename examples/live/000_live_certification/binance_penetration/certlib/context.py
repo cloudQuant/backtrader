@@ -79,7 +79,11 @@ def write_evidence(evidence_dir, payload) -> Path:
 
 
 def build_evidence(*, venue, case_id, case_dir, config, topology, live, result, client=None, ctx=None,
-                   started_utc, finished_utc, env_names_present, env_names_missing, grants):
+                   config_path=None, started_utc, finished_utc, env_names_present,
+                   env_names_missing, grants):
+    selected_config_path = (
+        Path(config_path) if config_path is not None else Path(case_dir) / "config.yaml"
+    )
     payload = {
         "schema": 1,
         "venue": venue,
@@ -92,7 +96,7 @@ def build_evidence(*, venue, case_id, case_dir, config, topology, live, result, 
         "topology": topology,
         "started_utc": started_utc,
         "finished_utc": finished_utc,
-        "config_sha256": _digest(Path(case_dir) / "config.yaml"),
+        "config_sha256": _digest(selected_config_path),
         "env_keys_present": sorted(env_names_present),
         "env_keys_missing": sorted(env_names_missing),
         "client": client.describe() if client is not None and hasattr(client, "describe") else None,

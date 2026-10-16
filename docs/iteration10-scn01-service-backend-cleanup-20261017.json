@@ -1,0 +1,80 @@
+{
+  "round": "iteration10-scn01-service-backend-cleanup-r1",
+  "date": "2026-10-17",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "source_parent": "74d136eea17405bc0acbaea5e8b35c84e39d6e55",
+  "scope": [
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/README.md",
+      "bytes": 2436,
+      "sha256": "392fdecb31999d1ea31f97167ea2199832e599776b3c2575cd15b3995d95e771"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/cases/C01/config.yaml",
+      "bytes": 1550,
+      "sha256": "bf5f38f45447891db5d6f55cdaebca133ae5444f5a2d980de9347c1752c765cf"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/cases/C01/service-client.example.yaml",
+      "bytes": 934,
+      "sha256": "d15a658616053948fec5f7e818a7851494c5224ca1218c660956c317673f276a"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/certlib/__init__.py",
+      "bytes": 2324,
+      "sha256": "0e49742ab884b2533294739b451351ebfa468028d13f6f31971bd823fc02eeba"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/certlib/context.py",
+      "bytes": 3760,
+      "sha256": "93906d1ae782fbae537f0c9d7039861672f01d8d3eff1c031d359bdfaecdb6bc"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/certlib/runner.py",
+      "bytes": 10385,
+      "sha256": "4a5ba15cd7907fda2b00f276aa8eef2550aeb1f70dc559b6aa4b7bdeb2893146"
+    },
+    {
+      "path": "examples/live/000_live_certification/binance_penetration/certlib/service_backend.py",
+      "bytes": 19746,
+      "sha256": "c55720715f7aad1227055636f88cfeb607020a6ebe25fa42ad823bc7fefa07d9"
+    },
+    {
+      "path": "tests/unit/test_scn01_binance_service_backend.py",
+      "bytes": 24434,
+      "sha256": "18093fffc8d0cbc7073cb00a60a4a97b6075d620e5ce0dc9873c9406ae1a2aba"
+    }
+  ],
+  "source_fake_prior_qa": {
+    "command": "pytest -p no:asyncio -q tests/unit/test_scn01_binance_service_backend.py tests/unit/test_scn01_binance_certlib_fail_closed.py",
+    "passed": 7,
+    "warnings": 1,
+    "elapsed_seconds": 1.08,
+    "repeated": false
+  },
+  "cleanup_regression": {
+    "node": "tests/unit/test_scn01_binance_service_backend.py::test_service_close_failure_downgrades_pass_to_unknown",
+    "passed": 1,
+    "warnings": 1,
+    "elapsed_seconds": 0.7,
+    "exit_code": 0,
+    "provider_calls": 0,
+    "account_reads": 0,
+    "credentials_used": false,
+    "formal_case_passes": 0
+  },
+  "checks": {
+    "ruff_check": "pass",
+    "git_diff_check": "pass",
+    "ruff_format_check": "blocked_by_preexisting_drift_in_runner_py",
+    "format_drift_reformatted": false,
+    "index_empty_before_stage": true
+  },
+  "evidence_level": "SOURCE_FAKE_AND_LOCAL_SYNTHETIC_SERVICEHOST_ONLY",
+  "notes": [
+    "An initial focused attempt failed because its fake connect result omitted time_offset_ms; the fake fixture was corrected.",
+    "No real venue/provider/account/credential activity.",
+    "Direct transport close handling remains unchanged."
+  ]
+}

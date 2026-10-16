@@ -24,7 +24,28 @@ timeouts:
 scenario:
   symbol: BTCUSDT
 topology:
-  transport: direct           # direct | gateway_zmq
+  transport: direct           # direct | service
   execution: false            # optional components
   risk: false
   monitor: false
+service_client:
+  client_config_path: service-client.example.yaml
+  principal_ref: binance-c01
+  domain_ref: binance-demo-domain
+  service_principal_ref: binance-account-host
+  curve_keys:
+    binance-c01-account-curve-v1:
+      server_key_env: BINANCE_C01_SERVICE_SERVER_PUBLIC_KEY
+      public_key_env: BINANCE_C01_SERVICE_CLIENT_PUBLIC_KEY
+      secret_key_env: BINANCE_C01_SERVICE_CLIENT_SECRET_KEY
+  account:
+    account_ref: binance-demo-account
+    account_key:
+      provider: binance
+      venue: binance
+      environment: demo
+      account_id: binance-demo-owner
+      subaccount_id: null
+    required_coverage:
+      - product_type: usdm_perpetual
+        margin_pool: cross

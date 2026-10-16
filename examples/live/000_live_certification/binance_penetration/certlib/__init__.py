@@ -8,11 +8,11 @@ JSON, and prints a single-line result. Nothing else is required to run a
 case.
 
 Transport and component backends
---------------------------------
-Only ``transport="direct"`` is currently implemented by this normal entry.
-The retired Optional16 gateway/component bridge is not a supported backend.
-Until the normal SDK service runtime is wired here, gateway and component
-requests fail before importing either Optional16 or the venue client.
+---------------------------------
+The direct venue client and the normal SDK ``ServiceClientRuntime`` read path
+are supported for the read-only C01 entry. The retired Optional16 bridge is
+not a supported backend. Execution, Risk, and Monitor component mounts remain
+fail-closed until their normal SDK-backed case paths are implemented.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _direct_client(config, env):
     )
 
 
-def make_client(config, env, topology):
+def make_client(config, env, topology, *, config_dir=None):
     """Build the venue client for this suite.
 
     `config` is the parsed case config.yaml, `env` maps requested credential
@@ -45,10 +45,14 @@ def make_client(config, env, topology):
     mapping (transport/execution/risk/monitor).
     """
     transport = topology.get("transport", "direct")
-    if transport != "direct":
+    if transport not in {"direct", "service"}:
         raise RuntimeError(f"transport_not_implemented:{transport}")
     for flag in ("execution", "risk", "monitor"):
         if topology.get(flag):
             raise RuntimeError(f"component_not_implemented:{flag}")
 
+    if transport == "service":
+        from .service_backend import make_service_client
+
+        return make_service_client(config, env, config_dir=config_dir)
     return _direct_client(config, env)

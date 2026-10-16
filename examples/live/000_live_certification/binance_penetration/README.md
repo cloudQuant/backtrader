@@ -16,12 +16,19 @@ C:/anaconda3/python.exe cases/<ID>/run.py                # dry self-check (no ne
 C:/anaconda3/python.exe cases/<ID>/run.py --live         # read-only cases
 C:/anaconda3/python.exe cases/<ID>/run.py --live --allow-write             # write cases
 C:/anaconda3/python.exe cases/<ID>/run.py --live --allow-write --allow-dangerous
+C:/anaconda3/python.exe cases/C01/run.py --live --transport service          # C01 SDK account service
 ```
 
-- Credentials come from the checkout-root `.env` by NAME (`BINANCE_DEMO_API_KEY`,
+- Direct-mode credentials come from the checkout-root `.env` by NAME (`BINANCE_DEMO_API_KEY`,
   `BINANCE_DEMO_SECRET`); the client measures the server-time offset at connect.
   EM01 additionally supports an optional restricted-permission key via
   `BINANCE_DEMO_RESTRICTED_API_KEY` / `BINANCE_DEMO_RESTRICTED_SECRET` (not required).
+- C01 can use the normal SDK account service with `--transport service`. Its
+  `service_client` block and `service-client.example.yaml` show the client-side
+  service binding; replace the example service/account references, endpoint,
+  required account coverage, and three CURVE environment variable names with
+  the values provisioned for that host.
+  Service mode reads no direct Binance API credential variables.
 - The Optional16 component-acceptance matrix and live gateway-capability check are retired;
   `../optional16/acceptance-matrix.json` is a historical record and is no longer refreshed.
   This retirement leaves the per-case 33-case entry defaults unchanged.
