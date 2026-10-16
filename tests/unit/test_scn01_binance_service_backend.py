@@ -3,34 +3,26 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import hashlib
+import hmac
 import json
 import queue
 import socket
 import sys
 import threading
 import time
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import yaml
 import zmq
-
-from bt_api_base.account_protocol import (
-    AccountBalance,
-    AccountKey,
-    AccountObservation,
-    AccountOpenOrder,
-    AccountPosition,
-    AccountResourceKey,
+from bt_api_binance.account_session_provider import (
+    BinanceUsdMAccountSessionProvider,
+    BinanceUsdMApiCredentials,
 )
-from bt_api_base.market_protocol import MarketInstrumentKey
+
+from bt_api_base.account_protocol import AccountKey, AccountObservation, AccountResourceKey
 from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
 from bt_api_gateway import GatewayCommandKind, GatewayEventJournal, GatewayPrincipal
-from bt_api_gateway.account_position_snapshot import (
-    GatewayFullPositionSnapshot,
-    position_rows_sha256,
-    resource_coverage_sha256,
-)
 from bt_api_gateway.account_session_worker import GatewayAccountSessionWorker
 from bt_api_gateway.service_component import GatewayServiceAccountScope
 from bt_api_gateway.session_guard import LocalAccountSessionGuard
@@ -89,137 +81,137 @@ def _load_runner():
     return package_name, importlib.import_module(f"{package_name}.runner"), previous_modules
 
 
-def _utc(value: datetime) -> str:
-    return value.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
-
-
-class _SyntheticBinanceProvider:
-    """Fixed local provider leaf; no credentials, sockets, or external HTTP."""
+class _SyntheticBinanceHttpTransport:
+    """Local HTTP leaf for the production Demo adapter; never opens a socket."""
 
     def __init__(self) -> None:
-        self.generation: str | None = None
+        self.calls: list[tuple[str, str, dict[str, str], float, int]] = []
+        self.server_time_ms: int | None = None
+
+    def __call__(self, method, url, headers, timeout, max_bytes):
+        self.calls.append((method, url, dict(headers), timeout, max_bytes))
+        parsed = urlsplit(url)
+        assert parsed.scheme == "https" and parsed.netloc == "demo-fapi.binance.com"
+        assert method == "GET" and timeout > 0 and 0 < max_bytes <= 2 * 1024 * 1024
+        if parsed.path == "/fapi/v1/time":
+            assert "X-MBX-APIKEY" not in headers and parsed.query == ""
+            self.server_time_ms = int(time.time() * 1000) + 137
+            payload = {"serverTime": self.server_time_ms}
+        else:
+            assert headers["X-MBX-APIKEY"] == "synthetic-c01-api-key"
+            query, signature = parsed.query.rsplit("&signature=", 1)
+            expected = hmac.new(
+                b"synthetic-c01-api-secret", query.encode("ascii"), hashlib.sha256
+            ).hexdigest()
+            assert hmac.compare_digest(signature, expected)
+            assert parse_qs(query).get("recvWindow") == ["5000"]
+            assert "timestamp" in parse_qs(query)
+            if parsed.path == "/fapi/v1/accountConfig":
+                payload = {
+                    "canTrade": True,
+                    "canDeposit": False,
+                    "canWithdraw": False,
+                    "dualSidePosition": True,
+                }
+            elif parsed.path == "/fapi/v2/account":
+                payload = {
+                    "multiAssetsMargin": False,
+                    "assets": [
+                        {
+                            "asset": "USDT",
+                            "crossWalletBalance": "1000.00",
+                            "availableBalance": "900.00",
+                        }
+                    ],
+                    "positions": [
+                        {
+                            "symbol": "BTCUSDT",
+                            "positionSide": "BOTH",
+                            "positionAmt": "1.0",
+                            "isolated": False,
+                            "entryPrice": "100.00",
+                        },
+                        {
+                            "symbol": "ETHUSDT",
+                            "positionSide": "LONG",
+                            "positionAmt": "0.5",
+                            "isolated": False,
+                            "entryPrice": "50.00",
+                        },
+                    ],
+                }
+            elif parsed.path == "/fapi/v1/openOrders":
+                now_ms = int(time.time() * 1000)
+                payload = [
+                    {
+                        "symbol": "BTCUSDT",
+                        "orderId": 101,
+                        "clientOrderId": "synthetic-c01-order",
+                        "side": "BUY",
+                        "positionSide": "BOTH",
+                        "origType": "LIMIT",
+                        "status": "NEW",
+                        "origQty": "1.0",
+                        "executedQty": "0.0",
+                        "price": "99.00",
+                        "stopPrice": "0",
+                        "time": now_ms - 1_000,
+                        "reduceOnly": False,
+                    }
+                ]
+            elif parsed.path == "/fapi/v1/openAlgoOrders":
+                payload = []
+            else:
+                raise AssertionError(f"unexpected provider route: {parsed.path}")
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        assert len(body) <= max_bytes
+        return body
+
+
+class _TrackedBinanceDemoProvider(BinanceUsdMAccountSessionProvider):
+    """Observe lifecycle counts while exercising the actual provider adapter."""
+
+    def __init__(self, transport: _SyntheticBinanceHttpTransport) -> None:
+        super().__init__(
+            BinanceUsdMApiCredentials(
+                "synthetic-c01-api-key", "synthetic-c01-api-secret"
+            ),
+            transport=transport,
+        )
+        self.transport_leaf = transport
         self.connect_calls = 0
         self.snapshot_calls = 0
         self.configuration_calls = 0
         self.server_time_calls = 0
         self.close_calls = 0
-        self.server_time_ms: int | None = None
+        self.last_observation: AccountObservation | None = None
+
+    @property
+    def server_time_ms(self) -> int | None:
+        return self.transport_leaf.server_time_ms
 
     def connect(self, *, account_key: AccountKey, generation: str, timeout: float) -> None:
-        assert account_key == _ACCOUNT_KEY
-        assert generation and timeout > 0
-        assert self.generation is None
-        self.generation = generation
         self.connect_calls += 1
+        super().connect(account_key=account_key, generation=generation, timeout=timeout)
 
     def read_account(self, *, generation: str, timeout: float):
-        assert generation == self.generation and timeout > 0
         self.snapshot_calls += 1
-        completed = datetime.now(UTC)
-        observed = _utc(completed)
-        instruments = (
-            MarketInstrumentKey(
-                "binance", "binance", "demo", "usdm_perpetual", "btc-perp", "BTCUSDT"
-            ),
-            MarketInstrumentKey(
-                "binance", "binance", "demo", "usdm_perpetual", "eth-perp", "ETHUSDT"
-            ),
-        )
-        observation = AccountObservation(
-            account_key=_ACCOUNT_KEY,
-            observation_id=f"synthetic-c01-observation-{self.snapshot_calls}",
-            coverage=(_RESOURCE,),
-            balances=(
-                AccountBalance(
-                    resource=_RESOURCE,
-                    currency="USDT",
-                    total="1000.00",
-                    available="900.00",
-                    locked="100.00",
-                    observed_at_utc=observed,
-                ),
-            ),
-            positions=tuple(
-                AccountPosition(
-                    resource=_RESOURCE,
-                    instrument=instrument,
-                    side="long" if index == 0 else "short",
-                    quantity="1.0",
-                    qty_unit="contract",
-                    average_price="100.00",
-                    price_currency="USDT",
-                    observed_at_utc=observed,
-                )
-                for index, instrument in enumerate(instruments)
-            ),
-            valuation=None,
-            started_at_utc=observed,
-            completed_at_utc=observed,
-            consistency="provider_atomic",
-            balances_complete=True,
-            positions_complete=True,
-            open_orders=tuple(
-                AccountOpenOrder(
-                    resource=_RESOURCE,
-                    instrument=instrument,
-                    order_id=f"synthetic-order-{index}",
-                    side="buy",
-                    position_side="long",
-                    order_type="limit",
-                    status="open",
-                    quantity="1.0",
-                    filled_quantity="0",
-                    qty_unit="contract",
-                    created_at_utc=observed,
-                    observed_at_utc=observed,
-                    client_order_id=None,
-                    limit_price="99.00",
-                    stop_price=None,
-                    price_currency="USDT",
-                    reduce_only=False,
-                )
-                for index, instrument in enumerate(instruments)
-            ),
-            open_orders_complete=True,
-        )
-        return GatewayFullPositionSnapshot(
-            observation=observation,
-            account_key_id=_ACCOUNT_KEY.account_key_id,
-            session_generation=generation,
-            query_scope="ALL_ACCOUNT_POSITIONS",
-            filters=(),
-            permission_scope="ACCOUNT_FULL",
-            permission_revision="synthetic-permission-r1",
-            pagination_exhausted=True,
-            page_count=1,
-            account_revision=1,
-            source_schema_version="synthetic-binance-account-v1",
-            snapshot_version=f"synthetic-snapshot-{self.snapshot_calls}",
-            positions_sha256=position_rows_sha256(observation),
-            resource_coverage_sha256=resource_coverage_sha256(observation),
-            valid_until_utc=_utc(datetime.now(UTC) + timedelta(minutes=1)),
-        )
+        observation = super().read_account(generation=generation, timeout=timeout)
+        assert type(observation) is AccountObservation
+        self.last_observation = observation
+        return observation
 
     def read_account_configuration(self, *, generation: str, timeout: float):
-        assert generation == self.generation and timeout > 0
         self.configuration_calls += 1
-        return {
-            "canTrade": True,
-            "canDeposit": False,
-            "canWithdraw": False,
-            "dualSidePosition": True,
-        }
+        return super().read_account_configuration(generation=generation, timeout=timeout)
 
     def read_exchange_server_time(self, *, generation: str, timeout: float):
-        assert generation == self.generation and timeout > 0
         self.server_time_calls += 1
-        self.server_time_ms = int(time.time() * 1000) + 137
-        return {"serverTime": self.server_time_ms}
+        return super().read_exchange_server_time(generation=generation, timeout=timeout)
 
     def close(self) -> bool:
         self.close_calls += 1
-        self.generation = None
-        return True
+        return super().close()
 
 
 def _free_endpoint() -> str:
@@ -317,7 +309,7 @@ def _client_config(endpoint: str) -> dict:
 class _LocalServiceHost:
     def __init__(self, tmp_path: Path) -> None:
         self.endpoint = _free_endpoint()
-        self.provider = _SyntheticBinanceProvider()
+        self.provider = _TrackedBinanceDemoProvider(_SyntheticBinanceHttpTransport())
         self.client_keys = zmq.curve_keypair()
         self.server_keys = zmq.curve_keypair()
         self.stop = threading.Event()
@@ -520,7 +512,13 @@ def test_normal_c01_entry_uses_service_runtime_and_preserves_case_contract(
         assert summary["status"] == "PASS"
         assert summary["reason"] == ""
         assert summary["facts"]["symbol"] == "BTCUSDT"
+        assert type(summary["facts"]["server_time_ms"]) is int
+        assert summary["facts"]["server_time_ms"] > 0
+        assert type(summary["facts"]["time_offset_ms"]) is int
+        assert summary["facts"]["rtt_ms"] >= 0
         assert summary["facts"]["can_trade"] is True
+        assert summary["facts"]["can_deposit"] is False
+        assert summary["facts"]["can_withdraw"] is False
         assert summary["facts"]["dual_side_position"] is True
         assert summary["facts"]["balance_rows"] == 1
         assert summary["facts"]["position_rows"] == 1
@@ -537,10 +535,34 @@ def test_normal_c01_entry_uses_service_runtime_and_preserves_case_contract(
         assert host.provider.configuration_calls == 1
         assert host.provider.snapshot_calls == 1
         assert host.provider.close_calls == 0
-        evidence = json.loads(Path(summary["evidence"]).read_text(encoding="utf-8"))
+        assert type(host.provider.last_observation) is AccountObservation
+        assert host.provider.last_observation.consistency == "multi_query"
+        assert host.provider.last_observation.balances_complete is True
+        assert host.provider.last_observation.positions_complete is True
+        assert host.provider.last_observation.open_orders_complete is True
+        assert not hasattr(host.provider.last_observation, "account_revision")
+        actual_paths = [urlsplit(call[1]).path for call in host.provider.transport_leaf.calls]
+        assert actual_paths == [
+            "/fapi/v1/time",
+            "/fapi/v2/account",
+            "/fapi/v1/openOrders",
+            "/fapi/v1/openAlgoOrders",
+            "/fapi/v1/time",
+            "/fapi/v1/accountConfig",
+        ], actual_paths
+        assert all(call[0] == "GET" for call in host.provider.transport_leaf.calls)
+        assert all(
+            urlsplit(call[1]).netloc == "demo-fapi.binance.com"
+            for call in host.provider.transport_leaf.calls
+        )
+        evidence_text = Path(summary["evidence"]).read_text(encoding="utf-8")
+        evidence = json.loads(evidence_text)
         assert evidence["config_sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
         assert evidence["topology"]["transport"] == "service"
         assert evidence["client"]["transport"] == "service"
+        assert evidence["client"]["account_key_id"] == _ACCOUNT_KEY.account_key_id
+        assert evidence["client"]["principal_ref"] == _PRINCIPAL_REF
+        assert evidence["client"]["strategy_ref"] == _STRATEGY_REF
         assert evidence["client"]["session_generation"]
         assert evidence["client"]["account_snapshot_id"].startswith(
             evidence["client"]["session_generation"] + ":"
@@ -556,6 +578,10 @@ def test_normal_c01_entry_uses_service_runtime_and_preserves_case_contract(
         assert evidence["facts"]["dual_side_position"] is True
         assert evidence["facts"]["position_rows"] == 1
         assert evidence["facts"]["open_order_rows"] == 1
+        assert "synthetic-c01-api-key" not in evidence_text
+        assert "synthetic-c01-api-secret" not in evidence_text
+        assert "1000.00" not in evidence_text
+        assert "900.00" not in evidence_text
     finally:
         host.close()
         for name in tuple(sys.modules):
