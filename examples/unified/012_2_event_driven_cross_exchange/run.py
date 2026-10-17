@@ -201,33 +201,89 @@ def run_replay(
 
 # ------------------------------------------------------------------ live observe
 def run_live_observe(args) -> int:
-    """No zero-write observation channel exists here yet.
-
-    This example's live tier is the dual-venue demo acceptance path, and its
-    read-only preconditions (account mode, hedge mode, fee and instrument
-    metadata) are only exercised inside the admitted write run.  Reporting
-    ``live_observation_unavailable`` keeps the capability gap explicit instead of
-    letting ``write_consent_missing`` read as if an observation path existed and
-    was merely refused.  The write drill's own consent gate below is unchanged.
-    """
+    """Read independent, explicitly configured orderbooks without enabling writes."""
 
     decision = getattr(args, "tier_decision", None)
     tier_evidence = decision.as_evidence() if decision is not None else {}
-    _json_print(
-        {
+    okx_config = getattr(args, "service_config_okx", None)
+    binance_config = getattr(args, "service_config_binance", None)
+    if okx_config is None and binance_config is None:
+        # Preserve the historical no-config behavior. Observation is opt-in and
+        # never falls back to the legacy .env or exchange adapter path.
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "channel": "observe",
+                "reason": "live_observation_unavailable",
+                "entry_tier": dict(tier_evidence),
+                "write_grant_result": "not_requested",
+                "gap": "independent account/orderbook observation requires both explicit service configs",
+                "hint": "pass --service-config-okx and --service-config-binance; no session was opened",
+            }
+        )
+        return EXIT_BLOCKED
+    if okx_config is None or binance_config is None:
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "channel": "observe",
+                "reason": "service_config_pair_incomplete",
+                "entry_tier": dict(tier_evidence),
+                "write_grant_result": "not_requested",
+                "hint": "both venue configs are required before any SDK session is opened",
+            }
+        )
+        return EXIT_BLOCKED
+    from backtrader_runtime.service_observation import ServiceObservationError
+    try:
+        from backtrader_runtime.cross_exchange_orderbook_observation import (
+            observe_cross_exchange_orderbooks,
+        )
+
+        report = observe_cross_exchange_orderbooks(
+            okx_config_path=okx_config,
+            binance_config_path=binance_config,
+            strategy_id="012_2_event_driven_cross_exchange",
+            timeout_ms=getattr(args, "service_observation_timeout_ms", 2000),
+            depth=getattr(args, "service_book_depth", 20),
+            max_event_age_seconds="0.50",
+        )
+    except ServiceObservationError as error:
+        report = {
             "status": "BLOCKED",
+            "reason": error.code,
+            "observation_level": "INDEPENDENT_SERVICE_ORDERBOOK_SNAPSHOTS",
+            "write_capability": "UNSUPPORTED",
+            "trade_execution": "not_run",
+            "execution_eligible": False,
+            "cross_venue_alignment": "NOT_EVALUATED",
+        }
+    except Exception:
+        report = {
+            "status": "UNKNOWN",
+            "reason": "service_observation_failed",
+            "observation_level": "INDEPENDENT_SERVICE_ORDERBOOK_SNAPSHOTS",
+            "write_capability": "UNSUPPORTED",
+            "trade_execution": "not_run",
+            "execution_eligible": False,
+            "cross_venue_alignment": "NOT_EVALUATED",
+        }
+    report.update(
+        {
             "mode": "live",
             "channel": "observe",
-            "reason": "live_observation_unavailable",
+            "example_id": "012_2_event_driven_cross_exchange",
             "entry_tier": dict(tier_evidence),
             "write_grant_result": "not_requested",
-            "gap": (
-                "this example has no standalone zero-write observation path; a read-only "
-                "preflight over the same sealed config and demo credentials is the follow-up"
-            ),
-            "hint": "add --allow-write to run the admitted demo path; nothing was connected or ordered",
         }
     )
+    _json_print(report)
+    if report.get("status") == "OBSERVED":
+        return EXIT_PASS
+    if report.get("status") == "UNKNOWN":
+        return EXIT_UNKNOWN
     return EXIT_BLOCKED
 
 
@@ -400,6 +456,10 @@ def main(argv=None) -> int:
     parser.add_argument("--scenario", default=None, help="replay scenario name")
     parser.add_argument("--run-seconds", type=float, default=None, help="bounded run window")
     parser.add_argument("--evidence-dir", default=None)
+    parser.add_argument("--service-config-okx", default=None, help="explicit read-only OKX service YAML/JSON")
+    parser.add_argument("--service-config-binance", default=None, help="explicit read-only Binance service YAML/JSON")
+    parser.add_argument("--service-observation-timeout-ms", type=int, default=2000)
+    parser.add_argument("--service-book-depth", type=int, default=20)
     args, unknown = parser.parse_known_args(argv)
     if unknown:
         print(

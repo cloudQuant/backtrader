@@ -96,5 +96,5 @@ entry:
   tier: replay   # dry | replay | live（backtest 为 replay 别名）
 ```
 
-本目录的 live 通道目前**只有写验收一条**：带 `--allow-write` 走原 demo 准入路径（判据一字未改）；不带写授权时返回 `BLOCKED / live_observation_unavailable`（`channel: observe`、`write_grant_result: not_requested`），显式说明**本目录尚无独立无写观察通道**，而不再把“没有观察路径”说成“未授予写权限”。补齐同一 sealed config 上的只读 preflight 是后续独立轮次。
+本目录提供独立 live 只读观察入口：同时传入 `--service-config-okx` 与 `--service-config-binance`，分别读取两个明确配置的账户快照及有界 orderbook；只提供一个配置会在连接前拒绝，不传配置仍返回 `BLOCKED / live_observation_unavailable`。两边结果是独立观察，不做跨所时间对齐或套利准入，也不授予任何写能力。原 `--allow-write` demo 准入路径保持独立，判据不变。
 另外：本目录的 `config.yaml` 字节被 `strategy-candidate-manifest.json` 绑定，新增 `entry.tier` 声明后必须执行 `python scripts/refresh_cross_exchange_local_manifests.py` 重新签发目录内清单，否则 replay/live handler 会以 `runner source fingerprint mismatch` 拒绝。新指纹不继承任何旧签名授权，批准状态仍为 `NOT_APPROVED`。
