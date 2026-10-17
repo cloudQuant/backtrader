@@ -1,5 +1,6 @@
 """Ed25519 demo-approval receipt contract tests for both cross-exchange examples."""
 
+import ast
 import base64
 import builtins
 import copy
@@ -578,7 +579,7 @@ def test_signed_format_valid_but_false_repository_commit_fails_closed(runner, tm
         ("source_files", "bt_api_py.normalization"),
         ("source_files", "bt_api_base.event_bus"),
         ("source_files", "bt_api_okx.market_ws"),
-        ("source_files", "bt_api_okx.gateway"),
+        ("source_files", "bt_api_okx.plugin"),
         ("source_files", "bt_api_binance.market_ws"),
         ("source_files", "bt_api_binance.execution"),
     ),
@@ -629,8 +630,8 @@ def test_runtime_source_collector_covers_every_required_framework_sdk_and_venue_
         "bt_api_py.cross_venue",
         "bt_api_py.public_api",
         "bt_api_py.execution_session",
-        "bt_api_okx.gateway",
-        "bt_api_binance.gateway",
+        "bt_api_okx.plugin",
+        "bt_api_binance.plugin",
     } <= expected
     assert provenance["runtime_files"] == provenance["source_files"]
     assert provenance["repository_commits"]["backtrader"]
@@ -638,6 +639,67 @@ def test_runtime_source_collector_covers_every_required_framework_sdk_and_venue_
     assert provenance["fingerprint_sha256"] == canonical_sha256(
         {key: value for key, value in provenance.items() if key != "fingerprint_sha256"}
     )
+
+
+def test_active_012_approval_manifests_match_and_exclude_retired_adapters():
+    repository_root = Path(__file__).resolve().parents[2]
+    approval_paths = (
+        repository_root / "examples" / "_support" / "strategy_candidate_approval.py",
+        repository_root
+        / "examples"
+        / "unified"
+        / "012_1_midfreq_cross_exchange"
+        / "strategy_candidate_approval.py",
+        repository_root
+        / "examples"
+        / "unified"
+        / "012_2_event_driven_cross_exchange"
+        / "strategy_candidate_approval.py",
+    )
+    retired_modules = {
+        "bt_api_base.gateway.registrar",
+        "bt_api_base.gateway.adapters.base",
+        "bt_api_base.gateway.adapters.plugin_adapter",
+        "bt_api_okx.gateway.adapter",
+        "bt_api_binance.gateway.adapter",
+    }
+    manifests = []
+    for path in approval_paths:
+        module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        assignment = next(
+            node
+            for node in module.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "RUNTIME_SOURCE_MODULES"
+                for target in node.targets
+            )
+        )
+        manifests.append(ast.literal_eval(assignment.value))
+
+    assert manifests[0] == RUNTIME_SOURCE_MODULES
+    assert manifests[1:] == [manifests[0], manifests[0]]
+    manifest_modules = {module_name for _label, module_name, _dist in manifests[0]}
+    assert not retired_modules.intersection(manifest_modules)
+    labels = {label for label, _module, _distribution in manifests[0]}
+    assert {"bt_api_okx.plugin", "bt_api_binance.plugin"} <= labels
+
+
+def test_runtime_source_collector_fails_closed_for_missing_required_plugin(monkeypatch):
+    optional_sdk()
+    original_find_spec = demo_approval.importlib.util.find_spec
+
+    def missing_okx_plugin(module_name, *args, **kwargs):
+        if module_name == "bt_api_okx.plugin":
+            return None
+        return original_find_spec(module_name, *args, **kwargs)
+
+    monkeypatch.setattr(demo_approval.importlib.util, "find_spec", missing_okx_plugin)
+    with pytest.raises(
+        DemoApprovalVerificationError,
+        match=r"required runtime module has no verifiable artifact: bt_api_okx\.plugin",
+    ):
+        collect_runtime_source_provenance()
 
 
 def test_local_wheel_archive_is_not_bound_to_an_unrelated_checkout(tmp_path, monkeypatch):
