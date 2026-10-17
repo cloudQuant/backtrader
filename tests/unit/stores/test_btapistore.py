@@ -18,7 +18,6 @@ from backtrader.stores.btapistore import (
     BtApiStoreError,
     LegacyGatewayMigrationRequiredError,
     _build_ctp_tick_datetime,
-    _create_ctp_gateway_wrapper_class,
     _create_ctp_wrapper_class,
     _normalize_bar,
     _normalize_datetime,
@@ -3654,8 +3653,8 @@ def test_mt5_gateway_provider_from_env_fails_with_migration_error(monkeypatch):
     assert raised.value.target == "provider='mt5_gateway'"
 
 
-def test_gateway_wrapper_fetch_bars_proxies(fake_client):
-    """Gateway wrapper fetch_bars should normalize and return bars from the injected API."""
+def test_direct_store_fetch_bars_proxies(fake_client):
+    """Direct Store history should normalize bars from an injected API."""
     client = FakeBtApiClient(
         history={
             DEFAULT_SYMBOL: [
@@ -3670,143 +3669,6 @@ def test_gateway_wrapper_fetch_bars_proxies(fake_client):
     assert len(bars) == 2
     assert bars[0]["close"] == pytest.approx(1.1005)
     store.stop()
-
-
-def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypatch):
-    """Gateway wrapper should expose exchange asset specs from either symbol-info alias."""
-
-    class SymbolInfoGatewayClient:
-        def __init__(self, **kwargs):
-            self.kwargs = dict(kwargs)
-
-        def get_symbol_info(self, symbol):
-            assert symbol == DEFAULT_SYMBOL
-            return {
-                "symbol": symbol,
-                "multiplier": 0.001,
-                "maker_fee_rate": 0.0002,
-                "taker_fee_rate": 0.0005,
-            }
-
-    bt_api_module = types.ModuleType("bt_api_py")
-    gateway_module = types.ModuleType("bt_api_py.gateway")
-    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
-    gateway_client_module.GatewayClient = SymbolInfoGatewayClient
-    gateway_module.client = gateway_client_module
-    bt_api_module.gateway = gateway_module
-    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
-
-    wrapper_cls = _create_ctp_gateway_wrapper_class()
-    client = wrapper_cls(account_id="acc-1")
-
-    assert client.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
-    assert client.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
-    assert client._client.kwargs["exchange_type"] == "CTP"
-
-
-@pytest.mark.parametrize(
-    "wrapper_kwargs",
-    [
-        pytest.param({}, id="default-ctp"),
-        pytest.param({"exchange_type": "CTP___FUTURE"}, id="ctp-venue-alias-exact"),
-        pytest.param({"exchange_type": " cTp ___ fUtUrE "}, id="ctp-venue-alias-normalized"),
-        pytest.param(
-            {"exchange_type": "BINANCE", "_btapistore_ctp_session_provider": True},
-            id="store-ctp-marker",
-        ),
-    ],
-)
-def test_ctp_gateway_wrapper_direct_write_methods_fail_before_gateway_client_construction(
-    monkeypatch, wrapper_kwargs
-):
-    """CTP direct order methods deny before constructing or accessing the gateway client."""
-    constructed = []
-    accessed = []
-
-    class FakeGatewayClient:
-        def __init__(self, **kwargs):
-            constructed.append(dict(kwargs))
-
-    class MethodTrap:
-        def __init__(self, name):
-            self.name = name
-
-        def __get__(self, instance, owner):
-            accessed.append(self.name)
-            raise AssertionError(f"gateway client method accessed: {self.name}")
-
-    class TrapClient:
-        submit_order = MethodTrap("submit_order")
-        cancel_order = MethodTrap("cancel_order")
-
-    bt_api_module = types.ModuleType("bt_api_py")
-    gateway_module = types.ModuleType("bt_api_py.gateway")
-    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
-    gateway_client_module.GatewayClient = FakeGatewayClient
-    gateway_module.client = gateway_client_module
-    bt_api_module.gateway = gateway_module
-    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
-
-    wrapper = _create_ctp_gateway_wrapper_class()(**wrapper_kwargs)
-    assert constructed == []
-    wrapper._gateway_client = TrapClient()
-
-    with pytest.raises(BtApiStoreError):
-        wrapper.submit_order({"symbol": DEFAULT_SYMBOL})
-    with pytest.raises(BtApiStoreError):
-        wrapper.cancel_order("fake-ref", dataname=DEFAULT_SYMBOL)
-
-    delegated = []
-    monkeypatch.setattr(wrapper, "submit_order", lambda payload: delegated.append(payload))
-    with pytest.raises(BtApiStoreError):
-        wrapper.create_order(symbol=DEFAULT_SYMBOL)
-
-    assert constructed == []
-    assert accessed == []
-    assert delegated == []
-
-
-def test_non_ctp_binance_gateway_wrapper_keeps_direct_order_delegation(monkeypatch):
-    """An explicit supported non-CTP exchange still constructs and delegates to its client."""
-    constructed = []
-    calls = []
-
-    class FakeGatewayClient:
-        def __init__(self, **kwargs):
-            constructed.append(dict(kwargs))
-
-        def submit_order(self, payload):
-            calls.append(("submit", dict(payload)))
-            return {"ok": True}
-
-        def cancel_order(self, order_ref, dataname=None):
-            calls.append(("cancel", order_ref, dataname))
-            return {"cancelled": order_ref}
-
-    bt_api_module = types.ModuleType("bt_api_py")
-    gateway_module = types.ModuleType("bt_api_py.gateway")
-    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
-    gateway_client_module.GatewayClient = FakeGatewayClient
-    gateway_module.client = gateway_client_module
-    bt_api_module.gateway = gateway_module
-    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
-    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
-
-    wrapper = _create_ctp_gateway_wrapper_class()(exchange_type="BINANCE")
-    assert constructed == [{"exchange_type": "BINANCE", "asset_type": "FUTURE"}]
-    submitted = wrapper.submit_order({"symbol": "BTC/USDT", "data_name": "btc"})
-    created = wrapper.create_order(symbol="ETH/USDT", data_name="eth")
-    cancelled = wrapper.cancel_order("fake-ref", dataname="BTC/USDT")
-
-    assert submitted == {"ok": True, "data_name": "btc"}
-    assert created == {"ok": True, "data_name": "eth"}
-    assert cancelled == {"cancelled": "fake-ref"}
-    assert [call[0] for call in calls] == ["submit", "submit", "cancel"]
 
 
 def test_split_ctp_symbol_normalizes_czce_with_exchange():

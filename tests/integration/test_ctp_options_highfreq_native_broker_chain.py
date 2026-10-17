@@ -137,11 +137,7 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr(
         store_module, "_resolve_bt_api_client", blocked("BtApiStore._resolve_bt_api_client")
     )
-    monkeypatch.setattr(
-        store_module,
-        "_create_ctp_gateway_wrapper_class",
-        blocked("BtApiStore._create_ctp_gateway_wrapper_class"),
-    )
+    assert not hasattr(store_module, "_create_ctp_gateway_wrapper_class")
     yield attempts
     assert attempts == []
 

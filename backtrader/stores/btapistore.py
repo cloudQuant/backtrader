@@ -1804,6 +1804,9 @@ def _normalize_datetime(value: Any) -> _dt.datetime:
 
 def _resolve_bt_api_client(provider: str = "btapi"):
     """Resolve a client class from bt_api_py lazily."""
+    legacy_entrypoint = _legacy_gateway_entrypoint(provider)
+    if legacy_entrypoint is not None:
+        raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
     try:
         module = importlib.import_module("bt_api_py")
     except ImportError as exc:
@@ -1815,9 +1818,6 @@ def _resolve_bt_api_client(provider: str = "btapi"):
     # For CTP provider, return a wrapper class
     if provider.lower() == "ctp":
         return _create_ctp_wrapper_class()
-    if _is_gateway_provider(provider):
-        return _create_ctp_gateway_wrapper_class()
-
     # For other providers, try to find standard client classes
     for candidate in ("BtApi", "BTApi", "BtAPI", "ApiClient", "Client"):
         client_cls = getattr(module, candidate, None)
@@ -3167,407 +3167,6 @@ def _create_ctp_wrapper_class():
     return CtpClientWrapper
 
 
-def _create_ctp_gateway_wrapper_class():
-    class CtpGatewayClientWrapper:
-        """Gateway-based wrapper for CTP trading via bt_api_py.
-
-        This wrapper provides a unified interface to the bt_api_py GatewayClient
-        for CTP (China Futures Exchange) trading operations including market
-        data subscription, order management, and account queries.
-
-        Args:
-            **kwargs: Gateway configuration parameters including exchange_type,
-                asset_type, and other gateway-specific settings.
-        """
-
-        def __init__(self, **kwargs):
-            """Initialize the CTP gateway client wrapper.
-
-            Args:
-                **kwargs: Gateway configuration parameters passed to GatewayClient.
-            """
-            self._kwargs = dict(kwargs)
-            store_ctp = self._kwargs.pop("_btapistore_ctp_session_provider", False) is True
-            raw_provider = self._kwargs.get("provider")
-            self._store_ctp_session_provider = store_ctp or (
-                isinstance(raw_provider, str)
-                and raw_provider.strip().lower() in {"ctp", "ctp_gateway"}
-            )
-            self._kwargs.setdefault("exchange_type", "CTP")
-            self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
-            self._direct_ctp_writes_disabled = (
-                self._store_ctp_session_provider or not self._is_supported_non_ctp_exchange()
-            )
-            self._gateway_client = None
-            if not self._direct_ctp_writes_disabled:
-                self._gateway_client = self._load_gateway_client()(**self._kwargs)
-
-        def _is_supported_non_ctp_exchange(self):
-            exchange = self._kwargs.get("exchange_type")
-            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
-                exchange = self._kwargs.get("provider_exchange")
-            if exchange is None or (isinstance(exchange, str) and not exchange.strip()):
-                exchange = "CTP"
-            if not isinstance(exchange, str):
-                return False
-            normalized = exchange.strip().upper()
-            venue_prefix = normalized.split("___", 1)[0].strip()
-            if venue_prefix == "CTP":
-                return False
-            return normalized in {"BINANCE", "IB_WEB", "OKX", "MT5"}
-
-        def _load_gateway_client(self):
-            try:
-                from bt_api_py.gateway.client import GatewayClient
-            except ImportError as exc:
-                _safe_log("error", "btapistore:2866 re-raising ImportError")
-                raise BtApiMissingDependencyError(
-                    "bt_api_py gateway support is not available"
-                ) from exc
-            return GatewayClient
-
-        @property
-        def _client(self):
-            if self._gateway_client is None:
-                self._gateway_client = self._load_gateway_client()(**self._kwargs)
-            return self._gateway_client
-
-        def connect(self):
-            """Connect to the CTP gateway."""
-            self._client.connect()
-
-        def start(self):
-            """Start the gateway client (alias for connect)."""
-            self.connect()
-
-        def disconnect(self):
-            """Disconnect from the CTP gateway."""
-            self._client.disconnect()
-
-        def stop(self):
-            """Stop the gateway client (alias for disconnect)."""
-            self.disconnect()
-
-        def get_session_state(self):
-            """Return gateway session state when the gateway exposes it."""
-            getter = getattr(self._client, "get_session_state", None)
-            if callable(getter):
-                state = getter()
-                return dict(state or {}) if isinstance(state, dict) else {}
-            state = getattr(self._client, "session_state", None)
-            return dict(state or {}) if isinstance(state, dict) else {}
-
-        def subscribe(self, symbols):
-            """Subscribe to market data for the given symbols.
-
-            Args:
-                symbols: Symbol or list of symbols to subscribe to.
-
-            Returns:
-                Subscription result from the gateway client.
-            """
-            return self._client.subscribe(symbols)
-
-        def poll_tick(self, symbol):
-            """Poll and return the next available tick for the symbol.
-
-            Args:
-                symbol: The trading symbol to poll tick for.
-
-            Returns:
-                Tick data or None if no tick is available.
-            """
-            return self._client.poll_tick(symbol)
-
-        def get_next_tick(self, symbol):
-            """Get the next tick for the symbol.
-
-            Args:
-                symbol: The trading symbol.
-
-            Returns:
-                Next tick data from the gateway client.
-            """
-            return self._client.get_next_tick(symbol)
-
-        def has_pending_tick(self, symbol):
-            """Check if there is a pending tick for the symbol.
-
-            Args:
-                symbol: The trading symbol.
-
-            Returns:
-                True if a tick is available, False otherwise.
-            """
-            return self._client.has_pending_tick(symbol)
-
-        def supports_live_ticks(self, symbol):
-            """Check if live ticks are supported for the symbol.
-
-            Args:
-                symbol: The trading symbol.
-
-            Returns:
-                True if live ticks are supported, False otherwise.
-            """
-            return self._client.supports_live_ticks(symbol)
-
-        def supports_live_streaming(self, _symbol=None):
-            """Check if live streaming is supported.
-
-            Args:
-                _symbol: Unused parameter.
-
-            Returns:
-                True (live streaming is always supported).
-            """
-            return True
-
-        def get_balance(self):
-            """Get the account balance.
-
-            Returns:
-                Account balance data from the gateway client.
-            """
-            return self._client.get_balance()
-
-        def get_account(self):
-            """Get the account information.
-
-            Returns:
-                Account data from the gateway client.
-            """
-            return self._client.get_account()
-
-        def get_positions(self):
-            """Get all open positions.
-
-            Returns:
-                List of position data from the gateway client.
-            """
-            return self._client.get_positions()
-
-        def fetch_bars(
-            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
-        ):
-            """Fetch historical bar data for the symbol.
-
-            Args:
-                symbol: Trading symbol to fetch bars for.
-                timeframe: Timeframe for the bars (e.g., '1m', '1h', '1d').
-                compression: Compression type for the timeframe.
-                since: Start time for the bars (ISO format string).
-                limit: Maximum number of bars to return (default: 200).
-                **kwargs: Additional keyword arguments.
-
-            Returns:
-                List of bar data from the gateway client.
-            """
-            tf = self._resolve_timeframe(timeframe, compression)
-            count = int(limit or 200)
-            if hasattr(self._client, "fetch_bars"):
-                try:
-                    return self._client.fetch_bars(symbol, timeframe=tf, count=count)
-                except TypeError:
-                    return self._client.fetch_bars(symbol, tf, count)
-            return []
-
-        def fetch_ohlcv(
-            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
-        ):
-            """Fetch OHLCV (candlestick) data for the symbol.
-
-            Args:
-                symbol: Trading symbol to fetch OHLCV for.
-                timeframe: Timeframe for the candles.
-                compression: Compression type for the timeframe.
-                since: Start time for the candles (ISO format string).
-                limit: Maximum number of candles to return.
-                **kwargs: Additional keyword arguments.
-
-            Returns:
-                List of OHLCV data from fetch_bars.
-            """
-            return self.fetch_bars(
-                symbol,
-                timeframe=timeframe,
-                compression=compression,
-                since=since,
-                limit=limit,
-                **kwargs,
-            )
-
-        def fetch_symbol_info(self, symbol):
-            """Fetch information about a trading symbol.
-
-            Args:
-                symbol: Trading symbol to get info for.
-
-            Returns:
-                Symbol information dict, or empty dict if unavailable.
-            """
-            return self.get_symbol_info(symbol)
-
-        def get_symbol_info(self, symbol):
-            """Get trading symbol metadata from either gateway API alias."""
-            for method_name in ("get_symbol_info", "fetch_symbol_info"):
-                getter = getattr(self._client, method_name, None)
-                if callable(getter):
-                    return getter(symbol) or {}
-            return {}
-
-        def fetch_open_orders(self):
-            """Fetch all open (unfilled) orders.
-
-            Returns:
-                List of open order data, or empty list if unavailable.
-            """
-            if hasattr(self._client, "fetch_open_orders"):
-                return self._client.fetch_open_orders()
-            return []
-
-        def poll_bar(self, symbol):
-            """Poll and return the next available bar for the symbol.
-
-            Args:
-                symbol: Trading symbol to poll bar for.
-
-            Returns:
-                None (bars not supported in this wrapper).
-            """
-
-        def get_next_bar(self, symbol):
-            """Get the next bar for the symbol.
-
-            Args:
-                symbol: Trading symbol.
-
-            Returns:
-                None (bars not supported in this wrapper).
-            """
-
-        def _ensure_direct_writes_allowed(self, operation):
-            if self._direct_ctp_writes_disabled:
-                raise BtApiStoreError(
-                    "Direct gateway order writes are disabled for this exchange "
-                    f"({operation})."
-                )
-
-        def submit_order(self, payload):
-            """Submit an order to the gateway.
-
-            Args:
-                payload: Order payload dict containing order parameters.
-
-            Returns:
-                Response from the gateway client.
-            """
-            self._ensure_direct_writes_allowed("submit_order")
-            response = self._client.submit_order(payload)
-            if "data_name" in payload and "data_name" not in response:
-                response["data_name"] = payload["data_name"]
-            return response
-
-        def create_order(self, **kwargs):
-            """Create and submit an order.
-
-            Args:
-                **kwargs: Order parameters.
-
-            Returns:
-                Response from submit_order.
-            """
-            self._ensure_direct_writes_allowed("create_order")
-            return self.submit_order(kwargs)
-
-        def cancel_order(self, order_ref, dataname=None):
-            """Cancel an order by its reference.
-
-            Args:
-                order_ref: Order reference ID to cancel.
-                dataname: Optional data name for the order.
-
-            Returns:
-                Response from the gateway client.
-            """
-            self._ensure_direct_writes_allowed("cancel_order")
-            return self._client.cancel_order(order_ref, dataname=dataname)
-
-        def poll_broker_update(self):
-            """Poll for broker updates.
-
-            Returns:
-                Broker update data from the gateway client.
-            """
-            return self._client.poll_broker_update()
-
-        @staticmethod
-        def _resolve_timeframe(timeframe=None, compression=None):
-            """Map backtrader timeframe+compression to gateway timeframe string."""
-            if isinstance(timeframe, str) and timeframe.upper() in (
-                "M1",
-                "M5",
-                "M15",
-                "M30",
-                "H1",
-                "H4",
-                "D1",
-                "W1",
-                "MN1",
-            ):
-                return timeframe.upper()
-            comp = int(compression or 1)
-            try:
-                import backtrader as bt
-
-                tf_val = timeframe
-                if tf_val == bt.TimeFrame.Minutes:
-                    return {1: "M1", 5: "M5", 15: "M15", 30: "M30", 60: "H1", 240: "H4"}.get(
-                        comp, "M1"
-                    )
-                if tf_val == bt.TimeFrame.Days:
-                    return "D1"
-                if tf_val == bt.TimeFrame.Weeks:
-                    return "W1"
-                if tf_val == bt.TimeFrame.Months:
-                    return "MN1"
-            except Exception as e:
-                _safe_log("warning", "btapistore:3191 fallback on Exception")
-                _safe_log("debug", "Failed to resolve timeframe: %s", e)
-            return "M1"
-
-    return CtpGatewayClientWrapper
-
-
-def _gateway_timeframe_str(timeframe, compression) -> str:
-    """Convert backtrader timeframe + compression to a gateway string like M1, M15, H1, D1."""
-    from ..dataseries import TimeFrame
-
-    compression = int(compression or 1)
-    if timeframe is None:
-        return f"M{compression}"
-    if timeframe == TimeFrame.Ticks:
-        return "TICK"
-    if timeframe == TimeFrame.Seconds:
-        total_sec = compression
-        if total_sec >= 86400:
-            return f"D{total_sec // 86400}"
-        if total_sec >= 3600:
-            return f"H{total_sec // 3600}"
-        return f"M{max(total_sec // 60, 1)}"
-    if timeframe == TimeFrame.Minutes:
-        if compression >= 60:
-            return f"H{compression // 60}"
-        return f"M{compression}"
-    if timeframe == TimeFrame.Days:
-        return f"D{compression}"
-    if timeframe == TimeFrame.Weeks:
-        return f"W{compression}"
-    if timeframe == TimeFrame.Months:
-        return f"MN{compression}"
-    return f"M{compression}"
-
-
 def _is_gateway_provider(provider: Any) -> bool:
     text = str(provider or "").strip().lower()
     return text in _GATEWAY_PROVIDERS or text.endswith("_gateway")
@@ -3661,7 +3260,6 @@ class BtApiStore(LiveStoreBase):
         # Merge extra kwargs into _api_kwargs for CTP and other providers
         if kwargs:
             self._api_kwargs.update(kwargs)
-        self._apply_env_gateway_overrides()
         sdk_options = {**self._config, **self._api_kwargs}
         self._ctp_execution_authorization_key_id = str(
             sdk_options.get("execution_authorization_key_id")
@@ -3930,33 +3528,6 @@ class BtApiStore(LiveStoreBase):
             return env_provider
         return provider
 
-    def _apply_env_gateway_overrides(self) -> None:
-        if self.backend != "gateway" and not _is_gateway_provider(self.provider):
-            return
-        env_map = {
-            "gateway_command_endpoint": "BT_GATEWAY_COMMAND_ENDPOINT",
-            "gateway_event_endpoint": "BT_GATEWAY_EVENT_ENDPOINT",
-            "gateway_market_endpoint": "BT_GATEWAY_MARKET_ENDPOINT",
-            "account_id": "BT_GATEWAY_ACCOUNT_ID",
-            "exchange_type": "BT_GATEWAY_EXCHANGE_TYPE",
-            "asset_type": "BT_GATEWAY_ASSET_TYPE",
-            "gateway_startup_timeout_sec": "BT_GATEWAY_STARTUP_TIMEOUT_SEC",
-            "gateway_command_timeout_sec": "BT_GATEWAY_COMMAND_TIMEOUT_SEC",
-        }
-        for key, env_name in env_map.items():
-            value = os.environ.get(env_name)
-            if value and key not in self._api_kwargs:
-                self._api_kwargs[key] = value
-        if "strategy_id" not in self._api_kwargs and "gateway_strategy_id" not in self._api_kwargs:
-            strategy_id = os.environ.get("BT_GATEWAY_STRATEGY_ID") or os.environ.get(
-                "BT_TRADING_INSTANCE_ID"
-            )
-            if strategy_id:
-                self._api_kwargs["strategy_id"] = strategy_id
-        raw = os.environ.get("BT_GATEWAY_START_LOCAL_RUNTIME")
-        if raw is not None:
-            self._api_kwargs["gateway_start_local_runtime"] = raw not in {"0", "false", "False"}
-
     @property
     def is_connected(self) -> bool:
         """Return whether the store is connected and ready."""
@@ -3964,12 +3535,15 @@ class BtApiStore(LiveStoreBase):
 
     @property
     def sdk_api(self) -> Any:
-        """Return no raw client for CTP, gateway, or forwarding routes.
+        """Return no raw client for CTP or retired gateway/forwarding routes.
 
         Store query methods continue to use the managed client internally.
         Non-CTP direct SDK behavior remains compatible.
         """
-        if self.backend in {"gateway", "forwarding"} or self._is_ctp_write_provider():
+        if (
+            _legacy_gateway_entrypoint(self.provider, self.backend) is not None
+            or self._is_ctp_write_provider()
+        ):
             return None
         return self._api
 
@@ -8386,9 +7960,6 @@ class BtApiStore(LiveStoreBase):
             for value in candidates
             if value not in (None, "")
         )
-        if self.backend == "gateway" and not any(value not in (None, "") for value in candidates):
-            # A gateway with no explicit exchange defaults to the CTP wrapper.
-            has_ctp_route = True
         if not has_ctp_route:
             return
 
@@ -8401,16 +7972,6 @@ class BtApiStore(LiveStoreBase):
         }
         if provider == "btapi" and self.backend != "forwarding" and len(ctp_venues) == 1:
             return
-        if self.backend == "gateway":
-            exchange = (
-                api_kwargs.get("exchange_type")
-                or api_kwargs.get("exchange")
-                or config.get("exchange_type")
-                or config.get("exchange")
-                or "CTP"
-            )
-            if str(exchange or "").strip().upper() == "CTP":
-                return
         self._raise_untyped_ctp_managed_route(operation)
 
     @staticmethod
@@ -8926,13 +8487,6 @@ class BtApiStore(LiveStoreBase):
         api_kwargs = getattr(self, "_api_kwargs", {})
         if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
             raise BtApiStoreError("Store/API route identity is unavailable; write dispatch is disabled")
-        if getattr(self, "backend", "") == "gateway":
-            route = (
-                api_kwargs.get("exchange_type") or api_kwargs.get("exchange")
-                or config.get("exchange_type") or config.get("exchange")
-                or (provider[:-8] if provider.endswith("_gateway") else provider) or "CTP"
-            )
-            return self._write_route_names((route,))
         if getattr(self, "backend", "") == "forwarding":
             route = (
                 api_kwargs.get("exchange") or api_kwargs.get("exchange_type")
@@ -8958,8 +8512,6 @@ class BtApiStore(LiveStoreBase):
                 self._write_route_names(sdk_exchanges)
                 | self._write_route_names(symbol_routes)
             )
-        if provider.endswith("_gateway"):
-            provider = provider[:-8]
         return self._write_route_names((provider,))
 
     def _assert_write_route_identity(self, *, require_live_route: bool = False) -> None:
@@ -9100,18 +8652,7 @@ class BtApiStore(LiveStoreBase):
                 str(value or "").strip().upper().partition("___")[0] == "CTP"
                 for value in candidates
             )
-        if self.backend != "gateway":
-            return False
-        if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
-            return True
-        exchange = (
-            api_kwargs.get("exchange_type")
-            or api_kwargs.get("exchange")
-            or config.get("exchange_type")
-            or config.get("exchange")
-            or "CTP"
-        )
-        return str(exchange or "").strip().upper().partition("___")[0] == "CTP"
+        return self.backend != "direct"
 
     def _is_ctp_session_provider(self) -> bool:
         if self.backend == "forwarding":
@@ -9121,16 +8662,7 @@ class BtApiStore(LiveStoreBase):
             return True
         if provider == "btapi":
             return len(self._ctp_sdk_venues()) == 1
-        if self.backend != "gateway":
-            return False
-        exchange = (
-            self._api_kwargs.get("exchange_type")
-            or self._api_kwargs.get("exchange")
-            or self._config.get("exchange_type")
-            or self._config.get("exchange")
-            or "CTP"
-        )
-        return str(exchange or "").strip().upper() == "CTP"
+        return False
 
     def _ctp_auth_request_details(self) -> Dict[str, Any]:
         broker_id = self._api_kwargs.get("broker_id") or self._config.get("broker_id") or ""
@@ -17225,16 +16757,9 @@ class BtApiStore(LiveStoreBase):
             if self.backend == "forwarding":
                 self._api = self._create_forwarding_client()
             else:
-                if self.backend == "gateway":
-                    api_cls = self._api_cls or _create_ctp_gateway_wrapper_class()
-                else:
-                    api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
+                api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
                 kwargs = dict(self._config)
                 kwargs.update(self._api_kwargs)
-                if self.backend == "gateway" and self._api_cls is None:
-                    kwargs["_btapistore_ctp_session_provider"] = (
-                        self._is_ctp_session_provider()
-                    )
                 self._api = api_cls(**kwargs)
 
         if (
