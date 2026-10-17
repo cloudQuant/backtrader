@@ -791,3 +791,5 @@ docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选
 docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/reconciliation-r1.json -text
 docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/result_reconciled_r2.json -text
 docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/evidence/offline-cli-reacceptance-2026-10-12/result_reconciled_r2_manifest.json -text
+test_support/arb06_r18_bt_support/executed/tests/integration/test_arb06_group_roll_exit_cerebro_start_diagnostic.py -text
+test_support/arb06_r18_bt_support/seed/test_arb03_dim05_group_partial_fill_service.py -text
