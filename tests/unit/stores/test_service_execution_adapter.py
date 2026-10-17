@@ -146,8 +146,10 @@ def test_accepted_intent_projects_the_provider_identity() -> None:
             "order_type": "LIMIT",
             "quantity": 2,
             "price": 101.0,
+            "time_in_force": "GTC",
             "reduce_only": False,
             "metadata_version": "metadata-v1",
+            "deadline_ns": None,
             # A per-object framework reference is not published by default:
             # it would break intent idempotency on a resubmit.
             "tags": {},
@@ -166,6 +168,78 @@ def test_market_order_is_projected_without_a_price() -> None:
     assert response["status"] == "accepted"
     assert client.submitted[0]["order_type"] == "MARKET"
     assert client.submitted[0]["price"] is None
+    assert client.submitted[0]["time_in_force"] == "GTC"
+
+
+@pytest.mark.parametrize("time_in_force", ["GTC", "FOK", "IOC", "DAY"])
+def test_non_recovery_order_forwards_explicit_time_in_force(time_in_force: str) -> None:
+    from backtrader.order import Order
+
+    client = _FakeClient(submit_view=_view())
+    adapter = ServiceExecutionAdapter(client)
+
+    response = adapter.submit_order(
+        _limit_order(exectype=Order.Market, info=_managed_info(time_in_force=time_in_force)),
+        _legacy_dispatch,
+    )
+
+    assert response["status"] == "accepted"
+    assert client.submitted[0]["order_type"] == "MARKET"
+    assert client.submitted[0]["time_in_force"] == time_in_force
+
+
+@pytest.mark.parametrize("time_in_force", ["", "GFD"])
+def test_unsupported_explicit_time_in_force_fails_before_service_submission(
+    time_in_force: str,
+) -> None:
+    from backtrader.order import Order
+
+    client = _FakeClient(submit_view=_view())
+    adapter = ServiceExecutionAdapter(client)
+
+    response = adapter.submit_order(
+        _limit_order(
+            exectype=Order.Market,
+            info=_managed_info(time_in_force=time_in_force),
+        ),
+        _legacy_dispatch,
+    )
+
+    assert response["status"] == "rejected"
+    assert response["error_code"] == "managed_order_time_in_force_unsupported"
+    assert client.submitted == []
+
+
+def test_recovery_v2_rejects_explicit_gtc_before_manifest_or_service_submission(
+    tmp_path,
+) -> None:
+    from backtrader.order import Order
+
+    namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
+    journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery-v2-explicit-gtc.sqlite3")
+    client = _FakeClient(submit_view=_view())
+    adapter = ServiceExecutionAdapter(
+        client,
+        recovery_journal=journal,
+        require_recovery_baseline=True,
+        recovery_event_version=2,
+    )
+    adapter.bind_recovery_namespace(namespace)
+    order = _limit_order(
+        exectype=Order.Market,
+        info=_managed_info(time_in_force="GTC"),
+    )
+    _bind_recovery_owner(order)
+
+    try:
+        response = adapter.submit_order(order, _legacy_dispatch)
+
+        assert response["status"] == "rejected"
+        assert response["error_code"] == "service_execution_recovery_v2_requires_market_order"
+        assert client.submitted == []
+        assert journal.intent_manifest(namespace, "intent-1") is None
+    finally:
+        journal.close()
 
 
 def test_unsupported_execution_type_is_rejected_without_a_service_call() -> None:
@@ -1433,13 +1507,58 @@ def _bind_recovery_owner(order: _StubOrder, *, strategy_ref: str = "strategy-a")
     )
 
 
+def _install_empty_v1_recovery_baseline(
+    journal: ServiceExecutionRecoveryJournal,
+    namespace: ServiceExecutionRecoveryNamespace,
+) -> None:
+    generation = "0123456789abcdef0123456789abcdef"
+    directory_revision = "directory-v1"
+    snapshot = {
+        "view": "RECOVERY_SNAPSHOT",
+        "version": 1,
+        "coverage": {
+            "account_key": "server-account-a",
+            "owner_kind": "STRATEGY",
+            "owner_ref": namespace.strategy_ref,
+            "scope_directory_revision": directory_revision,
+            "journal_generation": generation,
+            "first_sequence": None,
+            "last_sequence": None,
+            "high_water_sequence": 0,
+            "complete": True,
+            "source": "EXECUTION_SQLITE_JOURNAL",
+            "freshness": "DURABLE_CUT_NOT_PROVIDER_LIVE",
+            "scope_semantics": "DURABLE_STRATEGY_SCOPE_NO_RUN_ISOLATION",
+        },
+        "orders": [],
+    }
+    owner_book = {
+        "account_key": "server-account-a",
+        "account_ref": namespace.account_ref,
+        "strategy_ref": namespace.strategy_ref,
+        "scope_directory_revision": directory_revision,
+        "journal_generation": generation,
+        "baseline_execution_cursor": 0,
+        "current_execution_cursor": 0,
+        "positions": {},
+        "cash_by_currency": {"USD": "1000"},
+        "position_costs": {},
+        "financial_available": True,
+        "cost_basis_complete": True,
+    }
+    assert journal.install_recovery_baseline(namespace, snapshot, owner_book) is True
+
+
 def test_recovery_submit_persists_manifest_and_ignores_filled_reply_projection(tmp_path) -> None:
     namespace = ServiceExecutionRecoveryNamespace("account-a", "strategy-a", "stable-run")
     journal = ServiceExecutionRecoveryJournal(tmp_path / "recovery.sqlite3")
     client = _RecoveryClient(journal, namespace)
     adapter = ServiceExecutionAdapter(client, recovery_journal=journal)
     adapter.bind_recovery_namespace(namespace)
+    _install_empty_v1_recovery_baseline(journal, namespace)
     order = _limit_order()
+    # Recovery manifests bind an order to the framework's data/trade pair.
+    order.tradeid = 0
     _bind_recovery_owner(order)
 
     projection = adapter.submit_order(order, _legacy_dispatch)
@@ -1447,6 +1566,7 @@ def test_recovery_submit_persists_manifest_and_ignores_filled_reply_projection(t
     manifest = client.manifest_seen_before_submit
     assert manifest is not None
     assert manifest["logical_run_id"] == "stable-run"
+    assert manifest["recovery_binding"] == {"data_name": "BTC-USDT", "tradeid": 0}
     assert manifest["submit_payload"] == {
         "intent_id": "intent-1",
         "signal_id": "signal-1",

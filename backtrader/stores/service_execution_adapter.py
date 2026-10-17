@@ -631,6 +631,34 @@ class ServiceExecutionAdapter:
                 intent_id=identity["intent_id"],
             )
 
+        time_in_force = _time_in_force_of(
+            order,
+            default=(
+                "FOK"
+                if self._recovery_journal is not None
+                and self._recovery_event_version == 2
+                else "GTC"
+            ),
+        )
+        if time_in_force is None:
+            return _rejection(
+                "managed_order_time_in_force_unsupported",
+                "Time in force must be one of GTC, IOC, FOK, or DAY.",
+                order=order,
+                intent_id=identity["intent_id"],
+            )
+        if (
+            self._recovery_journal is not None
+            and self._recovery_event_version == 2
+            and time_in_force != "FOK"
+        ):
+            return _rejection(
+                "service_execution_recovery_v2_requires_market_order",
+                "Managed-paper recovery V2 accepts only MARKET/FOK intents.",
+                order=order,
+                intent_id=identity["intent_id"],
+            )
+
         tags = _tags(order, self._order_ref_factory)
         if self._recovery_journal is not None:
             namespace_error = self._validate_recovery_order_scope(order)
@@ -648,7 +676,6 @@ class ServiceExecutionAdapter:
                     order=order,
                     intent_id=identity["intent_id"],
                 )
-            time_in_force = "FOK" if self._recovery_event_version == 2 else "GTC"
             submit_payload = _submit_payload(
                 identity, content, tags, time_in_force=time_in_force
             )
@@ -742,12 +769,7 @@ class ServiceExecutionAdapter:
                 order_type=content["order_type"],
                 quantity=content["quantity"],
                 price=content["price"],
-                time_in_force=(
-                    "FOK"
-                    if self._recovery_journal is not None
-                    and self._recovery_event_version == 2
-                    else "GTC"
-                ),
+                time_in_force=time_in_force,
                 reduce_only=identity["reduce_only"],
                 metadata_version=identity["metadata_version"],
                 deadline_ns=None,
@@ -1357,10 +1379,34 @@ _MANAGED_INFO_KEYS = (
     "managed_instrument",
     "managed_position_effect",
     "managed_metadata_version",
+    "time_in_force",
     "managed_cancel_intent_id",
     "external_order_id",
     "reduce_only",
 )
+
+
+_TIME_IN_FORCE_VALUES = frozenset({"GTC", "IOC", "FOK", "DAY"})
+
+
+def _time_in_force_of(order: Any, *, default: str) -> Optional[str]:
+    """Return the explicitly requested wire TIF, or the session default.
+
+    The default stays GTC for ordinary sessions. A managed paper recovery V2
+    session passes FOK as its default, while any explicit order-level value is
+    preserved and validated before journaling or service submission.
+    """
+
+    value = _order_info(order).get("time_in_force")
+    if value is None:
+        return default
+    value = getattr(value, "value", value)
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().upper()
+    if normalized not in _TIME_IN_FORCE_VALUES:
+        return None
+    return normalized
 
 
 def _metadata_version_of(info: Mapping[str, Any], default: str) -> str:
