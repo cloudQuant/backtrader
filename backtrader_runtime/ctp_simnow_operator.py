@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -173,14 +174,20 @@ def _front_error() -> RuntimeConfigError:
 def _select_configured_front_pair(front_pairs: tuple[Any, ...]) -> Any:
     """Probe only sealed configured pairs and redact endpoint-specific failures."""
 
-    from .ctp_front_pair_probe import CtpFrontPairProbeError, select_ctp_front_pair
+    from .ctp_front_pair_probe import (
+        MAX_PROBE_WORST_CASE_SECONDS,
+        CtpFrontPairProbeError,
+        select_ctp_front_pair,
+    )
 
     try:
+        deadline = time.perf_counter() + MAX_PROBE_WORST_CASE_SECONDS
         return select_ctp_front_pair(
             front_pairs,
             timeout_seconds=_FRONT_PROBE_TIMEOUT_SECONDS,
             max_pairs=_FRONT_PROBE_MAX_PAIRS,
             repeated_samples=_FRONT_PROBE_REPEATED_SAMPLES,
+            deadline_monotonic=deadline,
         )
     except CtpFrontPairProbeError:
         raise _operator_error(

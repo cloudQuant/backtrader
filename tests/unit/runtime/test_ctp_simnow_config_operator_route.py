@@ -7,6 +7,7 @@ import builtins
 import io
 import json
 import socket
+import time
 from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
@@ -1031,8 +1032,12 @@ def test_multi_pair_preflight_selects_lowest_latency_candidate_and_binds_exact_p
     effective = validate_runtime_config(runtime_dir, registry)
     captured = []
 
-    def fake_selector(front_pairs, *, timeout_seconds, max_pairs, repeated_samples):
-        captured.append((front_pairs, timeout_seconds, max_pairs, repeated_samples))
+    def fake_selector(
+        front_pairs, *, timeout_seconds, max_pairs, repeated_samples, deadline_monotonic
+    ):
+        captured.append(
+            (front_pairs, timeout_seconds, max_pairs, repeated_samples, deadline_monotonic)
+        )
         latency_by_pair = {
             (configured_pairs[0][0], configured_pairs[0][1]): 87.0,
             (configured_pairs[1][0], configured_pairs[1][1]): 12.0,
@@ -1068,9 +1073,11 @@ def test_multi_pair_preflight_selects_lowest_latency_candidate_and_binds_exact_p
     operator.dispatch_registered_ctp_simnow_readonly_preflight(effective, registry)
 
     assert len(captured) == 1
-    pairs_seen, timeout_seconds, max_pairs, repeated_samples = captured[0]
+    pairs_seen, timeout_seconds, max_pairs, repeated_samples, deadline_monotonic = captured[0]
     assert [(item["md_front"], item["td_front"]) for item in pairs_seen] == list(configured_pairs)
     assert (timeout_seconds, max_pairs, repeated_samples) == (3.0, 8, 3)
+    assert type(deadline_monotonic) is float
+    assert deadline_monotonic > time.perf_counter()
     admission = composition_calls[0]["admission_registration"]
     assert (admission.md_front, admission.td_front) == configured_pairs[1]
     assert admission.sdk_profile == "config_front_pair"

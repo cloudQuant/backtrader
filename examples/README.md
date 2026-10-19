@@ -18,8 +18,8 @@
 
 | 目录 | 离线入口 | `entry.tier` 选层 | live 无写授权 | live 写通道 | 复制到别处 |
 |---|---|---|---|---|---|
-| `012_1_midfreq_cross_exchange` | `run.py --dry` / `--replay` | ✅ | `BLOCKED / live_observation_unavailable` | `--live --allow-write` + 目录内 hash 绑定清单 | ❌ 设计上绑定 checkout（须用本 checkout 的 `backtrader` 包） |
-| `012_2_event_driven_cross_exchange` | 同上 | ✅ | `live_observation_unavailable` | 同上（`--mechanical-smoke` 为运营确认的有界机械层） | ✅ |
+| `012_1_midfreq_cross_exchange` | `run.py --dry` / `--replay` | ✅ | 双显式服务配置的独立账户/orderbook 观察；不配置仍 `BLOCKED` | `--live --allow-write` + 目录内 hash 绑定清单 | ❌ 设计上绑定 checkout（须用本 checkout 的 `backtrader` 包） |
+| `012_2_event_driven_cross_exchange` | 同上 | ✅ | 双显式服务配置的独立账户/orderbook 观察；不配置仍 `BLOCKED` | 同上（`--mechanical-smoke` 为运营确认的有界机械层） | ✅ |
 | `013_1_midfreq_cross_arbitrage` | 同上 | ✅ | ✅ `run_live_observe()` 零写会话 | `--live --allow-write` 写 drill | ✅ |
 | `013_2_highfreq_calendar_arbitrage` | 同上 | ✅ | ✅ `run_live_observe()` | 同上 | ✅ |
 | `013_3_sa_midfreq_simnow` | 同上 | ✅ | ✅ `run_live_observe()` | 同上 | ✅ |

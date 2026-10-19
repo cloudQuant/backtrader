@@ -9,6 +9,8 @@ cutoff-qualified diagnostics.
 
 from __future__ import annotations
 
+import threading
+import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -706,6 +708,16 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                     )
         self._timing_projector = None
         self._timing_results: Deque[Dict[str, Any]] = deque(maxlen=128)
+        # Guard the shared barrier: live callbacks run on the Cerebro thread
+        # while the run driver's idle pump may re-drive it from its own thread.
+        self._barrier_lock = threading.RLock()
+        # Watermark re-drive bookkeeping (feed-sealed mode).  A cohort may only
+        # be re-driven once every sealed leg of its bucket has been ingested:
+        # an observation later than an in-flight leg's seal would trip the
+        # barrier's CLOCK_REGRESSION guard on that leg.
+        self._feed_cohort_legs: Dict[Tuple[Any, ...], set] = {}
+        self._feed_redrive_open = False
+        self._last_sealed_bar: Optional[BarEvidence] = None
         self._timing_only = self._producer is None and not self._feed_evidence_mode
         self._timing_idle_count = 0
         if self._timing_only:
@@ -880,10 +892,27 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
     def _bar_evidence(self, symbol: str, minute: datetime, data: Any, leg_index: int) -> Any:
         return self._producer.bar_for(self._minute_index(minute), symbol, data, leg_index)
 
+    def _note_sealed_cohort(self, bar: BarEvidence) -> None:
+        """Track sealed-bucket completeness for the watermark re-drive."""
+
+        self._last_sealed_bar = bar
+        cohort_key = (bar.trading_day, bar.generation, bar.session_segment, bar.bucket_end)
+        cohort_legs = self._feed_cohort_legs.get(cohort_key)
+        if cohort_legs is None:
+            cohort_legs = set()
+            self._feed_cohort_legs[cohort_key] = cohort_legs
+            while len(self._feed_cohort_legs) > 8:
+                self._feed_cohort_legs.pop(next(iter(self._feed_cohort_legs)), None)
+        cohort_legs.add(bar.symbol)
+        self._feed_redrive_open = len(cohort_legs) >= len(self._feed_sealed_symbols)
+
     def _ingest_bar_evidence(self, bar: BarEvidence, *, record_result: bool = True) -> Any:
         """Consume one immutable closed bar through the shared barrier."""
 
-        result = self._barrier.ingest(bar)
+        if self._feed_evidence_mode:
+            self._note_sealed_cohort(bar)
+        with self._barrier_lock:
+            result = self._barrier.ingest(bar)
         scope_reset = False
         if (
             result.reason
@@ -894,21 +923,23 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             and result.reset_warmup
         ):
             try:
-                self._barrier.reset_scope(
-                    trading_day=bar.trading_day,
-                    generation=bar.generation,
-                    session_segment=bar.session_segment,
-                    rules_hash=bar.rules_hash,
-                    clock_domain=bar.clock_domain,
-                    clock_mode=bar.clock_mode,
-                    clock_mapping=bar.clock_mapping,
-                    candidate_id=bar.candidate_id,
-                )
+                with self._barrier_lock:
+                    self._barrier.reset_scope(
+                        trading_day=bar.trading_day,
+                        generation=bar.generation,
+                        session_segment=bar.session_segment,
+                        rules_hash=bar.rules_hash,
+                        clock_domain=bar.clock_domain,
+                        clock_mode=bar.clock_mode,
+                        clock_mapping=bar.clock_mapping,
+                        candidate_id=bar.candidate_id,
+                    )
             except (TypeError, ValueError):
                 scope_reset = True
             else:
                 scope_reset = True
-                result = self._barrier.ingest(bar)
+                with self._barrier_lock:
+                    result = self._barrier.ingest(bar)
         result_record = {
             "reason": result.reason,
             "ready": result.ready,
@@ -932,6 +963,67 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             return None
         self._last_decision_input = result.decision_input
         return result.decision_input
+
+    def _redrive_feed_barrier(self, bar: Optional[BarEvidence] = None) -> Any:
+        """Supply the explicit later observation the watermark step needs.
+
+        A sealed feed bar arrives with ``seal_received_mono ==
+        map_wall_to_mono(available_at)`` (run.py ``_ObservationEvidenceProvider``)
+        while barrier readiness demands an observation at or after
+        ``map_wall_to_mono(available_at) + mapping.error_bound_ns`` - 250 ms for
+        the run-scoped live clock (run.py ``_LiveClock``).  Ingesting alone
+        therefore parks every complete cohort in ``WAITING_FOR_WATERMARK``
+        forever, because nothing else in this example ever calls ``advance``.
+        The re-drive closes that gap with a real observation: this process's
+        own monotonic clock reading, taken after the sealed dispatches, which
+        is exactly the domain the run-scoped mapping is anchored to.  The
+        barrier's readiness margin is the mapping's own uncertainty bound and
+        the reading stays far inside the 2 s barrier deadline, so a live cohort
+        finalizes instead of stalling.  Only a non-synthetic (live) mapping is
+        re-driven, which keeps replay and synthetic fixtures on their exact
+        existing behavior.
+        """
+
+        if not self._feed_evidence_mode or self._feed_evidence_fault is not None:
+            return None
+        if not self._feed_redrive_open:
+            return None
+        sealed = bar if bar is not None else self._last_sealed_bar
+        mapping = getattr(sealed, "clock_mapping", None)
+        if mapping is None or getattr(mapping, "synthetic", True):
+            return None
+        observed_mono_ns = time.monotonic_ns()
+        if observed_mono_ns > mapping.valid_until_mono_ns:
+            # The run-scoped mapping is expired; a live observation can no
+            # longer be anchored to it, so leave expiry to the barrier itself.
+            return None
+        with self._barrier_lock:
+            try:
+                results = self._barrier.advance(observed_mono_ns / 1_000_000_000.0)
+            except (TypeError, ValueError):
+                return None
+        accepted = None
+        for result in results:
+            record = {
+                "reason": result.reason,
+                "ready": result.ready,
+                "reset_warmup": result.reset_warmup,
+                "scope_reset": False,
+                "via": "barrier_advance",
+            }
+            self._last_barrier_ingest = record
+            self._barrier_results.append(record)
+            if result.reset_warmup:
+                # Mirror the ingest path: a barrier scope fault revokes every
+                # queued predecessor decision and the history window.
+                self._pending_feed_decision_inputs.clear()
+                self._last_decision_input = None
+                self._history.clear()
+            if result.ready and result.decision_input is not None:
+                accepted = result.decision_input
+        if accepted is not None:
+            self._last_decision_input = accepted
+        return accepted
 
     def _consume_barrier(self, minute: datetime) -> Any:
         """Build replay evidence only on the established default replay route."""
@@ -1005,6 +1097,11 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             )
             return
         decision_input = self._ingest_bar_evidence(evidence)
+        if decision_input is None:
+            # The completing sealed leg may already sit past the watermark
+            # bound; try the explicit re-drive now, and let the idle callbacks
+            # keep re-driving until the live clock passes it.
+            decision_input = self._redrive_feed_barrier(evidence)
         if decision_input is not None:
             self._queue_feed_decision(decision_input)
 
@@ -1204,6 +1301,10 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
     def notify_idle(self) -> None:
         """Project local timing facts on an actual no-bar Cerebro callback."""
 
+        if self._feed_evidence_mode and self._feed_redrive_open:
+            decision_input = self._redrive_feed_barrier()
+            if decision_input is not None:
+                self._queue_feed_decision(decision_input)
         if self._timing_provider is not None:
             self._timing_idle()
 

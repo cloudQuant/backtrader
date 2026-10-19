@@ -13,6 +13,7 @@ trading route.
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 
@@ -23,6 +24,7 @@ from .ctp_front_pair_probe import (
     CtpFrontPairProbeError,
     CtpFrontPairSelection,
     CtpFrontProbeSample,
+    MAX_PROBE_WORST_CASE_SECONDS,
     select_ctp_front_pair,
 )
 from .ctp_sandbox_readonly_admission import require_ctp_sandbox_profile_runtime
@@ -175,8 +177,8 @@ def _pair_status(md_connected: int, md_count: int, td_connected: int, td_count: 
     if (
         md_count > 0
         and td_count > 0
-        and md_connected >= md_count // 2 + 1
-        and td_connected >= td_count // 2 + 1
+        and md_connected > 0
+        and td_connected > 0
     ):
         return "reachable"
     if md_connected or td_connected:
@@ -325,11 +327,13 @@ def check_configured_ctp_fronts(
         _reject("front_config_rejected")
 
     try:
+        deadline = time.perf_counter() + MAX_PROBE_WORST_CASE_SECONDS
         selection = select_ctp_front_pair(
             front_pairs,
             timeout_seconds=_PROBE_TIMEOUT_SECONDS,
             max_pairs=_PROBE_MAX_PAIRS,
             repeated_samples=_PROBE_REPEATED_SAMPLES,
+            deadline_monotonic=deadline,
         )
     except CtpFrontPairProbeError as error:
         try:

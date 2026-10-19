@@ -3,7 +3,8 @@
 The module consumes an already frozen :class:`MinuteDecisionInput`.  It does
 not create a clock mapping, fill missing identity fields, query an account, or
 retain a mutable latest quote.  The replay producer lives in ``fq2_fixture``;
-this file is deliberately a stateless feature boundary.
+the feed-sealed live route freezes the same input shape around a non-synthetic
+run clock mapping.  This file is deliberately a stateless feature boundary.
 """
 
 from __future__ import annotations
@@ -315,12 +316,14 @@ def _typed_quote_to_mapping(
     *,
     session_segment: Optional[str] = None,
     candidate_id: Optional[str] = None,
+    clock_mode: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Adapt one already validated CTP quote without dropping its fields.
 
     ``CtpQuoteEvidence`` deliberately carries connection identity but does not
-    carry the strategy candidate or the session label.  Those two values are
-    supplied by the frozen minute scope when a typed quote is consumed.  The
+    carry the strategy candidate, the session label or the clock mode.  Those
+    values are supplied by the frozen minute scope when a typed quote is
+    consumed (the clock mode mirrors the barrier's own quote mapping).  The
     caller therefore has to provide them; the feature layer never invents a
     scope for a quote.
     """
@@ -329,7 +332,7 @@ def _typed_quote_to_mapping(
         raise ValueError("typed quote session_segment is required")
     if not isinstance(candidate_id, str) or not candidate_id:
         raise ValueError("typed quote candidate_id is required")
-    return {
+    mapping = {
         "symbol": event.symbol,
         "exchange": event.exchange,
         "event_time": _epoch_datetime(event.source_epoch, "source_epoch"),
@@ -351,6 +354,9 @@ def _typed_quote_to_mapping(
         "bid_qty": event.bid_size,
         "ask_qty": event.ask_size,
     }
+    if clock_mode is not None:
+        mapping["clock_mode"] = clock_mode
+    return mapping
 
 
 def _normalize_quote(
@@ -561,8 +567,13 @@ def _validate_input(
         end = _aware_datetime(decision_input.bucket_end, "bucket_end")
         if end <= start:
             raise ValueError("bucket must be increasing")
-        if decision_input.generation <= 0 or decision_input.clock_mode != "replay":
+        mode = decision_input.clock_mode
+        if decision_input.generation <= 0 or mode not in {"replay", "live"}:
             raise ValueError("unsupported input scope")
+        if mode == "live" and getattr(decision_input.clock_mapping, "synthetic", True):
+            # Mirror the barrier's live scope: a live minute must be anchored
+            # to a real run clock mapping, never a synthetic replay fixture.
+            raise ValueError("live input requires a non-synthetic clock mapping")
         if tuple(decision_input.bars) != policy.symbols:
             raise ValueError("bar symbols do not match feature policy")
         if any(decision_input.bars[symbol].symbol != symbol for symbol in policy.symbols):
@@ -594,6 +605,7 @@ def _validate_input(
                         raw,
                         session_segment=decision_input.session_segment,
                         candidate_id=decision_input.candidate_id,
+                        clock_mode=decision_input.clock_mode,
                     )
                 raw_exchange = _value(raw_data, "exchange", "exchange_id", "ExchangeID")
                 if raw_exchange != bar.exchange:
