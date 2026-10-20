@@ -3,7 +3,7 @@
   "iteration": 32,
   "generated_at": "2026-10-20",
   "acceptance_document": "docs/_internal/opts/requirements/迭代32-发送信息功能/验收文档.md",
-  "acceptance_document_version": "2.5",
+  "acceptance_document_version": "2.6",
   "note": "Per-AC status aggregated from the acceptance document (sections 6.1, 9, 10, 11) and re-checked on Windows; see revalidation. This file does not replace the named-case evidence in the document and grants no delivery guarantee.",
   "baseline": {
     "repository": "D:/source_code/backtrader",
@@ -53,7 +53,7 @@
     {"id": "AC32-16", "name": "多进程静默与 fork", "status": "PASS", "evidence": "验收文档 6.1; tests/unit/notifications/test_multiprocess_silent.py"},
     {"id": "AC32-17", "name": "微信 ClawBot 会话锚定", "status": "BLOCKED", "framework_status": "PASS", "blocked_reason": "no ClawBot grayscale account; iLink endpoints are B/C-grade third-party evidence", "evidence": "验收文档 6.1 / 10.4 runbook; tests/unit/notifications/test_session_channels.py"},
     {"id": "AC32-18", "name": "QQ 机器人会话锚定", "status": "BLOCKED", "framework_status": "PASS", "blocked_reason": "no QQ open-platform sandbox credentials (appid/appsecret/openid)", "evidence": "验收文档 6.1 / 10.4 runbook; tests/unit/notifications/test_session_channels.py"},
-    {"id": "AC32-19", "name": "文档同步", "status": "PASS", "evidence": "docs/NOTIFICATIONS_GUIDELINES.md, AGENTS.md Notifications section"},
+    {"id": "AC32-19", "name": "文档同步", "status": "PASS", "evidence": "docs/NOTIFICATIONS_GUIDELINES.md, AGENTS.md Notifications section, docs/source/user-guide/notifications.md + notifications_zh.md (online pages expanded 2026-10-20, 验收文档 13)"},
     {"id": "AC32-20", "name": "回归与质量门禁", "status": "PASS", "caveat": "notification slice and strategy regression passed; the whole-repo make test-fast was BLOCKED at acceptance time by an unrelated external bt_api_py contract mismatch (验收文档 11.3). Repository-wide gates are now owned by later iterations.", "evidence": "验收文档 6.1, 8, 9, 10.1, 11.2"},
     {"id": "AC32-21", "name": "停机兜底", "status": "PASS", "evidence": "验收文档 9 (F1); tests/unit/notifications/test_shutdown_and_env.py::test_process_exit_without_explicit_flush_still_delivers"},
     {"id": "AC32-22", "name": "上下文渲染", "status": "PASS", "evidence": "验收文档 9 (F2); tests/unit/notifications/test_channels_payload.py"}
