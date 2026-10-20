@@ -130,6 +130,7 @@ python -c "import backtrader as bt; print(bt.poll_clawbot_once())"
 ```
 
 - 锚点文件默认 `~/.backtrader/notifications/wechat_clawbot.json`，权限 `0600`，目录 `0700` —— **含可直接发消息的凭据，务必加入 `.gitignore`**。
+- Windows 上 `chmod`/mode 位无意义，实现改为**只授予当前账户**的受保护 DACL（`icacls` 显示 `(F)`，仅一条显式 ACE、无继承、无外部授权）；锚点只能落在**盘符本地卷**且该卷支持持久 ACL，UNC 网络路径、可移动盘、未知卷一律失败关闭。文件是**同句柄原地更新**（不是原子替换），进程若在写入中途被强杀，可能留下不完整的 JSON——此时重新走一次绑定/`update_anchor` 即可。POSIX 下仍是 `0600` 文件 / `0700` 目录。
 - 主动推送有窗口限制：约每 10 条需要一条新的入站消息刷新（本实现提前到 8 条停止并要求刷新）。窗口耗尽时返回 `not_bound` 与"refresh window exhausted"提示，**不会静默丢弃**。
 - **单个 ClawBot 同时只能连一个 agent 实例**：如果它已经接给其他助手，backtrader 的轮询会与之互斥。建议为交易通知单独创建一个 ClawBot。
 - 协议细节（端点/请求头/必填字段）来自社区对官方 npm 包的反推，**未经官方文档确认**；实测请先用固定消息验证。
@@ -184,7 +185,7 @@ python scripts/notify_smoke.py --list-unverified
 
 ## 安全注意事项
 
-- **凭据不要进版本库**：用环境变量（`BT_NOTIFY_*`）或 gitignore 的配置文件；锚点文件权限必须是 `0600`。
+- **凭据不要进版本库**：用环境变量（`BT_NOTIFY_*`）或 gitignore 的配置文件；锚点文件权限必须是 `0600`（Windows 为"仅当前账户"的受保护 ACL，见会话锚定小节）。
 - 所有日志、`SendResult.error`、`repr(Notifier)` 都经过脱敏（`token`/`key`/`secret`/`sign`/`Bearer`/`QQBot` → `***`，URL 只保留 `scheme://host/path`）。新增渠道请复用 `backtrader/notifications/security.py`。
 - 通知内容会离开本机：不要推送账号、密钥、身份证等敏感信息。
 

@@ -47,6 +47,14 @@ def _assert_windows_owner_only_acl(path, grant):
     Windows ``stat`` mode bits only describe the read-only attribute.  Anchor
     credential protection is therefore validated through the native ACL that
     ``persist_anchor`` installs.
+
+    ``backtrader.notifications._windows_anchor`` persists anchors through a
+    verified handle with one protected owner ACE carrying ``FILE_ALL_ACCESS``
+    (``(F)`` in ``icacls``).  Full control is required by design: the same
+    handle later repairs the DACL (``WRITE_DAC``) and deletes a half-written
+    file (``DELETE``), so a narrower read/write grant would break updates.  The
+    contract under test is therefore "exactly one ACE, owned by the current
+    user, with no inherited or external access" - not a specific mask.
     """
 
     result = subprocess.run(
@@ -173,8 +181,10 @@ def test_anchor_persistence_uses_owner_only_permissions(anchor_dir):
     notify_session.persist_anchor(str(path), {"bot_token": "t", "to_user_id": "u"})
     assert path.exists()
     if os.name == "nt":
-        _assert_windows_owner_only_acl(path, "(R,W)")
-        _assert_windows_owner_only_acl(path.parent, "(OI)(CI)(F)")
+        # One protected ACE per object; children carry their own explicit ACE
+        # instead of inheriting one, so the directory shows no (OI)(CI) flags.
+        _assert_windows_owner_only_acl(path, "(F)")
+        _assert_windows_owner_only_acl(path.parent, "(F)")
     else:
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
         assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
