@@ -1,0 +1,247 @@
+{
+  "acceptance_status": "NOT_CLAIMED",
+  "artifacts": {
+    "dataset/availability.csv": {
+      "bytes": 3281262,
+      "sha256": "dd51922fd129dd6e925120756441584f760e679eb77388b74e6a3120b6f92a36"
+    },
+    "dataset/factors.csv": {
+      "bytes": 241491,
+      "sha256": "a9e01549c0c640d534558027f4e4416f9752ec9d0e36fae1b5247e12638b2b5c"
+    },
+    "dataset/formula_inputs/1664d66bf1d7561e79d741acc637414ee1874f3df8bae22d5a31faa5bf46627d.csv": {
+      "bytes": 826116,
+      "sha256": "81266db466e0e48e185bfb3107e352c9a248481e0aafdf5b7bfda53ae58dbfae"
+    },
+    "dataset/formula_universe.csv": {
+      "bytes": 179220,
+      "sha256": "a7c03ebf42c76127f0cdc29e7e51ec0271cc95958bfcd9a76186f06eaa4334c6"
+    },
+    "dataset/grid.csv": {
+      "bytes": 12663,
+      "sha256": "ffa1f4b3930266b1b37a6daa2833acc417b88106379deb4f094c03d9c5213cf6"
+    },
+    "dataset/manifest.json": {
+      "bytes": 6290,
+      "sha256": "43ae6e5c3aedacaed81ba5cff007b8c24ba04fed6e4bd9bc5e30d51b061556b9"
+    },
+    "dataset/prices_close.csv": {
+      "bytes": 116113,
+      "sha256": "70314a55d184c76bcf45597d617724b07530e60eedfff5e0fc6f7b0bdec9beb0"
+    },
+    "dataset/prices_open.csv": {
+      "bytes": 116063,
+      "sha256": "0c3b8ad5a951b6b80f3069d776d18ffc1b529f25238421824bb018322ec0abfe"
+    },
+    "dataset/universe.csv": {
+      "bytes": 166420,
+      "sha256": "662e116c047b02b36881349eabb57561cc721971362d3d4b7c063df2a3966c20"
+    },
+    "evaluation/comparisons.csv": {
+      "bytes": 246,
+      "sha256": "dd8f4187fb57af8b9798781399afa32a5f68150b08911519164255a2321b4ec4"
+    },
+    "evaluation/comparisons.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "evaluation/correlation.csv": {
+      "bytes": 169,
+      "sha256": "d1ad5248ff68f999b2230f8906ce51f4e2e57978ed639604a9e17f9a87bdcf39"
+    },
+    "evaluation/correlation.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "evaluation/coverage.csv": {
+      "bytes": 664780,
+      "sha256": "e5a4340d52d0ef804c830753c61a35acb9f247645bc2ce7e72cb145e81665a28"
+    },
+    "evaluation/coverage.json": {
+      "bytes": 3855336,
+      "sha256": "0f67c5a36158d8023c9a28eec437102599c33354eacc5ab36da54eb08d321b22"
+    },
+    "evaluation/diagnostics.csv": {
+      "bytes": 49,
+      "sha256": "aa3e83f7de69a3161f125b152c3cf3d14aa5d47bb1dd738a19734bdf4f6a01b5"
+    },
+    "evaluation/diagnostics.json": {
+      "bytes": 128,
+      "sha256": "c154faaa47a4279a6601360d37ab66aceec9a668ec82357e8fc510285bfeb5f8"
+    },
+    "evaluation/ic.csv": {
+      "bytes": 1318261,
+      "sha256": "13e0e7f993becd306b796e96bd9b1f1c07025eaee86227585d6204db8100c223"
+    },
+    "evaluation/ic.json": {
+      "bytes": 5385923,
+      "sha256": "11d9b9d8731ad75569899a9df342fa18c9f8cbf0e1ef2dd6f78e85a1b74cd59f"
+    },
+    "evaluation/ic_summary.csv": {
+      "bytes": 89968,
+      "sha256": "7feeeb62968aefe04e61beb23b53c83fb0503decfe4a6db32520165c6f7db9f7"
+    },
+    "evaluation/ic_summary.json": {
+      "bytes": 278483,
+      "sha256": "654001a838021583cc502779d62e9ab112334d82e80e879536fb44664150eb50"
+    },
+    "evaluation/labels.csv": {
+      "bytes": 1838566,
+      "sha256": "597e59015994784d1f799dbf3b5ead7e7207bc51589109c0fe44a51c7463c9cd"
+    },
+    "evaluation/labels.json": {
+      "bytes": 4747476,
+      "sha256": "193d2112e68d905973d52c0431a7ab2e122ed3dbc208870fe36e491d2ea0bac1"
+    },
+    "evaluation/manifest.json": {
+      "bytes": 27893,
+      "sha256": "81ea73d42cca5f915db98208e904bcd19d2c9e44ae1762c48415120b8c53a996"
+    },
+    "evaluation/quantile_returns.csv": {
+      "bytes": 2993965,
+      "sha256": "53a32805d4ee287896617aecd85b505803f0010b12773dc1ff84d479e6709b9d"
+    },
+    "evaluation/quantile_returns.json": {
+      "bytes": 8997660,
+      "sha256": "8243a64b684d63d70ebe36833d77b967a630dd6c946388d1ef74a30f2f9903af"
+    },
+    "evaluation/signals.csv": {
+      "bytes": 2146125,
+      "sha256": "9378b5c8a0f23daf9d48e56108f935848eaa9042861493da689097cc3f7cd015"
+    },
+    "evaluation/signals.json": {
+      "bytes": 8797039,
+      "sha256": "b99284397427d629265ace8afef729900cc93884413b1b269f31fb5c3326ad7a"
+    },
+    "evaluation/spreads.csv": {
+      "bytes": 607241,
+      "sha256": "eb9d3e981bd386bc9ccf3a4ff03d2b668e4f2e2eea9131dc430292f0e5a55e99"
+    },
+    "evaluation/spreads.json": {
+      "bytes": 1948284,
+      "sha256": "0ef0b596f280c6087bfd916f0b7db35e76fc97d9c64bdfec20d3838cfa7b69a8"
+    },
+    "evaluation/stability.csv": {
+      "bytes": 3693770,
+      "sha256": "826bdd69d9e114ede13b31d09684f6dd3c086630d0356187718e41d26c44ac4d"
+    },
+    "evaluation/stability.json": {
+      "bytes": 11378547,
+      "sha256": "b5c59f5876457c14a52f95c770d1c65ed6c88bf038e111213ec2cd41e2394a6c"
+    }
+  },
+  "broker": {
+    "cancel": 0,
+    "observed": true,
+    "submit": 0
+  },
+  "charts_requested": false,
+  "completed_at_utc": "2026-10-21T18:32:08.542861Z",
+  "config_sha256": "f8dbca19b578e2080573d778e328bdce9ea752ea24c2da9504c7e8576073275f",
+  "dataset": {
+    "dataset_id": "f02afbed896382b02d44d64f6304d4d8d86d26da4c8d03a669a998a36d265118",
+    "dataset_path": "D:\\temp\\iteration45-repo-025-final-r2-20261022\\dataset",
+    "factor_names": [
+      "close_ma"
+    ],
+    "factor_strategy_type": "FactorStrategy",
+    "grid_rows": 301,
+    "research_rows": 5200,
+    "targets": 20
+  },
+  "declared_combinations": {},
+  "declared_factor": {
+    "direction": 1,
+    "indicator": "CloseMAFactor",
+    "name": "close_ma",
+    "panel_line": "factor",
+    "params": {
+      "period": 20
+    }
+  },
+  "declared_segments": {
+    "development": {
+      "research_bar_end": 159,
+      "research_bar_start": 0,
+      "role": "development"
+    },
+    "validation": {
+      "research_bar_end": 259,
+      "research_bar_start": 160,
+      "role": "validation"
+    }
+  },
+  "evaluation_id": "626c8ab1d1139aca0a51eacfbcd6b66a42c4d79c594360c0a41746d1be2c38ee",
+  "evaluation_status": "PARTIAL",
+  "evidence_level": "SYNTHETIC_OFFLINE_FACTOR_RESEARCH_ONLY",
+  "example_id": "025_factor_single",
+  "execution_mode": "runonce",
+  "exit_code": 0,
+  "export_validation": {
+    "chart_file_count": 0,
+    "evaluation_id": "626c8ab1d1139aca0a51eacfbcd6b66a42c4d79c594360c0a41746d1be2c38ee",
+    "optional_tables": [
+      "diagnostics"
+    ],
+    "passed": true,
+    "table_file_count": 22,
+    "table_row_count": 101932
+  },
+  "finished_at_utc": "2026-10-21T18:32:08.542861Z",
+  "generator": {
+    "asset_count": 20,
+    "bar_count": 301,
+    "calendar_id": "synthetic-weekday-v1",
+    "data_version": "synthetic-ohlcv-sha256-v1-seed4510",
+    "frequency": "1session",
+    "grid_sha256": "66d332cdeda128abd0f9a3c68b27807348bc579c7c7cf8bac982360aa65db0e0",
+    "ohlcv_sha256": "5f93c9838cadf18d72c5353f907e6ac959e1973adf399a8a2821890167c1c5d0",
+    "research_bars": 260,
+    "seed": 4510,
+    "tail_bars": 21,
+    "version": "synthetic-ohlcv-sha256-v1",
+    "warmup_bars": 20
+  },
+  "generator_version": "synthetic-ohlcv-sha256-v1",
+  "mode": "native_cerebro_collection",
+  "output_dir": "D:\\temp\\iteration45-repo-025-final-r2-20261022",
+  "requested_periods": [
+    1,
+    5,
+    20
+  ],
+  "required_output_validation": {
+    "missing_count": 0,
+    "missing_examples": [],
+    "passed": true,
+    "reason": null,
+    "required_axes": 3,
+    "status": "PARTIAL",
+    "table_rows": {
+      "coverage": 4707,
+      "ic": 9360,
+      "ic_summary": 504,
+      "labels": 15600,
+      "quantile_returns": 23400,
+      "signals": 15600,
+      "spreads": 4680,
+      "stability": 28080
+    }
+  },
+  "schema_version": "iteration45-example-run-v1",
+  "seed": 4510,
+  "started_at_utc": "2026-10-21T18:31:11.065918Z",
+  "status": "COMPLETED",
+  "strategy_sha256": "5db6c64f4d0349dd22f1c9b3f2775cbe09014ac4b5c0bed96bd5bba8148e04de",
+  "versions": {
+    "backtrader": {
+      "module_file": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+      "version": "1.4.0"
+    },
+    "fincore": {
+      "module_file": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+      "version": "0.5.1.dev0"
+    },
+    "python": "3.11.5"
+  }
+}

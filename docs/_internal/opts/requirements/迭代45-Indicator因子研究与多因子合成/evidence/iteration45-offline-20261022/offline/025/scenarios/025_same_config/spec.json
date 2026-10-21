@@ -1,0 +1,17 @@
+{
+  "config_path": "D:\\source_code\\backtrader\\examples\\backtest\\025_factor_single\\config.yaml",
+  "dataset_dir": "D:\\temp\\iteration45-copy-final-r4-b269-20261022\\native\\025\\dataset",
+  "example_dir": "D:\\source_code\\backtrader\\examples\\backtest\\025_factor_single",
+  "example_id": "025_factor_single",
+  "module_name": "iteration45_runner_025_same_config",
+  "periods": [
+    1,
+    5,
+    20
+  ],
+  "repo_root": "D:\\source_code\\backtrader",
+  "runner_path": "D:\\source_code\\backtrader\\examples\\backtest\\025_factor_single\\run.py",
+  "scenario": "025_same_config",
+  "scenario_dir": "D:\\temp\\iteration45-copy-final-r4-b269-20261022\\offline\\025\\scenarios\\025_same_config",
+  "strategy_file": "close_ma_factor_strategy.py"
+}

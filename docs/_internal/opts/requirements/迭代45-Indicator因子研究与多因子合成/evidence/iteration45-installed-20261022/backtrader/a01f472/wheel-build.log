@@ -1,0 +1,12 @@
+Processing d:\temp\iteration45-backtrader-final-wheel-a01f472\source
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: backtrader
+  Building wheel for backtrader (pyproject.toml): started
+  Building wheel for backtrader (pyproject.toml): finished with status 'done'
+  Created wheel for backtrader: filename=backtrader-1.4.0-py3-none-any.whl size=2011533 sha256=7020a11633af896d1fa3e42d483a5e641dca1e1395f59d33f1e12dcc20a80d40
+  Stored in directory: C:\Users\yunji\AppData\Local\Temp\pip-ephem-wheel-cache-9b95_d3f\wheels\e7\6b\28\09552a464726464f5a522aa2fa2bb1b670825a43b6a9d13026
+Successfully built backtrader
+
+[notice] A new release of pip is available: 23.2.1 -> 26.2.2
+[notice] To update, run: D:\temp\iteration45-backtrader-builder-a01f472\Scripts\python.exe -m pip install --upgrade pip

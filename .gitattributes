@@ -795,3 +795,7 @@ test_support/arb06_r18_bt_support/executed/tests/integration/test_arb06_group_ro
 test_support/arb06_r18_bt_support/seed/test_arb03_dim05_group_partial_fill_service.py -text
 
 docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/evidence/iteration45-twenty-installed-20261022/** -text
+docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/evidence/iteration45-copy-20261022/** -text
+docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/evidence/iteration45-examples-20261022/** -text
+docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/evidence/iteration45-installed-20261022/** -text
+docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/evidence/iteration45-offline-20261022/** -text

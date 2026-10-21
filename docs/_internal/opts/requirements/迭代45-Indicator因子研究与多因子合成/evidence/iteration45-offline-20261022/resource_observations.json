@@ -1,0 +1,48 @@
+{
+  "schema": "iteration45-fixed-scale-resource-observations-v1",
+  "workload": {
+    "targets": 20,
+    "grid_bars": 301,
+    "evidence": "synthetic offline research only"
+  },
+  "native": {
+    "025": {
+      "wall_seconds_from_run_manifest_timestamps": 53.388162,
+      "memory": "No process OS peak was retained for this run."
+    },
+    "026": {
+      "wall_seconds_from_run_manifest_timestamps": 569.228877,
+      "sampled_working_set64_range_gb": [0.94, 1.06],
+      "sampled_private_bytes_range_gb": [2.39, 2.63],
+      "os_peak_working_set64_final": null,
+      "terminal_cpu_seconds": null,
+      "note": "WorkingSet64 and PrivateBytes ranges are live point samples, not a complete trace, OS cumulative peak, or terminal total."
+    }
+  },
+  "offline": {
+    "025": {
+      "scenario_timestamp_span_seconds": 91.491625,
+      "maximum_workers": 1,
+      "timeout_seconds_per_scenario": 900
+    },
+    "026": {
+      "scenario_timestamp_span_seconds": 975.610426,
+      "maximum_workers": 2,
+      "timeout_seconds_per_scenario": 2400,
+      "peak_working_set64_reads_mib": [
+        {"pid": 42624, "mib": 1356.3, "read_while_alive": true},
+        {"pid": 34788, "mib": 1142.9, "read_while_alive": true},
+        {"pid": 31372, "mib": 1355.5, "read_while_alive": true}
+      ],
+      "current_working_set64_samples_mib": [
+        {"pid": 31372, "mib": 1099.9},
+        {"pid": 31372, "mib": 1023.4},
+        {"pid": 31372, "mib": 980.2},
+        {"pid": 31372, "mib": 1064.6}
+      ],
+      "terminal_cpu_seconds": null,
+      "note": "PeakWorkingSet64 is the OS-reported cumulative peak at each live read. No post-exit read was available; these values are observed peaks, not a guaranteed final process high-water mark. WorkingSet64 entries are instantaneous samples, not a full polling maximum."
+    }
+  },
+  "performance_acceptance": false
+}

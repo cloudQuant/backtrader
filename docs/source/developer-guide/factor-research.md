@@ -2,7 +2,7 @@
 
 迭代45把因子计算留在 Backtrader，把标签、IC、多因子合成与报告放在 fincore。所有研究因子继承 `FactorIndicator`；`FactorStrategy` 负责装配和采集，作者不用为每个因子重写策略的 `next()`。
 
-本文随开发更新，实际验收状态与提交记录见[迭代45开发记录](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/开发与验收记录.md)。后续 build 简洁写法属于迭代47，完整101个生产因子属于迭代46/48。
+逐项验收状态见[迭代45验收结果](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/验收结果.md)，分轮提交与检查记录见[迭代45开发记录](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/开发与验收记录.md)。后续 build 简洁写法属于迭代47，完整101个生产因子属于迭代46/48。
 
 ## 环境与职责
 
@@ -138,7 +138,7 @@ result = evaluate_dataset(saved, periods=(1, 10))
 result.export("research-report-1-10", charts=False)
 ```
 
-此过程不执行 Cerebro 或原始因子类。更改方向、权重、标签周期等评价参数产生新的评价身份；更改公式、历史资产池、输入绑定或原始数据需要重新采集。加载会验证 schema、文件摘要和完成标记，不反序列化可执行 Python 对象。
+此过程不执行 Cerebro 或原始因子类。使用相同评价配置时，保存前后的评价 ID 和导出表应完全一致；时间索引的可推导频率及截窗留下的未使用索引项不改变评价身份。更改方向、权重、标签周期等评价参数产生新的评价身份；更改公式、历史资产池、输入绑定或原始数据需要重新采集。加载会验证 schema、文件摘要和完成标记，不反序列化可执行 Python 对象。
 
 ## Alpha101 的数据边界
 

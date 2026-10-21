@@ -1,0 +1,23 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.3.5, pluggy-1.7.0 -- D:\temp\iteration45-installed-20261022\Scripts\python.exe
+backtrader: D:\source_code\backtrader\backtrader\__init__.py
+rootdir: D:\source_code\backtrader
+configfile: pytest.ini
+collecting ... collected 73 items / 66 deselected / 7 selected
+
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[025_factor_single-run-output-dir] PASSED [ 14%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[025_factor_single-run-output-dir--no-charts] PASSED [ 28%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[026_factor_multi-run-output-dir] PASSED [ 42%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[026_factor_multi-run-output-dir--no-charts] PASSED [ 57%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[027_alpha003_panel_acceptance-run] PASSED [ 71%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[027_alpha003_panel_acceptance-run-config] PASSED [ 85%]
+tests/unit/test_iteration43_copy_out_runnable.py::test_copied_leaf_runs_or_fails_closed[027_alpha003_panel_acceptance-run-output-dir] PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\temp\iteration45-installed-20261022\Lib\site-packages\_pytest\config\__init__.py:1441
+  D:\temp\iteration45-installed-20261022\Lib\site-packages\_pytest\config\__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========== 7 passed, 66 deselected, 1 warning in 1272.99s (0:21:12) ===========

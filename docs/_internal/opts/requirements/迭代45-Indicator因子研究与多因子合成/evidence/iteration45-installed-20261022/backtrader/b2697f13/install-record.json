@@ -1,0 +1,165 @@
+{
+  "status": "PASS_INSTALL_VERIFICATION",
+  "created_utc": "2026-10-21T19:26:28.805132+00:00",
+  "source": {
+    "repository": "D:\\source_code\\backtrader",
+    "branch": "dev",
+    "commit": "b2697f13b99461f52c79b48ecf3b18ec6de19972",
+    "parent": "92c006c0ad5a2eebc5a4dab51d3e7ce97169a440",
+    "tree_sha1": "c44453f0e787f62eb6ae8a7de224f387dda86c57",
+    "built_from_exact_git_archive": true,
+    "archive_path": "D:\\temp\\iteration45-backtrader-wheel-b2697f13\\archive\\backtrader-b2697f13.tar",
+    "archive_size_bytes": 477521920,
+    "archive_sha256": "220d45550bc8c6f5bdd6c01b88da2e88673b846fe311483123ed07d36eb0f2c2"
+  },
+  "wheel": {
+    "path": "D:\\temp\\iteration45-backtrader-wheel-b2697f13\\dist\\backtrader-1.4.0-py3-none-any.whl",
+    "filename": "backtrader-1.4.0-py3-none-any.whl",
+    "version": "1.4.0",
+    "size_bytes": 2012139,
+    "sha256": "d9165b2640a58db9dca7ad80fc0622e261a2f26930dbab3c1ad9df75f2e9be09",
+    "package_payload_file_count": 546,
+    "package_payload_manifest": "wheel-payload-manifest.json"
+  },
+  "build_environment": {
+    "interpreter": "D:\\temp\\iteration45-backtrader-builder-a01f472\\Scripts\\python.exe",
+    "python": "3.11.5",
+    "pip": "23.2.1",
+    "setuptools": "80.9.0",
+    "wheel": "0.45.1",
+    "setuptools_use_distutils": "stdlib",
+    "command": "pip wheel --no-deps --no-build-isolation"
+  },
+  "payload_diff_vs_8c02": {
+    "baseline_wheel": "D:\\temp\\iteration45-backtrader-wheel-8c02e07f\\dist\\backtrader-1.4.0-py3-none-any.whl",
+    "baseline_sha256": "217eebc31b2d488d254d88c0c927bcbe2bfb507586610b0e79b0045647ea0742",
+    "package_added": [],
+    "package_removed": [],
+    "package_changed": [
+      "backtrader/research/fincore_adapter.py"
+    ],
+    "dist_info_changed": [
+      "backtrader-1.4.0.dist-info/RECORD"
+    ],
+    "all_other_shared_package_payload_byte_identical": true,
+    "wheel_file_set_identical": true
+  },
+  "environments": {
+    "primary-dual": {
+      "status": "PASS_INSTALL_VERIFICATION",
+      "interpreter": "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+      "prefix": "D:\\temp\\iteration45-installed-20261022",
+      "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+      "include_system_site_packages": false,
+      "site_packages_is_venv_local": true,
+      "backtrader_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+      "research_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\research\\__init__.py",
+      "operators_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\research\\operators.py",
+      "representative_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\research\\representative.py",
+      "adapter_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\research\\fincore_adapter.py",
+      "fincore": {
+        "installed": true,
+        "version": "0.5.1.dev0",
+        "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py"
+      },
+      "repository_source_on_sys_path": false,
+      "package_payload_all_hash_match": true,
+      "record_rows": 1096,
+      "record_hashed_rows_checked": 555,
+      "record_hashes_and_sizes_match": true,
+      "tests_run": false
+    },
+    "no-fincore": {
+      "status": "PASS_INSTALL_VERIFICATION",
+      "interpreter": "D:\\temp\\iteration45-no-fincore-20261022\\Scripts\\python.exe",
+      "prefix": "D:\\temp\\iteration45-no-fincore-20261022",
+      "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+      "include_system_site_packages": false,
+      "site_packages_is_venv_local": true,
+      "backtrader_origin": "D:\\temp\\iteration45-no-fincore-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+      "research_origin": "D:\\temp\\iteration45-no-fincore-20261022\\Lib\\site-packages\\backtrader\\research\\__init__.py",
+      "operators_origin": "D:\\temp\\iteration45-no-fincore-20261022\\Lib\\site-packages\\backtrader\\research\\operators.py",
+      "representative_origin": "D:\\temp\\iteration45-no-fincore-20261022\\Lib\\site-packages\\backtrader\\research\\representative.py",
+      "adapter_origin": "D:\\temp\\iteration45-no-fincore-20261022\\Lib\\site-packages\\backtrader\\research\\fincore_adapter.py",
+      "fincore": {
+        "installed": false,
+        "version": null,
+        "origin": null
+      },
+      "repository_source_on_sys_path": false,
+      "package_payload_all_hash_match": true,
+      "record_rows": 1096,
+      "record_hashed_rows_checked": 555,
+      "record_hashes_and_sizes_match": true,
+      "tests_run": false
+    },
+    "final-consumer": {
+      "status": "PASS_INSTALL_VERIFICATION",
+      "interpreter": "D:\\temp\\iteration45-final-consumer-20261022\\Scripts\\python.exe",
+      "prefix": "D:\\temp\\iteration45-final-consumer-20261022",
+      "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+      "include_system_site_packages": false,
+      "site_packages_is_venv_local": true,
+      "backtrader_origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+      "research_origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\backtrader\\research\\__init__.py",
+      "operators_origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\backtrader\\research\\operators.py",
+      "representative_origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\backtrader\\research\\representative.py",
+      "adapter_origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\backtrader\\research\\fincore_adapter.py",
+      "fincore": {
+        "installed": true,
+        "version": "0.5.1.dev0",
+        "origin": "D:\\temp\\iteration45-final-consumer-20261022\\Lib\\site-packages\\fincore\\__init__.py"
+      },
+      "repository_source_on_sys_path": false,
+      "package_payload_all_hash_match": true,
+      "record_rows": 1096,
+      "record_hashed_rows_checked": 555,
+      "record_hashes_and_sizes_match": true,
+      "tests_run": false
+    }
+  },
+  "pip_checks": {
+    "primary-dual": {
+      "status": "PASS",
+      "output": "No broken requirements found.",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    "no-fincore": {
+      "status": "PASS",
+      "output": "No broken requirements found.",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    "final-consumer": {
+      "status": "PASS",
+      "output": "No broken requirements found.",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    }
+  },
+  "pip_freeze_snapshots": {
+    "primary-dual": {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee345-Indicator\u56e0\u5b50\u7814\u7a76\u4e0e\u591a\u56e0\u5b50\u5408\u6210\\evidence\\iteration45-installed-20261022\\backtrader\\b2697f13\\pip-freeze-primary-dual.txt",
+      "line_count": 25,
+      "sha256": "e5b188e993de5329947539ddefb002ed5882d50ae3f428f5ad0c419942f25063"
+    },
+    "no-fincore": {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee345-Indicator\u56e0\u5b50\u7814\u7a76\u4e0e\u591a\u56e0\u5b50\u5408\u6210\\evidence\\iteration45-installed-20261022\\backtrader\\b2697f13\\pip-freeze-no-fincore.txt",
+      "line_count": 24,
+      "sha256": "8577cd682800f283748d4e917aee9b9e57207aabd178a945d53d80451fe90eb9"
+    },
+    "final-consumer": {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee345-Indicator\u56e0\u5b50\u7814\u7a76\u4e0e\u591a\u56e0\u5b50\u5408\u6210\\evidence\\iteration45-installed-20261022\\backtrader\\b2697f13\\pip-freeze-final-consumer.txt",
+      "line_count": 25,
+      "sha256": "e5b188e993de5329947539ddefb002ed5882d50ae3f428f5ad0c419942f25063"
+    }
+  },
+  "tests_run_by_this_installation": false,
+  "root_installed_acceptance": {
+    "evidence_directory": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\\u8fed\u4ee345-Indicator\u56e0\u5b50\u7814\u7a76\u4e0e\u591a\u56e0\u5b50\u5408\u6210\\evidence\\iteration45-twenty-installed-20261022",
+    "status": "PASS",
+    "acceptance_wheel_commit": "8c02e07f242fbba6c1097c5e8edfbcf8a107448d",
+    "acceptance_wheel_sha256": "217eebc31b2d488d254d88c0c927bcbe2bfb507586610b0e79b0045647ea0742",
+    "note": "This separate Root acceptance artifact records the earlier tested install; this b2697f13 installer did not rerun the suite."
+  },
+  "no_fincore_environment_remains_without_fincore": true,
+  "source_code_modified_by_this_install_task": false
+}

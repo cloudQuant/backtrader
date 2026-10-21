@@ -1,0 +1,23 @@
+{
+  "baseline_wheel": "D:\\temp\\iteration45-backtrader-wheel-cf6a40e0\\dist\\backtrader-1.4.0-py3-none-any.whl",
+  "baseline_sha256": "57ef4f2b6f71cd63558db29020dfceaf5630693ba5f626ae034d7acf92bb47f6",
+  "final_wheel": "D:\\temp\\iteration45-backtrader-final-wheel-a01f472\\dist-matching-cf6-builder\\backtrader-1.4.0-py3-none-any.whl",
+  "final_sha256": "7020a11633af896d1fa3e42d483a5e641dca1e1395f59d33f1e12dcc20a80d40",
+  "baseline_package_files": 545,
+  "final_package_files": 546,
+  "package_added": [
+    "backtrader/research/representative.py"
+  ],
+  "package_removed": [],
+  "package_changed": [
+    "backtrader/research/operators.py"
+  ],
+  "dist_info_added": [],
+  "dist_info_removed": [],
+  "dist_info_changed": [
+    "backtrader-1.4.0.dist-info/METADATA",
+    "backtrader-1.4.0.dist-info/RECORD"
+  ],
+  "expected_package_scope": true,
+  "dist_info_only_record_changed": false
+}

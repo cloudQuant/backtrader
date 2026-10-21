@@ -1,0 +1,17 @@
+{
+  "config_path": "D:\\temp\\iteration45-copy-final-r4-b269-20261022\\offline\\026\\configs\\026_factor_multi_weights_variant.yaml",
+  "dataset_dir": "D:\\temp\\iteration45-copy-final-r4-b269-20261022\\native\\026\\dataset",
+  "example_dir": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi",
+  "example_id": "026_factor_multi",
+  "module_name": "iteration45_runner_026_weights_variant",
+  "periods": [
+    1,
+    5,
+    20
+  ],
+  "repo_root": "D:\\source_code\\backtrader",
+  "runner_path": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi\\run.py",
+  "scenario": "026_weights_variant",
+  "scenario_dir": "D:\\temp\\iteration45-copy-final-r4-b269-20261022\\offline\\026\\scenarios\\026_weights_variant",
+  "strategy_file": "multi_factor_strategy.py"
+}

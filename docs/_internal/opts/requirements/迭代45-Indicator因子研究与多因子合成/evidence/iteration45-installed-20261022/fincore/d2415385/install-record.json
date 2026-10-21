@@ -1,0 +1,94 @@
+{
+  "acceptance": "COMMITTED_INSTALLED_WHEEL_SOURCE_QA",
+  "archive": {
+    "kind": "git archive extracted outside any worktree",
+    "path": "D:\\temp\\iteration45-fincore-wheel-d2415385\\fincore-d2415385.tar",
+    "sha256": "d8db1d626b668b08130db3c9beaa88f91b0c78848529732b64fb9ed7c72d5ae1",
+    "tracked_file_count": 832
+  },
+  "backtrader": {
+    "assertion_pass": true,
+    "distribution_installed": false,
+    "importable_spec": null,
+    "imported_during_qa": false
+  },
+  "branch": "dev",
+  "environment": {
+    "base_prefix": "C:\\anaconda3",
+    "freeze_package_count": 27,
+    "freeze_path": "D:\\temp\\iteration45-fincore-wheel-d2415385\\pip-freeze.txt",
+    "freeze_sha256": "13b0f7160e62baab02217dc536f543025ce9a5307b8ccce624ffdc11a65cd5a6",
+    "os_name": "nt",
+    "pip_check": "No broken requirements found.",
+    "pip_check_pass": true,
+    "platform": "Windows-10-10.0.26300-SP0",
+    "prefix": "D:\\temp\\iteration45-installed-20261022",
+    "purelib": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages",
+    "python_executable": "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+    "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "system_site_packages": false
+  },
+  "expected_head": "d2415385fc11d38ce8eb3f5020df7339607bfe8d",
+  "head": "d2415385fc11d38ce8eb3f5020df7339607bfe8d",
+  "install_command": "pip install --no-deps <wheel>",
+  "installed_distribution": {
+    "missing_files": [],
+    "name": "fincore",
+    "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+    "origin_in_venv": true,
+    "outside_venv_files": [],
+    "record_files": 281,
+    "record_hashes_verified": 146,
+    "record_mismatches": [],
+    "version": "0.5.1.dev0"
+  },
+  "qa": {
+    "archive_source_on_sys_path": [],
+    "counts": {
+      "collection_errors": 0,
+      "failed": 0,
+      "passed": 95,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0
+    },
+    "fincore_origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+    "log_path": "D:\\temp\\iteration45-fincore-wheel-d2415385\\qa.log",
+    "log_sha256": "cc40600ec315db2dbade67dd73cd9afc62545cc5128b994137e3e22c18353238",
+    "pytest_exit_code": 0,
+    "result_path": "D:\\temp\\iteration45-fincore-wheel-d2415385\\qa\\qa-result.json",
+    "result_sha256": "9e580eeea63a7dde7e90b867652a541a6096ebab09b2d40b48f11ac6f80712de",
+    "scope": "copied committed tests/factor_analysis files, external cwd, isolated Python, installed distribution imports",
+    "test_count": 95
+  },
+  "repository": "D:\\source_code\\fincore",
+  "source_payloads": {
+    "fincore/factor_analysis/research.py": {
+      "git_blob": "0da71ead7423cabbe52a894608e13432fd179523",
+      "matches_committed_git_blob": true,
+      "sha256": "cb061d3acce796d42dafc0d12cab9c19840637bc613da8a373353ada28cba97b",
+      "size_bytes": 64107
+    },
+    "fincore/factor_analysis/research_result.py": {
+      "git_blob": "10f7a0ec2af98773ab501423ec256b1dd04f4984",
+      "matches_committed_git_blob": true,
+      "sha256": "1c7ae48255b953d4e252f623b6693bbccecb7d54d7c800cf99d93f4764cbcd3b",
+      "size_bytes": 9256
+    },
+    "tests/factor_analysis/test_iteration45_research.py": {
+      "git_blob": "2965e5b6f98b776ea2bba4d77c603e995f48a351",
+      "matches_committed_git_blob": true,
+      "sha256": "ada03acd6174d28cdd5a6733ed9e055e14704956f1a9496b03d56ddb628f467a",
+      "size_bytes": 22029
+    }
+  },
+  "status": "PASS",
+  "wheel": {
+    "build_command": "pip wheel --no-deps --no-build-isolation",
+    "filename": "fincore-0.5.1.dev0-py3-none-any.whl",
+    "path": "D:\\temp\\iteration45-fincore-wheel-d2415385\\dist\\fincore-0.5.1.dev0-py3-none-any.whl",
+    "sha256": "e9616a0f11f6ca83a77a82ca368a5fade08e41e61122df98dd4bdff0a4df40d2",
+    "size_bytes": 700974
+  },
+  "worktree_status": "clean"
+}

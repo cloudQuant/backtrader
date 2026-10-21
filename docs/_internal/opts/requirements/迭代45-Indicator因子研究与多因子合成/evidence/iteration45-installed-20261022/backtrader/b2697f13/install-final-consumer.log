@@ -1,0 +1,7 @@
+Processing d:\temp\iteration45-backtrader-wheel-b2697f13\dist\backtrader-1.4.0-py3-none-any.whl
+Installing collected packages: backtrader
+  Attempting uninstall: backtrader
+    Found existing installation: backtrader 1.4.0
+    Uninstalling backtrader-1.4.0:
+      Successfully uninstalled backtrader-1.4.0
+Successfully installed backtrader-1.4.0

@@ -1,5 +1,7 @@
 ﻿# Alpha003横截面示例原型验证记录
 
+> **历史记录（2026-10-22状态标注）**：本文记录的是已被当前 `examples/backtest/027_alpha003_panel_acceptance` 原生示例替换的旧 expression 原型。旧 `PanelFactorIndicator.build(ctx)` 和本地表达式引擎仅用于追溯当时的原型验证，不是当前公开 API、当前027实现方式或当前验收依据；当前示例使用真实 `FactorIndicator(panel_mode="next")`，见[027 README](../../../../../examples/backtest/027_alpha003_panel_acceptance/README.md)及[R0/R4开发记录](开发与验收记录.md)。下文的AC状态是当时记录，不代表当前状态；所有其他AC的唯一当前状态见[验收结果](验收结果.md)。以下内容按当时事实保留为历史记录。
+
 日期：2026-10-21。仓库：`D:/source_code/backtrader`，现有`dev`。父提交：`9e078e28398bd68be51b125a618447ed4a29e145`。本记录与原型同批提交；准确提交可用`git log -1 -- examples/backtest/027_alpha003_panel_acceptance`定位，最终回复也提供SHA。
 
 ## 范围与使用方式

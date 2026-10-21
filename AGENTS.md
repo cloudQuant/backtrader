@@ -407,6 +407,25 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 - Multiple plotting backends: Plotly (`plot/`), Bokeh (`bokeh/`), Matplotlib.
 - Report generation: `reports/` (`reporter.py`, `performance.py`, `charts.py`).
 
+### Native factor research (Iteration 45)
+
+`backtrader.research` provides `FactorIndicator`, `FactorSpec`, `ResearchSpec`,
+`FactorStrategy`, and immutable `ResearchDataset` snapshots. Research requires
+Python 3.11 and pandas. Cerebro owns the normal indicator lifecycle; the strategy
+assembles and collects outputs without manually advancing factors or placing
+orders. Ordinary Indicators remain usable as factor children. Research rejects
+the old `execution` selector and unsupported live/replay/mixed-clock inputs.
+
+Collection and save/load work without fincore. Evaluation lazily calls the
+separately developed fincore public research API; do not duplicate its IC,
+labels, signal-combination or reporting algorithms in Backtrader. The native
+operators use the frozen `alpha101-v1` profile. `research/representative.py`
+contains 20 diagnostic formulas; `alpha101_dependencies.json` is a static
+101-formula inventory, not a complete production library. Full native and build
+libraries remain Iterations 46–48. Usage and acceptance records are linked from
+`docs/source/developer-guide/factor-research.md`; 025/026 are the standalone
+single/multi-factor examples and 027 is the native Alpha003 demonstration.
+
 ## Repository layout
 
 ```
@@ -417,6 +436,7 @@ backtrader/            core library
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
+  research/           native factors, panel inputs/operators, snapshots, fincore adapter
   notifications/  alert delivery: dingtalk/wecom/feishu/telegram/email/slack/
                   discord/ntfy/gotify/bark/webhook/wechat_clawbot/qq_bot
 backtrader_runtime/    Iteration 41 config-first CLI, sealed preset policy and

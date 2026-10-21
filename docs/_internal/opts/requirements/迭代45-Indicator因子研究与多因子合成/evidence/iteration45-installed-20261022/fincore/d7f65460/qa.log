@@ -1,0 +1,11 @@
+Invocation: D:\temp\iteration45-installed-20261022\Scripts\python.exe -I -m pytest -q -c D:\temp\iteration45-fincore-wheel-d7f65460\qa\pytest.ini D:\temp\iteration45-fincore-wheel-d7f65460\qa\test_iteration45_research.py
+Working directory: D:\temp\iteration45-fincore-wheel-d7f65460\qa
+Input: committed tests/factor_analysis/test_iteration45_research.py copied from git archive d7f65460c4f885e979d8543ddb15cc8f3c892742
+
+D:\temp\iteration45-installed-20261022\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+  The event loop scope for asynchronous fixtures will default to the fixture caching scope.
+  Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope.
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+....................                                                     [100%]
+20 passed in 35.06s

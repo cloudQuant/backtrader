@@ -1,0 +1,21 @@
+{
+  "baseline_wheel": "D:\\temp\\iteration45-backtrader-final-wheel-a01f472\\dist-matching-cf6-builder\\backtrader-1.4.0-py3-none-any.whl",
+  "baseline_sha256": "7020a11633af896d1fa3e42d483a5e641dca1e1395f59d33f1e12dcc20a80d40",
+  "final_wheel": "D:\\temp\\iteration45-backtrader-wheel-8c02e07f\\dist\\backtrader-1.4.0-py3-none-any.whl",
+  "final_sha256": "217eebc31b2d488d254d88c0c927bcbe2bfb507586610b0e79b0045647ea0742",
+  "baseline_package_files": 546,
+  "final_package_files": 546,
+  "package_added": [],
+  "package_removed": [],
+  "package_changed": [
+    "backtrader/research/fincore_adapter.py"
+  ],
+  "all_other_shared_package_payload_byte_identical": true,
+  "dist_info_added": [],
+  "dist_info_removed": [],
+  "dist_info_changed": [
+    "backtrader-1.4.0.dist-info/RECORD"
+  ],
+  "expected_package_delta_only_adapter": true,
+  "expected_dist_info_delta_only_record_metadata": true
+}

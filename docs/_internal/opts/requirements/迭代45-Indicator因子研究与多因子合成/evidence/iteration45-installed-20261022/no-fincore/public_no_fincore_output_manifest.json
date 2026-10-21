@@ -1,0 +1,86 @@
+{
+  "run_dir": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt",
+  "file_count": 16,
+  "files": [
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\acceptance.json",
+      "size": 2941,
+      "sha256": "94a8b23f60af4b4c13667629fcc88e94373f40c0979d16c9de9cdfe42fdc16ab"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\baseline.json",
+      "size": 962,
+      "sha256": "f7cd3a3dcc396b17359f5e1ff4010a4a307757ee1fd65d746ecb927a4a5b2496"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\baseline.stderr.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\baseline.stdout.log",
+      "size": 911,
+      "sha256": "57b64ef6126db6c9a8a612b01c8f70c8de7d486dbe4ec0bc2f6990e4074e5742"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\availability.csv",
+      "size": 1982,
+      "sha256": "67bec4a8becf78ac07c07dde866e42380fe4ad40754a08dc4eaa5282b744232f"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\factors.csv",
+      "size": 414,
+      "sha256": "b8f6839cd09fb35997c8357f089b78b4366d1fe4bb33295b097e079eea231c28"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\formula_inputs\\1664d66bf1d7561e79d741acc637414ee1874f3df8bae22d5a31faa5bf46627d.csv",
+      "size": 1329,
+      "sha256": "8224e9c8fd9f98245a5ebc38c79219076d996ff338999016e270edbc93fcd25e"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\formula_universe.csv",
+      "size": 428,
+      "sha256": "11c86f4f02513ee8e24c3cd839eaf598b8324462282d3e749f71b28fa5c97e90"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\grid.csv",
+      "size": 273,
+      "sha256": "c7f9472afa5817db848432014b80e51a70fd3eba1cb4acdea2207c26b6fd8196"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\manifest.json",
+      "size": 4376,
+      "sha256": "bbf7df4bd0aff948ed647f6f05f8ced4152db461210649a6bf93d7ce1eb8ede4"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\prices_close.csv",
+      "size": 195,
+      "sha256": "585a94c7aa7f3c6693d9f2409b0ac612fdf5f56c28fb7a389f46b21e52a14897"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\prices_open.csv",
+      "size": 218,
+      "sha256": "ba6ac41c11d2e8bafaa44715e07f9cc91f8be96e23c42a574368dde6e16a9bf5"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\dataset\\universe.csv",
+      "size": 428,
+      "sha256": "11c86f4f02513ee8e24c3cd839eaf598b8324462282d3e749f71b28fa5c97e90"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\roundtrip.json",
+      "size": 1129,
+      "sha256": "006499b89d6d4af2498b1ce4f053f5104c7a11bdd86c33d91041f57cb40b0564"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\roundtrip.stderr.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\iteration45-no-fincore-20261022\\iteration45-no-fincore-run-mwbzg_jt\\roundtrip.stdout.log",
+      "size": 1033,
+      "sha256": "52351a01b692ed0dccea7beb0ceafdae251510c56bca3f71eca6912e8ba27eda"
+    }
+  ]
+}
