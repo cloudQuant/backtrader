@@ -1,0 +1,49 @@
+{
+  "batch": "b",
+  "ids": [
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "source_pins": {
+    "backtrader/research/alpha101/batch_b.py": "306af1e2fb5f4abccc8192ddb752fabc39578d4009d25f98f846ad43058a37dc",
+    "backtrader/research/alpha101/_base.py": "5edd858cf61c270a385dcf5ffbb996f5900c5b501b5a09da79200bf08b2e528c",
+    "backtrader/research/operators.py": "5c48f9e0b94a9a7ef8652ebdcae84e3bec22d2f730708c255776d9ed71c9f757",
+    "backtrader/research/representative.py": "5336140f63a20a9dede808e13dee803221fdf7fdf1b3f9bd2c7f859966259257",
+    "tests/test_utils/alpha101_full_reference.py": "029d373ff2f458fa4d1f50395a83ddf7e22dfa5af11d67dcc0407725b56876f5",
+    "tests/test_utils/alpha101_native_harness.py": "442c06c532495962556bcb7501bab33c7983a3e83bd2a1ff559e21f2a760d694",
+    "tests/integration/test_alpha101_native_matrix.py": "88392cad406f5422cb45d8fa7acab64a505b911dbc87236c79d9c95776a8346f",
+    "tests/unit/test_factor_research_representatives.py": "85c282ffed84fb51729769f3a8936821935e089d6a53cbf6df93896d81096722"
+  },
+  "start_commit": "10149c5794b4cf9e68b3922e5a12c83d7c3e1aaa",
+  "interpreter": "C:\\anaconda3\\python.exe",
+  "fixture": "320 UTC daily grids x 6 synthetic assets",
+  "checks": [
+    "independent formula values and NaN masks",
+    "finite witness per ID",
+    "independent H",
+    "runnext and runonce",
+    "native lifecycle",
+    "broker submit/cancel forbidden",
+    "reversed assets and future suffix perturbation"
+  ],
+  "status": "PASS_LOCAL_SYNTHETIC_NATIVE_BATCH",
+  "elapsed_seconds": 559.6508852999978,
+  "sources_unchanged": true
+}
