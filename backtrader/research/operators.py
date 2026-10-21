@@ -316,6 +316,19 @@ def _line_target_relation(source: Any, target: Any, seen: Optional[set] = None) 
     operands = getattr(indicator, "_operand_args", None)
     if operands is not None:
         dependencies = [operand for operand in operands if _is_line_operand(operand)]
+        if (
+            not dependencies
+            and isinstance(indicator, _OperatorIndicator)
+            and operands
+            and all(
+                isinstance(operand, numbers.Real) and not isinstance(operand, bool)
+                for operand in operands
+            )
+        ):
+            # A scalar-only native operator is a target-neutral leaf.  It may
+            # participate in an otherwise target-bound expression without
+            # obscuring the feed identity carried by its sibling operands.
+            return True
         if dependencies:
             # ``seen`` is a recursion path, not a global visited set. Scalar
             # expressions commonly form a DAG where sibling branches share an
