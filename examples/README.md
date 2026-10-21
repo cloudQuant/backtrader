@@ -47,7 +47,9 @@
 | `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | 目录内 `data/113013.csv`、`data/orcl-1995-2014.txt` | ✅ |
 | `011_hft_backtest` | `tick_backtest.py`、`orderbook_backtest.py` | `tests/datas/tick_data/`(7.2MB) | ⚠️ `exit 2` 指示先 `tools/generate_test_data.py`（假通过已修） |
 | `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config` 解析（不支持 `BACKTRADER_DATA_DIR`） | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
-| `027_alpha003_panel_acceptance` | `run.py`（支持 `--config/--output-dir`） | 原生 FactorIndicator 截面因子 | R0 原生 #3 展示；需含 research 模块的 Backtrader；不代表完整迭代45验收 |
+| `025_factor_single` | `run.py`（支持 `--no-charts`） | 本地生成20资产确定性 OHLCV，Close/MA 单因子 | 需安装含研究 API 的 Backtrader 与 fincore；验收记录见迭代45 |
+| `026_factor_multi` | `run.py`（支持 `--no-charts`） | 与025同源；Close/MA、ROC、KDJ及固定权重合成 | 同上；支持保存数据集后的离线复评 |
+| `027_alpha003_panel_acceptance` | `run.py`（支持 `--config/--output-dir`） | 原生 FactorIndicator 截面因子 | 原生 #3 展示；需含 research 模块的 Backtrader；不代表完整迭代45验收 |
 
 小数据随目录走（`<leaf>/data/`，逐字节副本 + 漂移守卫）；**大数据不随目录复制**，缺失即 fail-closed 点名，
 绝不静默联网补齐。`003` 是这一范式的既有实现。

@@ -1,0 +1,55 @@
+schema_version: iteration45-factor-example-v1
+example_id: 025_factor_single
+
+data:
+  generator_version: synthetic-ohlcv-sha256-v1
+  data_version: synthetic-ohlcv-sha256-v1-seed4510
+  seed: 4510
+  start_date: '2025-01-06'
+  asset_prefix: SYN
+  asset_count: 20
+  warmup_bars: 20
+  research_bars: 260
+  tail_bars: 21
+  calendar_id: synthetic-weekday-v1
+  frequency: 1session
+  source_timezone: UTC
+  open_time_utc: '09:30:00'
+  close_time_utc: '16:00:00'
+  group: synthetic-demo
+  snapshot_id: iteration45-synthetic-ohlcv-sha256-v1-seed4510
+  price_basis: synthetic unadjusted USD-like units; no splits or dividends
+
+factor:
+  name: close_ma
+  indicator: CloseMAFactor
+  panel_line: factor
+  params:
+    period: 20
+  direction: 1
+
+evaluation:
+  periods: [1, 5, 20]
+  label: next_open_to_open
+  precomputed_entry: next_open
+  quantiles: 5
+  min_assets: 10
+  min_quantile_assets: 1
+  preprocess: cross_section_rank
+  max_loss: 0.35
+  stability_lags: [1, 5, 20]
+  segments:
+    development:
+      research_bar_start: 0
+      research_bar_end: 159
+      role: development
+    validation:
+      research_bar_start: 160
+      research_bar_end: 259
+      role: validation
+
+outputs:
+  charts_by_default: true
+  dataset_directory: dataset
+  evaluation_directory: evaluation
+  optional_evaluation_tables: [diagnostics]

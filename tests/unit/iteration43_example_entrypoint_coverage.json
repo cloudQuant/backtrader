@@ -2,6 +2,14 @@
   "schema_version": 1,
   "acceptance_status": "classification_only_not_run_evidence",
   "inventory_scope": "tracked Python files under examples with an AST __main__ equality guard",
+  "iteration45_native_factor_research": {
+    "copy_contract_entries": [
+      "examples/backtest/025_factor_single/run.py",
+      "examples/backtest/026_factor_multi/run.py",
+      "examples/backtest/027_alpha003_panel_acceptance/run.py"
+    ],
+    "note": "Classified by COPY_CONTRACT; this inventory does not assert runtime or installed acceptance."
+  },
   "frozen_dry_evidence": {
     "case_ids": [
       "B01",

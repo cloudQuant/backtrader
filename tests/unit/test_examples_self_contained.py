@@ -74,6 +74,8 @@ STDLIB = _stdlib_module_names()
 # present in every source-QA environment. Keep exceptions scoped to those
 # example leaves so they cannot hide imports in other examples.
 OPTIONAL_EXAMPLE_MODULES = {
+    "025_factor_single": frozenset({"fincore"}),
+    "026_factor_multi": frozenset({"fincore"}),
     "017_fnn_embedding": frozenset({"torch"}),
     # The cross-exchange demonstrations explicitly require the separately
     # maintained SDK package even for their offline/replay support code.

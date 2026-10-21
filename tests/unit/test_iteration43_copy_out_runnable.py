@@ -21,6 +21,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE_TIMEOUT = 600
+# Factor reports evaluate all variants, common pools, ablations and horizons.
+# This is an execution timeout, not a performance acceptance threshold.
+FACTOR_REPORT_TIMEOUT = 1200
 INSTALL_PROBE = (
     "import importlib.util, importlib.metadata, json; "
     "spec = importlib.util.find_spec('backtrader'); "
@@ -45,6 +48,8 @@ OPTIONAL16_DRY_SCRIPTS = {
 UNCOMMITTED_PUBLIC_CONFIGS = {
     "examples/backtest/018_sma_crossover/config.yaml",
     "examples/backtest/027_alpha003_panel_acceptance/config.yaml",
+    "examples/backtest/025_factor_single/config.yaml",
+    "examples/backtest/026_factor_multi/config.yaml",
 }
 
 # (leaf, argv, missing-input marker or None when the leaf must run)
@@ -66,6 +71,18 @@ COPY_CONTRACT = (
         "no remote request made",
     ),
     ("backtest/023_mixed_mode_backtest", ["run.py"], None),
+    ("backtest/025_factor_single", ["run.py", "--output-dir", "output/copy-default"], None),
+    (
+        "backtest/025_factor_single",
+        ["run.py", "--output-dir", "output/copy-no-charts", "--no-charts"],
+        None,
+    ),
+    ("backtest/026_factor_multi", ["run.py", "--output-dir", "output/copy-default"], None),
+    (
+        "backtest/026_factor_multi",
+        ["run.py", "--output-dir", "output/copy-no-charts", "--no-charts"],
+        None,
+    ),
     ("backtest/027_alpha003_panel_acceptance", ["run.py"], None),
     (
         "backtest/027_alpha003_panel_acceptance",
@@ -512,7 +529,11 @@ def test_copied_leaf_runs_or_fails_closed(
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=PROBE_TIMEOUT,
+        timeout=(
+            FACTOR_REPORT_TIMEOUT
+            if leaf in {"backtest/025_factor_single", "backtest/026_factor_multi"}
+            else PROBE_TIMEOUT
+        ),
         env=_child_environment(destination),
     )
     output = (completed.stdout or "") + (completed.stderr or "")

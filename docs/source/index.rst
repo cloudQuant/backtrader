@@ -286,6 +286,7 @@ Backtrader is part of the CloudQuant quantitative-research ecosystem:
    developer-guide/style
    developer-guide/contributing
    developer-guide/release
+   developer-guide/factor-research
 
 .. toctree::
    :maxdepth: 1
