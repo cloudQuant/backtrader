@@ -47,6 +47,7 @@
 | `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | 目录内 `data/113013.csv`、`data/orcl-1995-2014.txt` | ✅ |
 | `011_hft_backtest` | `tick_backtest.py`、`orderbook_backtest.py` | `tests/datas/tick_data/`(7.2MB) | ⚠️ `exit 2` 指示先 `tools/generate_test_data.py`（假通过已修） |
 | `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config` 解析（不支持 `BACKTRADER_DATA_DIR`） | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
+| `027_alpha003_panel_acceptance` | `run.py`（支持 `--config/--output-dir`） | 本地确定性因子面板 | ✅ 三种命令严格复制通过；仅原型验收，不代表完整迭代45/AC45通过 |
 
 小数据随目录走（`<leaf>/data/`，逐字节副本 + 漂移守卫）；**大数据不随目录复制**，缺失即 fail-closed 点名，
 绝不静默联网补齐。`003` 是这一范式的既有实现。

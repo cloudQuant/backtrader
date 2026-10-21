@@ -44,6 +44,7 @@ OPTIONAL16_DRY_SCRIPTS = {
 }
 UNCOMMITTED_PUBLIC_CONFIGS = {
     "examples/backtest/018_sma_crossover/config.yaml",
+    "examples/backtest/027_alpha003_panel_acceptance/config.yaml",
 }
 
 # (leaf, argv, missing-input marker or None when the leaf must run)
@@ -65,6 +66,17 @@ COPY_CONTRACT = (
         "no remote request made",
     ),
     ("backtest/023_mixed_mode_backtest", ["run.py"], None),
+    ("backtest/027_alpha003_panel_acceptance", ["run.py"], None),
+    (
+        "backtest/027_alpha003_panel_acceptance",
+        ["run.py", "--config", "config.yaml"],
+        None,
+    ),
+    (
+        "backtest/027_alpha003_panel_acceptance",
+        ["run.py", "--output-dir", "output/copy-contract"],
+        None,
+    ),
     (
         "backtest/019_bollinger_band_doge",
         ["bollinger_band_strategy_train.py"],

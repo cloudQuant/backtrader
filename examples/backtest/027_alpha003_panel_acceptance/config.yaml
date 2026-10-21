@@ -1,0 +1,5 @@
+# Public synthetic example configuration; no account or external data inputs.
+factor: alpha003
+operator_profile: alpha101-v1
+fixture: af45_003_v1
+output_dir: output
