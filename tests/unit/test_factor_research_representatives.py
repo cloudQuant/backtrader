@@ -921,9 +921,7 @@ def _formula_reference(alpha_id, frames, *, members=None, groups=None):
         remember("exponent_correlation6", correlation)
         remember("rank_exponent", exponent)
         remember("ordinary_power", powered)
-        ranked = cross_rank(powered)
-        remember("rank_power", ranked)
-        return remember("factor", _pointwise(lambda value: -value, ranked))
+        return remember("factor", _pointwise(lambda value: -value, powered))
     if alpha_id == 81:
         adv10 = _rolling(f["dollar_volume"], 10, _mean)
         adv_sum = _rolling(adv10, 49.6054, _sum)

@@ -1,0 +1,200 @@
+"""Contracts for promotion of the twenty accepted Alpha101 recipes."""
+
+from dataclasses import FrozenInstanceError
+import math
+
+import pytest
+
+from backtrader.research.alpha101 import (
+    ALPHA_REGISTRY,
+    Alpha001Native,
+    Alpha002Native,
+    Alpha003Native,
+    Alpha004Native,
+    Alpha007Native,
+    Alpha009Native,
+    Alpha013Native,
+    Alpha029Native,
+    Alpha048Native,
+    Alpha056Native,
+    Alpha058Native,
+    Alpha062Native,
+    Alpha063Native,
+    Alpha067Native,
+    Alpha081Native,
+    Alpha084Native,
+    Alpha092Native,
+    Alpha096Native,
+    Alpha100Native,
+    Alpha101Native,
+    DEFAULT_FORMULA_UNIVERSE_POLICY,
+    FormulaIdentity,
+    ImplementationIdentity,
+    NativeAlphaBase,
+    get_alpha,
+    list_alphas,
+    native_alpha,
+)
+from backtrader.research.factor_indicator import FactorIndicator
+from backtrader.research.representative import REPRESENTATIVE_FACTORS
+from tests.unit.test_factor_research_representatives import (
+    _HISTORY,
+    _formula_reference,
+    _frames,
+    _run_subset,
+)
+
+
+_PROMOTED = {
+    1: Alpha001Native,
+    2: Alpha002Native,
+    3: Alpha003Native,
+    4: Alpha004Native,
+    7: Alpha007Native,
+    9: Alpha009Native,
+    13: Alpha013Native,
+    29: Alpha029Native,
+    48: Alpha048Native,
+    56: Alpha056Native,
+    58: Alpha058Native,
+    62: Alpha062Native,
+    63: Alpha063Native,
+    67: Alpha067Native,
+    81: Alpha081Native,
+    84: Alpha084Native,
+    92: Alpha092Native,
+    96: Alpha096Native,
+    100: Alpha100Native,
+    101: Alpha101Native,
+}
+
+
+def test_metadata_decorator_is_immutable_and_has_no_registry_side_effect():
+    before = list_alphas()
+    before_registry = tuple(ALPHA_REGISTRY.items())
+
+    @native_alpha
+    class UnregisteredAlpha077(NativeAlphaBase):
+        lines = ("factor",)
+        alpha_id = 77
+        formula = "rank(close)"
+        lookback_h = 0
+        formula_fields = ("close",)
+        classification_fields = ()
+        classification_levels = ()
+
+    assert list_alphas() == before
+    assert tuple(ALPHA_REGISTRY.items()) == before_registry
+    assert UnregisteredAlpha077.formula_identity == FormulaIdentity(
+        alpha_id=77,
+        expression="rank(close)",
+        lookback_h=0,
+        operator_profile="alpha101-v1",
+        formula_fields=("close",),
+        classification_fields=(),
+        classification_levels=(),
+        formula_universe_policy=DEFAULT_FORMULA_UNIVERSE_POLICY,
+        pit_policy=UnregisteredAlpha077.pit_policy,
+    )
+    assert UnregisteredAlpha077.implementation_identity == ImplementationIdentity(
+        implementation_id="native:077:v1",
+        version="alpha101-native-v1",
+    )
+    assert UnregisteredAlpha077.implementation_id == "native:077:v1"
+    assert UnregisteredAlpha077.implementation_version == "alpha101-native-v1"
+    with pytest.raises(FrozenInstanceError):
+        UnregisteredAlpha077.formula_identity.lookback_h = 99
+
+
+def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
+    assert set(_PROMOTED).issubset(list_alphas())
+    assert set(_PROMOTED).issubset(ALPHA_REGISTRY)
+
+    for alpha_id, native_class in _PROMOTED.items():
+        representative = REPRESENTATIVE_FACTORS[alpha_id]
+        identity = native_class.formula_identity
+        implementation = native_class.implementation_identity
+
+        assert get_alpha(alpha_id) is native_class
+        assert issubclass(native_class, NativeAlphaBase)
+        assert issubclass(native_class, FactorIndicator)
+        assert issubclass(native_class, representative)
+        assert native_class.__dict__["alpha_id"] == alpha_id
+        assert native_class._make_formula is representative.__dict__["_make_formula"]
+        assert native_class.formula == identity.expression == representative.formula
+        assert native_class.lookback_h == identity.lookback_h == representative.lookback_h
+        assert native_class.operator_profile == identity.operator_profile
+        assert (
+            native_class.formula_fields
+            == identity.formula_fields
+            == tuple(representative.formula_fields)
+        )
+        assert (
+            native_class.classification_fields
+            == identity.classification_fields
+            == tuple(getattr(representative, "classification_fields", ()))
+        )
+        assert (
+            native_class.classification_levels
+            == identity.classification_levels
+            == tuple(representative.classification_levels)
+        )
+        assert native_class.implementation_id == implementation.implementation_id
+        assert native_class.implementation_id == "native:%03d:v1" % alpha_id
+        assert native_class.implementation_version == implementation.version
+        assert implementation.version == "alpha101-native-v1"
+
+    assert (
+        Alpha009Native.formula_identity.formula_universe_policy
+        == "per-target close history; output eligibility from ResearchSpec.formula_universe"
+    )
+    assert (
+        Alpha101Native.formula_identity.formula_universe_policy
+        == "per-target pointwise evaluation; output eligibility from ResearchSpec.formula_universe"
+    )
+
+
+@pytest.mark.parametrize("runonce", (False, True))
+def test_all_twenty_promotions_match_the_independent_representative_oracle(runonce):
+    frames = _frames(periods=320)
+    factor_names = {"alpha%d" % alpha_id: cls for alpha_id, cls in _PROMOTED.items()}
+    strategy = _run_subset(frames, factor_names, runonce=runonce)
+    raw = strategy.get_dataset().raw_factors
+    grid = tuple(next(iter(frames.values())).index.to_pydatetime())
+    assets = tuple(frames)
+
+    for alpha_id, native_class in _PROMOTED.items():
+        name = "alpha%d" % alpha_id
+        expected, _ = _formula_reference(alpha_id, frames)
+        spec = strategy._factor_specs_by_name[name]
+        factor = strategy.factor_instances[name]
+        assert spec.indicator is native_class
+        assert spec.lookback_h == native_class.lookback_h
+        assert factor.lookback_h == native_class.lookback_h
+
+        finite_witnesses = 0
+        for row, point in enumerate(grid):
+            for column, asset in enumerate(assets):
+                # The frozen 45 matrix oracle computes formula nodes before
+                # the declared indicator warmup is applied. Mask against its
+                # independent H table, never the production class/spec.
+                wanted = expected[row][column] if row >= _HISTORY[alpha_id] else math.nan
+                got = float(raw.at[(point, asset), name])
+                if math.isnan(wanted):
+                    assert math.isnan(got), "%s row %d asset %s should remain ineligible/warmup" % (
+                        name,
+                        row,
+                        asset,
+                    )
+                else:
+                    assert math.isfinite(got), "%s row %d asset %s is not finite" % (
+                        name,
+                        row,
+                        asset,
+                    )
+                    assert abs(got - wanted) <= 1e-12 + 1e-10 * abs(wanted), (
+                        "%s row %d asset %s differs from the independent oracle: "
+                        "got %.17g, wanted %.17g" % (name, row, asset, got, wanted)
+                    )
+                    finite_witnesses += 1
+        assert finite_witnesses, "%s produced no finite reference-backed witness" % name

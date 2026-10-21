@@ -492,7 +492,7 @@ class Alpha063(_RepresentativeFactor):
 
 
 class Alpha067(_RepresentativeFactor):
-    """AF45-067: ranked ordinary power with sector/subindustry neutralization."""
+    """AF45-067: ordinary power of ranks, then negate (no outer rank)."""
 
     lines: Any = ("factor",)
     alpha_id = 67
@@ -502,7 +502,7 @@ class Alpha067(_RepresentativeFactor):
     required_fields = formula_fields
     classification_levels = ("sector", "subindustry")
     classification_fields = ("sector", "subindustry")
-    formula = "((rank((high - ts_min(high, 2.14593))^rank(correlation(IndNeutralize(vwap, IndClass.sector), IndNeutralize(adv20, IndClass.subindustry), 6.02936))) * -1)"
+    formula = "((rank((high - ts_min(high, 2.14593)))^rank(correlation(IndNeutralize(vwap, IndClass.sector), IndNeutralize(adv20, IndClass.subindustry), 6.02936))) * -1)"
 
     def _make_formula(self) -> Tuple[Any, ...]:
         high_min = self._per_asset("high_min2", TsMin, self._field("high"), period=2.14593)
@@ -533,8 +533,7 @@ class Alpha067(_RepresentativeFactor):
         )
         exponent = self._panel("rank_exponent", CrossSectionalRank, exponent_correlation)
         powered = self._per_asset("ordinary_power", Power, base, exponent)
-        ranked = self._panel("rank_power", CrossSectionalRank, powered)
-        return self._per_asset("negate", Multiply, ranked, (-1.0,) * len(self.datas))
+        return self._per_asset("negate", Multiply, powered, (-1.0,) * len(self.datas))
 
 
 class Alpha081(_RepresentativeFactor):
