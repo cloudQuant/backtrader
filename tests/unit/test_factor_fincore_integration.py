@@ -103,17 +103,23 @@ def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path
     collected.save(saved_path)
     dataset = load_dataset(saved_path)
     assert dataset.dataset_id == collected.dataset_id
+    assert collected.grid.index.freq is not None
+    assert dataset.grid.index.freq is None
 
-    result = evaluate_dataset(
-        dataset,
-        label="close_to_close",
-        periods=(1,),
-        quantiles=2,
-        min_assets=4,
-        min_quantile_assets=1,
-        max_loss=1.0,
-        stability_lags=(1,),
-    )
+    evaluation_options = {
+        "label": "close_to_close",
+        "periods": (1,),
+        "quantiles": 2,
+        "min_assets": 4,
+        "min_quantile_assets": 1,
+        "max_loss": 1.0,
+        "stability_lags": (1,),
+    }
+    collected_result = evaluate_dataset(collected, **evaluation_options)
+    result = evaluate_dataset(dataset, **evaluation_options)
+    assert collected_result.manifest["input_fingerprint"] == result.manifest["input_fingerprint"]
+    assert collected_result.manifest["evaluation_id"] == result.manifest["evaluation_id"]
+    assert collected.grid.index.freq is not None
     assert result.status == "PARTIAL"
     first_period_stability = result.stability.loc[result.stability["time"] == dataset.start]
     later_stability = result.stability.loc[result.stability["time"] > dataset.start]

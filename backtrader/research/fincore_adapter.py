@@ -242,6 +242,40 @@ def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
         ) from exc
 
 
+def _drop_datetime_index_frequency(value: Any, pandas: Any) -> Any:
+    """Remove inferred index frequency from a defensive evaluation copy.
+
+    A DatetimeIndex's ``freq`` is derivable metadata: dataset persistence keeps
+    the timestamps and their order, but CSV reconstruction cannot retain that
+    cache. Fincore fingerprints pandas index metadata, so passing a collected
+    frame and its save/load copy otherwise produces different evaluation IDs.
+    """
+    if not isinstance(value, (pandas.DataFrame, pandas.Series)):
+        return value
+
+    index = value.index
+    if isinstance(index, pandas.MultiIndex):
+        levels = []
+        changed = False
+        for level in index.levels:
+            if isinstance(level, pandas.DatetimeIndex) and level.freq is not None:
+                levels.append(pandas.DatetimeIndex(level, name=level.name, freq=None))
+                changed = True
+            else:
+                levels.append(level)
+        if changed:
+            value.index = pandas.MultiIndex(
+                levels=levels,
+                codes=[code.copy() for code in index.codes],
+                sortorder=index.sortorder,
+                names=index.names,
+                verify_integrity=False,
+            )
+    elif isinstance(index, pandas.DatetimeIndex) and index.freq is not None:
+        value.index = pandas.DatetimeIndex(index, name=index.name, freq=None)
+    return value
+
+
 def _translate_known_error(module: Any, exc: BaseException) -> BaseException:
     """Translate only declared fincore error classes; never classify by text."""
     classes = getattr(module, "__dict__", {})
@@ -325,18 +359,34 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
             "the installed fincore build does not support label %r" % label,
             code="DEPENDENCY_UNAVAILABLE",
         )
+    try:
+        pandas = importlib.import_module("pandas")
+    except ImportError as exc:
+        raise DependencyError(
+            "pandas is required to inspect fincore research results",
+            code="DEPENDENCY_UNAVAILABLE",
+        ) from exc
+
     prices = None if label == "precomputed" else dataset.prices or None
+    if prices is not None:
+        prices = {
+            name: _drop_datetime_index_frequency(frame, pandas) for name, frame in prices.items()
+        }
     precomputed_returns = dataset.precomputed_returns if label == "precomputed" else None
-    factors = dataset.raw_factors
+    if precomputed_returns is not None:
+        precomputed_returns = _drop_datetime_index_frequency(precomputed_returns, pandas)
+    grid = _drop_datetime_index_frequency(dataset.grid, pandas)
+    universe = _drop_datetime_index_frequency(dataset.universe, pandas)
+    factors = _drop_datetime_index_frequency(dataset.raw_factors, pandas)
     factors.attrs["factor_directions"] = _factor_directions(dataset)
     factors.attrs["dataset_id"] = dataset.dataset_id
     factors.attrs["provenance"] = dataset.metadata.get("provenance", {})
     try:
         result = module.evaluate_factor_research(
             factors,
-            grid=dataset.grid,
+            grid=grid,
             prices=prices,
-            universe=dataset.universe,
+            universe=universe,
             groups=dataset.groups,
             precomputed_returns=precomputed_returns,
             spec=normalized,
@@ -378,13 +428,6 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
             "fincore result manifest or status is invalid",
             code="DEPENDENCY_UNAVAILABLE",
         )
-    try:
-        pandas = importlib.import_module("pandas")
-    except ImportError as exc:
-        raise DependencyError(
-            "pandas is required to inspect fincore research results",
-            code="DEPENDENCY_UNAVAILABLE",
-        ) from exc
     invalid_tables = tuple(
         name
         for name in _REQUIRED_TABLES
