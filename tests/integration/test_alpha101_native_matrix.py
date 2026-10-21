@@ -68,7 +68,71 @@ def _fixture_context(frames):
     return grid, assets, members, groups
 
 
-def _oracle_output(alpha_id, matrices, members, groups, *, assets):
+def _preflight_source_field(alias):
+    """Resolve a declared input alias to its independently supplied source."""
+    if alias == "returns":
+        return "close"
+    if alias.startswith("adv") and alias[3:].isdigit():
+        return "dollar_volume"
+    return alias
+
+
+def _expected_preflight_mask(alpha_id, frames, matrices, *, grid):
+    """Project input availability over the public inclusive H-window contract.
+
+    This derives only from the fixture's bar presence, market-field values, and
+    already projected PIT classification matrices. It does not inspect the
+    collected dataset or production availability table. Formula-universe
+    membership is deliberately excluded: it is a current-output eligibility
+    mask handled independently by the reference oracle.
+    """
+    assets = tuple(frames)
+    factor_class = get_alpha(alpha_id)
+    aliases = tuple(factor_class.formula_fields) + tuple(factor_class.classification_fields)
+    source_fields = {alias: _preflight_source_field(alias) for alias in aliases}
+    missing_sources = set(source_fields.values()) - set(matrices)
+    if missing_sources:
+        raise AssertionError(
+            "Alpha%d fixture lacks preflight source matrices: %r"
+            % (alpha_id, sorted(missing_sources))
+        )
+    if len(matrices) == 0 or any(
+        len(matrices[field]) != len(grid) or any(len(row) != len(assets) for row in matrices[field])
+        for field in source_fields.values()
+    ):
+        raise AssertionError("preflight source matrices must match the fixture grid")
+
+    declared_h = history_h(alpha_id, matrices)
+    present = {asset: set(frames[asset].index) for asset in assets}
+    result = [[True for _asset in assets] for _point in grid]
+    for row in range(len(grid)):
+        start = max(0, row - declared_h)
+        for column, asset in enumerate(assets):
+            # FactorStrategy gives a missing current target bar precedence.
+            if grid[row] not in present[asset]:
+                result[row][column] = False
+                continue
+            for input_row in range(start, row + 1):
+                if grid[input_row] not in present[asset]:
+                    result[row][column] = False
+                    break
+                if any(
+                    pd.isna(matrices[source_fields[alias]][input_row][column]) for alias in aliases
+                ):
+                    result[row][column] = False
+                    break
+    return result
+
+
+def _oracle_output(
+    alpha_id,
+    matrices,
+    members,
+    groups,
+    *,
+    assets,
+    expected_preflight_mask=None,
+):
     oracle_groups = tuple(groups[asset] for asset in assets) if isinstance(groups, dict) else groups
     expected = reference(
         alpha_id,
@@ -82,6 +146,16 @@ def _oracle_output(alpha_id, matrices, members, groups, *, assets):
     # before the declared dependency-derived H.
     for row in range(min(declared_h, len(expected))):
         expected[row] = [math.nan] * len(expected[row])
+    if expected_preflight_mask is not None:
+        if len(expected_preflight_mask) != len(expected) or any(
+            len(mask_row) != len(expected_row)
+            for mask_row, expected_row in zip(expected_preflight_mask, expected)
+        ):
+            raise AssertionError("expected preflight mask must match the oracle time×asset grid")
+        for row, mask_row in enumerate(expected_preflight_mask):
+            for column, available in enumerate(mask_row):
+                if not bool(available):
+                    expected[row][column] = math.nan
     return expected, declared_h
 
 
@@ -95,6 +169,7 @@ def _checked_native_case(
     groups,
     research=None,
     matrices=None,
+    expected_preflight_mask=None,
     alpha_classes=None,
 ):
     oracle_input = oracle_frames(frames, grid=grid) if matrices is None else matrices
@@ -104,6 +179,7 @@ def _checked_native_case(
         members,
         groups,
         assets=tuple(frames),
+        expected_preflight_mask=expected_preflight_mask,
     )
     if research is None:
         research = make_research_spec(
@@ -144,6 +220,27 @@ def _assert_state(strategy, alpha_id, point, asset, reason, *, ready, valid):
     assert state["reason"] == reason
     assert bool(state["ready"]) is ready
     assert bool(state["valid"]) is valid
+
+
+def _assert_preflight_reason_window(
+    strategy,
+    alpha_id,
+    grid,
+    asset,
+    first_row,
+    last_row,
+    reason,
+):
+    for row in range(first_row, last_row + 1):
+        _assert_state(
+            strategy,
+            alpha_id,
+            grid[row],
+            asset,
+            reason,
+            ready=False,
+            valid=False,
+        )
 
 
 def test_alpha101_batch_matrix_matches_independent_oracle(
@@ -393,6 +490,13 @@ def _run_missing_bar_case(frames, runonce):
     gap_frames = {asset: frame.copy(deep=True) for asset, frame in frames.items()}
     gap_frames["asset-0"] = gap_frames["asset-0"].drop(index=missing_time)
     matrices = oracle_frames(gap_frames, grid=grid)
+    preflight = _expected_preflight_mask(alpha_id, gap_frames, matrices, grid=grid)
+    declared_h = history_h(alpha_id, matrices)
+    last_blocked_row = min(len(grid) - 1, missing_row + declared_h)
+    asset_column = assets.index("asset-0")
+    assert all(not preflight[row][asset_column] for row in range(missing_row, last_blocked_row + 1))
+    if last_blocked_row + 1 < len(grid):
+        assert preflight[last_blocked_row + 1][asset_column]
     strategy, _, _ = _checked_native_case(
         alpha_id,
         gap_frames,
@@ -402,15 +506,16 @@ def _run_missing_bar_case(frames, runonce):
         groups=groups,
         research=research,
         matrices=matrices,
+        expected_preflight_mask=preflight,
     )
-    _assert_state(
+    _assert_preflight_reason_window(
         strategy,
         alpha_id,
-        missing_time,
+        grid,
         "asset-0",
+        missing_row,
+        last_blocked_row,
         "NO_CURRENT_BAR",
-        ready=False,
-        valid=False,
     )
 
 
@@ -421,6 +526,11 @@ def _run_formula_universe_case(frames, runonce):
     first_exit, last_exit = 260, 265
     for row in range(first_exit, last_exit + 1):
         members[row][assets.index("asset-5")] = False
+    matrices = oracle_frames(frames, grid=grid)
+    preflight = _expected_preflight_mask(alpha_id, frames, matrices, grid=grid)
+    asset_column = assets.index("asset-5")
+    assert all(preflight[row][asset_column] for row in range(first_exit, last_exit + 1))
+    assert preflight[280][asset_column]
     strategy, actual, expected = _checked_native_case(
         alpha_id,
         frames,
@@ -428,6 +538,8 @@ def _run_formula_universe_case(frames, runonce):
         grid=grid,
         members=members,
         groups=groups,
+        matrices=matrices,
+        expected_preflight_mask=preflight,
     )
     exit_point = grid[first_exit]
     _assert_state(
@@ -459,6 +571,14 @@ def _run_unknown_pit_case(alpha_id, level, unknown_row, frames, runonce):
     unknown_time = grid[unknown_row]
     unknown_frames = {asset: frame.copy(deep=True) for asset, frame in frames.items()}
     unknown_frames["asset-0"].loc[unknown_time, level] = math.nan
+    matrices = oracle_frames(unknown_frames, grid=grid)
+    preflight = _expected_preflight_mask(alpha_id, unknown_frames, matrices, grid=grid)
+    declared_h = history_h(alpha_id, matrices)
+    last_blocked_row = min(len(grid) - 1, unknown_row + declared_h)
+    asset_column = assets.index("asset-0")
+    assert all(not preflight[row][asset_column] for row in range(unknown_row, last_blocked_row + 1))
+    if last_blocked_row + 1 < len(grid):
+        assert preflight[last_blocked_row + 1][asset_column]
     strategy, _, _ = _checked_native_case(
         alpha_id,
         unknown_frames,
@@ -466,15 +586,17 @@ def _run_unknown_pit_case(alpha_id, level, unknown_row, frames, runonce):
         grid=grid,
         members=members,
         groups=groups,
+        matrices=matrices,
+        expected_preflight_mask=preflight,
     )
-    _assert_state(
+    _assert_preflight_reason_window(
         strategy,
         alpha_id,
-        unknown_time,
+        grid,
         "asset-0",
+        unknown_row,
+        last_blocked_row,
         "UNKNOWN_CLASSIFICATION",
-        ready=False,
-        valid=False,
     )
 
 
@@ -509,6 +631,12 @@ def _run_late_industry_case(frames, runonce):
         matrices["industry"][row][assets.index("asset-0")] = math.nan
     for row in range(publication_row, len(grid)):
         matrices["industry"][row][assets.index("asset-0")] = published_industry
+    preflight = _expected_preflight_mask(alpha_id, frames, matrices, grid=grid)
+    declared_h = history_h(alpha_id, matrices)
+    first_ready_row = publication_row + declared_h
+    asset_column = assets.index("asset-0")
+    assert all(not preflight[row][asset_column] for row in range(first_ready_row))
+    assert preflight[first_ready_row][asset_column]
     strategy, actual, expected = _checked_native_case(
         alpha_id,
         frames,
@@ -518,35 +646,16 @@ def _run_late_industry_case(frames, runonce):
         groups=groups,
         research=research,
         matrices=matrices,
+        expected_preflight_mask=preflight,
     )
-    declared_h = history_h(alpha_id, matrices)
-    first_ready_row = publication_row + declared_h
-    _assert_state(
+    _assert_preflight_reason_window(
         strategy,
         alpha_id,
-        grid[0],
+        grid,
         "asset-0",
+        0,
+        first_ready_row - 1,
         "NOT_YET_AVAILABLE",
-        ready=False,
-        valid=False,
-    )
-    _assert_state(
-        strategy,
-        alpha_id,
-        late_point,
-        "asset-0",
-        "NOT_YET_AVAILABLE",
-        ready=False,
-        valid=False,
-    )
-    _assert_state(
-        strategy,
-        alpha_id,
-        grid[first_ready_row - 1],
-        "asset-0",
-        "NOT_YET_AVAILABLE",
-        ready=False,
-        valid=False,
     )
     assert math.isfinite(expected[first_ready_row][assets.index("asset-0")])
     assert math.isfinite(actual[first_ready_row][assets.index("asset-0")])
@@ -575,6 +684,10 @@ def _run_domain_edge_case(alpha_id, frames, runonce):
         constants[assets[0]]["close"] = 0.0
     else:
         raise AssertionError("unexpected domain-edge formula")
+    matrices = oracle_frames(constants, grid=grid)
+    preflight = _expected_preflight_mask(alpha_id, constants, matrices, grid=grid)
+    probe_row = 40 if alpha_id == 3 else 260
+    assert preflight[probe_row][0], "domain witness inputs must remain preflight-available"
     strategy, actual, expected = _checked_native_case(
         alpha_id,
         constants,
@@ -582,8 +695,9 @@ def _run_domain_edge_case(alpha_id, frames, runonce):
         grid=grid,
         members=members,
         groups=groups,
+        matrices=matrices,
+        expected_preflight_mask=preflight,
     )
-    probe_row = 40 if alpha_id == 3 else 260
     assert math.isnan(expected[probe_row][0])
     assert math.isnan(actual[probe_row][0])
     _assert_state(

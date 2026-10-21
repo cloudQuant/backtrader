@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="279.615" timestamp="2026-10-22T05:35:02.639937" hostname="yun"><testcase classname="tests.integration.test_alpha101_native_boundaries" name="test_alpha101_composite_boundaries_match_oracle_and_preflight[c]" time="276.009" /></testsuite></testsuites>

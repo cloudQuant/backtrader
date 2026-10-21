@@ -407,7 +407,7 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 - Multiple plotting backends: Plotly (`plot/`), Bokeh (`bokeh/`), Matplotlib.
 - Report generation: `reports/` (`reporter.py`, `performance.py`, `charts.py`).
 
-### Native factor research (Iteration 45)
+### Native factor research (Iterations 45–46)
 
 `backtrader.research` provides `FactorIndicator`, `FactorSpec`, `ResearchSpec`,
 `FactorStrategy`, and immutable `ResearchDataset` snapshots. Research requires
@@ -420,10 +420,13 @@ Collection and save/load work without fincore. Evaluation lazily calls the
 separately developed fincore public research API; do not duplicate its IC,
 labels, signal-combination or reporting algorithms in Backtrader. The native
 operators use the frozen `alpha101-v1` profile. `research/representative.py`
-contains 20 diagnostic formulas; `alpha101_dependencies.json` is a static
-101-formula inventory, not a complete production library. Full native and build
-libraries remain Iterations 46–48. Usage and acceptance records are linked from
-`docs/source/developer-guide/factor-research.md`; 025/026 are the standalone
+contains 20 diagnostic formulas; `alpha101_dependencies.json` is the static
+101-formula inventory. `research/alpha101/` provides 101 explicit native classes
+through `get_alpha(id)` and the immutable registry exposed by `list_alphas()`.
+They reuse the research operators and native Indicator lifecycle; no build/DSL
+front end is implemented. Iteration 46 acceptance is tracked separately in its
+development record. Usage and acceptance records are linked from
+`docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone
 single/multi-factor examples and 027 is the native Alpha003 demonstration.
 
 ## Repository layout
