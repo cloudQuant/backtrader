@@ -19,6 +19,7 @@ takes PIT category lines through ``groups=`` (or reads the requested ``level``
 line from each feed).
 """
 
+from decimal import Decimal, localcontext
 from enum import IntEnum
 from fractions import Fraction
 import math
@@ -351,14 +352,13 @@ def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
     Panel operands such as PIT lines are sibling indicators, not ``datas`` of
     the panel node, so their line cursors are not advanced by the panel's
     ``once_via_next`` loop.  The native feed line is the authoritative grid
-    index.  Clock identity and populated-length checks make the absolute read
+    index.  Target provenance and source-array bounds make the absolute read
     safe in both runnext and runonce without consuming or scheduling a node.
     """
     if source is None:
         return _NAN, OperatorReason.NONFINITE_INPUT
     try:
         source_array = source.array
-        source_count = source.lencount
     except AttributeError as exc:
         raise OperatorInputError("panel values, membership and groups must be lines") from exc
 
@@ -381,7 +381,12 @@ def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
         if not _clock_matches_target(source_clock, target):
             raise OperatorInputError("panel input clock does not match its target feed")
 
-    if grid_index >= len(source_array) or source_count <= grid_index:
+    # In vectorized mode a child indicator can have populated its full result
+    # array while its line cursor remains at -1.  The target's current grid
+    # index is authoritative after provenance/clock validation above; gating
+    # on the sibling line's lencount would incorrectly classify its historical
+    # array slots as NOT_READY.
+    if grid_index >= len(source_array):
         return _NAN, OperatorReason.NOT_READY
     raw = float(source_array[grid_index])
     if math.isinf(raw):
@@ -910,35 +915,41 @@ class RollingCorrelation(_RollingPair):
         left, right, reason = self._pair_windows()
         if left is None:
             return _NAN, reason
-        left_scale = max(abs(value) for value in left)
-        right_scale = max(abs(value) for value in right)
-        if left_scale == 0.0 or right_scale == 0.0:
+
+        def calculate() -> float:
+            # Each input is an exact binary64 value. Compute the centered
+            # sums as rational numbers so tiny differences between mathematically
+            # tied correlations are not introduced by rounded means/products.
+            # Decimal is used only for sqrt; converting the final high-precision
+            # ratio to float performs the sole binary64 rounding.
+            left_exact = [Fraction.from_float(value) for value in left]
+            right_exact = [Fraction.from_float(value) for value in right]
+            count = len(left_exact)
+            left_sum = sum(left_exact, Fraction(0))
+            right_sum = sum(right_exact, Fraction(0))
+            left_squares = sum((value * value for value in left_exact), Fraction(0))
+            right_squares = sum((value * value for value in right_exact), Fraction(0))
+            cross_products = sum((x * y for x, y in zip(left_exact, right_exact)), Fraction(0))
+            left_ss = count * left_squares - left_sum * left_sum
+            right_ss = count * right_squares - right_sum * right_sum
+            covariance = count * cross_products - left_sum * right_sum
+            if left_ss <= 0 or right_ss <= 0:
+                raise ValueError("correlation requires non-constant inputs")
+
+            with localcontext() as context:
+                context.prec = 120
+                decimal_covariance = Decimal(covariance.numerator) / Decimal(covariance.denominator)
+                decimal_product = Decimal(left_ss.numerator) / Decimal(left_ss.denominator)
+                decimal_product *= Decimal(right_ss.numerator) / Decimal(right_ss.denominator)
+                correlation = float(decimal_covariance / decimal_product.sqrt())
+            if not math.isfinite(correlation) or abs(correlation) > 1.0:
+                raise ValueError("correlation result is outside its mathematical domain")
+            return correlation
+
+        try:
+            return calculate(), OperatorReason.READY
+        except (ArithmeticError, ValueError):
             return _NAN, OperatorReason.DOMAIN_ERROR
-        left_normalized = [value / left_scale for value in left]
-        right_normalized = [value / right_scale for value in right]
-        left_mean = _stable_mean(left_normalized)
-        right_mean = _stable_mean(right_normalized)
-        left_centered = [value - left_mean for value in left_normalized]
-        right_centered = [value - right_mean for value in right_normalized]
-        left_ss = math.fsum(value * value for value in left_centered)
-        right_ss = math.fsum(value * value for value in right_centered)
-        if left_ss == 0.0 or right_ss == 0.0:
-            return _NAN, OperatorReason.DOMAIN_ERROR
-        numerator = math.fsum(x * y for x, y in zip(left_centered, right_centered))
-        correlation = numerator / math.sqrt(left_ss) / math.sqrt(right_ss)
-        if not math.isfinite(correlation):
-            return _NAN, OperatorReason.DOMAIN_ERROR
-        if correlation > 1.0:
-            if correlation <= 1.0 + 1e-12:
-                correlation = 1.0
-            else:
-                return _NAN, OperatorReason.DOMAIN_ERROR
-        elif correlation < -1.0:
-            if correlation >= -1.0 - 1e-12:
-                correlation = -1.0
-            else:
-                return _NAN, OperatorReason.DOMAIN_ERROR
-        return correlation, OperatorReason.READY
 
 
 class _PanelOperator(FactorIndicator):

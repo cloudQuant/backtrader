@@ -1,6 +1,7 @@
 """Known-answer contracts for the native alpha101-v1 research operators."""
 
 import math
+from decimal import Decimal, localcontext
 from fractions import Fraction
 
 import pandas as pd
@@ -357,6 +358,35 @@ class _SharedScalarDagPanelProbe(bt.Strategy):
         self.rows.append({data._name: self.neutral.outputs[data].value[0] for data in self.datas})
 
 
+class _DerivedInputPanelProbe(bt.Strategy):
+    """Consume native per-feed indicator lines through an absolute panel grid."""
+
+    def __init__(self):
+        feeds = tuple(self.datas)
+        averages = tuple(bt.ind.SMA(data.close, period=2).sma for data in feeds)
+        self.neutral = IndNeutralize.bind(
+            *feeds,
+            values=averages,
+            groups=tuple(data.industry for data in feeds),
+            level="industry",
+        )
+        self.rows = []
+
+    def prenext(self):
+        self.next()
+
+    def next(self):
+        self.rows.append(
+            {
+                data._name: (
+                    self.neutral.outputs[data].value[0],
+                    int(self.neutral.outputs[data].reason[0]),
+                )
+                for data in self.datas
+            }
+        )
+
+
 @pytest.mark.parametrize("runonce", [False, True])
 def test_ts_operators_use_floor_full_grid_ties_and_population_moments(runonce):
     frame = _frame(
@@ -593,6 +623,40 @@ def test_panel_target_resolution_handles_shared_scalar_dag_dependencies(runonce)
         assert [observed[name] for name in ("A", "B", "C")] == pytest.approx(
             [value - mean for value in expected_raw]
         )
+
+
+@pytest.mark.parametrize("runonce", [False, True])
+def test_panel_reads_derived_line_at_target_grid_without_future_values(runonce):
+    def frames():
+        return [
+            ("A", _frame([2.0, 4.0, 6.0, 8.0], industries=[1.0] * 4)),
+            ("B", _frame([1.0, 3.0, 7.0, 9.0], industries=[1.0] * 4)),
+            ("C", _frame([8.0, 2.0, 4.0, 6.0], industries=[1.0] * 4)),
+        ]
+
+    baseline_frames = frames()
+    changed_frames = frames()
+    changed_frames[1][1].iloc[3, changed_frames[1][1].columns.get_loc("close")] = 1000.0
+    baseline = _run(_DerivedInputPanelProbe, baseline_frames, runonce=runonce)
+    changed = _run(_DerivedInputPanelProbe, changed_frames, runonce=runonce)
+
+    assert baseline.rows[0]["A"][1] == OperatorReason.NONFINITE_INPUT
+    assert [baseline.rows[1][name][0] for name in ("A", "B", "C")] == pytest.approx(
+        [-1.0 / 3.0, -4.0 / 3.0, 5.0 / 3.0]
+    )
+    assert [baseline.rows[2][name][0] for name in ("A", "B", "C")] == pytest.approx(
+        [2.0 / 3.0, 2.0 / 3.0, -4.0 / 3.0]
+    )
+    for baseline_row, changed_row in zip(baseline.rows[:3], changed.rows[:3]):
+        for name in ("A", "B", "C"):
+            baseline_value, baseline_reason = baseline_row[name]
+            changed_value, changed_reason = changed_row[name]
+            assert baseline_reason == changed_reason
+            if math.isnan(baseline_value):
+                assert math.isnan(changed_value)
+            else:
+                assert baseline_value == changed_value
+    assert baseline.rows[3] != changed.rows[3]
 
 
 def test_panel_known_answer_average_rank_scale_and_industry_mean():
@@ -1127,6 +1191,85 @@ def test_rolling_covariance_rounds_exact_binary64_inputs_without_sign_reversal(r
     assert result.rows[-1][0] == (expected_zero, OperatorReason.READY)
     assert result.rows[-1][1][0] == expected_small
     assert result.rows[-1][1][1] == OperatorReason.READY
+
+
+@pytest.mark.parametrize("runonce", [False, True])
+def test_rolling_correlation_preserves_exact_binary64_ties_for_cross_sectional_rank(runonce):
+    left_first = [
+        0.8333333333333334,
+        0.3333333333333333,
+        0.16666666666666666,
+        0.16666666666666666,
+        0.8333333333333334,
+    ]
+    right_first = [
+        0.3333333333333333,
+        0.16666666666666666,
+        0.16666666666666666,
+        0.16666666666666666,
+        0.16666666666666666,
+    ]
+    left_second = [1.0, 0.5, 0.3333333333333333, 0.3333333333333333, 1.0]
+    right_second = [
+        1.0,
+        0.6666666666666666,
+        0.6666666666666666,
+        0.6666666666666666,
+        0.6666666666666666,
+    ]
+
+    class CorrelationTieProbe(bt.Strategy):
+        def __init__(self):
+            feeds = tuple(self.datas)
+            correlations = tuple(
+                RollingCorrelation(data.close, data.open, period=5) for data in feeds
+            )
+            self.correlations = correlations
+            self.rank = CrossSectionalRank.bind(
+                *feeds, values=tuple(node.value for node in correlations)
+            )
+            self.rows = []
+
+        def next(self):
+            self.rows.append(
+                (
+                    tuple(node.value[0] for node in self.correlations),
+                    tuple(self.rank.outputs[data].value[0] for data in self.datas),
+                )
+            )
+
+    result = _run(
+        CorrelationTieProbe,
+        [
+            ("first", _frame(left_first, opens=right_first)),
+            ("second", _frame(left_second, opens=right_second)),
+        ],
+        runonce=runonce,
+    )
+
+    def exact_binary64_correlation(left, right):
+        x = [Fraction.from_float(value) for value in left]
+        y = [Fraction.from_float(value) for value in right]
+        mean_x = sum(x, Fraction(0)) / len(x)
+        mean_y = sum(y, Fraction(0)) / len(y)
+        centered_x = [value - mean_x for value in x]
+        centered_y = [value - mean_y for value in y]
+        covariance = sum((a * b for a, b in zip(centered_x, centered_y)), Fraction(0))
+        variance_x = sum((value * value for value in centered_x), Fraction(0))
+        variance_y = sum((value * value for value in centered_y), Fraction(0))
+        with localcontext() as context:
+            context.prec = 100
+            decimal_covariance = Decimal(covariance.numerator) / Decimal(covariance.denominator)
+            decimal_variance_x = Decimal(variance_x.numerator) / Decimal(variance_x.denominator)
+            decimal_variance_y = Decimal(variance_y.numerator) / Decimal(variance_y.denominator)
+            return float(decimal_covariance / (decimal_variance_x * decimal_variance_y).sqrt())
+
+    expected_first = exact_binary64_correlation(left_first, right_first)
+    expected_second = exact_binary64_correlation(left_second, right_second)
+    assert expected_first == expected_second == 0.600099198148979
+    actual_correlations, actual_ranks = result.rows[-1]
+    assert actual_correlations == (expected_first, expected_second)
+    assert actual_ranks == (0.75, 0.75)
 
 
 @pytest.mark.parametrize("runonce", [False, True])
