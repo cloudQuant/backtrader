@@ -1,6 +1,5 @@
 """Independent, deterministic acceptance checks for the local Alpha003 example."""
 
-from datetime import timedelta
 from fractions import Fraction
 import importlib.util
 import json
@@ -20,8 +19,9 @@ _EXAMPLE = Path(__file__).resolve().parents[2] / "examples/backtest/027_alpha003
 @pytest.fixture
 def example(monkeypatch):
     """Load the standalone example without leaking its generic module names."""
-    local_modules = ("alpha003_strategy", "factor_strategy")
+    local_modules = ("alpha003_strategy",)
     with monkeypatch.context() as context:
+        context.setattr(sys, "path", list(sys.path))
         context.syspath_prepend(str(_EXAMPLE))
         for name in local_modules:
             context.delitem(sys.modules, name, raising=False)
@@ -74,7 +74,7 @@ def _fractional_ranks(values):
     return ranks
 
 
-def reference_alpha003(inputs, grid):
+def reference_alpha003(inputs, grid, period=10):
     """Build full-grid -corr(rank(open), rank(volume), 10) without the panel engine."""
     assets = tuple(inputs)
     grid = tuple(grid)
@@ -98,13 +98,15 @@ def reference_alpha003(inputs, grid):
     for position, timestamp in enumerate(grid):
         for asset in assets:
             result = math.nan
-            if position >= 9:
-                window_open = [row.get(asset) for row in ranks["open"][position - 9 : position + 1]]
+            if position >= period - 1:
+                window_open = [
+                    row.get(asset) for row in ranks["open"][position - period + 1 : position + 1]
+                ]
                 window_volume = [
-                    row.get(asset) for row in ranks["volume"][position - 9 : position + 1]
+                    row.get(asset) for row in ranks["volume"][position - period + 1 : position + 1]
                 ]
                 if all(value is not None for value in window_open + window_volume):
-                    n = 10
+                    n = period
                     sum_x, sum_y = sum(window_open), sum(window_volume)
                     cov = sum(x * y for x, y in zip(window_open, window_volume)) - sum_x * sum_y / n
                     var_x = sum(x * x for x in window_open) - sum_x * sum_x / n
@@ -166,304 +168,240 @@ def _run_modes(run_experiment, inputs, grid, label):
     ]
 
 
-def _check_strategy_contract(strategy, grid, assets, label):
-    _require(not strategy.getindicators(), "%s: declarations must not create BT indicators" % label)
-    nodes = strategy.engine.nodes
-    _require(
-        isinstance(nodes, tuple) and len(nodes) == 6,
-        "%s: Alpha003 graph must contain six shared nodes" % label,
+def _assert_native(strategy, grid, assets):
+    import backtrader as bt
+    from backtrader.research import FactorIndicator
+
+    assert set(strategy.factor_instances) == set(strategy.get_dataset().columns)
+    for factor in strategy.factor_instances.values():
+        assert isinstance(factor, FactorIndicator)
+        assert isinstance(factor, bt.Indicator)
+        assert any(item is factor for item in strategy.getindicators())
+        assert len(factor.datas) == len(assets)
+        assert {data._name for data in factor.datas} == set(assets)
+        assert factor.evaluation_count == len(grid)
+        for data in factor.datas:
+            output = factor.outputs[data].factor
+            assert isinstance(output, bt.LineBuffer)
+            assert len(output) == len(grid)
+            assert output.buflen() == len(grid)
+
+
+@pytest.mark.parametrize("runonce", [False, True])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "base",
+        "reorder",
+        "cross_asset",
+        "ties",
+        "one_gap",
+        "all_gap",
+        "late_early",
+        "trailing",
+        "constant",
+    ],
+)
+def test_native_alpha003_full_grid_oracle(example, monkeypatch, runonce, case):
+    import backtrader as bt
+
+    calls = {"submit": 0, "cancel": 0}
+
+    def forbidden_submit(*args, **kwargs):
+        calls["submit"] += 1
+        raise AssertionError("factor research submitted an order")
+
+    def forbidden_cancel(*args, **kwargs):
+        calls["cancel"] += 1
+        raise AssertionError("factor research cancelled an order")
+
+    monkeypatch.setattr(bt.brokers.BackBroker, "submit", forbidden_submit)
+    monkeypatch.setattr(bt.brokers.BackBroker, "cancel", forbidden_cancel)
+    inputs = example.make_inputs()
+    grid = inputs["A"].index
+    options = {}
+    if case == "reorder":
+        options["asset_order"] = ("C", "B", "A")
+    elif case == "cross_asset":
+        inputs["B"].loc[grid[-1], "open"] = 9.5
+    elif case == "ties":
+        inputs["B"].loc[grid[-1], "open"] = inputs["A"].loc[grid[-1], "open"]
+    elif case == "one_gap":
+        inputs["C"] = inputs["C"].drop(grid[4])
+    elif case == "all_gap":
+        inputs = {asset: frame.drop(grid[4]) for asset, frame in inputs.items()}
+    elif case == "late_early":
+        inputs["A"] = inputs["A"].drop([grid[0], grid[-1]])
+    elif case == "trailing":
+        inputs = {asset: frame.drop(grid[-1]) for asset, frame in inputs.items()}
+    elif case == "constant":
+        for frame in inputs.values():
+            frame["open"], frame["volume"] = 10.0, 100.0
+    strategy, expected, actual = _run_case(
+        example.run_experiment, inputs, grid, case, runonce=runonce, **options
     )
-    counts = strategy.engine.evaluation_counts
-    _require(
-        isinstance(counts, dict) and len(counts) == 6,
-        "%s: each graph node must expose an evaluation count" % label,
+    _assert_native(strategy, grid, inputs)
+    assert calls == {"submit": 0, "cancel": 0}
+    if case == "base":
+        assert actual.loc[grid[-1], "alpha003"].tolist() == pytest.approx([17 / 23, 1, 17 / 23])
+        assert actual.iloc[:27].isna().all().all()
+    if case == "cross_asset":
+        assert actual.at[(grid[-1], "A"), "alpha003"] == pytest.approx(math.sqrt(20 / 23))
+
+
+@pytest.mark.parametrize("runonce", [False, True])
+def test_native_future_prefix_and_instance_isolation(example, runonce):
+    inputs = example.make_inputs()
+    grid = inputs["A"].index
+    base = example.run_experiment(inputs, grid, runonce=runonce)
+    prefix = base.get_dataset()
+    future = grid[-1] + pd.Timedelta(days=1)
+    for offset, frame in enumerate(inputs.values()):
+        frame.loc[future, list(_FIELDS)] = (1000 + offset, 2000, 0.5, 1000, 9000 - offset * 1000)
+    extended = grid.append(pd.DatetimeIndex([future]))
+    strategy, _, _ = _run_case(
+        example.run_experiment,
+        inputs,
+        extended,
+        "future",
+        runonce=runonce,
+        factor_classes={
+            "alpha003": example.Alpha003Indicator,
+            "duplicate": example.Alpha003Indicator,
+        },
     )
-    _require(
-        all(type(count) is int and count == len(grid) for count in counts.values()),
-        "%s: each graph node must evaluate once per grid step" % label,
+    pd.testing.assert_frame_equal(strategy.get_dataset().loc[prefix.index, ["alpha003"]], prefix)
+    left, right = strategy.factor_instances.values()
+    assert left is not right
+    for data in left.datas:
+        assert left.outputs[data].factor is not right.outputs[data].factor
+    pd.testing.assert_series_equal(
+        strategy.get_dataset()["alpha003"], strategy.get_dataset()["duplicate"], check_names=False
     )
-    diagnostics = strategy.get_diagnostics()
-    required = {"time", "asset", "node", "operation", "value", "reason"}
-    _require(
-        isinstance(diagnostics, pd.DataFrame) and required.issubset(diagnostics.columns),
-        "%s: diagnostics schema is incomplete" % label,
-    )
-    _require(
-        len(diagnostics) == len(grid) * len(assets) * len(nodes),
-        "%s: diagnostics must include each node/asset/grid evaluation" % label,
-    )
-
-    broker = strategy.broker
-    _require(
-        hasattr(broker, "get_orders_open") and not broker.get_orders_open(),
-        "%s: example left open orders" % label,
-    )
-    _require(
-        hasattr(broker, "orders") and not broker.orders, "%s: example submitted an order" % label
-    )
+    _assert_native(strategy, extended, inputs)
+    # A fresh run must not inherit an earlier instance's rolling history.
+    fresh_inputs = example.make_inputs()
+    fresh = example.run_experiment(fresh_inputs, grid, runonce=runonce)
+    pd.testing.assert_frame_equal(fresh.get_dataset(), prefix)
 
 
-def _must_reject(label, expected_exception, operation):
-    try:
-        operation()
-    except expected_exception:
-        return
-    except Exception as exc:
-        raise AssertionError("%s: wrong rejection type %s" % (label, type(exc).__name__)) from exc
-    raise AssertionError("%s: invalid input was accepted" % label)
+@pytest.mark.parametrize("runonce", [False, True])
+@pytest.mark.parametrize("asset_names", [("A",), ("A", "B"), ("A", "B", "C", "资产.D")])
+def test_native_variable_asset_output_lines(example, runonce, asset_names):
+    original = example.make_inputs()
+    inputs = {name: original[("A", "B", "C")[i % 3]].copy() for i, name in enumerate(asset_names)}
+    grid = original["A"].index
+    strategy, _, _ = _run_case(example.run_experiment, inputs, grid, "asset count", runonce=runonce)
+    _assert_native(strategy, grid, asset_names)
 
 
-def _local_declarations():
-    from alpha003_strategy import Alpha003Indicator
-    from factor_strategy import PanelFactorIndicator
+@pytest.mark.parametrize("runonce", [False, True])
+def test_native_real_sma_roc_and_cross_section_to_time_series(example, runonce):
+    import backtrader as bt
+    from backtrader.research import FactorIndicator
 
-    alpha_class = Alpha003Indicator
-    base_class = PanelFactorIndicator
-    _require(
-        issubclass(alpha_class, base_class),
-        "Alpha003Indicator must be a local PanelFactorIndicator declaration",
-    )
-    return alpha_class, base_class
+    class NativeChildren(FactorIndicator):
+        lines = ("factor",)
+        panel_mode = "next"
+        params = (("period", 3),)
+        formula_fields = ("close",)
 
-
-def run_acceptance(make_inputs, run_experiment):
-    """Run local deterministic checks; this is not provider or Iteration45 acceptance."""
-    alpha_class, panel_base = _local_declarations()
-    inputs = make_inputs()
-    assets = tuple(inputs)
-    _require(len(assets) == 3, "fixture must contain exactly three assets")
-    grid = tuple(inputs[assets[0]].index.to_pydatetime())
-    _require(len(grid) == 10, "fixture must contain ten grid dates")
-    checks = []
-    run_counts = {"attempted": 0, "successful": 0}
-
-    def counted_run(*args, **kwargs):
-        run_counts["attempted"] += 1
-        result = run_experiment(*args, **kwargs)
-        run_counts["successful"] += 1
-        return result
-
-    base_runs = _run_modes(counted_run, inputs, grid, "base")
-    for runonce, (strategy, expected, _) in zip((False, True), base_runs):
-        label = "runonce=%s" % runonce
-        _check_strategy_contract(strategy, grid, assets, label)
-    checks.append("both Cerebro modes match the independent full-grid oracle")
-
-    for asset, value in (("A", 17.0 / 23.0), ("B", 1.0), ("C", 17.0 / 23.0)):
-        _require(
-            math.isclose(
-                float(expected.at[(grid[-1], asset), _FACTOR]), value, rel_tol=1e-12, abs_tol=1e-12
-            ),
-            "hand-calculated day-10 Alpha003 value failed for %s" % asset,
-        )
-    _require(
-        expected.iloc[: 9 * len(assets)][_FACTOR].isna().all(),
-        "the first nine grid rows must be missing during warmup",
-    )
-    checks.append("day-10 hand values and ten-bar warmup match")
-
-    reverse_inputs = {asset: inputs[asset].copy(deep=True) for asset in reversed(assets)}
-    _run_case(
-        counted_run,
-        reverse_inputs,
-        grid,
-        "reversed feed order",
-        runonce=False,
-        asset_order=tuple(reversed(assets)),
-    )
-    checks.append("reversing feed order preserves every value")
-
-    changed_open = _copy_inputs(inputs)
-    changed_open["B"].loc[pd.Timestamp(grid[-1]), "open"] = 9.5
-    _, changed_expected, _ = _run_case(
-        counted_run, changed_open, grid, "cross-asset rank change", runonce=False
-    )
-    _require(
-        math.isclose(
-            float(changed_expected.at[(grid[-1], "A"), _FACTOR]),
-            math.sqrt(20.0 / 23.0),
-            rel_tol=1e-12,
-            abs_tol=1e-12,
-        ),
-        "changing B's current open must change A through the cross-sectional rank",
-    )
-    checks.append("B open=9.5 changes A's current rank and yields sqrt(20/23)")
-
-    perturbed = _copy_inputs(inputs)
-    future = grid[-1] + timedelta(days=1)
-    for offset, asset in enumerate(assets):
-        perturbed[asset].loc[pd.Timestamp(future), list(_FIELDS)] = (
-            1000.0 + offset,
-            2000.0 + offset,
-            0.5,
-            1000.0 + offset,
-            9000.0 - 1000.0 * offset,
-        )
-    future_grid = grid + (future,)
-    future_runs = _run_modes(counted_run, perturbed, future_grid, "future perturbation")
-    for future_strategy, _, _ in future_runs:
-        prefix = future_strategy.get_dataset().reindex(expected.index)
-        for key, wanted in expected[_FACTOR].items():
-            got = prefix.at[key, _FACTOR]
-            _require(
-                (pd.isna(got) and pd.isna(wanted))
-                or (
-                    not pd.isna(got)
-                    and not pd.isna(wanted)
-                    and math.isclose(float(got), float(wanted), rel_tol=1e-12, abs_tol=1e-12)
-                ),
-                "future perturbation changed prefix value at %r" % (key,),
-            )
-    checks.append("future observations do not alter the prior prefix")
-
-    changed = _copy_inputs(inputs)
-    changed["B"].loc[pd.Timestamp(grid[-1]), "open"] = float(
-        changed["A"].loc[pd.Timestamp(grid[-1]), "open"]
-    )
-    tied_ranks = _fractional_ranks(_field_values(changed, grid[-1], "open"))
-    _require(
-        tied_ranks["A"] == tied_ranks["B"] == Fraction(1, 2),
-        "exact tie ranks must use normalized average ranks",
-    )
-    _run_case(counted_run, changed, grid, "exact-tie ranks", runonce=False)
-    checks.append("exact current-date ties match pairwise Fraction ranks")
-
-    missing_one = _copy_inputs(inputs)
-    missing_one["C"] = missing_one["C"].drop(pd.Timestamp(grid[4]))
-    missing_expected = _run_modes(counted_run, missing_one, grid, "single-feed gap")[0][1]
-    _require(
-        pd.isna(missing_expected.at[(grid[-1], "C"), _FACTOR]),
-        "a missing bar inside C's ten-date window must invalidate C",
-    )
-    checks.append("single-feed gap matches the oracle in both Cerebro modes")
-
-    missing_all = _copy_inputs(inputs)
-    for asset in assets:
-        missing_all[asset] = missing_all[asset].drop(pd.Timestamp(grid[4]))
-    all_gap_runs = _run_modes(counted_run, missing_all, grid, "all-feed gap")
-    for _, _, all_missing_actual in all_gap_runs:
-        _require(
-            len(all_missing_actual) == len(grid) * len(assets),
-            "an all-feed gap must not remove the requested grid date",
-        )
-        gap_values = all_missing_actual.xs(pd.Timestamp(grid[4]), level="time")[_FACTOR]
-        _require(gap_values.isna().all(), "an all-feed gap must emit full-grid missing values")
-    checks.append("all-feed interior gap matches the oracle in both modes")
-
-    partial_primary = _copy_inputs(inputs)
-    partial_primary["A"] = partial_primary["A"].drop(
-        [pd.Timestamp(grid[0]), pd.Timestamp(grid[-1])]
-    )
-    _run_modes(counted_run, partial_primary, grid, "late-start/early-end primary")
-    checks.append("late-start/early-end primary feed matches the full-grid oracle")
-
-    trailing_gap = _copy_inputs(inputs)
-    for asset in assets:
-        trailing_gap[asset] = trailing_gap[asset].drop(pd.Timestamp(grid[-1]))
-    trailing_runs = _run_modes(counted_run, trailing_gap, grid, "all-feed trailing gap")
-    for _, _, trailing_actual in trailing_runs:
-        _require(
-            trailing_actual.xs(pd.Timestamp(grid[-1]), level="time")[_FACTOR].isna().all(),
-            "stop must materialize the final requested grid date as missing",
-        )
-    checks.append("all-feed trailing gap preserves the final grid date in both modes")
-
-    constant = _copy_inputs(inputs)
-    for frame in constant.values():
-        frame["open"] = 10.0
-        frame["volume"] = 100.0
-    _, constant_expected, _ = _run_case(
-        counted_run, constant, grid, "zero-variance ranks", runonce=False
-    )
-    _require(
-        constant_expected[_FACTOR].isna().all(),
-        "constant ranks must produce missing correlation values",
-    )
-    checks.append("zero-variance windows fail closed as missing")
-
-    duplicate, _, _ = _run_case(
-        counted_run,
-        _copy_inputs(inputs),
-        grid,
-        "shared duplicate declaration",
-        runonce=False,
-        factor_classes={_FACTOR: alpha_class, "alpha003_duplicate": alpha_class},
-    )
-    _check_strategy_contract(duplicate, grid, assets, "shared duplicate declaration")
-    duplicate_data = duplicate.get_dataset()
-    _require(
-        "alpha003_duplicate" in duplicate_data.columns,
-        "second declaration output column is missing",
-    )
-    _require(
-        duplicate_data["alpha003_duplicate"].equals(duplicate_data[_FACTOR]),
-        "duplicate declaration output must equal alpha003",
-    )
-    checks.append("duplicate declaration shares six nodes evaluated once per grid step")
-
-    class UnknownSourceDeclaration(panel_base):
         @classmethod
-        def build(cls, ctx):
-            return ctx.unknown_source
+        def lookback_h(cls, period=3):
+            return period - 1
 
-    _must_reject(
-        "unknown panel source",
-        AttributeError,
-        lambda: counted_run(
-            _copy_inputs(inputs),
-            grid,
-            runonce=False,
-            factor_classes={_FACTOR: UnknownSourceDeclaration},
-        ),
+        def __init__(self):
+            super().__init__()
+            self.means = {data: bt.ind.SMA(data.close, period=self.p.period) for data in self.datas}
+            self.rocs = {
+                data: bt.ind.ROC(data.close, period=self.p.period - 1) for data in self.datas
+            }
+
+        def next(self):
+            for data in self.datas:
+                self.outputs[data].factor[0] = self.means[data][0] + self.rocs[data][0]
+
+    class DailyRank(FactorIndicator):
+        lines = ("factor",)
+        panel_mode = "next"
+        formula_fields = ("open",)
+
+        @classmethod
+        def lookback_h(cls):
+            return 0
+
+        def next(self):
+            values = {data: data.open[0] for data in self.datas}
+            finite = [v for v in values.values() if math.isfinite(v)]
+            for data, value in values.items():
+                self.outputs[data].factor[0] = (
+                    (sum(v < value for v in finite) + (sum(v == value for v in finite) + 1) / 2)
+                    / len(finite)
+                    if math.isfinite(value)
+                    else math.nan
+                )
+
+    class SmoothedRank(FactorIndicator):
+        lines = ("factor",)
+        panel_mode = "next"
+        formula_fields = ("open",)
+
+        @classmethod
+        def lookback_h(cls):
+            return 2
+
+        def __init__(self):
+            super().__init__()
+            self.rank = DailyRank.bind(*self.datas)
+            self.means = {
+                data: bt.ind.SMA(self.rank.outputs[data].factor, period=3) for data in self.datas
+            }
+
+        def next(self):
+            for data in self.datas:
+                self.outputs[data].factor[0] = self.means[data][0]
+
+    inputs = example.make_inputs()
+    grid = inputs["A"].index
+    for i, frame in enumerate(inputs.values()):
+        frame["close"] = [10.0 + i + j * j for j in range(len(grid))]
+    strategy = example.run_experiment(
+        inputs,
+        grid,
+        runonce=runonce,
+        factor_classes={"native_children": NativeChildren, "smoothed_rank": SmoothedRank},
     )
-
-    missing_column = _copy_inputs(inputs)
-    missing_column["A"] = missing_column["A"].drop(columns=["volume"])
-    _must_reject(
-        "missing required source column",
-        ValueError,
-        lambda: counted_run(missing_column, grid, runonce=False),
-    )
-
-    unknown_time = _copy_inputs(inputs)
-    extra_time = pd.Timestamp(grid[-1]) + pd.Timedelta(days=1)
-    unknown_time["A"].loc[extra_time, list(_FIELDS)] = (11.0, 20.0, 0.5, 10.0, 100.0)
-    _must_reject(
-        "timestamp outside explicit grid",
-        ValueError,
-        lambda: counted_run(unknown_time, grid, runonce=False),
-    )
-
-    for field in ("open", "volume"):
-        infinite = _copy_inputs(inputs)
-        infinite["A"].loc[pd.Timestamp(grid[0]), field] = math.inf
-        _must_reject(
-            "infinite %s source" % field,
-            ValueError,
-            lambda infinite=infinite: counted_run(infinite, grid, runonce=False),
-        )
-    checks.append("unknown sources, absent columns, outside-grid rows, and infinities reject")
-
-    return {
-        "status": "PASS",
-        "evidence_level": "LOCAL_ALPHA003_PROTOTYPE_ONLY",
-        "checks": checks,
-        "cerebro_modes": ["runonce=False", "runonce=True"],
-        "experiment_attempts": run_counts["attempted"],
-        "successful_experiment_runs": run_counts["successful"],
-        "rejected_input_cases": run_counts["attempted"] - run_counts["successful"],
-        "assets": list(assets),
-        "grid_rows": len(grid),
-        "expected_value_cells": expected.size,
-        "reference": "exact Fraction ranks and rolling Pearson covariance",
-    }
+    actual = strategy.get_dataset()
+    ranks = [_fractional_ranks(_field_values(inputs, t, "open")) for t in grid]
+    for position, t in enumerate(grid):
+        for asset, frame in inputs.items():
+            if position < 2:
+                assert actual.loc[(t, asset)].isna().all()
+            else:
+                close = frame["close"].iloc[position - 2 : position + 1].tolist()
+                expected = sum(close) / 3 + close[-1] / close[0] - 1
+                assert actual.at[(t, asset), "native_children"] == pytest.approx(expected)
+                expected_rank = float(sum(r[asset] for r in ranks[position - 2 : position + 1]) / 3)
+                assert actual.at[(t, asset), "smoothed_rank"] == pytest.approx(expected_rank)
+    for factor in strategy.factor_instances.values():
+        assert factor.getindicators()
+        assert all(child._owner is factor for child in factor.getindicators())
 
 
-def test_alpha003_matches_independent_reference_and_edge_cases(example):
-    report = run_acceptance(example.make_inputs, example.run_experiment)
-    assert report["status"] == "PASS"
-    assert report["successful_experiment_runs"] == 17
-    assert report["rejected_input_cases"] == 5
+@pytest.mark.parametrize(
+    "bad", ["missing_column", "outside_grid", "infinite_open", "infinite_volume"]
+)
+def test_native_example_rejects_invalid_inputs(example, bad):
+    inputs = example.make_inputs()
+    grid = inputs["A"].index
+    if bad == "missing_column":
+        inputs["A"] = inputs["A"].drop(columns="volume")
+    elif bad == "outside_grid":
+        inputs["A"].loc[grid[-1] + pd.Timedelta(days=1), list(_FIELDS)] = (11, 20, 0.5, 10, 100)
+    else:
+        inputs["A"].loc[grid[0], bad.removeprefix("infinite_")] = math.inf
+    with pytest.raises(ValueError):
+        example.run_experiment(inputs, grid)
 
 
 def test_example_run_only_computes_and_exports(example, monkeypatch, tmp_path, capsys):
@@ -493,3 +431,41 @@ def test_example_run_only_computes_and_exports(example, monkeypatch, tmp_path, c
     stdout = capsys.readouterr().out
     assert "COMPLETED:" in stdout
     assert "PASS:" not in stdout
+
+
+@pytest.mark.parametrize(
+    "invalid", ["execution", "line", "inputs", "ordinary", "expression", "missing_output"]
+)
+def test_native_research_has_one_explicit_entry(example, invalid):
+    import backtrader as bt
+    from backtrader.research import FactorIndicator, FactorStrategy
+
+    class ExpressionWithNext(FactorIndicator):
+        lines = ("factor",)
+        panel_mode = "expression"
+
+        def next(self):
+            raise AssertionError("unsupported expression mode reached calculation")
+
+        @classmethod
+        def build(cls, ctx):
+            return ctx.open
+
+    inputs = example.make_inputs()
+    cerebro = bt.Cerebro(stdstats=False)
+    for asset, frame in inputs.items():
+        cerebro.adddata(bt.feeds.PandasData(dataname=frame), name=asset)
+    spec = {"indicator": example.Alpha003Indicator, "panel_line": "factor"}
+    if invalid in {"execution", "line", "inputs"}:
+        spec[invalid] = {"execution": "indicator", "line": "factor", "inputs": ("target",)}[invalid]
+    elif invalid == "ordinary":
+        spec["indicator"] = bt.ind.SMA
+    elif invalid == "expression":
+        spec["indicator"] = ExpressionWithNext
+    else:
+        del spec["panel_line"]
+    cerebro.addstrategy(
+        FactorStrategy, factors={"alpha003": spec}, grid=tuple(inputs["A"].index.to_pydatetime())
+    )
+    with pytest.raises((TypeError, ValueError)):
+        cerebro.run()
