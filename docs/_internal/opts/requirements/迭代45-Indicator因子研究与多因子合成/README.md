@@ -1,8 +1,8 @@
 ﻿# 迭代45文档入口
 
-版本：**v0.4 Alpha101基础设施规划稿**；更新：**2026-10-21**。状态：**R1–R11尚未整体实施，AC45-01–30全部NOT_RUN；用户另行授权的#3独立原型见第5节**。
+版本：**v0.5 双模式PanelFactorIndicator规划稿**；更新：**2026-10-21**。状态：**R1–R11尚未整体实施，AC45-01–30全部NOT_RUN；用户另行授权的#3独立原型见第5节**。
 
-用户已明确：**迭代45建设能够支持全部Alpha101公式的基础设施，下一迭代才逐个实现101个生产因子。** 因子仍写在Indicator类中，公共FactorStrategy负责调度与采集；新增PanelFactorIndicator声明及共享面板引擎，解决公式内部“截面→时序→截面”的依赖。fincore负责绩效评价、固定组合和通用报告，新增能力在其本地dev验收提交后由Backtrader本地dev接入。
+用户已明确：**迭代45建设能够支持全部Alpha101公式的基础设施，下一迭代才逐个实现101个生产因子。** 因子仍写在Indicator类中，公共FactorStrategy负责调度与采集；新增支持next手写算法和expression声明的PanelFactorIndicator及共享面板引擎，解决公式内部“截面→时序→截面”的依赖。fincore负责绩效评价、固定组合和通用报告，新增能力在其本地dev验收提交后由Backtrader本地dev接入。
 
 本轮用**20个结构不同的Alpha公式配方**验收能力，原有单因子025、多因子026两个正式示例仍必交。代表配方是测试/诊断材料，不构成完整Alpha101生产库；未选81式也不能从算子/数据能力映射中删掉。
 
@@ -22,7 +22,7 @@
 
 ## 2. 本版重点
 
-- 普通Indicator保留原line语义；panel声明只构建图、不进入普通Indicator调度树，正式结果通过get_dataset返回。
+- 普通Indicator保留原line语义；同一个PanelFactorIndicator支持build表达式和__init__/next手写算法。手写模式真实初始化、self.datas接入同步资产视图，每资产独立输出线；共享grid屏障避免重复调度，正式结果通过get_dataset返回。
 - 公式内部rank/scale/行业去均值与fincore事后评价变换分开；共同评价池、标签周期和权重不能改写原始Alpha。
 - formula_universe覆盖预热；数据包括OHLCV、VWAP、ADV美元成交额、市值及三个历史行业层级，禁止未来分类回填。
 - alpha101-v1明确排名、窗口取整、并列、数值域及min/max/power语义，公开工程约定与原文不充分定义之处。
@@ -54,3 +54,13 @@
 用户随后要求先在examples实际实现#3，以查看横截面因子的写法。新增[027原型示例](../../../../../examples/backtest/027_alpha003_panel_acceptance/README.md)：因子只声明`build(ctx)`，目录内公共模板使用真实Cerebro推进共享面板。范围限于#3所需算子，独立参考和严格复制验收通过；具体证据、既有检查失败与边界见[原型验证记录](Alpha003原型验证记录.md)。
 
 这项新授权不替代025/026两个正式示例，不将AC45-28/29或R1–R11标为PASS，不提前实现全部101生产类。v0.4的“只更新文档”描述的是先前文档提交；本次原型是后续独立小轮。
+
+## 6. v0.5：增加原生指标风格的手写面板模式
+
+用户在查看027后明确要求保留简洁公式写法，同时支持PanelFactorIndicator通过self.datas读取所有资产、在__init__/next中自行实现算法。本版同步修订设计、验收、计划和两份Alpha101附件（REQ45-01–16保持不变），撤销v0.4对全部panel类禁止实例化/next的限制。两种写法的构造、输出线、预热、缺格及原生子指标验收详见[DS45-11](设计文档.md#ds45-11-面板声明与共享执行引擎)。
+
+实施顺序按用户本次决定固定为：R2–R4先完成真实`next`实例、私有owner、逐资产输出、共享算子和20式手写；R11a/b再实现`expression`共享DAG与20式等价，R11c做安装集成。R2不实现expression DAG；R11不得以next已通过替代expression。
+
+公共FactorStrategy、PanelFactorIndicator与panel engine后续按职责迁入backtrader/research，由安装包提供；示例仅保留因子定义与运行装配。现在027的因子定义文件是alpha003_strategy.py，acceptance.py已迁至tests；现有原型仍只有build写法。本轮只更新合同，不修改原型、核心库或fincore，不宣称双模式已经实现。
+
+本轮基于现有dev的`9c8a3857b657262d9626aff2ae0d2786a9dc1a18`，保留既有无关修改与历史评审原件。验收仅做文档编码、链接、编号、双模式合同一致性及明确Git范围检查；全部30项功能AC仍为NOT_RUN。最终交付回复记录本轮文档提交SHA，也可用`git log -1 -- docs/_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/设计文档.md`定位。
