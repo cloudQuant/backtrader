@@ -686,6 +686,25 @@ class FactorIndicator(Indicator):
             result[alias] = {"available_at": tuple(stamps), "reason": reason}
         return result
 
+    @staticmethod
+    def _mark_target_local_line(line: Any, target: Any, sources: Sequence[Any]) -> Any:
+        """Retain a target only when every derivation source proves that target."""
+        if not sources:
+            return line
+        target_lines = getattr(getattr(target, "lines", None), "lines", ())
+        for source in sources:
+            marker = getattr(source, "_factor_research_target", None)
+            if marker is not None:
+                if marker is not target:
+                    return line
+                continue
+            if source is target or any(source is target_line for target_line in target_lines):
+                continue
+            # Unknown and named-feed sources keep their existing clock behavior.
+            return line
+        line._factor_research_target = target
+        return line
+
     def _resolve_bound_lines(
         self,
         alias: str,
@@ -719,7 +738,12 @@ class FactorIndicator(Indicator):
                     stack=stack + (alias,),
                 )
                 sma_type = cast(Any, SMA)
-                result = tuple(sma_type(line, period=window).lines.sma for line in source_lines)
+                result = tuple(
+                    self._mark_target_local_line(
+                        sma_type(line, period=window).lines.sma, target, (line,)
+                    )
+                    for target, line in zip(self._factor_target_datas, source_lines)
+                )
                 return result
             if kind == "vwap_volume":
                 if alias != "dollar_volume":
@@ -742,7 +766,12 @@ class FactorIndicator(Indicator):
                 )
                 if len(vwap_lines) != len(volume_lines):
                     raise ConfigError("vwap and volume sources must align per target")
-                return tuple(vwap * volume for vwap, volume in zip(vwap_lines, volume_lines))
+                return tuple(
+                    self._mark_target_local_line(vwap * volume, target, (vwap, volume))
+                    for target, vwap, volume in zip(
+                        self._factor_target_datas, vwap_lines, volume_lines
+                    )
+                )
             if binding.get("kind") == "direct":
                 binding = binding.get("source")
             else:
@@ -851,6 +880,7 @@ class FactorIndicator(Indicator):
             asset = self._factor_runtime["asset_by_data_id"][id(data)]
             series = tuple(values_by_key.get((time, asset), float("nan")) for time in grid.index)
             line = cast(Any, _PITValueLine)(data, timestamps=stamps, line_values=series)
+            line.lines.value._factor_research_target = data
             output.append(line.lines.value)
             states: Dict[datetime, Dict[str, Any]] = {}
             for time in grid.index:
