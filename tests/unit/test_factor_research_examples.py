@@ -566,12 +566,18 @@ def test_partial_status_requires_all_mandatory_rows_but_not_optional_diagnostics
     table_schemas = {}
     table_files = {}
     file_records = {}
+    frozen_logical_type_overrides = {
+        ("signals", "quantile"): "number",
+        ("ic_summary", "period"): "string",
+    }
     for name in required_tables:
         columns = list(runner._EXPORT_REQUIRED_COLUMNS[name])
         schema_columns = [
             {
                 "name": column,
-                "type": runner._EXPORT_LOGICAL_TYPES.get(column, "string"),
+                "type": frozen_logical_type_overrides.get(
+                    (name, column), runner._EXPORT_LOGICAL_TYPES.get(column, "string")
+                ),
             }
             for column in columns
         ]
@@ -579,6 +585,10 @@ def test_partial_status_requires_all_mandatory_rows_but_not_optional_diagnostics
         table_files[name] = {"csv": name + ".csv", "json": name + ".json"}
         # The diagnostics table is intentionally empty but retains its declared schema.
         records = [] if name == "diagnostics" else [dict.fromkeys(columns)]
+        if name == "signals":
+            records[0]["quantile"] = 1.0
+        elif name == "ic_summary" or name == "comparisons":
+            records[0]["period"] = "all"
         csv_path = evaluation_dir / (name + ".csv")
         with csv_path.open("w", encoding="utf-8", newline="") as target:
             writer = csv.writer(target)
@@ -587,7 +597,10 @@ def test_partial_status_requires_all_mandatory_rows_but_not_optional_diagnostics
                 writer.writerow([record[column] for column in columns])
         json_path = evaluation_dir / (name + ".json")
         json_path.write_text(json.dumps(records, separators=(",", ":")), encoding="utf-8")
-        for table_path, media_type in ((csv_path, "text/csv"), (json_path, "application/json")):
+        for table_path, media_type in (
+            (csv_path, "text/csv; charset=utf-8"),
+            (json_path, "application/json"),
+        ):
             payload = table_path.read_bytes()
             file_records[table_path.name] = {
                 "sha256": hashlib.sha256(payload).hexdigest(),
@@ -619,6 +632,120 @@ def test_partial_status_requires_all_mandatory_rows_but_not_optional_diagnostics
     assert exported["table_row_count"] == 10
     assert exported["optional_tables"] == ["diagnostics"]
     assert runner._evaluation_exit_code("PARTIAL", exported) == 0
+
+    # The frozen fincore schema is table-specific for these two repeated names.
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    quantile_schema = next(
+        item
+        for item in manifest["result_table_schemas"]["signals"]["columns"]
+        if item["name"] == "quantile"
+    )
+    ic_period_schema = next(
+        item
+        for item in manifest["result_table_schemas"]["ic_summary"]["columns"]
+        if item["name"] == "period"
+    )
+    comparison_period_schema = next(
+        item
+        for item in manifest["result_table_schemas"]["comparisons"]["columns"]
+        if item["name"] == "period"
+    )
+    assert quantile_schema["type"] == "number"
+    assert ic_period_schema["type"] == "string"
+    assert comparison_period_schema["type"] == "timestamp_or_label"
+
+    quantile_schema["type"] = "integer"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    invalid_quantile_type = runner._validate_export_output(
+        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
+    )
+    assert invalid_quantile_type["passed"] is False
+    assert invalid_quantile_type["reason"] == "evaluation_table_column_type_invalid"
+    assert (invalid_quantile_type["table"], invalid_quantile_type["column"]) == (
+        "signals",
+        "quantile",
+    )
+    quantile_schema["type"] = "number"
+
+    ic_period_schema["type"] = "timestamp_or_label"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    invalid_ic_period_type = runner._validate_export_output(
+        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
+    )
+    assert invalid_ic_period_type["passed"] is False
+    assert invalid_ic_period_type["reason"] == "evaluation_table_column_type_invalid"
+    assert (invalid_ic_period_type["table"], invalid_ic_period_type["column"]) == (
+        "ic_summary",
+        "period",
+    )
+    ic_period_schema["type"] = "string"
+
+    # Quantile is serialized as a number but must still denote an integer bucket.
+    signals_json_path = evaluation_dir / "signals.json"
+    valid_signals_json = signals_json_path.read_bytes()
+    signal_records = json.loads(valid_signals_json.decode("utf-8"))
+    signal_records[0]["quantile"] = 1.5
+    invalid_signals_json = json.dumps(signal_records, separators=(",", ":")).encode("utf-8")
+    signals_json_path.write_bytes(invalid_signals_json)
+    manifest["files"]["signals.json"]["sha256"] = hashlib.sha256(invalid_signals_json).hexdigest()
+    manifest["files"]["signals.json"]["bytes"] = len(invalid_signals_json)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    fractional_quantile = runner._validate_export_output(
+        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
+    )
+    assert fractional_quantile["passed"] is False
+    assert fractional_quantile["reason"] == "evaluation_table_value_semantic_invalid"
+    assert fractional_quantile["column"] == "quantile"
+    signals_json_path.write_bytes(valid_signals_json)
+    manifest["files"]["signals.json"]["sha256"] = hashlib.sha256(valid_signals_json).hexdigest()
+    manifest["files"]["signals.json"]["bytes"] = len(valid_signals_json)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    # Charts are an optional artifact entry, never a twelfth result table.
+    chart_bytes = b"\x89PNG\r\n\x1a\nunit chart"
+    chart_path = evaluation_dir / "ic_summary.png"
+    chart_path.write_bytes(chart_bytes)
+    manifest["files"]["ic_summary.png"] = {
+        "sha256": hashlib.sha256(chart_bytes).hexdigest(),
+        "bytes": len(chart_bytes),
+        "media_type": "image/png",
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    chart_export = runner._validate_export_output(
+        evaluation_dir,
+        charts_requested=True,
+        expected_status="PARTIAL",
+        expected_evaluation_id="small-fixture",
+    )
+    assert chart_export["passed"] is True
+    assert chart_export["table_file_count"] == 22
+    assert chart_export["chart_file_count"] == 1
+    unexpected_chart = runner._validate_export_output(
+        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
+    )
+    assert unexpected_chart["passed"] is False
+    assert unexpected_chart["reason"] == "evaluation_manifest_table_inventory_invalid"
+    manifest["files"]["ic_summary.png"]["sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    wrong_chart_identity = runner._validate_export_output(
+        evaluation_dir, charts_requested=True, expected_status="PARTIAL"
+    )
+    assert wrong_chart_identity["passed"] is False
+    assert wrong_chart_identity["reason"] == "evaluation_chart_manifest_mismatch"
+    del manifest["files"]["ic_summary.png"]
+    chart_path.unlink()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    manifest["files"]["signals.csv"]["media_type"] = "text/csv"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    wrong_csv_media_type = runner._validate_export_output(
+        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
+    )
+    assert wrong_csv_media_type["passed"] is False
+    assert wrong_csv_media_type["reason"] == "evaluation_table_file_manifest_mismatch"
+    manifest["files"]["signals.csv"]["media_type"] = "text/csv; charset=utf-8"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
     required_export = runner._validate_export_output(
         evaluation_dir,
         charts_requested=False,

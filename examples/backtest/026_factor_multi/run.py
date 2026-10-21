@@ -296,6 +296,11 @@ _EXPORT_LOGICAL_TYPES = {
     "sample_std_delta": "number",
     "positive_delta_fraction": "number",
 }
+_EXPORT_LOGICAL_TYPE_OVERRIDES = {
+    ("signals", "quantile"): "number",
+    ("ic_summary", "period"): "string",
+}
+_EXPORT_INTEGER_VALUE_COLUMNS = {"signals": ("quantile",)}
 
 
 def _evaluation_exit_code(status: str, required_validation: Mapping[str, Any]) -> int:
@@ -498,6 +503,28 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _invalid_export_value_column(table_name: str, record: Mapping[str, Any]) -> Optional[str]:
+    """Check value semantics that are narrower than a serialized logical type."""
+    for column_name in _EXPORT_INTEGER_VALUE_COLUMNS.get(table_name, ()):
+        value = record.get(column_name)
+        if value is None or value == "":
+            continue
+        if isinstance(value, bool):
+            return column_name
+        if isinstance(value, str):
+            try:
+                number = float(value)
+            except ValueError:
+                return column_name
+        elif isinstance(value, (int, float)):
+            number = float(value)
+        else:
+            return column_name
+        if not math.isfinite(number) or not number.is_integer():
+            return column_name
+    return None
+
+
 def _artifact_manifest(root: Path) -> Dict[str, Dict[str, Any]]:
     artifacts = {}
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
@@ -550,14 +577,17 @@ def _validate_export_output(
     schemas = manifest.get("result_table_schemas")
     tables = manifest.get("tables")
     file_records = manifest.get("files")
+    expected_table_files = {name + suffix for name in table_names for suffix in (".csv", ".json")}
+    expected_file_records = expected_table_files | (
+        {"ic_summary.png"} if charts_requested else set()
+    )
     if (
         not isinstance(schemas, dict)
         or set(schemas) != set(table_names)
         or not isinstance(tables, dict)
         or set(tables) != set(table_names)
         or not isinstance(file_records, dict)
-        or set(file_records)
-        != {name + suffix for name in table_names for suffix in (".csv", ".json")}
+        or set(file_records) != expected_file_records
     ):
         return {"passed": False, "reason": "evaluation_manifest_table_inventory_invalid"}
 
@@ -593,7 +623,9 @@ def _validate_export_output(
                     "reason": "evaluation_table_schema_invalid",
                     "table": table_name,
                 }
-            expected_type = _EXPORT_LOGICAL_TYPES.get(name)
+            expected_type = _EXPORT_LOGICAL_TYPE_OVERRIDES.get(
+                (table_name, name), _EXPORT_LOGICAL_TYPES.get(name)
+            )
             if expected_type is not None and logical_type != expected_type:
                 return {
                     "passed": False,
@@ -626,7 +658,10 @@ def _validate_export_output(
                 "table": table_name,
             }
         table_row_counts = []
-        for suffix, media_type in ((".csv", "text/csv"), (".json", "application/json")):
+        for suffix, media_type in (
+            (".csv", "text/csv; charset=utf-8"),
+            (".json", "application/json"),
+        ):
             filename = table_name + suffix
             table_path = path / filename
             file_record = file_records.get(filename)
@@ -669,6 +704,17 @@ def _validate_export_output(
                                     "reason": "evaluation_csv_row_width_mismatch",
                                     "file": filename,
                                 }
+                            invalid_column = _invalid_export_value_column(
+                                table_name, dict(zip(column_names, row))
+                            )
+                            if invalid_column is not None:
+                                return {
+                                    "passed": False,
+                                    "reason": "evaluation_table_value_semantic_invalid",
+                                    "file": filename,
+                                    "column": invalid_column,
+                                    "row": row_count + 2,
+                                }
                             row_count += 1
                 else:
                     with table_path.open("r", encoding="utf-8") as source:
@@ -679,12 +725,21 @@ def _validate_export_output(
                             "reason": "evaluation_json_records_invalid",
                             "file": filename,
                         }
-                    for record in records:
+                    for record_index, record in enumerate(records):
                         if not isinstance(record, dict) or list(record) != column_names:
                             return {
                                 "passed": False,
                                 "reason": "evaluation_json_schema_mismatch",
                                 "file": filename,
+                            }
+                        invalid_column = _invalid_export_value_column(table_name, record)
+                        if invalid_column is not None:
+                            return {
+                                "passed": False,
+                                "reason": "evaluation_table_value_semantic_invalid",
+                                "file": filename,
+                                "column": invalid_column,
+                                "row": record_index + 1,
                             }
                     row_count = len(records)
             except (OSError, UnicodeError, csv.Error, ValueError):
@@ -710,13 +765,28 @@ def _validate_export_output(
         validated_rows += table_row_counts[0]
 
     chart_path = path / "ic_summary.png"
-    if charts_requested and (not chart_path.is_file() or chart_path.stat().st_size == 0):
-        return {"passed": False, "reason": "requested_chart_missing"}
+    chart_file_count = 0
+    if charts_requested:
+        chart_record = file_records.get("ic_summary.png")
+        if not chart_path.is_file() or not isinstance(chart_record, dict):
+            return {"passed": False, "reason": "requested_chart_missing"}
+        chart_bytes = chart_path.stat().st_size
+        if (
+            chart_bytes <= 0
+            or isinstance(chart_record.get("bytes"), bool)
+            or not isinstance(chart_record.get("bytes"), int)
+            or chart_record["bytes"] != chart_bytes
+            or chart_record.get("sha256") != _sha256_file(chart_path)
+            or chart_record.get("media_type") != "image/png"
+            or set(chart_record) != {"sha256", "bytes", "media_type"}
+        ):
+            return {"passed": False, "reason": "evaluation_chart_manifest_mismatch"}
+        chart_file_count = 1
     return {
         "passed": True,
         "table_file_count": validated_files,
         "table_row_count": validated_rows,
-        "chart_file_count": int(chart_path.is_file()),
+        "chart_file_count": chart_file_count,
         "evaluation_id": evaluation_id,
         "optional_tables": list(optional),
     }
