@@ -32,7 +32,7 @@ python run.py --config config.yaml --output-dir output
 
 - `input_bars.csv`：原始合成 OHLCV 输入。
 - `node_values.csv`：每个网格时点和资产的 open、volume、两类截面秩、相关、因子、原因，以及该格的回调次数。
-- `factor_values.csv`：`FactorStrategy.get_dataset()` 返回的 time/asset 因子面板。
+- `factor_values.csv`：`FactorStrategy.get_dataset().raw_factors` 返回的 time/asset 因子面板。
 - `run_summary.json`：计算状态、因子配置、实际 Backtrader/research 模块来源和每格调用次数。
 
 `main()` 只运行合成计算并导出这些文件，不执行验收断言，也不把结果标记为 formal acceptance。摘要中的 `COMPLETED` 只表示计算和导出完成；`acceptance` 明确保持 `NOT_EVALUATED_BY_EXAMPLE_RUNNER`。数据重排、缺格和非法输入的检查由开发者测试覆盖。修改一个资产的价格可能改变其他资产的当期排名；本例展示这个计算定义，不代表投资收益或完整 Alpha101 复现。

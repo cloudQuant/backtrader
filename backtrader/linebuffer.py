@@ -38,6 +38,7 @@ import datetime
 import itertools
 import math
 import operator
+from contextvars import ContextVar
 from itertools import islice, repeat
 
 from . import metabase
@@ -55,6 +56,133 @@ NEG_INF = float("-inf")
 # PERFORMANCE OPTIMIZATION: Pre-create default datetime for error recovery
 # Avoids repeated datetime object creation in hot path
 _DEFAULT_DATETIME = datetime.datetime(2000, 1, 1, 0, 0, 0)
+
+# Research factor computation installs a context only for the duration of a
+# strict callback. ContextVar keeps that policy local to the current execution
+# context and avoids mutating shared Feed objects.
+_ACTIVE_FACTOR_CONTEXT = ContextVar("bt_active_factor_context", default=None)
+_FACTOR_RUNTIME_PHASES = frozenset(("next", "once", "once_via_next"))
+
+
+def _factor_context_for_line(line):
+    """Find a factor context attached to a line or active in this callback."""
+    current = line
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        context = getattr(current, "_factor_strict_context", None)
+        if context is not None:
+            return context
+        owner = getattr(current, "_owner", None)
+        owner_ref = getattr(owner, "_owner_ref", None) if owner is not None else None
+        if owner_ref is not None:
+            current = owner_ref
+        else:
+            current = owner
+    return _ACTIVE_FACTOR_CONTEXT.get()
+
+
+def _factor_phase(context, default="next"):
+    phase = getattr(context, "phase", None)
+    return phase if phase in _FACTOR_RUNTIME_PHASES else default
+
+
+def _reject_factor_infinity(line, value):
+    """Reject an infinite value only while a strict factor context is active."""
+    context = _factor_context_for_line(line)
+    if context is None:
+        return
+    from .research.strict import reject_infinity
+
+    phase = _factor_phase(context)
+    reject_infinity(context, value, phase, operation=line)
+
+
+def _linebuffer_value(line, value):
+    """Apply the legacy infinity default after the strict-only check."""
+    if isinstance(value, float) and value in (INF, NEG_INF):
+        _reject_factor_infinity(line, value)
+        return 0.0
+    return value
+
+
+def _is_infinite_number(value):
+    try:
+        return math.isinf(float(value))
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _strict_scope(context, phase):
+    from .research.strict import computation_scope
+
+    return computation_scope(context, phase)
+
+
+def _strict_fail(context, error, phase, operation):
+    from .research.strict import fail_computation
+
+    fail_computation(context, error, phase, operation)
+
+
+def _strict_numeric_value(context, value, phase, operation):
+    """Keep missing NaN values and reject infinities without coercing other types."""
+    if value is None:
+        return NAN
+    try:
+        if value != value:
+            return NAN
+    except Exception:
+        pass
+    _reject_factor_infinity(operation, value)
+    return value
+
+
+def _raw_linebuffer_value(line, ago):
+    """Read an underlying line value without applying its legacy inf-to-zero rule."""
+    if ago == 0:
+        try:
+            current_idx = line._idx
+            if current_idx == line.lencount - 1:
+                return line.array[current_idx]
+            if line.lencount > 0 and current_idx >= line.lencount:
+                current_idx = line.lencount - 1
+            return line.array[current_idx]
+        except IndexError:
+            pass
+
+    try:
+        current_idx = line._idx
+        lencount = line.lencount
+        if lencount > 0 and current_idx >= lencount:
+            current_idx = lencount - 1
+        return line.array[current_idx + ago]
+    except IndexError:
+        pass
+
+    is_data_feed_line = getattr(line, "_is_data_feed_line", False)
+    if is_data_feed_line and ago > 0:
+        target_idx = line._idx + ago
+        if target_idx >= len(line.array) or line.array[target_idx] == 0.0:
+            raise IndexError("array index out of range")
+    if is_data_feed_line:
+        raise IndexError("array index out of range")
+    if getattr(line, "_is_indicator", False):
+        return NAN
+    return 0.0
+
+
+def _strict_operand_value(operand, ago=0):
+    """Read an operand in a strict scope, bypassing legacy LineBuffer coercion."""
+    if isinstance(operand, LineActions):
+        return operand[ago]
+    if isinstance(operand, LineBuffer):
+        return _raw_linebuffer_value(operand, ago)
+    lines = getattr(operand, "lines", None)
+    line_array = getattr(lines, "lines", None)
+    if line_array:
+        return _raw_linebuffer_value(line_array[0], ago)
+    return operand[ago] if hasattr(operand, "__getitem__") else operand
 
 
 # PERFORMANCE OPTIMIZATION: Helper function to check for NaN/None values
@@ -430,12 +558,14 @@ class LineBuffer(LineSingle, LineRootMixin):
                 if current_idx == self.lencount - 1:
                     value = self.array[current_idx]
                     if value in (INF, NEG_INF):
+                        _reject_factor_infinity(self, value)
                         return 0.0
                     return value
                 if self.lencount > 0 and current_idx >= self.lencount:
                     current_idx = self.lencount - 1
                 value = self.array[current_idx]
                 if value in (INF, NEG_INF):
+                    _reject_factor_infinity(self, value)
                     return 0.0
                 return value
             except IndexError:
@@ -452,6 +582,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 current_idx = lencount - 1
             value = self.array[current_idx + ago]
             if value in (INF, NEG_INF):
+                _reject_factor_infinity(self, value)
                 return 0.0
             return value
         except IndexError:
@@ -502,12 +633,13 @@ class LineBuffer(LineSingle, LineRootMixin):
             if getattr(values, "typecode", None) == "d":
                 for idx, value in enumerate(values):
                     if value in (INF, NEG_INF):
+                        _reject_factor_infinity(self, value)
                         values[idx] = 0.0
                 return values
 
         return array.array(
             "d",
-            ((0.0 if value in (INF, NEG_INF) else value) for value in values),
+            (_linebuffer_value(self, value) for value in values),
         )
 
     # Return the value at the actual index 0 of the array
@@ -524,6 +656,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         value = self.array[idx]
         if isinstance(value, float) and (value in (INF, NEG_INF)):
+            _reject_factor_infinity(self, value)
             return 0.0
         return value
 
@@ -546,7 +679,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         return array.array(
             "d",
             (
-                (0.0 if isinstance(value, float) and (value in (INF, NEG_INF)) else value)
+                _linebuffer_value(self, value)
                 for value in values
             ),
         )
@@ -583,7 +716,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         # "no signal" into a finite tradable value.
         elif value != value:  # NaN detection without isinstance + isnan
             value = self._default_value if self._is_datetime_line else float("nan")
-        elif isinstance(value, float) and (value in (INF, NEG_INF)):
+        elif (isinstance(value, float) and value in (INF, NEG_INF)) or (
+            not isinstance(value, float)
+            and _factor_context_for_line(self) is not None
+            and _is_infinite_number(value)
+        ):
+            _reject_factor_infinity(self, value)
             value = self._default_value
         # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
@@ -1625,6 +1763,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         if self._owner is None:
             self._owner = metabase.findowner(self, None)
 
+        strict_context = getattr(self._owner, "_factor_strict_context", None)
+        if strict_context is not None:
+            self._factor_strict_context = strict_context
+            if getattr(self, "lines", None) is not None:
+                object.__setattr__(self.lines, "_factor_strict_context", strict_context)
+                for line in getattr(self.lines, "lines", ()):
+                    line._factor_strict_context = strict_context
+
         init_args = args or getattr(self, "_lineaction_init_args", ())
 
         # Call pre-init
@@ -2051,6 +2197,18 @@ class _LineDelay(LineActions):
         For ago=-10 (lookback), accessing [0] should return self.a[-10] (10 bars back).
         Formula: self.a[idx + ago] where ago is negative for lookback.
         """
+        context = _factor_context_for_line(self)
+        if context is not None:
+            phase = _factor_phase(context)
+            with _strict_scope(context, phase):
+                try:
+                    value = _strict_operand_value(self.a, idx + self.ago)
+                except IndexError:
+                    return NAN
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+                return _strict_numeric_value(context, value, phase, self)
+
         try:
             # For delay operations, get value from source with delay applied
             # ago is negative for lookback, so idx + ago gives historical index
@@ -2072,6 +2230,20 @@ class _LineDelay(LineActions):
         # CRITICAL FIX: Proper delay operation
         # ago is negative for lookback (e.g., ago=-10 means 10 bars back)
         # We need self.a[ago] to get the historical value
+        context = _factor_context_for_line(self)
+        if context is not None:
+            phase = _factor_phase(context)
+            with _strict_scope(context, phase):
+                try:
+                    delayed_val = _strict_operand_value(self.a, self.ago)
+                except IndexError:
+                    delayed_val = NAN
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+                delayed_val = _strict_numeric_value(context, delayed_val, phase, self)
+                self[0] = NAN if delayed_val is None else delayed_val
+            return
+
         try:
             # Get the delayed value - ago is already negative for lookback
             delayed_val = self.a[self.ago]
@@ -2096,6 +2268,11 @@ class _LineDelay(LineActions):
             start: Starting index.
             end: Ending index.
         """
+        context = _factor_context_for_line(self)
+        if context is not None:
+            self._strict_once(start, end, context)
+            return
+
         # cache python dictionary lookups
         dst = self.array
         ago = self.ago
@@ -2170,6 +2347,50 @@ class _LineDelay(LineActions):
         for i in range(valid_end, end):
             dst[i] = nan
 
+    def _strict_once(self, start, end, context):
+        phase = "once"
+        with _strict_scope(context, phase):
+            dst = self.array
+            while len(dst) < end:
+                dst.append(NAN)
+
+            if hasattr(self.a, "once") and isinstance(self.a, LineActions):
+                try:
+                    self.a.once(0, end)
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self.a)
+
+            src = getattr(self.a, "array", None)
+            is_constant = isinstance(self.a, PseudoArray) or (
+                isinstance(self.a, _LineDelay)
+                and isinstance(getattr(self.a, "a", None), PseudoArray)
+            )
+            if is_constant:
+                try:
+                    constant = self.a[0]
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+                constant = _strict_numeric_value(context, constant, phase, self)
+                for index in range(start, end):
+                    dst[index] = NAN if constant is None else constant
+                return
+
+            if src is None:
+                src = ()
+            valid_start = max(start, -self.ago)
+            valid_end = min(end, len(src) - self.ago)
+            for index in range(start, min(valid_start, end)):
+                dst[index] = NAN
+            for index in range(valid_start, valid_end):
+                try:
+                    value = src[index + self.ago]
+                    value = _strict_numeric_value(context, value, phase, self)
+                    dst[index] = NAN if value is None else value
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+            for index in range(max(start, valid_end), end):
+                dst[index] = NAN
+
 
 class _LineForward(LineActions):
     """Forward a line by a positive offset (lookahead).
@@ -2214,6 +2435,33 @@ class _LineForward(LineActions):
         Actual Cerebro scheduling starts at the lookahead minperiod, but the
         guard also makes standalone callers deterministic.
         """
+        context = _factor_context_for_line(self)
+        if context is not None:
+            phase = "once"
+            with _strict_scope(context, phase):
+                dst = self.array
+                while len(dst) < end:
+                    dst.append(NAN)
+
+                if isinstance(self.a, LineActions):
+                    try:
+                        self.a.once(0, end)
+                    except Exception as exc:
+                        _strict_fail(context, exc, phase, self.a)
+
+                src = getattr(self.a, "array", None)
+                if src is None:
+                    src = ()
+                valid_start = max(start, self.ago)
+                valid_end = min(end, len(src))
+                for index in range(valid_start, valid_end):
+                    try:
+                        value = _strict_numeric_value(context, src[index], phase, self)
+                        dst[index - self.ago] = NAN if value is None else value
+                    except Exception as exc:
+                        _strict_fail(context, exc, phase, self)
+            return
+
         dst = self.array
         src = self.a.array
         ago = self.ago
@@ -2225,7 +2473,6 @@ class _LineForward(LineActions):
         valid_end = min(end, len(src))
         for i in range(valid_start, valid_end):
             dst[i - ago] = src[i]
-
 
 class LinesOperation(LineActions):
     """Operation between two line objects (binary operations).
@@ -2349,6 +2596,125 @@ class LinesOperation(LineActions):
             return operand[ago]
         return operand
 
+    def _strict_operand_value(self, operand, ago, guard_minperiod, minperiod):
+        if guard_minperiod:
+            try:
+                if len(operand) + ago < minperiod:
+                    return NAN
+            except (AttributeError, TypeError):
+                pass
+            except Exception as exc:
+                context = _factor_context_for_line(self)
+                _strict_fail(context, exc, _factor_phase(context), self)
+        context = _factor_context_for_line(self)
+        phase = _factor_phase(context)
+        try:
+            value = _strict_operand_value(operand, ago)
+        except IndexError:
+            return NAN
+        return _strict_numeric_value(context, value, phase, self)
+
+    def _strict_array_operand(self, operand, index):
+        values = getattr(operand, "array", None)
+        if values is not None and index < len(values):
+            return values[index]
+        try:
+            return _strict_operand_value(operand, index)
+        except (IndexError, AttributeError):
+            return NAN
+
+    def _strict_once(self, start, end, context):
+        phase = "once"
+        with _strict_scope(context, phase):
+            nested_start = 0
+            for parent in (self._parent_a, self._parent_b):
+                if parent is not None and hasattr(parent, "once"):
+                    try:
+                        parent.once(nested_start, end)
+                    except Exception as exc:
+                        _strict_fail(context, exc, phase, parent)
+
+            for operand in (self.a, self.b):
+                if isinstance(operand, LineActions) and hasattr(operand, "once"):
+                    try:
+                        operand.once(nested_start, end)
+                    except Exception as exc:
+                        _strict_fail(context, exc, phase, operand)
+
+            dst = self.array
+            while len(dst) < end:
+                dst.append(NAN)
+
+            for index in range(end):
+                try:
+                    a_val = (
+                        NAN
+                        if self._a_guard_minperiod and index + 1 < self._a_minperiod
+                        else self._strict_array_operand(self.a, index)
+                    )
+                    b_val = (
+                        NAN
+                        if self._b_guard_minperiod and index + 1 < self._b_minperiod
+                        else self._strict_array_operand(self.b, index)
+                    )
+                    a_val = _strict_numeric_value(context, a_val, phase, self)
+                    b_val = _strict_numeric_value(context, b_val, phase, self)
+                    if self._is_missing(a_val) or self._is_missing(b_val):
+                        dst[index] = NAN
+                        continue
+                    result = self.operation(b_val, a_val) if self.r else self.operation(a_val, b_val)
+                    result = _strict_numeric_value(context, result, phase, self)
+                    dst[index] = NAN if result is None else result
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+
+            try:
+                self.oncebinding()
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+
+    def _strict_getitem(self, ago, context):
+        phase = _factor_phase(context)
+        with _strict_scope(context, phase):
+            try:
+                current_idx = self._idx
+                target_idx = current_idx + ago
+                if current_idx >= 0 and 0 <= target_idx < len(self.array):
+                    return _strict_numeric_value(context, self.array[target_idx], phase, self)
+
+                a_val = self._strict_operand_value(
+                    self.a, ago, self._a_guard_minperiod, self._a_minperiod
+                )
+                b_val = self._strict_operand_value(
+                    self.b, ago, self._b_guard_minperiod, self._b_minperiod
+                )
+                if self._is_missing(a_val) or self._is_missing(b_val):
+                    return NAN
+                result = self.operation(b_val, a_val) if self.r else self.operation(a_val, b_val)
+                result = _strict_numeric_value(context, result, phase, self)
+                return NAN if result is None else result
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+
+    def _strict_next(self, context):
+        phase = _factor_phase(context)
+        with _strict_scope(context, phase):
+            try:
+                a_val = self._strict_operand_value(
+                    self.a, 0, self._a_guard_minperiod, self._a_minperiod
+                )
+                b_val = self._strict_operand_value(
+                    self.b, 0, self._b_guard_minperiod, self._b_minperiod
+                )
+                if self._is_missing(a_val) or self._is_missing(b_val):
+                    self[0] = NAN
+                    return
+                result = self.operation(b_val, a_val) if self.r else self.operation(a_val, b_val)
+                result = _strict_numeric_value(context, result, phase, self)
+                self[0] = NAN if result is None else result
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+
     def _normalize_operand(self, value):
         if self._is_missing(value):
             return float("nan")
@@ -2409,6 +2775,10 @@ class LinesOperation(LineActions):
         In runonce mode, the array is pre-computed by once(), so use it directly.
         Falls back to dynamic computation only if the array is not populated.
         """
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            return self._strict_getitem(ago, strict_context)
+
         try:
             # Use pre-computed array if available (runonce mode)
             current_idx = self._idx
@@ -2492,6 +2862,10 @@ class LinesOperation(LineActions):
         Performs the binary operation on the current values of both
         operands and stores the result at position 0.
         """
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            return self._strict_next(strict_context)
+
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
         try:
@@ -2551,6 +2925,11 @@ class LinesOperation(LineActions):
             start: Starting index.
             end: Ending index.
         """
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            self._strict_once(start, end, strict_context)
+            return
+
         # CRITICAL FIX: Always use start=0 for nested operations
         # This ensures historical values are available for indicators like SMA
         nested_start = 0
@@ -3043,8 +3422,87 @@ class LineOwnOperation(LineActions):
                 return owner
         return None
 
+    def _strict_value(self, value, context, phase):
+        return _strict_numeric_value(context, value, phase, self)
+
+    def _strict_apply(self, operand_value, context, phase):
+        operand_value = self._strict_value(operand_value, context, phase)
+        if operand_value is None or self._is_nan(operand_value):
+            return NAN
+        try:
+            result = self.operation(operand_value)
+        except Exception as exc:
+            _strict_fail(context, exc, phase, self)
+        result = self._strict_value(result, context, phase)
+        return NAN if result is None else result
+
+    @staticmethod
+    def _is_nan(value):
+        try:
+            return value != value
+        except Exception:
+            return False
+
+    def _strict_getitem(self, ago, context):
+        phase = _factor_phase(context)
+        with _strict_scope(context, phase):
+            try:
+                value = _strict_operand_value(self.a, ago)
+            except IndexError:
+                return NAN
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+            return self._strict_apply(value, context, phase)
+
+    def _strict_next(self, context):
+        phase = _factor_phase(context)
+        with _strict_scope(context, phase):
+            try:
+                value = _strict_operand_value(self.a, 0)
+            except IndexError:
+                value = NAN
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+            self[0] = self._strict_apply(value, context, phase)
+
+    def _strict_once(self, start, end, context):
+        phase = "once"
+        with _strict_scope(context, phase):
+            if self._parent_a is not None and hasattr(self._parent_a, "once"):
+                try:
+                    self._parent_a.once(start, end)
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self._parent_a)
+            if isinstance(self.a, LineActions) and hasattr(self.a, "once"):
+                try:
+                    self.a.once(start, end)
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self.a)
+
+            dst = self.array
+            while len(dst) < end:
+                dst.append(NAN)
+            src = getattr(self.a, "array", None)
+            for index in range(start, end):
+                try:
+                    if src is not None and index < len(src):
+                        value = src[index]
+                    else:
+                        value = _strict_operand_value(self.a, index)
+                    dst[index] = self._strict_apply(value, context, phase)
+                except Exception as exc:
+                    _strict_fail(context, exc, phase, self)
+            try:
+                self.oncebinding()
+            except Exception as exc:
+                _strict_fail(context, exc, phase, self)
+
     def __getitem__(self, ago):
         """CRITICAL FIX: Override __getitem__ to compute value dynamically from source operand."""
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            return self._strict_getitem(ago, strict_context)
+
         try:
             a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
             if a_val is None or (isinstance(a_val, float) and a_val != a_val):
@@ -3064,6 +3522,10 @@ class LineOwnOperation(LineActions):
         Performs the unary operation on the current value of the operand
         and stores the result at position 0.
         """
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            return self._strict_next(strict_context)
+
         a_val = self.a[0]
         if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
             a_val = 0.0
@@ -3081,6 +3543,11 @@ class LineOwnOperation(LineActions):
             start: Starting index.
             end: Ending index.
         """
+        strict_context = _factor_context_for_line(self)
+        if strict_context is not None:
+            self._strict_once(start, end, strict_context)
+            return
+
         # CRITICAL FIX: Ensure source operand is processed first
         if self._parent_a is not None and hasattr(self._parent_a, "_once"):
             try:

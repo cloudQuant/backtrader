@@ -29,8 +29,11 @@ class Alpha003Indicator(FactorIndicator):
             raise ValueError("period must be an integer >= 2")
 
         self._period = period
-        self._open_ranks = {data: deque(maxlen=period) for data in self.datas}
-        self._volume_ranks = {data: deque(maxlen=period) for data in self.datas}
+        self._opens = self.field_lines("open")
+        self._volumes = self.field_lines("volume")
+        self._members = self.formula_members
+        self._open_ranks = {data: deque(maxlen=period) for data in self.target_datas}
+        self._volume_ranks = {data: deque(maxlen=period) for data in self.target_datas}
         self.diagnostics = []
         self.grid_call_counts = {}
         self.evaluation_count = 0
@@ -105,20 +108,23 @@ class Alpha003Indicator(FactorIndicator):
 
     def next(self):
         """Evaluate one complete Cerebro grid event for every bound feed."""
-        if not self.datas:
+        if not self.target_datas:
             return
 
-        timestamp = self._timestamp(self.datas[0])
+        timestamp = self._timestamp(self.target_datas[0])
         calls = self.grid_call_counts.get(timestamp, 0) + 1
         self.grid_call_counts[timestamp] = calls
         self.evaluation_count += 1
 
-        opens = [float(data.open[0]) for data in self.datas]
-        volumes = [float(data.volume[0]) for data in self.datas]
+        opens = [float(line[0]) for line in self._opens]
+        volumes = [float(line[0]) for line in self._volumes]
+        for index, member in enumerate(self._members):
+            if member is not None and member[0] != 1.0:
+                opens[index] = volumes[index] = math.nan
         open_ranks = self._rank(opens)
         volume_ranks = self._rank(volumes)
 
-        for index, data in enumerate(self.datas):
+        for index, data in enumerate(self.target_datas):
             open_history = self._open_ranks[data]
             volume_history = self._volume_ranks[data]
             open_history.append(open_ranks[index])
@@ -128,9 +134,7 @@ class Alpha003Indicator(FactorIndicator):
             factor = math.nan
             if len(open_history) < self._period:
                 reason = "NOT_READY"
-            elif not all(
-                math.isfinite(value) for value in (*open_history, *volume_history)
-            ):
+            elif not all(math.isfinite(value) for value in (*open_history, *volume_history)):
                 reason = "INCOMPLETE_WINDOW"
             else:
                 correlation_value = self._pearson(open_history, volume_history)

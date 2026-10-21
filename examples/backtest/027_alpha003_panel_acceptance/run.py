@@ -24,7 +24,7 @@ import pandas as pd
 import yaml
 
 from alpha003_strategy import Alpha003Indicator
-from backtrader.research import FactorIndicator, FactorStrategy
+from backtrader.research import FactorIndicator, FactorStrategy, ResearchSpec, prealign_bars
 
 
 OHLCV_COLUMNS = ("open", "high", "low", "close", "volume")
@@ -95,15 +95,31 @@ def _validated_feed_frame(frame, grid_index):
     source_index.index = source.index.tz_convert("UTC")
     if not source_index.index.isin(grid_index).all():
         raise ValueError("input timestamps must belong to the explicit grid")
-    # Reindex before constructing PandasData. Missing grid cells remain NaN;
-    # they are never filled from a previous row.
-    return source_index.reindex(grid_index)
+    return source_index
+
+
+def make_research(grid_index, assets):
+    """Declare this demonstration's synthetic calendar and research window."""
+    index = pd.DatetimeIndex(grid_index, name="close_time")
+    return ResearchSpec(
+        grid=pd.DataFrame({"open_time": index - pd.Timedelta(hours=8)}, index=index),
+        start=index[0],
+        end=index[-1],
+        targets=tuple(assets),
+        source_timezone="UTC",
+        snapshot_id="af45_003_v1",
+        price_basis="synthetic_unadjusted_ohlcv",
+        calendar_id="af45_003_explicit_daily_grid_v1",
+        frequency="1day",
+    )
 
 
 def run_experiment(inputs, grid, *, runonce=False, asset_order=None, factor_classes=None):
     """Run native FactorIndicators in Cerebro and return the collecting strategy."""
-    if not isinstance(inputs, dict) or not inputs or any(
-        not isinstance(asset, str) or not asset for asset in inputs
+    if (
+        not isinstance(inputs, dict)
+        or not inputs
+        or any(not isinstance(asset, str) or not asset for asset in inputs)
     ):
         raise ValueError("inputs must contain named assets")
     grid_index = _validate_grid(grid)
@@ -111,10 +127,12 @@ def run_experiment(inputs, grid, *, runonce=False, asset_order=None, factor_clas
     if len(order) != len(inputs) or set(order) != set(inputs):
         raise ValueError("asset_order must contain every asset exactly once")
 
+    research = make_research(grid_index, order)
     cerebro = bt.Cerebro(stdstats=False)
     for asset in order:
-        aligned = _validated_feed_frame(inputs[asset], grid_index)
-        cerebro.adddata(bt.feeds.PandasData(dataname=aligned), name=asset)
+        source = _validated_feed_frame(inputs[asset], grid_index)
+        aligned = prealign_bars(source, research, asset, data_version="af45_003_v1")
+        cerebro.adddata(aligned.feed, name=asset)
 
     classes = {"alpha003": Alpha003Indicator} if factor_classes is None else factor_classes
     if not isinstance(classes, dict) or not classes:
@@ -124,10 +142,13 @@ def run_experiment(inputs, grid, *, runonce=False, asset_order=None, factor_clas
             "indicator": indicator_class,
             "params": {},
             "panel_line": "factor",
+            "field_bindings": {
+                field: "feed:target:" + field for field in indicator_class.formula_fields
+            },
         }
         for name, indicator_class in classes.items()
     }
-    cerebro.addstrategy(FactorStrategy, factors=factors, grid=tuple(grid_index.to_pydatetime()))
+    cerebro.addstrategy(FactorStrategy, factors=factors, research=research)
     return cerebro.run(runonce=runonce, preload=True)[0]
 
 
@@ -142,8 +163,9 @@ def _input_rows(inputs):
 
 
 def _dataset_rows(dataset):
+    dataset = dataset.raw_factors
     if not isinstance(dataset, pd.DataFrame):
-        raise TypeError("FactorStrategy.get_dataset() must return a pandas DataFrame")
+        raise TypeError("ResearchDataset.raw_factors must return a pandas DataFrame")
     if not {"time", "asset"}.issubset(dataset.columns):
         dataset = dataset.reset_index()
     if not {"time", "asset"}.issubset(dataset.columns):

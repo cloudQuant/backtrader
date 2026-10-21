@@ -374,6 +374,64 @@ class LineIteratorMixin:
         """
         super().__init_subclass__(**kwargs)
 
+    def _factor_run_callback(self, callback, phase, *args):
+        """Run one callback under the inherited strict factor context, if any."""
+        context = self._factor_strict_context_for_callback()
+        if context is None:
+            return callback(*args)
+
+        from .research.strict import computation_scope, fail_computation
+
+        try:
+            with computation_scope(context, phase):
+                return callback(*args)
+        except Exception as exc:
+            fail_computation(context, exc, phase, operation=self)
+
+    def _factor_strict_context_for_callback(self):
+        """Resolve this iterator's nearest strict factor context.
+
+        Normally descendants receive the context during construction. Walking
+        the owner chain here is a defensive fallback for custom construction
+        paths that attach an owner after ``donew``.
+        """
+        current = self
+        seen = set()
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            context = getattr(current, "_factor_strict_context", None)
+            if context is not None:
+                return context
+
+            owner = getattr(current, "_owner", None)
+            if owner is None:
+                lines = getattr(current, "lines", None)
+                owner = getattr(lines, "_owner_ref", None) if lines is not None else None
+            if owner is not None:
+                owner_ref = getattr(owner, "_owner_ref", None)
+                current = owner_ref if owner_ref is not None else owner
+            else:
+                current = None
+        return None
+
+    @staticmethod
+    def _inherit_factor_strict_context(obj, context):
+        """Attach a parent's opt-in context to an iterator and its output lines."""
+        if context is None:
+            return
+        obj._factor_strict_context = context
+        lines = getattr(obj, "lines", None)
+        if lines is None:
+            return
+        object.__setattr__(lines, "_factor_strict_context", context)
+        try:
+            for line in lines:
+                if line is not None:
+                    line._factor_strict_context = context
+        except (TypeError, AttributeError):
+            # Some line collections are non-iterable during partial setup.
+            pass
+
     @classmethod
     def donew(cls, *args, **kwargs):
         """Process data arguments and filter them before instance creation.
@@ -488,6 +546,19 @@ class LineIteratorMixin:
 
         # Create the instance with filtered arguments
         _obj, remaining_args, kwargs = super().donew(*remaining_args, **kwargs)
+
+        # OwnerContext is authoritative during construction: __new__ runs
+        # before Indicator's owner wrapper establishes the child owner, while
+        # donew runs with the parent indicator on the context stack. Propagate
+        # the local factor policy now so nested descendants inherit it too.
+        try:
+            context_owner = metabase.OwnerContext.get_current_owner(LineIterator)
+            context = getattr(context_owner, "_factor_strict_context", None)
+            if context is not None:
+                cls._inherit_factor_strict_context(_obj, context)
+        except (AttributeError, TypeError):
+            # Ordinary construction has no factor context; retain legacy path.
+            pass
 
         # Initialize _lineiterators
         _obj._lineiterators = collections.defaultdict(list)
@@ -891,6 +962,11 @@ class LineIteratorMixin:
         # Register with owner if found
         # CRITICAL FIX: Check if already registered to avoid duplicates
         if owner is not None:
+            owner_context = getattr(owner, "_factor_strict_context", None)
+            if owner_context is not None and not getattr(
+                _obj, "_factor_strict_context", None
+            ):
+                cls._inherit_factor_strict_context(_obj, owner_context)
             try:
                 ind_list = owner._lineiterators.get(LineIterator.IndType, [])
                 if _obj not in ind_list:
@@ -1202,6 +1278,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 owner = metabase.findowner(instance, Strategy)
             if owner:
                 instance._owner = owner
+                strict_context = getattr(owner, "_factor_strict_context", None)
+                if strict_context is not None:
+                    instance._factor_strict_context = strict_context
 
         # CRITICAL FIX: Initialize lines if the class has a lines definition
         # The lines attribute needs to be an instance, not the class
@@ -1235,11 +1314,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if hasattr(instance, "lines") and instance.lines is not None:
             # Use object.__setattr__ to directly set _owner_ref (bypasses Lines.__setattr__)
             object.__setattr__(instance.lines, "_owner_ref", instance)
+            strict_context = getattr(instance, "_factor_strict_context", None)
+            if strict_context is not None:
+                object.__setattr__(instance.lines, "_factor_strict_context", strict_context)
             try:
                 ltype = getattr(cls, "_ltype", None)
                 for line in instance.lines:
                     if hasattr(line, "_refresh_cached_line_flags"):
                         line._refresh_cached_line_flags(owner=instance.lines, ltype=ltype)
+                    if strict_context is not None:
+                        line._factor_strict_context = strict_context
             except Exception:
                 throttled_warning(
                     logger,
@@ -1608,6 +1692,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if not hasattr(indicator, "_owner") or indicator._owner is None:
             indicator._owner = self
 
+        strict_context = getattr(self, "_factor_strict_context", None)
+        if strict_context is not None and not getattr(
+            indicator, "_factor_strict_context", None
+        ):
+            self._inherit_factor_strict_context(indicator, strict_context)
+
         # Set up the indicator's clock to match the data feed it operates on
         if not hasattr(indicator, "_clock") or indicator._clock is None:
             if hasattr(indicator, "datas") and indicator.datas:
@@ -1791,9 +1881,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         self.home()
 
-        self.preonce(0, self._minperiod - 1)
-        self.oncestart(self._minperiod - 1, self._minperiod)
-        self.once(self._minperiod, self.buflen())
+        self._factor_run_callback(self.preonce, "once", 0, self._minperiod - 1)
+        self._factor_run_callback(
+            self.oncestart, "once", self._minperiod - 1, self._minperiod
+        )
+        self._factor_run_callback(self.once, "once", self._minperiod, self.buflen())
 
         for line in self.lines:
             line.oncebinding()
@@ -1927,20 +2019,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 except AttributeError:
                     pass
             if minperstatus < 0:
-                self.next()
+                self._factor_run_callback(self.next, "next")
             elif minperstatus == 0:
-                self.nextstart()  # only called for the 1st value
+                self._factor_run_callback(self.nextstart, "next")  # only called for the 1st value
             else:
-                self.prenext()
+                self._factor_run_callback(self.prenext, "next")
         # If line type is not strategy, judge by clock_len and self._minperiod
         else:
             # Assume indicators and others operate on same length datas
             if clock_len > self._minperiod:
-                self.next()
+                self._factor_run_callback(self.next, "next")
             elif clock_len == self._minperiod:
-                self.nextstart()  # only called for the 1st value
+                self._factor_run_callback(self.nextstart, "next")  # only called for the 1st value
             elif clock_len:
-                self.prenext()
+                self._factor_run_callback(self.prenext, "next")
 
     def prenext(self):
         """Called before minimum period is reached.

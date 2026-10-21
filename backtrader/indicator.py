@@ -372,7 +372,7 @@ class Indicator(IndicatorBase):
 
             # CRITICAL FIX: Directly advance lines instead of using self.advance()
             self.lines.advance()
-            self.nextstart()
+            self._factor_run_callback(self.nextstart, "once_via_next")
 
     def once_via_next(self, start, end):
         """Implement once using next for batch calculation.
@@ -398,7 +398,7 @@ class Indicator(IndicatorBase):
             # _clock is MinimalClock (always returns 0) or when _clock is not properly
             # synchronized. In once_via_next, we always need to advance.
             self.lines.advance()
-            self.next()
+            self._factor_run_callback(self.next, "once_via_next")
 
 
 class LinePlotterIndicatorBase(Indicator.__class__):

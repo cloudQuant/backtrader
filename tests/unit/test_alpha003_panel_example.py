@@ -119,7 +119,7 @@ def reference_alpha003(inputs, grid, period=10):
 
 
 def _compare_dataset(strategy, expected, label):
-    actual = strategy.get_dataset()
+    actual = strategy.get_dataset().raw_factors
     _require(isinstance(actual, pd.DataFrame), "%s: get_dataset() must return a DataFrame" % label)
     _require(
         isinstance(actual.index, pd.MultiIndex) and actual.index.nlevels == 2,
@@ -172,7 +172,7 @@ def _assert_native(strategy, grid, assets):
     import backtrader as bt
     from backtrader.research import FactorIndicator
 
-    assert set(strategy.factor_instances) == set(strategy.get_dataset().columns)
+    assert set(strategy.factor_instances) == set(strategy.get_dataset().raw_factors.columns)
     for factor in strategy.factor_instances.values():
         assert isinstance(factor, FactorIndicator)
         assert isinstance(factor, bt.Indicator)
@@ -254,7 +254,7 @@ def test_native_future_prefix_and_instance_isolation(example, runonce):
     inputs = example.make_inputs()
     grid = inputs["A"].index
     base = example.run_experiment(inputs, grid, runonce=runonce)
-    prefix = base.get_dataset()
+    prefix = base.get_dataset().raw_factors
     future = grid[-1] + pd.Timedelta(days=1)
     for offset, frame in enumerate(inputs.values()):
         frame.loc[future, list(_FIELDS)] = (1000 + offset, 2000, 0.5, 1000, 9000 - offset * 1000)
@@ -270,19 +270,23 @@ def test_native_future_prefix_and_instance_isolation(example, runonce):
             "duplicate": example.Alpha003Indicator,
         },
     )
-    pd.testing.assert_frame_equal(strategy.get_dataset().loc[prefix.index, ["alpha003"]], prefix)
+    pd.testing.assert_frame_equal(
+        strategy.get_dataset().raw_factors.loc[prefix.index, ["alpha003"]], prefix
+    )
     left, right = strategy.factor_instances.values()
     assert left is not right
     for data in left.datas:
         assert left.outputs[data].factor is not right.outputs[data].factor
     pd.testing.assert_series_equal(
-        strategy.get_dataset()["alpha003"], strategy.get_dataset()["duplicate"], check_names=False
+        strategy.get_dataset().raw_factors["alpha003"],
+        strategy.get_dataset().raw_factors["duplicate"],
+        check_names=False,
     )
     _assert_native(strategy, extended, inputs)
     # A fresh run must not inherit an earlier instance's rolling history.
     fresh_inputs = example.make_inputs()
     fresh = example.run_experiment(fresh_inputs, grid, runonce=runonce)
-    pd.testing.assert_frame_equal(fresh.get_dataset(), prefix)
+    pd.testing.assert_frame_equal(fresh.get_dataset().raw_factors, prefix)
 
 
 @pytest.mark.parametrize("runonce", [False, True])
@@ -371,7 +375,7 @@ def test_native_real_sma_roc_and_cross_section_to_time_series(example, runonce):
         runonce=runonce,
         factor_classes={"native_children": NativeChildren, "smoothed_rank": SmoothedRank},
     )
-    actual = strategy.get_dataset()
+    actual = strategy.get_dataset().raw_factors
     ranks = [_fractional_ranks(_field_values(inputs, t, "open")) for t in grid]
     for position, t in enumerate(grid):
         for asset, frame in inputs.items():
@@ -440,16 +444,21 @@ def test_native_research_has_one_explicit_entry(example, invalid):
     import backtrader as bt
     from backtrader.research import FactorIndicator, FactorStrategy
 
-    class ExpressionWithNext(FactorIndicator):
-        lines = ("factor",)
-        panel_mode = "expression"
+    if invalid == "expression":
+        with pytest.raises(TypeError, match="panel_mode"):
 
-        def next(self):
-            raise AssertionError("unsupported expression mode reached calculation")
+            class ExpressionWithNext(FactorIndicator):
+                lines = ("factor",)
+                panel_mode = "expression"
 
-        @classmethod
-        def build(cls, ctx):
-            return ctx.open
+                def next(self):
+                    raise AssertionError("unsupported expression mode reached calculation")
+
+                @classmethod
+                def build(cls, ctx):
+                    return ctx.open
+
+        return
 
     inputs = example.make_inputs()
     cerebro = bt.Cerebro(stdstats=False)
@@ -460,12 +469,12 @@ def test_native_research_has_one_explicit_entry(example, invalid):
         spec[invalid] = {"execution": "indicator", "line": "factor", "inputs": ("target",)}[invalid]
     elif invalid == "ordinary":
         spec["indicator"] = bt.ind.SMA
-    elif invalid == "expression":
-        spec["indicator"] = ExpressionWithNext
     else:
         del spec["panel_line"]
     cerebro.addstrategy(
-        FactorStrategy, factors={"alpha003": spec}, grid=tuple(inputs["A"].index.to_pydatetime())
+        FactorStrategy,
+        factors={"alpha003": spec},
+        research=example.make_research(inputs["A"].index, tuple(inputs)),
     )
     with pytest.raises((TypeError, ValueError)):
         cerebro.run()
