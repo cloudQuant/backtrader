@@ -1,9 +1,9 @@
 ﻿# 迭代 45 Alpha101 覆盖清单
 
-> **v0.8 规范附件｜2026-10-21**
-> 本文件以 101 行登记公式的输入、算子族、截面/行业操作和能力依赖覆盖规划；它不是任一轮的全量因子库实现承诺、QA 报告或验收结果。迭代45先由 R0 展示 Alpha#3 最小原生闭环，再由 R1–R10独立完成当前 native 范围，其中 R4 用20个代表式手工核算 H 并验证真实 Indicator 执行；迭代46实现 101/101 native；迭代47新增 build 编译前端并完成20式 build/native 等价；迭代48实现 101/101 build 和全量等价。45不编译DAG、不自动推导H、不实现build DSL。当前 101 行的能力验证均为 `NOT_RUN`，公式库实现状态均为 `NOT_IMPLEMENTED`。本次先定稿文档，随后按用户授权实施45；截至本次规划定稿，45功能 AC 均为 `NOT_RUN`。
+> **v0.9 状态同步附件｜2026-10-22**
+> 本文件以101行登记公式的输入、算子族、截面/行业操作和能力依赖覆盖规划；它不是任一轮的全量因子库实现承诺或验收结果。R0已提交Alpha#3最小原生闭环；R3-S已提交静态依赖登记并通过3项测试，仅接受AC45-23静态登记部分。迭代45仍须由R1–R10完成当前native范围，其中R4以20个代表式手工核算H并验收真实Indicator执行；迭代46实现101/101 native；迭代47新增build编译前端并完成20式build/native等价；迭代48实现101/101 build和全量等价。45不编译DAG、不自动推导H、不实现build DSL。101行的逐公式能力验证仍为`NOT_RUN`，生产库状态为`NOT_IMPLEMENTED`；正式AC45尚未整体最终验收，组件结果不代表完整AC通过。
 
-本清单是迭代45有效需求、设计和验收合同的覆盖附件，覆盖 REQ45-13..16、DS45-11..14、AC45-23..30。共同 grid/历史视图/缺格合同见[四迭代路线与对齐合同 ALN-01..08](./四迭代路线与对齐合同.md)。45 的全部公式统一以真实 `FactorIndicator(panel_mode="next")` 运行，算法根据公式定义处理时序、截面或行业语义；研究组各资产在进入 Cerebro 前按显式 grid 对齐为 BT-compatible 历史视图，缺格为 NaN、不沿用旧值，next-only 基线由 native owner/clock/minperiod 与 `once_via_next` 驱动，Strategy 只采集；手写原生 `once` 优化须证明与 `next` 在同一 grid 索引、输出和有效性语义上等价。manual H 由手工依赖窗口核算，Python 算法不编译 DAG/自动推 H。build/expression 前端是47新增能力。现有027 expression原型源码保留历史类名 `PanelFactorIndicator`，本轮不改该原型代码；它不构成本轮 `FactorIndicator` native通过，也不等同于47的build前端。AC45-23 检查101项静态映射，AC45-24检查数据/PIT，AC45-25检查45 native生命周期与grid调度，AC45-26检查算子，AC45-27检查因果和formula_universe隔离，AC45-28检查20个代表式，AC45-29检查安装产物上的native代表入口，AC45-30检查四迭代交接与边界。所有能力验收目前均为 `NOT_RUN`；四迭代均未开始实现全量因子库。公式结构依据 Kakushadze, *101 Formulaic Alphas*, Appendix A，尤其 A.1 的 Alpha#1–#101、A.2 的算子定义及 A.3 的输入定义：[官方 arXiv PDF](https://arxiv.org/pdf/1601.00991)。表格只归纳每条公式的结构与依赖，不重印公式全文；后续库实现须逐条以该附录原式为黄金语义，不能以本表的算子摘要替代。
+本清单是迭代45有效需求、设计和验收合同的覆盖附件，覆盖 REQ45-13..16、DS45-11..14、AC45-23..30。共同 grid/历史视图/缺格合同见[四迭代路线与对齐合同 ALN-01..08](./四迭代路线与对齐合同.md)。45 的全部公式统一以真实 `FactorIndicator(panel_mode="next")` 运行，算法根据公式定义处理时序、截面或行业语义；研究组各资产在进入 Cerebro 前按显式 grid 对齐为 BT-compatible 历史视图，缺格为 NaN、不沿用旧值，next-only 基线由 native owner/clock/minperiod 与 `once_via_next` 驱动，Strategy 只采集；手写原生 `once` 优化须证明与 `next` 在同一 grid 索引、输出和有效性语义上等价。manual H 由手工依赖窗口核算，Python 算法不编译 DAG/自动推 H。build/expression 前端是47新增能力。旧027 expression原型源码已从示例路径移除，仅可从Git历史追溯，历史类名为 `PanelFactorIndicator`；当前027是R0的真实 `FactorIndicator` native示例，不等同于47的build前端。AC45-23检查101项静态映射，R3-S已提交登记并通过3项测试，仅完成该AC的静态组件；完整AC45-23及AC45-24至AC45-30仍需各自正式证据。AC45-24检查数据/PIT，AC45-25检查45 native生命周期与grid调度，AC45-26检查算子，AC45-27检查因果和formula_universe隔离，AC45-28检查20个代表式，AC45-29检查安装产物上的native代表入口，AC45-30检查四迭代交接与边界。正式AC45尚未整体最终验收；四迭代均未完成全量因子库。公式结构依据 Kakushadze, *101 Formulaic Alphas*, Appendix A，尤其 A.1 的 Alpha#1–#101、A.2 的算子定义及 A.3 的输入定义：[官方 arXiv PDF](https://arxiv.org/pdf/1601.00991)。表格只归纳每条公式的结构与依赖，不重印公式全文；后续库实现须逐条以该附录原式为黄金语义，不能以本表的算子摘要替代。
 
 AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_dependencies.json`](../../../../../backtrader/research/alpha101_dependencies.json)：每个来源原式保留 token、标点及数值记法（仅将 PDF 提取后的换行和连续空白归一为单空格），并有摘要哈希；登记列明输入字段、调用与规范算子、比较/算术符号、数值常量、窗口及延迟参数、预热依赖类别、PIT 分类和 `formula_universe` 约束。登记按 TS 18、CS 65、industry 18 归组；这是依赖盘点，不是执行 DAG、精确 H、实现状态或验收结果。表中 #101 摘要继续保留原常数 `0.001`；登记另外保留论文原式中的 `.001` 记法。
 
@@ -13,7 +13,7 @@ AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_d
 - 派生/外部字段：`r` 为论文所定义的日 close-to-close returns；`advN` 为论文定义的过去 N 日平均日美元成交额；`cap` 为市值。`IndClass.level` 是行业分类映射。该登记不推定其原始供应方式、复权方式或 PIT 完备性。
 - “截面操作”只登记普通截面 `rank` 与 `scale`；`Ts_Rank/ts_rank` 是时间序列排序，不计入截面 rank。alpha101-v1 将截面 `rank` 定义为平均秩除以截面资产数 `n`，`scale` 定义为绝对值和归一化。`IndNeutralize` 单列，并按每次调用计数。
 - alpha101-v1 数值 profile：`SignedPower(x,a)=sign(x)×|x|^a`；移动标准差和协方差使用 `ddof=0`；所有公式窗口中的非整数长度按 `floor(d)` 转为整数；双表达式 `min(x,y)`/`max(x,y)` 按同一网格逐元素比较。论文同名的 `min(x,d)`/`max(x,d)` 时间序列窗口重载仍表示过去 d 期极值，不能误作双表达式算子。
-- “代表依赖/边界”指出算子、窗口、分支或数值风险，不是完整依赖图，也不表示窗口/预热已经算出。本表当前为规划摘要。R1须逐式对照论文补齐完整静态字段、算子族、原始窗口常量及历史依赖类别登记，R3/AC45-23冻结并验收；不要求有序执行DAG或101式精确H。AC45-26另从原文独立核算全局算子集合并交叉核对，不能用摘要中未出现作为免测依据。输入来源和 `advN` 展开遵守 DS45-12；实施须按上述 alpha101-v1 profile 固定运算次序和边界。R4的20个native代表式需人工推导并独立复核 lookback H（含预热）；47 build 前端新增后才自动编译 H。
+- “代表依赖/边界”指出算子、窗口、分支或数值风险，不是完整依赖图，也不表示窗口/预热已经算出。本表当前为规划摘要。R3-S已逐式登记来源原式、静态字段、算子族、原始窗口常量及历史依赖类别；Root的3项测试通过，静态登记部分已接受。它不要求也不提供有序执行DAG或101式精确H；完整AC45-23及AC45-26仍须按验收方案独立验收。AC45-26另从原文独立核算全局算子集合并交叉核对，不能用摘要中未出现作为免测依据。输入来源和 `advN` 展开遵守 DS45-12；实施须按上述 alpha101-v1 profile 固定运算次序和边界。R4的20个native代表式需人工推导并独立复核 lookback H（含预热）；47 build 前端新增后才自动编译 H。
 - “代表诊断配方”只为迭代45 R4 的可行性集成选择二十项：Alpha#1、#2、#3、#4、#7、#9、#13、#29、#48、#56、#58、#62、#63、#67、#81、#84、#92、#96、#100、#101。配方标签不表示这些公式已编码、运行或通过，也不表示对外发布了部分因子库。
 
 ## 2. Alpha#1–#101 结构登记
@@ -144,10 +144,11 @@ AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_d
 
 | 轮次 | 能力/边界 |
 |---|---|
-| R0 | 先行展示 Alpha#3 的最小原生端到端闭环；是可审阅的起步样例，不替代任何 AC 或 R1–R10 完成判定 |
+| R0 | 已提交并完成 Alpha#3 最小原生端到端闭环展示；证据为SOURCE_NATIVE_CEREBRO_R0_ONLY，不替代完整AC或R1–R10完成判定 |
 | R1 | FactorIndicator 统一采集合同；按原文补齐101式完整静态输入/算子族/窗口登记 |
 | R2 | 复用真实 BT FactorIndicator/Lines/owner/clock/minperiod/`once_via_next` 和同步视图；只在实证原生缺口时引入最小 adapter |
-| R3 | 算子与 PIT 数据能力；依 DS45-12/13/14 固定语义、输入和复现边界 |
+| R3 | 算子与PIT数据能力；依DS45-12/13/14固定语义、输入和复现边界 |
+| R3-S | 已提交101项静态依赖登记JSON（d9c6a631）；Root测试3 passed，仅接受AC45-23静态登记部分，不代表完整AC45-23或公式执行验收 |
 | R4 | 以独立oracle验收原生next的20个代表式（#1、#2、#3、#4、#7、#9、#13、#29、#48、#56、#58、#62、#63、#67、#81、#84、#92、#96、#100、#101），人工核算H；不形成公开全量库 |
 | R5 | fincore 标签 |
 | R6 | 合成比较 |
@@ -159,7 +160,7 @@ AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_d
 | E1–E5 | 迭代47：新增build编译前端和自动H、相关算子增强、20式build/native等价及对应安装集成 |
 | B1–B3 | 迭代48：全101 build台账、81式新增、101/101 build与101/101 native/build等价 |
 
-各能力的当前状态均为 `NOT_RUN`。R4 的二十个代表配方用于验收研究和诊断能力，不是生产因子库或对外发布入口。全 101 个公式的正式 native 库由迭代46实现，build 库由迭代48实现，且均尚未开始；不把代表配方验收结果表述成生产库覆盖。
+R0与R3-S已有受限组件验收；R1–R10其余工作及正式AC45整体结论仍待完成。R4的二十个代表配方用于验收研究和诊断能力，不是生产因子库或对外发布入口；20个native式仍为WIP。全101个公式的生产native库由迭代46实现，build库由迭代48实现，当前均为NOT_IMPLEMENTED；不把静态登记或代表配方结果表述成生产库覆盖。
 
 ### 3.3 迭代46/48实现前的技术门槛
 
@@ -175,7 +176,7 @@ AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_d
 
 | 验收项 | 本附件对应内容 | 当前状态 |
 |---|---|---|
-| AC45-23 | 本表 101 项静态输入/结构映射与计数 | NOT_RUN |
+| AC45-23 | 本表 101 项静态输入/结构映射与计数 | NOT_RUN（R3-S静态登记组件已验收；完整AC45-23未最终验收） |
 | AC45-24 | 完整字段、派生输入及 PIT 数据合同（DS45-12） | NOT_RUN |
 | AC45-25 | 45 native FactorIndicator 的真实Indicator生命周期、显式grid调度及人工H独立核对 | NOT_RUN |
 | AC45-26 | alpha101-v1 算子语义和边界（DS45-13） | NOT_RUN |
@@ -186,4 +187,4 @@ AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_d
 
 ## 4. 交付状态
 
-本附件建立101项能力/依赖覆盖基线，并区分45 native闭环与后续全量库/build实现。迭代45先行R0展示#3最小原生闭环，再由R1–R10独立关闭当前native范围；20式配方验收不是生产因子库实现，也不承诺实现101个公式。R0、R1–R10、迭代46 L0–L4、迭代47 E1–E5、迭代48 B1–B3 当前均为 `NOT_RUN`；Alpha#1–#101 的能力验证均为 `NOT_RUN`，库实现均为 `NOT_IMPLEMENTED`，不因此声明任何公式已受支持。全量 Alpha101 native 由迭代46实现，全量 build 由迭代48实现；20式 build 及自动H由迭代47新增验收，均尚未开始。当前027 expression原型源码保留历史类名 `PanelFactorIndicator`，本轮不改该原型代码，也不构成45 `FactorIndicator` native通过。
+本附件建立101项能力/依赖覆盖基线，并区分45 native闭环与后续全量库/build实现。R0已完成并通过限定范围的#3原生闭环；R3-S已完成静态依赖登记并仅验收AC45-23静态组件。R1–R10其余工作、正式AC45最终结论、迭代46 L0–L4、迭代47 E1–E5和迭代48 B1–B3仍待相应验收。Alpha#1–#101逐公式能力验证均为`NOT_RUN`，生产库实现均为`NOT_IMPLEMENTED`；不因此声明任何公式已受完整生产支持。20个native式仍为WIP。全量Alpha101 native由迭代46实现，全量build由迭代48实现；20式build及自动H由迭代47新增验收。当前027 expression原型源码已从示例路径移除，仅可从Git历史追溯，历史类名为`PanelFactorIndicator`；当前027是R0真实`FactorIndicator` native示例，R0证据不等于完整AC45或生产库通过。

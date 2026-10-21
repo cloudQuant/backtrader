@@ -1,12 +1,12 @@
 ﻿# 迭代45–48因子研究文档入口
 
-版本：**v0.8 原生优先规划稿**；更新：**2026-10-21**。本次先完善并提交计划，再按用户授权实施45；规划定稿时尚未开始功能开发，AC45-01..30、AC46-01..06、AC47-01..07、AC48-01..06当前均为 **NOT_RUN**。已有#3表达式原型的范围单独说明如下，不作为这四个迭代的通过证据。
+版本：**v0.9 状态同步稿**；更新：**2026-10-22**。R0 已提交并完成受限的 Alpha#3 原生闭环验收；R3-S 已提交 Alpha101 静态依赖登记，并只验收 AC45-23 的静态登记部分。正式 AC45-01..30 尚未整体完成最终验收，组件测试结果不代表完整 AC 通过。20 个 native 代表式仍处于 WIP，完整 101 个生产因子库仍为 **NOT_IMPLEMENTED**。历史 expression 原型与当前 native 示例的边界见下文。
 
 ## 1. 四个迭代的顺序与出口
 
 | 迭代 | 交付目标 | 独立验收 |
 |---|---|---|
-| [45：原生能力与研究闭环](迭代计划.md) | 先R0展示#3原生最小闭环，再完成原生基础设施、20个代表配方、fincore、025单因子和026多因子示例 | AC45-01..30；R0通过不等于45完成 |
+| [45：原生能力与研究闭环](迭代计划.md) | R0已展示#3原生最小闭环；后续完成原生基础设施、20个代表配方、fincore、025单因子和026多因子示例 | AC45-01..30；R0通过不等于45完成 |
 | [46：完整原生Alpha101](../迭代46-Alpha101原生因子实现/迭代计划.md) | 20个诊断配方提升为生产因子，再分批实现其余81式，完成101个原生因子 | AC46-01..06 |
 | [47：build简洁模式](../迭代47-因子build简洁模式与算子增强/迭代计划.md) | 把build表达式编译到原生Indicator/Lines，补齐必要适配，完成20式三方对齐、混合使用和安装集成 | AC47-01..07 |
 | [48：完整build Alpha101](../迭代48-Alpha101-build实现/迭代计划.md) | 完成101个build因子，逐式核对独立参考、native和build，验证完整安装入口 | AC48-01..06 |
@@ -19,7 +19,7 @@
 
 - 因子算法统一写在FactorIndicator中，FactorSpec不再提供execution选择，公共FactorStrategy负责装配、采集和封存；研究者不用为每个因子重写Strategy.next。
 - 优先复用真实构造链、params、self.datas、Lines、owner/依赖注册、minperiod及Cerebro的next/once机制。单资产与截面因子均使用FactorIndicator，内部复用SMA/ROC等原生子指标；不预先要求专用owner或第二套数值引擎。
-- R0先验证#3、真实SMA/ROC子指标、CS输出接时间序列计算、缺格和两种Cerebro模式。公共实现进入Backtrader安装包，示例只保留公式和运行装配。
+- R0已提交#3原生最小闭环：39项独立原生用例通过；与既有Indicator/SMA/ROC回归合并为42 passed。证据为SOURCE_NATIVE_CEREBRO_R0_ONLY，仅覆盖本轮范围，不关闭完整AC45。公共实现进入Backtrader安装包，示例只保留公式和运行装配。
 - 47的build是简洁声明入口，编译为已验收原生算子和Lines；原生与build共享数学语义。build声明类无需实例化，但生成的Indicator节点仍须正常注册和调度。
 - 原生、build都分别对照独立oracle，再比较彼此。完整索引、缺失位置、reason、首有效时点和离散结果精确一致；连续值默认按`abs(actual-expected) <= 1e-12 + 1e-10*abs(expected)`比较，阈值事先冻结。
 - 还须覆盖资产重排、未来扰动、PIT、长预热、缺格、runonce/runnext、混合运行和安装产物。IC相近不能替代公式逐值对齐；全部NaN不能通过。
@@ -43,25 +43,25 @@
 
 20式固定为#1、2、3、4、7、9、13、29、48、56、58、62、63、67、81、84、92、96、100、101。45同时盘点全部101依赖并验收所需算子和PIT数据能力，但只实现20个诊断配方；46负责生产目录与完整101。公式内rank、行业去均值及formula_universe与fincore评价阶段的变换、共同池、horizon、组合权重分开，离线复评不改写历史公式值。
 
-新增因子绩效、通用变换/合成/统计与报告在fincore现有dev实现、独立验收和提交，再由Backtrader现有dev接入确切已提交产物。原生采集/存储无需fincore。两仓均按“本轮实现→针对性验收→明确范围提交→下一轮”推进，不新建开发worktree；保留无关修改。数值能力、安装集成和真实市场绩效是不同证据，不互相替代。
+新增因子绩效、通用变换/合成/统计与报告归fincore；两个fincore叶子轮已有提交，精确提交与验收记录以对应仓库记录为准。Backtrader后续仍须接入并验收身份固定的已提交产物。原生采集/存储无需fincore。两仓均按“本轮实现→针对性验收→明确范围提交→下一轮”推进，不新建开发worktree；保留无关修改。数值能力、安装集成和真实市场绩效是不同证据，不互相替代。
 
-025/026是拟交付的两个正式研究示例；现有027是用户此前单独授权的#3原型。全资产研究需要声明对应字段、单位、时点和分类适用性；没有股票市值/行业字段的资产不能假造这些字段声称101式全部适用，也不承诺复现论文收益。
+025/026是拟交付的两个正式研究示例。当前027已改为真实FactorIndicator(panel_mode="next")的#3原生示例；旧的本地手动面板引擎及factor_strategy.py已删除，旧expression原型仅保留在Git历史。全资产研究需要声明对应字段、单位、时点和分类适用性；没有股票市值/行业字段的资产不能假造这些字段声称101式全部适用，也不承诺复现论文收益。
 
-## 5. 已有Alpha#3原型与后续迁移
+## 5. R0 原生示例与历史 expression 原型
 
-[027原型](../../../../../examples/backtest/027_alpha003_panel_acceptance/README.md)已用于展示`build(ctx)`的简洁写法。其实现与验收边界见[原型验证记录](Alpha003原型验证记录.md)。验收代码已移入tests；普通运行入口不自动运行测试。
+[027示例](../../../../../examples/backtest/027_alpha003_panel_acceptance/README.md)当前展示真实FactorIndicator(panel_mode="next")的native算法。R0的范围、命令和证据见[开发与验收记录](开发与验收记录.md)；示例运行入口不自动运行测试。旧expression原型及其build(ctx)写法只存在于Git历史，历史边界见[原型验证记录](Alpha003原型验证记录.md)。
 
-当前原型代码仍使用旧名PanelFactorIndicator，本轮拟议统一基类更名FactorIndicator，未改原型代码。当前原型不是原生FactorIndicator实例实现，不能证明self.datas、原生子指标和Cerebro调度合同已完成。45 R0可在核对目录规范后扩展这个诊断入口来展示原生写法；公共能力应按职责进入安装包，不能把原型factor_strategy.py原样搬入核心就宣告完成。47再提供正式build版本；既有原型证据按原范围保留，不回写为新实现的PASS。
+R0已将027改为真实初始化的FactorIndicator原生实现；旧本地手动factor_strategy.py已删除，expression原型源码仅可从Git历史追溯，历史类名为PanelFactorIndicator。R0提交7e3f517c4f43dbeb2e3d72b108f86f3d12b47740，39项独立原生用例通过，合并Indicator/SMA/ROC回归后为42 passed。证据级别为SOURCE_NATIVE_CEREBRO_R0_ONLY，不代表AC45-03/04/25/27或完整AC45通过。R3-S提交d9c6a631新增backtrader/research/alpha101_dependencies.json；Root执行3项测试通过，仅接受AC45-23静态登记部分，不是101个公式实现或完整AC45-23验收。20个native代表式仍为WIP；完整101个生产因子库为NOT_IMPLEMENTED。两个fincore叶子轮已有提交，具体身份由Root在开发记录中统筹；已安装产物与Backtrader集成仍须单独验收。47再提供正式build版本；历史expression原型不回写为native或build通过。
 
-## 6. 本轮文档交付记录
+## 6. 当前开发与验收事实
 
-| 项目 | 记录 |
+| 范围 | 已发生事实 |
 |---|---|
-| 仓库 / 分支 | `D:/source_code/backtrader`，现有`dev` |
-| 本轮父提交 | `6ced575386788c7b3f16561736506f7ce6d5b6c8` |
-| 范围 | 45的七份有效文档、46/47/48三份计划，新增共同合同，共11份 |
-| 检查 | UTF-8 BOM、中文编码、文件链接/章节、REQ/AC编号、101公式行和20代表集合、四迭代合同与Git范围 |
-| 功能验收 | 未执行；全部功能AC保持NOT_RUN，未修改核心库、示例或fincore |
-| 提交定位 | 与本页同批的文档提交，最终回复提供准确SHA；本轮不推送远端 |
+| R0 原生闭环 | Backtrader dev提交`7e3f517c4f43dbeb2e3d72b108f86f3d12b47740`；39项独立原生用例通过，与Indicator/SMA/ROC回归合并为42 passed；证据仅为`SOURCE_NATIVE_CEREBRO_R0_ONLY`。 |
+| R3-S 静态登记 | Backtrader dev提交`d9c6a631`；登记文件`backtrader/research/alpha101_dependencies.json`；Root测试3 passed，仅接受AC45-23静态登记部分。 |
+| 当前整体状态 | 正式AC45-01..30尚未整体最终验收；20个native代表式仍为WIP，完整101生产库仍为`NOT_IMPLEMENTED`。两个fincore叶子轮已有提交，精确记录由Root统筹。 |
+| 本版范围 | 本次仅同步五份需求/设计/验收文档；不据组件结果推定AC PASS，不改历史原型记录。 |
 
-历史计划与交付元数据通过Git和原有历史记录追溯；后续以本版正文、共同合同和四份计划作为实施入口。
+
+
+R0与R3-S的完整实施/验收事实见[开发与验收记录](开发与验收记录.md)；本版正文、共同合同和四份计划继续作为后续实施入口。
