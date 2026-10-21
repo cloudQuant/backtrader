@@ -148,6 +148,10 @@ class FactorStrategy(Strategy):
                 report={"missing_targets": tuple(sorted(missing))},
             )
         self._target_datas = tuple(target_data[name] for name in self._research.targets)
+        self._formula_universe = self._research.formula_universe
+        self._asset_by_target_data_id = {
+            id(data): asset for asset, data in zip(self._research.targets, self._target_datas)
+        }
 
         self._factor_specs = normalize_factor_specs(self.p.factors)
         self.factor_instances: Dict[str, Any] = {}
@@ -458,6 +462,9 @@ class FactorStrategy(Strategy):
                 return str(reason), False, False
             if reason == "NONFINITE_INPUT":
                 return "NONFINITE_INPUT", True, False
+        asset = self._asset_by_target_data_id[id(data)]
+        if not bool(self._formula_universe.loc[(point, asset)]):
+            return "FORMULA_INELIGIBLE", False, False
         if state is not None:
             reason = str(state["reason"])
             return reason, bool(state["ready"]), bool(state["valid"] and math.isfinite(value))
