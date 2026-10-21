@@ -18673,12 +18673,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha082Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 82,
           "formula_sha256_utf8": "59ffcdcd83ea5ff34b484ebe40f7053ceb1d82498ad50725f86fc691ac88fd50"
@@ -18690,8 +18692,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -18909,12 +18912,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha083Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 83,
           "formula_sha256_utf8": "a3b7eb1be22eeb8737d2f9ad2e9236377c3c17b1b10014c9e78dcc1d4393b1ac"
@@ -18926,8 +18931,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -19349,12 +19355,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha085Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 85,
           "formula_sha256_utf8": "67d3ce5955253de93136654c4107ab45dd69c2c9b3698a471f5b67f562c12cf5"
@@ -19366,8 +19374,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -19596,12 +19605,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha086Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 86,
           "formula_sha256_utf8": "4e998e54228ad27add2f6f8d743f36bece7f737bc97ccd6aac37b6b11dfeb365"
@@ -19613,8 +19624,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -19855,12 +19867,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha087Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 87,
           "formula_sha256_utf8": "e306fbcad5e7eb41160424b73c8a82a26f4181a7decee3f1411149ed22b6f64b"
@@ -19872,8 +19886,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -20145,12 +20160,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha088Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 88,
           "formula_sha256_utf8": "c0a1baa2a4031c79305c84418d8a242599ea263cb8028e41e7fe5968ca22f385"
@@ -20162,8 +20179,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -20428,12 +20446,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha089Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 89,
           "formula_sha256_utf8": "4df2051e4df36d86072a98b86202f8441cc8dce335fa0255c22a4d1d2469186f"
@@ -20445,8 +20465,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -20679,12 +20700,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha090Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 90,
           "formula_sha256_utf8": "722aafeed6aa66524e904d9fb4be20792f298bd369d0ed6452faf01e5f58f6fb"
@@ -20696,8 +20719,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -20950,12 +20974,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha091Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 91,
           "formula_sha256_utf8": "959be84cd903e73d0bdf782fedf187aca0f5fdaff3ec21ac652ab67f0a505d11"
@@ -20967,8 +20993,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -21494,12 +21521,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha093Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 93,
           "formula_sha256_utf8": "320f716b8a683895f6ea6f763784c2b1c4d9dc82fa138f158b4776292f585414"
@@ -21511,8 +21540,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -21748,12 +21778,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha094Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 94,
           "formula_sha256_utf8": "c9c67c6c29f1ea45457aa8e7b9ceb43b9f2c9fc44fc03bcd2ed8a113297353d4"
@@ -21765,8 +21797,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -22009,12 +22042,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha095Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 95,
           "formula_sha256_utf8": "ebf7e785f7daafe5d9a2876f156c89d3996ea48456fc003fdc53cc04177a8de2"
@@ -22026,8 +22061,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -22596,12 +22632,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha097Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 97,
           "formula_sha256_utf8": "f00dc41f13216bec7c568dbc86efc60a692bf66389c592a97d5fa48ca4ad79b2"
@@ -22613,8 +22651,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -22916,12 +22955,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha098Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 98,
           "formula_sha256_utf8": "9b48d60514524ed265f5f3c671de3078ea4accfb2c9f6623f66641647a135aa0"
@@ -22933,8 +22974,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
@@ -23190,12 +23232,14 @@
         "module": "backtrader.research.alpha101",
         "class": "Alpha099Native",
         "version": "alpha101-native-v1",
-        "status": "NOT_IMPLEMENTED",
-        "accepted_commit": null
+        "status": "NATIVE_NUMERIC_SOURCE_ACCEPTED",
+        "accepted_commit": null,
+        "accepted_round": "L2-e",
+        "source_module": "backtrader.research.alpha101.batch_e"
       },
-      "acceptance": "NOT_RUN",
+      "acceptance": "L2_NUMERIC_PASS; L3_BOUNDARIES_AND_L4_INSTALLED_PENDING",
       "validation_plan": {
-        "status": "PLANNED_NOT_RUN",
+        "status": "BASELINE_NUMERIC_PASS; BOUNDARY_PENDING",
         "row_binding": {
           "alpha_id": 99,
           "formula_sha256_utf8": "b75aa7f49be2d7cff2556ef38ca80bcf62b169c4fcab4fbcba2a6bfa847f4c6c"
@@ -23207,8 +23251,9 @@
             "reference(alpha_id, frames, formula_universe=None, groups=None)"
           ],
           "planned_check": "Use the pinned formula ID/source and independently computed matrix as the per-row numeric oracle; compare shape, finite/missing mask, and float values with a predeclared tolerance. Compare history_h with this ledger H.",
-          "not_run_by_this_task": true,
-          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance"
+          "not_run_by_this_task": false,
+          "contract_tests": "10 PASS; source-only independent reference contracts, not per-formula production acceptance",
+          "evidence": "evidence/iteration46-native-20261022/iteration46-batch-e-r2.json"
         },
         "fixture_plan": {
           "integration_harness": "tests/integration/test_alpha101_native_matrix.py::test_alpha101_batch_matrix_matches_independent_oracle",
