@@ -1,0 +1,1812 @@
+{
+  "schema": "fincore-factor-research-result-v1",
+  "result_schema_version": 1,
+  "dataset_id": "38a2e7d9bcd755348fe9fc4ebf78c2e25009b208c18dc4eab3cffb274d4917e5",
+  "input_fingerprint": "cf6a76d8f3ca6fe984e6c80de490a16d3ead9678a06086f0023d33636bd33b61",
+  "evaluation_config_sha256": "78320611f6cc867447277401b2541ee809701429a81ff93f438130bc32f2ac6a",
+  "config_schema_version": 1,
+  "fingerprint_algorithm_version": 1,
+  "configuration_fingerprint": "78320611f6cc867447277401b2541ee809701429a81ff93f438130bc32f2ac6a",
+  "evaluation_id": "7e86206a6022b5ab00f8874814f1a6d9b4bdf1d60c51446a2b7169751f1e1aa1",
+  "fincore_algorithm_revision": "factor-research-r1+sha256:55a90ebe43314b73ff7ddefad3f6d6221fb92d88d50b505e439fe5604a02d806",
+  "fincore_version": "0.5.1.dev0",
+  "algorithm_source_sha256": "55a90ebe43314b73ff7ddefad3f6d6221fb92d88d50b505e439fe5604a02d806",
+  "algorithm_source_files": {
+    "fincore/__init__.py": "dfb6a1f00e864911c6830c478cbc97418126654707ae0be9379dd20fbae90ea8",
+    "fincore/factor_analysis/exceptions.py": "04d41bd6f1ad0ed7602d79fe5cbc160f1cb65ff5c7cb2cf21a717bbe0f0b9f79",
+    "fincore/factor_analysis/labels.py": "d42038596c46ec74f91a4f2166af9e78600f692ec559939230372394074e1ce2",
+    "fincore/factor_analysis/models.py": "6524ae90b5b13fa91bb92aec6f91a25250d3d96153f10b0b6465f12ee637abec",
+    "fincore/factor_analysis/research.py": "2b74ae5d45c2ec52814ed35b51ca5f070311031bb24538385308ea1117c87600",
+    "fincore/factor_analysis/research_config.py": "f627aba0f5aeea562392ae10a53a274885851c593c492974b9a7ba58744f5ebf",
+    "fincore/factor_analysis/research_metrics.py": "9e7d9db7c354f385981978e935c2a631eb30e09ad29ef4e2427097ff983ce85a",
+    "fincore/factor_analysis/research_result.py": "55b5210c14b22e3a6d675dd3e00a11d33b7d1a123f11eb2a3033351b9d82e5e4",
+    "fincore/factor_analysis/signals.py": "60a7aeab3ccc2cf57e79ad9c645af38d9af12e933e711336a4b8b3c37265d5de"
+  },
+  "snapshot_id": "installed-alpha101-twenty-independent-v1",
+  "evaluation_spec": {
+    "targets": [
+      "asset-0",
+      "asset-1",
+      "asset-2",
+      "asset-3",
+      "asset-4",
+      "asset-5"
+    ],
+    "start": "2024-04-26T00:00:00+00:00",
+    "end": "2024-09-08T00:00:00+00:00",
+    "snapshot_id": "installed-alpha101-twenty-independent-v1",
+    "price_basis": "synthetic-unadjusted-USD",
+    "calendar_id": "synthetic-daily-v1",
+    "frequency": "1session",
+    "source_timezone": "UTC",
+    "feed_time_kind": "close_time",
+    "periods": [
+      1
+    ],
+    "label": "next_open_to_open",
+    "precomputed_entry": "next_open",
+    "quantiles": 2,
+    "min_assets": 2,
+    "min_quantile_assets": 1,
+    "preprocess": "cross_section_rank",
+    "max_loss": 1.0,
+    "direction_overrides": {},
+    "combinations": {},
+    "comparisons": {},
+    "segments": {},
+    "stability_lags": [
+      1
+    ]
+  },
+  "label_metadata": {
+    "label": "next_open_to_open",
+    "periods": [
+      1
+    ],
+    "precomputed_entry": null
+  },
+  "signal_metadata": {
+    "schema": "fincore-factor-signals-v1",
+    "preprocess": "cross_section_rank",
+    "quantiles": 2,
+    "directions": {
+      "alpha1": 1,
+      "alpha100": 1,
+      "alpha101": 1,
+      "alpha13": 1,
+      "alpha2": 1,
+      "alpha29": 1,
+      "alpha3": 1,
+      "alpha4": 1,
+      "alpha48": 1,
+      "alpha56": 1,
+      "alpha58": 1,
+      "alpha62": 1,
+      "alpha63": 1,
+      "alpha67": 1,
+      "alpha7": 1,
+      "alpha81": 1,
+      "alpha84": 1,
+      "alpha9": 1,
+      "alpha92": 1,
+      "alpha96": 1
+    },
+    "configured_weights": {},
+    "normalized_weights": {},
+    "comparisons": {},
+    "pool_members": {
+      "own:alpha1": [
+        "alpha1"
+      ],
+      "own:alpha100": [
+        "alpha100"
+      ],
+      "own:alpha101": [
+        "alpha101"
+      ],
+      "own:alpha13": [
+        "alpha13"
+      ],
+      "own:alpha2": [
+        "alpha2"
+      ],
+      "own:alpha29": [
+        "alpha29"
+      ],
+      "own:alpha3": [
+        "alpha3"
+      ],
+      "own:alpha4": [
+        "alpha4"
+      ],
+      "own:alpha48": [
+        "alpha48"
+      ],
+      "own:alpha56": [
+        "alpha56"
+      ],
+      "own:alpha58": [
+        "alpha58"
+      ],
+      "own:alpha62": [
+        "alpha62"
+      ],
+      "own:alpha63": [
+        "alpha63"
+      ],
+      "own:alpha67": [
+        "alpha67"
+      ],
+      "own:alpha7": [
+        "alpha7"
+      ],
+      "own:alpha81": [
+        "alpha81"
+      ],
+      "own:alpha84": [
+        "alpha84"
+      ],
+      "own:alpha9": [
+        "alpha9"
+      ],
+      "own:alpha92": [
+        "alpha92"
+      ],
+      "own:alpha96": [
+        "alpha96"
+      ]
+    },
+    "signal_definitions": {
+      "alpha1": [
+        "factor",
+        "alpha1"
+      ],
+      "alpha100": [
+        "factor",
+        "alpha100"
+      ],
+      "alpha101": [
+        "factor",
+        "alpha101"
+      ],
+      "alpha13": [
+        "factor",
+        "alpha13"
+      ],
+      "alpha2": [
+        "factor",
+        "alpha2"
+      ],
+      "alpha29": [
+        "factor",
+        "alpha29"
+      ],
+      "alpha3": [
+        "factor",
+        "alpha3"
+      ],
+      "alpha4": [
+        "factor",
+        "alpha4"
+      ],
+      "alpha48": [
+        "factor",
+        "alpha48"
+      ],
+      "alpha56": [
+        "factor",
+        "alpha56"
+      ],
+      "alpha58": [
+        "factor",
+        "alpha58"
+      ],
+      "alpha62": [
+        "factor",
+        "alpha62"
+      ],
+      "alpha63": [
+        "factor",
+        "alpha63"
+      ],
+      "alpha67": [
+        "factor",
+        "alpha67"
+      ],
+      "alpha7": [
+        "factor",
+        "alpha7"
+      ],
+      "alpha81": [
+        "factor",
+        "alpha81"
+      ],
+      "alpha84": [
+        "factor",
+        "alpha84"
+      ],
+      "alpha9": [
+        "factor",
+        "alpha9"
+      ],
+      "alpha92": [
+        "factor",
+        "alpha92"
+      ],
+      "alpha96": [
+        "factor",
+        "alpha96"
+      ]
+    },
+    "grid_row_count": 286,
+    "asset_count": 6,
+    "panel_row_count": 1716,
+    "input_row_count": 816,
+    "index_names": [
+      "time",
+      "asset",
+      "signal",
+      "variant",
+      "pool_id",
+      "group"
+    ],
+    "missing_policy": "preserve_grid; no_fill; no_dynamic_reweight"
+  },
+  "dataset_provenance": {
+    "factor_directions": {
+      "alpha1": 1,
+      "alpha100": 1,
+      "alpha101": 1,
+      "alpha13": 1,
+      "alpha2": 1,
+      "alpha29": 1,
+      "alpha3": 1,
+      "alpha4": 1,
+      "alpha48": 1,
+      "alpha56": 1,
+      "alpha58": 1,
+      "alpha62": 1,
+      "alpha63": 1,
+      "alpha67": 1,
+      "alpha7": 1,
+      "alpha81": 1,
+      "alpha84": 1,
+      "alpha9": 1,
+      "alpha92": 1,
+      "alpha96": 1
+    },
+    "factor_specs": {
+      "alpha1": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha001",
+        "lookback_h": 24,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha1",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "787991e6fb5eb74738ff3d2a7354308b52a388027b7f8dc85dfd403a1ec848a2"
+      },
+      "alpha100": {
+        "classification_bindings": {
+          "subindustry": "table:pit_subindustry"
+        },
+        "direction": 1,
+        "field_bindings": {
+          "adv20": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 20
+          },
+          "close": "feed:target:close",
+          "dollar_volume": "feed:target:dollar_volume",
+          "high": "feed:target:high",
+          "low": "feed:target:low",
+          "volume": "feed:target:volume"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha100",
+        "lookback_h": 29,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha100",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "7d0d5903a88747ae3c4b2d92f7459188c96f618d2ead1a211641a35012e66ef0"
+      },
+      "alpha101": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close",
+          "high": "feed:target:high",
+          "low": "feed:target:low",
+          "open": "feed:target:open"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha101",
+        "lookback_h": 0,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha101",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "1ee3d5fc130dff6405439575c06cfeacd7d84011d530f407c08e9d4ec8e52fa7"
+      },
+      "alpha13": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close",
+          "volume": "feed:target:volume"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha013",
+        "lookback_h": 4,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha13",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "ac4ef0fe3bf210413efa613a60ea3848da66548b33f835a446dc5497a614bda0"
+      },
+      "alpha2": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close",
+          "open": "feed:target:open",
+          "volume": "feed:target:volume"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha002",
+        "lookback_h": 7,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha2",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "8c70fad115ff0aae6dfa61ecbb057e786b8a9529393bf2985b8920f0bd3697cf"
+      },
+      "alpha29": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha029",
+        "lookback_h": 11,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha29",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "5fe98a4c55396715f0ca1898d18065f6fb18f4321b4ab325fe545996a9fe8824"
+      },
+      "alpha3": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "open": "feed:target:open",
+          "volume": "feed:target:volume"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha003",
+        "lookback_h": 9,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha3",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "916d0280710243c9a21d0d113660e4b418d19f00f7ca7697825677cbbafbc629"
+      },
+      "alpha4": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "low": "feed:target:low"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha004",
+        "lookback_h": 8,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha4",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "c7e6356f26cb8f495b9b286d836130df7433d99afe69421ef6fe0a5f0a2915ce"
+      },
+      "alpha48": {
+        "classification_bindings": {
+          "subindustry": "table:pit_subindustry"
+        },
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha048",
+        "lookback_h": 251,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha48",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "73519c4794731bf654b225c50d1b8ba36ad996129430a7556b97d51b4a5a11f7"
+      },
+      "alpha56": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "cap": "feed:target:cap",
+          "close": "feed:target:close"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha056",
+        "lookback_h": 10,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha56",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "23d5674700c21746572cd48e3e8b2f276ad4f74925be3769b1f9639315f56d3b"
+      },
+      "alpha58": {
+        "classification_bindings": {
+          "sector": "table:pit_sector"
+        },
+        "direction": 1,
+        "field_bindings": {
+          "volume": "feed:target:volume",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha058",
+        "lookback_h": 12,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha58",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "b38125007b2f80a1d3109116389d1034c7826622fa5ddb19c62afad43bc55769"
+      },
+      "alpha62": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "adv20": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 20
+          },
+          "dollar_volume": "feed:target:dollar_volume",
+          "high": "feed:target:high",
+          "low": "feed:target:low",
+          "open": "feed:target:open",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha062",
+        "lookback_h": 48,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha62",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "636fe46e86f1b72e3bb8eb35d703dad3d4143768c5205a6ba128ff2028eb019b"
+      },
+      "alpha63": {
+        "classification_bindings": {
+          "industry": "table:pit_industry"
+        },
+        "direction": 1,
+        "field_bindings": {
+          "adv180": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 180
+          },
+          "close": "feed:target:close",
+          "dollar_volume": "feed:target:dollar_volume",
+          "open": "feed:target:open",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha063",
+        "lookback_h": 238,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha63",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "1b84b4b4fcb9764dd0961dc3204ec6f38973502dbebffa65abcd8c347e86ee4f"
+      },
+      "alpha67": {
+        "classification_bindings": {
+          "sector": "table:pit_sector",
+          "subindustry": "table:pit_subindustry"
+        },
+        "direction": 1,
+        "field_bindings": {
+          "adv20": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 20
+          },
+          "dollar_volume": "feed:target:dollar_volume",
+          "high": "feed:target:high",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha067",
+        "lookback_h": 24,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha67",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "1f2be741557434c4bd823e4e53c3bd7bd1ba8caf8a0bfd2723a1da87cdf0bce6"
+      },
+      "alpha7": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "adv20": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 20
+          },
+          "close": "feed:target:close",
+          "dollar_volume": "feed:target:dollar_volume",
+          "volume": "feed:target:volume"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha007",
+        "lookback_h": 66,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha7",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "f6681bcdda4dba235e2613703e1d1d0bc2f05533f1b122079a3eb2dd855894b4"
+      },
+      "alpha81": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "adv10": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 10
+          },
+          "dollar_volume": "feed:target:dollar_volume",
+          "volume": "feed:target:volume",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha081",
+        "lookback_h": 77,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha81",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "ca9cd39db88ec4524cd5f7a3520326dc697e19c77a51715fd4fc0d291093428a"
+      },
+      "alpha84": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha084",
+        "lookback_h": 33,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha84",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "020322e4bfd77a0aeb67f5a46123483764a91493dc19501974f10888762d55f3"
+      },
+      "alpha9": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha009",
+        "lookback_h": 5,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha9",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "3a18d5576aa12ffb0a794326ee0248081555c826a86cdd4d689e8b267843fa9b"
+      },
+      "alpha92": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "adv30": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 30
+          },
+          "close": "feed:target:close",
+          "dollar_volume": "feed:target:dollar_volume",
+          "high": "feed:target:high",
+          "low": "feed:target:low",
+          "open": "feed:target:open"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha092",
+        "lookback_h": 45,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha92",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "e17631a6f0476ce6f178b93e2cfcef0061883b899e2f9b58e02a813aef0d2e54"
+      },
+      "alpha96": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "adv60": {
+            "derive": "adv",
+            "source": "dollar_volume",
+            "window": 60
+          },
+          "close": "feed:target:close",
+          "dollar_volume": "feed:target:dollar_volume",
+          "volume": "feed:target:volume",
+          "vwap": "feed:target:vwap"
+        },
+        "indicator_module": "backtrader.research.representative",
+        "indicator_qualname": "Alpha096",
+        "lookback_h": 100,
+        "module_source_sha256": "097753a2faaff58953056db6ea89b3b015af91a0f295896b4ccaacb3cfb854f8",
+        "name": "alpha96",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {},
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "586329659cb66a3d7482659d33129f356528a0e9eda7ef80d53be748c7dbcbc6"
+      }
+    },
+    "research_grid_sha256": "65b2f16d753f3cd95fcaa01834a235c09426ccc4c60ffe2d0653f6cd5af496de"
+  },
+  "target_count": 6,
+  "factor_names": [
+    "alpha1",
+    "alpha100",
+    "alpha101",
+    "alpha13",
+    "alpha2",
+    "alpha29",
+    "alpha3",
+    "alpha4",
+    "alpha48",
+    "alpha56",
+    "alpha58",
+    "alpha62",
+    "alpha63",
+    "alpha67",
+    "alpha7",
+    "alpha81",
+    "alpha84",
+    "alpha9",
+    "alpha92",
+    "alpha96"
+  ],
+  "grid_bar_count": 286,
+  "evaluation_bar_count": 136,
+  "periods": [
+    1
+  ],
+  "label": "next_open_to_open",
+  "precomputed_entry": "next_open",
+  "price_basis": "synthetic-unadjusted-USD",
+  "calendar_id": "synthetic-daily-v1",
+  "frequency": "1session",
+  "source_timezone": "UTC",
+  "feed_time_kind": "close_time",
+  "directions": {
+    "alpha1": 1,
+    "alpha100": 1,
+    "alpha101": 1,
+    "alpha13": 1,
+    "alpha2": 1,
+    "alpha29": 1,
+    "alpha3": 1,
+    "alpha4": 1,
+    "alpha48": 1,
+    "alpha56": 1,
+    "alpha58": 1,
+    "alpha62": 1,
+    "alpha63": 1,
+    "alpha67": 1,
+    "alpha7": 1,
+    "alpha81": 1,
+    "alpha84": 1,
+    "alpha9": 1,
+    "alpha92": 1,
+    "alpha96": 1
+  },
+  "preprocess": "cross_section_rank",
+  "quantiles": 2,
+  "max_loss": 1.0,
+  "capabilities": {
+    "api_version": "1.0",
+    "result_schema_version": 1,
+    "evaluation_config_schema_version": 1,
+    "python_min": "3.11",
+    "entrypoint": "fincore.factor_analysis.research.evaluate_factor_research",
+    "spec": "fincore.factor_analysis.research.ResearchEvaluationSpec",
+    "normalizer": "fincore.factor_analysis.research.normalize_research_evaluation_spec",
+    "labels": [
+      "close_to_close",
+      "next_open_to_open",
+      "precomputed"
+    ],
+    "preprocess": [
+      "cross_section_rank",
+      "cross_section_zscore"
+    ],
+    "metrics": [
+      "pearson_ic",
+      "spearman_ic",
+      "icir",
+      "quantile_returns",
+      "spread",
+      "rank_autocorrelation",
+      "quantile_turnover",
+      "factor_correlation",
+      "paired_comparison"
+    ],
+    "result_tables": [
+      "signals",
+      "labels",
+      "ic",
+      "ic_summary",
+      "quantile_returns",
+      "spreads",
+      "stability",
+      "correlation",
+      "comparisons",
+      "coverage",
+      "diagnostics"
+    ],
+    "export_formats": [
+      "json",
+      "csv"
+    ],
+    "charts_supported": true
+  },
+  "status": "PARTIAL",
+  "result_table_schemas": {
+    "signals": {
+      "columns": [
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "asset",
+          "type": "string"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "quantile",
+          "type": "number"
+        },
+        {
+          "name": "eligible",
+          "type": "boolean"
+        },
+        {
+          "name": "pool_member",
+          "type": "boolean"
+        },
+        {
+          "name": "candidate_count",
+          "type": "integer"
+        },
+        {
+          "name": "pool_member_count",
+          "type": "integer"
+        },
+        {
+          "name": "formation_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "formation_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "value_status",
+          "type": "string"
+        },
+        {
+          "name": "quantile_status",
+          "type": "string"
+        },
+        {
+          "name": "value_reason",
+          "type": "string"
+        },
+        {
+          "name": "quantile_reason",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "detail",
+          "type": "string"
+        }
+      ]
+    },
+    "labels": {
+      "columns": [
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "asset",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "entry_time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "exit_time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "entry_bar",
+          "type": "integer"
+        },
+        {
+          "name": "exit_bar",
+          "type": "integer"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "detail",
+          "type": "string"
+        }
+      ]
+    },
+    "ic": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        },
+        {
+          "name": "period",
+          "type": "timestamp_or_label"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "sample_std",
+          "type": "number"
+        },
+        {
+          "name": "information_ratio",
+          "type": "number"
+        },
+        {
+          "name": "positive_fraction",
+          "type": "number"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_valid",
+          "type": "integer"
+        }
+      ]
+    },
+    "ic_summary": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "period",
+          "type": "string"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "sample_std",
+          "type": "number"
+        },
+        {
+          "name": "information_ratio",
+          "type": "number"
+        },
+        {
+          "name": "positive_fraction",
+          "type": "number"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_valid",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    "quantile_returns": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "quantile",
+          "type": "integer"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "spreads": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "lower_quantile",
+          "type": "integer"
+        },
+        {
+          "name": "upper_quantile",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "stability": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "lag",
+          "type": "integer"
+        },
+        {
+          "name": "quantile",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "correlation": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "signal_left",
+          "type": "string"
+        },
+        {
+          "name": "signal_right",
+          "type": "string"
+        },
+        {
+          "name": "variant_left",
+          "type": "string"
+        },
+        {
+          "name": "variant_right",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        }
+      ]
+    },
+    "comparisons": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "period",
+          "type": "timestamp_or_label"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "comparison_id",
+          "type": "string"
+        },
+        {
+          "name": "left_signal",
+          "type": "string"
+        },
+        {
+          "name": "right_signal",
+          "type": "string"
+        },
+        {
+          "name": "variant_left",
+          "type": "string"
+        },
+        {
+          "name": "variant_right",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "delta",
+          "type": "number"
+        },
+        {
+          "name": "mean_delta",
+          "type": "number"
+        },
+        {
+          "name": "sample_std_delta",
+          "type": "number"
+        },
+        {
+          "name": "positive_delta_fraction",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "paired_period_count",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        }
+      ]
+    },
+    "coverage": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "period_count",
+          "type": "integer"
+        },
+        {
+          "name": "excluded_count",
+          "type": "integer"
+        },
+        {
+          "name": "candidate_count",
+          "type": "integer"
+        },
+        {
+          "name": "pool_member_count",
+          "type": "integer"
+        },
+        {
+          "name": "finite_value_count",
+          "type": "integer"
+        },
+        {
+          "name": "factor_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "label_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "label_count",
+          "type": "integer"
+        },
+        {
+          "name": "paired_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_valid_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "formation_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "analysis_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "segment_boundary_count",
+          "type": "integer"
+        },
+        {
+          "name": "loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "factor_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "label_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    "diagnostics": {
+      "columns": [
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "count",
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "complete": true,
+  "export_schema_version": 1,
+  "tables": {
+    "signals": {
+      "csv": "signals.csv",
+      "json": "signals.json"
+    },
+    "labels": {
+      "csv": "labels.csv",
+      "json": "labels.json"
+    },
+    "ic": {
+      "csv": "ic.csv",
+      "json": "ic.json"
+    },
+    "ic_summary": {
+      "csv": "ic_summary.csv",
+      "json": "ic_summary.json"
+    },
+    "quantile_returns": {
+      "csv": "quantile_returns.csv",
+      "json": "quantile_returns.json"
+    },
+    "spreads": {
+      "csv": "spreads.csv",
+      "json": "spreads.json"
+    },
+    "stability": {
+      "csv": "stability.csv",
+      "json": "stability.json"
+    },
+    "correlation": {
+      "csv": "correlation.csv",
+      "json": "correlation.json"
+    },
+    "comparisons": {
+      "csv": "comparisons.csv",
+      "json": "comparisons.json"
+    },
+    "coverage": {
+      "csv": "coverage.csv",
+      "json": "coverage.json"
+    },
+    "diagnostics": {
+      "csv": "diagnostics.csv",
+      "json": "diagnostics.json"
+    }
+  },
+  "files": {
+    "signals.csv": {
+      "sha256": "a0b95b746b461d59a0c6a7ceee8d231f233fae405ef455210c7cb651f2e1e793",
+      "bytes": 7241013,
+      "rows": 48960,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "signals.json": {
+      "sha256": "91114c86dca2a64bfee84977c76274ed97c37c0cef789cf557081a99f7d49ff1",
+      "bytes": 28048230,
+      "rows": 48960,
+      "media_type": "application/json"
+    },
+    "labels.csv": {
+      "sha256": "5a744dae2dfcc2a21a9ab14d1d24889da95f48416c23b7136695a0e2001b6b1a",
+      "bytes": 97101,
+      "rows": 816,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "labels.json": {
+      "sha256": "3b666b64bd264b621c62a1f79ef6180edbce1cb3c6dbe7f879f871fc441626c9",
+      "bytes": 249257,
+      "rows": 816,
+      "media_type": "application/json"
+    },
+    "ic.csv": {
+      "sha256": "d81c4ab0b1f2b9175e8a4717d1e3c318bab6c62bdbaec6bdceb5878818489b25",
+      "bytes": 2025691,
+      "rows": 16320,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "ic.json": {
+      "sha256": "18d82c89f29a88305e2877c39569f6463d112dee8670e4f728f446c5fdfd2161",
+      "bytes": 9127198,
+      "rows": 16320,
+      "media_type": "application/json"
+    },
+    "ic_summary.csv": {
+      "sha256": "09e88b6b479de9dfccff93360ff212324ac7f0b54ebc667059305f4faec9696a",
+      "bytes": 125809,
+      "rows": 840,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "ic_summary.json": {
+      "sha256": "aa1cdfb91b69f8ad5750816fd65e9b07492747cde6d106237260e792b8c3a262",
+      "bytes": 443027,
+      "rows": 840,
+      "media_type": "application/json"
+    },
+    "quantile_returns.csv": {
+      "sha256": "db8530f2d75f1550cbd548dcd36a828c004ef636c8bbdf94c3d4638b0c80631e",
+      "bytes": 1840940,
+      "rows": 16320,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "quantile_returns.json": {
+      "sha256": "46cef5638b96581a4b8645e4e53a09377dfac64a84e0842e44cdc9fd8fbb9f23",
+      "bytes": 6041194,
+      "rows": 16320,
+      "media_type": "application/json"
+    },
+    "spreads.csv": {
+      "sha256": "f68b7c152abb38f1c2a2870c5bb7565a38f22ec56d4556d24f2286825582dadf",
+      "bytes": 936060,
+      "rows": 8160,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "spreads.json": {
+      "sha256": "fceda5300e258801d1056f79aa0ddb2f1b7dd59046c4475939b5c3b75c5dc45f",
+      "bytes": 3281017,
+      "rows": 8160,
+      "media_type": "application/json"
+    },
+    "stability.csv": {
+      "sha256": "aaa674eec649dcfdf9c338e3288ec55c518ef1707637bd1640a82e73aad86b39",
+      "bytes": 3111266,
+      "rows": 24480,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "stability.json": {
+      "sha256": "8a9f6ba7be3bbbafc95adccd3fe9e4479bb8be1eabda2590488cf29e9b659148",
+      "bytes": 9824345,
+      "rows": 24480,
+      "media_type": "application/json"
+    },
+    "correlation.csv": {
+      "sha256": "d1ad5248ff68f999b2230f8906ce51f4e2e57978ed639604a9e17f9a87bdcf39",
+      "bytes": 169,
+      "rows": 0,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "correlation.json": {
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "bytes": 3,
+      "rows": 0,
+      "media_type": "application/json"
+    },
+    "comparisons.csv": {
+      "sha256": "dd8f4187fb57af8b9798781399afa32a5f68150b08911519164255a2321b4ec4",
+      "bytes": 246,
+      "rows": 0,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "comparisons.json": {
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "bytes": 3,
+      "rows": 0,
+      "media_type": "application/json"
+    },
+    "coverage.csv": {
+      "sha256": "e1746ca1b44e713ec8c65f8e172f365a58a20c0703022bb420429726f955748f",
+      "bytes": 1054424,
+      "rows": 8220,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "coverage.json": {
+      "sha256": "5ed555e378a615110543a8cc8ff4ba3db05893b80670e33c383ac40816abe049",
+      "bytes": 6621610,
+      "rows": 8220,
+      "media_type": "application/json"
+    },
+    "diagnostics.csv": {
+      "sha256": "faa4b2cd5f5d65b9efd05bf66704f115a9000f9e5eb78f0e6e88093538c6c919",
+      "bytes": 3286,
+      "rows": 57,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "diagnostics.json": {
+      "sha256": "9a7700ad8658456377a866387859fc9034832dfd1da7ee9750ae5c60ea62b1d8",
+      "bytes": 9403,
+      "rows": 57,
+      "media_type": "application/json"
+    }
+  },
+  "charts": []
+}
