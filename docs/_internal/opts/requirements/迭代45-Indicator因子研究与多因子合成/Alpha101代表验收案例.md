@@ -1,20 +1,20 @@
 ﻿# Alpha101 代表验收案例
 
-版本：v0.6（验收配方附件；逐式执行状态均为 NOT_RUN）
+版本：v0.8（验收配方附件；逐式执行状态均为 NOT_RUN）
 
-本附件为迭代45的20个代表式诊断配方，供AC45-28/R4验证Backtrader原生公式能力、供AC45-29/迭代47 E4验证Backtrader与fincore已安装产物的集成。公式编号、完整表达式和原始常量以[论文Appendix A](https://arxiv.org/pdf/1601.00991)为准；下文的“结构草图”仅定位计算链，**不是完整公式，也不能替代原式**。实现验收前须对照原文冻结该编号的完整声明及所有常量；运行只读取本地冻结配方，不在运行时下载或解析PDF，不得为方便缩短窗口、改参数或删除节点。101式的数据和算子依赖见[Alpha101覆盖清单](Alpha101覆盖清单.md)，语义合同见[设计文档DS45-11至DS45-14](设计文档.md)。
+本附件为迭代45的20个代表式诊断配方，供 AC45-28/R4 验证 Backtrader 原生公式能力、供 AC45-29/R8 验证20个 native 代表式及 fincore 的 Backtrader 与 fincore 已安装产物。45先有 R0 的 Alpha#3 最小原生闭环展示，随后 R1–R10 独立关闭当前 native 范围；R0本身不构成验收。迭代47/48的 build 实现、自动 H 和跨模式等价使用新增 build 专属 AC，不倒记为45通过。公式编号、完整表达式和原始常量以[论文Appendix A](https://arxiv.org/pdf/1601.00991)为准；下文的“结构草图”仅定位计算链，**不是完整公式，也不能替代原式**。实现验收前须对照原文冻结该编号的完整声明及所有常量；运行只读取本地冻结配方，不在运行时下载或解析PDF，不得为方便缩短窗口、改参数或删除节点。101式的数据和算子依赖见[Alpha101覆盖清单](Alpha101覆盖清单.md)，语义合同见[设计文档DS45-11至DS45-14](设计文档.md)，四迭代共用的网格/历史视图/缺格约定见[ALN-01..08](四迭代路线与对齐合同.md)。
 
-本附件没有实现或登记生产因子类，也没有提供已通过的测试结果。20个配方是基础设施诊断输入；完整101个native生产类由迭代46实现，build实现由迭代48完成。尚未选入的81式仍须在迭代45按覆盖清单完成字段、算子层独立golden、原始窗口需求及lookback传播能力的语义覆盖（不要求这81式的精确H），不能据此豁免算子层验收。
+本附件没有实现或登记生产因子类，也没有提供已通过的测试结果。本次先定稿文档，随后按用户授权实施45；截至本次规划定稿，功能 AC 均为 NOT_RUN。20个配方是45 native 范围的代表式诊断输入；完整101个native生产类由迭代46实现，build实现由迭代48完成。尚未选入的81式仍须在迭代45按覆盖清单完成字段、算子层独立golden、原始窗口需求及lookback传播能力的语义覆盖（不要求这81式的精确H），不能据此豁免算子层验收。45对20式的 H 由人工根据明确窗口依赖核算；不编译 DAG、不自动推导 H。build 自动 H 属迭代47新增能力。现有 027 expression 原型源码保留历史类名 `PanelFactorIndicator`，本轮不改该原型代码；它不构成本轮 `FactorIndicator` native 通过，也不等同于迭代47的 build 前端。
 
 ## 配方共同合同
 
 - 每个例子使用非生产合成数据，至少固定完整UTC grid、资产键、字段绑定、formula_universe、版本化行业分类、available_at、信号时点和源数据快照。市场行可包含OHLCV、由声明口径生成的VWAP、美元成交额及ADV；cap和sector/industry/subindustry均使用point-in-time版本。禁止从未来数据、晚发布值或未来成员状态回填过去。
 - 每个案例定义文件必须保留Alpha ID、论文出处、完整原式、原始窗口常量、operator_profile=alpha101-v1、字段/分类绑定和确定性输入生成器版本。定义源建议放在拟新增的独立配方文件中；不得把简写草图当成运行定义。
-- 独立expected由拟新增的参考实现和独立fixture生成。参考实现逐资产、逐grid标量计算，允许直接读固定输入，但不得导入生产算子、生产PanelEngine、生产DAG执行器，也不得从生产运行结果反向制作expected。先固定expected和关键中间节点，再运行候选公式。逐节点记录有限值/缺失、原因、时间戳和适用资产池。
+- 独立expected由拟新增的参考实现和独立fixture生成。参考实现逐资产、逐grid标量计算，允许直接读固定输入，但不得调用候选生产公式、生产 Indicator/面板执行实现或生产 build 编译器，也不得从生产运行结果反向制作expected。先固定expected和关键中间节点，再运行候选公式。逐节点记录有限值/缺失、原因、时间戳和适用资产池。
 - alpha101-v1中rank是**当前时点横截面公式池**上的平均秩/n；Ts_Rank/ts_rank是**同一资产完整时间窗**的平均秩/d。不得交换轴或互相代用。rank只对当前有效公式成员计算，并列取平均秩。scale按当前截面 a*x/sum(abs(x))；IndNeutralize按当前PIT分组做组内等权去均值，单成员输出0。
-- 所有窗口在载入原式后才向下取整；小数原参数仍保存在manifest中。delay/delta按完整grid位移，滚动窗要求完整grid，不得删除、压缩、前填或缩短缺口。复合节点预热H以设计文档编译器计算并记录；以下给出应有的手算H或最低grid参考值，必须与编译清单交叉核对；所有涉及ADV的这些H均按美元成交额派生ADV的路径计算，不按预计算ADV字段叶子计算。
+- 所有窗口在载入原式后才向下取整；小数原参数仍保存在manifest中。delay/delta按完整grid位移，滚动窗要求完整grid，不得删除、压缩、前填或缩短缺口。以下给出的 H/最低 grid 是45 native 配方的人工依赖核算，须由独立参考复算；所有涉及ADV的这些H均按美元成交额派生ADV的路径计算，不按预计算ADV字段叶子计算。47 build 前端再单独验收自动 H。
 - comparison/where使用三值逻辑。比较结果进入任意数值算子（包括算术、rank、decay及最终输出）时，true=1、false=0、unknown保持缺失；不得使用Python bool(NaN)。where只按被选分支决定有效性，unknown条件无效；未选分支的已知域无效不污染结果，意外异常仍失败。
-- 每个案例拆分“至少一条有限输出的正例”和可区分的结构/边界例。无效数据应形成既定缺失状态，不能把整式全NaN或skip算作通过。常规共性还要做资产列重排不变、未来扰动不改变过去输出、晚发布数据不可提前可用、成员池按当日PIT生效、时序缺bar不压缩历史。迭代47 E3在同一确定性输入上验证expression与next等价及混合装配，E4在已安装的Backtrader/fincore上验证有效前向标签、公开绩效API及二值/常数退化reason；不要把迭代47集成证据倒写为R4公式实现结果。
+- 每个案例拆分“至少一条有限输出的正例”和可区分的结构/边界例。无效数据应形成既定缺失状态，不能把整式全NaN或skip算作通过。常规共性还要做资产列重排不变、未来扰动不改变过去输出、晚发布数据不可提前可用、成员池按当日PIT生效、时序缺bar不压缩历史。45 native 用真实 FactorIndicator 执行；47新增 build AC 在同一确定性输入上验证 build/native 等价及混合装配，并单独验收 build 自动 H；45不报告 build/跨模式功能通过。45 R8/AC45-29在已安装的Backtrader/fincore上验证20个native代表入口、有效前向标签、公开绩效API及二值/常数退化reason；R10关闭AC45-20/30的组合能力与四迭代交接。不要把47/48的build集成证据倒写为R4公式实现结果。
 
 建议把冻结定义存为拟新增的Alpha101案例manifest，把独立参考代码存为拟新增的reference测试资源，并将每例的输入与expected节点表以内容哈希绑定。下列“独立expected”均指这类无生产节点依赖的参考来源；相关产物尚未创建，当前状态仍为NOT_RUN。
 
@@ -45,7 +45,7 @@ rank实现值可记为rank/3，相关系数对同一正比例缩放不变。独�
 
 区分错误实现：把顺序改成先算每资产10日raw correlation，再横截面rank并取负，精确算术参考下得到(-5/6,-1/3,-5/6)，与正确输出明显不同；浮点相关的舍入可能打破两个数学并列值，但错误顺序输出仍全部为负，不能据其浮点ties强制相同次序。另做一次只把B在d10的open从12改为9.5，使d10次序从A<B<C变为B<A<C，并保持其他价格、volume和历史行不变；A的当前open rank由1变2，其正确输出从17/23变为sqrt(20/23)。这验证另一个资产通过当期截面rank影响目标资产。缺少任一日期时10日窗无输出且不压缩；资产顺序重排后按键对齐结果完全相同。
 
-AF45-003增加两种候选实现：`panel_mode="expression"`用build表达式；`panel_mode="next"`通过真实Indicator的params、self.datas、__init__/next手写平均秩、固定grid历史及Pearson，并写每资产输出线。两者都必须独立对照上面的Fraction/手算参考，而非只互相比对。至少覆盖两种Cerebro模式、资产重排、未来扰动、单资产/全池/尾部缺格、并列与零方差；比较输出、有效性原因和时间对齐。两实现并列运行以及与普通Indicator并列运行时，各自结果不变、next每grid只调用一次且状态不串用。另以真实SMA/ROC子指标验证DS45-11原生生命周期兼容；#3本身的deque实现不能替代这个检查。当前027只验证expression原型，不能据此提前通过本项双模式验收。
+AF45-003在迭代45只验收统一 `FactorIndicator(panel_mode="next")` 的原生实现：使用真实初始化的 FactorIndicator、params、self.datas、Lines、owner/clock/minperiod 与 `once_via_next`（next-only 基线），手写平均秩、固定 grid 历史及 Pearson，并将每资产结果写入真实 scalar line；独立对照上面的 Fraction/手算 oracle，不以另一候选实现作唯一预期。按显式 grid 预先对齐全部研究资产，缺格为 NaN、不沿用旧值，Strategy.next 只采集。覆盖两种 Cerebro 模式、资产重排、未来扰动、单资产/全池/尾部缺格、并列与零方差，比较输出、有效性原因和时间对齐；若提供原生 `once` 优化，必须逐 grid 索引证明与 `next` oracle 的输出及有效性等价；FactorIndicator 内的原生 SMA/ROC 子 Indicator 依真实 BT tree 调度，多个研究因子并行时结果不变，next 每 grid 只调用一次且状态不串用。另以真实 SMA/ROC 子指标验证原生生命周期兼容；#3本身的手写窗口历史不能替代这个检查。R0用#3先展示最小闭环，R4再完成本代表配方；两者当前均为NOT_RUN。迭代47由新增 build AC 实现 build 版本并与同一独立 oracle 和 native 结果等价。现有027 expression原型源码保留历史类名 `PanelFactorIndicator`，本轮不改该原型代码；它不构成本轮 `FactorIndicator` native通过，也不等同于迭代47的build前端。
 
 ### AF45-004 — Alpha#4：截面rank进入Ts_Rank
 
@@ -97,7 +97,7 @@ AF45-003增加两种候选实现：`panel_mode="expression"`用build表达式；
 
 ### AF45-029 — Alpha#29
 
-状态：NOT_RUN。来源：Alpha#29。结构草图：close减常数1后delta(5)，多层rank和scale，log/sum/ts_min嵌套，product后由数值RHS的min窗口再与delay(-returns,6)→Ts_Rank(5)分支相加。此草图不替代完整原式；必须按论文保留delta的5、ts_min的2、sum的1、product的1、min的5，以及delay的6、Ts_Rank的5，并保存原括号和rank层数。使用至少12日、4资产以上；close保持>1，输入按生成器挑选使sum/log/product定义域有效且各中间序列不全相同。独立expected按完整标量树计算并逐项存储delta、ts_min、sum、log、scale、所有rank、product、min和第二分支，不从生产图取得节点。结构区分：把min(expr,5)误解为两表达式逐点min，或把rank/scale互换；边界检查log正域、缺bar完整窗与精确原常量。预热以独立计算和编译H核对；alpha101-v1结构推导预期H=11，最少12 grid。
+状态：NOT_RUN。来源：Alpha#29。结构草图：close减常数1后delta(5)，多层rank和scale，log/sum/ts_min嵌套，product后由数值RHS的min窗口再与delay(-returns,6)→Ts_Rank(5)分支相加。此草图不替代完整原式；必须按论文保留delta的5、ts_min的2、sum的1、product的1、min的5，以及delay的6、Ts_Rank的5，并保存原括号和rank层数。使用至少12日、4资产以上；close保持>1，输入按生成器挑选使sum/log/product定义域有效且各中间序列不全相同。独立expected按完整标量树计算并逐项存储delta、ts_min、sum、log、scale、所有rank、product、min和第二分支，不从生产图取得节点。结构区分：把min(expr,5)误解为两表达式逐点min，或把rank/scale互换；边界检查log正域、缺bar完整窗与精确原常量。预热以独立人工依赖计算核对；alpha101-v1结构推导预期H=11，最少12 grid。
 
 ### AF45-048 — Alpha#48
 
@@ -141,7 +141,7 @@ AF45-003增加两种候选实现：`panel_mode="expression"`用build表达式；
 
 ### AF45-100 — Alpha#100
 
-状态：NOT_RUN。来源：Alpha#100。结构草图含三次IndNeutralize调用：第一支rank的价格位置×volume结果连续两次按subindustry去均值，再scale，最后乘1.5（1.5在scale外）；第二支corr(close,rank(adv20),5)减rank(ts_argmin(close,30))，再按subindustry去均值和scale；两支相减后乘volume/adv20并取负。至少6资产×30日，构造非恒定量和至少两个sector/industry/subindustry层次，且层级成员划分不同。独立expected逐节点记录三次调用的输入、group key、组均值、输出与DAG执行trace；需要核对节点数、顺序、层级和复用边。相同固定分组的重复去均值可能幂等，**不得声称同组第二次去均值必定造成数值变化**；应由图结构/执行追踪验证两次调用仍保留，并用将某调用错误映射到sector/industry的变体区分。另用非零向量核对1.5×scale(x)与错误的scale(1.5×x)：后者会抵消正系数1.5，必须由中间及最终数值识别。主历史H=29，至少30 grid；精确保留1.5、scale默认a=1及power/profile语义。边界：组变更只从PIT生效时间更新，未知分类显式invalid；scale分母为0时按profile返回缺失并显式记录原因。
+状态：NOT_RUN。来源：Alpha#100。结构草图含三次IndNeutralize调用：第一支rank的价格位置×volume结果连续两次按subindustry去均值，再scale，最后乘1.5（1.5在scale外）；第二支corr(close,rank(adv20),5)减rank(ts_argmin(close,30))，再按subindustry去均值和scale；两支相减后乘volume/adv20并取负。至少6资产×30日，构造非恒定量和至少两个sector/industry/subindustry层次，且层级成员划分不同。独立expected逐节点记录三次调用的输入、group key、组均值、输出与逐节点参考计算trace；需要核对节点数、顺序、层级和复用边。相同固定分组的重复去均值可能幂等，**不得声称同组第二次去均值必定造成数值变化**；应由图结构/执行追踪验证两次调用仍保留，并用将某调用错误映射到sector/industry的变体区分。另用非零向量核对1.5×scale(x)与错误的scale(1.5×x)：后者会抵消正系数1.5，必须由中间及最终数值识别。主历史H=29，至少30 grid；精确保留1.5、scale默认a=1及power/profile语义。边界：组变更只从PIT生效时间更新，未知分类显式invalid；scale分母为0时按profile返回缺失并显式记录原因。
 
 ### AF45-101 — Alpha#101
 
@@ -149,6 +149,6 @@ AF45-003增加两种候选实现：`panel_mode="expression"`用build表达式；
 
 ## 执行记录与交接
 
-20个固定案例ID为AF45-001、AF45-002、AF45-003、AF45-004、AF45-007、AF45-009、AF45-013、AF45-029、AF45-048、AF45-056、AF45-058、AF45-062、AF45-063、AF45-067、AF45-081、AF45-084、AF45-092、AF45-096、AF45-100、AF45-101；状态全为NOT_RUN。AC45-28/R4需逐式记录独立known-answer、有限输出正例、边界例、完整原式/参数身份及独立参考隔离证据。AC45-29/迭代47 E4还需记录两个仓的安装版本、dev提交、wheel哈希与实际import路径，并将配方/输入复制到外部运行目录运行；源码checkout或editable导入不满足该项。二值式或常数式的fincore退化必须按原因报告，不能为了五分位而改造公式输出。
+20个固定案例ID为AF45-001、AF45-002、AF45-003、AF45-004、AF45-007、AF45-009、AF45-013、AF45-029、AF45-048、AF45-056、AF45-058、AF45-062、AF45-063、AF45-067、AF45-081、AF45-084、AF45-092、AF45-096、AF45-100、AF45-101；状态全为NOT_RUN。AC45-28/R4需逐式记录独立known-answer、有限输出正例、边界例、完整原式/参数身份、人工H和独立参考隔离证据。AC45-29/R8还需记录两个仓的安装版本、dev提交、wheel哈希与实际import路径，并将配方/输入复制到外部运行目录运行；源码checkout或editable导入不满足该项。二值式或常数式的fincore退化必须按原因报告，不能为了五分位而改造公式输出。迭代47/48 build安装和自动H由新增build专属AC覆盖，当前不构成45通过。
 
-迭代46 native、迭代47 build、迭代48全101 build的全量库交接按Alpha101覆盖清单逐项生成生产声明及身份/来源/表达式/profile/字段/行业层级/H/参数/摘要/timing/适用资产语义；它要求全算子支持，不允许用这20个配方替代剩余81条公式的实现。不得将本附件的NOT_RUN写成PASS，也不得据此宣称复现了论文真实市场收益、原作者实现或账户交易结果。
+迭代46 native、迭代47 build 20式、迭代48全101 build的库交接按Alpha101覆盖清单逐项生成生产声明及身份/来源/profile/字段/行业层级/H/参数/摘要/timing/适用资产语义；47 build 前端另提供表达式来源和编译依赖记录。全量交接要求全算子支持，不允许用这20个配方替代剩余81条公式的实现。不得将本附件的NOT_RUN写成PASS，也不得据此宣称复现了论文真实市场收益、原作者实现或账户交易结果。
