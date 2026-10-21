@@ -45,3 +45,17 @@ Backtrader库代码、fincore和账户路径没有修改。模板和引擎仍局
 证据等级为`LOCAL_ALPHA003_PROTOTYPE_ONLY`。固定资格池内按当期有限字段确定rank的有效子集；缺失格保留，窗口不压缩，网格尾部无行情时只输出缺失。该政策符合DS45-11/12，不能解释为对缺失行情补值或生成有效交易信号。
 
 本轮不实现动态行业/PIT、全量算子、fincore评价、完整数据集合同或101生产因子库。AC45-01–30仍为NOT_RUN；正式迭代需要将公共能力迁入库、扩充验收并验证其余19个代表式以及两个正式示例。原型对用户写法的展示已经完成，不再重复本轮已通过的验收仅用于提交。
+
+## 运行与测试分离（2026-10-21）
+
+上文记录的是原型首轮交付的历史状态。用户随后希望去掉示例中的`acceptance.py`，本轮在现有`dev`、父提交`ee04829e9462d1b52fde8ae4522769119180676f`上完成以下调整：
+
+- 将`acceptance.py`迁至`tests/unit/test_alpha003_panel_example.py`，保留全部12个参考/检查函数的原有逻辑，添加独立pytest入口及隔离的示例模块加载。
+- `run.py`仅运行一次因子实验并导出3份CSV，运行状态写入`run_summary.json`；成功状态为`COMPLETED`，不再调用测试或输出验收PASS。旧`acceptance.json`只作为历史产物，不再更新。
+- 示例README同步运行方式、输出文件与独立测试命令。公共引擎、因子声明、配置、Backtrader核心及fincore均未改动。
+
+验收结果：新测试模块`2 passed`，其中保留的因子验收覆盖13组检查、17次成功实验与5个非法输入拒绝；正常入口测试确认只调用一次实验、产物恰为3份CSV和1份运行摘要，并核对末日数值。原有严格复制/自包含检查`5 passed、128 deselected`，三种命令产物均已读取确认：`COMPLETED`、实际导入外部venv的Backtrader 1.4.0、CSV非空、没有新验收报告。复用上轮已安装环境，不重新构建未变更的核心包。
+
+本轮两次pytest各保留一条既有`asyncio_default_fixture_loop_scope`配置警告，仍使用`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`避开既有插件版本冲突。新增/修改Python文件ruff、black检查通过。未重跑与本次改动无关的全局布局检查；上轮记录的限制仍然有效。
+
+本轮范围是示例运行与测试分离，证据仍为本地原型；AC45-01–30状态不变。准确提交可用`git log -1 -- tests/unit/test_alpha003_panel_example.py`定位；最终交付回复提供提交SHA。

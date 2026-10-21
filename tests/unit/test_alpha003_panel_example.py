@@ -2,13 +2,38 @@
 
 from datetime import timedelta
 from fractions import Fraction
+import importlib.util
+import json
 import math
+from pathlib import Path
+import sys
 
 import pandas as pd
+import pytest
 
 
 _FIELDS = ("open", "high", "low", "close", "volume")
 _FACTOR = "alpha003"
+_EXAMPLE = Path(__file__).resolve().parents[2] / "examples/backtest/027_alpha003_panel_acceptance"
+
+
+@pytest.fixture
+def example(monkeypatch):
+    """Load the standalone example without leaking its generic module names."""
+    local_modules = ("alpha003_strategy", "factor_strategy")
+    with monkeypatch.context() as context:
+        context.syspath_prepend(str(_EXAMPLE))
+        for name in local_modules:
+            context.delitem(sys.modules, name, raising=False)
+        spec = importlib.util.spec_from_file_location("_alpha003_example_run", _EXAMPLE / "run.py")
+        module = importlib.util.module_from_spec(spec)
+        context.setitem(sys.modules, spec.name, module)
+        try:
+            spec.loader.exec_module(module)
+            yield module
+        finally:
+            for name in local_modules:
+                sys.modules.pop(name, None)
 
 
 def _require(condition, message):
@@ -432,3 +457,39 @@ def run_acceptance(make_inputs, run_experiment):
         "expected_value_cells": expected.size,
         "reference": "exact Fraction ranks and rolling Pearson covariance",
     }
+
+
+def test_alpha003_matches_independent_reference_and_edge_cases(example):
+    report = run_acceptance(example.make_inputs, example.run_experiment)
+    assert report["status"] == "PASS"
+    assert report["successful_experiment_runs"] == 17
+    assert report["rejected_input_cases"] == 5
+
+
+def test_example_run_only_computes_and_exports(example, monkeypatch, tmp_path, capsys):
+    run_experiment = example.run_experiment
+    calls = []
+
+    def counted_run(*args, **kwargs):
+        calls.append(1)
+        return run_experiment(*args, **kwargs)
+
+    monkeypatch.setattr(example, "run_experiment", counted_run)
+    assert example.main(["--output-dir", str(tmp_path)]) == 0
+    assert len(calls) == 1
+    assert {path.name for path in tmp_path.iterdir()} == {
+        "input_bars.csv",
+        "node_values.csv",
+        "factor_values.csv",
+        "run_summary.json",
+    }
+    report = json.loads((tmp_path / "run_summary.json").read_text(encoding="utf-8"))
+    assert report["status"] == "COMPLETED"
+    assert "checks" not in report
+    values = pd.read_csv(tmp_path / "factor_values.csv")
+    assert len(values) == 30
+    assert values["alpha003"].iloc[:27].isna().all()
+    assert values["alpha003"].iloc[-3:].tolist() == pytest.approx([17 / 23, 1, 17 / 23])
+    stdout = capsys.readouterr().out
+    assert "COMPLETED:" in stdout
+    assert "PASS:" not in stdout

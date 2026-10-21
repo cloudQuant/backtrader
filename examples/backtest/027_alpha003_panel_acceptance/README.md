@@ -78,7 +78,7 @@ python examples/backtest/027_alpha003_panel_acceptance/run.py
 python run.py --config config.yaml --output-dir output
 ```
 
-成功退出0并打印 `PASS: LOCAL_ALPHA003_PROTOTYPE_ONLY`。配置/计算/断言失败退出1；明确缺文件或运行期缺依赖退出2；argparse参数错误也退出2。本例没有实盘或未知执行结果路径。
+每次运行只执行一次因子计算，成功退出0并打印 `COMPLETED: Alpha003 factor panel exported`，不会自动执行测试。配置/计算失败退出1；明确缺文件或运行期缺依赖退出2；argparse参数错误也退出2。本例没有实盘或未知执行结果路径。
 
 默认包含 A/B/C 三资产、10个合成日格。前9格尚无完整相关窗口；第10格：
 
@@ -95,15 +95,23 @@ python run.py --config config.yaml --output-dir output
 - `input_bars.csv`：原始合成OHLCV。
 - `node_values.csv`：每格、每资产的字段值、截面排名、相关值、负号结果及原因。
 - `factor_values.csv`：最终因子面板。
-- `acceptance.json`：本次检查结果、公式/profile、Backtrader版本/来源及共享节点执行次数。
+- `run_summary.json`：本次运行状态、公式/profile、Backtrader版本/来源及共享节点执行次数。`COMPLETED`只表示计算与导出完成。
+
+旧版本生成的`acceptance.json`是历史验收结果，新入口不再生成或更新它。
 
 平均秩除以当期有效资产数是 `alpha101-v1` 的明确工程约定。缺bar不沿用前值、不压缩窗口；常数排名序列的相关无效。两种 Cerebro 模式均在逐事件回调中推进同一个面板引擎，不读取未来预加载数组。
 
 资产资格池固定，但每个排名节点只使用当期该字段有限的资产；某资产缺bar会影响其他资产当期的排名分母，该缺失资产自身的相关窗口无效。全池缺格和网格尾部没有bar的格子仍输出缺失行，不制造行情或有效信号。`node_values.csv`保留这种缺失的中间状态。
 
-## 4. 验收范围
+## 4. 开发者测试与原型范围
 
-[acceptance.py](acceptance.py) 用独立的 Fraction 标量参考计算排名和相关，没有调用候选引擎的算子。验收检查手算值、完整面板、两种运行模式、资产加载顺序、跨资产影响、未来扰动、缺bar/全池缺格、并列排名、零方差、共享节点和错误输入拒绝；同时检查没有注册普通 Indicator 实例、没有下单。
+验收代码已迁到仓库的`tests/unit/test_alpha003_panel_example.py`；本例目录不再包含`acceptance.py`，运行或复制示例也不依赖测试目录。开发者在仓库根目录单独运行：
+
+```powershell
+python -m pytest tests/unit/test_alpha003_panel_example.py -q
+```
+
+测试用独立的 Fraction 标量参考计算排名和相关，没有调用候选引擎的算子。验收检查手算值、完整面板、两种运行模式、资产加载顺序、跨资产影响、未来扰动、缺bar/全池缺格、并列排名、零方差、共享节点和错误输入拒绝；同时检查没有注册普通 Indicator 实例、没有下单。
 
 这是用户授权提前查看写法的**独立原型**，新编号027不替代计划中的025单因子和026多因子正式示例。公共模板和引擎暂时放在本例目录，后续正式实现再迁入库并稳定API。
 

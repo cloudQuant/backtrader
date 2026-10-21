@@ -1,4 +1,4 @@
-"""Run the offline Alpha003 prototype and its deterministic acceptance checks."""
+"""Compute the offline Alpha003 prototype and export its factor panel."""
 
 # ruff: noqa: E402 -- select the checkout before importing Backtrader or local declarations.
 
@@ -120,19 +120,16 @@ def main(argv=None):
             or config.get("fixture") != "af45_003_v1"
             or not isinstance(config.get("output_dir"), str)
         ):
-            raise ValueError("this acceptance example fixes Alpha003/alpha101-v1/af45_003_v1")
+            raise ValueError("this example fixes Alpha003/alpha101-v1/af45_003_v1")
         output = args.output_dir or Path(config["output_dir"])
         if not output.is_absolute():
             output = config_path.parent / output
         output.mkdir(parents=True, exist_ok=True)
-        (output / "acceptance.json").write_text(
+        (output / "run_summary.json").write_text(
             json.dumps({"status": "RUNNING", "evidence_level": "LOCAL_ALPHA003_PROTOTYPE_ONLY"}),
             encoding="utf-8",
         )
 
-        from acceptance import run_acceptance
-
-        checks = run_acceptance(make_inputs, run_experiment)
         inputs = make_inputs()
         strategy = run_experiment(inputs, inputs["A"].index.to_pydatetime())
         dataset = strategy.get_dataset()
@@ -140,32 +137,31 @@ def main(argv=None):
         strategy.get_diagnostics().to_csv(output / "node_values.csv", index=False)
         pd.concat(inputs, names=["asset", "time"]).to_csv(output / "input_bars.csv")
         report = {
-            "status": "PASS",
+            "status": "COMPLETED",
             "evidence_level": "LOCAL_ALPHA003_PROTOTYPE_ONLY",
             "formula": "-correlation(rank(open), rank(volume), 10)",
             "operator_profile": "alpha101-v1",
-            "checks": checks,
             "backtrader_origin": str(Path(bt.__file__).resolve()),
             "backtrader_version": bt.__version__,
             "evaluation_counts": strategy.engine.evaluation_counts,
         }
-        (output / "acceptance.json").write_text(
+        (output / "run_summary.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8"
         )
         print(dataset.loc[inputs["A"].index[-1]].to_string())
-        print("PASS: LOCAL_ALPHA003_PROTOTYPE_ONLY")
+        print("COMPLETED: Alpha003 factor panel exported")
         print("Results:", output.resolve())
         return 0
     except (FileNotFoundError, ImportError) as exc:
         if output is not None and output.is_dir():
-            (output / "acceptance.json").write_text(
+            (output / "run_summary.json").write_text(
                 json.dumps({"status": "BLOCKED", "reason": str(exc)}), encoding="utf-8"
             )
         print("BLOCKED:", exc, file=sys.stderr)
         return 2
     except Exception as exc:
         if output is not None and output.is_dir():
-            (output / "acceptance.json").write_text(
+            (output / "run_summary.json").write_text(
                 json.dumps({"status": "FAIL", "reason": str(exc)}), encoding="utf-8"
             )
         print("FAIL:", type(exc).__name__, str(exc), file=sys.stderr)
