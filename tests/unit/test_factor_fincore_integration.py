@@ -65,7 +65,7 @@ def _known_dataset():
         "calendar_id": "integration-daily-grid-v1",
         "frequency": "1session",
         "feed_time_kind": "close_time",
-        "groups": {asset: "US" for asset in assets},
+        "groups": dict.fromkeys(assets, "US"),
         "universe": pd.Series(True, index=universe_index, name="eligible"),
         "formula_universe": pd.Series(True, index=formula_index, name="eligible"),
         "formula_fields": {},
@@ -81,6 +81,8 @@ def _known_dataset():
 
 
 def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path):
+    plot_baseline = {name for name in sys.modules if name.startswith("backtrader.plot")}
+    assert "fincore.factor_analysis.render_matplotlib" not in sys.modules
     module = importlib.import_module("fincore.factor_analysis.research")
     module_path = os.path.realpath(module.__file__).lower()
     assert "site-packages" in module_path or "dist-packages" in module_path
@@ -129,3 +131,16 @@ def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path
     assert len(observed) == 12
     assert np.allclose(np.sort(observed.reshape(3, 4), axis=1), expected)
     assert result.manifest["dataset_id"] == dataset.dataset_id
+    result.export(tmp_path / "tables", charts=False)
+    assert "fincore.factor_analysis.render_matplotlib" not in sys.modules
+    assert {name for name in sys.modules if name.startswith("backtrader.plot")} == plot_baseline
+
+    result.export(tmp_path / "charts", charts=True)
+    from PIL import Image
+
+    images = list((tmp_path / "charts").rglob("*.png"))
+    assert images
+    for path in images:
+        with Image.open(path) as picture:
+            assert picture.format == "PNG" and min(picture.size) > 0
+            picture.verify()
