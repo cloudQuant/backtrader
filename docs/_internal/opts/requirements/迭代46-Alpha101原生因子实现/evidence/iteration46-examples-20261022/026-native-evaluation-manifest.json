@@ -1,0 +1,1343 @@
+{
+  "schema": "fincore-factor-research-result-v1",
+  "result_schema_version": 1,
+  "dataset_id": "298c93ed2e3f7d9a16b155ddd164d334a0468117e36e80826b909d7a7afdd284",
+  "input_fingerprint": "8f4c8c5a196dcd2a6e98c2aab8ceb60c5143b9e3123f57164b4e320ac9eb3904",
+  "evaluation_config_sha256": "b7ff4efd776ac3fbfd89b6e450d05b092a5c5e8d1f44c6fb49caabf25b1f894c",
+  "config_schema_version": 1,
+  "fingerprint_algorithm_version": 1,
+  "configuration_fingerprint": "b7ff4efd776ac3fbfd89b6e450d05b092a5c5e8d1f44c6fb49caabf25b1f894c",
+  "evaluation_id": "22a8315c3a1f2083436b914acc779f97bd7bdb6b34c6a3843a15509186603da4",
+  "fincore_algorithm_revision": "factor-research-r1+sha256:55a90ebe43314b73ff7ddefad3f6d6221fb92d88d50b505e439fe5604a02d806",
+  "fincore_version": "0.5.1.dev0",
+  "algorithm_source_sha256": "55a90ebe43314b73ff7ddefad3f6d6221fb92d88d50b505e439fe5604a02d806",
+  "algorithm_source_files": {
+    "fincore/__init__.py": "dfb6a1f00e864911c6830c478cbc97418126654707ae0be9379dd20fbae90ea8",
+    "fincore/factor_analysis/exceptions.py": "04d41bd6f1ad0ed7602d79fe5cbc160f1cb65ff5c7cb2cf21a717bbe0f0b9f79",
+    "fincore/factor_analysis/labels.py": "d42038596c46ec74f91a4f2166af9e78600f692ec559939230372394074e1ce2",
+    "fincore/factor_analysis/models.py": "6524ae90b5b13fa91bb92aec6f91a25250d3d96153f10b0b6465f12ee637abec",
+    "fincore/factor_analysis/research.py": "2b74ae5d45c2ec52814ed35b51ca5f070311031bb24538385308ea1117c87600",
+    "fincore/factor_analysis/research_config.py": "f627aba0f5aeea562392ae10a53a274885851c593c492974b9a7ba58744f5ebf",
+    "fincore/factor_analysis/research_metrics.py": "9e7d9db7c354f385981978e935c2a631eb30e09ad29ef4e2427097ff983ce85a",
+    "fincore/factor_analysis/research_result.py": "55b5210c14b22e3a6d675dd3e00a11d33b7d1a123f11eb2a3033351b9d82e5e4",
+    "fincore/factor_analysis/signals.py": "60a7aeab3ccc2cf57e79ad9c645af38d9af12e933e711336a4b8b3c37265d5de"
+  },
+  "snapshot_id": "iteration45-synthetic-ohlcv-sha256-v1-seed4510",
+  "evaluation_spec": {
+    "targets": [
+      "SYN00",
+      "SYN01",
+      "SYN02",
+      "SYN03",
+      "SYN04",
+      "SYN05",
+      "SYN06",
+      "SYN07",
+      "SYN08",
+      "SYN09",
+      "SYN10",
+      "SYN11",
+      "SYN12",
+      "SYN13",
+      "SYN14",
+      "SYN15",
+      "SYN16",
+      "SYN17",
+      "SYN18",
+      "SYN19"
+    ],
+    "start": "2025-02-03T16:00:00+00:00",
+    "end": "2026-01-30T16:00:00+00:00",
+    "snapshot_id": "iteration45-synthetic-ohlcv-sha256-v1-seed4510",
+    "price_basis": "synthetic unadjusted USD-like units; no splits or dividends",
+    "calendar_id": "synthetic-weekday-v1",
+    "frequency": "1session",
+    "source_timezone": "UTC",
+    "feed_time_kind": "close_time",
+    "periods": [
+      1
+    ],
+    "label": "next_open_to_open",
+    "precomputed_entry": "next_open",
+    "quantiles": 5,
+    "min_assets": 10,
+    "min_quantile_assets": 1,
+    "preprocess": "cross_section_rank",
+    "max_loss": 0.35,
+    "direction_overrides": {},
+    "combinations": {
+      "equal_weight": {
+        "close_ma": 0.3333333333333333,
+        "kdj_j": 0.3333333333333333,
+        "roc": 0.3333333333333333
+      }
+    },
+    "comparisons": {
+      "all_variants": [
+        "close_ma",
+        "equal_weight",
+        "kdj_j",
+        "roc"
+      ]
+    },
+    "segments": {
+      "development": [
+        "2025-02-03T16:00:00+00:00",
+        "2025-09-12T16:00:00+00:00",
+        "development"
+      ],
+      "validation": [
+        "2025-09-15T16:00:00+00:00",
+        "2026-01-30T16:00:00+00:00",
+        "validation"
+      ]
+    },
+    "stability_lags": [
+      1,
+      5,
+      20
+    ]
+  },
+  "label_metadata": {
+    "label": "next_open_to_open",
+    "periods": [
+      1
+    ],
+    "precomputed_entry": null
+  },
+  "signal_metadata": {
+    "schema": "fincore-factor-signals-v1",
+    "preprocess": "cross_section_rank",
+    "quantiles": 5,
+    "directions": {
+      "close_ma": 1,
+      "kdj_j": 1,
+      "roc": 1
+    },
+    "configured_weights": {
+      "equal_weight": {
+        "close_ma": 0.3333333333333333,
+        "kdj_j": 0.3333333333333333,
+        "roc": 0.3333333333333333
+      }
+    },
+    "normalized_weights": {
+      "equal_weight": {
+        "close_ma": 0.3333333333333333,
+        "kdj_j": 0.3333333333333333,
+        "roc": 0.3333333333333333
+      }
+    },
+    "comparisons": {
+      "equal_weight:self": [
+        "close_ma",
+        "equal_weight",
+        "kdj_j",
+        "roc"
+      ],
+      "all_variants": [
+        "close_ma",
+        "equal_weight",
+        "kdj_j",
+        "roc"
+      ]
+    },
+    "pool_members": {
+      "common:all_variants": [
+        "close_ma",
+        "kdj_j",
+        "roc"
+      ],
+      "common:equal_weight:self": [
+        "close_ma",
+        "kdj_j",
+        "roc"
+      ],
+      "own:close_ma": [
+        "close_ma"
+      ],
+      "own:equal_weight": [
+        "close_ma",
+        "kdj_j",
+        "roc"
+      ],
+      "own:kdj_j": [
+        "kdj_j"
+      ],
+      "own:roc": [
+        "roc"
+      ]
+    },
+    "signal_definitions": {
+      "close_ma": [
+        "factor",
+        "close_ma"
+      ],
+      "equal_weight": [
+        "combination",
+        "equal_weight"
+      ],
+      "equal_weight::without::close_ma": [
+        "ablation",
+        "equal_weight",
+        "close_ma"
+      ],
+      "equal_weight::without::kdj_j": [
+        "ablation",
+        "equal_weight",
+        "kdj_j"
+      ],
+      "equal_weight::without::roc": [
+        "ablation",
+        "equal_weight",
+        "roc"
+      ],
+      "kdj_j": [
+        "factor",
+        "kdj_j"
+      ],
+      "roc": [
+        "factor",
+        "roc"
+      ]
+    },
+    "grid_row_count": 301,
+    "asset_count": 20,
+    "panel_row_count": 6020,
+    "input_row_count": 5200,
+    "index_names": [
+      "time",
+      "asset",
+      "signal",
+      "variant",
+      "pool_id",
+      "group"
+    ],
+    "missing_policy": "preserve_grid; no_fill; no_dynamic_reweight"
+  },
+  "dataset_provenance": {
+    "factor_directions": {
+      "close_ma": 1,
+      "kdj_j": 1,
+      "roc": 1
+    },
+    "factor_specs": {
+      "close_ma": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "multi_factor_strategy",
+        "indicator_qualname": "CloseMAFactor",
+        "lookback_h": 19,
+        "module_source_sha256": "c48c47eb0de25a59be442618b5a3d934b81a28b4f9264ad972d659d319ade95f",
+        "name": "close_ma",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {
+          "period": 20
+        },
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "fafd0dcafa3cc5afb75e067c5b74df78a0355046499d8a4af26701f7317e00ee"
+      },
+      "kdj_j": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close",
+          "high": "feed:target:high",
+          "low": "feed:target:low"
+        },
+        "indicator_module": "multi_factor_strategy",
+        "indicator_qualname": "KDJFactor",
+        "lookback_h": 12,
+        "module_source_sha256": "c48c47eb0de25a59be442618b5a3d934b81a28b4f9264ad972d659d319ade95f",
+        "name": "kdj_j",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {
+          "period": 9,
+          "period_dfast": 3,
+          "period_dslow": 3
+        },
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "fa0b90fef12591eb988824ab070c33aafb66a98d998ae305f3169c3ec78ba215"
+      },
+      "roc": {
+        "classification_bindings": {},
+        "direction": 1,
+        "field_bindings": {
+          "close": "feed:target:close"
+        },
+        "indicator_module": "multi_factor_strategy",
+        "indicator_qualname": "ROCFactor",
+        "lookback_h": 20,
+        "module_source_sha256": "c48c47eb0de25a59be442618b5a3d934b81a28b4f9264ad972d659d319ade95f",
+        "name": "roc",
+        "operator_profile": "alpha101-v1",
+        "panel_line": "factor",
+        "panel_mode": "next",
+        "params": {
+          "period": 20
+        },
+        "source_hash_kind": "python-source+python-module-source",
+        "source_sha256": "a48d329fa54268af36b7843ad49f7a915af9b324cdaf73ce29673fe060616725"
+      }
+    },
+    "research_grid_sha256": "5df5c6bcc521f33965cb0a29edc8f33611040ab008a58ecc324efc54000af009"
+  },
+  "target_count": 20,
+  "factor_names": [
+    "close_ma",
+    "kdj_j",
+    "roc"
+  ],
+  "grid_bar_count": 301,
+  "evaluation_bar_count": 260,
+  "periods": [
+    1
+  ],
+  "label": "next_open_to_open",
+  "precomputed_entry": "next_open",
+  "price_basis": "synthetic unadjusted USD-like units; no splits or dividends",
+  "calendar_id": "synthetic-weekday-v1",
+  "frequency": "1session",
+  "source_timezone": "UTC",
+  "feed_time_kind": "close_time",
+  "directions": {
+    "close_ma": 1,
+    "roc": 1,
+    "kdj_j": 1
+  },
+  "preprocess": "cross_section_rank",
+  "quantiles": 5,
+  "max_loss": 0.35,
+  "capabilities": {
+    "api_version": "1.0",
+    "result_schema_version": 1,
+    "evaluation_config_schema_version": 1,
+    "python_min": "3.11",
+    "entrypoint": "fincore.factor_analysis.research.evaluate_factor_research",
+    "spec": "fincore.factor_analysis.research.ResearchEvaluationSpec",
+    "normalizer": "fincore.factor_analysis.research.normalize_research_evaluation_spec",
+    "labels": [
+      "close_to_close",
+      "next_open_to_open",
+      "precomputed"
+    ],
+    "preprocess": [
+      "cross_section_rank",
+      "cross_section_zscore"
+    ],
+    "metrics": [
+      "pearson_ic",
+      "spearman_ic",
+      "icir",
+      "quantile_returns",
+      "spread",
+      "rank_autocorrelation",
+      "quantile_turnover",
+      "factor_correlation",
+      "paired_comparison"
+    ],
+    "result_tables": [
+      "signals",
+      "labels",
+      "ic",
+      "ic_summary",
+      "quantile_returns",
+      "spreads",
+      "stability",
+      "correlation",
+      "comparisons",
+      "coverage",
+      "diagnostics"
+    ],
+    "export_formats": [
+      "json",
+      "csv"
+    ],
+    "charts_supported": true
+  },
+  "status": "PARTIAL",
+  "result_table_schemas": {
+    "signals": {
+      "columns": [
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "asset",
+          "type": "string"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "quantile",
+          "type": "number"
+        },
+        {
+          "name": "eligible",
+          "type": "boolean"
+        },
+        {
+          "name": "pool_member",
+          "type": "boolean"
+        },
+        {
+          "name": "candidate_count",
+          "type": "integer"
+        },
+        {
+          "name": "pool_member_count",
+          "type": "integer"
+        },
+        {
+          "name": "formation_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "formation_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "value_status",
+          "type": "string"
+        },
+        {
+          "name": "quantile_status",
+          "type": "string"
+        },
+        {
+          "name": "value_reason",
+          "type": "string"
+        },
+        {
+          "name": "quantile_reason",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "detail",
+          "type": "string"
+        }
+      ]
+    },
+    "labels": {
+      "columns": [
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "asset",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "entry_time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "exit_time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "entry_bar",
+          "type": "integer"
+        },
+        {
+          "name": "exit_bar",
+          "type": "integer"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "detail",
+          "type": "string"
+        }
+      ]
+    },
+    "ic": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        },
+        {
+          "name": "period",
+          "type": "timestamp_or_label"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "sample_std",
+          "type": "number"
+        },
+        {
+          "name": "information_ratio",
+          "type": "number"
+        },
+        {
+          "name": "positive_fraction",
+          "type": "number"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_valid",
+          "type": "integer"
+        }
+      ]
+    },
+    "ic_summary": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "period",
+          "type": "string"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "sample_std",
+          "type": "number"
+        },
+        {
+          "name": "information_ratio",
+          "type": "number"
+        },
+        {
+          "name": "positive_fraction",
+          "type": "number"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_valid",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    "quantile_returns": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "quantile",
+          "type": "integer"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "spreads": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "lower_quantile",
+          "type": "integer"
+        },
+        {
+          "name": "upper_quantile",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "stability": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "lag",
+          "type": "integer"
+        },
+        {
+          "name": "quantile",
+          "type": "integer"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        }
+      ]
+    },
+    "correlation": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "signal_left",
+          "type": "string"
+        },
+        {
+          "name": "signal_right",
+          "type": "string"
+        },
+        {
+          "name": "variant_left",
+          "type": "string"
+        },
+        {
+          "name": "variant_right",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "n_assets",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        }
+      ]
+    },
+    "comparisons": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "period",
+          "type": "timestamp_or_label"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "comparison_id",
+          "type": "string"
+        },
+        {
+          "name": "left_signal",
+          "type": "string"
+        },
+        {
+          "name": "right_signal",
+          "type": "string"
+        },
+        {
+          "name": "variant_left",
+          "type": "string"
+        },
+        {
+          "name": "variant_right",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "metric",
+          "type": "string"
+        },
+        {
+          "name": "delta",
+          "type": "number"
+        },
+        {
+          "name": "mean_delta",
+          "type": "number"
+        },
+        {
+          "name": "sample_std_delta",
+          "type": "number"
+        },
+        {
+          "name": "positive_delta_fraction",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "paired_period_count",
+          "type": "integer"
+        },
+        {
+          "name": "n_periods_total",
+          "type": "integer"
+        }
+      ]
+    },
+    "coverage": {
+      "columns": [
+        {
+          "name": "record_type",
+          "type": "string"
+        },
+        {
+          "name": "time",
+          "type": "utc_datetime"
+        },
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "horizon",
+          "type": "integer"
+        },
+        {
+          "name": "segment_id",
+          "type": "string"
+        },
+        {
+          "name": "segment_role",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "period_count",
+          "type": "integer"
+        },
+        {
+          "name": "excluded_count",
+          "type": "integer"
+        },
+        {
+          "name": "candidate_count",
+          "type": "integer"
+        },
+        {
+          "name": "pool_member_count",
+          "type": "integer"
+        },
+        {
+          "name": "finite_value_count",
+          "type": "integer"
+        },
+        {
+          "name": "factor_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "label_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "label_count",
+          "type": "integer"
+        },
+        {
+          "name": "paired_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_valid_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "quantile_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "formation_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "analysis_loss_count",
+          "type": "integer"
+        },
+        {
+          "name": "segment_boundary_count",
+          "type": "integer"
+        },
+        {
+          "name": "loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "factor_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "label_loss_rate",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    "diagnostics": {
+      "columns": [
+        {
+          "name": "signal",
+          "type": "string"
+        },
+        {
+          "name": "variant",
+          "type": "string"
+        },
+        {
+          "name": "pool_id",
+          "type": "string"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "count",
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "complete": true,
+  "export_schema_version": 1,
+  "tables": {
+    "signals": {
+      "csv": "signals.csv",
+      "json": "signals.json"
+    },
+    "labels": {
+      "csv": "labels.csv",
+      "json": "labels.json"
+    },
+    "ic": {
+      "csv": "ic.csv",
+      "json": "ic.json"
+    },
+    "ic_summary": {
+      "csv": "ic_summary.csv",
+      "json": "ic_summary.json"
+    },
+    "quantile_returns": {
+      "csv": "quantile_returns.csv",
+      "json": "quantile_returns.json"
+    },
+    "spreads": {
+      "csv": "spreads.csv",
+      "json": "spreads.json"
+    },
+    "stability": {
+      "csv": "stability.csv",
+      "json": "stability.json"
+    },
+    "correlation": {
+      "csv": "correlation.csv",
+      "json": "correlation.json"
+    },
+    "comparisons": {
+      "csv": "comparisons.csv",
+      "json": "comparisons.json"
+    },
+    "coverage": {
+      "csv": "coverage.csv",
+      "json": "coverage.json"
+    },
+    "diagnostics": {
+      "csv": "diagnostics.csv",
+      "json": "diagnostics.json"
+    }
+  },
+  "files": {
+    "signals.csv": {
+      "sha256": "2077946d8c71f66fb18c257893fc02f7158050c575ffdf268b10cd29bfd9dfe6",
+      "bytes": 27425327,
+      "rows": 187200,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "signals.json": {
+      "sha256": "0ec480c7ea4dc6c0a354b1bf3804124583f1087017f872936f43f599df6909ad",
+      "bytes": 107240589,
+      "rows": 187200,
+      "media_type": "application/json"
+    },
+    "labels.csv": {
+      "sha256": "3e6753c141305729910751324e59b1da4d8558896c3035915e08861e48e05c48",
+      "bytes": 613059,
+      "rows": 5200,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "labels.json": {
+      "sha256": "52f4a30af77f282c414478f10da02732074bbaf3b0377b1d91f68e195e82df26",
+      "bytes": 1581926,
+      "rows": 5200,
+      "media_type": "application/json"
+    },
+    "ic.csv": {
+      "sha256": "5147ad3c056d6d6b159beffc8c80f5d65f95523e56b796a2d66e0b60adbf29f7",
+      "bytes": 5567524,
+      "rows": 37440,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "ic.json": {
+      "sha256": "1022320fcab2060e2187945b19b072f8f940396c2e53fe2b05ca3bacc5c05d05",
+      "bytes": 21837232,
+      "rows": 37440,
+      "media_type": "application/json"
+    },
+    "ic_summary.csv": {
+      "sha256": "54bf975a6fe47a281715e928d85a616b22298123ed5b1b571131ef796713604a",
+      "bytes": 379039,
+      "rows": 2016,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "ic_summary.json": {
+      "sha256": "b9ebe789466cbfcc222f612882d6cfc5d8c99fc7710da95e57ef687bc042a72b",
+      "bytes": 1133044,
+      "rows": 2016,
+      "media_type": "application/json"
+    },
+    "quantile_returns.csv": {
+      "sha256": "dafd2c8de83818aa330800d97ef8fb8456388bbd9f37407495c8c9a09be6770f",
+      "bytes": 12740830,
+      "rows": 93600,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "quantile_returns.json": {
+      "sha256": "4135a812af3f5170bdd338cfe2e1a84f8295249b2f6ccb4cb71a0eb6c7401106",
+      "bytes": 36752195,
+      "rows": 93600,
+      "media_type": "application/json"
+    },
+    "spreads.csv": {
+      "sha256": "34c4bf1128598367f54e446163175a073fbd834d856cfdd37fc9c041061274c6",
+      "bytes": 2583524,
+      "rows": 18720,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "spreads.json": {
+      "sha256": "bdf24b4ff15241a82ffc3b0732090b6b59681229aaa33157efa7f00586d71cb9",
+      "bytes": 7945930,
+      "rows": 18720,
+      "media_type": "application/json"
+    },
+    "stability.csv": {
+      "sha256": "4948e34893338543baa42fedc044d0660449c2f0a6ae9071d999ca6ba004673d",
+      "bytes": 47317416,
+      "rows": 336960,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "stability.json": {
+      "sha256": "0f8bc8c1b46c787266cb561a92fefbce9c7e97c1392b57f72d86982743b321ff",
+      "bytes": 139456931,
+      "rows": 336960,
+      "media_type": "application/json"
+    },
+    "correlation.csv": {
+      "sha256": "c173e2fcab2306c3248ac20ab3fee762c15d900a4245ad5bf8df7f096a8fb2f4",
+      "bytes": 7925759,
+      "rows": 43932,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "correlation.json": {
+      "sha256": "682323ec8a70de646ce33a9e00e491ec90758758c89eacffbe59a0865b4b9429",
+      "bytes": 23302065,
+      "rows": 43932,
+      "media_type": "application/json"
+    },
+    "comparisons.csv": {
+      "sha256": "423e782afeb2e9fc5147bf15467b8432be62d786f656d463e4b8a0e2f996869d",
+      "bytes": 9019058,
+      "rows": 43932,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "comparisons.json": {
+      "sha256": "e9f4be6352fb9b643e562574ffac56f45f096aed6012253177eabf1da13df19b",
+      "bytes": 29379047,
+      "rows": 43932,
+      "media_type": "application/json"
+    },
+    "coverage.csv": {
+      "sha256": "5f3e8bb080aaa6da1483cfa929288d70aba95bd77ad4c8ec03d71dd0ab76a0b8",
+      "bytes": 2799140,
+      "rows": 18828,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "coverage.json": {
+      "sha256": "bc1e86c6abe8fbc5f872ef00c18c4e759c4dc31e5f1450c7f33a20c60f3bfd92",
+      "bytes": 15562903,
+      "rows": 18828,
+      "media_type": "application/json"
+    },
+    "diagnostics.csv": {
+      "sha256": "aa3e83f7de69a3161f125b152c3cf3d14aa5d47bb1dd738a19734bdf4f6a01b5",
+      "bytes": 49,
+      "rows": 1,
+      "media_type": "text/csv; charset=utf-8"
+    },
+    "diagnostics.json": {
+      "sha256": "c154faaa47a4279a6601360d37ab66aceec9a668ec82357e8fc510285bfeb5f8",
+      "bytes": 128,
+      "rows": 1,
+      "media_type": "application/json"
+    }
+  },
+  "charts": []
+}

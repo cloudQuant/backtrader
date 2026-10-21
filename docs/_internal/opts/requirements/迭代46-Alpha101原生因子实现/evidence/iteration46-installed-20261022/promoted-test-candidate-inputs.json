@@ -1,0 +1,14 @@
+{
+  "package_source_commit": "8bc54f48a07405f4c0231e62556d8746d37c7e44",
+  "original_build_root": "D:\\temp\\iteration46-wheel-8bc54f48-r2",
+  "test_candidate_path": "D:\\source_code\\backtrader\\tests\\integration\\test_alpha101_native_installed.py",
+  "test_candidate_sha256": "f5cd4c98583dda20506210cd7a938422fc6eb47d358b9f473c1a22de824d48b3",
+  "test_input_sha256": {
+    "backtrader/research/alpha101_dependencies.json": "38389daf5ba2c13f1a69e9ead38a219448f499e624f9b851bee25e10db5bed1b",
+    "tests/integration/test_alpha101_native_installed.py": "f5cd4c98583dda20506210cd7a938422fc6eb47d358b9f473c1a22de824d48b3",
+    "tests/test_utils/alpha101_full_reference.py": "029d373ff2f458fa4d1f50395a83ddf7e22dfa5af11d67dcc0407725b56876f5",
+    "tests/test_utils/alpha101_native_harness.py": "442c06c532495962556bcb7501bab33c7983a3e83bd2a1ff559e21f2a760d694",
+    "tests/unit/test_factor_research_representatives.py": "85c282ffed84fb51729769f3a8936821935e089d6a53cbf6df93896d81096722"
+  },
+  "scope": "test-only explicit evaluation-window dataset; library wheel unchanged"
+}

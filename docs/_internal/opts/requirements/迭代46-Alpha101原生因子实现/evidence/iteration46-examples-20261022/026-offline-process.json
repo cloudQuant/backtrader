@@ -1,0 +1,15 @@
+{
+  "command": [
+    "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+    "-E",
+    "-s",
+    "D:\\temp\\iteration46-examples-8bc54f48-r4\\scripts\\iteration45_offline_reevaluation_acceptance_r4.py",
+    "--_worker-spec",
+    "D:\\temp\\iteration46-examples-8bc54f48-r4\\offline\\026\\worker_spec.json"
+  ],
+  "cwd": "D:\\temp\\iteration46-examples-8bc54f48-r4",
+  "elapsed_seconds": 277.4679999999935,
+  "return_code": 0,
+  "timed_out": false,
+  "timeout_seconds": 2400
+}

@@ -2,7 +2,7 @@
 
 本文说明如何通过 Backtrader 的研究生命周期运行已提升为原生类的 Alpha101 因子。Alpha101 是公式目录，不是交易策略：这里采集的是每个目标资产、每个研究格点上的原始因子值。
 
-> **实现状态（2026-10-22）**：101个原生类、独立数学参考与完整源码场景已通过验收，安装产物验收正在收口。运行时 `list_alphas()` 应返回1至101；最终交付状态见[迭代46验收结果](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/验收结果.md)。注册完整与源码通过不替代安装集成。
+> **实现状态（2026-10-22）**：迭代46已完成；101个native类、独立数学参考、完整源码场景、已提交wheel上的6项研究场景及025/026集成验收均通过（AC46-01–06 PASS）。已安装包的 `list_alphas()` 返回1至101。详见[迭代46验收结果](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/验收结果.md)、[安装验收摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json)及[025/026集成摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-examples-20261022/summary.json)。后续build前端和全101 native/build对齐分别属于迭代47和48。
 
 ## 查找原生因子
 

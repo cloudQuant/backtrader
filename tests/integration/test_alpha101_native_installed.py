@@ -411,6 +411,79 @@ def _assert_ic_and_labels(
     }
 
 
+def _evaluation_window_dataset(
+    collected: Any,
+    harness: Any,
+    frames: Mapping[str, Any],
+    members: Sequence[Sequence[bool]],
+    groups: Mapping[str, str],
+) -> Any:
+    """Declare the fincore interval while retaining the full calculation grid."""
+
+    from backtrader.research import ResearchDataset, ResearchSpec
+
+    base = harness.make_research_spec(frames, formula_universe=members, groups=groups)
+    grid = base.grid
+    start = grid.index[_EVALUATION_START]
+    end = grid.index[_EVALUATION_END]
+    evaluation_times = grid.index[(grid.index >= start) & (grid.index <= end)]
+    formula_times = grid.index[grid.index <= end]
+
+    factor_names = tuple("alpha%d" % alpha_id for alpha_id in _EVALUATION_IDS)
+    raw = collected.raw_factors
+    raw_times = raw.index.get_level_values("time")
+    raw_window = raw.loc[raw_times.isin(evaluation_times), factor_names]
+
+    availability = collected.availability
+    availability_times = availability.index.get_level_values("time")
+    availability_factors = availability.index.get_level_values("factor")
+    availability_window = availability.loc[
+        availability_times.isin(evaluation_times) & availability_factors.isin(factor_names)
+    ]
+
+    universe = base.universe
+    universe = universe.loc[universe.index.get_level_values("time").isin(evaluation_times)]
+    formula_universe = base.formula_universe
+    formula_universe = formula_universe.loc[
+        formula_universe.index.get_level_values("time").isin(formula_times)
+    ]
+    research = ResearchSpec(
+        grid=grid,
+        start=start,
+        end=end,
+        targets=base.targets,
+        source_timezone=base.source_timezone,
+        snapshot_id=base.snapshot_id,
+        price_basis=base.price_basis,
+        calendar_id=base.calendar_id,
+        frequency=base.frequency,
+        feed_time_kind=base.feed_time_kind,
+        groups=base.groups,
+        universe=universe,
+        formula_universe=formula_universe,
+        formula_fields=base.formula_fields,
+        classifications=base.classifications,
+    )
+
+    provenance = collected.metadata["provenance"]
+    factor_directions = provenance.get("factor_directions")
+    assert isinstance(factor_directions, Mapping)
+    assert set(factor_names).issubset(factor_directions)
+    window_provenance = dict(provenance)
+    window_provenance["factor_directions"] = {
+        name: factor_directions[name] for name in factor_names
+    }
+    return ResearchDataset.from_collection(
+        research=research,
+        raw_factors=raw_window,
+        availability=availability_window,
+        prices=collected.prices,
+        formula_inputs=base.formula_fields,
+        classifications=base.classifications,
+        provenance=window_provenance,
+    )
+
+
 def _formula_reentry_oracle_summary(
     expected: Mapping[int, Sequence[Sequence[float]]], assets: Sequence[str]
 ) -> Mapping[str, Any]:
@@ -542,28 +615,10 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     fincore_evaluation: Mapping[str, Any]
     if batch_name == "promoted_20":
         assert expected_ic is not None
-        # The evaluator round trip deliberately contains only the three oracle
-        # anchors, so fincore has a finite, auditable key set in this one case.
-        evaluation_strategy = harness.run_native_batch(
-            frames,
-            _EVALUATION_IDS,
-            runonce=False,
-            formula_universe=members,
-            groups=groups,
-        )
-        harness.assert_lifecycle(evaluation_strategy, _EVALUATION_IDS, grid)
-        harness.assert_availability_matches_values(
-            evaluation_strategy, _EVALUATION_IDS, grid, assets
-        )
-        collected = evaluation_strategy.get_dataset()
-        for evaluation_id in _EVALUATION_IDS:
-            actual = harness.actual_matrix(evaluation_strategy, evaluation_id, assets, grid)
-            harness.assert_matrix_matches(
-                actual,
-                expected[evaluation_id],
-                label="evaluation Alpha%d" % evaluation_id,
-            )
-
+        # Keep the 320-row native collector evidence above.  The evaluator
+        # dataset declares only its 260..285 factor interval, while retaining
+        # the complete grid for warm-up and forward-label tail rows.
+        collected = strategy.get_dataset()
         # The mask includes a permanent excluded target and a temporary exit
         # with an explicit eligible re-entry.  Check the lifecycle reason on
         # the native availability pane as well as matrix NaN equality.
@@ -578,27 +633,53 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         assert bool(availability.loc[reentry_key, "ready"])
         assert bool(availability.loc[reentry_key, "valid"])
 
+        dataset = _evaluation_window_dataset(collected, harness, frames, members, groups)
+        evaluation_grid = tuple(grid[_EVALUATION_START : _EVALUATION_END + 1])
+        for evaluation_id in _EVALUATION_IDS:
+            actual = harness.actual_matrix(strategy, evaluation_id, assets, evaluation_grid)
+            harness.assert_matrix_matches(
+                actual,
+                expected[evaluation_id][_EVALUATION_START : _EVALUATION_END + 1],
+                label="evaluation Alpha%d" % evaluation_id,
+            )
+        harness.assert_availability_matches_values(
+            strategy, _EVALUATION_IDS, evaluation_grid, assets
+        )
+        assert tuple(dataset.grid.index) == tuple(grid)
+        assert dataset.start == grid[_EVALUATION_START]
+        assert dataset.end == grid[_EVALUATION_END]
+        assert len(dataset.formula_universe) == (_EVALUATION_END + 1) * len(assets)
+        assert len(dataset.raw_factors) == len(evaluation_grid) * len(assets)
+        assert set(dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
+
         snapshot_path = tmp_path / "alpha101-native-dataset"
-        collected.save(snapshot_path)
+        dataset.save(snapshot_path)
         from backtrader.research import load_dataset
 
-        dataset = load_dataset(snapshot_path)
-        assert dataset.dataset_id == collected.dataset_id
-        assert set(dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
+        restored_dataset = load_dataset(snapshot_path)
+        assert restored_dataset.dataset_id == dataset.dataset_id
+        assert tuple(restored_dataset.grid.index) == tuple(grid)
+        assert restored_dataset.start == grid[_EVALUATION_START]
+        assert restored_dataset.end == grid[_EVALUATION_END]
+        assert set(restored_dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
+        assert dataset.raw_factors.equals(restored_dataset.raw_factors)
+        assert dataset.availability.equals(restored_dataset.availability)
+        assert dataset.formula_universe.equals(restored_dataset.formula_universe)
+        assert len(restored_dataset.raw_factors) == len(evaluation_grid) * len(assets)
         for evaluation_id in _EVALUATION_IDS:
             restored = (
-                dataset.raw_factors["alpha%d" % evaluation_id]
+                restored_dataset.raw_factors["alpha%d" % evaluation_id]
                 .unstack("asset")
-                .reindex(index=grid, columns=assets)
+                .reindex(index=evaluation_grid, columns=assets)
             )
             restored_values = restored.to_numpy().tolist()
             harness.assert_matrix_matches(
                 restored_values,
-                expected[evaluation_id],
+                expected[evaluation_id][_EVALUATION_START : _EVALUATION_END + 1],
                 label="snapshot Alpha%d" % evaluation_id,
             )
 
-        result = dataset.evaluate(
+        result = restored_dataset.evaluate(
             label="next_open_to_open",
             start=grid[_EVALUATION_START],
             end=grid[_EVALUATION_END],
@@ -619,7 +700,7 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
             "formula_ids": list(_EVALUATION_IDS),
             "evaluation_rows": [_EVALUATION_START, _EVALUATION_END],
             "constant_return_row": _CONSTANT_RETURN_OFFSET,
-            "dataset_id": dataset.dataset_id,
+            "dataset_id": restored_dataset.dataset_id,
             "result_status": result.status,
             "metrics": list(_IC_METRICS),
             **fincore_report,

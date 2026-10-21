@@ -1,0 +1,41 @@
+{
+  "examples": [
+    {
+      "bytes": 4768,
+      "copy": "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi\\multi_factor_strategy.py",
+      "sha256": "c48c47eb0de25a59be442618b5a3d934b81a28b4f9264ad972d659d319ade95f",
+      "source": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi\\multi_factor_strategy.py"
+    },
+    {
+      "bytes": 81498,
+      "copy": "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi\\run.py",
+      "sha256": "395b63225ee713b24d591f8548849fa7abb7bad4812f649fd0dcfe27825af4ce",
+      "source": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi\\run.py"
+    },
+    {
+      "bytes": 5398,
+      "copy": "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi\\README.md",
+      "sha256": "585755e59a8406d2e66f4784c851b0011c7bbda51b4845a3702fd92f56aa0c95",
+      "source": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi\\README.md"
+    },
+    {
+      "bytes": 1714,
+      "copy": "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi\\config.yaml",
+      "sha256": "35da53de357a8e2f59e8c53c7470229dbd1127381c1f473e5502ab1edac7fe61",
+      "source": "D:\\source_code\\backtrader\\examples\\backtest\\026_factor_multi\\config.yaml"
+    }
+  ],
+  "offline_worker_harness": {
+    "bytes": 34476,
+    "copy": "D:\\temp\\iteration46-examples-8bc54f48-r4\\scripts\\iteration45_offline_reevaluation_acceptance_r4.py",
+    "sha256": "07d4e2c3b7fe51b91a966fb6988fdb7c4fbb2e60eaa7a198db5addd319e69547",
+    "source": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代45-Indicator因子研究与多因子合成\\evidence\\iteration45-offline-20261022\\scripts\\iteration45_offline_reevaluation_acceptance_r4.py"
+  },
+  "prepared_at_utc": "2026-10-21T22:14:57.052896Z",
+  "schema": "iteration46-example-copy-inputs-v1",
+  "source_git": {
+    "branch": "dev",
+    "head": "8bc54f48a07405f4c0231e62556d8746d37c7e44"
+  },
+  "source_root": "D:\\source_code\\backtrader"
+}

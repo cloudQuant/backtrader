@@ -1,0 +1,18 @@
+{
+  "command": [
+    "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+    "-E",
+    "-s",
+    "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi\\run.py",
+    "--periods",
+    "1",
+    "--no-charts",
+    "--output-dir",
+    "D:\\temp\\iteration46-examples-8bc54f48-r4\\native\\026"
+  ],
+  "cwd": "D:\\temp\\iteration46-examples-8bc54f48-r4\\examples\\backtest\\026_factor_multi",
+  "elapsed_seconds": 274.8899999999994,
+  "return_code": 0,
+  "timed_out": false,
+  "timeout_seconds": 2400
+}

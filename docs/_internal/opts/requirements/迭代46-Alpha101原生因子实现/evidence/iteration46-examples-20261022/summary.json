@@ -1,0 +1,428 @@
+{
+  "schema": "iteration46-example-regression-aggregate-v1",
+  "status": "PASS",
+  "evidence_level": "LOCAL_INSTALLED_EXAMPLE_REGRESSION_ONLY",
+  "source_commit": "8bc54f48a07405f4c0231e62556d8746d37c7e44",
+  "backtrader_wheel_sha256": "c85fd99421bf4775fd508b5dd0128c49e569929348bb09074823cf2a124f506e",
+  "periods": [
+    1
+  ],
+  "charts": false,
+  "cases": {
+    "025": {
+      "status": "PASS",
+      "actual_run_root": "D:\\temp\\iteration46-examples-8bc54f48-r2",
+      "original_summary_status": "FAILED",
+      "example": "025_factor_single",
+      "factors": [
+        "close_ma"
+      ],
+      "grid_rows": 301,
+      "processes": {
+        "native": {
+          "seconds": 29.875,
+          "exit_code": 0
+        },
+        "offline": {
+          "seconds": 30.84299999999348,
+          "exit_code": 0
+        }
+      },
+      "dataset_id": "f02afbed896382b02d44d64f6304d4d8d86d26da4c8d03a669a998a36d265118",
+      "evaluation_id": "01ac5b63aa4316cd96580179cb7ae37ac02fc95f6a8c018c3ef6b5b4184a0929",
+      "native_status": "COMPLETED",
+      "evaluation_status": "PARTIAL",
+      "required_outputs_passed": true,
+      "table_files": 22,
+      "table_records": {
+        "correlation.csv": {
+          "bytes": 169,
+          "rows": 0,
+          "sha256": "d1ad5248ff68f999b2230f8906ce51f4e2e57978ed639604a9e17f9a87bdcf39"
+        },
+        "diagnostics.json": {
+          "bytes": 128,
+          "rows": 1,
+          "sha256": "c154faaa47a4279a6601360d37ab66aceec9a668ec82357e8fc510285bfeb5f8"
+        },
+        "labels.json": {
+          "bytes": 1581926,
+          "rows": 5200,
+          "sha256": "52f4a30af77f282c414478f10da02732074bbaf3b0377b1d91f68e195e82df26"
+        },
+        "quantile_returns.json": {
+          "bytes": 2996597,
+          "rows": 7800,
+          "sha256": "bcfe0ee7f7e27a80a8a76fd921138771cca70343eb0f69c875a2c33735eae440"
+        },
+        "coverage.json": {
+          "bytes": 1283662,
+          "rows": 1569,
+          "sha256": "bd440f8081aa3bede3b146251b548079d2ba31f8a19788bc9b344c4e56c49e3e"
+        },
+        "quantile_returns.csv": {
+          "bytes": 995907,
+          "rows": 7800,
+          "sha256": "1b4edff9f8ffd6219bfacf3d46fd98f36183edbeb9cb8ffd1079fb1992dfa65a"
+        },
+        "spreads.csv": {
+          "bytes": 202251,
+          "rows": 1560,
+          "sha256": "d076d72fca578a58c9179069ec1d2b026f757766f050544546904f313bd71abc"
+        },
+        "ic.csv": {
+          "bytes": 437753,
+          "rows": 3120,
+          "sha256": "964de984870ad019c8d4255e889afb25ae921b7b6eb6272b0e14c129338b0b44"
+        },
+        "ic.json": {
+          "bytes": 1793380,
+          "rows": 3120,
+          "sha256": "a11d81896e5a8e2da6b0854891443b5d1d6a9a92fa0aa893b7b959ac00d267da"
+        },
+        "signals.json": {
+          "bytes": 8797039,
+          "rows": 15600,
+          "sha256": "b99284397427d629265ace8afef729900cc93884413b1b269f31fb5c3326ad7a"
+        },
+        "correlation.json": {
+          "bytes": 3,
+          "rows": 0,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "stability.csv": {
+          "bytes": 3693770,
+          "rows": 28080,
+          "sha256": "826bdd69d9e114ede13b31d09684f6dd3c086630d0356187718e41d26c44ac4d"
+        },
+        "signals.csv": {
+          "bytes": 2146125,
+          "rows": 15600,
+          "sha256": "9378b5c8a0f23daf9d48e56108f935848eaa9042861493da689097cc3f7cd015"
+        },
+        "labels.csv": {
+          "bytes": 613059,
+          "rows": 5200,
+          "sha256": "3e6753c141305729910751324e59b1da4d8558896c3035915e08861e48e05c48"
+        },
+        "spreads.json": {
+          "bytes": 648955,
+          "rows": 1560,
+          "sha256": "1f1dae76bf581d5d88d8908d203867568d523ab58e26d58a7d61027ed0c28bc9"
+        },
+        "coverage.csv": {
+          "bytes": 220379,
+          "rows": 1569,
+          "sha256": "09777121a24b929a3ac76b54de136ee7d3ef425e86d1fec6bccc9a0d9205c806"
+        },
+        "comparisons.json": {
+          "bytes": 3,
+          "rows": 0,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "comparisons.csv": {
+          "bytes": 246,
+          "rows": 0,
+          "sha256": "dd8f4187fb57af8b9798781399afa32a5f68150b08911519164255a2321b4ec4"
+        },
+        "ic_summary.json": {
+          "bytes": 93008,
+          "rows": 168,
+          "sha256": "f54f18969617e57dd4cc3754b7424b945ace97ac1ebe9933068791dc888cb0da"
+        },
+        "stability.json": {
+          "bytes": 11378547,
+          "rows": 28080,
+          "sha256": "b5c59f5876457c14a52f95c770d1c65ed6c88bf038e111213ec2cd41e2394a6c"
+        },
+        "diagnostics.csv": {
+          "bytes": 49,
+          "rows": 1,
+          "sha256": "aa3e83f7de69a3161f125b152c3cf3d14aa5d47bb1dd738a19734bdf4f6a01b5"
+        },
+        "ic_summary.csv": {
+          "bytes": 30279,
+          "rows": 168,
+          "sha256": "45f7dd227981818be2ebd94d7993c1a0a2cdcb8af24afb14d08641d933f450ec"
+        }
+      },
+      "physical_table_bytes_match_manifests": true,
+      "native_offline_table_records_equal": true,
+      "dataset_bytes_unchanged": true,
+      "offline_guards": {
+        "cerebro_run": 0,
+        "factor_construct": 0,
+        "factor_next": 0,
+        "factor_once": 0
+      },
+      "broker": {
+        "cancel": 0,
+        "observed": true,
+        "submit": 0
+      },
+      "installed_packages": {
+        "backtrader": {
+          "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+          "version": "1.4.0"
+        },
+        "fincore": {
+          "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+          "version": "0.5.1.dev0"
+        },
+        "installed_origins": true,
+        "prefix": "D:\\temp\\iteration45-installed-20261022",
+        "purelib": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages",
+        "python": "3.11.5"
+      }
+    },
+    "026": {
+      "status": "PASS",
+      "actual_run_root": "D:\\temp\\iteration46-examples-8bc54f48-r4",
+      "original_summary_status": "PASS",
+      "example": "026_factor_multi",
+      "factors": [
+        "close_ma",
+        "kdj_j",
+        "roc"
+      ],
+      "grid_rows": 301,
+      "processes": {
+        "native": {
+          "seconds": 274.8899999999994,
+          "exit_code": 0
+        },
+        "offline": {
+          "seconds": 277.4679999999935,
+          "exit_code": 0
+        }
+      },
+      "dataset_id": "298c93ed2e3f7d9a16b155ddd164d334a0468117e36e80826b909d7a7afdd284",
+      "evaluation_id": "22a8315c3a1f2083436b914acc779f97bd7bdb6b34c6a3843a15509186603da4",
+      "native_status": "COMPLETED",
+      "evaluation_status": "PARTIAL",
+      "required_outputs_passed": true,
+      "table_files": 22,
+      "table_records": {
+        "correlation.csv": {
+          "bytes": 7925759,
+          "rows": 43932,
+          "sha256": "c173e2fcab2306c3248ac20ab3fee762c15d900a4245ad5bf8df7f096a8fb2f4"
+        },
+        "diagnostics.json": {
+          "bytes": 128,
+          "rows": 1,
+          "sha256": "c154faaa47a4279a6601360d37ab66aceec9a668ec82357e8fc510285bfeb5f8"
+        },
+        "labels.json": {
+          "bytes": 1581926,
+          "rows": 5200,
+          "sha256": "52f4a30af77f282c414478f10da02732074bbaf3b0377b1d91f68e195e82df26"
+        },
+        "quantile_returns.json": {
+          "bytes": 36752195,
+          "rows": 93600,
+          "sha256": "4135a812af3f5170bdd338cfe2e1a84f8295249b2f6ccb4cb71a0eb6c7401106"
+        },
+        "coverage.json": {
+          "bytes": 15562903,
+          "rows": 18828,
+          "sha256": "bc1e86c6abe8fbc5f872ef00c18c4e759c4dc31e5f1450c7f33a20c60f3bfd92"
+        },
+        "quantile_returns.csv": {
+          "bytes": 12740830,
+          "rows": 93600,
+          "sha256": "dafd2c8de83818aa330800d97ef8fb8456388bbd9f37407495c8c9a09be6770f"
+        },
+        "spreads.csv": {
+          "bytes": 2583524,
+          "rows": 18720,
+          "sha256": "34c4bf1128598367f54e446163175a073fbd834d856cfdd37fc9c041061274c6"
+        },
+        "ic.csv": {
+          "bytes": 5567524,
+          "rows": 37440,
+          "sha256": "5147ad3c056d6d6b159beffc8c80f5d65f95523e56b796a2d66e0b60adbf29f7"
+        },
+        "ic.json": {
+          "bytes": 21837232,
+          "rows": 37440,
+          "sha256": "1022320fcab2060e2187945b19b072f8f940396c2e53fe2b05ca3bacc5c05d05"
+        },
+        "signals.json": {
+          "bytes": 107240589,
+          "rows": 187200,
+          "sha256": "0ec480c7ea4dc6c0a354b1bf3804124583f1087017f872936f43f599df6909ad"
+        },
+        "correlation.json": {
+          "bytes": 23302065,
+          "rows": 43932,
+          "sha256": "682323ec8a70de646ce33a9e00e491ec90758758c89eacffbe59a0865b4b9429"
+        },
+        "stability.csv": {
+          "bytes": 47317416,
+          "rows": 336960,
+          "sha256": "4948e34893338543baa42fedc044d0660449c2f0a6ae9071d999ca6ba004673d"
+        },
+        "signals.csv": {
+          "bytes": 27425327,
+          "rows": 187200,
+          "sha256": "2077946d8c71f66fb18c257893fc02f7158050c575ffdf268b10cd29bfd9dfe6"
+        },
+        "labels.csv": {
+          "bytes": 613059,
+          "rows": 5200,
+          "sha256": "3e6753c141305729910751324e59b1da4d8558896c3035915e08861e48e05c48"
+        },
+        "spreads.json": {
+          "bytes": 7945930,
+          "rows": 18720,
+          "sha256": "bdf24b4ff15241a82ffc3b0732090b6b59681229aaa33157efa7f00586d71cb9"
+        },
+        "coverage.csv": {
+          "bytes": 2799140,
+          "rows": 18828,
+          "sha256": "5f3e8bb080aaa6da1483cfa929288d70aba95bd77ad4c8ec03d71dd0ab76a0b8"
+        },
+        "comparisons.json": {
+          "bytes": 29379047,
+          "rows": 43932,
+          "sha256": "e9f4be6352fb9b643e562574ffac56f45f096aed6012253177eabf1da13df19b"
+        },
+        "comparisons.csv": {
+          "bytes": 9019058,
+          "rows": 43932,
+          "sha256": "423e782afeb2e9fc5147bf15467b8432be62d786f656d463e4b8a0e2f996869d"
+        },
+        "ic_summary.json": {
+          "bytes": 1133044,
+          "rows": 2016,
+          "sha256": "b9ebe789466cbfcc222f612882d6cfc5d8c99fc7710da95e57ef687bc042a72b"
+        },
+        "stability.json": {
+          "bytes": 139456931,
+          "rows": 336960,
+          "sha256": "0f8bc8c1b46c787266cb561a92fefbce9c7e97c1392b57f72d86982743b321ff"
+        },
+        "diagnostics.csv": {
+          "bytes": 49,
+          "rows": 1,
+          "sha256": "aa3e83f7de69a3161f125b152c3cf3d14aa5d47bb1dd738a19734bdf4f6a01b5"
+        },
+        "ic_summary.csv": {
+          "bytes": 379039,
+          "rows": 2016,
+          "sha256": "54bf975a6fe47a281715e928d85a616b22298123ed5b1b571131ef796713604a"
+        }
+      },
+      "physical_table_bytes_match_manifests": true,
+      "native_offline_table_records_equal": true,
+      "dataset_bytes_unchanged": true,
+      "offline_guards": {
+        "cerebro_run": 0,
+        "factor_construct": 0,
+        "factor_next": 0,
+        "factor_once": 0
+      },
+      "broker": {
+        "cancel": 0,
+        "observed": true,
+        "submit": 0
+      },
+      "installed_packages": {
+        "backtrader": {
+          "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+          "version": "1.4.0"
+        },
+        "fincore": {
+          "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+          "version": "0.5.1.dev0"
+        },
+        "installed_origins": true,
+        "prefix": "D:\\temp\\iteration45-installed-20261022",
+        "purelib": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages",
+        "python": "3.11.5"
+      }
+    }
+  },
+  "archive": [
+    {
+      "path": "025-native-process.json",
+      "sha256": "dbb1d51500edad8f72015dac7754e2be933decf47573c09ff24b6553b99a040e",
+      "bytes": 546
+    },
+    {
+      "path": "025-offline-process.json",
+      "sha256": "efdc79e3d6b85eb8e007e436cd688871bfe7cd249064966cc5a5e40d6cfe53f8",
+      "bytes": 504
+    },
+    {
+      "path": "025-original-summary.json",
+      "sha256": "494cd2e65cef376e00a7eebaea187b48806455a908dc5d0cad6c4d317d928f92",
+      "bytes": 2361
+    },
+    {
+      "path": "025-inputs-manifest.json",
+      "sha256": "e65b42cb4b9bbbbe98fea309eb9312b497e141e869b4cb71d7a93026fdad9fbb",
+      "bytes": 3471
+    },
+    {
+      "path": "025-native-run-manifest.json",
+      "sha256": "0a9050dec43fcb138a57291ea79eb8a7ee113dfb7a46d3bb40d6ba18858ff4a2",
+      "bytes": 8171
+    },
+    {
+      "path": "025-native-evaluation-manifest.json",
+      "sha256": "4285d528e6c44b55c78e1846e308c3f9e01e50ad126360f18ad619f94e0ee03a",
+      "bytes": 27831
+    },
+    {
+      "path": "025-offline-worker-report.json",
+      "sha256": "fe8e7c6c9b79fb0bcd2774778d42e02b97165b4ec9d9991724c98f4320b84bf5",
+      "bytes": 57595
+    },
+    {
+      "path": "026-native-process.json",
+      "sha256": "11b3fa3207fd207da56d78b8b356d2448b5b2d602ffd63e70f10cc74a168677a",
+      "bytes": 555
+    },
+    {
+      "path": "026-offline-process.json",
+      "sha256": "1838b9e3f06db74d894dafecc3853a65a99403c26058e0e2a7e5dfdba91fcd7c",
+      "bytes": 504
+    },
+    {
+      "path": "026-original-summary.json",
+      "sha256": "e3c7e21c4055da4bb635b93560ea03415213d9a36caeff7ea6af2cb4673d763b",
+      "bytes": 3348
+    },
+    {
+      "path": "026-inputs-manifest.json",
+      "sha256": "7850c82b11c2a6056afd370aa84dcb797d30f8f347cc697ee989eea899e6a559",
+      "bytes": 2116
+    },
+    {
+      "path": "026-native-run-manifest.json",
+      "sha256": "021c4b3e65d887f68aa4d3ce97b5c7c44a61ce57ca3f9abf60570a0ea1fe1974",
+      "bytes": 9369
+    },
+    {
+      "path": "026-native-evaluation-manifest.json",
+      "sha256": "def8cdef40244fb0918733888465da38ff41c07eee7eb438e0275332b9861287",
+      "bytes": 31276
+    },
+    {
+      "path": "026-offline-worker-report.json",
+      "sha256": "77433418813230eabb3e4aa846433dc3d3c674daabcec8a7bab639adce954aab",
+      "bytes": 64367
+    }
+  ],
+  "root_check": "Read-only revalidation of manifests, dataset fingerprints, all 44 native/offline table file pairs, and actual process exits; no strategy or evaluation rerun.",
+  "history": "R1 had an incorrect native output directory assertion. R2 completed 025 native/offline, then its parent validator read required_output_validation from the wrong object level. R2 original FAILED summary is preserved; this additive read-only record accepts the actual completed 025 artifacts. R3 stopped before any native case; R4 ran only previously unrun 026. All original directories remain.",
+  "evaluation_status_note": "Both fincore results are PARTIAL with required output checks passing; unavailable diagnostics are preserved, not converted into numeric performance claims.",
+  "performance_acceptance": false,
+  "tool": {
+    "executed_sha256": "48e318a2a270a07612b413d7371baf51c9a63bf1d8678384c820428bc99cb0d3",
+    "archive_sha256": "48e318a2a270a07612b413d7371baf51c9a63bf1d8678384c820428bc99cb0d3",
+    "archive_path": "run-examples.py"
+  }
+}

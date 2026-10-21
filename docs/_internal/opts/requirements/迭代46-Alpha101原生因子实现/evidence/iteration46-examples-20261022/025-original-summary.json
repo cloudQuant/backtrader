@@ -1,0 +1,62 @@
+{
+  "acceptance_status": "LOCAL_INSTALLED_EXAMPLE_REGRESSION_ONLY",
+  "charts": false,
+  "evidence_level": "INSTALLED_WHEEL_SYNTHETIC_NATIVE_AND_OFFLINE",
+  "failure": "offline required-output validation failed",
+  "failure_type": "RuntimeError",
+  "finished_at_utc": "2026-10-21T22:13:10.942056Z",
+  "inputs_manifest_sha256": "e65b42cb4b9bbbbe98fea309eb9312b497e141e869b4cb71d7a93026fdad9fbb",
+  "installed_packages": {
+    "backtrader": {
+      "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\backtrader\\__init__.py",
+      "version": "1.4.0"
+    },
+    "fincore": {
+      "origin": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages\\fincore\\__init__.py",
+      "version": "0.5.1.dev0"
+    },
+    "installed_origins": true,
+    "prefix": "D:\\temp\\iteration45-installed-20261022",
+    "purelib": "D:\\temp\\iteration45-installed-20261022\\Lib\\site-packages",
+    "python": "3.11.5"
+  },
+  "periods": [
+    1
+  ],
+  "python": "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+  "scenarios": {
+    "025": {
+      "dataset_id": "f02afbed896382b02d44d64f6304d4d8d86d26da4c8d03a669a998a36d265118",
+      "evaluation_status": "PARTIAL",
+      "native_evaluation_id": "01ac5b63aa4316cd96580179cb7ae37ac02fc95f6a8c018c3ef6b5b4184a0929",
+      "native_process": {
+        "command": [
+          "D:\\temp\\iteration45-installed-20261022\\Scripts\\python.exe",
+          "-E",
+          "-s",
+          "D:\\temp\\iteration46-examples-8bc54f48-r2\\examples\\backtest\\025_factor_single\\run.py",
+          "--periods",
+          "1",
+          "--no-charts",
+          "--output-dir",
+          "D:\\temp\\iteration46-examples-8bc54f48-r2\\native\\025"
+        ],
+        "cwd": "D:\\temp\\iteration46-examples-8bc54f48-r2\\examples\\backtest\\025_factor_single",
+        "elapsed_seconds": 29.875,
+        "return_code": 0,
+        "timed_out": false,
+        "timeout_seconds": 2400
+      },
+      "native_status": "COMPLETED",
+      "table_file_count": 22
+    }
+  },
+  "schema": "iteration46-examples-installed-regression-v1",
+  "source_git": {
+    "branch": "dev",
+    "head": "8bc54f48a07405f4c0231e62556d8746d37c7e44"
+  },
+  "source_root": "D:\\source_code\\backtrader",
+  "started_at_utc": "2026-10-21T22:12:10.172205Z",
+  "status": "FAILED"
+}
