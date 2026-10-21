@@ -18,14 +18,17 @@ if os.environ.get("BT_FACTOR_RESEARCH_RUN_INSTALLED_INTEGRATION") != "1":
 
 
 def _known_dataset():
-    times = pd.date_range("2024-03-01T00:00:00Z", periods=4, freq="D", name="close_time")
+    times = pd.date_range("2024-02-29T00:00:00Z", periods=5, freq="D", name="close_time")
     assets = ("A", "B", "C", "D")
     grid = pd.DataFrame({"open_time": times - pd.Timedelta(hours=6)}, index=times)
-    research_times = times[:3]
+    # Keep one pre-window warm-up bar and one post-window label tail in the
+    # saved snapshot. ResearchDataset selects the middle three dates below.
+    research_times = times[1:4]
     panel_index = pd.MultiIndex.from_product([research_times, assets], names=("time", "asset"))
+    full_panel_index = pd.MultiIndex.from_product([times, assets], names=("time", "asset"))
     raw_factors = pd.DataFrame(
-        {"alpha": np.tile(np.arange(1.0, 5.0), len(research_times))},
-        index=panel_index,
+        {"alpha": np.tile(np.arange(1.0, 5.0), len(times))},
+        index=full_panel_index,
     )
     availability = pd.DataFrame(
         {
@@ -42,6 +45,7 @@ def _known_dataset():
     )
     close_values = np.asarray(
         [
+            [99.0, 99.0, 99.0, 99.0],
             [100.0, 100.0, 100.0, 100.0],
             [101.0, 102.0, 103.0, 104.0],
             [102.01, 104.04, 106.09, 108.16],
@@ -53,7 +57,7 @@ def _known_dataset():
         "close": pd.DataFrame(close_values, index=times, columns=assets),
     }
     universe_index = pd.MultiIndex.from_product([research_times, assets], names=("time", "asset"))
-    formula_index = pd.MultiIndex.from_product([times[:3], assets], names=("time", "asset"))
+    formula_index = pd.MultiIndex.from_product([times[:4], assets], names=("time", "asset"))
     research = {
         "grid": grid,
         "start": research_times[0],
@@ -99,10 +103,13 @@ def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path
         )
 
     collected = _known_dataset()
+    assert len(collected.raw_factors.index.levels[0]) == len(collected.grid)
     saved_path = tmp_path / "research-snapshot"
     collected.save(saved_path)
     dataset = load_dataset(saved_path)
     assert dataset.dataset_id == collected.dataset_id
+    assert len(dataset.raw_factors.index.levels[0]) == len(dataset.grid.index[1:4])
+    assert collected.raw_factors.index.levels[0][1:4].equals(dataset.raw_factors.index.levels[0])
     assert collected.grid.index.freq is not None
     assert dataset.grid.index.freq is None
 
@@ -124,8 +131,15 @@ def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path
     first_period_stability = result.stability.loc[result.stability["time"] == dataset.start]
     later_stability = result.stability.loc[result.stability["time"] > dataset.start]
     assert not first_period_stability.empty
-    assert set(first_period_stability["reason"].dropna()) == {"INSUFFICIENT_HISTORY"}
     assert first_period_stability["status"].eq("UNEVALUABLE").all()
+    rank_first = first_period_stability.loc[
+        first_period_stability["metric"] == "rank_autocorrelation", "reason"
+    ]
+    turnover_first = first_period_stability.loc[
+        first_period_stability["metric"] == "quantile_turnover", "reason"
+    ]
+    assert set(rank_first.dropna()) == {"NO_VALID_PERIODS"}
+    assert set(turnover_first.dropna()) == {"QUANTILE_DEGENERATE"}
     assert later_stability["status"].eq("OK").all()
     assert {"metric", "value", "record_type"}.issubset(result.ic.columns)
     period_ic = result.ic.loc[result.ic["record_type"] == "period"]

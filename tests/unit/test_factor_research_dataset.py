@@ -411,36 +411,56 @@ def test_evaluate_dataset_accepts_keyword_config_and_routes_base_direction(monke
     assert calls["normalized"]["periods"] == (20,)
 
 
-def test_fincore_adapter_drops_only_datetime_index_frequency():
+def test_fincore_adapter_canonicalizes_only_evaluation_index_metadata():
     from backtrader.research import fincore_adapter
 
     times = pd.date_range("2024-01-01T00:00:00Z", periods=3, freq="D", name="time")
-    panel_index = pd.MultiIndex.from_product([times, ("A", "B")], names=("time", "asset"))
+    # The two-row warm-up slice retains an unused initial time in its level,
+    # matching a collected research window cut from a longer factor history.
+    panel_index = pd.MultiIndex(
+        levels=[times, pd.Index(("A", "B"))],
+        codes=[[1, 1, 2, 2], [0, 1, 0, 1]],
+        names=("time", "asset"),
+    )
     source_grid = pd.DataFrame({"value": [1, 2, 3]}, index=times)
-    source_factors = pd.DataFrame({"signal": np.arange(6.0)}, index=panel_index)
+    source_factors = pd.DataFrame({"signal": np.arange(4.0)}, index=panel_index)
     source_factors.attrs["fixture"] = {"kept": True}
     source_universe = pd.Series(True, index=panel_index, name="eligible")
 
     assert source_grid.index.freq is not None
+    assert len(source_factors.index.levels[0]) == 3
+    assert source_factors.index.codes[0].min() == 1
     assert source_factors.index.levels[0].freq is not None
+    assert len(source_universe.index.levels[0]) == 3
     assert source_universe.index.levels[0].freq is not None
+    source_factor_tuples = list(source_factors.index)
 
     grid_copy = source_grid.copy(deep=True)
     factors_copy = source_factors.copy(deep=True)
     universe_copy = source_universe.copy(deep=True)
-    grid = fincore_adapter._drop_datetime_index_frequency(grid_copy, pd)
-    factors = fincore_adapter._drop_datetime_index_frequency(factors_copy, pd)
-    universe = fincore_adapter._drop_datetime_index_frequency(universe_copy, pd)
+    grid = fincore_adapter._canonicalize_evaluation_index(grid_copy, pd)
+    factors = fincore_adapter._canonicalize_evaluation_index(factors_copy, pd)
+    universe = fincore_adapter._canonicalize_evaluation_index(universe_copy, pd)
 
     pd.testing.assert_frame_equal(source_grid, grid, check_freq=False)
     pd.testing.assert_frame_equal(source_factors, factors, check_freq=False)
     pd.testing.assert_series_equal(source_universe, universe, check_freq=False)
+    assert list(factors.index) == source_factor_tuples
+    assert list(universe.index) == source_factor_tuples
+    assert factors.index.names == source_factors.index.names
+    assert factors.index.levels[0].equals(times[1:])
+    assert len(factors.index.levels[0]) == 2
+    assert factors.index.codes[0].min() == 0
+    assert factors.index.codes[0].max() == 1
     assert grid.index.freq is None
     assert factors.index.levels[0].freq is None
     assert universe.index.levels[0].freq is None
     assert factors.attrs == source_factors.attrs == {"fixture": {"kept": True}}
     assert source_grid.index.freq is not None
+    assert len(source_factors.index.levels[0]) == 3
+    assert source_factors.index.codes[0].min() == 1
     assert source_factors.index.levels[0].freq is not None
+    assert len(source_universe.index.levels[0]) == 3
     assert source_universe.index.levels[0].freq is not None
 
 

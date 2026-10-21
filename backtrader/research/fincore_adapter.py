@@ -242,19 +242,22 @@ def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
         ) from exc
 
 
-def _drop_datetime_index_frequency(value: Any, pandas: Any) -> Any:
-    """Remove inferred index frequency from a defensive evaluation copy.
+def _canonicalize_evaluation_index(value: Any, pandas: Any) -> Any:
+    """Canonicalize hash-visible index metadata on a defensive evaluation copy.
 
     A DatetimeIndex's ``freq`` is derivable metadata: dataset persistence keeps
     the timestamps and their order, but CSV reconstruction cannot retain that
-    cache. Fincore fingerprints pandas index metadata, so passing a collected
-    frame and its save/load copy otherwise produces different evaluation IDs.
+    cache. Research-window slicing can also leave unused warm-up dates in a
+    MultiIndex level, while CSV reconstruction creates only the used levels.
+    Fincore fingerprints pandas index metadata, so these caches must be
+    canonicalized before passing a collected frame or its save/load copy.
     """
     if not isinstance(value, (pandas.DataFrame, pandas.Series)):
         return value
 
     index = value.index
     if isinstance(index, pandas.MultiIndex):
+        index = index.remove_unused_levels()
         levels = []
         changed = False
         for level in index.levels:
@@ -264,13 +267,14 @@ def _drop_datetime_index_frequency(value: Any, pandas: Any) -> Any:
             else:
                 levels.append(level)
         if changed:
-            value.index = pandas.MultiIndex(
+            index = pandas.MultiIndex(
                 levels=levels,
                 codes=[code.copy() for code in index.codes],
                 sortorder=index.sortorder,
                 names=index.names,
                 verify_integrity=False,
             )
+        value.index = index
     elif isinstance(index, pandas.DatetimeIndex) and index.freq is not None:
         value.index = pandas.DatetimeIndex(index, name=index.name, freq=None)
     return value
@@ -370,14 +374,14 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
     prices = None if label == "precomputed" else dataset.prices or None
     if prices is not None:
         prices = {
-            name: _drop_datetime_index_frequency(frame, pandas) for name, frame in prices.items()
+            name: _canonicalize_evaluation_index(frame, pandas) for name, frame in prices.items()
         }
     precomputed_returns = dataset.precomputed_returns if label == "precomputed" else None
     if precomputed_returns is not None:
-        precomputed_returns = _drop_datetime_index_frequency(precomputed_returns, pandas)
-    grid = _drop_datetime_index_frequency(dataset.grid, pandas)
-    universe = _drop_datetime_index_frequency(dataset.universe, pandas)
-    factors = _drop_datetime_index_frequency(dataset.raw_factors, pandas)
+        precomputed_returns = _canonicalize_evaluation_index(precomputed_returns, pandas)
+    grid = _canonicalize_evaluation_index(dataset.grid, pandas)
+    universe = _canonicalize_evaluation_index(dataset.universe, pandas)
+    factors = _canonicalize_evaluation_index(dataset.raw_factors, pandas)
     factors.attrs["factor_directions"] = _factor_directions(dataset)
     factors.attrs["dataset_id"] = dataset.dataset_id
     factors.attrs["provenance"] = dataset.metadata.get("provenance", {})
