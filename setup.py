@@ -31,7 +31,10 @@ setup(
     # to installed consumers.  The real account_config.yaml is intentionally
     # ignored and is never included in a distribution.
     package_data={
-        "backtrader": ["configs/account_config_example.yaml"],
+        "backtrader": [
+            "configs/account_config_example.yaml",
+            "research/alpha101_dependencies.json",
+        ],
         # Immutable, credential-free data belongs only to the packaged
         # Iteration 41 acceptance fixtures: two fake-provider L2 configs plus
         # one local-backtest config and its tiny historical CSV.  They are not

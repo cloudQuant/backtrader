@@ -5,6 +5,8 @@
 
 本清单是迭代45有效需求、设计和验收合同的覆盖附件，覆盖 REQ45-13..16、DS45-11..14、AC45-23..30。共同 grid/历史视图/缺格合同见[四迭代路线与对齐合同 ALN-01..08](./四迭代路线与对齐合同.md)。45 的全部公式统一以真实 `FactorIndicator(panel_mode="next")` 运行，算法根据公式定义处理时序、截面或行业语义；研究组各资产在进入 Cerebro 前按显式 grid 对齐为 BT-compatible 历史视图，缺格为 NaN、不沿用旧值，next-only 基线由 native owner/clock/minperiod 与 `once_via_next` 驱动，Strategy 只采集；手写原生 `once` 优化须证明与 `next` 在同一 grid 索引、输出和有效性语义上等价。manual H 由手工依赖窗口核算，Python 算法不编译 DAG/自动推 H。build/expression 前端是47新增能力。现有027 expression原型源码保留历史类名 `PanelFactorIndicator`，本轮不改该原型代码；它不构成本轮 `FactorIndicator` native通过，也不等同于47的build前端。AC45-23 检查101项静态映射，AC45-24检查数据/PIT，AC45-25检查45 native生命周期与grid调度，AC45-26检查算子，AC45-27检查因果和formula_universe隔离，AC45-28检查20个代表式，AC45-29检查安装产物上的native代表入口，AC45-30检查四迭代交接与边界。所有能力验收目前均为 `NOT_RUN`；四迭代均未开始实现全量因子库。公式结构依据 Kakushadze, *101 Formulaic Alphas*, Appendix A，尤其 A.1 的 Alpha#1–#101、A.2 的算子定义及 A.3 的输入定义：[官方 arXiv PDF](https://arxiv.org/pdf/1601.00991)。表格只归纳每条公式的结构与依赖，不重印公式全文；后续库实现须逐条以该附录原式为黄金语义，不能以本表的算子摘要替代。
 
+AC45-23 的机器可审阅逐式静态登记见 [`backtrader/research/alpha101_dependencies.json`](../../../../../backtrader/research/alpha101_dependencies.json)：每个来源原式保留 token、标点及数值记法（仅将 PDF 提取后的换行和连续空白归一为单空格），并有摘要哈希；登记列明输入字段、调用与规范算子、比较/算术符号、数值常量、窗口及延迟参数、预热依赖类别、PIT 分类和 `formula_universe` 约束。登记按 TS 18、CS 65、industry 18 归组；这是依赖盘点，不是执行 DAG、精确 H、实现状态或验收结果。表中 #101 摘要继续保留原常数 `0.001`；登记另外保留论文原式中的 `.001` 记法。
+
 ## 1. 分类和记号
 
 - 原始字段缩写：`O/H/L/C/V` 分别为 open/high/low/close/volume；`VWAP` 为成交量加权平均价。`(H+L)/2` 等组合字段由公式即时计算，不是新增市场输入。
