@@ -837,3 +837,10 @@ docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/it
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json -text
 # Keep generated stock CSV bytes stable for the dataset manifest hashes.
 tests/datas/a_stocks/** -text
+
+# Preserve the Alpha003 migration checkpoint evidence bytes.
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/strategy-regression.xml -text
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/chunk-0000-result.json -text
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/interrupted-run-state.json -text
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/interrupted-run-summary.json -text
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/handoff-status.json -text

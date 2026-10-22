@@ -39,6 +39,46 @@ python run.py --config config.yaml --output-dir output
 
 如果已有忽略输出目录中保留着旧版的 `acceptance.json`，它只是旧原型产物；当前入口不会创建或更新该文件。
 
+## 使用逐股真实日线 CSV
+
+**2026-10-22 检查点：日线已提交，完整策略回归 1,286 项通过；真实全市场运行已通过第 1/13 段，全年尚未验收。**
+新电脑的环境、运行命令、剩余验收和性能问题见 [HANDOFF.md](HANDOFF.md)。
+
+`run_daily.py` 是本目录的真实日线入口，使用生产库
+`backtrader.research.alpha101.get_alpha(3)` 返回的 `Alpha003Native`。
+上面的 `run.py` 保留三资产合成示例，便于阅读手写 `Indicator` 的算法。
+
+`tests/datas/a_stocks/` 已包含全部 5,471 只股票的逐股日线，可以直接运行下一步。
+日线入口也需要 `pyarrow`，用于 Parquet 缓存和输出。
+只有需要重新生成数据时，才在仓库根目录将原始分钟 Parquet 按股票和本地交易日期聚合。
+聚合脚本同样需要 `pyarrow`；不会一次读取整个分钟文件，也不修改原文件：
+
+```powershell
+python scripts/aggregate_stock_minute_parquet.py --input "D:\股票测试\ChinaStock1MinTradeInfo.1min.20250101_20260101.par" --output-dir tests/datas/a_stocks
+```
+
+日线保存为 `tests/datas/a_stocks/<symbol>.csv`，每股一份。
+聚合使用首条 open、最高 high、最低 low、末条 close、累计 volume 和 amount；
+源分钟按 `Asia/Shanghai` 解释，保留开盘时刻的数据，不做复权、前填或自动去重。
+各股票实际首末分钟、分钟数和异常数保留在 CSV 中；
+`_metadata/manifest.json` 记录来源、文件哈希和质量统计，
+`_metadata/observed_calendar.csv` 记录全文件实际观测到的日期及共同时间网格。
+这份网格不冒充独立核验过的交易所交易日历。
+
+然后用全部 CSV 运行 Alpha003：
+
+```powershell
+python examples/backtest/027_alpha003_panel_acceptance/run_daily.py --data-dir tests/datas/a_stocks --output-dir examples/backtest/027_alpha003_panel_acceptance/output/daily_a_stocks_2025 --chunk-days 20
+```
+
+所有股票位于同一个截面；股票池固定为这份文件中出现的全部股票，
+缺失日不前填，也不声称它是经过点时核验的可交易股票池。
+计算只按日期分段，每段带入前9个观测交易日预热，保持10日相关窗口，
+不会通过分股票运行改变截面排名。输出保留最初9日及缺失/退化窗口的 NaN 和原因。
+每个日期、股票的结果都与独立截面排名和滚动相关参考核对；
+只有全部分段完成且核对通过，最终摘要才报告完成。
+本入口导出因子结果，不执行交易或将因子值当作策略收益。
+
 ## 范围
 
-这是迭代45的 R0 原生 Indicator/Cerebro 切片，用来展示多 feed 计算和数据采集接口。它不代表迭代45全部能力或任一正式验收项通过。示例旧的本地 prototype 不再是运行依赖；其历史版本保留在 Git 中。本轮没有实现全部 Alpha101 算子、动态资产池、研究评价工作流或策略下单逻辑。
+`run.py` 是迭代45的 R0 手写 Indicator 教学示例；`run_daily.py` 使用迭代46的生产版 Alpha003，完成逐股日线加载、全截面计算及独立数值核对。两个入口都通过原生 Cerebro 和 FactorStrategy 运行。真实数据结果用于验证 Alpha003 的计算，不代表其余100个因子均经过这份数据验证，也不包含 IC、组合绩效或策略交易验收。

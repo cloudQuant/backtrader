@@ -936,7 +936,9 @@ class Strategy(StrategyBase):
                                 clock_set = True
                                 break
                             # Check if ind_data is one of the lines of this data feed
-                            if hasattr(data_feed, "lines") and ind_data in data_feed.lines:
+                            if hasattr(data_feed, "lines") and any(
+                                ind_data is line for line in data_feed.lines
+                            ):
                                 clk = data_feed
                                 clock_set = True
                                 break
@@ -1025,9 +1027,8 @@ class Strategy(StrategyBase):
         # self._Type / self._OptionType participate in minperiod and execution.
         strategy_lineactions = tuple(self._get_strategy_lineactions())
         for attr in strategy_lineactions:
-            if (
-                hasattr(attr, "_minperiod")
-                and attr not in self._lineiterators[LineIterator.IndType]
+            if hasattr(attr, "_minperiod") and not any(
+                indicator is attr for indicator in self._lineiterators[LineIterator.IndType]
             ):
                 minperiods.append(attr._minperiod)
 
@@ -1047,7 +1048,7 @@ class Strategy(StrategyBase):
                     data_idx = 0  # Default to data[0]
                     if hasattr(attr, "_clock") and attr._clock is not None:
                         for i, d in enumerate(self.datas):
-                            if attr._clock is d or attr._clock in d.lines:
+                            if attr._clock is d or any(attr._clock is line for line in d.lines):
                                 data_idx = i
                                 break
                     # Only update minperiod for the specific data.
@@ -1705,7 +1706,7 @@ class Strategy(StrategyBase):
         # Also include TradeLogger observers from stats that are not in _lineiterators
         # (TradeLogger needs next() to be called for position/indicator logging)
         for obs in self.stats:
-            if obs not in observers_to_process:
+            if not any(existing is obs for existing in observers_to_process):
                 # Only add TradeLogger type observers to avoid breaking other observers
                 if obs.__class__.__name__ == "TradeLogger":
                     observers_to_process.append(obs)
@@ -4361,7 +4362,7 @@ class SignalStrategy(Strategy):
             # so its once()/next() methods get called during processing
             if hasattr(sig_indicator, "_ltype"):
                 ltype = sig_indicator._ltype
-                if sig_indicator not in self._lineiterators[ltype]:
+                if not any(indicator is sig_indicator for indicator in self._lineiterators[ltype]):
                     self._lineiterators[ltype].append(sig_indicator)
                     sig_indicator._owner = self
 

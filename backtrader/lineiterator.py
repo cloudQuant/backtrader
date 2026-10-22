@@ -28,6 +28,11 @@ from .utils.py3 import range, string_types, zip
 logger = get_logger(__name__)
 
 
+def _contains_identity(items, target):
+    """Return whether *items* contains this exact object, without equality."""
+    return any(item is target for item in items)
+
+
 def _clock_is_replaying(clock, seen=None):
     """Return True when a clock or one of its source clocks is replaying."""
     if clock is None:
@@ -346,7 +351,7 @@ def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
             if owner_iters is not None:
                 attached = False
                 for ind_list in owner_iters.values():
-                    if src in ind_list:
+                    if _contains_identity(ind_list, src):
                         attached = True
                         break
                 if attached:
@@ -585,9 +590,8 @@ class LineIteratorMixin:
                         # Try to access owner.datas directly
                         try:
                             owner_datas = owner.datas
-                            if (
-                                owner_datas and _obj not in owner_datas
-                            ):  # Prevent circular reference
+                            if owner_datas and not _contains_identity(owner_datas, _obj):
+                                # Prevent circular reference without LineRoot equality.
                                 _obj.datas = owner_datas[0 : getattr(_obj, "_mindatas", 1)]
                         except AttributeError:
                             # owner has no datas; leave _obj.datas as-is.
@@ -969,7 +973,7 @@ class LineIteratorMixin:
                 cls._inherit_factor_strict_context(_obj, owner_context)
             try:
                 ind_list = owner._lineiterators.get(LineIterator.IndType, [])
-                if _obj not in ind_list:
+                if not _contains_identity(ind_list, _obj):
                     owner.addindicator(_obj)
             except Exception:
                 # A valid owner that cannot register its indicator would leave
@@ -1494,7 +1498,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 ltype = getattr(self, "_ltype", LineIterator.IndType)
                 # Ensure ltype is valid (not None)
                 if ltype is not None and ltype in owner._lineiterators:
-                    if self not in owner._lineiterators[ltype]:
+                    if not _contains_identity(owner._lineiterators[ltype], self):
                         owner._lineiterators[ltype].append(self)
 
         # Call dopostinit for final setup
@@ -1685,7 +1689,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         """
         # Add indicator to the appropriate lineiterator queue
         # CRITICAL FIX: Check for duplicates before adding
-        if indicator not in self._lineiterators[indicator._ltype]:
+        if not _contains_identity(self._lineiterators[indicator._ltype], indicator):
             self._lineiterators[indicator._ltype].append(indicator)
 
         # Set up the indicator's owner and clock if not already set
@@ -2769,7 +2773,7 @@ class StrategyBase(DataAccessor):
                         # Ensure indicator is in our lineiterators
                         if hasattr(attr_value, "_ltype"):
                             ltype = getattr(attr_value, "_ltype", 0)
-                            if attr_value not in self._lineiterators[ltype]:
+                            if not _contains_identity(self._lineiterators[ltype], attr_value):
                                 self._lineiterators[ltype].append(attr_value)
         except Exception:
             throttled_warning(

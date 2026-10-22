@@ -192,7 +192,7 @@ def _line_assignment_source_clock(owner, source, seen=None):
         if source is data:
             return data
         try:
-            if source in data.lines:
+            if any(source is line for line in data.lines):
                 return data
         except (AttributeError, TypeError):
             # data has no membership-testable lines; try the next data.
@@ -209,7 +209,7 @@ def _line_assignment_source_clock(owner, source, seen=None):
                 return _line_assignment_source_clock(owner, getattr(lineiter, "_clock", None), seen)
 
             try:
-                in_lines = source in lineiter.lines
+                in_lines = any(source is line for line in lineiter.lines)
             except (AttributeError, TypeError):
                 in_lines = False
 
@@ -337,18 +337,18 @@ def _register_line_assignment_child(owner, child, seen=None):
     if old_owner is not None and old_owner is not owner:
         try:
             for old_list in old_owner._lineiterators.values():
-                while child in old_list:
-                    old_list.remove(child)
+                if any(existing is child for existing in old_list):
+                    old_list[:] = [existing for existing in old_list if existing is not child]
         except AttributeError:
             # Previous owner has no _lineiterators registry; nothing to detach.
             pass
 
     for existing_ltype, child_list in list(owner_lineiterators.items()):
         if existing_ltype != ltype:
-            while child in child_list:
-                child_list.remove(child)
+            if any(existing is child for existing in child_list):
+                child_list[:] = [existing for existing in child_list if existing is not child]
 
-    if should_register and child not in owner_lineiterators[ltype]:
+    if should_register and not any(existing is child for existing in owner_lineiterators[ltype]):
         owner_lineiterators[ltype].append(child)
 
     child._owner = owner
@@ -1027,7 +1027,12 @@ class Lines:
                                     from .lineiterator import LineIterator
 
                                     if LineIterator.IndType in obj._lineiterators:
-                                        if value not in obj._lineiterators[LineIterator.IndType]:
+                                        if not any(
+                                            indicator is value
+                                            for indicator in obj._lineiterators[
+                                                LineIterator.IndType
+                                            ]
+                                        ):
                                             obj._lineiterators[LineIterator.IndType].append(value)
                                             value._owner = obj
                         else:

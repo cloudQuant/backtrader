@@ -9,7 +9,7 @@ The Indicator class serves as the foundation for all technical indicators
 in backtrader, managing line data, minimum periods, and calculation logic.
 """
 
-from .lineiterator import IndicatorBase, LineIterator
+from .lineiterator import IndicatorBase, LineIterator, _contains_identity
 from .lineseries import Lines
 from .metabase import AutoInfoClass, OwnerContext
 from .utils.log_message import get_logger
@@ -150,8 +150,12 @@ class Indicator(IndicatorBase):
                         try:
                             old_lists = getattr(old_owner, "_lineiterators", {})
                             for indicators in old_lists.values():
-                                while self in indicators:
-                                    indicators.remove(self)
+                                if _contains_identity(indicators, self):
+                                    indicators[:] = [
+                                        indicator
+                                        for indicator in indicators
+                                        if indicator is not self
+                                    ]
                         except Exception:  # nosec B110
                             # Best-effort detach from a previous owner; ignore failures.
                             logger.warning("indicator:155 suppressed Exception")
