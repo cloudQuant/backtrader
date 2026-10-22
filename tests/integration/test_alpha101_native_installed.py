@@ -9,7 +9,6 @@ External test-tree contents (relative to the tree root):
 * ``tests/integration/test_alpha101_native_installed.py`` (this file)
 * ``tests/test_utils/alpha101_full_reference.py``
 * ``tests/test_utils/alpha101_native_harness.py``
-* ``tests/test_utils/alpha101_diagnostic_factors.py`` (imported by the unit oracle fixture)
 * ``tests/unit/test_factor_research_representatives.py``
 * ``tests/fixtures/research/alpha101_dependencies.json`` (the pinned public
   formula catalog copied from the source checkout)
@@ -235,10 +234,6 @@ def _sha256_sources(external_root: Path) -> Mapping[str, str]:
         / "tests"
         / "unit"
         / "test_factor_research_representatives.py",
-        "diagnostic_factors": external_root
-        / "tests"
-        / "test_utils"
-        / "alpha101_diagnostic_factors.py",
         "formula_catalog": external_root
         / "tests"
         / "fixtures"

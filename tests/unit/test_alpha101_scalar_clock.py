@@ -6,7 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 import backtrader.research.operators as alpha_operators
+from backtrader.research.alpha101._helpers import panel, per_asset
 from backtrader.research.errors import FactorComputationError
+from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.operators import (
     Add,
     CrossSectionalRank,
@@ -14,16 +16,15 @@ from backtrader.research.operators import (
     Multiply,
     Subtract,
 )
-from tests.test_utils.alpha101_diagnostic_factors import _RepresentativeFactor
 from tests.unit.test_factor_research_representatives import _frames, _run_subset
 
 _WEIGHT = 0.728317
 
 
-class _ScalarTreeProbe(_RepresentativeFactor):
+class _ScalarTreeProbe(FactorIndicator):
     lines = ("factor",)
     alpha_id = 41
-    case_id = "AF46-041"
+    case_id = "AF46-041-scalar-clock-probe"
     lookback_h = 0
     formula = "rank(close + ((1 - 0.728317) * 2))"
     formula_fields = ("close",)
@@ -31,30 +32,33 @@ class _ScalarTreeProbe(_RepresentativeFactor):
     classification_levels = ()
     classification_fields = ()
 
-    def _make_formula(self):
+    def __init__(self):
+        super().__init__()
+        self._nodes = {}
         count = len(self.datas)
-        constant_leaf = self._per_asset(
-            "constant_leaf",
-            Subtract,
-            (1.0,) * count,
-            (_WEIGHT,) * count,
+        constant_leaf = per_asset(
+            self, "constant_leaf", Subtract, (1.0,) * count, (_WEIGHT,) * count
         )
-        nested_constant = self._per_asset(
-            "nested_constant",
-            Multiply,
-            constant_leaf,
-            (2.0,) * count,
+        nested_constant = per_asset(
+            self, "nested_constant", Multiply, constant_leaf, (2.0,) * count
         )
-        values = self._per_asset("add_constant_branch", Add, self._field("close"), nested_constant)
-        return self._panel("rank", CrossSectionalRank, values)
+        values = per_asset(
+            self, "add_constant_branch", Add, self.field_lines("close"), nested_constant
+        )
+        self._result_lines = panel(self, "rank", CrossSectionalRank, values)
+        self.addminperiod(self.lookback_h + 1)
+
+    def next(self):
+        for data, result in zip(self.datas, self._result_lines):
+            self.outputs[data].factor[0] = result[0]
 
 
-class _WeightedVwapNeutralizer(_RepresentativeFactor):
+class _WeightedVwapNeutralizer(FactorIndicator):
     """Minimal weighted-VWAP tree with a neutralizing panel consumer."""
 
     lines = ("factor",)
     alpha_id = 59
-    case_id = "AF46-059-clock"
+    case_id = "AF46-059-clock-probe"
     lookback_h = 0
     formula = "IndNeutralize(vwap*0.728317 + vwap*(1-0.728317), industry)"
     formula_fields = ("vwap",)
@@ -62,27 +66,59 @@ class _WeightedVwapNeutralizer(_RepresentativeFactor):
     classification_levels = ("industry",)
     classification_fields = ()
 
-    def _make_formula(self):
+    def __init__(self):
+        super().__init__()
+        self._nodes = {}
         count = len(self.datas)
-        vwap = self._field("vwap")
-        complement = self._per_asset(
-            "weight_complement", Subtract, (1.0,) * count, (_WEIGHT,) * count
+        vwap = self.field_lines("vwap")
+        complement = per_asset(
+            self, "weight_complement", Subtract, (1.0,) * count, (_WEIGHT,) * count
         )
-        weighted = self._per_asset(
+        weighted = per_asset(
+            self,
             "weighted_vwap",
             Add,
-            self._per_asset("weighted_vwap_fixed", Multiply, vwap, (_WEIGHT,) * count),
-            self._per_asset("weighted_vwap_complement", Multiply, vwap, complement),
+            per_asset(self, "weighted_vwap_fixed", Multiply, vwap, (_WEIGHT,) * count),
+            per_asset(self, "weighted_vwap_complement", Multiply, vwap, complement),
         )
-        return self._panel("industry_neutral", IndNeutralize, weighted, level="industry")
+        self._result_lines = panel(
+            self,
+            "industry_neutral",
+            IndNeutralize,
+            weighted,
+            level="industry",
+            groups=self.classification_lines("industry"),
+        )
+        self.addminperiod(self.lookback_h + 1)
+
+    def next(self):
+        for data, result in zip(self.datas, self._result_lines):
+            self.outputs[data].factor[0] = result[0]
 
 
-class _ForeignAssetProbe(_ScalarTreeProbe):
+class _ForeignAssetProbe(FactorIndicator):
     lines = ("factor",)
+    alpha_id = 42
+    case_id = "AF46-042-foreign-asset-probe"
+    lookback_h = 0
+    formula = "rank(close) with inputs bound to different target assets"
+    formula_fields = ("close",)
+    required_fields = formula_fields
+    classification_levels = ()
+    classification_fields = ()
 
-    def _make_formula(self):
-        close = self._field("close")
-        return self._panel("rank_foreign", CrossSectionalRank, (close[1], close[0], close[2]))
+    def __init__(self):
+        super().__init__()
+        self._nodes = {}
+        close = self.field_lines("close")
+        self._result_lines = panel(
+            self, "rank_foreign", CrossSectionalRank, (close[1], close[0], close[2])
+        )
+        self.addminperiod(self.lookback_h + 1)
+
+    def next(self):
+        for data, result in zip(self.datas, self._result_lines):
+            self.outputs[data].factor[0] = result[0]
 
 
 @pytest.mark.parametrize("runonce", [False, True])

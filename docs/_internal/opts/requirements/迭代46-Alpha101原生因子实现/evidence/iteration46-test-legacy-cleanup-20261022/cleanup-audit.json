@@ -1,0 +1,60 @@
+{
+  "status": "PASS",
+  "baseline_commit": "3bf22a758198d611c429a04c57df7ba709cc7095",
+  "unchanged_helper_functions": [
+    "_arg_position",
+    "_assert_matrix",
+    "_classification_tables",
+    "_correlation",
+    "_covariance",
+    "_cs_rank",
+    "_decay",
+    "_delta",
+    "_distinguish_formula_input",
+    "_factor_spec",
+    "_floor",
+    "_formula_reference",
+    "_frames",
+    "_matrix",
+    "_mean",
+    "_minimal_frame",
+    "_neutralize",
+    "_node_matrix",
+    "_pair_rolling",
+    "_pointwise",
+    "_rank",
+    "_research_feed",
+    "_research_spec",
+    "_rolling",
+    "_rolling_pair",
+    "_run_subset",
+    "_scale",
+    "_shift",
+    "_std",
+    "_sum",
+    "_ts_rank",
+    "_valid",
+    "_where"
+  ],
+  "unchanged_reference_constants": [
+    "_ALPHA_IDS",
+    "_DISTINGUISHING_INPUTS",
+    "_FORMULA_FIELDS",
+    "_HISTORY"
+  ],
+  "reference_test_function_count_preserved": true,
+  "reference_files_sha256": {
+    "tests/test_utils/alpha101_full_reference.py": "318f80436fb6194060913949108418971c1c9cc4bcb231d35fd3d568c35a6ded",
+    "tests/fixtures/research/alpha101_dependencies.json": "38389daf5ba2c13f1a69e9ead38a219448f499e624f9b851bee25e10db5bed1b"
+  },
+  "deleted_helper_absent": true,
+  "obsolete_symbols_in_active_python_sources": [],
+  "installed_external_inputs_resolve_without_deleted_helper": {
+    "installed_test": "cf8d329e051bf04b49226e96da961515c8c00989981fec96b5d7f6708eedf80f",
+    "full_reference": "318f80436fb6194060913949108418971c1c9cc4bcb231d35fd3d568c35a6ded",
+    "native_harness": "442c06c532495962556bcb7501bab33c7983a3e83bd2a1ff559e21f2a760d694",
+    "representative_fixture": "f615e3d26b257fdbca80b461bb9e5f8d9f189e9311747a6b04d637f3898259fd",
+    "formula_catalog": "38389daf5ba2c13f1a69e9ead38a219448f499e624f9b851bee25e10db5bed1b"
+  },
+  "full_installed_fincore_matrix": "NOT_RUN"
+}

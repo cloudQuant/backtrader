@@ -394,7 +394,6 @@ def test_alpha101_batch_partition_and_full_registry_contract():
         assert factor_class.__module__ == "backtrader.research.alpha101.alpha%03d" % alpha_id
         assert "__init__" in factor_class.__dict__
         assert "next" in factor_class.__dict__
-        assert "_make_formula" not in factor_class.__dict__
     if not selection_is_focused():
         assert tuple(sorted(selected)) == tuple(range(1, 102))
         assert_registry_covers_all_ids()

@@ -46,3 +46,5 @@ env -u BT_ALPHA101_NATIVE_BATCHES -u BT_ALPHA101_NATIVE_IDS -u BACKTRADER_USE_IN
 安装检查从只暂存本轮改动的 Git tree `bc17aad0f9d9828485021ea9c292a5f3b16aa20d` 导出干净源码，未把工作区其他改动混入 wheel。可使用[检查脚本](evidence/iteration46-direct-factor-refactor-20261022/wheel_smoke.py)重新导出、构建、安装并验证；构建和安装均不解析网络依赖，隔离消费者使用由 Anaconda Python 创建的 venv。
 
 以上为源码合成输入/独立参考回归和安装包检查。全量 installed fincore 评价矩阵及 A 股全市场重跑均为 `NOT_RUN`；历史迭代46安装验收仍对应原记录中的源码提交，不自动转作本轮证据。
+
+同日后续按用户要求删除测试目录的旧诊断因子实现，迁移测试直接检查生产因子；当前状态及该轮验收见[测试旧实现清理记录](测试旧实现清理记录.md)。上文保留首次迁移提交的实际范围。

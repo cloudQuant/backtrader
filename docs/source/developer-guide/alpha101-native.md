@@ -41,7 +41,7 @@ assert 3 in registered_ids
 
 这些算子不能仅按名称替换成近似指标。例如 Backtrader `PercentRank` 与 Alpha101 的并列秩定义不同，相关系数的常量窗口和数值精度也有固定合同。已有算子本身就是原生 Indicator/FactorIndicator 子类；共享调度、时钟和预热机制继续由 Backtrader 提供。
 
-原来的 20 个诊断公式已移至 `tests/test_utils/alpha101_diagnostic_factors.py`，只用于历史回归和中间值对照。论文公式目录位于 `tests/fixtures/research/alpha101_dependencies.json`，供独立参考计算读取；这两项不再随运行包安装。
+原来的 20 个诊断因子实现及其测试侧基类、构建钩子已删除。原有数值、时钟、缺失与中间值测试直接运行生产因子，并保留独立的纯 Python 数学参考。论文公式目录位于 `tests/fixtures/research/alpha101_dependencies.json`，供独立参考计算读取，不随运行包安装。具体迁移及验收见[测试清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/测试旧实现清理记录.md)。
 
 ## 数据与时间网格
 

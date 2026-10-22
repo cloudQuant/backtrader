@@ -35,8 +35,9 @@ from backtrader.research.alpha101 import (
     native_alpha,
 )
 from backtrader.research.factor_indicator import FactorIndicator
-from tests.test_utils.alpha101_diagnostic_factors import REPRESENTATIVE_FACTORS
+from tests.test_utils.alpha101_full_reference import formula_metadata, formula_source
 from tests.unit.test_factor_research_representatives import (
+    _FORMULA_FIELDS,
     _HISTORY,
     _formula_reference,
     _frames,
@@ -112,7 +113,12 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
     assert set(_PROMOTED).issubset(ALPHA_REGISTRY)
 
     for alpha_id, native_class in _PROMOTED.items():
-        representative = REPRESENTATIVE_FACTORS[alpha_id]
+        source_metadata = formula_metadata(alpha_id)
+        expected_formula = formula_source(alpha_id)
+        expected_classification_levels = tuple(
+            call["level"] for call in source_metadata["classification_requirements"]["calls"]
+        )
+        expected_classification_fields = tuple(dict.fromkeys(expected_classification_levels))
         identity = native_class.formula_identity
         implementation = native_class.implementation_identity
 
@@ -120,31 +126,27 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
         assert issubclass(native_class, FactorIndicator)
         assert native_class.__bases__ == (FactorIndicator,)
         assert native_class.__dict__["alpha_id"] == alpha_id
+        assert native_class.__dict__["case_id"] == "AF46-%03d" % alpha_id
         assert "__init__" in native_class.__dict__
         assert "next" in native_class.__dict__
-        assert "_make_formula" not in native_class.__dict__
-        assert native_class.__dict__["formula"] == representative.formula
-        assert native_class.__dict__["lookback_h"] == representative.lookback_h
-        assert native_class.__dict__["formula_fields"] == tuple(representative.formula_fields)
+        assert native_class.__dict__["formula"] == expected_formula
+        assert native_class.__dict__["lookback_h"] == _HISTORY[alpha_id]
+        assert native_class.__dict__["formula_fields"] == _FORMULA_FIELDS[alpha_id]
         assert "classification_fields" in native_class.__dict__
         assert "classification_levels" in native_class.__dict__
-        assert native_class.formula == identity.expression == representative.formula
-        assert native_class.lookback_h == identity.lookback_h == representative.lookback_h
+        assert native_class.formula == identity.expression == expected_formula
+        assert native_class.lookback_h == identity.lookback_h == _HISTORY[alpha_id]
         assert native_class.operator_profile == identity.operator_profile
-        assert (
-            native_class.formula_fields
-            == identity.formula_fields
-            == tuple(representative.formula_fields)
-        )
+        assert native_class.formula_fields == identity.formula_fields == _FORMULA_FIELDS[alpha_id]
         assert (
             native_class.classification_fields
             == identity.classification_fields
-            == tuple(getattr(representative, "classification_fields", ()))
+            == expected_classification_fields
         )
         assert (
             native_class.classification_levels
             == identity.classification_levels
-            == tuple(representative.classification_levels)
+            == expected_classification_levels
         )
         assert native_class.implementation_id == implementation.implementation_id
         assert native_class.implementation_id == "native:%03d:v1" % alpha_id
@@ -162,7 +164,7 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
 
 
 @pytest.mark.parametrize("runonce", (False, True))
-def test_all_twenty_promotions_match_the_independent_representative_oracle(runonce):
+def test_all_twenty_production_classes_match_the_independent_formula_oracle(runonce):
     frames = _frames(periods=320)
     factor_names = {"alpha%d" % alpha_id: cls for alpha_id, cls in _PROMOTED.items()}
     strategy = _run_subset(frames, factor_names, runonce=runonce)
@@ -182,7 +184,7 @@ def test_all_twenty_promotions_match_the_independent_representative_oracle(runon
         finite_witnesses = 0
         for row, point in enumerate(grid):
             for column, asset in enumerate(assets):
-                # The frozen 45 matrix oracle computes formula nodes before
+                # The independent matrix oracle computes formula nodes before
                 # the declared indicator warmup is applied. Mask against its
                 # independent H table, never the production class/spec.
                 wanted = expected[row][column] if row >= _HISTORY[alpha_id] else math.nan

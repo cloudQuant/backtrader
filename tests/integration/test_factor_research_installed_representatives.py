@@ -1,9 +1,16 @@
 """Run twenty production Alpha101 formulas through both committed installed wheels.
 
-Copy this file, the committed unit reference fixture, and its test-only
-diagnostic-factor helper to an external test tree before running. The helper
-supplies the independent matrix oracle; installed factors come from the public
-Alpha101 registry. This is an acceptance diagnostic, not another example.
+Copy this file, the committed unit reference fixture, the full reference
+helper, and the pinned formula catalog to an external test tree before
+running. The fixture supplies an independent matrix oracle; installed factors
+come from the public Alpha101 registry. This is an acceptance diagnostic, not
+another example.
+
+Required external inputs:
+
+* ``tests/unit/test_factor_research_representatives.py``
+* ``tests/test_utils/alpha101_full_reference.py``
+* ``tests/fixtures/research/alpha101_dependencies.json``
 """
 
 import importlib

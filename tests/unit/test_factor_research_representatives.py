@@ -1,4 +1,4 @@
-"""Independent known-answer checks for the fixed native Alpha101 diagnostics.
+"""Independent known-answer checks for selected production Alpha101 formulas.
 
 The reference below is deliberately test-local: it operates on plain Python
 matrices and never imports or calls the production operator nodes.
@@ -15,7 +15,8 @@ import pytest
 import backtrader as bt
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from tests.test_utils.alpha101_diagnostic_factors import REPRESENTATIVE_FACTORS
+from backtrader.research.alpha101 import get_alpha
+from tests.test_utils.alpha101_full_reference import formula_metadata, formula_source
 from backtrader.research.specs import FactorSpec, ResearchSpec
 from backtrader.research.inputs import prealign_bars
 
@@ -531,7 +532,7 @@ def test_alpha096_exact_float_correlation_tie_keeps_earliest_argmax():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha081_exact_float_correlation_tie_keeps_average_rank(runonce):
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha081
+    alpha081 = get_alpha(81)
 
     frames = _frames()
     expected, intermediate = _formula_reference(81, frames)
@@ -547,7 +548,7 @@ def test_alpha081_exact_float_correlation_tie_keeps_average_rank(runonce):
     assert intermediate["second_rank"][4][3] == 11.0 / 12.0
     assert math.isnan(expected[4][1])  # the enclosing factor still needs H=77
 
-    strategy = _run_subset(frames, {"alpha81": Alpha081}, runonce=runonce)
+    strategy = _run_subset(frames, {"alpha81": alpha081}, runonce=runonce)
     factor = strategy.factor_instances["alpha81"]
     native_correlation = _node_matrix(factor, "second_correlation5", len(frames))
     native_rank = _node_matrix(factor, "second_rank", len(frames))
@@ -1076,7 +1077,7 @@ def _run(frames, *, runonce):
     for name, frame in frames.items():
         cerebro.adddata(_research_feed(frame, research, name), name=name)
     factors = {
-        "alpha%d" % alpha_id: _factor_spec("alpha%d" % alpha_id, REPRESENTATIVE_FACTORS[alpha_id])
+        "alpha%d" % alpha_id: _factor_spec("alpha%d" % alpha_id, get_alpha(alpha_id))
         for alpha_id in _ALPHA_IDS
     }
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
@@ -1126,7 +1127,7 @@ def _node_matrix(factor, name, asset_count):
 
 
 @pytest.mark.parametrize("runonce", (False, True))
-def test_twenty_native_representatives_match_independent_grid_reference(runonce):
+def test_twenty_selected_production_alphas_match_independent_grid_reference(runonce):
     frames = _frames()
     names = tuple(frames)
     strategy = _run(frames, runonce=runonce)
@@ -1246,7 +1247,7 @@ def test_every_formula_has_a_positive_finite_distinguishing_input_boundary(alpha
 
 
 def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha003, Alpha004, Alpha009, Alpha013
+    alpha003, alpha004, alpha009, alpha013 = (get_alpha(alpha_id) for alpha_id in (3, 4, 9, 13))
 
     rank_open = (
         (1, 2, 3),
@@ -1283,7 +1284,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
             close=[10.0] * 10,
             high=[20.0] * 10,
         )
-    strategy = _run_subset(frames, {"alpha3": Alpha003})
+    strategy = _run_subset(frames, {"alpha3": alpha003})
     last = strategy.get_dataset().raw_factors.xs(grid[-1], level="time")["alpha3"]
     assert last.loc["A"] == pytest.approx(17 / 23)
     assert last.loc["B"] == pytest.approx(1.0)
@@ -1312,7 +1313,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
         )
         for asset, column in zip(("A", "B", "C"), range(3))
     }
-    strategy4 = _run_subset(frames4, {"alpha4": Alpha004})
+    strategy4 = _run_subset(frames4, {"alpha4": alpha004})
     assert strategy4.get_dataset().raw_factors.at[(grid9[-1], "A"), "alpha4"] == pytest.approx(
         -8 / 9
     )
@@ -1320,7 +1321,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
     sequence = (100.0, 101.0, 102.0, 101.0, 100.0, 102.0)
     grid6 = grid[:6]
     frames9 = {"A": _minimal_frame(grid6, close=sequence)}
-    strategy9 = _run_subset(frames9, {"alpha9": Alpha009})
+    strategy9 = _run_subset(frames9, {"alpha9": alpha009})
     assert strategy9.get_dataset().raw_factors.at[(grid6[-1], "A"), "alpha9"] == pytest.approx(-2.0)
 
     ranks13 = ((1, 2, 3, 4), (1, 2, 3, 4), (1, 2, 4, 3), (3, 1, 4, 2), (4, 3, 1, 2))
@@ -1336,17 +1337,17 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
         )
         for column in range(4)
     }
-    strategy13 = _run_subset(frames13, {"alpha13": Alpha013})
+    strategy13 = _run_subset(frames13, {"alpha13": alpha013})
     terminal = strategy13.get_dataset().raw_factors.xs(grid5[-1], level="time")["alpha13"]
     assert [terminal.loc[asset] for asset in "ABCD"] == pytest.approx([-1.0, -0.25, -0.75, -0.5])
 
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha013_near_zero_covariance_matches_exact_float_input_oracle(runonce):
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha013
+    alpha013 = get_alpha(13)
 
     frames = _frames(periods=56)
-    strategy = _run_subset(frames, {"alpha13": Alpha013}, runonce=runonce)
+    strategy = _run_subset(frames, {"alpha13": alpha013}, runonce=runonce)
     expected, trace = _formula_reference(13, frames)
     factor = strategy.factor_instances["alpha13"]
     dataset = strategy.get_dataset().raw_factors["alpha13"].unstack("asset")
@@ -1418,14 +1419,14 @@ def _run_subset(
 
 
 def test_alpha101_positive_finite_known_answers_and_zero_range_boundary():
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha101
+    alpha101 = get_alpha(101)
 
     grid = pd.date_range("2024-04-01", periods=1, freq="D", tz="UTC")
     frames = {
         "positive": _minimal_frame(grid, open_=[10.0], high=[16.0], low=[8.0], close=[14.0]),
         "zero-range": _minimal_frame(grid, open_=[10.0], high=[10.0], low=[10.0], close=[10.0]),
     }
-    strategy = _run_subset(frames, {"alpha101": Alpha101})
+    strategy = _run_subset(frames, {"alpha101": alpha101})
     actual = strategy.get_dataset().raw_factors["alpha101"]
     assert actual.at[(grid[0], "positive")] == pytest.approx(4.0 / 8.001, rel=1e-14)
     assert actual.at[(grid[0], "zero-range")] == 0.0
@@ -1434,11 +1435,11 @@ def test_alpha101_positive_finite_known_answers_and_zero_range_boundary():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha048
+    alpha048 = get_alpha(48)
 
     frames = _frames(periods=252)
     frames["asset-0"]["close"] = 100.0
-    strategy = _run_subset(frames, {"alpha48": Alpha048}, runonce=runonce)
+    strategy = _run_subset(frames, {"alpha48": alpha048}, runonce=runonce)
     factor = strategy.factor_instances["alpha48"]
     denominator = factor._nodes["square_sum250_0"].lines.value.array
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
@@ -1454,7 +1455,7 @@ def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
 
 
 def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale():
-    from tests.test_utils.alpha101_diagnostic_factors import Alpha029
+    alpha029 = get_alpha(29)
 
     frames = _frames(periods=100)
     names = tuple(frames)
@@ -1477,7 +1478,7 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
     def run(panel):
         return _run_subset(
             panel,
-            {"alpha29": Alpha029},
+            {"alpha29": alpha029},
             formula_universe=eligible,
             groups=groups,
         )
@@ -1546,21 +1547,22 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
 
 
 def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
-    from tests.test_utils.alpha101_diagnostic_factors import (
-        Alpha009,
-        Alpha058,
-        Alpha063,
-        Alpha067,
-        Alpha100,
-    )
     from backtrader.research.operators import OperatorReason
 
+    alpha009, alpha058, alpha063, alpha067, alpha100 = (
+        get_alpha(alpha_id) for alpha_id in (9, 58, 63, 67, 100)
+    )
     baseline = _frames()
     changed = {name: frame.copy(deep=True) for name, frame in baseline.items()}
     cutoff = 205
     # A future classification edit must not change any earlier output.
     changed["asset-0"].loc[changed["asset-0"].index[cutoff] :, "sector"] = 12.0
-    classes = {"sector": Alpha058, "industry": Alpha063, "levels": Alpha067, "neutral": Alpha100}
+    classes = {
+        "sector": alpha058,
+        "industry": alpha063,
+        "levels": alpha067,
+        "neutral": alpha100,
+    }
     before = _run_subset(baseline, classes)
     after = _run_subset(changed, classes)
     old = before.get_dataset().raw_factors
@@ -1621,7 +1623,7 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
 
     wrong_hierarchy = _run_subset(
         baseline,
-        {"wrong": Alpha100},
+        {"wrong": alpha100},
         classification_bindings={"wrong": {"subindustry": "table:pit_wrong_subindustry"}},
     )
     wrong_factor = wrong_hierarchy.factor_instances["wrong"]
@@ -1639,7 +1641,7 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
     unknown_frames = _frames(periods=40)
     unknown_time = unknown_frames["asset-0"].index[20]
     unknown_frames["asset-0"].loc[unknown_time, "sector"] = math.nan
-    unknown_strategy = _run_subset(unknown_frames, {"unknown_sector": Alpha058})
+    unknown_strategy = _run_subset(unknown_frames, {"unknown_sector": alpha058})
     unknown_factor = unknown_strategy.factor_instances["unknown_sector"]
     unknown_data = unknown_factor.datas[0]
     unknown_line = unknown_factor.classification_lines("sector")[0]
@@ -1654,7 +1656,7 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
     gap_frames = _frames(periods=30)
     gap_name = "asset-0"
     gap_frames[gap_name].iloc[10, gap_frames[gap_name].columns.get_loc("close")] = math.nan
-    gap_strategy = _run_subset(gap_frames, {"alpha9": Alpha009})
+    gap_strategy = _run_subset(gap_frames, {"alpha9": alpha009})
     gap_factor = gap_strategy.factor_instances["alpha9"]
     dataset = gap_strategy.get_dataset().raw_factors
     grid = tuple(next(iter(gap_frames.values())).index.to_pydatetime())
@@ -1668,16 +1670,13 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
 
 
 @pytest.mark.parametrize(
-    "alpha_id,factor_class,missing_field,reason_node",
+    "alpha_id,missing_field,reason_node",
     (
-        (62, "Alpha062", "vwap", "outer_comparison_0"),
-        (92, "Alpha092", "open", "midpoint_less_low_open_0"),
+        (62, "vwap", "outer_comparison_0"),
+        (92, "open", "midpoint_less_low_open_0"),
     ),
 )
-def test_composed_comparison_paths_preserve_unknown_inputs(
-    alpha_id, factor_class, missing_field, reason_node
-):
-    from tests.test_utils import alpha101_diagnostic_factors as representative
+def test_composed_comparison_paths_preserve_unknown_inputs(alpha_id, missing_field, reason_node):
     from backtrader.research.operators import OperatorReason
 
     frames = _frames(periods=80)
@@ -1686,7 +1685,7 @@ def test_composed_comparison_paths_preserve_unknown_inputs(
     expected, _ = _formula_reference(alpha_id, frames)
     assert math.isnan(expected[-1][0])
 
-    strategy = _run_subset(frames, {"unknown": getattr(representative, factor_class)})
+    strategy = _run_subset(frames, {"unknown": get_alpha(alpha_id)})
     dataset = strategy.get_dataset().raw_factors
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
     assert math.isnan(dataset.at[(grid[-1], "asset-0"), "unknown"])
@@ -1708,14 +1707,20 @@ def test_composed_comparison_paths_preserve_unknown_inputs(
         assert math.isnan(factor._nodes["bool_ts_rank18_0"].lines.value.array[-1])
 
 
-def test_factor_inventory_is_fixed_to_twenty_native_diagnostics():
-    assert tuple(REPRESENTATIVE_FACTORS) == _ALPHA_IDS
-    for alpha_id, factor_class in REPRESENTATIVE_FACTORS.items():
+def test_factor_inventory_is_fixed_to_twenty_selected_production_alphas():
+    for alpha_id in _ALPHA_IDS:
+        factor_class = get_alpha(alpha_id)
+        source_metadata = formula_metadata(alpha_id)
+        classification_levels = tuple(
+            call["level"] for call in source_metadata["classification_requirements"]["calls"]
+        )
         assert issubclass(factor_class, FactorIndicator)
         assert factor_class.alpha_id == alpha_id
-        assert factor_class.case_id == "AF45-%03d" % alpha_id
+        assert factor_class.case_id == "AF46-%03d" % alpha_id
         assert factor_class.operator_profile == "alpha101-v1"
         assert factor_class.lookback_h == _HISTORY[alpha_id]
         assert factor_class.formula_fields == _FORMULA_FIELDS[alpha_id]
         assert factor_class.required_fields == factor_class.formula_fields
-        assert factor_class.formula.startswith(("(", "min(")) or alpha_id == 84
+        assert factor_class.formula == formula_source(alpha_id)
+        assert factor_class.classification_levels == classification_levels
+        assert factor_class.classification_fields == tuple(dict.fromkeys(classification_levels))

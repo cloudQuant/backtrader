@@ -426,10 +426,11 @@ subclassing `FactorIndicator` with ordinary `__init__` and `next` methods.
 Small package-local helpers only construct native child indicators and retain
 their references for intermediate-value diagnostics; they do not schedule
 calculations. Metadata is frozen separately in `alpha101/_metadata.py`.
-The old diagnostic formulas and static paper catalog are test assets under
-`tests/test_utils/alpha101_diagnostic_factors.py` and
-`tests/fixtures/research/alpha101_dependencies.json`, respectively; neither is
-installed as runtime code/data. No build/DSL front end is implemented.
+Tests exercise the production formula classes against independent scalar/matrix
+references; the duplicate diagnostic factor implementations have been removed.
+The static paper catalog is a test asset at
+`tests/fixtures/research/alpha101_dependencies.json` and is not installed as
+runtime data. No build/DSL front end is implemented.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone
