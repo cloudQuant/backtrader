@@ -1,0 +1,8 @@
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pytest_benchmark/logger.py:39: PytestBenchmarkWarning: Benchmarks are automatically disabled because xdist plugin is active.Benchmarks cannot be performed reliably in a parallelized environment.
+  warner(PytestBenchmarkWarning(text))
+bringing up nodes...
+bringing up nodes...
+
+.......................................................                  [100%]
+- generated xml file: /Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-test-legacy-cleanup-20261022/clean-source-affected.xml -
+55 passed in 229.85s (0:03:49)
