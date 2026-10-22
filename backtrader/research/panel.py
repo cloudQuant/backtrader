@@ -33,8 +33,9 @@ import os
 import shutil
 import tempfile
 from collections.abc import Mapping
+from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, Optional, Sequence
 
 from ..errors import DatasetError, ResearchConfigError
 from .specs import require_research_runtime
@@ -60,6 +61,30 @@ def _require_utc_index(index: Any, name: str, pd: Any) -> Any:
     return converted
 
 
+def _shallow_copy_frame(frame: Any) -> Any:
+    """Create an independent frame wrapper and axes while borrowing values."""
+    result = frame.copy(deep=False)
+    # Older pandas releases may only shallow-copy nested attrs during the
+    # DataFrame copy finalizer, so make the metadata ownership explicit.
+    result.attrs = deepcopy(frame.attrs)
+    # Keep metadata writes on the normalized frame away from the caller's axes,
+    # including on pandas versions where shallow-copy axis handling differs.
+    result.index = frame.index.copy(deep=False)
+    result.columns = frame.columns.copy(deep=False)
+    return result
+
+
+def _astype_frame(frame: Any, dtype: Any, pd: Any) -> Any:
+    """Convert only the required dtypes while retaining canonical blocks."""
+    try:
+        copy_on_write = pd.get_option("mode.copy_on_write")
+    except (AttributeError, KeyError):
+        copy_on_write = False
+    if copy_on_write is True:
+        return frame.astype(dtype)
+    return frame.astype(dtype, copy=False)
+
+
 def _as_float_frame(frame: Any, name: str, columns: Sequence[str], index: Any, pd: Any) -> Any:
     if not isinstance(frame, pd.DataFrame):
         raise ResearchConfigError("%s must be a pandas DataFrame" % name)
@@ -69,8 +94,11 @@ def _as_float_frame(frame: Any, name: str, columns: Sequence[str], index: Any, p
         )
     if not frame.index.equals(index):
         raise DatasetError("%s index must equal the panel grid index" % name)
-    result = frame.astype("float64")
-    result.index = pd.DatetimeIndex(index, name="close_time", freq=None)
+    result = _shallow_copy_frame(frame)
+    if not all(dtype == "float64" for dtype in frame.dtypes):
+        result = _astype_frame(result, "float64", pd)
+    result.index = pd.DatetimeIndex(index.copy(deep=False), name="close_time", freq=None)
+    result.columns = frame.columns.copy(deep=False)
     values = result.to_numpy(dtype="float64", copy=False)
     if not (values == values).all() or (abs(values) == float("inf")).any():
         # NaN is a legitimate missing value; infinity is not.
@@ -92,7 +120,11 @@ def _as_bool_frame(frame: Any, name: str, index: Any, columns: Sequence[str], pd
         pd.api.types.is_bool_dtype(dtype) for dtype in frame.dtypes
     ):
         raise DatasetError("%s must contain non-missing boolean values" % name)
-    result = frame.astype(bool, copy=True)
+    result = _shallow_copy_frame(frame)
+    if not all(dtype == "bool" for dtype in frame.dtypes):
+        result = _astype_frame(result, bool, pd)
+    result.index = index.copy(deep=False)
+    result.columns = result.columns.copy(deep=False)
     result.columns.name = None
     return result
 
@@ -182,18 +214,24 @@ class FactorPanel:
             raise ResearchConfigError("grid must not be empty")
         # ``freq`` is derivable metadata that a CSV cannot retain; normalize it
         # so an in-memory panel and its CSV round-trip compare equal.
-        grid_index = pd.DatetimeIndex(grid_index, name="close_time", freq=None)
+        grid_index = pd.DatetimeIndex(grid_index.copy(deep=False), name="close_time", freq=None)
         if "open_time" not in grid.columns:
             raise ResearchConfigError("grid requires an open_time column")
-        open_times = pd.DatetimeIndex(pd.to_datetime(grid["open_time"], errors="coerce"))
+        open_time_values = pd.to_datetime(grid["open_time"], errors="coerce")
+        open_times = pd.DatetimeIndex(open_time_values)
         if open_times.isna().any() or open_times.tz is None:
             raise ResearchConfigError("grid open_time values must be timezone-aware UTC")
         open_times = open_times.tz_convert("UTC")
         if (open_times > grid_index).any():
             raise ResearchConfigError("grid open_time must not follow its close_time")
-        normalized_grid = grid.copy(deep=True)
-        normalized_grid.index = grid_index
-        normalized_grid["open_time"] = open_times
+        normalized_grid = _shallow_copy_frame(grid)
+        normalized_grid.index = grid_index.copy(deep=False)
+        open_time_dtype = grid["open_time"].dtype
+        already_utc_datetime = (
+            isinstance(open_time_dtype, pd.DatetimeTZDtype) and str(open_time_dtype.tz) == "UTC"
+        )
+        if not already_utc_datetime:
+            normalized_grid["open_time"] = open_times
 
         start_value = pd.Timestamp(start) if start is not None else grid_index[0]
         end_value = pd.Timestamp(end) if end is not None else grid_index[-1]
@@ -243,13 +281,15 @@ class FactorPanel:
             raise DatasetError("factor assets do not match the declared target order")
         study_index = grid_index[(grid_index >= start_value) & (grid_index <= end_value)]
         expected = pd.MultiIndex.from_product([study_index, targets], names=("time", "asset"))
-        normalized = factors.copy(deep=True)
+        normalized = _shallow_copy_frame(factors)
         normalized.index = pd.MultiIndex.from_arrays(
             [times, factors.index.get_level_values("asset")], names=("time", "asset")
         )
         if not normalized.index.equals(expected):
             raise DatasetError("factors must cover exactly the study window x targets product")
-        normalized = normalized.loc[:, list(factor_columns)].astype("float64")
+        if not all(dtype == "float64" for dtype in factors.dtypes):
+            normalized = _astype_frame(normalized, "float64", pd)
+        normalized.columns = factors.columns.copy(deep=False)
         _reject_infinite(normalized, "factors")
 
         prices_open = _as_float_frame(prices_open, "prices_open", targets, grid_index, pd)
@@ -261,9 +301,6 @@ class FactorPanel:
             )
         else:
             normalized_universe = _as_bool_frame(universe, "universe", study_index, targets, pd)
-            normalized_universe = normalized_universe.reindex(
-                index=study_index, columns=list(targets)
-            )
 
         if groups is None:
             normalized_groups = dict.fromkeys(targets, "default")
@@ -319,10 +356,8 @@ class FactorPanel:
         raise KeyError("price %r is not in the panel" % name)
 
     def study_factors(self) -> Any:
-        """Factor rows restricted to the study window (same object otherwise)."""
-        mask = self.factors.index.get_level_values("time") <= self.end
-        selected = self.factors.loc[mask]
-        return selected
+        """Return the factors, which construction already restricts to the study window."""
+        return self.factors
 
     # -- CSV exchange ----------------------------------------------------
 

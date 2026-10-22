@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from backtrader.errors import DatasetError, ResearchConfigError
-from backtrader.research.panel import FactorPanel
+from backtrader.research.panel import FactorPanel, _astype_frame, _shallow_copy_frame
 
 
 def make_grid(periods: int = 4, tz: str = "UTC") -> pd.DataFrame:
@@ -63,6 +63,7 @@ def test_panel_keeps_declared_order_and_shapes():
     assert panel.directions == {"alpha": 1, "beta": 1}
     assert panel.factor_values("beta").name == "beta"
     assert panel.price("open") is panel.prices_open
+    assert panel.study_factors() is panel.factors
 
 
 def test_asset_ids_stay_strings_and_leading_zeros_survive():
@@ -238,6 +239,197 @@ def test_panel_validation_does_not_mutate_caller_frames():
     )
     for name, frame in inputs.items():
         pd.testing.assert_frame_equal(frame, before[name])
+
+
+def test_panel_borrows_canonical_values_and_owns_normalized_metadata():
+    grid = make_grid(periods=3)
+    targets = ("000001", "600000")
+    factor_index = pd.MultiIndex.from_product([grid.index, targets], names=("time", "asset"))
+    factors = pd.DataFrame(
+        np.arange(len(factor_index) * 2, dtype="float64").reshape(-1, 2),
+        index=factor_index,
+        columns=pd.Index(("alpha", "beta"), name="caller_factor_columns"),
+    )
+    price_values = np.arange(len(grid) * len(targets), dtype="float64").reshape(
+        len(grid), len(targets)
+    )
+    prices_open = pd.DataFrame(
+        price_values,
+        index=grid.index,
+        columns=pd.Index(targets, name="caller_price_columns"),
+    )
+    prices_close = pd.DataFrame(
+        price_values + 1.0,
+        index=grid.index,
+        columns=pd.Index(targets, name="caller_price_columns"),
+    )
+    universe = pd.DataFrame(
+        np.ones((len(grid), len(targets)), dtype=bool),
+        index=grid.index,
+        columns=pd.Index(targets, name="caller_universe_columns"),
+    )
+    inputs = {
+        "factors": factors,
+        "grid": grid,
+        "prices_open": prices_open,
+        "prices_close": prices_close,
+        "universe": universe,
+    }
+    for name, frame in inputs.items():
+        frame.attrs["ownership"] = {"label": name}
+
+    panel = FactorPanel(
+        factors=factors,
+        grid=grid,
+        prices_open=prices_open,
+        prices_close=prices_close,
+        universe=universe,
+        start=grid.index[0],
+        end=grid.index[-1],
+        target_order=targets,
+        factor_order=("alpha", "beta"),
+        directions={"alpha": 1, "beta": -1},
+    )
+
+    for name in ("factors", "prices_open", "prices_close", "universe"):
+        source = inputs[name]
+        normalized = getattr(panel, name)
+        assert np.shares_memory(source.to_numpy(copy=False), normalized.to_numpy(copy=False))
+        assert normalized is not source
+        assert normalized.index is not source.index
+        assert normalized.columns is not source.columns
+        assert normalized.attrs is not source.attrs
+        assert normalized.attrs["ownership"] is not source.attrs["ownership"]
+
+    assert panel.grid.index is not grid.index
+    assert panel.grid.columns is not grid.columns
+    assert panel.grid.attrs is not grid.attrs
+    assert panel.grid.attrs["ownership"] is not grid.attrs["ownership"]
+    assert np.shares_memory(grid["open_time"].array.asi8, panel.grid["open_time"].array.asi8)
+    assert panel.grid.index.freq is None
+    assert grid.index.freq == pd.offsets.Day()
+    assert panel.factors.index.levels[0].freq is None
+    assert factors.index.levels[0].freq == pd.offsets.Day()
+    assert panel.universe.columns.name is None
+
+    panel.grid.index.name = "panel_close_time"
+    panel.grid.columns.name = "panel_grid_columns"
+    panel.factors.columns.name = "panel_factor_columns"
+    panel.universe.columns.name = "panel_universe_columns"
+    for name in inputs:
+        getattr(panel, name).attrs["ownership"]["label"] = "panel"
+
+    assert grid.index.name == "close_time"
+    assert grid.columns.name is None
+    assert factors.columns.name == "caller_factor_columns"
+    assert universe.columns.name == "caller_universe_columns"
+    assert grid.attrs["ownership"] == {"label": "grid"}
+    assert factors.attrs["ownership"] == {"label": "factors"}
+    assert prices_open.attrs["ownership"] == {"label": "prices_open"}
+    assert prices_close.attrs["ownership"] == {"label": "prices_close"}
+    assert universe.attrs["ownership"] == {"label": "universe"}
+
+
+def test_shallow_frame_copy_isolates_nested_attrs_when_copy_only_shallow_copies_them(
+    monkeypatch,
+):
+    frame = pd.DataFrame({"value": [1.0]})
+    frame.attrs["owner"] = {"labels": ["caller"]}
+    original_copy = pd.DataFrame.copy
+
+    def shallow_attrs_copy(self, deep=True):
+        result = original_copy(self, deep=deep)
+        if not deep:
+            result.attrs = self.attrs.copy()
+        return result
+
+    monkeypatch.setattr(pd.DataFrame, "copy", shallow_attrs_copy)
+    normalized = _shallow_copy_frame(frame)
+
+    assert normalized.attrs is not frame.attrs
+    assert normalized.attrs["owner"] is not frame.attrs["owner"]
+    assert normalized.attrs["owner"]["labels"] is not frame.attrs["owner"]["labels"]
+    normalized.attrs["owner"]["labels"].append("panel")
+    assert frame.attrs["owner"]["labels"] == ["caller"]
+
+
+def test_dtype_conversion_tolerates_missing_copy_on_write_option(monkeypatch):
+    frame = pd.DataFrame({"value": np.array([1, 2], dtype="int64")})
+    original_get_option = pd.get_option
+
+    def get_option(name):
+        if name == "mode.copy_on_write":
+            raise AttributeError("option is unavailable on this pandas version")
+        return original_get_option(name)
+
+    monkeypatch.setattr(pd, "get_option", get_option)
+    converted = _astype_frame(frame, "float64", pd)
+
+    assert converted["value"].dtype == np.dtype("float64")
+    np.testing.assert_array_equal(converted["value"], np.array([1.0, 2.0]))
+
+
+def test_panel_converts_only_noncanonical_frame_dtypes():
+    grid = make_grid(periods=2)
+    targets = ("A", "B")
+    index = pd.MultiIndex.from_product([grid.index, targets], names=("time", "asset"))
+    canonical_factor = np.arange(len(index), dtype="float64")
+    converted_factor = np.arange(len(index), dtype="int64") + 10
+    factors = pd.DataFrame(
+        {"canonical": canonical_factor, "converted": converted_factor}, index=index
+    )
+    open_values = np.arange(len(grid) * len(targets), dtype="float32").reshape(
+        len(grid), len(targets)
+    )
+    prices_open = pd.DataFrame(open_values, index=grid.index, columns=list(targets))
+    prices_close = pd.DataFrame(
+        np.arange(len(grid) * len(targets), dtype="int64").reshape(len(grid), len(targets)),
+        index=grid.index,
+        columns=list(targets),
+    )
+    universe = pd.DataFrame(
+        {
+            "A": pd.array([True, False], dtype="boolean"),
+            "B": pd.array([False, True], dtype="boolean"),
+        },
+        index=grid.index,
+    )
+
+    panel = FactorPanel(
+        factors=factors,
+        grid=grid,
+        prices_open=prices_open,
+        prices_close=prices_close,
+        universe=universe,
+        start=grid.index[0],
+        end=grid.index[-1],
+        target_order=targets,
+        factor_order=("canonical", "converted"),
+        directions={"canonical": 1, "converted": -1},
+    )
+
+    assert panel.factors["canonical"].dtype == np.dtype("float64")
+    assert panel.factors["converted"].dtype == np.dtype("float64")
+    assert np.shares_memory(
+        factors["canonical"].to_numpy(copy=False),
+        panel.factors["canonical"].to_numpy(copy=False),
+    )
+    assert not np.shares_memory(
+        factors["converted"].to_numpy(copy=False),
+        panel.factors["converted"].to_numpy(copy=False),
+    )
+    assert panel.prices_open.dtypes.tolist() == [np.dtype("float64")] * len(targets)
+    assert panel.prices_close.dtypes.tolist() == [np.dtype("float64")] * len(targets)
+    assert not np.shares_memory(
+        prices_open.to_numpy(copy=False), panel.prices_open.to_numpy(copy=False)
+    )
+    assert not np.shares_memory(
+        prices_close.to_numpy(copy=False), panel.prices_close.to_numpy(copy=False)
+    )
+    assert panel.universe.dtypes.tolist() == [np.dtype("bool")] * len(targets)
+    assert panel.universe.to_numpy().tolist() == [[True, False], [False, True]]
+    np.testing.assert_array_equal(panel.factors["converted"], converted_factor.astype("float64"))
+    np.testing.assert_array_equal(panel.prices_open.to_numpy(), open_values.astype("float64"))
 
 
 def test_infinite_values_are_rejected_but_nan_is_allowed():
