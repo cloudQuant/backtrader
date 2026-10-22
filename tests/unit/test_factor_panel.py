@@ -151,9 +151,93 @@ def test_empty_grid_targets_and_factors_are_rejected():
         make_panel(targets=())
     with pytest.raises((DatasetError, ResearchConfigError, ValueError)):
         make_panel(factor_order=())
-    grid = make_grid(periods=1).iloc[0:0]
-    with pytest.raises((DatasetError, ResearchConfigError, ValueError, IndexError)):
-        make_panel(grid=grid)
+    panel = make_panel()
+    grid = panel.grid.iloc[0:0]
+    with pytest.raises(ResearchConfigError, match="grid must not be empty"):
+        FactorPanel(
+            factors=panel.factors,
+            grid=grid,
+            prices_open=panel.prices_open,
+            prices_close=panel.prices_close,
+            target_order=panel.target_order,
+            factor_order=panel.factor_order,
+            directions=panel.directions,
+        )
+
+
+def test_duplicate_factor_columns_are_rejected():
+    panel = make_panel()
+    factors = panel.factors.copy(deep=True)
+    factors.columns = ["alpha", "alpha"]
+    with pytest.raises(ResearchConfigError, match="factor columns must be unique"):
+        FactorPanel(
+            factors=factors,
+            grid=panel.grid,
+            prices_open=panel.prices_open,
+            prices_close=panel.prices_close,
+            start=panel.start,
+            end=panel.end,
+            target_order=panel.target_order,
+            factor_order=("alpha", "alpha"),
+            directions={"alpha": 1},
+        )
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [0, 1, 0, 1],
+        ["False", "True", "False", "True"],
+    ],
+    ids=["numeric-column", "string-column"],
+)
+def test_universe_requires_boolean_dtype_for_every_column(values):
+    panel = make_panel()
+    universe = pd.DataFrame(
+        {"000001": [True] * len(panel.universe), "600000": values},
+        index=panel.universe.index,
+    )
+    with pytest.raises(DatasetError, match="non-missing boolean values"):
+        FactorPanel(
+            factors=panel.factors,
+            grid=panel.grid,
+            prices_open=panel.prices_open,
+            prices_close=panel.prices_close,
+            universe=universe,
+            start=panel.start,
+            end=panel.end,
+            target_order=panel.target_order,
+            factor_order=panel.factor_order,
+            directions=panel.directions,
+        )
+
+
+def test_panel_validation_does_not_mutate_caller_frames():
+    panel = make_panel()
+    universe = panel.universe.copy(deep=True)
+    universe.columns.name = "caller metadata"
+    inputs = {
+        "factors": panel.factors,
+        "grid": panel.grid,
+        "prices_open": panel.prices_open,
+        "prices_close": panel.prices_close,
+        "universe": universe,
+    }
+    before = {name: frame.copy(deep=True) for name, frame in inputs.items()}
+    FactorPanel(
+        factors=inputs["factors"],
+        grid=inputs["grid"],
+        prices_open=inputs["prices_open"],
+        prices_close=inputs["prices_close"],
+        universe=inputs["universe"],
+        start=panel.start,
+        end=panel.end,
+        target_order=panel.target_order,
+        factor_order=panel.factor_order,
+        directions=panel.directions,
+    )
+    for name, frame in inputs.items():
+        pd.testing.assert_frame_equal(frame, before[name])
 
 
 def test_infinite_values_are_rejected_but_nan_is_allowed():

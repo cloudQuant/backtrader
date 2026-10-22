@@ -90,6 +90,8 @@ class MemorySink(FactorSink):
     ) -> None:
         if self._closed:
             raise RuntimeError("sink is closed")
+        if self._panel is not None:
+            raise RuntimeError("sink is finalized")
         order = tuple(values)
         if not self._factor_order:
             self._factor_order = order
@@ -181,17 +183,19 @@ class CsvSink(MemorySink):
     def __init__(self, directory: Any) -> None:
         super().__init__()
         self._directory = Path(directory)
+        self._written_panel: Optional[FactorPanel] = None
 
     def finalize(self, context: PanelContext) -> FactorPanel:
         panel = super().finalize(context)
-        self.write(panel)
+        if self._written_panel is not panel:
+            self.write(panel)
         return panel
 
     def write(self, panel: FactorPanel) -> None:
-        target = self._directory
-        if target.exists():
-            raise DatasetError("CSV panel directory already exists: %s" % target)
-        panel.to_csv(target)
+        if self._written_panel is panel:
+            return
+        panel.to_csv(self._directory)
+        self._written_panel = panel
 
 
 def _pandas() -> Any:

@@ -50,7 +50,7 @@ def _numeric_column(frame: Any, name: str) -> Any:
 
 @dataclass(frozen=True, init=False)
 class AlignedFeed:
-    """A full-grid ``PandasData`` feed plus the minimal alignment facts."""
+    """A calculation-grid ``PandasData`` feed plus full-grid price vectors."""
 
     asset: str
     feed: Any = field(repr=False, compare=False)
@@ -87,7 +87,7 @@ def align_to_grid(
     *,
     data_version: Optional[str] = None,
 ) -> AlignedFeed:
-    """Reindex one closed-bar frame to the complete UTC research grid once."""
+    """Align once; stop the feed at ``end`` and retain full-grid price arrays."""
     pd = require_research_runtime()
     if not isinstance(research, ResearchSpec):
         raise ResearchConfigError("research must be a ResearchSpec")
@@ -137,7 +137,7 @@ def align_to_grid(
         field_present[str(column)] = present & np.isfinite(numeric)
     from ..feeds.pandafeed import PandasData
 
-    feed = PandasData(dataname=aligned)
+    feed = PandasData(dataname=aligned.loc[calculation_mask])
     prices = {name: _numeric_column(aligned, name) for name in _PRICE_COLUMNS}
     metadata = {
         "version": 2,

@@ -8,7 +8,7 @@ import pytest
 
 from backtrader.errors import DatasetError
 from backtrader.research.align import align_to_grid
-from backtrader.research.sink import MemorySink, PanelContext
+from backtrader.research.sink import CsvSink, MemorySink, PanelContext
 from backtrader.research.specs import ResearchSpec
 
 
@@ -100,6 +100,57 @@ def test_finalize_is_idempotent_and_close_is_idempotent():
     sink.close()
     assert sink.panel is first
     assert sink.finalize(context) is first
+
+
+def test_on_point_is_rejected_after_finalize():
+    research = make_research()
+    context = make_context(research)
+    sink = MemorySink()
+    for time in context.grid.index:
+        for asset in context.target_order:
+            sink.on_point(time, asset, {"f1": 1.0, "f2": 2.0}, 1.0, 2.0, True)
+    sink.finalize(context)
+    with pytest.raises(RuntimeError, match="sink is finalized"):
+        sink.on_point(context.grid.index[-1], "000001", {"f1": 3.0, "f2": 4.0}, 1.0, 2.0, True)
+
+
+def test_csv_sink_finalize_and_write_are_idempotent(tmp_path):
+    research = make_research()
+    context = make_context(research)
+    sink = CsvSink(tmp_path / "panel")
+    for time in context.grid.index:
+        for asset in context.target_order:
+            sink.on_point(time, asset, {"f1": 1.0, "f2": 2.0}, 1.0, 2.0, True)
+
+    panel = sink.finalize(context)
+    first_contents = {path.name: path.read_bytes() for path in (tmp_path / "panel").iterdir()}
+    assert sink.finalize(context) is panel
+    sink.write(panel)
+    sink.close()
+    sink.close()
+    assert sink.finalize(context) is panel
+    assert {
+        path.name: path.read_bytes() for path in (tmp_path / "panel").iterdir()
+    } == first_contents
+
+
+def test_csv_sink_does_not_replace_an_existing_target(tmp_path):
+    research = make_research()
+    context = make_context(research)
+    memory = MemorySink()
+    for time in context.grid.index:
+        for asset in context.target_order:
+            memory.on_point(time, asset, {"f1": 1.0, "f2": 2.0}, 1.0, 2.0, True)
+    panel = memory.finalize(context)
+
+    target = tmp_path / "panel"
+    target.mkdir()
+    marker = target / "owned-by-caller.txt"
+    marker.write_text("keep", encoding="utf-8")
+    with pytest.raises(DatasetError, match="already exists"):
+        CsvSink(target).write(panel)
+    assert marker.read_text(encoding="utf-8") == "keep"
+    assert sorted(path.name for path in target.iterdir()) == ["owned-by-caller.txt"]
 
 
 def test_on_point_rejects_changed_factor_columns():

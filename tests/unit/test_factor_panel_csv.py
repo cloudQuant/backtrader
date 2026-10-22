@@ -178,6 +178,19 @@ def test_to_csv_refuses_to_overwrite_an_existing_directory(tmp_path):
         panel.to_csv(tmp_path / "panel")
 
 
+def test_to_csv_refuses_to_replace_a_dangling_symlink(tmp_path):
+    panel = make_panel()
+    target = tmp_path / "panel"
+    try:
+        target.symlink_to(tmp_path / "missing", target_is_directory=True)
+    except (NotImplementedError, OSError):
+        pytest.skip("directory symlinks are unavailable")
+
+    with pytest.raises(DatasetError, match="already exists"):
+        panel.to_csv(target)
+    assert target.is_symlink()
+
+
 def test_asset_ids_with_leading_zeros_survive_csv(tmp_path):
     restored = roundtrip(make_panel(), tmp_path / "panel")
     assert restored.target_order == ("000001", "600000")

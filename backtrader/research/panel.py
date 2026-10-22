@@ -9,15 +9,15 @@ Frames (all float64 except flags):
 
 ``factors``
     Wide ``(time, asset)`` long-form source in memory is stored wide; index is a
-    unique UTC ``(time, asset)`` MultiIndex covering the full calculation grid
-    (warm-up through research end) x targets, columns are the ordered factor
-    names.  Missing values stay ``NaN``; rows are never dropped or filled.
+    unique UTC ``(time, asset)`` MultiIndex covering the inclusive study window
+    (``start`` through ``end``) x targets, columns are the ordered factor names.
+    Missing values stay ``NaN``; rows are never dropped or filled.
 ``grid``
     Ordered unique UTC ``close_time`` index with the existing ``open_time``
     column.  ``start``/``end`` are exact grid points.
 ``prices_open`` / ``prices_close``
-    Wide float64 frames on the **full** grid index (this may extend past
-    ``end`` so label tails survive), columns ordered exactly like targets.
+    Wide float64 frames on the **full** grid index, including warm-up before
+    ``start`` and label tails after ``end``, columns ordered exactly like targets.
 ``universe``
     Boolean wide frame on the study window (``start``..``end``) x targets.
     When the caller does not supply one it defaults to all ``True``; a supplied
@@ -88,9 +88,11 @@ def _as_bool_frame(frame: Any, name: str, index: Any, columns: Sequence[str], pd
         raise ResearchConfigError("%s columns must be exactly the declared targets" % name)
     if not frame.index.equals(index):
         raise DatasetError("%s index must cover the study window exactly" % name)
-    if frame.isna().any().any() or not pd.api.types.is_bool_dtype(frame.dtypes.iloc[0]):
+    if frame.isna().any().any() or not all(
+        pd.api.types.is_bool_dtype(dtype) for dtype in frame.dtypes
+    ):
         raise DatasetError("%s must contain non-missing boolean values" % name)
-    result = frame.astype(bool)
+    result = frame.astype(bool, copy=True)
     result.columns.name = None
     return result
 
@@ -176,6 +178,8 @@ class FactorPanel:
         if grid.index.name != "close_time":
             raise ResearchConfigError("grid index must be named 'close_time'")
         grid_index = _require_utc_index(grid.index, "grid close_time", pd)
+        if grid_index.empty:
+            raise ResearchConfigError("grid must not be empty")
         # ``freq`` is derivable metadata that a CSV cannot retain; normalize it
         # so an in-memory panel and its CSV round-trip compare equal.
         grid_index = pd.DatetimeIndex(grid_index, name="close_time", freq=None)
@@ -214,6 +218,8 @@ class FactorPanel:
         if not factors.index.is_unique:
             raise DatasetError("factors index contains duplicate (time, asset) keys")
         factor_columns = tuple(factors.columns)
+        if not factors.columns.is_unique:
+            raise ResearchConfigError("factor columns must be unique")
         if factor_order is not None and tuple(factor_order) != factor_columns:
             raise ResearchConfigError("factor_order must equal the factors column order")
         if not factor_columns:
@@ -324,7 +330,7 @@ class FactorPanel:
         """Write the six CSVs; publish by renaming a fresh temporary directory."""
         pd = require_research_runtime()
         target = Path(directory)
-        if target.exists():
+        if target.exists() or target.is_symlink():
             raise DatasetError("CSV panel directory already exists: %s" % target)
         target.parent.mkdir(parents=True, exist_ok=True)
         staging = Path(tempfile.mkdtemp(prefix=".panel-", dir=str(target.parent)))

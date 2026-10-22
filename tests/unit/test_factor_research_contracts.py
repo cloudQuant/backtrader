@@ -75,8 +75,6 @@ def _run(research: ResearchSpec, source: pd.DataFrame, *, runonce: bool):
     return cerebro.run(runonce=runonce)[0], aligned
 
 
-
-
 def test_align_to_grid_retains_price_tail_beyond_research_end() -> None:
     """A grid may extend past ``end`` so label tails survive.
 
@@ -95,28 +93,36 @@ def test_align_to_grid_retains_price_tail_beyond_research_end() -> None:
     assert list(aligned.present) == [True, True, True]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "source defect: align_to_grid() returns a full-grid feed, but FactorIndicator."
-        "_record_factor_call raises RuntimeError('factor next() ran more than once for the "
-        "requested grid') for the label-tail rows that lie after ResearchSpec.end; "
-        "FactorStrategy._collect_current_grid_point already tolerates those rows"
-    ),
-)
-def test_feed_with_label_tail_rows_can_be_added_to_cerebro() -> None:
-    """Regression repro for the tail-row defect; remove the xfail when fixed.
-
-    Minimal reproduction (no fixture helpers needed)::
-
-        grid 4 rows, start=row1, end=row2, align_to_grid(frame, research, "AAA")
-        cerebro.adddata(aligned.feed); cerebro.addstrategy(FactorStrategy, ...)
-        cerebro.run()  ->  FactorComputationError from
-                           RuntimeError("factor next() ran more than once ...")
-    """
-    grid_index = _grid(5)
-    research = _research(grid_index, start=0, end=2)
-    strategy, _ = _run(research, _source(grid_index), runonce=False)
+@pytest.mark.parametrize("runonce", [False, True], ids=["runnext", "runonce"])
+@pytest.mark.parametrize("tail_length", [1, 5, 20])
+def test_feed_with_label_tail_rows_can_be_added_to_cerebro(runonce, tail_length) -> None:
+    """Keep the feed at calculation end while preserving and isolating label tails."""
+    grid_index = _grid(3 + tail_length)
+    research = _research(grid_index, start=1, end=2)
+    source = _source(grid_index)
+    strategy, aligned = _run(research, source, runonce=runonce)
     panel = strategy.get_panel()
-    assert len(panel.factors) == 3
-    assert panel.prices_close.loc[grid_index[4], "AAA"] == pytest.approx(14.5)
+
+    assert list(aligned.feed.p.dataname.index) == list(research.calculation_grid.index)
+    assert len(aligned.present) == len(research.calculation_grid) == 3
+    assert len(aligned.prices_open) == len(grid_index)
+    assert len(aligned.prices_close) == len(grid_index)
+    assert len(panel.factors) == 2
+    assert list(panel.factors.index.get_level_values("time").unique()) == list(grid_index[1:3])
+    assert panel.prices_close.loc[grid_index[-1], "AAA"] == pytest.approx(source["close"].iloc[-1])
+    assert panel.prices_open.loc[grid_index[-1], "AAA"] == pytest.approx(source["open"].iloc[-1])
+
+    changed_source = source.copy(deep=True)
+    changed_source.loc[grid_index[3] :, :] += 1000.0
+    changed_strategy, changed_aligned = _run(research, changed_source, runonce=runonce)
+    changed_panel = changed_strategy.get_panel()
+
+    pd.testing.assert_frame_equal(changed_panel.factors, panel.factors)
+    assert changed_panel.prices_close.loc[grid_index[-1], "AAA"] == pytest.approx(
+        changed_source["close"].iloc[-1]
+    )
+    assert changed_aligned.prices_close[-1] != aligned.prices_close[-1]
+    assert (
+        changed_strategy.factor_instances["close_factor"].lifecycle_diagnostics
+        == strategy.factor_instances["close_factor"].lifecycle_diagnostics
+    )

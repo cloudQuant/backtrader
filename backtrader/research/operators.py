@@ -890,21 +890,54 @@ class _RollingPair(_Rolling):
         return None, None, OperatorReason.INCOMPLETE_WINDOW
 
 
-_SCALE_THRESHOLD = 1.0e150
-# Correlation is bounded by 1 and exactly zero for orthogonal windows.  Values
-# within this ULP-level band are the exact bound, not a meaningful magnitude;
-# snapping them keeps cross-sectional rank ties stable across the float64
-# migration.  It is far below any economically distinguishable correlation.
-_CORRELATION_SNAP = 8.0 * 2.220446049250313e-16
+_FLOAT64_EPSILON = 2.220446049250313e-16
+
+
+def _centered_unit_deviations(
+    values: Sequence[float],
+) -> Optional[Tuple[List[float], List[float]]]:
+    """Return centered deviations scaled to unit magnitude and their scale factors.
+
+    Subtracting an anchor before taking a mean preserves ULP-sized movement on
+    top of a large offset.  If an opposite-sign pair makes that subtraction
+    overflow, values are first divided by their largest input magnitude.  The
+    returned factors keep the physical deviation scale available to covariance
+    without multiplying it prematurely.
+    """
+    anchor = values[0]
+    differences = [value - anchor for value in values]
+    scale_factors = []
+    if not all(math.isfinite(value) for value in differences):
+        input_scale = max(abs(value) for value in values)
+        if input_scale == 0.0:
+            return None
+        scaled_anchor = anchor / input_scale
+        differences = [value / input_scale - scaled_anchor for value in values]
+        scale_factors.append(input_scale)
+
+    difference_scale = max(abs(value) for value in differences)
+    if difference_scale == 0.0:
+        return None
+    normalized = [value / difference_scale for value in differences]
+    mean = math.fsum(normalized) / len(normalized)
+    centered = [value - mean for value in normalized]
+    centered_scale = max(abs(value) for value in centered)
+    if centered_scale == 0.0:
+        return None
+
+    unit = [value / centered_scale for value in centered]
+    scale_factors.extend((difference_scale, centered_scale))
+    return unit, scale_factors
 
 
 class RollingCovariance(_RollingPair):
     """Population covariance (ddof=0); a one-value window is zero.
 
-    Stable float64 kernel: center first, scale each series by its largest
-    magnitude so the squares cannot overflow, and accumulate with
-    ``math.fsum``.  A constant window has covariance exactly 0 (it is not a
-    domain error); a one-value population covariance is 0 as well.
+    Stable float64 kernel: anchor-center each series, independently scale its
+    centered deviations, and accumulate with ``math.fsum``.  The scale factors
+    are combined with exponent-safe multiplication only after the normalized
+    covariance is known.  A constant window has covariance exactly 0 (it is
+    not a domain error); a one-value population covariance is 0 as well.
     """
 
     def _evaluate(self):
@@ -916,29 +949,16 @@ class RollingCovariance(_RollingPair):
             count = len(left)
             if count == 1:
                 return 0.0
-            if min(left) == max(left) or min(right) == max(right):
+            if all(value == left[0] for value in left) or all(value == right[0] for value in right):
                 return 0.0
-            scale = max(max(abs(value) for value in left), max(abs(value) for value in right))
-            if scale == 0.0:
+            centered_left = _centered_unit_deviations(left)
+            centered_right = _centered_unit_deviations(right)
+            if centered_left is None or centered_right is None:
                 return 0.0
-            # Only normalize when the raw squares could overflow.  For ordinary
-            # magnitudes the centered raw moment is exact for short integer
-            # windows, which keeps ranks stable across the float64 migration.
-            if scale <= _SCALE_THRESHOLD:
-                normalized_left = left
-                normalized_right = right
-                restore = 1.0
-            else:
-                normalized_left = [value / scale for value in left]
-                normalized_right = [value / scale for value in right]
-                restore = scale * scale
-            mean_left = math.fsum(normalized_left) / count
-            mean_right = math.fsum(normalized_right) / count
-            covariance = math.fsum(
-                (a - mean_left) * (b - mean_right)
-                for a, b in zip(normalized_left, normalized_right)
-            ) / count
-            return covariance * restore
+            normalized_left, left_scales = centered_left
+            normalized_right, right_scales = centered_right
+            covariance = math.fsum(a * b for a, b in zip(normalized_left, normalized_right))
+            return _stable_product([covariance, 1.0 / count] + left_scales + right_scales)
 
         return _guarded_result(calculate)
 
@@ -954,43 +974,28 @@ class RollingCorrelation(_RollingPair):
             return _NAN, reason
 
         def calculate() -> float:
-            count = len(left)
-            left_scale = max(abs(value) for value in left)
-            right_scale = max(abs(value) for value in right)
-            if left_scale == 0.0 or right_scale == 0.0:
+            if all(value == left[0] for value in left) or all(value == right[0] for value in right):
                 raise ValueError("correlation requires non-constant inputs")
-            # As above: normalize only to prevent overflow in the squares.
-            scaled_left = (
-                [value / left_scale for value in left]
-                if left_scale > _SCALE_THRESHOLD
-                else left
-            )
-            scaled_right = (
-                [value / right_scale for value in right]
-                if right_scale > _SCALE_THRESHOLD
-                else right
-            )
-            mean_left = math.fsum(scaled_left) / count
-            mean_right = math.fsum(scaled_right) / count
-            deviations_left = [value - mean_left for value in scaled_left]
-            deviations_right = [value - mean_right for value in scaled_right]
+            centered_left = _centered_unit_deviations(left)
+            centered_right = _centered_unit_deviations(right)
+            if centered_left is None or centered_right is None:
+                raise ValueError("correlation requires non-constant inputs")
+            deviations_left, _ = centered_left
+            deviations_right, _ = centered_right
             left_ss = math.fsum(value * value for value in deviations_left)
             right_ss = math.fsum(value * value for value in deviations_right)
-            if left_ss <= 0.0 or right_ss <= 0.0:
-                raise ValueError("correlation requires non-constant inputs")
-            cross = math.fsum(
-                a * b for a, b in zip(deviations_left, deviations_right)
-            )
-            correlation = cross / math.sqrt(left_ss * right_ss)
-            if not math.isfinite(correlation) or abs(correlation) > 1.0 + 1e-12:
+            cross = math.fsum(a * b for a, b in zip(deviations_left, deviations_right))
+            correlation = cross / (math.sqrt(left_ss) * math.sqrt(right_ss))
+            if not math.isfinite(correlation):
                 raise ValueError("correlation result is outside its mathematical domain")
-            # Exact constant windows were rejected above via the variance
-            # checks; here only ULP-level noise around the domain bounds is
-            # normalized so equal mathematical correlations stay equal.
-            if abs(correlation) <= _CORRELATION_SNAP:
-                return 0.0
-            if abs(correlation) >= 1.0 - _CORRELATION_SNAP:
-                return math.copysign(1.0, correlation)
+            if correlation > 1.0:
+                if correlation <= 1.0 + 4.0 * _FLOAT64_EPSILON:
+                    return 1.0
+                raise ValueError("correlation result is outside its mathematical domain")
+            if correlation < -1.0:
+                if correlation >= -1.0 - 4.0 * _FLOAT64_EPSILON:
+                    return -1.0
+                raise ValueError("correlation result is outside its mathematical domain")
             return correlation
 
         try:
