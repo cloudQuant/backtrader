@@ -835,3 +835,5 @@ docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/it
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/result-batch_e.json -text
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/result-promoted_20.json -text
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json -text
+# Keep generated stock CSV bytes stable for the dataset manifest hashes.
+tests/datas/a_stocks/** -text

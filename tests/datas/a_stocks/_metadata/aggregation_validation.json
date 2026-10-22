@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "scope": "All output file hashes/counts/order and independent raw-minute spot checks",
+  "source_rows": 315626614,
+  "source_sha256": "a9df0336c2da13b395aeb7167f662a795b6df9b10127bec09ec96bf7f069d50c",
+  "daily_rows": 1309654,
+  "stock_csv_count": 5471,
+  "observed_dates": 243,
+  "invalid_daily_rows": 0,
+  "stock_csv_bytes": 192406724,
+  "independent_sample_method": "Independent raw-minute sample: first/last rows, max/min and math.fsum, not production aggregation helpers",
+  "raw_row_groups_read_for_samples": [
+    0,
+    1,
+    160,
+    161,
+    320,
+    321,
+    322
+  ],
+  "independent_samples": [
+    {
+      "symbol": "bj920000",
+      "trade_date": "2025-01-02"
+    },
+    {
+      "symbol": "bj920000",
+      "trade_date": "2025-07-07"
+    },
+    {
+      "symbol": "bj920000",
+      "trade_date": "2025-12-31"
+    },
+    {
+      "symbol": "sh600000",
+      "trade_date": "2025-01-02"
+    },
+    {
+      "symbol": "sh600000",
+      "trade_date": "2025-07-07"
+    },
+    {
+      "symbol": "sh600000",
+      "trade_date": "2025-12-31"
+    },
+    {
+      "symbol": "sz000001",
+      "trade_date": "2025-01-02"
+    },
+    {
+      "symbol": "sz000001",
+      "trade_date": "2025-07-07"
+    },
+    {
+      "symbol": "sz000001",
+      "trade_date": "2025-12-31"
+    }
+  ],
+  "max_sample_volume_abs_error": 0.0,
+  "max_sample_amount_abs_error": 0.0,
+  "source_stat_unchanged": true
+}
