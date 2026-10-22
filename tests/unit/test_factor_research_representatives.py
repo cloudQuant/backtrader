@@ -1021,79 +1021,40 @@ def _run(frames, *, runonce):
     return cerebro.run()[0]
 
 
-def _assert_matrix(actual, expected, names, *, label, tie_budget=None):
-    """Compare a production matrix with the independent float64 reference.
-
-    ``tie_budget=(max_delta, max_inversions, max_rows)`` is used for formulas
-    that return cross-sectional ranks of short-window correlations: values
-    within a few ULP can swap ranks, so those rows are checked against the
-    frozen deviation budget instead of exact equality.  NaN masks are always
-    compared exactly.
-    """
+def _assert_matrix(actual, expected, names, *, label):
+    """Compare matrices cell by cell, preserving asset order and NaN masks."""
     assert len(actual) == len(expected), label
-    tie_rows = 0
     for row, wanted in enumerate(expected):
-        actual_nan = [i for i, v in enumerate(actual[row]) if not math.isfinite(float(v))]
-        wanted_nan = [i for i, v in enumerate(wanted) if math.isnan(value := float(v)) or not math.isfinite(value)]
-        if tie_budget is not None and actual_nan != wanted_nan:
-            raise AssertionError("%s row %d: NaN mask %r != %r" % (label, row, actual_nan, wanted_nan))
-        if tie_budget is not None:
-            delta = max(
-                (
-                    abs(float(a) - float(e))
-                    for a, e in zip(actual[row], wanted)
-                    if math.isfinite(float(e))
-                ),
-                default=0.0,
-            )
-            finite = [i for i, v in enumerate(wanted) if math.isfinite(float(v))]
-            inversions = sum(
-                1
-                for i in finite
-                for j in finite
-                if float(wanted[i]) < float(wanted[j])
-                and float(actual[row][i]) > float(actual[row][j]) + 1e-12
-            )
-            if delta > tie_budget[0] + 1e-12:
-                raise AssertionError(
-                    "%s row %d: |delta| %.6g exceeds %.6g" % (label, row, delta, tie_budget[0])
-                )
-            if inversions > tie_budget[1]:
-                raise AssertionError(
-                    "%s row %d: %d inversions exceed %d" % (label, row, inversions, tie_budget[1])
-                )
-            if delta > 1e-12:
-                tie_rows += 1
-            continue
+        assert len(actual[row]) == len(names), "%s row %d has wrong asset count" % (label, row)
+        assert len(wanted) == len(names), "%s reference row %d has wrong asset count" % (label, row)
         for column, value in enumerate(wanted):
             got = float(actual[row][column])
-            if math.isnan(value):
-                assert math.isnan(got), "%s at (%d, %d): expected NaN, got %r" % (
-                    label,
-                    row,
-                    column,
-                    got,
-                )
-            else:
-                assert math.isfinite(got), "%s at (%d, %d): expected finite, got %r" % (
-                    label,
-                    row,
-                    column,
-                    got,
-                )
-                tolerance = 1e-12 + 1e-10 * abs(value)
-                assert (
-                    abs(got - value) <= tolerance
-                ), "%s/%s at row %d: got %.17g, expected %.17g, tolerance %.17g" % (
+            if math.isnan(float(value)):
+                assert math.isnan(got), "%s/%s row %d: expected NaN, got %r" % (
                     label,
                     names[column],
                     row,
                     got,
-                    value,
-                    tolerance,
                 )
-    if tie_budget is not None and tie_rows > tie_budget[2]:
-        raise AssertionError("%s: %d tie-split rows exceed %d" % (label, tie_rows, tie_budget[2]))
+            else:
+                value = float(value)
+                assert math.isfinite(value), "%s/%s row %d: non-finite reference %r" % (
+                    label,
+                    names[column],
+                    row,
+                    value,
+                )
+                assert math.isfinite(got), "%s/%s row %d: expected finite, got %r" % (
+                    label,
+                    names[column],
+                    row,
+                    got,
+                )
+                tolerance = 1e-12 + 1e-10 * abs(value)
+                assert abs(got - value) <= tolerance, (
+                    "%s/%s row %d: got %.17g, expected %.17g, tolerance %.17g"
+                    % (label, names[column], row, got, value, tolerance)
+                )
 
 
 def _node_matrix(factor, name, asset_count):
@@ -1126,30 +1087,19 @@ def _node_matrix(factor, name, asset_count):
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_twenty_selected_production_alphas_match_independent_grid_reference(runonce):
+    from tests.test_utils.alpha101_trace_validation import validate_factor_trace
+
     frames = _frames()
     names = tuple(frames)
     strategy = _run(frames, runonce=runonce)
-    panel = strategy.get_panel().factors
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
 
     assert set(strategy.factor_instances) == {"alpha%d" % alpha_id for alpha_id in _ALPHA_IDS}
     for alpha_id in _ALPHA_IDS:
         factor = strategy.factor_instances["alpha%d" % alpha_id]
-        expected, intermediate = _formula_reference(alpha_id, frames)
-        # The panel preserves the formula's own finite/NaN output on every grid
-        # row, including warm-up rows; the collector only nulls cells whose
-        # current bar or lookback presence window is incomplete.
-        actual = [
-            [panel.at[(grid[row], name), "alpha%d" % alpha_id] for name in names]
-            for row in range(len(grid))
-        ]
-        _assert_matrix(
-            actual,
-            expected,
-            names,
-            label="Alpha%d" % alpha_id,
-            tie_budget=(0.17, 1, 9) if alpha_id == 13 else None,
-        )
+        trace = validate_factor_trace(factor, alpha_id, frames, names, grid, strategy=strategy)
+        assert trace["failures"] == [], "\n".join(trace["failures"])
+        assert trace["finite_witness"]
         assert isinstance(factor, FactorIndicator)
         assert factor._minperiod == _HISTORY[alpha_id] + 1
         assert factor.lifecycle_diagnostics["call_count"] == len(grid)
@@ -1159,37 +1109,9 @@ def test_twenty_selected_production_alphas_match_independent_grid_reference(runo
             assert isinstance(factor.outputs[data].factor, bt.LineBuffer)
             assert len(factor.outputs[data].factor) == len(grid)
 
-        # Alpha96 consumes a ts_argmax window position; two nearly equal
-        # correlations can swap that discrete index, which propagates into its
-        # decay intermediates.  The final formula output above is still
-        # asserted strictly, and the branch witness below covers the decision.
-        if alpha_id in {13, 29, 48, 56, 58, 62, 63, 67, 81, 84, 92, 100}:
-            for name in intermediate:
-                node_expected = intermediate[name]
-                # The mapped intermediates below deliberately span both native
-                # scalar and multi-feed operator nodes.
-                if "argmax" in name or "argmin" in name:
-                    # A window position is a discrete branch: two nearly equal
-                    # correlations can legitimately swap the argmax index.  The
-                    # formula output that consumes it is still asserted strictly
-                    # above, so this diagnostic node is not compared.
-                    continue
-                if name in factor._nodes or "%s_0" % name in factor._nodes:
-                    actual_by_asset = _node_matrix(factor, name, len(names))
-                    actual_by_time = [
-                        [actual_by_asset[column][row] for column in range(len(names))]
-                        for row in range(len(grid))
-                    ]
-                    _assert_matrix(
-                        actual_by_time,
-                        node_expected,
-                        names,
-                        label="Alpha%d.%s" % (alpha_id, name),
-                        # Cross-sectional rank intermediates inherit the
-                        # documented float64 tie-split budget; continuous
-                        # intermediates stay exact.
-                        tie_budget=(0.17, 1, 12) if "rank" in name else None,
-                    )
+        intermediate = {}
+        if alpha_id in {84, 96}:
+            _, intermediate = _formula_reference(alpha_id, frames)
         if alpha_id == 96:
             left = intermediate["left_ts_rank8"]
             right = intermediate["right_ts_rank13"]
@@ -1362,27 +1284,28 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha013_near_zero_covariance_matches_float64_input_oracle(runonce):
+    from tests.test_utils.alpha101_trace_validation import validate_factor_trace
+
     alpha013 = get_alpha(13)
 
     frames = _frames(periods=56)
     strategy = _run_subset(frames, {"alpha13": alpha013}, runonce=runonce)
-    expected, trace = _formula_reference(13, frames)
+    _, trace = _formula_reference(13, frames)
     factor = strategy.factor_instances["alpha13"]
-    panel = strategy.get_panel().factors["alpha13"].unstack("asset")
     names = tuple(frames)
-
-    _assert_matrix(
-        panel.values.tolist(),
-        expected,
-        names,
-        label="Alpha13 float64 oracle",
-        tie_budget=(0.09, 1, 2),
-    )
+    grid = tuple(next(iter(frames.values())).index.to_pydatetime())
+    validation = validate_factor_trace(factor, 13, frames, names, grid, strategy=strategy)
+    assert validation["failures"] == [], "\n".join(validation["failures"])
+    assert validation["finite_witness"]
     actual_covariance = _node_matrix(factor, "covariance5", len(names))
     row = 50
     assert actual_covariance[1][row] == 0.0
-    assert actual_covariance[2][row] == trace["covariance5"][row][2]
-    assert actual_covariance[2][row] == pytest.approx(-1.0408340855860842e-18, rel=0.0, abs=0.0)
+    expected_covariance = trace["covariance5"][row][2]
+    assert abs(actual_covariance[2][row] - expected_covariance) <= 1e-18
+    assert actual_covariance[2][row] == pytest.approx(
+        -1.0408340855860842e-18, rel=0.0, abs=1e-18
+    )
+    assert actual_covariance[2][row] < 0.0
     assert trace["covariance5"][row][1] == 0.0
     assert trace["covariance5"][row][2] < 0.0
 
@@ -1556,8 +1479,11 @@ def test_real_bar_presence_bounds_cross_sectional_rank_membership_and_static_gro
             )
             for name in names
         }
-        ordered = sorted(deltas[name] for name in names if name != gap_asset)
-        expected_rank = (ordered.index(deltas["asset-0"]) + 1) / float(len(ordered))
+        ranked = [deltas[name] for name in names if name != gap_asset]
+        target = deltas["asset-0"]
+        lower = sum(value < target for value in ranked)
+        equal = sum(value == target for value in ranked)
+        expected_rank = (lower + (equal + 1) / 2.0) / len(ranked)
         assert rank_by_asset[0][row] == pytest.approx(expected_rank, abs=1e-12)
     for node_name in ("rank_delta", "scale_log"):
         values = _node_matrix(gapped_factor, node_name, len(names))

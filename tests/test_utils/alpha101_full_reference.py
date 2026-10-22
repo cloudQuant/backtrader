@@ -579,15 +579,65 @@ def _pair_rolling(
     right: Sequence[Sequence[float]],
     period: int,
     covariance: bool,
+    *,
+    snap_correlation_bounds: bool = True,
 ) -> List[List[float]]:
-    """Independent float64 centered rolling covariance / Pearson correlation.
+    """Independent rolling covariance / Pearson correlation over float64 inputs.
 
     The production operators run float64 (alpha101-v2).  This reference uses
-    NumPy's centered dot products, i.e. a different implementation of the same
-    mathematics, so the comparison measures the production kernel instead of
-    re-stating its exact code.  Windows containing a non-finite input are
-    skipped, a constant window has covariance 0 and correlation NaN.
+    NumPy's centered dot products by default, i.e. a different implementation
+    of the same mathematics. The strict trace profile instead uses exact
+    rational arithmetic on the supplied binary64 samples and rounds the final
+    result once; it avoids cancellation and is independent of production's
+    kernel. Windows containing a non-finite input are skipped, a constant
+    window has covariance 0 and correlation NaN.
     """
+    if not snap_correlation_bounds:
+        # The strict trace profile computes the exact rational covariance of
+        # the supplied binary64 samples, then rounds the square root once.
+        # This avoids NumPy mean/variance cancellation near a constant window
+        # and does not merge nearby correlation values with an epsilon.
+        from decimal import Decimal, localcontext
+        from fractions import Fraction
+
+        rows, columns = len(left), len(left[0])
+        output = [[math.nan] * columns for _ in range(rows)]
+        for column in range(columns):
+            for row in range(period - 1, rows):
+                start = row - period + 1
+                raw_x = [float(left[position][column]) for position in range(start, row + 1)]
+                raw_y = [float(right[position][column]) for position in range(start, row + 1)]
+                if not all(math.isfinite(value) for value in raw_x + raw_y):
+                    continue
+                xs = [Fraction.from_float(value) for value in raw_x]
+                ys = [Fraction.from_float(value) for value in raw_y]
+                if len(set(xs)) == 1 or len(set(ys)) == 1:
+                    if covariance:
+                        output[row][column] = 0.0
+                    continue
+                mean_x = sum(xs, Fraction(0)) / period
+                mean_y = sum(ys, Fraction(0)) / period
+                dx = [value - mean_x for value in xs]
+                dy = [value - mean_y for value in ys]
+                cross = sum((x * y for x, y in zip(dx, dy)), Fraction(0))
+                if covariance:
+                    output[row][column] = float(cross / period)
+                    continue
+                variance_x = sum((value * value for value in dx), Fraction(0))
+                variance_y = sum((value * value for value in dy), Fraction(0))
+                if variance_x == 0 or variance_y == 0:
+                    continue
+                squared = cross * cross / (variance_x * variance_y)
+                with localcontext() as decimal_context:
+                    decimal_context.prec = 100
+                    magnitude = (Decimal(squared.numerator) / Decimal(squared.denominator)).sqrt()
+                if cross < 0:
+                    magnitude = -magnitude
+                value = float(magnitude)
+                if math.isfinite(value) and abs(value) <= 1.0:
+                    output[row][column] = value
+        return output
+
     import numpy as np
 
     rows, columns = len(left), len(left[0])
@@ -621,11 +671,12 @@ def _pair_rolling(
             value = float(np.dot(dx, dy) / math.sqrt(variance_x * variance_y))
             # Match the specified float64 contract: ULP-level noise around the
             # correlation bounds is the bound itself, not a distinct value.
-            snap = 8.0 * 2.220446049250313e-16
-            if abs(value) <= snap:
-                value = 0.0
-            elif abs(value) >= 1.0 - snap:
-                value = math.copysign(1.0, value)
+            if snap_correlation_bounds:
+                snap = 8.0 * 2.220446049250313e-16
+                if abs(value) <= snap:
+                    value = 0.0
+                elif abs(value) >= 1.0 - snap:
+                    value = math.copysign(1.0, value)
             if _finite(value) and abs(value) <= 1.0:
                 output[row][column] = value
     return output
@@ -642,12 +693,15 @@ class _Context:
         frames: Any,
         formula_universe: Any = None,
         groups: Any = None,
+        *,
+        snap_correlation_bounds: bool = True,
     ) -> None:
         self.raw, self.assets = _normalize_frames(frames)
         shape = next(iter(self.raw.values()))
         self.rows, self.columns = len(shape), len(shape[0])
         self.members = _membership_matrix(formula_universe, self.rows, self.columns)
         self.groups = _groups_matrix(groups, self.rows, self.columns, self.assets)
+        self.snap_correlation_bounds = bool(snap_correlation_bounds)
         self.matrices: Dict[str, List[List[float]]] = {}
         self.memo: Dict[Tuple[Any, ...], Any] = {}
 
@@ -812,7 +866,11 @@ class _Context:
                 return _rolling(source, period, lambda values: _arg_position(values, False))
         if name in ("correlation", "covariance"):
             return _pair_rolling(
-                arguments[0], arguments[1], _window(arguments[2]), covariance=name == "covariance"
+                arguments[0],
+                arguments[1],
+                _window(arguments[2]),
+                covariance=name == "covariance",
+                snap_correlation_bounds=self.snap_correlation_bounds,
             )
         if name in ("min", "max"):
             if len(arguments) != 2:

@@ -6,14 +6,15 @@ and compares each paper formula with one targeted, semantically plausible
 mutation.  It does not import Backtrader, Alpha101 production nodes, the
 representative test module, or the integration harness.
 
-The ledger's per-row validation plans mark all 101 rows PLANNED_NOT_RUN.  Their
+The ledger's per-row validation plans mark all 101 rows PLANNED_NOT_RUN. Their
 boundary plans distinguish structural H, first-window floors, delay/delta
-floors, derived returns/ADV history, and PIT levels.  Their common error plans
-also distinguish typed missing-input/PIT contract errors from validly shaped
-mathematical-domain NaNs and unsupported-formula errors.  This file addresses
-only the numeric error-distinction slice: a concrete finite output coordinate
-must separate the oracle from a row-specific window, PIT, operator, or formula
-structure mutation.  It does not execute the production-side boundary or
+floors, derived returns/ADV history, and classification fields supplied as
+ordinary aligned feed lines. Their common error plans also distinguish typed
+missing-input contract errors from validly shaped mathematical-domain NaNs and
+unsupported-formula errors. This file addresses only the numeric
+error-distinction slice: a concrete finite output coordinate must separate
+the oracle from a row-specific window, field-binding, operator, or formula
+structure mutation. It does not execute the production-side boundary or
 error-contract checks.
 """
 
@@ -42,9 +43,9 @@ _FIELDS = (
     "industry",
     "subindustry",
 )
-_PIT_MUTATIONS = {
+_CLASSIFICATION_MUTATIONS = {
     # These are the classification-bearing IDs from the ledger's per-formula
-    # PIT plan.  Each wrong level is present on the same grid, so the mutant
+    # field plan. Each wrong level is present on the same grid, so the mutant
     # isolates category grouping rather than missing-input behavior.
     48: ("subindustry", "industry"),
     58: ("sector", "industry"),
@@ -193,7 +194,7 @@ def _positive_fixture() -> dict[str, list[list[float]]]:
 
     The data recipe matches ``test_factor_research_representatives._frames``:
     six fixed bases, independent per-field seeded streams, independent VWAP,
-    derived dollar volume, and point-in-time category matrices.  Recreating
+    derived dollar volume, and already-aligned category feed matrices. Recreating
     that small recipe here keeps this independent test free of the old test
     module's production imports.
     """
@@ -271,6 +272,37 @@ def _rewrite_first(node, predicate, replacement):
     return node, None
 
 
+def _rewrite_all(node, predicate, replacement):
+    """Return (tree, count) after rewriting every matching preorder node."""
+    if predicate(node):
+        return replacement(node), 1
+    kind = node[0]
+    if kind == "unary":
+        child, count = _rewrite_all(node[2], predicate, replacement)
+        return (kind, node[1], child), count
+    if kind == "binary":
+        left, left_count = _rewrite_all(node[2], predicate, replacement)
+        right, right_count = _rewrite_all(node[3], predicate, replacement)
+        return (kind, node[1], left, right), left_count + right_count
+    if kind == "ternary":
+        children = []
+        count = 0
+        for child in node[1:]:
+            rewritten, changed = _rewrite_all(child, predicate, replacement)
+            children.append(rewritten)
+            count += changed
+        return (kind,) + tuple(children), count
+    if kind == "call":
+        arguments = []
+        count = 0
+        for argument in node[2]:
+            rewritten, changed = _rewrite_all(argument, predicate, replacement)
+            arguments.append(rewritten)
+            count += changed
+        return (kind, node[1], tuple(arguments)), count
+    return node, 0
+
+
 def _is_numeric(node):
     return node[0] == "number"
 
@@ -304,16 +336,16 @@ def _window_mutant(tree):
     return changed_tree, "first-window-%s:%s" % (rounded, original[1])
 
 
-def _pit_mutant(tree, source_level, target_level):
+def _classification_mutant(tree, source_level, target_level):
     target_name = "indclass." + source_level
 
     def eligible(node):
         return node[0] == "name" and node[1] == target_name
 
-    changed_tree, original = _rewrite_first(
+    changed_tree, changed_count = _rewrite_all(
         tree, eligible, lambda _node: ("name", "indclass." + target_level)
     )
-    if original is None:
+    if not changed_count:
         return None
     return changed_tree, "IndNeutralize-level:%s->%s" % (source_level, target_level)
 
@@ -421,10 +453,10 @@ def _parenthesis_mutant_101(tree):
 
 
 def _candidate_mutants(alpha_id, tree):
-    if alpha_id in _PIT_MUTATIONS:
-        pit = _pit_mutant(tree, *_PIT_MUTATIONS[alpha_id])
-        if pit is not None:
-            yield pit
+    if alpha_id in _CLASSIFICATION_MUTATIONS:
+        classification = _classification_mutant(tree, *_CLASSIFICATION_MUTATIONS[alpha_id])
+        if classification is not None:
+            yield classification
     if alpha_id == 101:
         parenthesis = _parenthesis_mutant_101(tree)
         if parenthesis is not None:
@@ -471,43 +503,45 @@ def _find_finite_witness(expected, mutant, history):
     return None
 
 
-def _discover_witnesses(frames=None):
-    """Compute the deterministic audit record for test authoring/review."""
-
-    matrices = _positive_fixture() if frames is None else frames
+def _discover_formula_witness(alpha_id, matrices, *, preferred_mutation=None):
+    """Find a strict finite counterexample for one catalog formula mutation."""
     universe = [[True] * _ASSETS for _ in range(_ROWS)]
     groups = ["market"] * _ASSETS
-    records = {}
-    for alpha_id in oracle.formula_ids():
-        tree = oracle._parse(alpha_id)
-        context = oracle._Context(matrices, universe, groups)
-        expected = context.evaluate(tree)
-        history = oracle.history_h(alpha_id, matrices)
-        selected = None
-        for wrong_tree, mutation_name in _candidate_mutants(alpha_id, tree):
-            # Both evaluations share only this invocation's immutable input
-            # context.  The oracle's AST memo keys include the whole node, so
-            # unchanged subexpressions are reused while the targeted mutant is
-            # always recalculated; no result survives to another formula.
-            wrong = context.evaluate(wrong_tree)
-            coordinate = _find_finite_witness(expected, wrong, history)
-            if coordinate is not None:
-                selected = (mutation_name, coordinate)
-                break
-        if selected is None:
-            raise AssertionError(
-                "Alpha%d has no targeted finite differing coordinate after H=%d"
-                % (alpha_id, history)
-            )
-        mutation_name, coordinate = selected
-        records[alpha_id] = (mutation_name, coordinate[0], coordinate[1])
-    return records
+    tree = oracle._parse(alpha_id)
+    context = oracle._Context(matrices, universe, groups)
+    expected = context.evaluate(tree)
+    history = oracle.history_h(alpha_id, matrices)
+    candidates = tuple(_candidate_mutants(alpha_id, tree))
+    if preferred_mutation is not None:
+        candidates = tuple(
+            candidate for candidate in candidates if candidate[1] == preferred_mutation
+        ) + tuple(candidate for candidate in candidates if candidate[1] != preferred_mutation)
+    for wrong_tree, mutation_name in candidates:
+        # Both evaluations share only this invocation's input context. The
+        # oracle memo is keyed by the complete AST node, so each mutant is
+        # recalculated while unchanged subexpressions can be reused.
+        wrong = context.evaluate(wrong_tree)
+        coordinate = _find_finite_witness(expected, wrong, history)
+        if coordinate is not None:
+            return mutation_name, coordinate[0], coordinate[1]
+    raise AssertionError(
+        "Alpha%d has no targeted finite differing coordinate after H=%d" % (alpha_id, history)
+    )
 
 
-# Filled with the frozen results of _discover_witnesses().  Each row is
-# (targeted mutation, zero-based time row, zero-based asset column); expected
-# and mutant values are recomputed by the test and checked with the same strict
-# tolerance used by the later per-cell production/oracle comparison.
+def _discover_witnesses(frames=None):
+    """Compute the deterministic audit record for test authoring/review."""
+    matrices = _positive_fixture() if frames is None else frames
+    return {
+        alpha_id: _discover_formula_witness(alpha_id, matrices)
+        for alpha_id in oracle.formula_ids()
+    }
+
+
+# Frozen authoring records: (targeted mutation, zero-based time row, zero-based
+# asset column). Tests pin the mutation type and recompute the coordinate using
+# current oracle arithmetic; a changed coordinate is diagnostic, not a stale
+# hard-coded acceptance requirement.
 _WITNESS_RECORDS = {
     1: ("first-window-plus-one:ts_argmax", 24, 0),
     2: ("first-window-plus-one:correlation", 8, 0),
@@ -616,5 +650,53 @@ _WITNESS_RECORDS = {
 @pytest.fixture(scope="module")
 def _fixture_frames():
     return _positive_fixture()
+
+
+_ALPHA_IDS = tuple(range(1, 102))
+
+
+def test_catalog_and_frozen_witness_records_cover_all_formulas():
+    expected_ids = set(range(1, 102))
+    assert set(oracle.formula_ids()) == expected_ids
+    assert set(_WITNESS_RECORDS) == expected_ids
+
+
+@pytest.mark.parametrize("alpha_id", _ALPHA_IDS)
+def test_each_formula_has_a_finite_post_history_mutation_witness(
+    alpha_id, _fixture_frames
+):
+    frozen_mutation, _frozen_row, _frozen_asset = _WITNESS_RECORDS[alpha_id]
+    mutation_name, row, asset = _discover_formula_witness(
+        alpha_id, _fixture_frames, preferred_mutation=frozen_mutation
+    )
+
+    assert mutation_name == frozen_mutation
+    assert row >= oracle.history_h(alpha_id, _fixture_frames)
+    assert 0 <= row < _ROWS
+    assert 0 <= asset < _ASSETS
+
+
+@pytest.mark.parametrize("alpha_id", tuple(_CLASSIFICATION_MUTATIONS))
+def test_each_classification_formula_rejects_the_wrong_aligned_feed_level(
+    alpha_id, _fixture_frames
+):
+    tree = oracle._parse(alpha_id)
+    source_level, target_level = _CLASSIFICATION_MUTATIONS[alpha_id]
+    mutation = _classification_mutant(tree, source_level, target_level)
+    assert mutation is not None
+    wrong_tree, mutation_name = mutation
+
+    universe = [[True] * _ASSETS for _ in range(_ROWS)]
+    groups = ["market"] * _ASSETS
+    context = oracle._Context(_fixture_frames, universe, groups)
+    expected = context.evaluate(tree)
+    wrong = context.evaluate(wrong_tree)
+    witness = _find_finite_witness(expected, wrong, oracle.history_h(alpha_id, _fixture_frames))
+
+    assert mutation_name == "IndNeutralize-level:%s->%s" % (source_level, target_level)
+    assert witness is not None, "Alpha%d classification mutation has no finite witness" % alpha_id
+    row, asset = witness
+    assert row >= oracle.history_h(alpha_id, _fixture_frames)
+    assert 0 <= asset < _ASSETS
 
 
