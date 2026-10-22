@@ -10,6 +10,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 EXAMPLE_ID = "025_factor_single"
+FACTOR_MODES = ("native", "build")
 
 
 def _add_checkout_root() -> None:
@@ -40,6 +41,30 @@ def _load_config(path: Path = CONFIG_PATH) -> Dict[str, Any]:
 def _resolve_path(value: str) -> Path:
     path = Path(value).expanduser()
     return path.resolve() if path.is_absolute() else (SCRIPT_DIR / path).resolve()
+
+
+def _resolve_factor_mode(cli_mode: Optional[str], configured_mode: Optional[str]) -> str:
+    mode = cli_mode if cli_mode is not None else configured_mode
+    if mode is None:
+        mode = "native"
+    if mode not in FACTOR_MODES:
+        raise ValueError("factor_mode must be 'native' or 'build'")
+    return mode
+
+
+def _factor_classes(mode: str) -> Dict[str, Any]:
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    from close_ma_factor_strategy import CloseMAFactor, CloseMAFactorBuild
+
+    return {"close_ma": CloseMAFactor if mode == "native" else CloseMAFactorBuild}
+
+
+def _factor_class_identities(mode: str) -> Dict[str, str]:
+    return {
+        name: "%s.%s" % (indicator.__module__, indicator.__qualname__)
+        for name, indicator in _factor_classes(mode).items()
+    }
 
 
 def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
@@ -176,7 +201,9 @@ def _run_native_collection(
     import backtrader as bt
     from backtrader.brokers import BackBroker
     from backtrader.research import FactorSpec, FactorStrategy, MemorySink, align_to_grid
-    from close_ma_factor_strategy import CloseMAFactor
+
+    factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
+    indicator = _factor_classes(factor_mode)["close_ma"]
 
     class CountingBroker(BackBroker):
         def __init__(self):
@@ -195,11 +222,11 @@ def _run_native_collection(
     research = _create_research_spec(config, panel)
     factor = FactorSpec(
         name=config["factor"]["name"],
-        indicator=CloseMAFactor,
+        indicator=indicator,
         params=dict(config["factor"]["params"]),
         panel_line=config["factor"]["panel_line"],
         direction=config["factor"]["direction"],
-        field_bindings={field: "feed:target:%s" % field for field in CloseMAFactor.formula_fields},
+        field_bindings={field: "feed:target:%s" % field for field in indicator.formula_fields},
     )
     cerebro = bt.Cerebro(stdstats=False)
     broker = CountingBroker()
@@ -258,6 +285,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--panel", help="saved CSV panel directory for offline reevaluation"
     )
+    parser.add_argument(
+        "--factor-mode",
+        choices=FACTOR_MODES,
+        default=None,
+        help="factor implementation; defaults to config.yaml then native",
+    )
     parser.add_argument("--periods", nargs="+", type=int, help="label horizons for this evaluation")
     parser.add_argument(
         "--report", action="store_true", help="write a bilingual HTML factor report"
@@ -290,9 +323,19 @@ def _write_summary(output_dir: Path, status: str, **extra: Any) -> None:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.panel and args.factor_mode is not None:
+        parser.error(
+            "--factor-mode cannot be combined with --panel; offline panels are not recalculated"
+        )
     try:
         config = _load_config()
+        if args.panel:
+            factor_mode = "NOT_APPLICABLE"
+        else:
+            factor_mode = _resolve_factor_mode(args.factor_mode, config.get("factor_mode"))
+            config["factor_mode"] = factor_mode
         if args.data_dir:
             config["data"]["directory"] = args.data_dir
         if args.max_symbols is not None:
@@ -313,6 +356,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         broker = None
+        factor_classes = {}
         if args.panel:
             from backtrader.research import FactorPanel
 
@@ -329,8 +373,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             prices = load_daily_panel(config["data"])
             _, panel, broker = _run_native_collection(config, prices, args.runnext)
+            factor_classes = _factor_class_identities(factor_mode)
             if (broker.submit_count, broker.cancel_count) != (0, 0):
                 raise RuntimeError("research-only Cerebro run submitted or cancelled an order")
+
+        mode_summary = {
+            "factor_mode": factor_mode,
+            "factor_calculation": "NOT_RUN" if args.panel else "RAN",
+            "factor_classes": factor_classes,
+        }
+        if broker is not None:
+            mode_summary["broker"] = {"submit": broker.submit_count, "cancel": broker.cancel_count}
 
         if args.save_panel:
             panel.to_csv(output_dir / "panel")
@@ -370,6 +423,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 symbols=len(panel.target_order),
                 dates=len(panel.grid),
                 report=None if report is None else str(report),
+                **mode_summary,
             )
             return 0
 
@@ -377,7 +431,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         status = str(getattr(status_value, "value", status_value)).upper()
         if status not in {"OK", "PARTIAL"}:
             print("FAILED: evaluation status %s" % status, file=sys.stderr)
-            _write_summary(output_dir, "FAILED", evaluation_status=status)
+            _write_summary(output_dir, "FAILED", evaluation_status=status, **mode_summary)
             return 1
 
         result.export(output_dir / "evaluation", charts=not args.no_charts)
@@ -394,6 +448,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         }
         if broker is not None:
             extra["broker"] = {"submit": broker.submit_count, "cancel": broker.cancel_count}
+        extra.update(mode_summary)
         _write_summary(output_dir, "COMPLETED", **extra)
         print("%s: %s" % (EXAMPLE_ID, status))
         return 0

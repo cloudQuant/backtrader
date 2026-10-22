@@ -99,6 +99,209 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
             assert list(native_node.lines.reason.array) == list(build_node.lines.reason.array), key
 
 
+def _run_alpha003_mode_pair(frames, *, runonce):
+    native = run_native_batch(frames, (3,), runonce=runonce)
+    build = run_native_batch(
+        frames,
+        (3,),
+        runonce=runonce,
+        alpha_classes={3: Alpha003Build},
+    )
+    return native, build
+
+
+def _assert_alpha003_values_equal(left, right, *, label, require_finite=True):
+    assert len(left) == len(right), label
+    finite_witness = False
+    for row_index, (left_row, right_row) in enumerate(zip(left, right)):
+        assert len(left_row) == len(right_row), (label, row_index)
+        for asset_index, (left_value, right_value) in enumerate(zip(left_row, right_row)):
+            location = (label, row_index, asset_index)
+            assert math.isnan(left_value) == math.isnan(right_value), location
+            assert not math.isinf(left_value) and not math.isinf(right_value), location
+            if math.isfinite(left_value):
+                finite_witness = True
+                assert left_value == right_value, location
+    if require_finite:
+        assert finite_witness, "%s must retain a finite output witness" % label
+
+
+def test_alpha003_value_pair_helper_rejects_shared_infinity():
+    with pytest.raises(AssertionError):
+        _assert_alpha003_values_equal([[math.inf]], [[math.inf]], label="shared infinity")
+
+
+def _assert_alpha003_reasons_equal(native_factor, build_factor):
+    assert set(native_factor._nodes) == set(build_factor._nodes)
+    for key, native_node in native_factor._nodes.items():
+        build_node = build_factor._nodes[key]
+        assert type(native_node).__name__ == type(build_node).__name__, key
+        if isinstance(native_node, operators._PanelOperator):
+            for native_data, build_data in zip(
+                native_factor.target_datas, build_factor.target_datas
+            ):
+                assert list(native_node.outputs[native_data].reason.array) == list(
+                    build_node.outputs[build_data].reason.array
+                ), (key, native_data._name)
+        else:
+            assert list(native_node.lines.reason.array) == list(build_node.lines.reason.array), key
+
+
+def _assert_alpha003_raw_panel_order(strategy, assets, grid):
+    panel = strategy.get_panel()
+    assert tuple(panel.target_order) == tuple(assets)
+    index = panel.factors.index
+    assert tuple(index.get_level_values("asset")) == tuple(assets) * len(grid)
+    expected_times = tuple(point for point in grid for _asset in assets)
+    assert tuple(index.get_level_values("time")) == expected_times
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_alpha003_causality_and_reversed_asset_order_contract(runonce):
+    base = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:36].copy() for asset, frame in base.items()}
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+    cut = 24
+    perturbed = {asset: frame.copy(deep=True) for asset, frame in frames.items()}
+    for day_index, point in enumerate(grid[cut:], start=cut):
+        for asset_index, asset in enumerate(assets):
+            # Rotate both cross-sectional rankings after the causal cut so the
+            # perturbed run has a real changed-future witness.
+            perturbed[asset].loc[point, "open"] = 100.0 + (asset_index + day_index) % len(assets)
+            perturbed[asset].loc[point, "volume"] = 1000.0 + (2 * day_index - asset_index) % len(
+                assets
+            )
+    reversed_frames = dict(reversed(tuple(frames.items())))
+    baseline_native, baseline_build = _run_alpha003_mode_pair(frames, runonce=runonce)
+    changed_native, changed_build = _run_alpha003_mode_pair(perturbed, runonce=runonce)
+    reversed_native, reversed_build = _run_alpha003_mode_pair(reversed_frames, runonce=runonce)
+    baseline = {"native": baseline_native, "build": baseline_build}
+    changed = {"native": changed_native, "build": changed_build}
+    reversed_runs = {"native": reversed_native, "build": reversed_build}
+
+    future_changed_witness = False
+    for mode in ("native", "build"):
+        original = baseline[mode]
+        changed_run = changed[mode]
+        reversed_run = reversed_runs[mode]
+        original_values = actual_matrix(original, 3, assets, grid)
+        changed_values = actual_matrix(changed_run, 3, assets, grid)
+        reversed_values = actual_matrix(reversed_run, 3, assets, grid)
+
+        _assert_alpha003_raw_panel_order(original, assets, grid)
+        _assert_alpha003_raw_panel_order(changed_run, assets, grid)
+        _assert_alpha003_raw_panel_order(reversed_run, tuple(reversed(assets)), grid)
+        _assert_alpha003_values_equal(
+            original_values, reversed_values, label=mode + " reversed asset semantics"
+        )
+
+        assert any(math.isfinite(value) for row in original_values[:cut] for value in row)
+        for row_index in range(cut):
+            _assert_alpha003_values_equal(
+                [original_values[row_index]],
+                [changed_values[row_index]],
+                label="%s causal prefix row %d" % (mode, row_index),
+                require_finite=False,
+            )
+        for original_row, changed_row in zip(original_values[cut:], changed_values[cut:]):
+            for original_value, changed_value in zip(original_row, changed_row):
+                if math.isnan(original_value) != math.isnan(changed_value) or (
+                    math.isfinite(original_value) and original_value != changed_value
+                ):
+                    future_changed_witness = True
+    assert future_changed_witness, "future perturbation must change at least one future factor cell"
+
+    baseline_native = baseline["native"].factor_instances["alpha3"]
+    baseline_build = baseline["build"].factor_instances["alpha3"]
+    _assert_alpha003_reasons_equal(baseline_native, baseline_build)
+    _assert_alpha003_values_equal(
+        actual_matrix(baseline["native"], 3, assets, grid),
+        actual_matrix(baseline["build"], 3, assets, grid),
+        label="native/build baseline",
+    )
+    for pair_name, pair in (("perturbed", changed), ("reversed", reversed_runs)):
+        _assert_alpha003_reasons_equal(
+            pair["native"].factor_instances["alpha3"],
+            pair["build"].factor_instances["alpha3"],
+        )
+        _assert_alpha003_values_equal(
+            actual_matrix(pair["native"], 3, assets, grid),
+            actual_matrix(pair["build"], 3, assets, grid),
+            label="native/build " + pair_name,
+        )
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair(runonce):
+    base = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:48].copy() for asset, frame in base.items()}
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+
+    # A fixed cross-sectional order gives every asset constant rank inputs;
+    # correlation is undefined until the original varying inputs resume.
+    for asset_index, asset in enumerate(assets):
+        frames[asset].loc[list(grid[:16]), "open"] = 10.0 + asset_index
+        frames[asset].loc[list(grid[:16]), "volume"] = 1000.0 + 10.0 * asset_index
+    missing_asset = assets[1]
+    frames[missing_asset] = frames[missing_asset].drop(index=grid[27])
+    nan_asset = assets[2]
+    frames[nan_asset].loc[grid[30], "volume"] = math.nan
+
+    native, build = _run_alpha003_mode_pair(frames, runonce=runonce)
+    native_factor = native.factor_instances["alpha3"]
+    build_factor = build.factor_instances["alpha3"]
+    native_trace = validate_factor_trace(native_factor, 3, frames, assets, grid, strategy=native)
+    build_trace = validate_factor_trace(build_factor, 3, frames, assets, grid, strategy=build)
+    assert native_trace["failures"] == []
+    assert build_trace["failures"] == []
+    assert native_trace["finite_witness"] and build_trace["finite_witness"]
+    assert native_trace["matched_nodes"] == build_trace["matched_nodes"]
+    _assert_alpha003_reasons_equal(native_factor, build_factor)
+
+    native_values = actual_matrix(native, 3, assets, grid)
+    build_values = actual_matrix(build, 3, assets, grid)
+    _assert_alpha003_values_equal(native_values, build_values, label="gap/NaN native/build")
+    assert all(
+        math.isnan(value) for row in native_values[9:16] for value in row
+    ), "constant-rank correlation windows must be undefined"
+    assert any(
+        math.isfinite(value) for row in native_values[24:27] for value in row
+    ), "finite factors must recover after the degenerate interval"
+    assert grid[27] not in frames[missing_asset].index
+    assert grid[30] in frames[nan_asset].index
+    assert math.isnan(float(frames[nan_asset].loc[grid[30], "volume"]))
+
+    correlation_nodes = [
+        node
+        for node in native_factor._nodes.values()
+        if isinstance(node, operators.RollingCorrelation)
+    ]
+    assert len(correlation_nodes) == len(assets)
+    assert all(
+        int(node.lines.reason.array[14]) == int(operators.OperatorReason.DOMAIN_ERROR)
+        for node in correlation_nodes
+    ), "constant rank inputs must carry the correlation domain reason"
+
+    rank_nodes = [
+        node
+        for node in native_factor._nodes.values()
+        if isinstance(node, operators.CrossSectionalRank)
+    ]
+    assert len(rank_nodes) == 2
+    missing_index = assets.index(missing_asset)
+    nan_index = assets.index(nan_asset)
+    for node in rank_nodes:
+        assert int(node.outputs[native_factor.target_datas[missing_index]].reason.array[27]) == int(
+            operators.OperatorReason.FORMULA_INELIGIBLE
+        )
+    volume_rank = native_factor._nodes["rank_volume"]
+    assert int(volume_rank.outputs[native_factor.target_datas[nan_index]].reason.array[30]) == int(
+        operators.OperatorReason.NONFINITE_INPUT
+    )
+
+
 @pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
 def test_expression_context_is_per_group_closed_after_build_and_targets_are_identity_bound(
     runonce, monkeypatch
@@ -174,6 +377,23 @@ class _ParameterizedBuild(FactorIndicator):
     def build(cls, ctx, scale=2.0, **params):
         cls.build_contexts.append((ctx, scale))
         return ctx.close * scale
+
+
+def _double_value(value):
+    return 2.0 * value
+
+
+class _ApplyBuild(FactorIndicator):
+    lines = ("factor",)
+    panel_mode = "expression"
+    formula_fields = ("close",)
+    lookback_h = 0
+    build_calls = []
+
+    @classmethod
+    def build(cls, ctx, **params):
+        cls.build_calls.append(ctx)
+        return ctx.apply(_double_value, ctx.close)
 
 
 class _InvalidReturnBuild(FactorIndicator):
@@ -258,6 +478,64 @@ def test_expression_arithmetic_where_and_safe_unselected_division(runonce):
         float(node.lines.reason.array[0]) == float(operators.OperatorReason.DOMAIN_ERROR)
         for node in divisions
     )
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_apply_builds_one_native_indicator_per_target_once_and_registers_with_owner(runonce):
+    frames = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:12].copy() for asset, frame in tuple(frames.items())[:2]}
+    _ApplyBuild.build_calls.clear()
+    strategy = _run_custom_expression(_ApplyBuild, frames, runonce=runonce)
+    factor = strategy.factor_instances["custom"]
+    nodes = tuple(factor._nodes.values())
+
+    assert len(_ApplyBuild.build_calls) == 1
+    assert len(nodes) == len(factor.target_datas) == len(frames)
+    for index, (asset, target, node) in enumerate(zip(frames, factor.target_datas, nodes)):
+        assert not isinstance(node, FactorIndicator)
+        assert node.p.function is _double_value
+        assert node._owner is factor
+        assert node.datas[0] is factor._field_line_cache["close"][index]
+        registrations = [
+            child
+            for children in factor._lineiterators.values()
+            for child in children
+            if child is node
+        ]
+        assert registrations == [node]
+        actual = [
+            float(value) for value in factor.outputs[target].factor.get(size=len(frames[asset]))
+        ]
+        for observed, close in zip(actual, frames[asset]["close"]):
+            assert observed == 2.0 * close
+
+
+def test_apply_rejects_foreign_closed_and_invalid_inputs():
+    target = object()
+    line = SimpleNamespace(array=[])
+
+    class FakeFactor:
+        target_datas = (target,)
+        formula_fields = ("close",)
+
+        @staticmethod
+        def field_lines(alias):
+            return (line,)
+
+    first = _ExpressionContext(FakeFactor())
+    foreign = _ExpressionContext(FakeFactor())
+    expression = first.field("close")
+
+    with pytest.raises(TypeError, match="different factor build context"):
+        first.apply(_double_value, foreign.field("close"))
+    with pytest.raises(TypeError, match="callback must be callable"):
+        first.apply(None, expression)
+    with pytest.raises(TypeError, match="at least one expression"):
+        first.apply(_double_value)
+
+    first._close()
+    with pytest.raises(RuntimeError, match="closed"):
+        first.apply(_double_value, expression)
 
 
 @pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
@@ -500,6 +778,28 @@ def test_expression_declarations_and_results_fail_closed():
     first._close()
     with pytest.raises(RuntimeError, match="closed"):
         first.field("close")
+
+
+@pytest.mark.parametrize("method", ("sma", "roc", "highest", "lowest"))
+@pytest.mark.parametrize("period", (0, -1, True, 1.0))
+def test_expression_rolling_methods_require_a_positive_non_bool_integer(method, period):
+    target = object()
+    line = SimpleNamespace(array=[])
+
+    class FakeFactor:
+        target_datas = (target,)
+        formula_fields = ("close",)
+
+        @staticmethod
+        def field_lines(alias):
+            return (line,)
+
+    context = _ExpressionContext(FakeFactor())
+    expression = context.field("close")
+
+    with pytest.raises(ValueError, match="positive integer"):
+        getattr(context, method)(expression, period)
+    assert context.nodes == {}
 
 
 def test_alpha_registry_build_mode_is_companion_lookup_without_changing_native_registry():

@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -200,6 +201,128 @@ def test_daily_runner_keeps_full_universe_and_warmup_across_two_subprocess_chunk
         json.loads((output_dir / "run_state.json").read_text(encoding="utf-8"))["status"]
         == "COMPLETED"
     )
+
+
+def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_path, monkeypatch):
+    data_dir = tmp_path / "mode_a_stocks"
+    dates, symbols = _write_daily_fixture(data_dir)
+    outputs = {}
+
+    for factor_mode, class_name in (
+        ("native", "Alpha003Native"),
+        ("build", "Alpha003Build"),
+    ):
+        output_dir = tmp_path / ("alpha003_" + factor_mode)
+        assert (
+            _RUNNER.main(
+                [
+                    "--data-dir",
+                    str(data_dir),
+                    "--output-dir",
+                    str(output_dir),
+                    "--chunk-days",
+                    "11",
+                    "--factor-mode",
+                    factor_mode,
+                ]
+            )
+            == 0
+        )
+        summary_path = output_dir / "run_summary.json"
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        assert summary["factor_mode"] == factor_mode
+        assert summary["factor_class"].endswith("." + class_name)
+        assert summary["oracle"]["finite_mask_matches"] is True
+        assert summary["oracle"]["max_abs_error"] <= _RUNNER.ORACLE_ATOL
+        assert summary["broker_submit_count"] == summary["broker_cancel_count"] == 0
+        assert summary["chunk_count"] == 2
+        assert summary["actual_chunk_runs_this_invocation"] == 2
+        assert summary["reused_successful_chunks"] == 0
+        assert summary["chunks"][1]["warmup_grid_rows"] == _RUNNER.LOOKBACK
+
+        worker_configs = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((output_dir / "_chunks").glob("chunk_*/worker.json"))
+        ]
+        assert len(worker_configs) == 2
+        assert all(config["factor_mode"] == factor_mode for config in worker_configs)
+        assert all(config["factor_class"].endswith("." + class_name) for config in worker_configs)
+
+        factors = pd.read_csv(output_dir / "factor_values.csv")
+        assert len(factors) == len(dates) * len(symbols)
+        assert tuple(factors.columns) == (
+            "time",
+            "trade_date",
+            "asset",
+            "alpha003",
+            "oracle_alpha003",
+            "abs_error",
+        )
+        assert np.isfinite(factors["alpha003"].to_numpy(dtype=float)).any()
+        np.testing.assert_array_equal(
+            np.isfinite(factors["alpha003"].to_numpy(dtype=float)),
+            np.isfinite(factors["oracle_alpha003"].to_numpy(dtype=float)),
+        )
+        assert factors["trade_date"].nunique() == len(dates)
+        assert set(factors["asset"]) == set(symbols)
+        outputs[factor_mode] = factors
+
+        resumed = _RUNNER._run_parent(data_dir, output_dir, 11, factor_mode)
+        assert resumed["actual_chunk_runs_this_invocation"] == 0
+        assert resumed["reused_successful_chunks"] == 2
+    pd.testing.assert_frame_equal(outputs["native"], outputs["build"], check_dtype=False)
+    native_output = tmp_path / "alpha003_native"
+
+    def snapshot_owned_files(output_dir):
+        paths = [output_dir / "run_state.json", output_dir / "run_summary.json"]
+        paths.extend(path for path in (output_dir / "_chunks").rglob("*") if path.is_file())
+        return {
+            path.relative_to(output_dir).as_posix(): path.read_bytes()
+            for path in sorted(paths)
+        }
+
+    def unexpected_worker(*args, **kwargs):
+        raise AssertionError("an identity conflict must not launch a worker subprocess")
+
+    monkeypatch.setattr(_RUNNER.subprocess, "Popen", unexpected_worker)
+    completed_before = snapshot_owned_files(native_output)
+    with pytest.raises(_RUNNER.RunIdentityConflictError):
+        _RUNNER.main(
+            [
+                "--data-dir",
+                str(data_dir),
+                "--output-dir",
+                str(native_output),
+                "--chunk-days",
+                "11",
+                "--factor-mode",
+                "build",
+            ]
+        )
+    assert snapshot_owned_files(native_output) == completed_before
+
+    interrupted_output = tmp_path / "alpha003_native_interrupted"
+    shutil.copytree(native_output, interrupted_output)
+    state_path = interrupted_output / "run_state.json"
+    interrupted_state = json.loads(state_path.read_text(encoding="utf-8"))
+    interrupted_state["status"] = "RUNNING"
+    state_path.write_text(json.dumps(interrupted_state) + "\n", encoding="utf-8")
+    interrupted_before = snapshot_owned_files(interrupted_output)
+
+    with pytest.raises(_RUNNER.RunIdentityConflictError):
+        _RUNNER.main(
+            [
+                "--data-dir",
+                str(data_dir),
+                "--output-dir",
+                str(interrupted_output),
+                "--chunk-days",
+                "11",
+                "--factor-mode",
+                "build",
+            ]
+        )
+    assert snapshot_owned_files(interrupted_output) == interrupted_before
 
 
 def test_rejects_incomplete_aggregate_manifest(tmp_path):

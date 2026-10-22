@@ -6,6 +6,13 @@ from backtrader.indicators import SMA
 from backtrader.research import FactorIndicator
 
 
+def _close_ratio(close, average):
+    value = math.nan
+    if math.isfinite(close) and math.isfinite(average) and average != 0.0:
+        value = close / average
+    return value
+
+
 class CloseMAFactor(FactorIndicator):
     """Close divided by its complete simple moving average."""
 
@@ -30,11 +37,25 @@ class CloseMAFactor(FactorIndicator):
             close = float(data.close[0])
             average = float(self._averages[data][0])
             value = math.nan
-            if (
-                len(data) >= self.p.period
-                and math.isfinite(close)
-                and math.isfinite(average)
-                and average != 0.0
-            ):
-                value = close / average
+            if len(data) >= self.p.period:
+                value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
+
+
+class CloseMAFactorBuild(FactorIndicator):
+    """Expression companion for the native single-factor example."""
+
+    lines = ("factor",)
+    params = (("period", 20),)
+    panel_mode = "expression"
+    formula_fields = ("close",)
+
+    @classmethod
+    def lookback_h(cls, period=20, **params):
+        if type(period) is not int or period < 1:
+            raise ValueError("period must be a positive integer")
+        return period - 1
+
+    @classmethod
+    def build(cls, ctx, period=20, **params):
+        return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))

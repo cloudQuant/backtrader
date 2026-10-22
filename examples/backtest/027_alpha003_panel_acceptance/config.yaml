@@ -1,4 +1,5 @@
 example_id: 027_alpha003_panel_acceptance
+factor_mode: native
 factor: alpha003
 operator_profile: alpha101-v2
 

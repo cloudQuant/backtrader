@@ -457,7 +457,16 @@ ordinary Cerebro lifecycle performs all calculation. `Alpha003Build` lives
 beside `Alpha003Native` and is selected by `get_alpha(3, mode="build")`.
 The native registry and default remain unchanged; other build IDs currently
 raise `NotImplementedError`. There is no string DSL or second scheduler.
-The four-formula example integration, full acceptance and remaining 100 build
+025/026 also provide CloseMA, ROC and KDJ build companions. The context's
+SMA/ROC/Highest/Lowest adapters use the existing ordinary indicators;
+`ctx.apply` constructs an ordinary pointwise Indicator for shared scalar
+formulas, preserving the examples' native overflow and missing-value rules.
+Its callbacks do not receive a time loop or panel scheduler. Quick runners
+025/026/027 select `--factor-mode native|build` with CLI > config > native
+precedence; saved-panel reevaluation does not calculate factors. The 027 daily
+runner binds mode and class identity into actual worker parameters and resume
+identity, rejecting cross-mode reuse without changing existing run state.
+Full 500-asset output pairing, installed acceptance and the remaining 100 build
 formulas are tracked separately in the Iteration 47/48 plans.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from

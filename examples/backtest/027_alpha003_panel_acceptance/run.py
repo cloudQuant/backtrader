@@ -13,6 +13,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 EXAMPLE_ID = "027_alpha003_panel_acceptance"
 FACTOR_NAME = "alpha003"
+FACTOR_MODES = ("native", "build")
 
 
 def _add_checkout_root() -> None:
@@ -43,6 +44,15 @@ def _load_config(path: Path = CONFIG_PATH) -> Dict[str, Any]:
 def _resolve_path(value: str) -> Path:
     path = Path(value).expanduser()
     return path.resolve() if path.is_absolute() else (SCRIPT_DIR / path).resolve()
+
+
+def _resolve_factor_mode(cli_mode: Optional[str], configured_mode: Optional[str]) -> str:
+    mode = cli_mode if cli_mode is not None else configured_mode
+    if mode is None:
+        mode = "native"
+    if mode not in FACTOR_MODES:
+        raise ValueError("factor_mode must be 'native' or 'build'")
+    return mode
 
 
 def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
@@ -133,7 +143,8 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
         feed_time_kind="close_time",
         groups=dict.fromkeys(assets, data_config["group"]),
     )
-    indicator = get_alpha(3)
+    factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
+    indicator = get_alpha(3, mode=factor_mode)
     factor = FactorSpec(
         name=FACTOR_NAME,
         indicator=indicator,
@@ -181,6 +192,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--report-language", choices=("zh", "en"), default="zh", help="default report language"
     )
+    parser.add_argument(
+        "--factor-mode",
+        choices=FACTOR_MODES,
+        default=None,
+        help="factor implementation; defaults to config.yaml then native",
+    )
     return parser
 
 
@@ -189,6 +206,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     started = time.perf_counter()
     try:
         config = _load_config()
+        factor_mode = _resolve_factor_mode(args.factor_mode, config.get("factor_mode"))
+        config["factor_mode"] = factor_mode
         if config.get("factor") != FACTOR_NAME or config.get("operator_profile") != "alpha101-v2":
             raise ValueError("this example fixes factor=alpha003 and operator_profile=alpha101-v2")
         if args.data_dir:
@@ -231,6 +250,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         summary = {
             "status": "COMPLETED",
             "factor": FACTOR_NAME,
+            "factor_mode": factor_mode,
+            "factor_calculation": "RAN",
             "operator_profile": indicator.operator_profile,
             "indicator": indicator.__module__ + "." + indicator.__qualname__,
             "symbols": len(collected.target_order),

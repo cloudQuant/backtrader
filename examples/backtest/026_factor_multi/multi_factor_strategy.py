@@ -7,6 +7,27 @@ from backtrader.indicators import Highest, Lowest, ROC, SMA
 from backtrader.research import FactorIndicator
 
 
+def _close_ratio(close, average):
+    value = math.nan
+    if math.isfinite(close) and math.isfinite(average) and average != 0.0:
+        value = close / average
+    return value
+
+
+def _kdj_rsv(high, low, close):
+    value = math.nan
+    if math.isfinite(high) and math.isfinite(low) and math.isfinite(close) and high > low:
+        value = 100.0 * (close - low) / (high - low)
+    return value
+
+
+def _kdj_j(k, d):
+    value = math.nan
+    if math.isfinite(k) and math.isfinite(d):
+        value = 3.0 * k - 2.0 * d
+    return value
+
+
 class CloseMAFactor(FactorIndicator):
     """Close divided by its complete simple moving average."""
 
@@ -30,13 +51,8 @@ class CloseMAFactor(FactorIndicator):
             close = float(data.close[0])
             average = float(self._averages[data][0])
             value = math.nan
-            if (
-                len(data) >= self.p.period
-                and math.isfinite(close)
-                and math.isfinite(average)
-                and average != 0.0
-            ):
-                value = close / average
+            if len(data) >= self.p.period:
+                value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
 
 
@@ -89,10 +105,7 @@ class _SafeRSV(Indicator):
         high = float(self._highest[0])
         low = float(self._lowest[0])
         close = float(self.data.close[0])
-        value = math.nan
-        if math.isfinite(high) and math.isfinite(low) and math.isfinite(close) and high > low:
-            value = 100.0 * (close - low) / (high - low)
-        self.lines.rsv[0] = value
+        self.lines.rsv[0] = _kdj_rsv(high, low, close)
 
 
 class KDJFactor(FactorIndicator):
@@ -135,7 +148,68 @@ class KDJFactor(FactorIndicator):
             if len(data) >= required_bars:
                 k = float(self._k[data][0])
                 d = float(self._d[data][0])
-            j = math.nan
-            if math.isfinite(k) and math.isfinite(d):
-                j = 3.0 * k - 2.0 * d
+            j = _kdj_j(k, d)
             self.outputs[data].factor[0] = j
+
+
+class CloseMAFactorBuild(FactorIndicator):
+    """Expression companion for the native close-to-average factor."""
+
+    lines = ("factor",)
+    params = (("period", 20),)
+    panel_mode = "expression"
+    formula_fields = ("close",)
+
+    @classmethod
+    def lookback_h(cls, period=20, **params):
+        if type(period) is not int or period < 1:
+            raise ValueError("period must be a positive integer")
+        return period - 1
+
+    @classmethod
+    def build(cls, ctx, period=20, **params):
+        return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))
+
+
+class ROCFactorBuild(FactorIndicator):
+    """Expression companion for the native close-to-close ROC factor."""
+
+    lines = ("factor",)
+    params = (("period", 20),)
+    panel_mode = "expression"
+    formula_fields = ("close",)
+
+    @classmethod
+    def lookback_h(cls, period=20, **params):
+        if type(period) is not int or period < 1:
+            raise ValueError("period must be a positive integer")
+        return period
+
+    @classmethod
+    def build(cls, ctx, period=20, **params):
+        return ctx.roc(ctx.close, period)
+
+
+class KDJFactorBuild(FactorIndicator):
+    """Expression companion exposing the example's 3K-2D output."""
+
+    lines = ("factor",)
+    params = (("period", 9), ("period_dfast", 3), ("period_dslow", 3))
+    panel_mode = "expression"
+    formula_fields = ("high", "low", "close")
+
+    @classmethod
+    def lookback_h(cls, period=9, period_dfast=3, period_dslow=3, **params):
+        values = (period, period_dfast, period_dslow)
+        if any(type(value) is not int or value < 1 for value in values):
+            raise ValueError("KDJ periods must be positive integers")
+        return sum(values) - 3
+
+    @classmethod
+    def build(cls, ctx, period=9, period_dfast=3, period_dslow=3, **params):
+        highest = ctx.highest(ctx.high, period)
+        lowest = ctx.lowest(ctx.low, period)
+        rsv = ctx.apply(_kdj_rsv, highest, lowest, ctx.close)
+        k = ctx.sma(rsv, period_dfast)
+        d = ctx.sma(k, period_dslow)
+        return ctx.apply(_kdj_j, k, d)

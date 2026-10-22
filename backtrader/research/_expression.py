@@ -8,10 +8,40 @@ remain in Cerebro's normal indicator tree.
 
 from __future__ import annotations
 
+import math
 import numbers
 from typing import Any, Dict, Optional, Sequence, Tuple, Type
 
+from ..indicator import Indicator
 from . import operators
+
+
+def _roc_result_if_valid(current: float, previous: float, candidate: float) -> float:
+    """Keep the native factor's missing-value and zero-denominator gate."""
+    if (
+        math.isfinite(current)
+        and math.isfinite(previous)
+        and previous != 0.0
+        and math.isfinite(candidate)
+    ):
+        return candidate
+    return math.nan
+
+
+class _ApplyIndicator(Indicator):
+    """Run one ordinary Python pointwise callback on registered input lines."""
+
+    lines = ("value",)
+    params = (("function", None),)
+
+    def __init__(self) -> None:
+        if not callable(self.p.function):
+            raise TypeError("apply callback must be callable")
+        super().__init__()
+
+    def next(self) -> None:
+        values = tuple(float(data[0]) for data in self.datas)
+        self.lines.value[0] = self.p.function(*values)
 
 
 class _FactorExpression:
@@ -283,6 +313,108 @@ class _ExpressionContext:
             period_name = str(period)
         self._store_scalar_nodes("correlation%s" % period_name, nodes)
         return self._new_expression(lines, label="correlation")
+
+    @staticmethod
+    def _positive_period(period: Any, name: str = "period") -> int:
+        if type(period) is not int or period < 1:
+            raise ValueError("%s must be a positive integer" % name)
+        return period
+
+    def _rolling_indicator(
+        self, value: Any, period: Any, *, kind: Type[Any], line_name: str, label: str
+    ) -> Tuple[_FactorExpression, Tuple[Any, ...]]:
+        self._assert_open()
+        expression = self._check_expression(value, label)
+        window = self._positive_period(period)
+        nodes = []
+        lines = []
+        for target in self.targets:
+            node = kind(expression._line_for(target), period=window)
+            nodes.append(node)
+            line = getattr(node.lines, line_name)
+            lines.append(self._mark_target(line, target, (expression,)))
+        self._store_scalar_nodes("%s%d" % (label, window), nodes)
+        return self._new_expression(lines, label=label), tuple(nodes)
+
+    def sma(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply Backtrader's native simple moving average per target."""
+        from ..indicators import SMA
+
+        result, _ = self._rolling_indicator(value, period, kind=SMA, line_name="sma", label="sma")
+        return result
+
+    def highest(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply Backtrader's native Python-max rolling indicator per target."""
+        from ..indicators import Highest
+
+        result, _ = self._rolling_indicator(
+            value, period, kind=Highest, line_name="highest", label="highest"
+        )
+        return result
+
+    def lowest(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply Backtrader's native Python-min rolling indicator per target."""
+        from ..indicators import Lowest
+
+        result, _ = self._rolling_indicator(
+            value, period, kind=Lowest, line_name="lowest", label="lowest"
+        )
+        return result
+
+    def apply(self, function: Any, *values: Any) -> _FactorExpression:
+        """Run a native pointwise Python formula over target-bound expressions."""
+        self._assert_open()
+        if not callable(function):
+            raise TypeError("apply callback must be callable")
+        if not values:
+            raise TypeError("apply requires at least one expression input")
+        expressions = tuple(self._check_expression(value, "apply") for value in values)
+        indicator_class = type(
+            "_ApplyIndicator%d" % len(expressions),
+            (_ApplyIndicator,),
+            {"_mindatas": len(expressions)},
+        )
+        nodes = []
+        lines = []
+        for target in self.targets:
+            inputs = tuple(expression._line_for(target) for expression in expressions)
+            node = indicator_class(*inputs, function=function)
+            nodes.append(node)
+            lines.append(self._mark_target(node.lines.value, target, expressions))
+        self._store_scalar_nodes("apply", nodes)
+        return self._new_expression(lines, label="apply")
+
+    def roc(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply native ROC while preserving the factor example's NaN zero gate."""
+        from ..indicators import ROC
+
+        expression = self._check_expression(value, "roc")
+        window = self._positive_period(period)
+        nodes = []
+        delays = []
+        previous_lines = []
+        candidate_lines = []
+        for target in self.targets:
+            source = expression._line_for(target)
+            node = ROC(source, period=window)
+            delay = operators.Delay(source, period=window)
+            previous = self._factor._mark_target_local_line(delay.lines.value, target, (source,))
+            candidate = self._factor._mark_target_local_line(node.lines.roc, target, (source,))
+            nodes.append(node)
+            delays.append(delay)
+            previous_lines.append(previous)
+            candidate_lines.append(candidate)
+        self._store_scalar_nodes("roc%d" % window, nodes)
+        self._store_scalar_nodes("roc_delay%d" % window, delays)
+        previous_expression = self._new_expression(previous_lines, label="roc_previous")
+        candidate_expression = self._new_expression(candidate_lines, label="roc_candidate")
+        result = self.apply(
+            _roc_result_if_valid,
+            expression,
+            previous_expression,
+            candidate_expression,
+        )
+        return self._new_expression(result._lines, label="roc")
 
     def where(self, condition: Any, when_true: Any, when_false: Any) -> _FactorExpression:
         self._assert_open()

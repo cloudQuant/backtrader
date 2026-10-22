@@ -1,4 +1,5 @@
 example_id: 025_factor_single
+factor_mode: native
 
 data:
   directory: ../../../tests/datas/a_stocks

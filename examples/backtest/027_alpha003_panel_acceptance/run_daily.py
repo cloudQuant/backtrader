@@ -27,6 +27,7 @@ import pandas as pd
 
 
 FACTOR_NAME = "alpha003"
+FACTOR_MODES = ("native", "build")
 PERIOD = 10
 LOOKBACK = PERIOD - 1
 SOURCE_TIMEZONE = "Asia/Shanghai"
@@ -50,6 +51,10 @@ CSV_FIELDS = (
     "invalid_day",
 )
 ORACLE_ATOL = 5e-12
+
+
+class RunIdentityConflictError(RuntimeError):
+    """Raised before an output directory owned by another run can be changed."""
 
 
 def _repo_root() -> Path:
@@ -378,14 +383,23 @@ def _load_source_arrays(
     return arrays
 
 
-def _params(root: Path) -> Dict[str, Any]:
+def _resolve_factor_mode(factor_mode: Optional[str]) -> str:
+    mode = "native" if factor_mode is None else factor_mode
+    if mode not in FACTOR_MODES:
+        raise ValueError("factor_mode must be 'native' or 'build'")
+    return mode
+
+
+def _params(root: Path, factor_mode: str = "native") -> Dict[str, Any]:
     _add_checkout_root()
     import backtrader as bt
     from backtrader.research.alpha101 import get_alpha
 
-    indicator = get_alpha(3)
+    factor_mode = _resolve_factor_mode(factor_mode)
+    indicator = get_alpha(3, mode=factor_mode)
     return {
         "factor": FACTOR_NAME,
+        "factor_mode": factor_mode,
         "formula": indicator.formula,
         "alpha_id": 3,
         "indicator": indicator.__module__ + "." + indicator.__qualname__,
@@ -562,6 +576,15 @@ def _cache_chunk(
 def _run_worker(config_path: Path) -> None:
     root = _add_checkout_root()
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    factor_mode = _resolve_factor_mode(config.get("factor_mode"))
+    params = _params(root, factor_mode)
+    params["chunk_days"] = config["chunk_days"]
+    expected_params_sha = hashlib.sha256(_canonical_json(params)).hexdigest()
+    if expected_params_sha != config["params_sha256"]:
+        raise RuntimeError("worker factor mode or parameter identity mismatch")
+    factor_class_identity = params["indicator"]
+    if factor_class_identity != config.get("factor_class"):
+        raise RuntimeError("worker factor class differs from parent selection")
     actual_code_sha, _ = _code_fingerprint(root)
     if actual_code_sha != config["code_sha256"]:
         raise RuntimeError("production source changed after parent preflight")
@@ -658,7 +681,10 @@ def _run_worker(config_path: Path) -> None:
             raise RuntimeError("align_to_grid did not provide the daily Days/1 feed default")
         cerebro.adddata(aligned.feed, name=symbol)
 
-    factor_class = get_alpha(3)
+    factor_class = get_alpha(3, mode=factor_mode)
+    actual_factor_class = factor_class.__module__ + "." + factor_class.__qualname__
+    if actual_factor_class != config["factor_class"]:
+        raise RuntimeError("worker selected a different Alpha003 implementation")
     factor_spec = FactorSpec(
         name=FACTOR_NAME,
         indicator=factor_class,
@@ -701,6 +727,8 @@ def _run_worker(config_path: Path) -> None:
         "input_sha256": config["input_sha256"],
         "code_sha256": config["code_sha256"],
         "params_sha256": config["params_sha256"],
+        "factor_mode": factor_mode,
+        "factor_class": actual_factor_class,
         "chunk_index": config["chunk_index"],
         "study_dates": config["study_dates"],
         "grid_dates": config["grid_dates"],
@@ -741,6 +769,8 @@ def _verify_chunk(
         "input_sha256",
         "code_sha256",
         "params_sha256",
+        "factor_mode",
+        "factor_class",
         "chunk_index",
         "study_dates",
         "grid_dates",
@@ -820,6 +850,9 @@ def _worker_config(
     input_sha256: str,
     code_sha256: str,
     params_sha256: str,
+    factor_mode: str,
+    factor_class: str,
+    chunk_days: int,
     snapshot_id: str,
 ) -> dict:
     grid_rows = []
@@ -843,6 +876,9 @@ def _worker_config(
         "input_sha256": input_sha256,
         "code_sha256": code_sha256,
         "params_sha256": params_sha256,
+        "factor_mode": factor_mode,
+        "factor_class": factor_class,
+        "chunk_days": chunk_days,
         "chunk_index": chunk_index,
         "study_dates": study_dates,
         "grid_dates": grid_dates,
@@ -859,8 +895,11 @@ def _worker_config(
     }
 
 
-def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
+def _run_parent(
+    data_dir: Path, output_dir: Path, chunk_days: int, factor_mode: str = "native"
+) -> dict:
     root = _add_checkout_root()
+    factor_mode = _resolve_factor_mode(factor_mode)
     if type(chunk_days) is not int or chunk_days <= 0:
         raise ValueError("chunk_days must be a positive integer")
     data_dir = data_dir.resolve()
@@ -873,13 +912,14 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
 
     manifest, calendar, entries, input_sha256 = _read_manifest(data_dir)
     code_sha256, code_pins = _code_fingerprint(root)
-    params = _params(root)
+    params = _params(root, factor_mode)
     params["chunk_days"] = chunk_days
     params_sha256 = hashlib.sha256(_canonical_json(params)).hexdigest()
     run_identity = {
         "input_sha256": input_sha256,
         "code_sha256": code_sha256,
         "params_sha256": params_sha256,
+        "factor_mode": factor_mode,
         "params": params,
         "symbol_count": len(entries),
         "grid_count": int(len(calendar)),
@@ -898,7 +938,7 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
             )
         prior = json.loads(state_path.read_text(encoding="utf-8"))
         if prior.get("run_id") != run_id or prior.get("identity") != run_identity:
-            raise RuntimeError(
+            raise RunIdentityConflictError(
                 "existing output belongs to a different input/code/parameter identity"
             )
         if prior.get("status") == "COMPLETED":
@@ -913,7 +953,10 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
                 if _sha256_file(output_dir / key) != summary["output_sha256"][key]:
                     raise RuntimeError("completed output file hash mismatch: %s" % key)
             print("COMPLETED: matching prior run %s" % run_id, flush=True)
-            return summary
+            resumed = dict(summary)
+            resumed["actual_chunk_runs_this_invocation"] = 0
+            resumed["reused_successful_chunks"] = len(prior.get("completed_chunks", []))
+            return resumed
     _write_json(
         state_path,
         {"status": "RUNNING", "run_id": run_id, "identity": run_identity, "completed_chunks": []},
@@ -966,6 +1009,9 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
             input_sha256=input_sha256,
             code_sha256=code_sha256,
             params_sha256=params_sha256,
+            factor_mode=factor_mode,
+            factor_class=params["indicator"],
+            chunk_days=chunk_days,
             snapshot_id=(
                 "source-observed-daily-alpha003-v1:"
                 + str(calendar["trade_date"].iloc[0])
@@ -1133,12 +1179,12 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
     os.replace(factor_partial, final_factor_csv)
     os.replace(parquet_partial, final_factor_parquet)
     commit = _git_head(root)
-    factor_class = _params(root)["indicator"]
+    factor_class = _params(root, factor_mode)["indicator"]
     from backtrader.research import align as research_align
     from backtrader.research.alpha101 import get_alpha
 
     # Resolve real module files instead of guessing removed/renamed paths.
-    factor_source_path = _module_source_path(get_alpha(3).__module__)
+    factor_source_path = _module_source_path(get_alpha(3, mode=factor_mode).__module__)
     alignment_source_path = _module_source_path(research_align)
     summary = {
         "status": "COMPLETED",
@@ -1156,6 +1202,7 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
         "price_basis": "source prices as provided; no adjustment applied by this run",
         "source_commit": commit,
         "factor_class": factor_class,
+        "factor_mode": factor_mode,
         "factor_strategy_source_path": str(
             (root / "backtrader" / "research" / "factor_strategy.py").resolve()
         ),
@@ -1221,6 +1268,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--chunk-days", type=int, default=20)
+    parser.add_argument("--factor-mode", choices=FACTOR_MODES, default="native")
     parser.add_argument("--_worker-config", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args._worker_config is not None:
@@ -1230,7 +1278,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--data-dir and --output-dir are required")
     output_dir = args.output_dir.resolve()
     try:
-        _run_parent(args.data_dir, output_dir, args.chunk_days)
+        _run_parent(args.data_dir, output_dir, args.chunk_days, args.factor_mode)
+    except RunIdentityConflictError:
+        raise
     except BaseException as exc:
         if output_dir.exists() and (output_dir / "run_state.json").exists():
             try:
