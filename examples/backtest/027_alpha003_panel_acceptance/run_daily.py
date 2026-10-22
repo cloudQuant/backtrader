@@ -3,6 +3,12 @@
 The research grid is derived only from ``_metadata/observed_calendar.csv``.
 It represents source-observed sessions, not an official exchange calendar.
 Each chunk contains the complete cross-section plus nine preceding grid rows.
+
+Every chunk collects one :class:`~backtrader.research.FactorPanel` and writes a
+single factor table (``factor_values.parquet``) holding exactly one row per
+study cell.  Missing source bars stay ``NaN`` in that table; the removed
+per-cell ``ready``/``valid``/``reason`` availability table is no longer
+produced or verified.
 """
 
 from __future__ import annotations
@@ -14,7 +20,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -112,6 +118,20 @@ def _git_head(root: Path) -> str:
     except (OSError, subprocess.CalledProcessError):
         return "unavailable"
     return result.stdout.strip()
+
+
+def _module_source_path(module: Any) -> Optional[str]:
+    """Return the real source file of ``module`` (or its name), or ``None``.
+
+    Only an already imported module can answer this; the path is never
+    fabricated from a guessed file name.
+    """
+    if isinstance(module, str):
+        module = sys.modules.get(module)
+    filename = getattr(module, "__file__", None)
+    if not isinstance(filename, str) or not filename:
+        return None
+    return str(Path(filename).resolve())
 
 
 def _parse_local_times(values: pd.Series, label: str) -> pd.DatetimeIndex:
@@ -562,7 +582,13 @@ def _run_worker(config_path: Path) -> None:
     _add_checkout_root()
     import backtrader as bt
     from backtrader.brokers.bbroker import BackBroker
-    from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec, prealign_bars
+    from backtrader.research import (
+        FactorSpec,
+        FactorStrategy,
+        MemorySink,
+        ResearchSpec,
+        align_to_grid,
+    )
     from backtrader.research.alpha101 import get_alpha
 
     start_close = (
@@ -571,9 +597,15 @@ def _run_worker(config_path: Path) -> None:
     end_close = (
         pd.Timestamp(config["study_last_close"]).tz_localize(SOURCE_TIMEZONE).tz_convert("UTC")
     )
+    # ``FactorStrategy`` samples the research window ``start..end`` only, while
+    # ``FactorPanel`` requires the whole calculation grid (warm-up through the
+    # research end) x targets.  The chunk's warm-up rows are therefore part of
+    # the research window here and are dropped again when the study cells are
+    # extracted below; the chunk still computes every factor with its
+    # ``LOOKBACK`` preceding grid rows.
     research = ResearchSpec(
         grid=research_grid,
-        start=start_close,
+        start=grid_index[0],
         end=end_close,
         targets=symbols,
         source_timezone=SOURCE_TIMEZONE,
@@ -614,7 +646,7 @@ def _run_worker(config_path: Path) -> None:
             source = rows.set_index("trade_time").loc[:, list(OHLC) + ["volume"]]
             source.index = pd.DatetimeIndex(pd.to_datetime(source.index))
             source.index.name = "close_time"
-        aligned = prealign_bars(
+        aligned = align_to_grid(
             source,
             research,
             symbol,
@@ -623,7 +655,7 @@ def _run_worker(config_path: Path) -> None:
         if int(aligned.feed.p.compression) != 1 or int(aligned.feed.p.timeframe) != int(
             bt.TimeFrame.Days
         ):
-            raise RuntimeError("prealign_bars no longer provides the daily Days/1 feed default")
+            raise RuntimeError("align_to_grid did not provide the daily Days/1 feed default")
         cerebro.adddata(aligned.feed, name=symbol)
 
     factor_class = get_alpha(3)
@@ -633,45 +665,36 @@ def _run_worker(config_path: Path) -> None:
         panel_line="factor",
         field_bindings={field: "feed:target:" + field for field in FACTOR_INPUTS},
     )
-    cerebro.addstrategy(FactorStrategy, research=research, factors={FACTOR_NAME: factor_spec})
+    cerebro.addstrategy(
+        FactorStrategy,
+        research=research,
+        factors={FACTOR_NAME: factor_spec},
+        sink=MemorySink(),
+    )
     print(
         "worker %04d running Cerebro for %d symbols / %d grid dates"
         % (config["chunk_index"], len(symbols), len(grid)),
         flush=True,
     )
     strategy = cerebro.run(runonce=False, preload=True)[0]
-    dataset = strategy.get_dataset()
-    raw = dataset.raw_factors.reset_index()
+    panel = strategy.get_panel()
+    raw = panel.factors.reset_index()
     raw = raw.loc[
         (raw["time"] >= start_close) & (raw["time"] <= end_close),
         ["time", "asset", FACTOR_NAME],
     ].copy()
     raw["time"] = pd.to_datetime(raw["time"], utc=True)
-    availability = dataset.availability.reset_index()
-    availability = availability.loc[
-        (availability["time"] >= start_close) & (availability["time"] <= end_close),
-        ["time", "asset", "factor", "ready", "valid", "reason"],
-    ].copy()
-    availability["time"] = pd.to_datetime(availability["time"], utc=True)
     expected_cells = len(config["study_dates"]) * len(symbols)
-    if len(raw) != expected_cells or len(availability) != expected_cells:
-        raise RuntimeError("FactorStrategy did not return one raw/reason row per study cell")
-    if (
-        raw.duplicated(["time", "asset"]).any()
-        or availability.duplicated(["time", "asset", "factor"]).any()
-    ):
-        raise RuntimeError("FactorStrategy returned duplicate cells")
+    if len(raw) != expected_cells:
+        raise RuntimeError("FactorStrategy did not return one factor row per study cell")
+    if raw.duplicated(["time", "asset"]).any():
+        raise RuntimeError("FactorStrategy returned duplicate factor cells")
     raw = raw.sort_values(["time", "asset"], kind="stable")
-    availability = availability.sort_values(["time", "asset", "factor"], kind="stable")
     chunk_dir = config_path.parent
     factor_path = chunk_dir / "factor_values.parquet"
-    reason_path = chunk_dir / "availability_reasons.csv"
     factor_tmp = factor_path.with_suffix(".parquet.tmp")
-    reason_tmp = reason_path.with_suffix(".csv.tmp")
     raw.to_parquet(factor_tmp, index=False, compression="zstd")
-    availability.to_csv(reason_tmp, index=False, encoding="utf-8")
     os.replace(factor_tmp, factor_path)
-    os.replace(reason_tmp, reason_path)
     result = {
         "status": "SUCCEEDED",
         "run_id": config["run_id"],
@@ -686,17 +709,11 @@ def _run_worker(config_path: Path) -> None:
         "cell_count": expected_cells,
         "factor_file": factor_path.name,
         "factor_sha256": _sha256_file(factor_path),
-        "reason_file": reason_path.name,
-        "reason_sha256": _sha256_file(reason_path),
-        "reason_distribution": {
-            str(key): int(value)
-            for key, value in availability["reason"].value_counts(dropna=False).items()
-        },
         "finite_count": int(np.isfinite(raw[FACTOR_NAME].to_numpy(dtype=float)).sum()),
         "broker_submit_count": broker.submit_count,
         "broker_cancel_count": broker.cancel_count,
         "runonce": False,
-        "feed_timeframe": "Days/1 default from prealign_bars PandasData",
+        "feed_timeframe": "Days/1 default from align_to_grid PandasData",
     }
     if broker.submit_count or broker.cancel_count:
         raise AssertionError("broker order counts must remain zero")
@@ -714,7 +731,7 @@ def _verify_chunk(
     expected: np.ndarray,
     dates: np.ndarray,
     symbols: Sequence[str],
-) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
+) -> Tuple[pd.DataFrame, dict]:
     result_path = chunk_dir / "result.json"
     if not result_path.is_file():
         raise RuntimeError("worker did not produce a successful chunk result")
@@ -736,41 +753,31 @@ def _verify_chunk(
     if result.get("status") != "SUCCEEDED":
         raise RuntimeError("chunk status is not SUCCEEDED")
     factor_path = chunk_dir / str(result["factor_file"])
-    reason_path = chunk_dir / str(result["reason_file"])
-    if _sha256_file(factor_path) != result.get("factor_sha256") or _sha256_file(
-        reason_path
-    ) != result.get("reason_sha256"):
+    if _sha256_file(factor_path) != result.get("factor_sha256"):
         raise RuntimeError("chunk result output hash mismatch")
     factors = pd.read_parquet(factor_path)
-    reasons = pd.read_csv(reason_path)
     factors["time"] = pd.to_datetime(factors["time"], utc=True)
-    reasons["time"] = pd.to_datetime(reasons["time"], utc=True)
-    if len(factors) != int(config["cell_count"]) or len(reasons) != int(config["cell_count"]):
+    if len(factors) != int(config["cell_count"]):
         raise RuntimeError("chunk output cell count mismatch")
     if tuple(factors.columns) != ("time", "asset", FACTOR_NAME):
         raise RuntimeError("chunk factor output columns differ from the public schema")
-    if tuple(reasons.columns) != ("time", "asset", "factor", "ready", "valid", "reason"):
-        raise RuntimeError("chunk availability output columns differ from the public schema")
-    if set(factors["asset"].astype(str)) != set(symbols) or set(
-        reasons["asset"].astype(str)
-    ) != set(symbols):
+    if set(factors["asset"].astype(str)) != set(symbols):
         raise RuntimeError("chunk universe differs from the fixed manifest universe")
+    if factors.duplicated(["time", "asset"]).any():
+        raise RuntimeError("chunk factor output contains duplicate study cells")
     factor_values = factors[FACTOR_NAME].to_numpy(dtype=np.float64)
     if np.isinf(factor_values).any():
         raise RuntimeError("native Alpha003 output contains infinity")
-    valid_values = reasons["valid"].astype(bool).to_numpy()
-    ready_values = reasons["ready"].astype(bool).to_numpy()
-    if np.any(valid_values & ~ready_values):
-        raise RuntimeError("availability marks a factor valid before it is ready")
     finite_values = np.isfinite(factor_values)
-    if not np.array_equal(valid_values, finite_values):
-        raise RuntimeError("availability.valid does not match finite native factor outputs")
     if np.any(finite_values & (np.abs(factor_values) > 1.0)):
         raise RuntimeError("native Alpha003 values must remain within [-1, 1]")
 
     date_lookup = {str(value): index for index, value in enumerate(dates)}
     symbol_lookup = {symbol: index for index, symbol in enumerate(symbols)}
     factor_dates = factors["time"].dt.tz_convert(SOURCE_TIMEZONE).dt.strftime("%Y-%m-%d").to_numpy()
+    # The chunk must describe exactly its own study window, one row per cell.
+    if set(factor_dates) != {str(value) for value in config["study_dates"]}:
+        raise RuntimeError("chunk factor output does not cover the chunk study window")
     row_indices = np.fromiter(
         (date_lookup[value] for value in factor_dates), dtype=np.int64, count=len(factor_dates)
     )
@@ -793,11 +800,10 @@ def _verify_chunk(
     factors = factors.loc[
         :, ["time", "trade_date", "asset", FACTOR_NAME, "oracle_alpha003", "abs_error"]
     ]
-    reasons = reasons.loc[:, ["time", "asset", "factor", "ready", "valid", "reason"]]
     result["max_abs_error"] = max_error
     result["oracle_mask_matches"] = True
     result["oracle_values_match"] = True
-    return factors, reasons, result
+    return factors, result
 
 
 def _worker_config(
@@ -903,7 +909,7 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             if summary.get("status") != "COMPLETED" or summary.get("run_id") != run_id:
                 raise RuntimeError("completed run summary identity mismatch")
-            for key in ("factor_values.parquet", "factor_values.csv", "availability_reasons.csv"):
+            for key in ("factor_values.parquet", "factor_values.csv"):
                 if _sha256_file(output_dir / key) != summary["output_sha256"][key]:
                     raise RuntimeError("completed output file hash mismatch: %s" % key)
             print("COMPLETED: matching prior run %s" % run_id, flush=True)
@@ -982,7 +988,6 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
         )
 
     completed = []
-    reason_totals: Dict[str, int] = {}
     max_abs_error = 0.0
     actual_runs = 0
     reused_runs = 0
@@ -992,9 +997,8 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
     submit_total = 0
     cancel_total = 0
     factor_partial = output_dir / "factor_values.csv.partial"
-    reason_partial = output_dir / "availability_reasons.csv.partial"
     parquet_partial = output_dir / "factor_values.parquet.partial"
-    for path in (factor_partial, reason_partial, parquet_partial):
+    for path in (factor_partial, parquet_partial):
         if path.exists():
             path.unlink()
 
@@ -1049,7 +1053,7 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
                 if return_code != 0:
                     raise RuntimeError("chunk %04d worker exited %d" % (chunk_index, return_code))
 
-            factors, reasons, result = _verify_chunk(
+            factors, result = _verify_chunk(
                 chunk_dir,
                 config,
                 expected,
@@ -1062,8 +1066,6 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
             finite_total += int(finite.sum())
             if finite.any() and first_finite_date is None:
                 first_finite_date = str(factors.loc[finite, "trade_date"].iloc[0])
-            for reason, count in reasons["reason"].value_counts(dropna=False).items():
-                reason_totals[str(reason)] = reason_totals.get(str(reason), 0) + int(count)
             submit_total += int(result["broker_submit_count"])
             cancel_total += int(result["broker_cancel_count"])
             if submit_total or cancel_total:
@@ -1082,13 +1084,6 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
                 mode="a",
                 index=False,
                 header=not factor_partial.exists(),
-                encoding="utf-8",
-            )
-            reasons.to_csv(
-                reason_partial,
-                mode="a",
-                index=False,
-                header=not reason_partial.exists(),
                 encoding="utf-8",
             )
             completed.append(
@@ -1134,14 +1129,17 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
     if max_abs_error > ORACLE_ATOL or submit_total or cancel_total:
         raise RuntimeError("final oracle or no-order broker acceptance failed")
     final_factor_csv = output_dir / "factor_values.csv"
-    final_reasons_csv = output_dir / "availability_reasons.csv"
     final_factor_parquet = output_dir / "factor_values.parquet"
     os.replace(factor_partial, final_factor_csv)
-    os.replace(reason_partial, final_reasons_csv)
     os.replace(parquet_partial, final_factor_parquet)
-    reason_counts = dict(sorted(reason_totals.items()))
     commit = _git_head(root)
     factor_class = _params(root)["indicator"]
+    from backtrader.research import align as research_align
+    from backtrader.research.alpha101 import get_alpha
+
+    # Resolve real module files instead of guessing removed/renamed paths.
+    factor_source_path = _module_source_path(get_alpha(3).__module__)
+    alignment_source_path = _module_source_path(research_align)
     summary = {
         "status": "COMPLETED",
         "evidence_level": "SOURCE_OBSERVED_DAILY_ALPHA003_PRODUCTION_FACTORSTRATEGY",
@@ -1158,14 +1156,8 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
         "price_basis": "source prices as provided; no adjustment applied by this run",
         "source_commit": commit,
         "factor_class": factor_class,
-        "factor_source_path": str(
-            (root / "backtrader" / "research" / "alpha101" / "promoted.py").resolve()
-        ),
         "factor_strategy_source_path": str(
             (root / "backtrader" / "research" / "factor_strategy.py").resolve()
-        ),
-        "input_alignment_source_path": str(
-            (root / "backtrader" / "research" / "inputs.py").resolve()
         ),
         "symbol_count": len(entries),
         "symbols_sha256": hashlib.sha256("\n".join(arrays["symbols"]).encode("utf-8")).hexdigest(),
@@ -1177,7 +1169,6 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
         "invalid_daily_row_count": int(arrays["invalid_rows"]),
         "finite_factor_count": finite_total,
         "first_finite_trade_date": first_finite_date,
-        "availability_reason_distribution": reason_counts,
         "oracle": {
             "implementation": "independent pandas average-tie row ranks plus batched numpy centered Pearson",
             "uses_production_operators": False,
@@ -1194,13 +1185,16 @@ def _run_parent(data_dir: Path, output_dir: Path, chunk_days: int) -> dict:
         "actual_chunk_runs_this_invocation": actual_runs,
         "reused_successful_chunks": reused_runs,
         "chunks": completed,
-        "output_files": ["factor_values.parquet", "factor_values.csv", "availability_reasons.csv"],
+        "output_files": ["factor_values.parquet", "factor_values.csv"],
         "output_sha256": {
             "factor_values.parquet": _sha256_file(final_factor_parquet),
             "factor_values.csv": _sha256_file(final_factor_csv),
-            "availability_reasons.csv": _sha256_file(final_reasons_csv),
         },
     }
+    if factor_source_path is not None:
+        summary["factor_source_path"] = factor_source_path
+    if alignment_source_path is not None:
+        summary["input_alignment_source_path"] = alignment_source_path
     _write_json(summary_path, summary)
     _write_json(
         state_path,

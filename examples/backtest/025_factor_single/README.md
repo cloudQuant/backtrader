@@ -18,11 +18,11 @@ Outputs:
 - `evaluation/`: fincore's tables and chart, when the fincore factor-research API is installed.
 - `summary.json`: status, symbol/date counts, evaluation identity and report path.
 - `factor_report_close_ma.html`: written with `--report`; a self-contained bilingual (中文/English) report with interactive ECharts charts and IC, quantile-return, turnover and coverage tables.
-- `dataset/`: written only with `--save-dataset`; a full `ResearchDataset` snapshot.
+- `panel/`: written only with `--save-panel`; the six CSV files (`factors`, `grid`, `prices_open`, `prices_close`, `universe`, `groups`) for an explicit offline re-evaluation.
 
-Evaluation is optional: when the fincore research API is unavailable, the runner still writes `factor_values.csv`, prints `EVALUATION SKIPPED`, and exits 0 with `summary.json.status="DATASET_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
+Evaluation is optional: when the fincore research API is unavailable, the runner still writes `factor_values.csv`, prints `EVALUATION SKIPPED`, and exits 0 with `summary.json.status="PANEL_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
-Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-dataset`, and `--dataset <saved-dataset>` to re-evaluate without constructing Cerebro or indicators. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
+Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-panel`, and `--panel <saved-panel>` to re-evaluate without constructing Cerebro or factor indicators (the saved panel must be paired with the same `config.yaml`, which supplies the explicit window, directions and orders). `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
 
 The runner is intentionally thin: it loads the panel, assembles `ResearchSpec`/`FactorSpec`, runs `FactorStrategy`, and exports the factor panel. Exhaustive result validation belongs to the library and its tests, not to this example.
 

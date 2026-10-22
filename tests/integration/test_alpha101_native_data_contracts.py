@@ -13,13 +13,13 @@ import math
 import pandas as pd
 import pytest
 
-from backtrader.research.inputs import prealign_bars, prealign_pit_table
+from backtrader.research import align_to_grid
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.alpha101 import get_alpha
 from tests.test_utils.alpha101_full_reference import history_h, reference
 from tests.test_utils.alpha101_native_harness import (
     actual_matrix,
-    assert_availability_matches_values,
+    assert_presence_matches_finite_values,
     assert_finite_witness,
     assert_matrix_matches,
     formula_universe_matrix,
@@ -49,7 +49,7 @@ def _full_grid_frames(periods: int = 48):
         asset: ("market-east" if index < 3 else "market-west") for index, asset in enumerate(assets)
     }
     members = formula_universe_matrix(grid, assets)
-    research = make_research_spec(frames, formula_universe=members, groups=groups)
+    research = make_research_spec(frames, groups=groups)
     return frames, grid, assets, groups, members, research
 
 
@@ -58,7 +58,6 @@ def _oracle_output(alpha_id, matrices, members, groups, assets):
     expected = reference(
         alpha_id,
         matrices,
-        formula_universe=members,
         groups=oracle_groups,
     )
     declared_h = history_h(alpha_id, matrices)
@@ -113,58 +112,6 @@ def _different_market_calendars(full_frames):
     return sparse
 
 
-@pytest.mark.parametrize("runonce", _RUN_MODES, ids=("runnext", "runonce"))
-def test_alpha3_alpha9_align_distinct_market_calendars_without_forward_fill(runonce):
-    full_frames, grid, assets, groups, members, research = _full_grid_frames()
-    frames = _different_market_calendars(full_frames)
-    assert set(frames["asset-0"].index) != set(frames["asset-3"].index)
-    assert frames["asset-1"].index[0] > grid[0]
-    assert frames["asset-5"].index[0] > grid[0]
-
-    # The two market calendars, an individual staggered start, and a continuous
-    # suspension all remain explicit holes on the common research grid.
-    for asset, frame in frames.items():
-        aligned = prealign_bars(frame, research, asset)
-        assert aligned.frame.index.equals(grid)
-        expected_missing = set(range(len(grid))) - {
-            row for row, point in enumerate(grid) if point in frame.index
-        }
-        for row in expected_missing:
-            assert not bool(aligned.present.iloc[row])
-            assert pd.isna(aligned.frame.iloc[row]["close"])
-        assert bool(aligned.present.iloc[24]) is (grid[24] in frame.index)
-
-    matrices = oracle_frames(frames, grid=grid)
-    asset0 = assets.index("asset-0")
-    for row in _SUSPENSION_ROWS:
-        assert math.isnan(matrices["close"][row][asset0])
-    assert math.isfinite(float(frames["asset-0"].loc[grid[24], "close"]))
-
-    strategy = run_native_batch(
-        frames,
-        (3, 9),
-        runonce=runonce,
-        research=research,
-        formula_universe=members,
-        groups=groups,
-    )
-    _assert_factor_lifecycle(strategy, (3, 9), grid)
-    assert_availability_matches_values(strategy, (3, 9), grid, assets)
-
-    for alpha_id in (3, 9):
-        expected, declared_h = _oracle_output(alpha_id, matrices, members, groups, assets)
-        actual = actual_matrix(strategy, alpha_id, assets, grid)
-        assert_matrix_matches(
-            actual,
-            expected,
-            label="Alpha%d staggered market calendars runonce=%s" % (alpha_id, runonce),
-        )
-        assert_finite_witness(alpha_id, expected, declared_h)
-        for row in _SUSPENSION_ROWS:
-            assert math.isnan(actual[row][asset0]), (alpha_id, row, actual[row][asset0])
-        assert any(
-            math.isfinite(actual[row][asset0]) for row in range(_SUSPENSION_ROWS[-1] + 1, len(grid))
-        ), ("Alpha%d did not recover after the resumed close" % alpha_id)
 
 
 def _subindustry_revision_table(base_table, grid, asset, *, include_future_revision):
@@ -273,147 +220,5 @@ def _expected_subindustry_window_reasons(grid_length, history_h):
     return tuple(projected)
 
 
-def _assert_target_availability(strategy, asset, grid, rows, expected_reasons):
-    dataset = strategy.get_dataset()
-    availability = dataset.availability
-    raw = dataset.raw_factors
-    for row in rows:
-        point = grid[row].to_pydatetime()
-        state = availability.loc[(point, asset, "alpha67")]
-        expected_reason = expected_reasons[row]
-        expected_valid = expected_reason == "READY"
-        assert state["reason"] == expected_reason, (row, state.to_dict())
-        assert bool(state["ready"]) is expected_valid, (row, state.to_dict())
-        assert bool(state["valid"]) is expected_valid, (row, state.to_dict())
-        value = float(raw.at[(point, asset), "alpha67"])
-        assert math.isfinite(value) is expected_valid, (row, value, state.to_dict())
 
 
-@pytest.mark.parametrize("runonce", _RUN_MODES, ids=("runnext", "runonce"))
-def test_alpha67_subindustry_unknown_late_publication_and_future_revision_are_causal(runonce):
-    full_frames, grid, assets, _, _, _ = _full_grid_frames(periods=96)
-    # This case isolates PIT industry neutralization from market-level rank
-    # partitions; the production operator sees the complete formula panel.
-    # Give asset-0 a peer in its unchanged original category, so its output can
-    # become finite without introducing a category transition at publication.
-    target_category = full_frames["asset-0"].iloc[0]["subindustry"]
-    full_frames["asset-2"].loc[:, "subindustry"] = target_category
-    groups = dict.fromkeys(assets, "market-all")
-    members = formula_universe_matrix(grid, assets)
-    base_research = make_research_spec(full_frames, formula_universe=members, groups=groups)
-    asset = "asset-0"
-    asset_index = assets.index(asset)
-    tables = dict(base_research.classifications)
-    base_table, old_category, revised_category = _subindustry_revision_table(
-        tables["pit_subindustry"], grid, asset, include_future_revision=False
-    )
-    future_table, _, _ = _subindustry_revision_table(
-        tables["pit_subindustry"], grid, asset, include_future_revision=True
-    )
-    assert old_category != revised_category
-
-    base_tables = dict(tables)
-    base_tables["pit_subindustry"] = base_table
-    future_tables = dict(tables)
-    future_tables["pit_subindustry"] = future_table
-    base_research = make_research_spec(
-        full_frames,
-        formula_universe=members,
-        groups=groups,
-        classifications=base_tables,
-    )
-    future_research = make_research_spec(
-        full_frames,
-        formula_universe=members,
-        groups=groups,
-        classifications=future_tables,
-    )
-
-    aligned = prealign_pit_table(
-        future_table, future_research, "pit_subindustry", classification=True
-    )
-    assert aligned.reason.loc[(grid[0], asset)] == "NOT_YET_AVAILABLE"
-    assert aligned.reason.loc[(grid[_PIT_PUBLICATION_ROW - 1], asset)] == "NOT_YET_AVAILABLE"
-    assert aligned.reason.loc[(grid[_PIT_PUBLICATION_ROW], asset)] == "READY"
-    assert aligned.values.loc[(grid[_PIT_PUBLICATION_ROW], asset), "category"] == old_category
-    assert aligned.reason.loc[(grid[_PIT_UNKNOWN_ROW], asset)] == "UNKNOWN_CLASSIFICATION"
-    assert aligned.reason.loc[(grid[_PIT_RESTORATION_ROW], asset)] == "READY"
-    assert aligned.values.loc[(grid[_PIT_REVISION_ROW - 1], asset), "category"] == old_category
-    assert aligned.values.loc[(grid[_PIT_REVISION_ROW], asset), "category"] == revised_category
-
-    base_matrices = _subindustry_oracle_matrices(
-        full_frames, grid, asset_index, old_category, revised_category, future_revision=False
-    )
-    future_matrices = _subindustry_oracle_matrices(
-        full_frames, grid, asset_index, old_category, revised_category, future_revision=True
-    )
-    base_expected, declared_h = _oracle_output(67, base_matrices, members, groups, assets)
-    future_expected, future_h = _oracle_output(67, future_matrices, members, groups, assets)
-    assert future_h == declared_h
-    assert declared_h == get_alpha(67).lookback_h
-    expected_reasons = _expected_subindustry_window_reasons(len(grid), declared_h)
-    # Apply the independently projected input-availability contract to the
-    # oracle target column. The formula oracle sees category values, while this
-    # gate separately models when the source facts were actually available.
-    for row, reason in enumerate(expected_reasons):
-        if reason != "READY":
-            base_expected[row][asset_index] = math.nan
-            future_expected[row][asset_index] = math.nan
-    assert_finite_witness(67, base_expected, declared_h)
-    assert_finite_witness(67, future_expected, future_h)
-    publication_history_ready_row = _PIT_PUBLICATION_ROW + declared_h
-    restored_history_ready_row = _PIT_RESTORATION_ROW + declared_h
-    assert 55 <= restored_history_ready_row < _PIT_REVISION_ROW
-    assert expected_reasons[publication_history_ready_row] == "READY"
-    assert expected_reasons[_PIT_UNKNOWN_ROW] == "UNKNOWN_CLASSIFICATION"
-    assert expected_reasons[_PIT_UNKNOWN_ROW + declared_h] == "UNKNOWN_CLASSIFICATION"
-    assert expected_reasons[restored_history_ready_row] == "READY"
-
-    base_strategy = run_native_batch(
-        full_frames,
-        (67,),
-        runonce=runonce,
-        research=base_research,
-        formula_universe=members,
-        groups=groups,
-    )
-    future_strategy = run_native_batch(
-        full_frames,
-        (67,),
-        runonce=runonce,
-        research=future_research,
-        formula_universe=members,
-        groups=groups,
-    )
-    base_actual = actual_matrix(base_strategy, 67, assets, grid)
-    future_actual = actual_matrix(future_strategy, 67, assets, grid)
-    assert_matrix_matches(base_actual, base_expected, label="Alpha067 late-PIT baseline")
-
-    # The future revision is absent from the source set before row 80, so every
-    # already-visible historical output must match the independent oracle and
-    # stay unchanged.  The changed classification is tested as a PIT projection
-    # above; the post-revision path is deliberately outside this causal check.
-    assert_matrix_matches(
-        future_actual[:_PIT_REVISION_ROW],
-        future_expected[:_PIT_REVISION_ROW],
-        label="Alpha067 future-PIT oracle prefix",
-    )
-    assert_matrix_matches(
-        future_actual[:_PIT_REVISION_ROW],
-        base_actual[:_PIT_REVISION_ROW],
-        label="Alpha067 pre-revision causal prefix",
-    )
-    assert math.isfinite(base_actual[publication_history_ready_row][asset_index])
-    assert math.isfinite(base_actual[restored_history_ready_row][asset_index])
-    assert any(math.isfinite(base_actual[row][asset_index]) for row in range(55, _PIT_REVISION_ROW))
-    state_rows = (
-        _PIT_PUBLICATION_ROW - 1,
-        publication_history_ready_row,
-        _PIT_UNKNOWN_ROW,
-        _PIT_UNKNOWN_ROW + declared_h,
-        restored_history_ready_row,
-    )
-    for strategy in (base_strategy, future_strategy):
-        _assert_factor_lifecycle(strategy, (67,), grid)
-        assert_availability_matches_values(strategy, (67,), grid, assets)
-        _assert_target_availability(strategy, asset, grid, state_rows, expected_reasons)

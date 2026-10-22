@@ -9,7 +9,7 @@ from ..operators import (
     Subtract,
     TsArgMax,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha060Native(FactorIndicator):
     formula = "(0 - (1 * ((2 * scale(rank(((((close - low) - (high - close)) / (high - low)) * volume)))) - scale(rank(ts_argmax(close, 10))))))"
     formula_fields = ("close", "low", "high", "volume")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

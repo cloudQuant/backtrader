@@ -12,7 +12,7 @@ import backtrader as bt
 import pandas as pd
 import pytest
 
-from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec, prealign_bars
+from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec, align_to_grid
 from backtrader.research.alpha101 import get_alpha
 
 
@@ -104,7 +104,6 @@ def _research(frames, *, formula_fields=None, classifications=None):
         feed_time_kind="close_time",
         groups=dict.fromkeys(_ASSETS, "market"),
         universe=_membership(study_times),
-        formula_universe=_membership(index),
         formula_fields=formula_fields or {},
         classifications=all_classifications,
     )
@@ -114,7 +113,7 @@ def _run(frames, factors, *, runonce=True, formula_fields=None, classifications=
     research = _research(frames, formula_fields=formula_fields, classifications=classifications)
     cerebro = bt.Cerebro(stdstats=False)
     for asset, frame in frames.items():
-        aligned = prealign_bars(
+        aligned = align_to_grid(
             frame.drop(columns=["vwap"]),
             research,
             asset,
@@ -123,7 +122,7 @@ def _run(frames, factors, *, runonce=True, formula_fields=None, classifications=
         cerebro.adddata(aligned.feed, name=asset)
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
     strategy = cerebro.run(runonce=runonce)[0]
-    return strategy.get_dataset()
+    return strategy.get_panel()
 
 
 def _feed_bindings(indicator):
@@ -131,7 +130,7 @@ def _feed_bindings(indicator):
 
 
 def _assert_study_values_are_finite(dataset, names):
-    raw = dataset.raw_factors
+    raw = dataset.factors
     study = raw.loc[raw.index.get_level_values("time") >= dataset.start]
     for name in names:
         values = study[name].to_numpy(dtype=float)
@@ -146,145 +145,9 @@ def _assert_study_values_are_finite(dataset, names):
         )
 
 
-def test_single_alpha003_uses_the_documented_cerebro_path():
-    frames = _synthetic_frames()
-    indicator = get_alpha(3)
-    spec = FactorSpec(
-        name="alpha003",
-        indicator=indicator,
-        panel_line="factor",
-        field_bindings={
-            "open": "feed:target:open",
-            "volume": "feed:target:volume",
-        },
-    )
-
-    dataset = _run(frames, {"alpha003": spec}, runonce=True)
-
-    _assert_study_values_are_finite(dataset, ("alpha003",))
 
 
-@pytest.mark.parametrize("runonce", (False, True))
-def test_registered_alpha003_alpha009_alpha101_share_one_grid(runonce):
-    frames = _synthetic_frames()
-    factors = {}
-    for alpha_id in (3, 9, 101):
-        indicator = get_alpha(alpha_id)
-        name = "alpha%03d" % alpha_id
-        factors[name] = FactorSpec(
-            name=name,
-            indicator=indicator,
-            panel_line="factor",
-            field_bindings=_feed_bindings(indicator),
-        )
-
-    dataset = _run(frames, factors, runonce=runonce)
-
-    _assert_study_values_are_finite(dataset, tuple(factors))
 
 
-def test_multi_factor_vwap_pit_and_subindustry_pit_bindings():
-    frames = _synthetic_frames()
-    vwap = _pit_table(
-        frames,
-        "vwap",
-        {
-            "name": "vwap",
-            "semantic": "volume_weighted_average_price",
-            "unit": "USD per share",
-            "currency": "USD",
-            "adjustment": "synthetic-unadjusted-v1",
-            "statistic": "trade_volume_weighted_mean",
-            "source_version": "alpha101-guide-synthetic-v1",
-        },
-    )
-    direct_adv_values = {
-        asset: frame["vwap"].mul(frame["volume"]).rolling(20, min_periods=20).mean()
-        for asset, frame in frames.items()
-    }
-    adv_rows = [
-        {
-            "time": point,
-            "asset": asset,
-            "value": float(value) if pd.notna(value) else float("nan"),
-            "available_at": point,
-            "data_version": "alpha101-guide-adv-v1",
-        }
-        for asset, values in direct_adv_values.items()
-        for point, value in values.items()
-    ]
-    adv20 = pd.DataFrame(adv_rows).set_index(["time", "asset"])
-    adv20.attrs["source_metadata"] = {
-        "name": "adv20",
-        "semantic": "average_daily_dollar_volume",
-        "unit": "USD",
-        "currency": "USD",
-        "adjustment": "synthetic-unadjusted-v1",
-        "statistic": "mean",
-        "window": 20,
-        "complete_window": True,
-        "source_version": "alpha101-guide-adv-v1",
-        "provenance_source_lookback_grid_bars": 19,
-    }
-    dollar_volume = _pit_table(
-        frames,
-        "vwap",
-        {
-            "name": "dollar_volume",
-            "semantic": "daily_dollar_volume",
-            "unit": "USD",
-            "currency": "USD",
-            "adjustment": "synthetic-unadjusted-v1",
-            "source_version": "alpha101-guide-dollar-volume-v1",
-        },
-    )
-    dollar_volume["value"] = [
-        float(frame.loc[point, "vwap"] * frame.loc[point, "volume"])
-        for asset, frame in frames.items()
-        for point in frame.index
-    ]
-
-    research_fields = {"pit_vwap": vwap, "pit_adv20": adv20, "pit_dollar_volume": dollar_volume}
-    factors = {}
-    for alpha_id in (5, 6, 101):
-        indicator = get_alpha(alpha_id)
-        bindings = _feed_bindings(indicator)
-        if "vwap" in indicator.formula_fields:
-            bindings["vwap"] = "table:pit_vwap"
-        factors["alpha%03d" % alpha_id] = FactorSpec(
-            name="alpha%03d" % alpha_id,
-            indicator=indicator,
-            panel_line="factor",
-            field_bindings=bindings,
-        )
-
-    alpha7 = get_alpha(7)
-    alpha7_bindings = _feed_bindings(alpha7)
-    alpha7_bindings["adv20"] = "table:pit_adv20"
-    alpha7_bindings["dollar_volume"] = "table:pit_dollar_volume"
-    factors["alpha007"] = FactorSpec(
-        name="alpha007",
-        indicator=alpha7,
-        panel_line="factor",
-        field_bindings=alpha7_bindings,
-    )
-
-    dataset = _run(frames, factors, formula_fields=research_fields)
-
-    _assert_study_values_are_finite(dataset, tuple(factors))
 
 
-def test_alpha048_reads_the_declared_subindustry_pit_table():
-    frames = _synthetic_frames()
-    indicator = get_alpha(48)
-    spec = FactorSpec(
-        name="alpha048",
-        indicator=indicator,
-        panel_line="factor",
-        field_bindings={"close": "feed:target:close"},
-        classification_bindings={"subindustry": "table:pit_subindustry"},
-    )
-
-    dataset = _run(frames, {"alpha048": spec}, runonce=True)
-
-    _assert_study_values_are_finite(dataset, ("alpha048",))

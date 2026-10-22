@@ -11,7 +11,7 @@ from ..operators import (
     RollingProduct,
     RollingSum,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha081Native(FactorIndicator):
     lookback_h = 77
     formula_fields = ("vwap", "volume", "dollar_volume", "adv10")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "((rank(Log(product(rank((rank(correlation(vwap, sum(adv10, 49.6054), 8.47743))^4)), 14.9655))) < rank(correlation(rank(vwap), rank(volume), 5.07914))) * -1)"
 
     def __init__(self):

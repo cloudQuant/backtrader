@@ -15,7 +15,7 @@ from ..operators import (
     TsMin,
     TsRank,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -29,8 +29,6 @@ class Alpha029Native(FactorIndicator):
     lookback_h = 11
     formula_fields = ("close",)
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "(min(product(rank(rank(scale(log(sum(ts_min(rank(rank((-1 * rank(delta((close - 1), 5))))), 2), 1))))), 1), 5) + ts_rank(delay((-1 * returns), 6), 5))"
 
     def __init__(self):

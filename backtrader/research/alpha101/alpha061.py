@@ -8,7 +8,7 @@ from ..operators import (
     Subtract,
     TsMin,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,8 +23,6 @@ class Alpha061Native(FactorIndicator):
     formula = "(rank((vwap - ts_min(vwap, 16.1219))) < rank(correlation(vwap, adv180, 17.9282)))"
     formula_fields = ("vwap", "dollar_volume", "adv180")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

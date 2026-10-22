@@ -160,11 +160,26 @@ def test_daily_runner_keeps_full_universe_and_warmup_across_two_subprocess_chunk
     assert not np.isfinite(volume_gap_cell.iloc[0])
     assert np.isfinite(volume_recovered_cell.iloc[0])
 
-    reasons = pd.read_csv(output_dir / "availability_reasons.csv")
-    assert len(reasons) == len(dates) * len(symbols)
-    assert {"ready", "valid", "reason"}.issubset(reasons.columns)
-    assert "NO_CURRENT_BAR" in set(reasons["reason"])
-    assert "NONFINITE_INPUT" in set(reasons["reason"])
+    # The collection path returns factor values only: no availability table,
+    # no per-cell ready/valid/reason columns, and no reason distribution.
+    assert set(summary["output_files"]) == {"factor_values.parquet", "factor_values.csv"}
+    assert set(summary["output_sha256"]) == set(summary["output_files"])
+    for name, digest in summary["output_sha256"].items():
+        assert hashlib.sha256((output_dir / name).read_bytes()).hexdigest() == digest
+    assert "availability_reason_distribution" not in summary
+    assert not (output_dir / "availability_reasons.csv").exists()
+    assert {"ready", "valid", "reason"}.isdisjoint(factors.columns)
+    assert summary["chunk_count"] == 2
+    assert summary["panel_cell_count"] == len(dates) * len(symbols)
+    assert summary["finite_factor_count"] == int(np.isfinite(factors["alpha003"]).sum())
+
+    from backtrader.research import align as research_align
+
+    assert summary["input_alignment_source_path"] == str(Path(research_align.__file__).resolve())
+    assert Path(summary["input_alignment_source_path"]).is_file()
+    assert Path(summary["factor_source_path"]).is_file()
+    assert Path(summary["factor_source_path"]).name == "alpha003.py"
+    assert Path(summary["factor_strategy_source_path"]).is_file()
 
     # A completed exact-identity run is reusable without launching its chunks again.
     assert (

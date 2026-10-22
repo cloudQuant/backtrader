@@ -11,7 +11,7 @@ from ..operators import (
     Sign,
     Subtract,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -30,8 +30,6 @@ class Alpha030Native(FactorIndicator):
     lookback_h = 19
     formula_fields = ("close", "volume")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

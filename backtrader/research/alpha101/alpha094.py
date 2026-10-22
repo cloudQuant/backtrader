@@ -10,7 +10,7 @@ from ..operators import (
     TsMin,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha094Native(FactorIndicator):
     formula = "((rank((vwap - ts_min(vwap, 11.5783)))^Ts_Rank(correlation(Ts_Rank(vwap, 19.6462), Ts_Rank(adv60, 4.02992), 18.0926), 2.70756)) * -1)"
     formula_fields = ("vwap", "dollar_volume", "adv60")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

@@ -6,7 +6,7 @@ from ..operators import (
     Divide,
     Subtract,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -23,8 +23,6 @@ class Alpha101Native(FactorIndicator):
     lookback_h = 0
     formula_fields = ("open", "high", "low", "close")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "((close - open) / ((high - low) + .001))"
 
     def __init__(self):

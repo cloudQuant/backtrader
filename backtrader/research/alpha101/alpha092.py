@@ -11,7 +11,7 @@ from ..operators import (
     RollingCorrelation,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha092Native(FactorIndicator):
     lookback_h = 45
     formula_fields = ("open", "high", "low", "close", "dollar_volume", "adv30")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "min(Ts_Rank(decay_linear(((((high + low) / 2) + close) < (low + open)), 14.7221), 18.8683), Ts_Rank(decay_linear(correlation(rank(low), rank(adv30), 7.58555), 6.94024), 6.80584))"
 
     def __init__(self):

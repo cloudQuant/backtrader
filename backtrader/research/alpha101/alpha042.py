@@ -7,7 +7,7 @@ from ..operators import (
     Divide,
     Subtract,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha042Native(FactorIndicator):
     formula = "(rank((vwap - close)) / rank((vwap + close)))"
     formula_fields = ("vwap", "close")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     # Paper execution timing metadata only; it does not change closed-bar H.
     paper_signal_delay = 0
 

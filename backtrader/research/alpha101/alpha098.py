@@ -10,7 +10,7 @@ from ..operators import (
     TsArgMin,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha098Native(FactorIndicator):
     formula = "(rank(decay_linear(correlation(vwap, sum(adv5, 26.4719), 4.58418), 7.18088)) - rank(decay_linear(Ts_Rank(Ts_ArgMin(correlation(rank(open), rank(adv15), 20.8187), 8.62571), 6.95668), 8.07206)))"
     formula_fields = ("vwap", "open", "dollar_volume", "adv5", "adv15")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

@@ -203,7 +203,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
     strategy = cerebro.run()[0]
     assert (broker.submits, broker.cancels) == (0, 0)
-    collected = strategy.get_dataset()
+    collected = strategy.get_panel()
     snapshot = tmp_path / "dataset"
     collected.save(snapshot)
     dataset = load_dataset(snapshot)
@@ -253,7 +253,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
         name = "alpha%d" % number
         wanted = oracle_by_name[name]
         observed = (
-            dataset.raw_factors[name].unstack("asset").reindex(index=window_times, columns=assets)
+            dataset.factors[name].unstack("asset").reindex(index=window_times, columns=assets)
         )
         expected = [wanted[offset] for offset in window_offsets]
         reference._assert_matrix(observed.to_numpy().tolist(), expected, assets, label=name)

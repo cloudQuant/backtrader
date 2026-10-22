@@ -7,7 +7,7 @@ from ..operators import (
     Multiply,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha038Native(FactorIndicator):
     lookback_h = 9
     formula_fields = ("close", "open")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

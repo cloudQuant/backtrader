@@ -11,7 +11,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,10 +24,8 @@ class Alpha089Native(FactorIndicator):
     case_id = "AF46-089"
     lookback_h = 26
     formula = "(Ts_Rank(decay_linear(correlation(((low * 0.967285) + (low * (1 - 0.967285))), adv10, 6.94279), 5.51607), 3.79744) - Ts_Rank(decay_linear(delta(IndNeutralize(vwap, IndClass.industry), 3.48158), 10.1466), 15.3012))"
-    formula_fields = ("low", "vwap", "dollar_volume", "adv10")
+    formula_fields = ("low", "vwap", "dollar_volume", "adv10", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
 
     def __init__(self):
         super().__init__()
@@ -59,7 +57,7 @@ class Alpha089Native(FactorIndicator):
             self, "low_branch_time_rank", TsRank, low_correlation_decay, period=3.79744
         )
         neutral_vwap = panel(
-            self, "industry_neutral_vwap", IndNeutralize, self.field_lines("vwap"), level="industry"
+            self, "industry_neutral_vwap", IndNeutralize, self.field_lines("vwap"), level="industry", groups=self.field_lines("industry")
         )
         neutral_vwap_delta = per_asset(
             self, "neutral_vwap_delta", Delta, neutral_vwap, period=3.48158

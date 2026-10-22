@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -19,7 +17,7 @@ def _require_fincore_report():
 def _dataset():
     _require_fincore_report()
     rng = np.random.default_rng(11)
-    dates = pd.bdate_range("2024-01-01", periods=60)
+    dates = pd.bdate_range("2024-01-01", periods=60, tz="UTC")
     assets = ["S%02d" % index for index in range(20)]
     prices = pd.DataFrame(
         100.0 * np.cumprod(1.0 + rng.normal(0.0, 0.01, (len(dates), len(assets))), axis=0),
@@ -28,11 +26,22 @@ def _dataset():
     )
     index = pd.MultiIndex.from_product([dates, assets], names=("time", "asset"))
     factors = pd.DataFrame({"factor": rng.normal(size=len(index))}, index=index)
-    return SimpleNamespace(
-        raw_factors=factors,
-        prices={"open": prices, "close": prices},
-        targets=tuple(assets),
-        grid=pd.DataFrame(index=dates),
+    grid = pd.DataFrame(
+        {"open_time": dates - pd.Timedelta(hours=6)},
+        index=pd.DatetimeIndex(dates, name="close_time"),
+    )
+    from backtrader.research import FactorPanel
+
+    return FactorPanel(
+        factors=factors,
+        grid=grid,
+        prices_open=prices,
+        prices_close=prices,
+        start=dates[0],
+        end=dates[-1],
+        target_order=tuple(assets),
+        factor_order=("factor",),
+        directions={"factor": 1},
     )
 
 

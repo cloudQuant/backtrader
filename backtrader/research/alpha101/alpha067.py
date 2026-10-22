@@ -10,7 +10,7 @@ from ..operators import (
     Subtract,
     TsMin,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -22,10 +22,8 @@ class Alpha067Native(FactorIndicator):
     alpha_id = 67
     case_id = "AF46-067"
     lookback_h = 24
-    formula_fields = ("high", "vwap", "dollar_volume", "adv20")
+    formula_fields = ("high", "vwap", "dollar_volume", "adv20", "sector", "subindustry")
     required_fields = formula_fields
-    classification_levels = ("sector", "subindustry")
-    classification_fields = ("sector", "subindustry")
     formula = "((rank((high - ts_min(high, 2.14593)))^rank(correlation(IndNeutralize(vwap, IndClass.sector), IndNeutralize(adv20, IndClass.subindustry), 6.02936))) * -1)"
 
     def __init__(self):
@@ -42,7 +40,7 @@ class Alpha067Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("vwap"),
             level="sector",
-            groups=self.classification_lines("sector"),
+            groups=self.field_lines("sector"),
         )
         adv20 = self.field_lines("adv20")
         subindustry_adv = panel(
@@ -51,7 +49,7 @@ class Alpha067Native(FactorIndicator):
             IndNeutralize,
             adv20,
             level="subindustry",
-            groups=self.classification_lines("subindustry"),
+            groups=self.field_lines("subindustry"),
         )
         exponent_correlation = per_asset(
             self,

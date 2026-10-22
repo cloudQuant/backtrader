@@ -11,7 +11,7 @@ from ..operators import (
     RollingCorrelation,
     Sign,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -29,8 +29,6 @@ class Alpha031Native(FactorIndicator):
     lookback_h = 30
     formula_fields = ("close", "low", "dollar_volume", "adv20")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

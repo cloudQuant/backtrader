@@ -4,13 +4,11 @@ from typing import Tuple, Type, TypeVar
 
 from ..factor_indicator import FactorIndicator
 
-DEFAULT_FORMULA_UNIVERSE_POLICY = (
-    "ResearchSpec.formula_universe; cross-sectional steps grouped by ResearchSpec.groups"
+DEFAULT_INPUT_POLICY = (
+    "aligned ordinary feed lines; cross-sectional membership follows real bars; "
+    "ResearchSpec.groups partition grouped operators"
 )
-DEFAULT_PIT_POLICY = (
-    "ResearchSpec.close_time; causal prealigned inputs; classification availability enforced"
-)
-DEFAULT_OPERATOR_PROFILE = "alpha101-v1"
+DEFAULT_OPERATOR_PROFILE = "alpha101-v2"
 
 
 _FactorClass = TypeVar("_FactorClass", bound=Type[FactorIndicator])
@@ -49,33 +47,19 @@ def native_alpha(cls: _FactorClass) -> _FactorClass:
         raise ValueError("native factor must define an operator profile")
 
     formula_fields = _field_tuple(getattr(cls, "formula_fields", None), "formula_fields")
-    classification_fields = _field_tuple(
-        getattr(cls, "classification_fields", ()), "classification_fields"
-    )
-    classification_levels = _field_tuple(
-        getattr(cls, "classification_levels", ()), "classification_levels"
-    )
 
-    formula_universe_policy = getattr(
-        cls, "formula_universe_policy", DEFAULT_FORMULA_UNIVERSE_POLICY
-    )
-    pit_policy = getattr(cls, "pit_policy", DEFAULT_PIT_POLICY)
-    if not isinstance(formula_universe_policy, str) or not formula_universe_policy:
-        raise ValueError("native factor formula_universe_policy must be non-empty")
-    if not isinstance(pit_policy, str) or not pit_policy:
-        raise ValueError("native factor pit_policy must be non-empty")
+    input_policy = getattr(cls, "input_policy", DEFAULT_INPUT_POLICY)
+    if not isinstance(input_policy, str) or not input_policy:
+        raise ValueError("native factor input_policy must be non-empty")
 
     setattr(cls, "operator_profile", profile)
     setattr(cls, "formula_fields", formula_fields)
-    setattr(cls, "classification_fields", classification_fields)
-    setattr(cls, "classification_levels", classification_levels)
-    setattr(cls, "formula_universe_policy", formula_universe_policy)
-    setattr(cls, "pit_policy", pit_policy)
+    setattr(cls, "input_policy", input_policy)
     return cls
 
 
 __all__ = (
-    "DEFAULT_FORMULA_UNIVERSE_POLICY",
-    "DEFAULT_PIT_POLICY",
+    "DEFAULT_INPUT_POLICY",
+    "DEFAULT_OPERATOR_PROFILE",
     "native_alpha",
 )

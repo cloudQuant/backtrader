@@ -10,7 +10,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,10 +23,8 @@ class Alpha091Native(FactorIndicator):
     case_id = "AF46-091"
     lookback_h = 33
     formula = "((Ts_Rank(decay_linear(decay_linear(correlation(IndNeutralize(close, IndClass.industry), volume, 9.74928), 16.398), 3.83219), 4.8667) - rank(decay_linear(correlation(vwap, adv30, 4.01303), 2.6809))) * -1)"
-    formula_fields = ("close", "volume", "vwap", "dollar_volume", "adv30")
+    formula_fields = ("close", "volume", "vwap", "dollar_volume", "adv30", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
 
     def __init__(self):
         super().__init__()
@@ -38,6 +36,7 @@ class Alpha091Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("close"),
             level="industry",
+            groups=self.field_lines("industry"),
         )
         close_volume_correlation = per_asset(
             self,

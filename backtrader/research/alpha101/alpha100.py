@@ -11,7 +11,7 @@ from ..operators import (
     Subtract,
     TsArgMin,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,10 +23,8 @@ class Alpha100Native(FactorIndicator):
     alpha_id = 100
     case_id = "AF46-100"
     lookback_h = 29
-    formula_fields = ("close", "high", "low", "volume", "dollar_volume", "adv20")
+    formula_fields = ("close", "high", "low", "volume", "dollar_volume", "adv20", "subindustry")
     required_fields = formula_fields
-    classification_levels = ("subindustry", "subindustry", "subindustry")
-    classification_fields = ("subindustry",)
     formula = "(0 - (1 * (((1.5 * scale(indneutralize(indneutralize(rank(((((close - low) - (high - close)) / (high - low)) * volume)), IndClass.subindustry), IndClass.subindustry))) - scale(indneutralize((correlation(close, rank(adv20), 5) - rank(ts_argmin(close, 30))), IndClass.subindustry))) * (volume / adv20))))"
 
     def __init__(self):
@@ -52,7 +50,7 @@ class Alpha100Native(FactorIndicator):
             IndNeutralize,
             ranked_weighted,
             level="subindustry",
-            groups=self.classification_lines("subindustry"),
+            groups=self.field_lines("subindustry"),
         )
         neutralized_twice = panel(
             self,
@@ -60,7 +58,7 @@ class Alpha100Native(FactorIndicator):
             IndNeutralize,
             neutralized_once,
             level="subindustry",
-            groups=self.classification_lines("subindustry"),
+            groups=self.field_lines("subindustry"),
         )
         first_scale = panel(self, "first_scale", CrossSectionalScale, neutralized_twice)
         first_scaled = per_asset(
@@ -82,7 +80,7 @@ class Alpha100Native(FactorIndicator):
             IndNeutralize,
             correlation_minus_rank,
             level="subindustry",
-            groups=self.classification_lines("subindustry"),
+            groups=self.field_lines("subindustry"),
         )
         second_scale = panel(self, "second_scale", CrossSectionalScale, second_neutralized)
         scale_difference = per_asset(

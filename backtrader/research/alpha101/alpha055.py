@@ -10,7 +10,7 @@ from ..operators import (
     TsMax,
     TsMin,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha055Native(FactorIndicator):
     formula = "(-1 * correlation(rank(((close - ts_min(low, 12)) / (ts_max(high, 12) - ts_min(low, 12)))), rank(volume), 6))"
     formula_fields = ("close", "low", "high", "volume")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

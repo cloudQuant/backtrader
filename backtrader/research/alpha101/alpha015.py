@@ -7,7 +7,7 @@ from ..operators import (
     RollingCorrelation,
     RollingSum,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha015Native(FactorIndicator):
     formula = "(-1 * sum(rank(correlation(rank(high), rank(volume), 3)), 3))"
     formula_fields = ("high", "volume")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

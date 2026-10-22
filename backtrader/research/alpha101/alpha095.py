@@ -13,7 +13,7 @@ from ..operators import (
     TsMin,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -28,8 +28,6 @@ class Alpha095Native(FactorIndicator):
     formula = "(rank((open - ts_min(open, 12.4105))) < Ts_Rank((rank(correlation(sum(((high + low) / 2), 19.1351), sum(adv40, 19.1351), 12.8742))^5), 11.7584))"
     formula_fields = ("open", "high", "low", "dollar_volume", "adv40")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

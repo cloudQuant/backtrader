@@ -11,7 +11,7 @@ from ..operators import (
     Multiply,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha073Native(FactorIndicator):
     lookback_h = 19
     formula_fields = ("vwap", "open", "low")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "(max(rank(decay_linear(delta(vwap, 4.72775), 2.91864)), Ts_Rank(decay_linear(((delta(((open * 0.147155) + (low * (1 - 0.147155))), 2.03608) / ((open * 0.147155) + (low * (1 - 0.147155)))) * -1), 3.33829), 16.7411)) * -1)"
 
     def __init__(self):

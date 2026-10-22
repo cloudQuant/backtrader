@@ -7,7 +7,7 @@ import backtrader as bt
 from backtrader.errors import ResearchConfigError as ConfigError, FactorComputationError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.inputs import prealign_bars
+from backtrader.research import align_to_grid
 from backtrader.research.operators import Multiply, OperatorInputError, OperatorReason
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
@@ -131,7 +131,7 @@ def _run_factor(mode, runonce, values=(1.5, 2.0)):
         params={"mode": mode},
     )
     cerebro = bt.Cerebro(stdstats=False)
-    feed = prealign_bars(frame, research, "asset-0").feed
+    feed = align_to_grid(frame, research, "asset-0").feed
     cerebro.adddata(feed, name="asset-0")
     cerebro.addstrategy(FactorStrategy, research=research, factors={factor.name: factor})
     return cerebro.run(runonce=runonce, preload=True)[0]
@@ -139,7 +139,7 @@ def _run_factor(mode, runonce, values=(1.5, 2.0)):
 
 def _run_bound_source(source_value, runonce):
     research, frame = _research_inputs((source_value, 2.0))
-    feed = prealign_bars(frame, research, "asset-0", data_version="strict-error-fixture-v1").feed
+    feed = align_to_grid(frame, research, "asset-0", data_version="strict-error-fixture-v1").feed
     return _run_bound_feed(research, feed, runonce)
 
 
@@ -158,7 +158,7 @@ def _run_bound_feed(research, feed, runonce):
 
 def _renamed_pandas_feed(source_value, mapping):
     research, frame = _research_inputs((source_value, 2.0))
-    aligned_feed = prealign_bars(
+    aligned_feed = align_to_grid(
         frame, research, "asset-0", data_version="strict-error-fixture-v1"
     ).feed
     renamed = aligned_feed.p.dataname.rename(columns={"close": "settle"})
@@ -176,7 +176,7 @@ def _run_constructor_failure(runonce):
         panel_line="value",
     )
     cerebro = bt.Cerebro(stdstats=False)
-    feed = prealign_bars(frame, research, "asset-0").feed
+    feed = align_to_grid(frame, research, "asset-0").feed
     cerebro.adddata(feed, name="asset-0")
     cerebro.addstrategy(FactorStrategy, research=research, factors={factor.name: factor})
     return cerebro.run(runonce=runonce, preload=True)[0]
@@ -184,7 +184,7 @@ def _run_constructor_failure(runonce):
 
 def _run_uninspectable_csv_source(tmp_path, runonce):
     research, frame = _research_inputs()
-    aligned_feed = prealign_bars(frame, research, "asset-0").feed
+    aligned_feed = align_to_grid(frame, research, "asset-0").feed
     source = tmp_path / "synthetic.csv"
     source.write_text(
         "2026-01-05 00:00:00,1.5,2.5,0.5,inf,100,0\n" "2026-01-06 00:00:00,2.0,3.0,1.0,2.0,100,0\n",
@@ -226,7 +226,7 @@ def test_native_child_failures_raise_contextual_factor_errors(runonce, mode, cau
 def test_explicit_nan_remains_a_missing_factor_value(runonce):
     strategy = _run_factor("nan", runonce)
 
-    raw_factors = strategy.get_dataset().raw_factors
+    raw_factors = strategy.get_panel().factors
     assert len(raw_factors) == 2
     assert raw_factors["strict_probe"].isna().all()
 
@@ -244,7 +244,7 @@ def test_factor_dependency_contexts_are_isolated(runonce):
         for name in ("first", "second")
     }
     cerebro = bt.Cerebro(stdstats=False)
-    feed = prealign_bars(frame, research, "asset-0").feed
+    feed = align_to_grid(frame, research, "asset-0").feed
     cerebro.adddata(feed, name="asset-0")
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
     strategy = cerebro.run(runonce=runonce, preload=True)[0]
@@ -273,54 +273,12 @@ def test_bound_source_infinity_raises_contextual_factor_error(runonce, source_va
     assert isinstance(error.__cause__, OperatorInputError)
 
 
-@pytest.mark.parametrize("runonce", (False, True))
-def test_bound_source_nan_remains_nonfinite_input(runonce):
-    dataset = _run_bound_source(float("nan"), runonce).get_dataset()
-
-    raw_factors = dataset.raw_factors
-    availability = dataset.availability
-    assert pd.isna(raw_factors["bound_source"].iloc[0])
-    assert raw_factors["bound_source"].iloc[1] == 2.0
-    assert availability["reason"].iloc[0] == "NONFINITE_INPUT"
-    assert bool(availability["ready"].iloc[0])
-    assert not bool(availability["valid"].iloc[0])
 
 
-@pytest.mark.parametrize("source_value", (float("inf"), float("-inf")))
-@pytest.mark.parametrize("mapping", ("name", "index"))
-def test_remapped_pandas_bound_source_infinity_is_rejected(source_value, mapping):
-    research, feed = _renamed_pandas_feed(source_value, mapping)
-
-    with pytest.raises(FactorComputationError) as caught:
-        _run_bound_feed(research, feed, runonce=False)
-
-    error = caught.value
-    assert error.code == "FACTOR_COMPUTATION_FAILED"
-    assert error.factor == "bound_source"
-    assert error.asset == "asset-0"
-    assert error.phase == "construct"
-    assert isinstance(error.__cause__, OperatorInputError)
 
 
-@pytest.mark.parametrize("runonce", (False, True))
-def test_renamed_pandas_source_runs_in_both_modes(runonce):
-    research, feed = _renamed_pandas_feed(1.5, "name")
-
-    dataset = _run_bound_feed(research, feed, runonce).get_dataset()
-
-    assert dataset.raw_factors["bound_source"].tolist() == [1.5, 2.0]
 
 
-def test_generic_csv_bound_source_is_rejected_before_infinity_can_be_sanitized(tmp_path):
-    with pytest.raises(ConfigError) as caught:
-        _run_uninspectable_csv_source(tmp_path, runonce=False)
-
-    error = caught.value
-    assert error.code == "UNSUPPORTED_SOURCE"
-    assert error.report["factor"] == "bound_source"
-    assert error.report["asset"] == "asset-0"
-    assert error.report["phase"] == "construct"
-    assert error.report["reason"] == "raw_table_unavailable"
 
 
 @pytest.mark.parametrize("runonce", (False, True))

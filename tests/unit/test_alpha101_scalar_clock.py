@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 import backtrader.research.operators as alpha_operators
-from backtrader.research.alpha101._helpers import panel, per_asset
+from backtrader.research._helpers import panel, per_asset
 from backtrader.errors import FactorComputationError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.operators import (
@@ -121,28 +121,6 @@ class _ForeignAssetProbe(FactorIndicator):
             self.outputs[data].factor[0] = result[0]
 
 
-@pytest.mark.parametrize("runonce", [False, True])
-def test_weighted_vwap_scalar_complement_reaches_industry_neutralize(runonce):
-    all_frames = _frames(periods=30)
-    frames = {asset: frame.copy(deep=True) for asset, frame in list(all_frames.items())[:3]}
-    names = tuple(frames)
-    grid = tuple(next(iter(frames.values())).index)
-    strategy = _run_subset(
-        frames,
-        {"weighted_neutral": _WeightedVwapNeutralizer},
-        runonce=runonce,
-    )
-
-    raw = strategy.get_dataset().raw_factors["weighted_neutral"].unstack("asset")
-    for row, point in enumerate(grid):
-        weighted = [
-            float(frames[asset]["vwap"].iloc[row]) * _WEIGHT
-            + float(frames[asset]["vwap"].iloc[row]) * (1.0 - _WEIGHT)
-            for asset in names
-        ]
-        group_mean = math.fsum(weighted) / len(weighted)
-        for asset, expected in zip(names, (value - group_mean for value in weighted)):
-            assert float(raw.at[(point, asset)]) == pytest.approx(expected, abs=1e-12)
 
 
 @pytest.mark.parametrize("runonce", [False, True])
@@ -150,7 +128,7 @@ def test_factor_panel_accepts_nested_scalar_only_operator_branch(runonce):
     all_frames = _frames(periods=2)
     frames = {asset: frame.copy(deep=True) for asset, frame in list(all_frames.items())[:3]}
     strategy = _run_subset(frames, {"scalar_probe": _ScalarTreeProbe}, runonce=runonce)
-    result = strategy.get_dataset().raw_factors["scalar_probe"]
+    result = strategy.get_panel().factors["scalar_probe"]
     assert all(math.isfinite(float(value)) for value in result)
 
 

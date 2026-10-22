@@ -2,7 +2,7 @@
 
 from typing import Any, Sequence, Tuple
 
-from ..operators import CrossSectionalRank, CrossSectionalScale, Delay, Divide, Subtract
+from .operators import CrossSectionalRank, CrossSectionalScale, Delay, Divide, Subtract
 
 
 def per_asset(

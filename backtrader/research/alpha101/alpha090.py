@@ -11,7 +11,7 @@ from ..operators import (
     TsMax,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,10 +24,8 @@ class Alpha090Native(FactorIndicator):
     case_id = "AF46-090"
     lookback_h = 45
     formula = "((rank((close - ts_max(close, 4.66719)))^Ts_Rank(correlation(IndNeutralize(adv40, IndClass.subindustry), low, 5.38375), 3.21856)) * -1)"
-    formula_fields = ("close", "low", "dollar_volume", "adv40")
+    formula_fields = ("close", "low", "dollar_volume", "adv40", "subindustry")
     required_fields = formula_fields
-    classification_levels = ("subindustry",)
-    classification_fields = ("subindustry",)
 
     def __init__(self):
         super().__init__()
@@ -46,6 +44,7 @@ class Alpha090Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("adv40"),
             level="subindustry",
+            groups=self.field_lines("subindustry"),
         )
         correlation = per_asset(
             self,

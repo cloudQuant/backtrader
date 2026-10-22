@@ -5,7 +5,7 @@ from ..operators import (
     Multiply,
     RollingCorrelation,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -20,8 +20,6 @@ class Alpha006Native(FactorIndicator):
     formula = "(-1 * correlation(open, volume, 10))"
     formula_fields = ("open", "volume")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

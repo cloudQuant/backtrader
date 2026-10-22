@@ -34,27 +34,28 @@ class _OutputLines:
         return tuple(self._lines)
 
 
-class _PITValueLine(Indicator):
-    """Causal native line view over an already prealigned PIT input table.
+class _PresenceLine(Indicator):
+    """One boolean real-bar flag per bar, advancing on the target feed clock.
 
-    The line is indexed by the bound target feed's ordinary BT clock.  The
-    table is frozen by the public alignment helper; user factor code sees only
-    the current scalar line value and never receives the table or its arrays.
+    Cross-sectional operators read it to exclude an asset whose source feed has
+    no bar on the current grid point.  It carries no point-in-time table, source
+    timestamp or availability reason.
     """
 
     lines: Any = ("value",)
-    params: Any = (("timestamps", ()), ("line_values", ()))
+    params: Any = (("present", ()),)
 
     def __init__(self) -> None:
-        stamps = tuple(float(value) for value in self.p.timestamps)
-        values = tuple(float(value) for value in self.p.line_values)
-        if len(stamps) != len(values) or len(set(stamps)) != len(stamps):
-            raise ValueError("prealigned PIT line must have unique timestamps and equal values")
-        self._pit_values = dict(zip(stamps, values))
+        self._present = tuple(bool(value) for value in self.p.present)
+        self._cursor = 0
 
     def next(self) -> None:
-        stamp = float(self.data.datetime[0])
-        self.lines.value[0] = self._pit_values.get(stamp, float("nan"))
+        index = self._cursor
+        self._cursor += 1
+        if index >= len(self._present):
+            self.lines.value[0] = 1.0
+        else:
+            self.lines.value[0] = 1.0 if self._present[index] else 0.0
 
 
 class _FeedInputLine(Indicator):
@@ -85,7 +86,6 @@ class FactorIndicator(Indicator):
     aliased = True
     panel_mode = "next"
     formula_fields: Tuple[str, ...] = ()
-    classification_fields: Tuple[str, ...] = ()
 
     def __init__(self) -> None:
         if not getattr(self.__class__, "_factor_bound", False):
@@ -118,12 +118,7 @@ class FactorIndicator(Indicator):
             raise RuntimeError("factor asset names do not match its output lines")
         self._factor_call_times: List[datetime] = []
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
-        self._factor_value_states: Dict[Tuple[datetime, int, str], Dict[str, Any]] = {}
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
-        self._class_line_cache: Dict[str, Tuple[Any, ...]] = {}
-        self._factor_input_metadata: Dict[Tuple[int, str, bool], Dict[datetime, Dict[str, Any]]] = (
-            {}
-        )
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
 
         factor_name = self._factor_runtime.get("factor_name")
@@ -138,12 +133,9 @@ class FactorIndicator(Indicator):
                     line._factor_strict_context = context
 
         # Register every declared input before the engine starts scheduling
-        # siblings. This also captures source-side availability metadata for
-        # fields that a formula only reads through a native child operator.
+        # siblings.
         for alias in tuple(getattr(self.__class__, "formula_fields", ())):
             self.field_lines(alias)
-        for alias in tuple(getattr(self.__class__, "classification_fields", ())):
-            self.classification_lines(alias)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         is_bound = bool(cls.__dict__.get("_factor_bound", False))
@@ -204,7 +196,6 @@ class FactorIndicator(Indicator):
             asset_names=tuple(getattr(data, "_name", "") for data in datas),
             factor_name=None,
             field_bindings=native_field_bindings,
-            classification_bindings={},
             research=None,
             **params,
         )
@@ -217,7 +208,6 @@ class FactorIndicator(Indicator):
         asset_names: Sequence[str],
         factor_name: Optional[str],
         field_bindings: Mapping[str, Any],
-        classification_bindings: Mapping[str, str],
         research: Any,
         available_datas: Optional[Sequence[Any]] = None,
         strict: bool = True,
@@ -232,10 +222,8 @@ class FactorIndicator(Indicator):
         input_data_ids = {id(data) for data in datas}
         if any(id(data) not in input_data_ids for data in targets):
             raise ResearchConfigError("factor output targets must be native indicator inputs")
-        if not isinstance(field_bindings, Mapping) or not isinstance(
-            classification_bindings, Mapping
-        ):
-            raise ResearchConfigError("factor input bindings must be mappings")
+        if not isinstance(field_bindings, Mapping):
+            raise ResearchConfigError("factor input bindings must be a mapping")
 
         templates = cls._factor_template_names()
         output_names = tuple(
@@ -250,7 +238,6 @@ class FactorIndicator(Indicator):
             "asset_by_data_id": asset_by_data_id,
             "factor_name": factor_name if strict else None,
             "field_bindings": dict(field_bindings),
-            "classification_bindings": dict(classification_bindings),
             "research": research,
             "available_datas": input_datas,
         }
@@ -470,8 +457,7 @@ class FactorIndicator(Indicator):
         binding = self._factor_runtime.get("field_bindings", {}).get(alias)
         if binding is None:
             raise ResearchConfigError("factor field %s has no explicit binding" % alias)
-        lines = self._resolve_bound_lines(alias, binding, classification=False, stack=())
-        self._bind_input_metadata_alias(alias, binding, classification=False)
+        lines = self._resolve_bound_lines(alias, binding, stack=())
         self._field_line_cache[alias] = lines
         return lines
 
@@ -483,149 +469,24 @@ class FactorIndicator(Indicator):
             raise ResearchConfigError("field access requires a factor target feed")
         return lines[index]
 
-    def classification_lines(self, alias: str) -> Tuple[Any, ...]:
-        """Resolve one explicitly declared PIT classification binding per target."""
-        if alias in self._class_line_cache:
-            return self._class_line_cache[alias]
-        declared = tuple(getattr(self.__class__, "classification_fields", ()))
-        levels = tuple(getattr(self.__class__, "classification_levels", ()))
-        if alias not in declared and alias not in levels:
-            raise ResearchConfigError("factor did not declare classification field %s" % alias)
-        binding = self._factor_runtime.get("classification_bindings", {}).get(alias)
-        if binding is None:
-            raise ResearchConfigError("classification %s has no explicit binding" % alias)
-        if ":" not in binding:
-            research = self._factor_runtime.get("research")
-            if research is None or binding not in research.classifications:
-                raise ResearchConfigError(
-                    "classification binding is not a named ResearchSpec table"
-                )
-            binding = "table:" + binding
-        lines = self._resolve_bound_lines(alias, binding, classification=True, stack=())
-        self._bind_input_metadata_alias(alias, binding, classification=True)
-        self._class_line_cache[alias] = lines
-        return lines
-
-    def _bind_input_metadata_alias(self, alias: str, binding: Any, *, classification: bool) -> None:
-        """Associate source PIT metadata with the factor's declared alias."""
-        if isinstance(binding, Mapping):
-            derive = binding.get("derive")
-            if derive == "adv":
-                source = binding.get("source")
-                if isinstance(source, str) and source in self._factor_runtime.get(
-                    "field_bindings", {}
-                ):
-                    self.field_lines(source)
-                return
-            if derive == "vwap_volume":
-                for source in (binding.get("vwap"), binding.get("volume")):
-                    if isinstance(source, str) and source in self._factor_runtime.get(
-                        "field_bindings", {}
-                    ):
-                        self.field_lines(source)
-                return
-            binding = binding.get("source")
-        if not isinstance(binding, str):
-            return
-        if binding.startswith("table:"):
-            table_name = binding.split(":", 1)[1]
-            for data in self._factor_target_datas:
-                table_state = self._factor_input_metadata.get(
-                    (id(data), table_name, classification)
-                )
-                if table_state is not None:
-                    self._factor_input_metadata[(id(data), alias, classification)] = table_state
-            return
-        if binding.startswith("feed:"):
-            if classification:
-                raise ResearchConfigError(
-                    "classification bindings require a named PIT table with taxonomy metadata"
-                )
-            pieces = binding.split(":")
-            if len(pieces) == 3 and pieces[1] and pieces[2]:
-                self._record_feed_input_metadata(
-                    alias, pieces[1], pieces[2], classification=classification
-                )
-
-    def _record_feed_input_metadata(
-        self, alias: str, feed_name: str, line_name: str, *, classification: bool
-    ) -> None:
-        """Record aligned feed availability and original source timestamps."""
-        available_datas = tuple(self._factor_runtime.get("available_datas", self.datas))
-        by_name = {getattr(data, "_name", ""): data for data in available_datas}
-        if feed_name == "target":
-            sources = self._factor_target_datas
-        else:
-            source = by_name.get(feed_name)
-            sources = (source,) * len(self._factor_target_datas) if source is not None else ()
-        if len(sources) != len(self._factor_target_datas):
-            return
-        research = self._factor_runtime.get("research")
-        if research is None:
-            return
-        grid = tuple(value.to_pydatetime() for value in research.calculation_grid.index)
-        for target, source in zip(self._factor_target_datas, sources):
-            metadata = getattr(source, "_factor_research_alignment_v1", None)
-            present_values = (
-                tuple(metadata.get("present", ())) if isinstance(metadata, Mapping) else ()
-            )
-            available_values = (
-                tuple(metadata.get("available_at", ())) if isinstance(metadata, Mapping) else ()
-            )
-            frame = getattr(getattr(source, "p", None), "dataname", None)
-            frame_data = cast(Any, frame)
-            column: Optional[Tuple[Any, ...]] = None
-            if hasattr(frame_data, "columns") and line_name in frame_data.columns:
-                try:
-                    column = tuple(frame_data[line_name].to_numpy())
-                except (AttributeError, TypeError, ValueError):
-                    column = None
-            states: Dict[datetime, Dict[str, Any]] = {}
-            for index, point in enumerate(grid):
-                is_present = bool(present_values[index]) if index < len(present_values) else True
-                source_available = (
-                    available_values[index] if index < len(available_values) else point
-                )
-                if source_available is not None and hasattr(source_available, "to_pydatetime"):
-                    source_available = source_available.to_pydatetime()
-                if not is_present:
-                    reason = "NO_CURRENT_BAR"
-                elif source_available is not None and source_available > point:
-                    reason = "NOT_YET_AVAILABLE"
-                elif column is not None and index < len(column) and _is_nan(column[index]):
-                    reason = "NONFINITE_INPUT"
-                else:
-                    reason = "READY"
-                states[point] = {
-                    "present": is_present,
-                    "available_at": source_available,
-                    "reason": reason,
-                }
-            self._factor_input_metadata[(id(target), alias, classification)] = states
-
     @property
     def formula_members(self) -> Tuple[Any, ...]:
-        """Native current-grid formula-universe membership lines by target."""
+        """One static real-bar membership line per target.
+
+        A grid point where the source feed has no bar excludes that asset from
+        cross-sectional operators.  This replaces the deleted dynamic
+        ``formula_universe`` table; NaN/finite input handling stays with the
+        operators' own reason lines.
+        """
         if self._formula_member_lines is not None:
             return self._formula_member_lines
-        research = self._factor_runtime.get("research")
-        if research is None:
-            self._formula_member_lines = (None,) * len(self._factor_target_datas)
-            return self._formula_member_lines
-        membership = research.formula_universe
-        grid = research.calculation_grid
-        stamps = tuple(float(date2num(value.to_pydatetime())) for value in grid.index)
         members = []
         for data in self._factor_target_datas:
-            asset = self._factor_runtime["asset_by_data_id"][id(data)]
-            alignment = getattr(data, "_factor_research_alignment_v1", None)
+            alignment = getattr(data, "_factor_research_alignment_v2", None)
+            if not isinstance(alignment, Mapping):
+                alignment = getattr(data, "_factor_research_alignment_v1", None)
             present = tuple(alignment.get("present", ())) if isinstance(alignment, Mapping) else ()
-            values = tuple(
-                float(bool(membership.loc[(time, asset)]) and (not present or bool(present[index])))
-                for index, time in enumerate(grid.index)
-            )
-            line = cast(Any, _PITValueLine)(data, timestamps=stamps, line_values=values)
-            members.append(line.lines.value)
+            members.append(cast(Any, _PresenceLine)(data, present=present).lines.value)
         self._formula_member_lines = tuple(members)
         return self._formula_member_lines
 
@@ -640,54 +501,6 @@ class FactorIndicator(Indicator):
             groups[self._factor_runtime["asset_by_data_id"][id(data)]]
             for data in self._factor_target_datas
         )
-
-    def input_availability(
-        self,
-        data: Any,
-        point: datetime,
-        *,
-        start_index: int,
-        end_index: int,
-    ) -> Dict[str, Any]:
-        """Return source timestamps and a conservative PIT status by alias."""
-        result: Dict[str, Any] = {}
-        aliases = tuple(getattr(self.__class__, "formula_fields", ())) + tuple(
-            getattr(self.__class__, "classification_fields", ())
-        )
-        for alias in aliases:
-            classification = alias in tuple(getattr(self.__class__, "classification_fields", ()))
-            states = self._factor_input_metadata.get((id(data), alias, classification))
-            if not states:
-                # A normal target-feed line is released at its aligned close.
-                grid = self._factor_grid or ()
-                result[alias] = {
-                    "available_at": tuple(
-                        grid[index]
-                        for index in range(max(0, start_index), min(end_index + 1, len(grid)))
-                    ),
-                    "reason": None,
-                }
-                continue
-            stamps: List[Optional[datetime]] = []
-            reason: Optional[str] = None
-            grid = self._factor_grid or ()
-            for index in range(max(0, start_index), min(end_index + 1, len(grid))):
-                input_point = grid[index]
-                state = states.get(input_point)
-                if state is None:
-                    stamps.append(None)
-                    reason = "MISSING_FIELD"
-                    continue
-                source_available = state.get("available_at")
-                stamps.append(source_available)
-                input_reason = state.get("reason")
-                if input_reason not in (None, "READY"):
-                    # Keep the first concrete failure in chronological order;
-                    # its timestamp remains in the parallel input_times row.
-                    if reason is None:
-                        reason = input_reason
-            result[alias] = {"available_at": tuple(stamps), "reason": reason}
-        return result
 
     @staticmethod
     def _mark_target_local_line(line: Any, target: Any, sources: Sequence[Any]) -> Any:
@@ -713,7 +526,6 @@ class FactorIndicator(Indicator):
         alias: str,
         binding: Any,
         *,
-        classification: bool,
         stack: Tuple[str, ...],
     ) -> Tuple[Any, ...]:
         if alias in stack:
@@ -739,7 +551,6 @@ class FactorIndicator(Indicator):
                 source_lines = self._resolve_bound_lines(
                     source,
                     self._factor_runtime.get("field_bindings", {}).get(source),
-                    classification=False,
                     stack=stack + (alias,),
                 )
                 sma_type = cast(Any, SMA)
@@ -760,13 +571,11 @@ class FactorIndicator(Indicator):
                 vwap_lines = self._resolve_bound_lines(
                     vwap_alias,
                     self._factor_runtime.get("field_bindings", {}).get(vwap_alias),
-                    classification=False,
                     stack=stack + (alias,),
                 )
                 volume_lines = self._resolve_bound_lines(
                     volume_alias,
                     self._factor_runtime.get("field_bindings", {}).get(volume_alias),
-                    classification=False,
                     stack=stack + (alias,),
                 )
                 if len(vwap_lines) != len(volume_lines):
@@ -783,12 +592,6 @@ class FactorIndicator(Indicator):
                 raise ResearchConfigError("unknown field binding descriptor")
         if not isinstance(binding, str):
             raise ResearchConfigError("field %s has no explicit binding" % alias)
-        if binding.startswith("table:"):
-            return self._table_lines(
-                binding.split(":", 1)[1],
-                classification=classification,
-                expected_level=alias if classification else None,
-            )
         if binding.startswith("feed:"):
             pieces = binding.split(":")
             if len(pieces) != 3 or not pieces[1] or not pieces[2]:
@@ -814,154 +617,6 @@ class FactorIndicator(Indicator):
                 raise ResearchConfigError("named feed is missing a bound line") from exc
             bound_line = cast(Any, _FeedInputLine)(line).lines.value
             return (bound_line,) * len(self._factor_target_datas)
-        raise ResearchConfigError("field %s requires an explicit feed: or table: binding" % alias)
-
-    def _table_lines(
-        self, name: str, *, classification: bool, expected_level: Optional[str] = None
-    ) -> Tuple[Any, ...]:
-        research = self._factor_runtime.get("research")
-        if research is None:
-            raise ResearchConfigError("table bindings require a ResearchSpec")
-        tables = research.classifications if classification else research.formula_fields
-        if name not in tables:
-            raise ResearchConfigError("ResearchSpec has no bound input table %s" % name)
-        if classification:
-            table = tables[name]
-            declared_levels = tuple(getattr(self.__class__, "classification_levels", ()))
-            if expected_level is None or expected_level not in declared_levels:
-                raise ResearchConfigError(
-                    "classification table requires an explicit declared level"
-                )
-            table_levels = set(table["level"].dropna().tolist())
-            if table_levels != {expected_level}:
-                raise ResearchConfigError(
-                    "classification table level does not match the factor binding"
-                )
-        from .inputs import prealign_pit_table
-
-        aligned = prealign_pit_table(tables[name], research, name, classification=classification)
-        values_frame = aligned.values
-        value_column = "category" if classification else "value"
-        table_values = values_frame[value_column]
-        present = aligned.present
-        available_at = aligned.available_at
-        reasons = aligned.reason
-        if classification:
-            known = set()
-            for value in table_values:
-                if value is None or _is_nan(value):
-                    continue
-                if isinstance(value, str) and not value.strip():
-                    raise ResearchConfigError("classification categories must be non-empty strings")
-                try:
-                    known.add((type(value), value))
-                except TypeError as exc:
-                    raise ResearchConfigError(
-                        "classification categories must be hashable scalars"
-                    ) from exc
-            ordered = sorted(
-                known,
-                key=lambda item: (
-                    getattr(item[0], "__module__", ""),
-                    getattr(item[0], "__qualname__", item[0].__name__),
-                    repr(item[1]),
-                ),
-            )
-            codebook = {value: float(index + 1) for index, value in enumerate(ordered)}
-            values_by_key = {
-                (time, asset): codebook.get((type(value), value), float("nan"))
-                for (time, asset), value in table_values.items()
-            }
-        else:
-            try:
-                values_by_key = {
-                    (time, asset): float(value) if not _is_nan(value) else float("nan")
-                    for (time, asset), value in table_values.items()
-                }
-            except (TypeError, ValueError, OverflowError) as exc:
-                raise ResearchConfigError(
-                    "formula input tables must expose numeric values"
-                ) from exc
-
-        grid = research.calculation_grid
-        stamps = tuple(float(date2num(value.to_pydatetime())) for value in grid.index)
-        output = []
-        for data in self._factor_target_datas:
-            asset = self._factor_runtime["asset_by_data_id"][id(data)]
-            series = tuple(values_by_key.get((time, asset), float("nan")) for time in grid.index)
-            line = cast(Any, _PITValueLine)(data, timestamps=stamps, line_values=series)
-            line.lines.value._factor_research_target = data
-            output.append(line.lines.value)
-            states: Dict[datetime, Dict[str, Any]] = {}
-            for time in grid.index:
-                key = (time, asset)
-                source_time = available_at.loc[key]
-                states[time.to_pydatetime()] = {
-                    "present": bool(present.loc[key]),
-                    "available_at": (
-                        source_time.to_pydatetime()
-                        if source_time is not None and not _is_nan(source_time)
-                        else None
-                    ),
-                    "reason": str(reasons.loc[key]),
-                }
-            self._factor_input_metadata[(id(data), name, classification)] = states
-            if classification:
-                setattr(line, "_factor_classification_codebook", dict(codebook))
-        return tuple(output)
-
-    def record_availability(
-        self,
-        data: Any,
-        *,
-        ready: bool,
-        valid: bool,
-        reason: str,
-        available_at: Optional[datetime] = None,
-        input_times: Any = None,
-        line: str = "factor",
-    ) -> None:
-        """Record current-grid eligibility facts for the collector.
-
-        Formula implementations with richer reason lines should call this
-        alongside writing their scalar output.  The collector supplies a
-        conservative reason when an implementation does not.
-        """
-        if data not in self.outputs or line not in self.outputs[data].keys():
-            raise ResearchConfigError("availability must refer to an actual factor output")
-        if type(ready) is not bool or type(valid) is not bool or not isinstance(reason, str):
-            raise ResearchConfigError("availability requires bool readiness and a reason string")
-        if valid and not ready:
-            raise ResearchConfigError("a valid output must also be ready")
-        point = num2date(float(data.datetime[0]), tz=timezone.utc, naive=False)
-        self._factor_value_states[(point, id(data), line)] = {
-            "time": point,
-            "ready": ready,
-            "valid": valid,
-            "reason": reason,
-            "available_at": available_at or point,
-            "input_times": input_times,
-        }
-
-    def availability_for(self, data: Any, line: str, point: datetime) -> Optional[Dict[str, Any]]:
-        """Return a copy of formula-authored availability for this grid point."""
-        state = self._factor_value_states.get((point, id(data), line))
-        if state is None:
-            return None
-        return dict(state)
-
-
-def _is_nan(value: Any) -> bool:
-    if value is None or type(value).__name__ in ("NAType", "NaTType"):
-        return True
-    if isinstance(value, str):
-        return False
-    try:
-        return math.isnan(float(value))
-    except (TypeError, ValueError, OverflowError):
-        # String categories are valid PIT classifications; only explicit
-        # missing sentinels are absent here.
-        return False
-
+        raise ResearchConfigError("field %s requires an explicit feed:<name>:<line> binding" % alias)
 
 __all__ = ("FactorIndicator",)

@@ -1,8 +1,9 @@
 """Stage benchmark for the native factor-research examples 025/026/027.
 
 The harness builds the same inputs the examples use and times each stage
-separately so the legacy ``prealign_bars``/``get_dataset`` path and the
-lightweight panel path can be compared on one machine.  Import, capability
+separately.  It measures the current lightweight panel pipeline only; the
+pre-refactor ``prealign_bars``/``get_dataset`` numbers are the frozen R0a
+baseline recorded in ``evidence/r0a-baseline-20261022``.  Import, capability
 probes and CSV writing of the examples' own summaries are excluded on purpose;
 they are reported by the examples themselves.
 
@@ -12,9 +13,9 @@ Usage::
         --pipeline legacy --output /tmp/bench
 
 The JSON result records the command, environment, source hashes, per-stage
-wall time, peak and resident RSS, and output shapes.  Stages that do not apply
-to a pipeline are ``null`` rather than 0 so an unexecuted stage cannot be read
-as a fast one.
+wall time, peak and resident RSS, and output shapes.  Stages that did not
+run are ``null`` rather than 0 so an unexecuted stage cannot be read as a fast
+one.
 """
 
 from __future__ import annotations
@@ -170,101 +171,6 @@ def _research_spec(example: str, config: Mapping[str, Any], panel: Mapping[str, 
     )
 
 
-def _run_legacy(
-    example: str,
-    config: Mapping[str, Any],
-    panel: Mapping[str, Any],
-    stages: Dict[str, Optional[float]],
-    artifacts: Dict[str, Any],
-    *,
-    runnext: bool,
-    write_csv: bool,
-    report: bool,
-) -> None:
-    import backtrader as bt
-    from backtrader.brokers import BackBroker
-    from backtrader.research import FactorStrategy
-    from backtrader.research.inputs import prealign_bars
-
-    class CountingBroker(BackBroker):
-        def __init__(self) -> None:
-            super().__init__()
-            self.submit_count = 0
-            self.cancel_count = 0
-
-        def submit(self, order: Any) -> Any:
-            self.submit_count += 1
-            return super().submit(order)
-
-        def cancel(self, order: Any) -> Any:
-            self.cancel_count += 1
-            return super().cancel(order)
-
-    research = _research_spec(example, config, panel)
-    factors = _factor_specs(example, config, None)
-
-    started = time.perf_counter()
-    cerebro = bt.Cerebro(stdstats=False)
-    broker = CountingBroker()
-    cerebro.setbroker(broker)
-    aligned = []
-    for asset in panel["assets"]:
-        item = prealign_bars(
-            panel["feeds"][asset],
-            research,
-            asset,
-            data_version=config["data"]["data_version"],
-        )
-        aligned.append(item)
-        cerebro.adddata(item.feed, name=asset)
-    stages["align"] = time.perf_counter() - started
-
-    cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
-    started = time.perf_counter()
-    strategies = cerebro.run(runonce=not runnext, preload=True)
-    stages["cerebro"] = time.perf_counter() - started
-    if len(strategies) != 1:
-        raise RuntimeError("collection did not return exactly one strategy")
-
-    started = time.perf_counter()
-    dataset = strategies[0].get_dataset()
-    stages["collect"] = time.perf_counter() - started
-    artifacts["broker_orders"] = [broker.submit_count, broker.cancel_count]
-    artifacts["shapes"] = {
-        "factors": list(dataset.raw_factors.shape),
-        "availability": list(dataset.availability.shape),
-        "prices": {name: list(frame.shape) for name, frame in (dataset.prices or {}).items()},
-        "universe": list(dataset.universe.shape),
-        "grid": len(dataset.grid),
-    }
-
-    if write_csv:
-        started = time.perf_counter()
-        destination = Path(artifacts["csv_path"])
-        dataset.raw_factors.reset_index().to_csv(destination, index=False)
-        stages["csv"] = time.perf_counter() - started
-        artifacts["csv_bytes"] = destination.stat().st_size
-
-    if report:
-        from backtrader.research import write_factor_report
-
-        periods = tuple((config.get("evaluation") or {}).get("periods", (1, 5, 20)))
-        quantiles = (config.get("evaluation") or {}).get("quantiles", 5)
-        max_loss = (config.get("evaluation") or {}).get("max_loss", 1.0)
-        started = time.perf_counter()
-        for name in factors:
-            write_factor_report(
-                dataset,
-                name,
-                Path(artifacts["report_dir"]) / ("report_%s.html" % name),
-                periods=periods,
-                quantiles=quantiles,
-                max_loss=max_loss,
-                title="bench %s %s" % (example, name),
-            )
-        stages["report"] = time.perf_counter() - started
-
-
 def _run_panel(
     example: str,
     config: Mapping[str, Any],
@@ -353,7 +259,7 @@ def _run_once(args: argparse.Namespace, example: str, output: Path, index: int) 
     if args.data_dir:
         config["data"]["directory"] = args.data_dir
 
-    run_dir = output / ("%s-%s-%d-%d" % (example, args.pipeline, args.symbols, index))
+    run_dir = output / ("%s-%d-%d" % (example, args.symbols, index))
     run_dir.mkdir(parents=True, exist_ok=True)
     artifacts: Dict[str, Any] = {
         "report_dir": str(run_dir),
@@ -377,8 +283,7 @@ def _run_once(args: argparse.Namespace, example: str, output: Path, index: int) 
         artifacts["symbols"] = len(panel["assets"])
         artifacts["grid_rows"] = len(panel["grid"])
 
-        runner = _run_legacy if args.pipeline == "legacy" else _run_panel
-        runner(
+        _run_panel(
             example,
             config,
             panel,
@@ -398,7 +303,7 @@ def _run_once(args: argparse.Namespace, example: str, output: Path, index: int) 
     measured = [value for value in stages.values() if value is not None]
     return {
         "example": example,
-        "pipeline": args.pipeline,
+        "pipeline": "panel",
         "symbols": args.symbols,
         "repeat": index,
         "runnext": runnext,
@@ -418,7 +323,7 @@ def _run_once(args: argparse.Namespace, example: str, output: Path, index: int) 
 
 def _run_isolated(args: argparse.Namespace, example: str, index: int) -> Dict[str, Any]:
     """Run one case in a fresh process so peak RSS belongs to that case only."""
-    directory = Path(args.output) / ("%s-%s-%d-%d" % (example, args.pipeline, args.symbols, index))
+    directory = Path(args.output) / ("%s-%d-%d" % (example, args.symbols, index))
     if directory.exists():
         raise RuntimeError("run directory already exists: %s" % directory)
     command = [
@@ -429,8 +334,6 @@ def _run_isolated(args: argparse.Namespace, example: str, index: int) -> Dict[st
         example,
         "--symbols",
         str(args.symbols),
-        "--pipeline",
-        args.pipeline,
         "--repeat",
         "1",
         "--output",
@@ -451,7 +354,7 @@ def _run_isolated(args: argparse.Namespace, example: str, index: int) -> Dict[st
     else:
         result = {
             "example": example,
-            "pipeline": args.pipeline,
+            "pipeline": "panel",
             "symbols": args.symbols,
             "repeat": index,
             "status": "HARNESS_FAILED",
@@ -473,7 +376,6 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--example", action="append", choices=sorted(EXAMPLES), required=True)
     parser.add_argument("--symbols", type=int, default=50)
-    parser.add_argument("--pipeline", choices=("legacy", "panel"), default="legacy")
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--runnext", action="store_true")
     parser.add_argument("--csv", action="store_true")
@@ -513,7 +415,7 @@ def main(argv: Optional[list] = None) -> int:
                 "%s %s %d#%d %s wall=%.3fs peak=%.1fMB"
                 % (
                     example,
-                    args.pipeline,
+                    "panel",
                     args.symbols,
                     index,
                     result["status"],

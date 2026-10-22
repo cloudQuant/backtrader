@@ -11,7 +11,7 @@ from ..operators import (
     RollingCorrelation,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,10 +23,8 @@ class Alpha079Native(FactorIndicator):
     alpha_id = 79
     case_id = "AF46-079"
     lookback_h = 170
-    formula_fields = ("close", "open", "vwap", "dollar_volume", "adv150")
+    formula_fields = ("close", "open", "vwap", "dollar_volume", "adv150", "sector")
     required_fields = formula_fields
-    classification_levels = ("sector",)
-    classification_fields = ("sector",)
     formula = "(rank(delta(IndNeutralize(((close * 0.60733) + (open * (1 - 0.60733))), IndClass.sector), 1.23438)) < rank(correlation(Ts_Rank(vwap, 3.60973), Ts_Rank(adv150, 9.18637), 14.6644)))"
 
     def __init__(self):
@@ -49,7 +47,7 @@ class Alpha079Native(FactorIndicator):
             IndNeutralize,
             per_asset(self, "weighted_price", Add, close_part, open_part),
             level="sector",
-            groups=self.classification_lines("sector"),
+            groups=self.field_lines("sector"),
         )
         price_delta = per_asset(self, "neutral_price_delta1", Delta, neutral_price, period=1.23438)
         left_rank = panel(self, "neutral_price_delta_rank", CrossSectionalRank, price_delta)

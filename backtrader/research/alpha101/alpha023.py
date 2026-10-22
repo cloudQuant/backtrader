@@ -9,7 +9,7 @@ from ..operators import (
     RollingSum,
     Where,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha023Native(FactorIndicator):
     lookback_h = 19
     formula_fields = ("high",)
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

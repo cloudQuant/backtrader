@@ -6,7 +6,6 @@ matrices and never imports or calls the production operator nodes.
 
 import math
 import random
-from decimal import Decimal, localcontext
 from fractions import Fraction
 
 import pandas as pd
@@ -18,7 +17,7 @@ from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.alpha101 import get_alpha
 from tests.test_utils.alpha101_full_reference import formula_metadata, formula_source
 from backtrader.research.specs import FactorSpec, ResearchSpec
-from backtrader.research.inputs import prealign_bars
+from backtrader.research import align_to_grid
 
 _ALPHA_IDS = (1, 2, 3, 4, 7, 9, 13, 29, 48, 56, 58, 62, 63, 67, 81, 84, 92, 96, 100, 101)
 _HISTORY = {
@@ -75,17 +74,17 @@ _FORMULA_FIELDS = {
     9: ("close",),
     13: ("close", "volume"),
     29: ("close",),
-    48: ("close",),
+    48: ("close", "subindustry"),
     56: ("close", "cap"),
-    58: ("vwap", "volume"),
+    58: ("vwap", "volume", "sector"),
     62: ("open", "high", "low", "vwap", "dollar_volume", "adv20"),
-    63: ("close", "vwap", "open", "dollar_volume", "adv180"),
-    67: ("high", "vwap", "dollar_volume", "adv20"),
+    63: ("close", "vwap", "open", "dollar_volume", "adv180", "industry"),
+    67: ("high", "vwap", "dollar_volume", "adv20", "sector", "subindustry"),
     81: ("vwap", "volume", "dollar_volume", "adv10"),
     84: ("close", "vwap"),
     92: ("open", "high", "low", "close", "dollar_volume", "adv30"),
     96: ("close", "vwap", "volume", "dollar_volume", "adv60"),
-    100: ("close", "high", "low", "volume", "dollar_volume", "adv20"),
+    100: ("close", "high", "low", "volume", "dollar_volume", "adv20", "subindustry"),
     101: ("open", "high", "low", "close"),
 }
 
@@ -95,8 +94,11 @@ class _FactorData(bt.feeds.PandasData):
     params = tuple((name, name) for name in lines)
 
 
+_ALIGNMENT_MARKER = "_factor_research_alignment_v2"
+
+
 def _frames(periods=260):
-    """Produce a deterministic positive panel with changing ranks and PIT groups."""
+    """Produce a deterministic positive panel with changing ranks and groups."""
     index = pd.date_range("2024-01-01", periods=periods, freq="D", tz="UTC")
     bases = (2.20, 2.24, 2.28, 2.32, 2.36, 2.40)
     result = {}
@@ -152,13 +154,10 @@ def _frames(periods=260):
     return result
 
 
-def _research_spec(frames, *, formula_universe=None, groups=None):
+def _research_spec(frames, *, groups=None):
     names = tuple(frames)
     index = next(iter(frames.values())).index.rename("close_time")
     grid = pd.DataFrame({"open_time": index - pd.Timedelta(hours=6)}, index=index)
-    keys = pd.MultiIndex.from_product([index, names], names=("time", "asset"))
-    if formula_universe is None:
-        formula_universe = pd.Series(True, index=keys, dtype=bool)
     return ResearchSpec(
         grid=grid,
         start=index[0],
@@ -171,117 +170,38 @@ def _research_spec(frames, *, formula_universe=None, groups=None):
         frequency="1session",
         feed_time_kind="close_time",
         groups=groups or dict.fromkeys(names, "market"),
-        formula_universe=formula_universe,
-        classifications=_classification_tables(frames),
     )
 
 
-def _classification_tables(frames):
-    """Build explicit synthetic PIT tables with effective and available times."""
-    index = next(iter(frames.values())).index
-    tables = {}
-    for level in ("sector", "industry", "subindustry"):
-        rows = []
-        for asset, frame in frames.items():
-            for point, raw_category in zip(index, frame[level]):
-                category = (
-                    None if pd.isna(raw_category) else "%s-%s" % (level, int(float(raw_category)))
-                )
-                rows.append(
-                    {
-                        "time": point,
-                        "asset": asset,
-                        "level": level,
-                        "category": category,
-                        "effective_at": point,
-                        "available_at": point,
-                        "taxonomy_version": "synthetic-hierarchy-v1",
-                    }
-                )
-        tables["pit_%s" % level] = pd.DataFrame(rows).set_index(["time", "asset"])
-    # Valid schema and alias level, but intentionally wrong category hierarchy
-    # for the Alpha100 distinguishing test.
-    wrong_subindustry = tables["pit_industry"].copy(deep=True)
-    wrong_subindustry["level"] = "subindustry"
-    wrong_subindustry["taxonomy_version"] = "synthetic-industry-as-subindustry-v1"
-    tables["pit_wrong_subindustry"] = wrong_subindustry
-    return tables
+def _factor_spec(name, indicator, **_ignored):
+    """Build the explicit feed-line bindings a native factor declares.
 
-
-def _factor_spec(name, indicator, *, classification_bindings=None):
-    fields = tuple(indicator.formula_fields)
+    Classification levels are ordinary feed lines in this API, so sector /
+    industry / subindustry are bound exactly like close or vwap.
+    """
     field_bindings = {}
-    for alias in fields:
-        if alias == "dollar_volume":
-            field_bindings[alias] = "feed:target:dollar_volume"
-        elif alias.startswith("adv") and alias[3:].isdigit():
-            window = int(alias[3:])
+    for alias in tuple(indicator.formula_fields):
+        if alias.startswith("adv") and alias[3:].isdigit():
             field_bindings[alias] = {
                 "derive": "adv",
                 "source": "dollar_volume",
-                "window": window,
+                "window": int(alias[3:]),
             }
         else:
             field_bindings[alias] = "feed:target:%s" % alias
-    classification_aliases = tuple(
-        dict.fromkeys(
-            tuple(getattr(indicator, "classification_fields", ()))
-            + tuple(getattr(indicator, "classification_levels", ()))
-        )
-    )
-    bindings = {alias: "table:pit_%s" % alias for alias in classification_aliases}
-    if classification_bindings is not None:
-        bindings.update(classification_bindings)
     return FactorSpec(
         name=name,
         indicator=indicator,
         panel_line="factor",
         field_bindings=field_bindings,
-        classification_bindings=bindings,
     )
 
 
 def _research_feed(frame, research, asset):
-    """Use the canonical grid alignment while retaining synthetic PIT lines."""
-    frame.attrs["source_metadata"] = {
-        "fields": {
-            "dollar_volume": {
-                "name": "dollar_volume",
-                "semantic": "daily_dollar_volume",
-                "unit": "USD",
-                "currency": "USD",
-                "adjustment": "synthetic-unadjusted-v1",
-                "source_version": "iteration45-synthetic-vwap-volume-v1",
-            },
-            "vwap": {
-                "name": "vwap",
-                "semantic": "volume_weighted_average_price",
-                "unit": "USD per share",
-                "currency": "USD",
-                "adjustment": "synthetic-unadjusted-v1",
-                "statistic": "trade_volume_weighted_mean",
-                "source_version": "iteration45-synthetic-vwap-v1",
-            },
-            "volume": {
-                "name": "volume",
-                "semantic": "share_volume",
-                "unit": "shares",
-                "adjustment": "synthetic-unadjusted-v1",
-                "source_version": "iteration45-synthetic-volume-v1",
-            },
-        }
-    }
-    aligned = prealign_bars(frame, research, asset)
-    # The aligned public frame contains the full research grid for labels and
-    # audit metadata.  Factor feeds must stop at research.end, as the native
-    # adapter does, so post-end rows remain unavailable to the calculation.
-    feed_frame = aligned.feed.p.dataname
-    feed = _FactorData(dataname=feed_frame)
-    setattr(
-        feed,
-        "_factor_research_alignment_v1",
-        getattr(aligned.feed, "_factor_research_alignment_v1"),
-    )
+    """Align one frame to the grid and retain the extra synthetic feed lines."""
+    aligned = align_to_grid(frame, research, asset)
+    feed = _FactorData(dataname=aligned.feed.p.dataname)
+    setattr(feed, _ALIGNMENT_MARKER, getattr(aligned.feed, _ALIGNMENT_MARKER))
     return feed
 
 
@@ -470,11 +390,47 @@ def _std(values):
 
 
 def _covariance(left, right):
-    # Treat each upstream float64 rank as the exact observed input, accumulate
-    # the population covariance exactly, and round only the covariance result.
-    # This independent rational reference preserves the sign of tiny real
-    # covariances and avoids letting a different mean/center operation order
-    # arbitrarily split or reverse a later cross-sectional rank.
+    # The published covariance kernel is a stable float64 computation: center
+    # first, scale both series by the shared largest magnitude so the squares
+    # cannot overflow, and accumulate with math.fsum.  This reference states the
+    # same documented float64 contract on plain arrays; it does not recover
+    # idealized exact-rational sixth values, which are a different (and now
+    # intentionally unused) numerical algorithm.
+    count = len(left)
+    if count == 1:
+        return 0.0
+    scale = max(max(abs(value) for value in left), max(abs(value) for value in right))
+    if scale == 0.0:
+        return 0.0
+    scaled_left = [value / scale for value in left]
+    scaled_right = [value / scale for value in right]
+    average_left = math.fsum(scaled_left) / count
+    average_right = math.fsum(scaled_right) / count
+    centered = [(x - average_left) * (y - average_right) for x, y in zip(scaled_left, scaled_right)]
+    return math.fsum(centered) / count * scale * scale
+
+
+def test_alpha013_reference_preserves_binary64_near_zero_covariance_sign():
+    # These are the exact rank lines observed at Alpha13 row 50 for two
+    # assets.  The second covariance is small but negative for the published
+    # float64 kernel (center, scale, math.fsum); recovering idealized exact
+    # sixths would turn it into zero and change the final tie rank.
+    first_close = [2.0 / 3.0] * 5
+    first_volume = [2.0 / 3.0, 0.5, 0.5, 1.0 / 6.0, 1.0 / 3.0]
+    second_close = [0.5, 5.0 / 6.0, 0.5, 1.0 / 6.0, 1.0 / 3.0]
+    second_volume = [1.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.5]
+
+    assert _covariance(first_close, first_volume) == 0.0
+    second_covariance = _covariance(second_close, second_volume)
+    assert second_covariance == pytest.approx(-1.0408340855860842e-18, rel=0.0, abs=0.0)
+    assert second_covariance < 0.0
+    # The exact-rational value of the same binary64 inputs differs only in the
+    # last few bits; the float64 kernel result must stay within 1e-18 of it.
+    exact = _exact_covariance(second_close, second_volume)
+    assert abs(second_covariance - exact) <= 1e-18
+
+
+def _exact_covariance(left, right):
     exact_left = [Fraction.from_float(float(value)) for value in left]
     exact_right = [Fraction.from_float(float(value)) for value in right]
     average_left = sum(exact_left, Fraction()) / len(exact_left)
@@ -484,23 +440,6 @@ def _covariance(left, right):
         Fraction(),
     ) / len(exact_left)
     return float(covariance)
-
-
-def test_alpha013_reference_preserves_binary64_near_zero_covariance_sign():
-    # These are the exact rank lines observed at Alpha13 row 50 for two
-    # assets.  The second covariance is small but negative for the actual
-    # binary64 inputs; recovering idealized sixths or changing accumulation
-    # order can turn it into zero or a positive value and change the final
-    # exact-tie rank.
-    first_close = [2.0 / 3.0] * 5
-    first_volume = [2.0 / 3.0, 0.5, 0.5, 1.0 / 6.0, 1.0 / 3.0]
-    second_close = [0.5, 5.0 / 6.0, 0.5, 1.0 / 6.0, 1.0 / 3.0]
-    second_volume = [1.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.5]
-
-    assert _covariance(first_close, first_volume) == 0.0
-    second_covariance = _covariance(second_close, second_volume)
-    assert second_covariance == pytest.approx(-1.295260195396016e-18, rel=0.0, abs=0.0)
-    assert second_covariance < 0.0
 
 
 def test_alpha063_reference_has_the_documented_negated_rank_difference_sign():
@@ -559,33 +498,31 @@ def test_alpha081_exact_float_correlation_tie_keeps_average_rank(runonce):
 
 
 def _correlation(left, right):
-    # Interpret each input as its actual binary64 rational, then round only
-    # the final Pearson coefficient. Plain float centering can put mathematically
-    # near-one values on opposite sides of the exact tie seen by TsArgMax.
-    left_exact = [Fraction.from_float(float(value)) for value in left]
-    right_exact = [Fraction.from_float(float(value)) for value in right]
-    count = len(left_exact)
-    left_sum = sum(left_exact, Fraction())
-    right_sum = sum(right_exact, Fraction())
-    covariance_numerator = (
-        count * sum((x * y for x, y in zip(left_exact, right_exact)), Fraction())
-        - left_sum * right_sum
-    )
-    left_variance_numerator = count * sum((x * x for x in left_exact), Fraction()) - left_sum**2
-    right_variance_numerator = count * sum((y * y for y in right_exact), Fraction()) - right_sum**2
-    if left_variance_numerator <= 0 or right_variance_numerator <= 0:
+    # Published float64 Pearson kernel: scale each series by its largest
+    # magnitude, center with math.fsum means, then accumulate the cross and
+    # square sums with math.fsum.  This states the documented float64 contract
+    # rather than an idealized exact-rational coefficient.
+    count = len(left)
+    left_scale = max(abs(float(value)) for value in left)
+    right_scale = max(abs(float(value)) for value in right)
+    if left_scale == 0.0 or right_scale == 0.0:
         return math.nan
-    denominator_squared = left_variance_numerator * right_variance_numerator
-
-    with localcontext() as context:
-        context.prec = 100
-        covariance = Decimal(covariance_numerator.numerator) / Decimal(
-            covariance_numerator.denominator
-        )
-        variance_product = Decimal(denominator_squared.numerator) / Decimal(
-            denominator_squared.denominator
-        )
-        return float(covariance / variance_product.sqrt())
+    scaled_left = [float(value) / left_scale for value in left]
+    scaled_right = [float(value) / right_scale for value in right]
+    average_left = math.fsum(scaled_left) / count
+    average_right = math.fsum(scaled_right) / count
+    deviations_left = [value - average_left for value in scaled_left]
+    deviations_right = [value - average_right for value in scaled_right]
+    left_ss = math.fsum(value * value for value in deviations_left)
+    right_ss = math.fsum(value * value for value in deviations_right)
+    if left_ss <= 0.0 or right_ss <= 0.0:
+        return math.nan
+    cross = math.fsum(x * y for x, y in zip(deviations_left, deviations_right))
+    correlation = cross / math.sqrt(left_ss * right_ss)
+    if not math.isfinite(correlation) or abs(correlation) > 1.0 + 1e-12:
+        return math.nan
+    # The published operator clamps the coefficient to the mathematical range.
+    return min(1.0, max(-1.0, correlation))
 
 
 def _pair_rolling(left, right, period, function):
@@ -1149,21 +1086,18 @@ def test_twenty_selected_production_alphas_match_independent_grid_reference(runo
     frames = _frames()
     names = tuple(frames)
     strategy = _run(frames, runonce=runonce)
-    dataset = strategy.get_dataset().raw_factors
+    panel = strategy.get_panel().factors
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
 
     assert set(strategy.factor_instances) == {"alpha%d" % alpha_id for alpha_id in _ALPHA_IDS}
     for alpha_id in _ALPHA_IDS:
         factor = strategy.factor_instances["alpha%d" % alpha_id]
         expected, intermediate = _formula_reference(alpha_id, frames)
-        # Formula nodes retain genuine branch values during warmup, while the
-        # research collector marks every declared-H row as incomplete.
-        expected = [
-            row if row_index >= _HISTORY[alpha_id] else [math.nan] * len(names)
-            for row_index, row in enumerate(expected)
-        ]
+        # The panel preserves the formula's own finite/NaN output on every grid
+        # row, including warm-up rows; the collector only nulls cells whose
+        # current bar or lookback presence window is incomplete.
         actual = [
-            [dataset.at[(grid[row], name), "alpha%d" % alpha_id] for name in names]
+            [panel.at[(grid[row], name), "alpha%d" % alpha_id] for name in names]
             for row in range(len(grid))
         ]
         _assert_matrix(actual, expected, names, label="Alpha%d" % alpha_id)
@@ -1303,7 +1237,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
             high=[20.0] * 10,
         )
     strategy = _run_subset(frames, {"alpha3": alpha003})
-    last = strategy.get_dataset().raw_factors.xs(grid[-1], level="time")["alpha3"]
+    last = strategy.get_panel().factors.xs(grid[-1], level="time")["alpha3"]
     assert last.loc["A"] == pytest.approx(17 / 23)
     assert last.loc["B"] == pytest.approx(1.0)
     assert last.loc["C"] == pytest.approx(17 / 23)
@@ -1332,7 +1266,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
         for asset, column in zip(("A", "B", "C"), range(3))
     }
     strategy4 = _run_subset(frames4, {"alpha4": alpha004})
-    assert strategy4.get_dataset().raw_factors.at[(grid9[-1], "A"), "alpha4"] == pytest.approx(
+    assert strategy4.get_panel().factors.at[(grid9[-1], "A"), "alpha4"] == pytest.approx(
         -8 / 9
     )
 
@@ -1340,7 +1274,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
     grid6 = grid[:6]
     frames9 = {"A": _minimal_frame(grid6, close=sequence)}
     strategy9 = _run_subset(frames9, {"alpha9": alpha009})
-    assert strategy9.get_dataset().raw_factors.at[(grid6[-1], "A"), "alpha9"] == pytest.approx(-2.0)
+    assert strategy9.get_panel().factors.at[(grid6[-1], "A"), "alpha9"] == pytest.approx(-2.0)
 
     ranks13 = ((1, 2, 3, 4), (1, 2, 3, 4), (1, 2, 4, 3), (3, 1, 4, 2), (4, 3, 1, 2))
     grid5 = grid[:5]
@@ -1356,26 +1290,27 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
         for column in range(4)
     }
     strategy13 = _run_subset(frames13, {"alpha13": alpha013})
-    terminal = strategy13.get_dataset().raw_factors.xs(grid5[-1], level="time")["alpha13"]
+    terminal = strategy13.get_panel().factors.xs(grid5[-1], level="time")["alpha13"]
     assert [terminal.loc[asset] for asset in "ABCD"] == pytest.approx([-1.0, -0.25, -0.75, -0.5])
 
 
 @pytest.mark.parametrize("runonce", (False, True))
-def test_alpha013_near_zero_covariance_matches_exact_float_input_oracle(runonce):
+def test_alpha013_near_zero_covariance_matches_float64_input_oracle(runonce):
     alpha013 = get_alpha(13)
 
     frames = _frames(periods=56)
     strategy = _run_subset(frames, {"alpha13": alpha013}, runonce=runonce)
     expected, trace = _formula_reference(13, frames)
     factor = strategy.factor_instances["alpha13"]
-    dataset = strategy.get_dataset().raw_factors["alpha13"].unstack("asset")
+    panel = strategy.get_panel().factors["alpha13"].unstack("asset")
     names = tuple(frames)
 
-    _assert_matrix(dataset.values.tolist(), expected, names, label="Alpha13 exact-float oracle")
+    _assert_matrix(panel.values.tolist(), expected, names, label="Alpha13 float64 oracle")
     actual_covariance = _node_matrix(factor, "covariance5", len(names))
     row = 50
     assert actual_covariance[1][row] == 0.0
-    assert actual_covariance[2][row] == pytest.approx(-1.295260195396016e-18, rel=0.0, abs=0.0)
+    assert actual_covariance[2][row] == trace["covariance5"][row][2]
+    assert actual_covariance[2][row] == pytest.approx(-1.0408340855860842e-18, rel=0.0, abs=0.0)
     assert trace["covariance5"][row][1] == 0.0
     assert trace["covariance5"][row][2] < 0.0
 
@@ -1415,22 +1350,14 @@ def _run_subset(
     factor_classes,
     *,
     runonce=True,
-    formula_universe=None,
     groups=None,
-    classification_bindings=None,
 ):
     cerebro = bt.Cerebro(stdstats=False, runonce=runonce)
-    research = _research_spec(frames, formula_universe=formula_universe, groups=groups)
+    research = _research_spec(frames, groups=groups)
     for name, frame in frames.items():
         cerebro.adddata(_research_feed(frame, research, name), name=name)
-    overrides = classification_bindings or {}
     specs = {
-        name: _factor_spec(
-            name,
-            indicator,
-            classification_bindings=overrides.get(name),
-        )
-        for name, indicator in factor_classes.items()
+        name: _factor_spec(name, indicator) for name, indicator in factor_classes.items()
     }
     cerebro.addstrategy(FactorStrategy, research=research, factors=specs)
     return cerebro.run()[0]
@@ -1445,7 +1372,7 @@ def test_alpha101_positive_finite_known_answers_and_zero_range_boundary():
         "zero-range": _minimal_frame(grid, open_=[10.0], high=[10.0], low=[10.0], close=[10.0]),
     }
     strategy = _run_subset(frames, {"alpha101": alpha101})
-    actual = strategy.get_dataset().raw_factors["alpha101"]
+    actual = strategy.get_panel().factors["alpha101"]
     assert actual.at[(grid[0], "positive")] == pytest.approx(4.0 / 8.001, rel=1e-14)
     assert actual.at[(grid[0], "zero-range")] == 0.0
     assert all(math.isfinite(value) for value in actual)
@@ -1461,7 +1388,7 @@ def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
     factor = strategy.factor_instances["alpha48"]
     denominator = factor._nodes["square_sum250_0"].lines.value.array
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
-    raw = strategy.get_dataset().raw_factors
+    raw = strategy.get_panel().factors
 
     assert factor.lookback_h == 251
     assert factor._minperiod == 252
@@ -1472,15 +1399,30 @@ def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
     assert math.isnan(raw.at[(grid[251], "asset-0"), "alpha48"])
 
 
-def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale():
+def test_real_bar_presence_bounds_cross_sectional_rank_membership_and_static_groups():
+    """A missing bar removes that asset from the current cross-section.
+
+    Membership is now ordinary bar presence: the native ``formula_members``
+    lines are one-per-present-bar, so an asset with no bar on a grid point is
+    excluded from ``CrossSectionalRank``/``CrossSectionalScale`` and its
+    neutralization partitions.  Static ``ResearchSpec.groups`` still partition
+    grouped operators independently of membership.
+    """
+    from backtrader.research.operators import OperatorReason
+
     alpha029 = get_alpha(29)
 
     frames = _frames(periods=100)
     names = tuple(frames)
     index = next(iter(frames.values())).index
-    keys = pd.MultiIndex.from_product([index, names], names=("time", "asset"))
-    eligible = pd.Series(True, index=keys, dtype=bool)
-    eligible.loc[eligible.index.get_level_values("asset") == "asset-5"] = False
+    gap_asset = "asset-5"
+    gap_rows = tuple(range(60, 72))
+    gapped = {name: frame.copy(deep=True) for name, frame in frames.items()}
+    gapped[gap_asset] = gapped[gap_asset].drop(index=index[list(gap_rows)])
+    member_matrix = [
+        [point in gapped[asset].index for asset in names] for point in index
+    ]
+    reindexed = {name: frame.reindex(index) for name, frame in gapped.items()}
     groups = {
         "asset-0": "group-a",
         "asset-1": "group-a",
@@ -1489,65 +1431,76 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
         "asset-4": "group-b",
         "asset-5": "group-b",
     }
-    member_row = [name != "asset-5" for name in names]
-    member_matrix = [list(member_row) for _ in index]
     group_vector = [groups[name] for name in names]
 
-    def run(panel):
-        return _run_subset(
-            panel,
-            {"alpha29": alpha029},
-            formula_universe=eligible,
-            groups=groups,
-        )
+    def run(panel, group_mapping=None):
+        return _run_subset(panel, {"alpha29": alpha029}, groups=group_mapping)
 
+    # Membership itself is group-independent: use one research group here.
     baseline = run(frames)
-    expected, trace = _formula_reference(29, frames, members=member_matrix, groups=group_vector)
-    actual_factor = baseline.get_dataset().raw_factors["alpha29"].unstack("asset")
+    gapped_run = run(gapped)
+    expected, trace = _formula_reference(
+        29, reindexed, members=member_matrix, groups=["market"] * len(names)
+    )
+    declared_h = alpha029.lookback_h
+    gap_column = names.index(gap_asset)
+    # The collector must leave the whole presence window incomplete for the
+    # halted asset; apply that documented mask to the independent oracle.
+    for row in range(gap_rows[0], gap_rows[-1] + declared_h + 1):
+        expected[row][gap_column] = math.nan
+
+    actual_factor = gapped_run.get_panel().factors["alpha29"].unstack("asset")
     _assert_matrix(
         actual_factor.values.tolist(),
         expected,
         names,
-        label="Alpha29 with formula membership/groups",
+        label="Alpha29 with real-bar membership",
     )
-    baseline_factor = baseline.factor_instances["alpha29"]
-    for node_name in ("rank_delta", "scale_log"):
-        actual_by_asset = _node_matrix(baseline_factor, node_name, len(names))
-        actual_by_time = [
-            [actual_by_asset[column][row] for column in range(len(names))]
-            for row in range(len(index))
+    gapped_factor = gapped_run.factor_instances["alpha29"]
+
+    # The native membership line is exactly the presence array.
+    members = gapped_factor.formula_members
+    assert len(members) == len(names)
+    for column, line in enumerate(members):
+        values = [float(value) for value in line.array]
+        assert values == [
+            1.0 if present else 0.0 for present in (row[column] for row in member_matrix)
         ]
-        _assert_matrix(
-            actual_by_time,
-            trace[node_name],
-            names,
-            label="Alpha29.%s with formula membership/groups" % node_name,
-        )
+
+    rank_by_asset = _node_matrix(gapped_factor, "rank_delta", len(names))
+    for row in gap_rows:
+        assert math.isnan(rank_by_asset[gap_column][row])
+    reasons = gapped_factor._nodes["rank_delta"].outputs[
+        gapped_factor.datas[gap_column]
+    ].reason.array
     assert all(
-        math.isnan(_node_matrix(baseline_factor, "rank_delta", len(names))[5][row])
-        for row in range(len(index))
+        float(reasons[row]) == float(OperatorReason.FORMULA_INELIGIBLE) for row in gap_rows
     )
-
-    excluded_change = {name: frame.copy(deep=True) for name, frame in frames.items()}
-    excluded_change["asset-5"]["close"] *= 100.0
-    excluded_run = run(excluded_change)
-    excluded_factor = excluded_run.factor_instances["alpha29"]
+    # The remaining five assets are ranked over exactly five participants.
+    for row in gap_rows:
+        deltas = {
+            name: float(
+                reindexed[name]["close"].iloc[row] - reindexed[name]["close"].iloc[row - 5]
+            )
+            for name in names
+        }
+        ordered = sorted(deltas[name] for name in names if name != gap_asset)
+        expected_rank = (ordered.index(deltas["asset-0"]) + 1) / float(len(ordered))
+        assert rank_by_asset[0][row] == pytest.approx(expected_rank, abs=1e-12)
     for node_name in ("rank_delta", "scale_log"):
-        before = _node_matrix(baseline_factor, node_name, len(names))
-        after = _node_matrix(excluded_factor, node_name, len(names))
-        for asset_index in range(5):
-            for row in range(len(index)):
-                old, new = before[asset_index][row], after[asset_index][row]
-                assert math.isnan(old) == math.isnan(new)
-                if math.isfinite(old):
-                    assert new == pytest.approx(old, rel=1e-12, abs=1e-12)
+        values = _node_matrix(gapped_factor, node_name, len(names))
+        for row in gap_rows:
+            assert math.isnan(values[gap_column][row])
 
+    # Static research groups still partition the same operators.
+    grouped = run(frames, groups)
     other_group_change = {name: frame.copy(deep=True) for name, frame in frames.items()}
     other_group_change["asset-4"]["close"] *= 10.0
-    other_group_run = run(other_group_change)
+    other_group_run = run(other_group_change, groups)
     other_group_factor = other_group_run.factor_instances["alpha29"]
+    grouped_factor = grouped.factor_instances["alpha29"]
     for node_name in ("rank_delta", "scale_log"):
-        before = _node_matrix(baseline_factor, node_name, len(names))
+        before = _node_matrix(grouped_factor, node_name, len(names))
         after = _node_matrix(other_group_factor, node_name, len(names))
         for asset_index in (0, 1, 2):
             for row in range(len(index)):
@@ -1555,7 +1508,7 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
                 assert math.isnan(old) == math.isnan(new)
                 if math.isfinite(old):
                     assert new == pytest.approx(old, rel=1e-12, abs=1e-12)
-    baseline_rank = _node_matrix(baseline_factor, "rank_delta", len(names))
+    baseline_rank = _node_matrix(grouped_factor, "rank_delta", len(names))
     other_rank = _node_matrix(other_group_factor, "rank_delta", len(names))
     assert any(
         math.isfinite(old) and math.isfinite(new) and not math.isclose(old, new)
@@ -1564,7 +1517,7 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
     )
 
 
-def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
+def test_classification_feed_lines_are_causal_and_missing_bars_stay_unknown():
     from backtrader.research.operators import OperatorReason
 
     alpha009, alpha058, alpha063, alpha067, alpha100 = (
@@ -1573,7 +1526,7 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
     baseline = _frames()
     changed = {name: frame.copy(deep=True) for name, frame in baseline.items()}
     cutoff = 205
-    # A future classification edit must not change any earlier output.
+    # A future sector edit must not change any earlier output.
     changed["asset-0"].loc[changed["asset-0"].index[cutoff] :, "sector"] = 12.0
     classes = {
         "sector": alpha058,
@@ -1583,8 +1536,8 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
     }
     before = _run_subset(baseline, classes)
     after = _run_subset(changed, classes)
-    old = before.get_dataset().raw_factors
-    new = after.get_dataset().raw_factors
+    old = before.get_panel().factors
+    new = after.get_panel().factors
     prefix = old.index.get_level_values("time") < changed["asset-0"].index[cutoff]
     pd.testing.assert_frame_equal(old.loc[prefix], new.loc[prefix])
 
@@ -1623,7 +1576,8 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
         factor100._nodes["rank_range_volume"].outputs[data].value for data in factor100.datas
     )
     assert all(actual is expected for actual, expected in zip(first_node._values, ranked_inputs))
-    expected_groups = factor100.classification_lines("subindustry")
+    # The neutralization groups are the feed's own subindustry lines.
+    expected_groups = factor100.field_lines("subindustry")
     assert all(actual is expected for actual, expected in zip(first_node._groups, expected_groups))
     expected_second_inputs = tuple(first_node.outputs[data].value for data in factor100.datas)
     assert all(
@@ -1639,48 +1593,32 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
     )
     assert all(actual is expected for actual, expected in zip(third_node._groups, expected_groups))
 
-    wrong_hierarchy = _run_subset(
-        baseline,
-        {"wrong": alpha100},
-        classification_bindings={"wrong": {"subindustry": "table:pit_wrong_subindustry"}},
-    )
-    wrong_factor = wrong_hierarchy.factor_instances["wrong"]
-    wrong_second = _node_matrix(wrong_factor, "second_subindustry_neutralize", len(baseline))
-    correct_second = _node_matrix(factor100, "second_subindustry_neutralize", len(baseline))
-    assert any(
-        not math.isclose(correct_second[asset][100], wrong_second[asset][100])
-        for asset in range(len(baseline))
-        if math.isfinite(correct_second[asset][100]) and math.isfinite(wrong_second[asset][100])
-    )
-    wrong_groups = wrong_factor.classification_lines("subindustry")
-    wrong_node = wrong_factor._nodes["second_subindustry_neutralize"]
-    assert all(actual is expected for actual, expected in zip(wrong_node._groups, wrong_groups))
-
     unknown_frames = _frames(periods=40)
-    unknown_time = unknown_frames["asset-0"].index[20]
-    unknown_frames["asset-0"].loc[unknown_time, "sector"] = math.nan
+    unknown_frames["asset-0"].loc[unknown_frames["asset-0"].index[20], "sector"] = math.nan
     unknown_strategy = _run_subset(unknown_frames, {"unknown_sector": alpha058})
     unknown_factor = unknown_strategy.factor_instances["unknown_sector"]
     unknown_data = unknown_factor.datas[0]
-    unknown_line = unknown_factor.classification_lines("sector")[0]
-    unknown_neutralized = unknown_factor._nodes["sector_neutral_vwap"].outputs[unknown_data].value
+    unknown_line = unknown_factor.field_lines("sector")[0]
+    neutralized = unknown_factor._nodes["sector_neutral_vwap"]
     assert math.isnan(unknown_line.array[20])
-    assert math.isnan(unknown_neutralized.array[20])
-    unknown_state = unknown_factor._factor_input_metadata[(id(unknown_data), "pit_sector", True)][
-        unknown_time.to_pydatetime()
-    ]
-    assert unknown_state["reason"] == "UNKNOWN_CLASSIFICATION"
+    assert math.isnan(neutralized.outputs[unknown_data].value.array[20])
+    assert (
+        float(neutralized.outputs[unknown_data].reason.array[20])
+        == float(OperatorReason.UNKNOWN_CLASSIFICATION)
+    )
 
     gap_frames = _frames(periods=30)
     gap_name = "asset-0"
     gap_frames[gap_name].iloc[10, gap_frames[gap_name].columns.get_loc("close")] = math.nan
     gap_strategy = _run_subset(gap_frames, {"alpha9": alpha009})
     gap_factor = gap_strategy.factor_instances["alpha9"]
-    dataset = gap_strategy.get_dataset().raw_factors
+    panel = gap_strategy.get_panel().factors
     grid = tuple(next(iter(gap_frames.values())).index.to_pydatetime())
+    # A present bar with a NaN close keeps ``present=True`` but nulls the
+    # factor for that point and the next lookback slots.
     for row in range(10, 16):
-        assert math.isnan(dataset.at[(grid[row], gap_name), "alpha9"])
-    assert math.isfinite(dataset.at[(grid[16], gap_name), "alpha9"])
+        assert math.isnan(panel.at[(grid[row], gap_name), "alpha9"])
+    assert math.isfinite(panel.at[(grid[16], gap_name), "alpha9"])
     # The unknown comparison remains UNKNOWN through the conditional node;
     # it is not interpreted as false and the missing bar is not compressed.
     reason = gap_factor._nodes["condition_0"].lines.reason.array
@@ -1704,9 +1642,9 @@ def test_composed_comparison_paths_preserve_unknown_inputs(alpha_id, missing_fie
     assert math.isnan(expected[-1][0])
 
     strategy = _run_subset(frames, {"unknown": get_alpha(alpha_id)})
-    dataset = strategy.get_dataset().raw_factors
+    panel = strategy.get_panel().factors
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
-    assert math.isnan(dataset.at[(grid[-1], "asset-0"), "unknown"])
+    assert math.isnan(panel.at[(grid[-1], "asset-0"), "unknown"])
     factor = strategy.factor_instances["unknown"]
     comparison = factor._nodes[reason_node].lines
     assert comparison.value.array[-1] != comparison.value.array[-1]
@@ -1735,10 +1673,11 @@ def test_factor_inventory_is_fixed_to_twenty_selected_production_alphas():
         assert issubclass(factor_class, FactorIndicator)
         assert factor_class.alpha_id == alpha_id
         assert factor_class.case_id == "AF46-%03d" % alpha_id
-        assert factor_class.operator_profile == "alpha101-v1"
+        assert factor_class.operator_profile == "alpha101-v2"
         assert factor_class.lookback_h == _HISTORY[alpha_id]
         assert factor_class.formula_fields == _FORMULA_FIELDS[alpha_id]
         assert factor_class.required_fields == factor_class.formula_fields
         assert factor_class.formula == formula_source(alpha_id)
-        assert factor_class.classification_levels == classification_levels
-        assert factor_class.classification_fields == tuple(dict.fromkeys(classification_levels))
+        # Neutralization levels are ordinary declared formula fields now.
+        for level in classification_levels:
+            assert level in factor_class.formula_fields

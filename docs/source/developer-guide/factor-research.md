@@ -4,17 +4,20 @@
 
 逐项验收状态见[迭代45验收结果](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/验收结果.md)，分轮提交与检查记录见[迭代45开发记录](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/开发与验收记录.md)。后续 build 简洁写法属于迭代47，完整101个生产因子属于迭代46/48。
 
+> 迭代45-46优化（2026-10-22）后，研究链路直接产出普通 `FactorPanel`：`ResearchDataset`、`inputs.py`、`dataset.py`、`storage.py`、`field_validation.py`、PIT/as-of 表、`table:` 绑定和 `classification_bindings` 已删除。本文描述的是当前 API；历史快照文件不再保证可读。
+
 ## 环境与职责
 
-研究入口要求 Python 3.11 及 pandas。普通 Backtrader 核心仍支持其原有 Python 范围；采集、保存、加载原始数据集不需要 fincore。只有评价时才加载包含本轮研究 API 的 fincore 安装产物，不能用同版本号的旧包替代。
+研究入口要求 Python 3.11 及 pandas。普通 Backtrader 核心仍支持其原有 Python 范围；采集和 CSV 交换不需要 fincore。只有评价时才加载包含本轮研究 API 的 fincore 安装产物，不能用同版本号的旧包替代。
 
 - `FactorIndicator`：原生参数、输入、子指标、逐资产输出线和计算过程。
-- `ResearchSpec` / `FactorSpec`：日历、研究窗口、输入来源、目标资产、分组、因子参数及绑定。
-- `FactorStrategy`：原生指标装配、同步网格采集和可用性诊断；不提交或撤销订单。
-- `ResearchDataset`：不可变快照、保存/加载及离线复评。
-- fincore：未来收益标签、方向和截面变换、固定权重组合、共同池/消融、IC/Rank IC/ICIR、分层、覆盖、换手、相关性和导出。
+- `ResearchSpec` / `FactorSpec`：日历、研究窗口、目标资产、分组、因子参数及字段绑定。
+- `FactorStrategy`：原生指标装配、同步网格采集，把结果写入 `FactorSink`；不提交或撤销订单。
+- `FactorPanel`：五类普通帧（factors/grid/prices/universe/groups）加窗口、顺序和方向声明；不是不可变快照，也没有数据身份。
+- `MemorySink` / `CsvSink`：采集出口。默认内存面板；`CsvSink` 在结束时写出六个 CSV。
+- fincore：未来收益标签、方向和截面变换、固定权重组合、IC/Rank IC/ICIR、分层、覆盖、换手、相关性和导出。
 
-研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchError` 继承 `BacktraderError`，因此可以按研究领域或整个框架捕获异常；研究异常继续提供 `code` 和只读 `report`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为，与框架通用的 `ConfigError` 分开。`backtrader.research.ConfigError` 是 `ResearchConfigError` 的同一对象别名；原 `backtrader.research.errors` 模块已移除。
+研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为；`backtrader.research.ConfigError` 是同一对象别名。
 
 ## 写一个因子
 
@@ -53,16 +56,17 @@ class CloseMAFactor(FactorIndicator):
             self.outputs[data].factor[0] = value
 ```
 
-`lookback_h` 表示当前格点之前需要的历史格数，20格均线为19。它不是“已经有足够有效数据”的保证：中间缺格仍可能使窗口不可用。新增因子需要独立已知答案验证其 H 和真实首个有效时点。
+`lookback_h` 表示当前格点之前需要的历史格数，20格均线为19。它不是“已经有足够有效数据”的保证：中间缺格仍会使该格点及其后 `lookback_h` 个格点的因子值记为 NaN。新增因子需要独立已知答案验证其 H 和真实首个有效时点。
 
-普通 `bt.Indicator` 可以作为因子内部的子指标。研究入口本身统一为 `FactorIndicator`，配置不接受 `execution`、旧 `line` 或旧 `inputs`。
+普通 `bt.Indicator` 可以作为因子内部的子指标。配置不接受 `execution`、旧 `line` 或旧 `inputs`。
 
 ## 装配研究
 
 调用方提供完整 UTC 网格。索引名为 `close_time`，另有 UTC `open_time` 列；每行是一根真实闭合 bar。网格必须包含预热、研究窗口，以及最长标签所需尾部。不要通过多个 Feed 日期的交集来生成研究日历。
 
 ```python
-from backtrader.research import FactorStrategy, ResearchSpec, prealign_bars
+import backtrader as bt
+from backtrader.research import FactorStrategy, MemorySink, ResearchSpec, align_to_grid
 
 research = ResearchSpec(
     grid=grid,
@@ -78,7 +82,7 @@ research = ResearchSpec(
 )
 cerebro = bt.Cerebro(stdstats=False)
 for asset, frame in bars.items():
-    aligned = prealign_bars(frame, research, asset)
+    aligned = align_to_grid(frame, research, asset)
     cerebro.adddata(aligned.feed, name=asset)
 cerebro.addstrategy(
     FactorStrategy,
@@ -92,19 +96,41 @@ cerebro.addstrategy(
             "direction": 1,
         }
     },
+    sink=MemorySink(),
 )
 strategy = cerebro.run()[0]
-dataset = strategy.get_dataset()
-dataset.save("research-data")
+panel = strategy.get_panel()
 ```
 
-输入缺格保持 NaN，不前填，也不删除后压缩时间。不同研究组分别进行公式截面计算；额外基准必须显式绑定，不自动变成输出资产。初版研究只处理同频、闭合的历史 bar，不支持 live、replay、tick 或混合频率。
+`align_to_grid` 每个资产只做一次 `reindex`：返回 PandasData feed、当前网格的真实 bar 布尔标记，以及覆盖完整网格（含标签尾段）的 open/close 向量。它不维护 `available_at` 或 PIT as-of 选择。
 
-研究输入使用可检查原始表格的 `PandasData` 或 `prealign_bars`。CSV 数据先读为 DataFrame，再明确时间和列映射；直接传入 `GenericCSVData` 会得到 `ResearchConfigError(code='UNSUPPORTED_SOURCE')`。这样可以在旧 Feed 加载逻辑处理数值前发现源数据中的无穷值，避免把它误当成合法的零。
+输入缺格保持 NaN，不前填，也不删除后压缩时间。不同研究组分别进行公式截面计算；额外基准必须显式绑定，不自动变成输出资产。研究只处理同频、闭合的历史 bar，不支持 live、replay、tick 或混合频率。
+
+研究输入使用可检查原始表格的 `PandasData`（或 `align_to_grid` 返回的 feed）。CSV 数据先读为 DataFrame，再明确时间和列映射；直接传入 `GenericCSVData` 会得到 `ResearchConfigError(code='UNSUPPORTED_SOURCE')`。
+
+## 面板、CSV 与复评
+
+`panel.factors` 是 `(time, asset)` 唯一 UTC MultiIndex 的 float64 宽表，覆盖预热到研究结束的计算网格；`panel.grid` 是完整网格，`panel.prices_open/close` 覆盖完整网格（可到标签尾段），`panel.universe` 是研究窗口的布尔宽表，`panel.groups` 是资产到研究分组的映射。
+
+```python
+panel.to_csv("research-panel")          # factors/grid/prices_open/prices_close/universe/groups
+
+from backtrader.research import FactorPanel
+restored = FactorPanel.from_csv(
+    "research-panel",
+    start=research.start,
+    end=research.end,
+    directions={"close_ma": 1},
+    target_order=research.targets,
+    factor_order=["close_ma"],
+)
+```
+
+`from_csv` 必须显式获得 start/end、方向、目标顺序和因子顺序；它不从首末非空值推断区间，也不猜 long CSV 的列顺序。缺行、重复键、无穷值和缺文件都会报错；NaN 单元仍有实际行。CSV 是交换格式，没有 manifest、dataset ID 或内容哈希；需要校验的调用方自行计算文件哈希。
 
 ## 横截面与多个因子
 
-Alpha003 的计算顺序为：同一时刻对 open 排名、对 volume 排名，然后按资产对两条排名历史做10格相关，最后取负。因子仍在自己的 `next()` 中写算法；公共策略不需要知道排名和相关的细节。027 示例保留输入、中间排名和最终值，便于阅读计算过程。
+Alpha003 的计算顺序为：同一时刻对 open 排名、对 volume 排名，然后按资产对两条排名历史做10格相关，最后取负。截面算子的默认成员是“该格点存在真实 bar”的资产；缺 bar 补出的网格行不进入 rank/scale。
 
 同时研究三个因子时，在 `factors` 中配置三个类。它们各自产生原始输出，再由 fincore 按名称、方向、变换及权重组合。不能先对不同量纲的 raw 值直接相加，再把结果当作“各因子排名后的等权合成”。
 
@@ -120,40 +146,24 @@ result = strategy.evaluate(
 result.export("research-report", charts=True)
 ```
 
-这个调用要求采集时已配置 `close_ma`、`roc`、`kdj`。组合成员缺失时不填零、不动态重分权重；显式零权重成员仍是声明的必需成员。公平比较和消融固定共同样本池，并在池内重新计算评价变换。评价池不能反过来改变 Alpha 公式内部的历史截面排名。
+`FactorStrategy.evaluate(...)` 只是 `evaluate_frames(panel, spec)` 的便捷入口。组合成员缺失时不填零、不动态重分权重；显式零权重成员仍是声明的必需成员。
 
 ## 标签与结果解释
 
-默认 next-open 标签为 `open[t+1+h] / open[t+1] - 1`，h 是网格 bar 数。h=20 至少需要21根尾部 bar。close-to-close 是统计标签，不表示收盘信号可以在相同收盘价成交。分期边界按入场和退出所属 bar 判断，不把跨期收益归给单个分期。
+默认 next-open 标签为 `open[t+1+h] / open[t+1] - 1`，h 是网格 bar 数。h=20 至少需要21根尾部 bar。close-to-close 是统计标签，不表示收盘信号可以在相同收盘价成交。
 
-Pearson IC 衡量数值关系，Rank IC 对两边取秩后衡量排序关系；ICIR 使用有限 IC 序列的样本标准差（ddof=1），不年化。常数、小截面、重复分位边界、零 IC 标准差和缺标签应保留明确原因。分箱失败不应删除仍然可计算的 IC。
+Pearson IC 衡量数值关系，Rank IC 对两边取秩后衡量排序关系；ICIR 使用有限 IC 序列的样本标准差（ddof=1），不年化。常数、小截面、重复分位边界、零 IC 标准差和缺标签应保留明确原因。
 
-默认损失上限为0.35。分母包含研究窗口内全部 eligible 候选；共同池形成损失也必须计入。超过任一请求序列的上限会抛出带诊断的质量异常，不能靠先删除缺失资产改善覆盖率。重叠的5/20-bar分层收益不直接复利成成交净值。
-
-## 保存后复评
-
-```python
-from backtrader.research import load_dataset, evaluate_dataset
-
-saved = load_dataset("research-data")
-result = evaluate_dataset(saved, periods=(1, 10))
-result.export("research-report-1-10", charts=False)
-```
-
-此过程不执行 Cerebro 或原始因子类。使用相同评价配置时，保存前后的评价 ID 和导出表应完全一致；时间索引的可推导频率及截窗留下的未使用索引项不改变评价身份。更改方向、权重、标签周期等评价参数产生新的评价身份；更改公式、历史资产池、输入绑定或原始数据需要重新采集。加载会验证 schema、文件摘要和完成标记，不反序列化可执行 Python 对象。
+默认损失上限为0.35。分母包含研究窗口内全部 eligible 候选；共同池形成损失也必须计入。重叠的5/20-bar分层收益不直接复利成成交净值。
 
 ## Alpha101 的数据边界
 
-`alpha101-v1` 冻结平均秩/n、完整窗口、总体方差/协方差、行业去均值、幂和三值布尔等工程语义。VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的直接字段与显式派生路径互斥。市值、行业层级、分类体系版本和 available_at/effective_at 必须具有明确语义。
+`alpha101-v2` 冻结平均秩/n、完整窗口、总体方差/协方差、行业去均值、幂和三值布尔等工程语义。运行时统一 float64：相关/协方差用中心化、缩放和 `math.fsum` 的稳定核；完整常量窗口的协方差和标准差为 0，而常量输入的相关系数为 NaN+DOMAIN_ERROR；单值总体协方差为 0。rank 按实际 float64 精确相等分组，不引入 epsilon。
 
-特殊字段的来源声明放在表格 `attrs['source_metadata']`；一个 Feed 包含多个特殊字段时，用 `{'fields': {字段名: 声明}}`。直接 ADV 要声明日均美元成交额、完整窗口、窗口长度和来源版本；VWAP 与成交量派生需要价格单位、数量单位和一致的复权口径。只提供列名不能证明这些含义。数据集保存显式绑定字段的值、可用时刻、版本和来源声明；缺少独立数据版本时会明确记录使用了调用方的 `snapshot_id`。
-
-滚动协方差对实际输入的 binary64 数值精确累计，最后一次舍入到浮点输出，保留近零结果的符号。截面排序不以容差把不同值合并为并列。
-
-formula_universe 覆盖预热历史并保留当时成员；评价 universe 只定义研究窗口的统计资格。未知成员不能默认为不在池中，行业分类不能用今天的分类回填历史。
+VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的直接字段与显式派生路径互斥。行业/板块/子行业编码是普通 feed 数值线：18 个需要分类的公式把它们声明在 `formula_fields` 中，并要求 `feed:<name>:<line>` 绑定；未知编码为 NaN，不填默认行业。时间变化的编码由调用者逐 grid 预先提供，研究层不维护分类历史。
 
 框架可以处理多种资产，但股票市值和行业字段不适用于所有市场。负价期货、连续合约换月、乘数或资金费相关收益需要有明确定义的预计算标签。公式数值复现不等于复现论文使用的专有数据、收益或交易成本。
 
-正式例子为 `examples/backtest/025_factor_single` 和 `026_factor_multi`；两者使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。两个入口先完成原生采集并保存 dataset 与 `factor_values.csv`；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `DATASET_ONLY` 正常退出。
+正式例子为 `examples/backtest/025_factor_single`、`026_factor_multi` 和 `027_alpha003_panel_acceptance`；它们使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。两个入口先完成原生采集并写出 `factor_values.csv`，可用 `--save-panel` 保存 CSV 面板、`--panel` 跳过 Cerebro 直接复评；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `PANEL_ONLY` 正常退出。
 
-需要专业因子图表时，三个示例都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`：它调用 `prepare_factor_data`、`analyze_factor`，用离线 ECharts 绘制 IC、累计收益、分位收益、换手和 IC 分布，并输出 IC、分位、收益、换手、自相关和覆盖表。HTML 内含中文/英文切换，不依赖外部 CDN。Backtrader 的 `write_factor_report(dataset, factor_name, path)` 只是把 `ResearchDataset` 的因子和开盘价传入 fincore。该功能只依赖 `fincore.report.factor`，不要求研究评价 API；远期收益按 next-open 对齐。
+需要专业因子图表时，三个示例都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 只是把面板的单因子列和开盘价传入 fincore，next-open 移位只由 fincore 执行一次。

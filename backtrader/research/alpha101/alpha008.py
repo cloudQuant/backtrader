@@ -8,7 +8,7 @@ from ..operators import (
     RollingSum,
     Subtract,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -23,8 +23,6 @@ class Alpha008Native(FactorIndicator):
     formula = "(-1 * rank(((sum(open, 5) * sum(returns, 5)) - delay((sum(open, 5) * sum(returns, 5)), 10))))"
     formula_fields = ("open", "close")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

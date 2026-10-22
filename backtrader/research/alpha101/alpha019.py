@@ -11,7 +11,7 @@ from ..operators import (
     Sign,
     Subtract,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -26,8 +26,6 @@ class Alpha019Native(FactorIndicator):
     formula = "((-1 * sign(((close - delay(close, 7)) + delta(close, 7)))) * (1 + rank((1 + sum(returns, 250)))))"
     formula_fields = ("close",)
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

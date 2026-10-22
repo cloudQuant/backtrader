@@ -176,7 +176,7 @@ def test_native_example_collection_observes_zero_broker_writes(
 
     assert tuple(strategy.factor_instances) == factor_names
     assert len(dataset.grid) == 30
-    assert len(dataset.raw_factors) == 30 * len(panel["assets"])
+    assert len(dataset.factors) == 30 * len(panel["assets"])
     assert broker.submit_count == 0
     assert broker.cancel_count == 0
 
@@ -292,7 +292,7 @@ def _run_native_factor(
 ) -> List[float]:
     import backtrader as bt
     from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec
-    from backtrader.research.inputs import prealign_bars
+    from backtrader.research import align_to_grid
 
     open_times, close_times = _weekday_session_times(len(frame))
     grid = pd.DataFrame({"open_time": open_times}, index=close_times)
@@ -318,7 +318,7 @@ def _run_native_factor(
         field_bindings={field: "feed:target:%s" % field for field in factor_class.formula_fields},
     )
     cerebro = bt.Cerebro(stdstats=False)
-    feed = prealign_bars(
+    feed = align_to_grid(
         frame, research, asset, data_version="iteration45-test-factor-known-answer-bars-v1"
     ).feed
     cerebro.adddata(feed, name=asset)
@@ -422,7 +422,7 @@ def _independent_kdj_oracle(frame: pd.DataFrame) -> Dict[str, List[float]]:
 def _run_native_kdj(frame: pd.DataFrame, runonce: bool) -> Dict[str, List[float]]:
     import backtrader as bt
     from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec
-    from backtrader.research.inputs import prealign_bars
+    from backtrader.research import align_to_grid
 
     factor_module = _load_module(MULTI_STRATEGY, "iteration45_multi_strategy_source")
     KDJFactor = factor_module.KDJFactor
@@ -454,7 +454,7 @@ def _run_native_kdj(frame: pd.DataFrame, runonce: bool) -> Dict[str, List[float]
         field_bindings={field: "feed:target:%s" % field for field in KDJFactor.formula_fields},
     )
     cerebro = bt.Cerebro(stdstats=False)
-    feed = prealign_bars(
+    feed = align_to_grid(
         frame, research, asset, data_version="iteration45-test-kdj-known-answer-bars-v1"
     ).feed
     cerebro.adddata(feed, name=asset)

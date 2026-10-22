@@ -12,8 +12,6 @@ to dataframe-like objects.  Classification matrices named ``sector``,
 values on the exact research grid: this module never fills or shifts them.
 """
 
-from decimal import Decimal, localcontext
-from fractions import Fraction
 import hashlib
 import json
 import math
@@ -582,73 +580,40 @@ def _pair_rolling(
     period: int,
     covariance: bool,
 ) -> List[List[float]]:
-    """Exact centered Fraction moments; Decimal is used only for Pearson sqrt.
+    """Independent float64 centered rolling covariance / Pearson correlation.
 
-    Prefix moments make each window O(1) in its width while retaining the
-    independently reviewed 100-digit final correlation rounding.  This is
-    intentionally different from the production operator's 120-digit path.
+    The production operators run float64 (alpha101-v2).  This reference uses
+    NumPy's centered dot products, i.e. a different implementation of the same
+    mathematics, so the comparison measures the production kernel instead of
+    re-stating its exact code.  Windows containing a non-finite input are
+    skipped, a constant window has covariance 0 and correlation NaN.
     """
+    import numpy as np
+
     rows, columns = len(left), len(left[0])
     output = [[math.nan] * columns for _ in range(rows)]
     for column in range(columns):
-        xs = [left[row][column] for row in range(rows)]
-        ys = [right[row][column] for row in range(rows)]
-        prefix_x = [Fraction()]
-        prefix_y = [Fraction()]
-        prefix_x2 = [Fraction()]
-        prefix_y2 = [Fraction()]
-        prefix_xy = [Fraction()]
-        valid_prefix = [0]
-        for x, y in zip(xs, ys):
-            if _finite(x) and _finite(y):
-                fx, fy = Fraction.from_float(float(x)), Fraction.from_float(float(y))
-                prefix_x.append(prefix_x[-1] + fx)
-                prefix_y.append(prefix_y[-1] + fy)
-                prefix_x2.append(prefix_x2[-1] + fx * fx)
-                prefix_y2.append(prefix_y2[-1] + fy * fy)
-                prefix_xy.append(prefix_xy[-1] + fx * fy)
-                valid_prefix.append(valid_prefix[-1] + 1)
-            else:
-                # A gap invalidates every window containing it.  Prefixes hold
-                # their value so subtraction remains defined; valid counts
-                # detect gaps exactly.
-                prefix_x.append(prefix_x[-1])
-                prefix_y.append(prefix_y[-1])
-                prefix_x2.append(prefix_x2[-1])
-                prefix_y2.append(prefix_y2[-1])
-                prefix_xy.append(prefix_xy[-1])
-                valid_prefix.append(valid_prefix[-1])
+        xs = np.asarray([float(left[row][column]) for row in range(rows)], dtype="float64")
+        ys = np.asarray([float(right[row][column]) for row in range(rows)], dtype="float64")
         for row in range(period - 1, rows):
             start = row - period + 1
-            if valid_prefix[row + 1] - valid_prefix[start] != period:
+            window_x = xs[start : row + 1]
+            window_y = ys[start : row + 1]
+            if not (np.isfinite(window_x).all() and np.isfinite(window_y).all()):
                 continue
-            sx = prefix_x[row + 1] - prefix_x[start]
-            sy = prefix_y[row + 1] - prefix_y[start]
-            sxx = prefix_x2[row + 1] - prefix_x2[start]
-            syy = prefix_y2[row + 1] - prefix_y2[start]
-            sxy = prefix_xy[row + 1] - prefix_xy[start]
-            n = Fraction(period)
-            covariance_numerator = n * sxy - sx * sy
+            dx = window_x - window_x.mean()
+            dy = window_y - window_y.mean()
             if covariance:
-                exact_cov = covariance_numerator / (n * n)
-                output[row][column] = _safe(float, exact_cov)
+                value = float(np.dot(dx, dy) / period)
+                output[row][column] = value if _finite(value) else math.nan
                 continue
-            variance_x = n * sxx - sx * sx
-            variance_y = n * syy - sy * sy
-            if variance_x <= 0 or variance_y <= 0:
+            variance_x = float(np.dot(dx, dx))
+            variance_y = float(np.dot(dy, dy))
+            if variance_x <= 0.0 or variance_y <= 0.0:
                 continue
-            denominator_squared = variance_x * variance_y
-            with localcontext() as decimal_context:
-                decimal_context.prec = 100
-                cov_decimal = Decimal(covariance_numerator.numerator) / Decimal(
-                    covariance_numerator.denominator
-                )
-                product_decimal = Decimal(denominator_squared.numerator) / Decimal(
-                    denominator_squared.denominator
-                )
-                correlation_value = _safe(float, cov_decimal / product_decimal.sqrt())
-                if _finite(correlation_value) and abs(correlation_value) <= 1.0:
-                    output[row][column] = correlation_value
+            value = float(np.dot(dx, dy) / math.sqrt(variance_x * variance_y))
+            if _finite(value) and abs(value) <= 1.0:
+                output[row][column] = value
     return output
 
 

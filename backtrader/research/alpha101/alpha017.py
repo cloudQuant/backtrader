@@ -8,7 +8,7 @@ from ..operators import (
     Multiply,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,8 +23,6 @@ class Alpha017Native(FactorIndicator):
     formula = "(((-1 * rank(ts_rank(close, 10))) * rank(delta(delta(close, 1), 1))) * rank(ts_rank((volume / adv20), 5)))"
     formula_fields = ("close", "volume", "dollar_volume", "adv20")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

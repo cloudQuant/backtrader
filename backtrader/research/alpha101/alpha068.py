@@ -10,7 +10,7 @@ from ..operators import (
     RollingCorrelation,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha068Native(FactorIndicator):
     lookback_h = 33
     formula_fields = ("high", "close", "low", "dollar_volume", "adv15")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "((Ts_Rank(correlation(rank(high), rank(adv15), 8.91644), 13.9333) < rank(delta(((close * 0.518371) + (low * (1 - 0.518371))), 1.06157))) * -1)"
 
     def __init__(self):

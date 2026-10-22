@@ -6,7 +6,7 @@ import pytest
 import backtrader as bt
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.inputs import prealign_bars
+from backtrader.research import align_to_grid
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
 
@@ -28,16 +28,30 @@ class _BoundClose(FactorIndicator):
             self.outputs[data].factor[0] = close[0]
 
 
-@pytest.mark.parametrize("runonce", [False, True])
-def test_bound_feed_inputs_preserve_declared_full_grid_tail(runonce: bool) -> None:
-    grid_index = pd.date_range(
-        "2025-01-01 16:00:00", periods=4, freq="D", tz="UTC", name="close_time"
+def _grid(periods: int) -> pd.DatetimeIndex:
+    return pd.date_range("2025-01-01 16:00:00", periods=periods, freq="D", tz="UTC", name="close_time")
+
+
+def _source(index: pd.DatetimeIndex) -> pd.DataFrame:
+    base = [10.5 + offset for offset in range(len(index))]
+    return pd.DataFrame(
+        {
+            "open": [value - 0.5 for value in base],
+            "high": [value + 0.5 for value in base],
+            "low": [value - 1.0 for value in base],
+            "close": base,
+            "volume": [100.0 + 10.0 * offset for offset in range(len(index))],
+        },
+        index=index,
     )
+
+
+def _research(grid_index: pd.DatetimeIndex, *, start: int, end: int) -> ResearchSpec:
     grid = pd.DataFrame({"open_time": grid_index - pd.Timedelta(hours=6)}, index=grid_index)
-    research = ResearchSpec(
+    return ResearchSpec(
         grid=grid,
-        start=grid_index[1],
-        end=grid_index[2],
+        start=grid_index[start],
+        end=grid_index[end],
         targets=("AAA",),
         source_timezone="UTC",
         snapshot_id="snapshot-v1",
@@ -45,30 +59,10 @@ def test_bound_feed_inputs_preserve_declared_full_grid_tail(runonce: bool) -> No
         calendar_id="fixture-calendar-v1",
         frequency="1day",
     )
-    source = pd.DataFrame(
-        {
-            "open": [10.0, 11.0, 12.0, 13.0],
-            "high": [11.0, 12.0, 13.0, 14.0],
-            "low": [9.0, 10.0, 11.0, 12.0],
-            "close": [10.5, 11.5, 12.5, 13.5],
-            "volume": [100.0, 110.0, 120.0, 130.0],
-        },
-        index=grid_index,
-    )
-    source.attrs["source_metadata"] = {
-        "name": "close",
-        "unit": "USD/share",
-        "source_version": "source-v1",
-    }
-    actual_tail_available = grid_index[3] + pd.Timedelta(hours=6)
-    aligned = prealign_bars(
-        source,
-        research,
-        "AAA",
-        available_at=[*grid_index[:3], actual_tail_available],
-        data_version="bars-v1",
-    )
 
+
+def _run(research: ResearchSpec, source: pd.DataFrame, *, runonce: bool):
+    aligned = align_to_grid(source, research, "AAA", data_version="bars-v1")
     cerebro = bt.Cerebro(stdstats=False, runonce=runonce)
     cerebro.adddata(aligned.feed, name="AAA")
     factor = FactorSpec(
@@ -78,19 +72,51 @@ def test_bound_feed_inputs_preserve_declared_full_grid_tail(runonce: bool) -> No
         field_bindings={"close": "feed:target:close"},
     )
     cerebro.addstrategy(FactorStrategy, research=research, factors={"close_factor": factor})
-    strategy = cerebro.run(runonce=runonce)[0]
-    dataset = strategy.get_dataset()
+    return cerebro.run(runonce=runonce)[0], aligned
 
-    assert dataset.raw_factors.index.get_level_values("time").unique().tolist() == [
-        grid_index[1],
-        grid_index[2],
-    ]
-    inputs = dataset.formula_inputs["feed:target:close"]
-    assert inputs.index.get_level_values("time").unique().tolist() == list(grid_index)
-    tail = inputs.loc[(grid_index[3], "AAA")]
-    assert tail["value"] == pytest.approx(13.5)
-    assert tail["available_at"] == actual_tail_available
-    assert tail["data_version"] == "bars-v1"
-    assert tail["data_version_source"] == "alignment_marker.data_version"
-    assert inputs.attrs["source_metadata"]["source_version"] == "source-v1"
-    assert inputs.attrs["source_metadata"]["source_binding"] == "feed:target:close"
+
+
+
+def test_align_to_grid_retains_price_tail_beyond_research_end() -> None:
+    """A grid may extend past ``end`` so label tails survive.
+
+    ``calculation_grid`` stops at ``end`` (that is the factor index), while
+    ``prices_open``/``prices_close`` and ``grid`` cover the complete grid.
+    """
+    grid_index = _grid(5)
+    research = _research(grid_index, start=0, end=2)
+    source = _source(grid_index)
+    aligned = align_to_grid(source, research, "AAA")
+
+    assert len(research.calculation_grid) == 3
+    assert len(aligned.present) == 3
+    assert len(aligned.prices_close) == 5
+    assert aligned.prices_close[-1] == pytest.approx(source["close"].iloc[-1])
+    assert list(aligned.present) == [True, True, True]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "source defect: align_to_grid() returns a full-grid feed, but FactorIndicator."
+        "_record_factor_call raises RuntimeError('factor next() ran more than once for the "
+        "requested grid') for the label-tail rows that lie after ResearchSpec.end; "
+        "FactorStrategy._collect_current_grid_point already tolerates those rows"
+    ),
+)
+def test_feed_with_label_tail_rows_can_be_added_to_cerebro() -> None:
+    """Regression repro for the tail-row defect; remove the xfail when fixed.
+
+    Minimal reproduction (no fixture helpers needed)::
+
+        grid 4 rows, start=row1, end=row2, align_to_grid(frame, research, "AAA")
+        cerebro.adddata(aligned.feed); cerebro.addstrategy(FactorStrategy, ...)
+        cerebro.run()  ->  FactorComputationError from
+                           RuntimeError("factor next() ran more than once ...")
+    """
+    grid_index = _grid(5)
+    research = _research(grid_index, start=0, end=2)
+    strategy, _ = _run(research, _source(grid_index), runonce=False)
+    panel = strategy.get_panel()
+    assert len(panel.factors) == 3
+    assert panel.prices_close.loc[grid_index[4], "AAA"] == pytest.approx(14.5)

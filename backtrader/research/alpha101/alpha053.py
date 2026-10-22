@@ -7,7 +7,7 @@ from ..operators import (
     Multiply,
     Subtract,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha053Native(FactorIndicator):
     formula = "(-1 * delta((((close - low) - (high - close)) / (close - low)), 9))"
     formula_fields = ("close", "low", "high")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     # Paper execution timing metadata only; it does not change closed-bar H.
     paper_signal_delay = 0
 

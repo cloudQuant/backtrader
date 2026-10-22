@@ -7,7 +7,7 @@ from typing import Any, Optional, Sequence
 
 
 def write_factor_report(
-    dataset: Any,
+    panel: Any,
     factor_name: str,
     output_path: Any,
     *,
@@ -17,7 +17,11 @@ def write_factor_report(
     language: str = "zh",
     title: Optional[str] = None,
 ) -> Path:
-    """Render one dataset factor through fincore's public report entry point."""
+    """Render one panel factor through fincore's public report entry point.
+
+    The report keeps the raw open price frame and asks fincore for
+    ``next_open=True``, so the single next-open shift happens inside fincore.
+    """
     try:
         from fincore.report.factor import write_factor_report as _write_factor_report
     except ImportError as exc:
@@ -26,15 +30,11 @@ def write_factor_report(
             "fincore.report.factor.write_factor_report"
         ) from exc
 
-    factors = dataset.raw_factors
-    if factor_name not in factors.columns:
-        raise KeyError("factor %r is not in the dataset" % factor_name)
-    prices = (dataset.prices or {}).get("open")
-    if prices is None:
-        raise ValueError("the dataset must retain open prices for a factor report")
+    if factor_name not in panel.factor_order:
+        raise KeyError("factor %r is not in the panel" % factor_name)
     return _write_factor_report(
-        factors[factor_name].rename("factor"),
-        prices,
+        panel.factor_values(factor_name).rename("factor"),
+        panel.prices_open,
         output_path,
         periods=tuple(periods),
         quantiles=quantiles,
@@ -43,3 +43,6 @@ def write_factor_report(
         language=language,
         next_open=True,
     )
+
+
+__all__ = ("write_factor_report",)

@@ -12,7 +12,7 @@ import backtrader as bt
 from backtrader.errors import ResearchConfigError as ConfigError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.inputs import prealign_bars
+from backtrader.research import align_to_grid
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
 
@@ -125,7 +125,7 @@ def _run_two_factors(run_number: int, runonce: bool):
     cerebro = bt.Cerebro(stdstats=False)
     feeds = {}
     for asset in _ASSETS:
-        feed = prealign_bars(inputs[asset], research, asset).feed
+        feed = align_to_grid(inputs[asset], research, asset).feed
         feeds[asset] = feed
         cerebro.adddata(feed, name=asset)
     cerebro.addstrategy(
@@ -157,7 +157,7 @@ def test_two_native_rolling_factors_are_isolated_across_complete_runs(runonce: b
     output_lines = []
 
     for strategy, inputs, feeds in runs:
-        actual = strategy.get_dataset().raw_factors
+        actual = strategy.get_panel().factors
         expected = _expected_panel(inputs)
         pd.testing.assert_frame_equal(actual, expected, check_exact=True)
         assert tuple(actual.index.names) == ("time", "asset")
@@ -216,7 +216,7 @@ def test_duplicate_feed_names_fail_before_factor_construction(monkeypatch: pytes
     research, inputs = _research_and_inputs(0)
     cerebro = bt.Cerebro(stdstats=False)
     for asset in _ASSETS:
-        cerebro.adddata(prealign_bars(inputs[asset], research, asset).feed, name="duplicate")
+        cerebro.adddata(align_to_grid(inputs[asset], research, asset).feed, name="duplicate")
 
     constructions = []
     original_init = _CloseAverage.__init__

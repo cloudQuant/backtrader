@@ -8,7 +8,7 @@ from ..operators import (
     RollingCorrelation,
     Subtract,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,8 +23,6 @@ class Alpha037Native(FactorIndicator):
     lookback_h = 200
     formula_fields = ("open", "close")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

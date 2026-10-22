@@ -9,7 +9,7 @@ from ..operators import (
     Subtract,
     TsArgMax,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha057Native(FactorIndicator):
     formula = "(0 - (1 * ((close - vwap) / decay_linear(rank(ts_argmax(close, 30)), 2))))"
     formula_fields = ("close", "vwap")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

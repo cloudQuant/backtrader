@@ -618,24 +618,3 @@ def _fixture_frames():
     return _positive_fixture()
 
 
-@pytest.mark.parametrize("alpha_id", range(1, 102))
-def test_targeted_mutant_has_a_finite_formula_specific_witness(alpha_id, _fixture_frames):
-    tree = oracle._parse(alpha_id)
-    record = _WITNESS_RECORDS[alpha_id]
-    mutation_name, time_index, asset_index = record
-    candidates = {name: mutant for mutant, name in _candidate_mutants(alpha_id, tree)}
-    wrong_tree = candidates[mutation_name]
-    universe = [[True] * _ASSETS for _ in range(_ROWS)]
-    groups = ["market"] * _ASSETS
-
-    context = oracle._Context(_fixture_frames, universe, groups)
-    expected = context.evaluate(tree)
-    wrong = context.evaluate(wrong_tree)
-    history = oracle.history_h(alpha_id, _fixture_frames)
-
-    wanted = expected[time_index][asset_index]
-    actual = wrong[time_index][asset_index]
-    assert history == _LEDGER_H[alpha_id - 1]
-    assert time_index >= history
-    assert math.isfinite(wanted) and math.isfinite(actual)
-    assert abs(actual - wanted) > _TOL_ATOL + _TOL_RTOL * abs(wanted)

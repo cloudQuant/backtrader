@@ -1,3 +1,9 @@
+> 历史记录：本文写于迭代46（2026-10-22 之前）。迭代45-46优化（v0.6）已删除
+> `ResearchDataset`、`inputs.py`、`dataset.py`、`storage.py`、`field_validation.py`
+> 及 PIT/classification/`table:` 绑定。文中引用的 `ResearchDataset._validate_named_tables`
+> 等路径只用于追溯旧实现，不再是当前 API。当前入口见 `README.md` 与
+> `docs/source/developer-guide/factor-research.md`。
+
 # Alpha003 全市场日线运行交接
 
 更新：2026-10-22；仓库 `cloudQuant/backtrader`，分支 `dev`。

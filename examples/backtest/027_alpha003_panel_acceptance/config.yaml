@@ -1,6 +1,6 @@
 example_id: 027_alpha003_panel_acceptance
 factor: alpha003
-operator_profile: alpha101-v1
+operator_profile: alpha101-v2
 
 data:
   directory: ../../../tests/datas/a_stocks

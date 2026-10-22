@@ -46,4 +46,6 @@ evaluation:
       roc: 1.0
       kdj_j: 1.0
   comparisons:
-    all_variants: [close_ma, roc, kdj_j, equal_weight]
+    ma_vs_roc: [close_ma, roc]
+    ma_vs_kdj: [close_ma, kdj_j]
+    ma_vs_equal_weight: [close_ma, equal_weight]

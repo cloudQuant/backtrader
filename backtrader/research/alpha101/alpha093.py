@@ -13,7 +13,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -26,17 +26,15 @@ class Alpha093Native(FactorIndicator):
     case_id = "AF46-093"
     lookback_h = 120
     formula = "(Ts_Rank(decay_linear(correlation(IndNeutralize(vwap, IndClass.industry), adv81, 17.4193), 19.848), 7.54455) / rank(decay_linear(delta(((close * 0.524434) + (vwap * (1 - 0.524434))), 2.77377), 16.2664)))"
-    formula_fields = ("vwap", "close", "dollar_volume", "adv81")
+    formula_fields = ("vwap", "close", "dollar_volume", "adv81", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
 
     def __init__(self):
         super().__init__()
         self._nodes = {}
         count = len(self.datas)
         neutral_vwap = panel(
-            self, "industry_neutral_vwap", IndNeutralize, self.field_lines("vwap"), level="industry"
+            self, "industry_neutral_vwap", IndNeutralize, self.field_lines("vwap"), level="industry", groups=self.field_lines("industry")
         )
         vwap_adv_correlation = per_asset(
             self,

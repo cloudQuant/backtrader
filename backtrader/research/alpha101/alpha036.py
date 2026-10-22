@@ -13,7 +13,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -41,8 +41,6 @@ class Alpha036Native(FactorIndicator):
         "adv20",
     )
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
 
     def __init__(self):
         super().__init__()

@@ -6,7 +6,7 @@ from ..operators import (
     LessThan,
     RollingCorrelation,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -20,8 +20,6 @@ class Alpha075Native(FactorIndicator):
     lookback_h = 60
     formula_fields = ("vwap", "volume", "low", "dollar_volume", "adv50")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "(rank(correlation(vwap, volume, 4.24304)) < rank(correlation(rank(low), rank(adv50), 12.4413)))"
 
     def __init__(self):

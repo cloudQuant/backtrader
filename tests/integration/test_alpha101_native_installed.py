@@ -115,7 +115,7 @@ def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
     factor_strategy = importlib.import_module("backtrader.research.factor_strategy")
     fincore_adapter = importlib.import_module("backtrader.research.fincore_adapter")
     alpha101 = importlib.import_module("backtrader.research.alpha101")
-    alpha_helpers = importlib.import_module("backtrader.research.alpha101._helpers")
+    alpha_helpers = importlib.import_module("backtrader.research._helpers")
     alpha_metadata = importlib.import_module("backtrader.research.alpha101._metadata")
     alpha_modules = {}
     alpha_class_module_names = {}
@@ -147,8 +147,8 @@ def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
         "backtrader.research.alpha101": _installed_origin(
             alpha101, name="backtrader.research.alpha101"
         ),
-        "backtrader.research.alpha101._helpers": _installed_origin(
-            alpha_helpers, name="backtrader.research.alpha101._helpers"
+        "backtrader.research._helpers": _installed_origin(
+            alpha_helpers, name="backtrader.research._helpers"
         ),
         "backtrader.research.alpha101._metadata": _installed_origin(
             alpha_metadata, name="backtrader.research.alpha101._metadata"
@@ -283,7 +283,6 @@ def _oracle_matrices(
     group_values = tuple(groups.values())
     raw = reference.reference_all(
         matrices,
-        formula_universe=members,
         groups=group_values,
     )
     expected: Dict[int, Sequence[Sequence[float]]] = {}
@@ -449,7 +448,7 @@ def _evaluation_window_dataset(
     formula_times = grid.index[grid.index <= end]
 
     factor_names = tuple("alpha%d" % alpha_id for alpha_id in _EVALUATION_IDS)
-    raw = collected.raw_factors
+    raw = collected.factors
     raw_times = raw.index.get_level_values("time")
     raw_window = raw.loc[raw_times.isin(evaluation_times), factor_names]
 
@@ -479,7 +478,6 @@ def _evaluation_window_dataset(
         feed_time_kind=base.feed_time_kind,
         groups=base.groups,
         universe=universe,
-        formula_universe=formula_universe,
         formula_fields=base.formula_fields,
         classifications=base.classifications,
     )
@@ -589,7 +587,6 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         frames,
         alpha_ids,
         runonce=False,
-        formula_universe=members,
         groups=groups,
     )
     for alpha_id in alpha_ids:
@@ -622,7 +619,7 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         # Keep the 320-row native collector evidence above.  The evaluator
         # dataset declares only its 260..285 factor interval, while retaining
         # the complete grid for warm-up and forward-label tail rows.
-        collected = strategy.get_dataset()
+        collected = strategy.get_panel()
         # The mask includes a permanent excluded target and a temporary exit
         # with an explicit eligible re-entry.  Check the lifecycle reason on
         # the native availability pane as well as matrix NaN equality.
@@ -653,7 +650,7 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         assert dataset.start == grid[_EVALUATION_START]
         assert dataset.end == grid[_EVALUATION_END]
         assert len(dataset.formula_universe) == (_EVALUATION_END + 1) * len(assets)
-        assert len(dataset.raw_factors) == len(evaluation_grid) * len(assets)
+        assert len(dataset.factors) == len(evaluation_grid) * len(assets)
         assert set(dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
 
         snapshot_path = tmp_path / "alpha101-native-dataset"
@@ -666,13 +663,13 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         assert restored_dataset.start == grid[_EVALUATION_START]
         assert restored_dataset.end == grid[_EVALUATION_END]
         assert set(restored_dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
-        assert dataset.raw_factors.equals(restored_dataset.raw_factors)
+        assert dataset.factors.equals(restored_dataset.factors)
         assert dataset.availability.equals(restored_dataset.availability)
         assert dataset.formula_universe.equals(restored_dataset.formula_universe)
-        assert len(restored_dataset.raw_factors) == len(evaluation_grid) * len(assets)
+        assert len(restored_dataset.factors) == len(evaluation_grid) * len(assets)
         for evaluation_id in _EVALUATION_IDS:
             restored = (
-                restored_dataset.raw_factors["alpha%d" % evaluation_id]
+                restored_dataset.factors["alpha%d" % evaluation_id]
                 .unstack("asset")
                 .reindex(index=evaluation_grid, columns=assets)
             )

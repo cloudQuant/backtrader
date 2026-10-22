@@ -10,7 +10,7 @@ from ..operators import (
     TsArgMax,
     Where,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha001Native(FactorIndicator):
     lookback_h = 24
     formula_fields = ("close",)
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = (
         "(rank(Ts_ArgMax(SignedPower(((returns < 0) ? stddev(returns, 20) : close), 2.), 5)) - 0.5)"
     )

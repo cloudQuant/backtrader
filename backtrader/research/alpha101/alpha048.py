@@ -11,7 +11,7 @@ from ..operators import (
     RollingCorrelation,
     RollingSum,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -23,10 +23,8 @@ class Alpha048Native(FactorIndicator):
     alpha_id = 48
     case_id = "AF46-048"
     lookback_h = 251
-    formula_fields = ("close",)
+    formula_fields = ("close", "subindustry")
     required_fields = formula_fields
-    classification_levels = ("subindustry",)
-    classification_fields = ("subindustry",)
     formula = "(indneutralize(((correlation(delta(close, 1), delta(delay(close, 1), 1), 250) * delta(close, 1)) / close), IndClass.subindustry) / sum(((delta(close, 1) / delay(close, 1))^2), 250))"
 
     def __init__(self):
@@ -47,7 +45,7 @@ class Alpha048Native(FactorIndicator):
             IndNeutralize,
             normalized,
             level="subindustry",
-            groups=self.classification_lines("subindustry"),
+            groups=self.field_lines("subindustry"),
         )
         return_ratio = per_asset(self, "return_ratio", Divide, delta_now, close_delay)
         square = per_asset(

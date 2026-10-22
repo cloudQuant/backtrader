@@ -12,7 +12,7 @@ from ..operators import (
     TsMin,
     TsRank,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -27,8 +27,6 @@ class Alpha052Native(FactorIndicator):
     formula = "((((-1 * ts_min(low, 5)) + delay(ts_min(low, 5), 5)) * rank(((sum(returns, 240) - sum(returns, 20)) / 220))) * ts_rank(volume, 5))"
     formula_fields = ("low", "volume", "close")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

@@ -5,8 +5,7 @@ from typing import Mapping, Tuple, Type
 
 from ..factor_indicator import FactorIndicator
 from ._metadata import (
-    DEFAULT_FORMULA_UNIVERSE_POLICY,
-    DEFAULT_PIT_POLICY,
+    DEFAULT_INPUT_POLICY,
     native_alpha,
 )
 from .alpha001 import Alpha001Native
@@ -338,8 +337,7 @@ __all__ = (
     "Alpha099Native",
     "Alpha100Native",
     "Alpha101Native",
-    "DEFAULT_FORMULA_UNIVERSE_POLICY",
-    "DEFAULT_PIT_POLICY",
+    "DEFAULT_INPUT_POLICY",
     "get_alpha",
     "list_alphas",
     "native_alpha",

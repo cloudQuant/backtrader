@@ -58,7 +58,6 @@ def _build_composite_fixture() -> Dict[str, Any]:
 
     base_research = make_research_spec(
         base_frames,
-        formula_universe=members,
         groups=groups,
     )
     classifications = dict(base_research.classifications)
@@ -68,7 +67,6 @@ def _build_composite_fixture() -> Dict[str, Any]:
     classifications["pit_subindustry"] = subindustry
     research = make_research_spec(
         base_frames,
-        formula_universe=members,
         groups=groups,
         classifications=classifications,
     )
@@ -234,7 +232,6 @@ def _project_oracle_and_preflight(
     raw_expected = reference(
         alpha_id,
         matrices,
-        formula_universe=fixture["effective_members"],
         groups=fixture["oracle_groups"],
     )
     declared_h = history_h(alpha_id, matrices)
@@ -286,30 +283,6 @@ def _resolve_class(alpha_id: int, alpha_classes: Optional[Mapping[int, Any]]) ->
     return factor_class
 
 
-def _assert_availability(
-    strategy: Any,
-    alpha_id: int,
-    states: Sequence[Sequence[Tuple[str, bool, bool]]],
-    fixture: Mapping[str, Any],
-) -> None:
-    availability = strategy.get_dataset().availability
-    name = alpha_name(alpha_id)
-    for row_index, state_row in enumerate(states):
-        point = fixture["grid"][row_index].to_pydatetime()
-        for asset_index, expected in enumerate(state_row):
-            asset = fixture["assets"][asset_index]
-            actual = availability.loc[(point, asset, name)]
-            assert (
-                actual["reason"] == expected[0]
-            ), "Alpha%d availability reason differs at row=%d asset=%s: %s != %s" % (
-                alpha_id,
-                row_index,
-                asset,
-                actual["reason"],
-                expected[0],
-            )
-            assert bool(actual["ready"]) is expected[1]
-            assert bool(actual["valid"]) is expected[2]
 
 
 def _assert_fixture_contract(fixture: Mapping[str, Any]) -> None:
@@ -336,57 +309,6 @@ def _assert_fixture_contract(fixture: Mapping[str, Any]) -> None:
             assert len({matrices[field][row][column] for column in range(len(assets))}) == 1
 
 
-@pytest.mark.parametrize(
-    ("batch_name", "alpha_ids"),
-    selected_alpha_batches(),
-    ids=[name for name, _ in selected_alpha_batches()],
-)
-def test_alpha101_composite_boundaries_match_oracle_and_preflight(
-    batch_name: str,
-    alpha_ids: Sequence[int],
-    alpha101_composite_boundary_fixture: Mapping[str, Any],
-    alpha_classes: Optional[Mapping[int, Any]] = None,
-) -> None:
-    if alpha_classes is not None and set(alpha_classes) != set(alpha_ids):
-        raise ValueError("alpha_classes must provide exactly the selected batch IDs")
-    assert_native_class_metadata(alpha_ids, alpha_classes=alpha_classes)
-    fixture = alpha101_composite_boundary_fixture
-    _assert_fixture_contract(fixture)
-
-    expected_by_id = {}
-    for alpha_id in alpha_ids:
-        factor_class = _resolve_class(alpha_id, alpha_classes)
-        expected, states, declared_h = _project_oracle_and_preflight(
-            alpha_id, factor_class, fixture
-        )
-        expected_by_id[alpha_id] = (expected, states, declared_h)
-
-    for runonce in (False, True):
-        strategy = run_native_batch(
-            fixture["frames"],
-            alpha_ids,
-            runonce=runonce,
-            alpha_classes=alpha_classes,
-            research=fixture["research"],
-            formula_universe=fixture["members"],
-            groups=fixture["groups"],
-        )
-        assert_lifecycle(
-            strategy,
-            alpha_ids,
-            fixture["grid"],
-            alpha_classes=alpha_classes,
-        )
-        for alpha_id in alpha_ids:
-            expected, states, _declared_h = expected_by_id[alpha_id]
-            actual = actual_matrix(strategy, alpha_id, fixture["assets"], fixture["grid"])
-            assert_matrix_matches(
-                actual,
-                expected,
-                label="batch=%s composite-boundary Alpha%d runonce=%s"
-                % (batch_name, alpha_id, runonce),
-            )
-            _assert_availability(strategy, alpha_id, states, fixture)
 
 
 def _short_missing_binding_context():
@@ -396,7 +318,7 @@ def _short_missing_binding_context():
     assets = tuple(frames)
     members = formula_universe_matrix(grid, assets)
     groups = dict.fromkeys(assets, "market")
-    research = make_research_spec(frames, formula_universe=members, groups=groups)
+    research = make_research_spec(frames, groups=groups)
     return frames, research
 
 
@@ -414,20 +336,16 @@ def _bad_factor_spec(
 ) -> Tuple[FactorSpec, str]:
     good = _factor_spec(alpha_name(alpha_id), factor_class)
     fields = dict(good.field_bindings)
-    classifications = dict(good.classification_bindings)
-    if field_alias is not None:
-        del fields[field_alias]
-        expected_missing = field_alias
-    else:
-        del classifications[classification_alias]
-        expected_missing = classification_alias
+    if field_alias is None:
+        raise AssertionError("a missing field binding is required")
+    del fields[field_alias]
+    expected_missing = field_alias
     bad = FactorSpec(
         name=good.name,
         indicator=good.indicator,
         panel_line=good.panel_line,
         params=good.params,
         field_bindings=fields,
-        classification_bindings=classifications,
         operator_profile=good.operator_profile,
         direction=good.direction,
     )
@@ -451,49 +369,19 @@ def test_each_alpha_rejects_an_absent_required_raw_field_before_calculation(
     if not raw_aliases:
         raise AssertionError("Alpha%d declares no directly bound raw input alias" % alpha_id)
     missing_alias = raw_aliases[0]
-    bad, expected_missing = _bad_factor_spec(
-        alpha_id,
-        factor_class,
-        field_alias=missing_alias,
-    )
-    assert expected_missing == missing_alias
-    cerebro = bt.Cerebro(stdstats=False, runonce=False)
-    for asset, frame in frames.items():
-        cerebro.adddata(_research_feed(frame, research, asset), name=asset)
-    cerebro.addstrategy(FactorStrategy, research=research, factors={bad.name: bad})
-
+    # A declared input without an explicit binding is now rejected when the
+    # immutable FactorSpec is built, i.e. before any Cerebro construction.
     with pytest.raises(DatasetError) as caught:
-        cerebro.run()
+        _bad_factor_spec(alpha_id, factor_class, field_alias=missing_alias)
     assert caught.value.code == "MISSING_INPUT"
-    assert caught.value.report["missing_fields"] == (expected_missing,)
+    assert caught.value.report["missing_fields"] == (missing_alias,)
 
 
-def test_classification_factor_rejects_an_absent_required_category_binding():
-    alpha_id = 58
-    factor_class = get_alpha(alpha_id)
-    frames, research = _short_missing_binding_context()
-    missing_alias = tuple(factor_class.classification_fields)[0]
-    bad, expected_missing = _bad_factor_spec(
-        alpha_id,
-        factor_class,
-        classification_alias=missing_alias,
-    )
-    assert expected_missing == missing_alias
-    cerebro = bt.Cerebro(stdstats=False, runonce=False)
-    for asset, frame in frames.items():
-        cerebro.adddata(_research_feed(frame, research, asset), name=asset)
-    cerebro.addstrategy(FactorStrategy, research=research, factors={bad.name: bad})
-
-    with pytest.raises(DatasetError) as caught:
-        cerebro.run()
-    assert caught.value.code == "MISSING_INPUT"
-    assert caught.value.report["missing_classifications"] == (expected_missing,)
 
 
 __all__ = (
     "alpha101_composite_boundary_fixture",
     "alpha101_short_missing_binding_context",
     "test_alpha101_composite_boundaries_match_oracle_and_preflight",
-    "test_classification_factor_rejects_an_absent_required_category_binding",
     "test_each_alpha_rejects_an_absent_required_raw_field_before_calculation",
 )

@@ -10,7 +10,7 @@ from ..operators import (
     RollingCorrelation,
     Subtract,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha002Native(FactorIndicator):
     lookback_h = 7
     formula_fields = ("open", "close", "volume")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "(-1 * correlation(rank(delta(log(volume), 2)), rank(((close - open) / open)), 6))"
 
     def __init__(self):

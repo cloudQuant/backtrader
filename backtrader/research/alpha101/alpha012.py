@@ -6,7 +6,7 @@ from ..operators import (
     Multiply,
     Sign,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -21,8 +21,6 @@ class Alpha012Native(FactorIndicator):
     formula = "(sign(delta(volume, 1)) * (-1 * delta(close, 1)))"
     formula_fields = ("volume", "close")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
 
     def __init__(self):
         super().__init__()

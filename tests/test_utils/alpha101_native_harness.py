@@ -195,69 +195,61 @@ def oracle_frames(
     return matrices
 
 
-def formula_universe_matrix(
-    index: Sequence[Any],
-    assets: Sequence[str],
-    *,
-    default: bool = True,
-) -> list:
-    return [[bool(default) for _ in assets] for _ in index]
+def formula_universe_matrix(grid: Sequence[Any], assets: Sequence[str]) -> pd.Series:
+    """Compatibility shim for the removed dynamic formula-universe table.
+
+    The research API no longer takes ``formula_universe``: cross-sectional
+    membership is now decided per grid point by real bars.  Callers keep using
+    this helper to describe "all declared targets are eligible", which the
+    strategy derives itself.
+    """
+    keys = pd.MultiIndex.from_product([list(grid), list(assets)], names=("time", "asset"))
+    return pd.Series(True, index=keys, dtype=bool)
 
 
-def formula_universe_series(
-    index: Sequence[Any], assets: Sequence[str], members: Sequence[Sequence[bool]]
-) -> pd.Series:
-    if len(members) != len(index) or any(len(row) != len(assets) for row in members):
-        raise ValueError("formula universe must match the full time×asset grid")
-    keys = pd.MultiIndex.from_product([index, assets], names=("time", "asset"))
-    return pd.Series(
-        [bool(members[row][column]) for row in range(len(index)) for column in range(len(assets))],
-        index=keys,
-        dtype=bool,
-        name="formula_universe",
-    )
+def assert_presence_matches_finite_values(strategy: Any, *args: Any, **kwargs: Any) -> None:
+    """Every finite factor value must sit on a grid point with a real bar."""
+    panel = strategy.get_panel()
+    import numpy as np
+
+    values = panel.factors.to_numpy(dtype="float64")
+    finite = np.isfinite(values)
+    assert finite.any(), "no finite factor values to witness"
+    times = panel.factors.index.get_level_values("time")
+    assets = panel.factors.index.get_level_values("asset")
+    for index in np.argwhere(finite)[:200]:
+        row, column = int(index[0]), int(index[1])
+        data = next(item for item in strategy.datas if getattr(item, "_name", "") == assets[row])
+        alignment = getattr(data, "_factor_research_alignment_v2", None)
+        if alignment is None:
+            continue
+        grid = list(strategy._grid)
+        position = grid.index(times[row].to_pydatetime())
+        assert bool(alignment["present"][position]), (
+            "finite value %r at %s/%s without a real bar"
+            % (panel.factor_order[column], times[row], assets[row])
+        )
+
+
+def presence_matrix(frames: Mapping[str, Any], grid: Sequence[Any]) -> list:
+    """Return the real-bar membership matrix for one fixture on the grid.
+
+    Cross-sectional membership is ordinary bar presence in this API; there is
+    no separate caller-supplied formula-universe table anymore.
+    """
+    assets = tuple(frames)
+    return [
+        [point in frames[asset].index for asset in assets] for point in grid
+    ]
 
 
 def make_research_spec(
     frames: Mapping[str, Any],
     *,
-    formula_universe: Optional[Sequence[Sequence[bool]]] = None,
     groups: Optional[Mapping[str, str]] = None,
-    classifications: Optional[Mapping[str, Any]] = None,
 ) -> ResearchSpec:
-    """Build the 45-proven ResearchSpec, optionally replacing PIT tables."""
-
-    index = tuple(next(iter(frames.values())).index)
-    assets = tuple(frames)
-    member_series = (
-        None
-        if formula_universe is None
-        else formula_universe_series(index, assets, formula_universe)
-    )
-    base = _representative_research_spec(
-        frames,
-        formula_universe=member_series,
-        groups=groups,
-    )
-    if classifications is None:
-        return base
-    return ResearchSpec(
-        grid=base.grid,
-        start=base.start,
-        end=base.end,
-        targets=base.targets,
-        source_timezone=base.source_timezone,
-        snapshot_id=base.snapshot_id,
-        price_basis=base.price_basis,
-        calendar_id=base.calendar_id,
-        frequency=base.frequency,
-        feed_time_kind=base.feed_time_kind,
-        groups=base.groups,
-        universe=base.universe,
-        formula_universe=base.formula_universe,
-        formula_fields=base.formula_fields,
-        classifications=classifications,
-    )
+    """Build the fixture ResearchSpec (calendar, targets, groups)."""
+    return _representative_research_spec(frames, groups=groups)
 
 
 def _assert_one_native_class_metadata(alpha_id: int, factor_class: Any) -> None:
@@ -291,23 +283,28 @@ def _assert_one_native_class_metadata(alpha_id: int, factor_class: Any) -> None:
         raise AssertionError(
             "Alpha%d native formula_fields must be unique and non-empty" % alpha_id
         )
-    if set(declared_fields) != expected_fields:
+    # Neutralization levels are now ordinary declared fields, so the catalog
+    # closure must be a subset of the declaration rather than equal to it.
+    if not expected_fields.issubset(set(declared_fields)):
         raise AssertionError(
-            "Alpha%d native formula_fields differ from catalog closure: %r != %r"
-            % (alpha_id, sorted(declared_fields), sorted(expected_fields))
+            "Alpha%d native formula_fields miss catalog inputs: declared=%r missing=%r"
+            % (alpha_id, sorted(declared_fields), sorted(expected_fields - set(declared_fields)))
         )
 
-    levels = tuple(factor_class.classification_levels)
+    # Neutralization levels are ordinary declared formula fields; every level
+    # the catalog requires must be declared as a bindable feed line.
     expected_levels = tuple(
-        call["level"] for call in metadata["classification_requirements"]["calls"]
-    )
-    if levels != expected_levels:
-        raise AssertionError(
-            "Alpha%d classification_levels differ from catalog: %r != %r"
-            % (alpha_id, levels, expected_levels)
+        dict.fromkeys(
+            call["level"] for call in metadata["classification_requirements"]["calls"]
         )
-    if any(level not in {"sector", "industry", "subindustry"} for level in levels):
-        raise AssertionError("Alpha%d declares an unknown classification level" % alpha_id)
+    )
+    if any(level not in declared_fields for level in expected_levels):
+        raise AssertionError(
+            "Alpha%d does not declare its catalog classification levels as formula fields: %r"
+            % (alpha_id, expected_levels)
+        )
+    if any(level not in {"sector", "industry", "subindustry"} for level in expected_levels):
+        raise AssertionError("Alpha%d catalog declares an unknown classification level" % alpha_id)
 
     declared_h = factor_class.lookback_h
     if type(declared_h) is not int or declared_h < 0 or declared_h != history_h(alpha_id):
@@ -349,9 +346,7 @@ def run_native_batch(
     runonce: bool,
     alpha_classes: Optional[Mapping[int, Any]] = None,
     research: Optional[ResearchSpec] = None,
-    formula_universe: Optional[Sequence[Sequence[bool]]] = None,
     groups: Optional[Mapping[str, str]] = None,
-    classifications: Optional[Mapping[str, Any]] = None,
 ) -> Any:
     """Run the selected native classes through real Cerebro and FactorStrategy."""
 
@@ -365,12 +360,7 @@ def run_native_batch(
         if set(classes) != set(ids):
             raise ValueError("alpha_classes must provide exactly the requested Alpha101 IDs")
     assert_native_class_metadata(ids, alpha_classes=classes)
-    research = research or make_research_spec(
-        frames,
-        formula_universe=formula_universe,
-        groups=groups,
-        classifications=classifications,
-    )
+    research = research or make_research_spec(frames, groups=groups)
     cerebro = bt.Cerebro(stdstats=False, runonce=bool(runonce))
     for asset, frame in frames.items():
         cerebro.adddata(_research_feed(frame, research, asset), name=asset)
@@ -407,33 +397,31 @@ def oracle_expected(
     frames: Mapping[str, Any],
     *,
     grid: Optional[Sequence[Any]] = None,
-    formula_universe: Optional[Sequence[Sequence[bool]]] = None,
     groups: Optional[Mapping[str, str]] = None,
 ) -> Tuple[list, int]:
     matrices = oracle_frames(frames, grid=grid)
     oracle_groups = (
         tuple(groups[asset] for asset in frames) if isinstance(groups, Mapping) else groups
     )
+    points = tuple(grid) if grid is not None else tuple(next(iter(frames.values())).index)
     expected = reference(
         alpha_id,
         matrices,
-        formula_universe=formula_universe,
+        points,
         groups=oracle_groups,
     )
     declared_h = history_h(alpha_id, matrices)
-    # FactorStrategy exposes only structurally ready observations.  Some
-    # formulas can happen to have a finite branch before the dependency-derived
-    # H, so project the independent raw oracle through that separate contract.
-    for row in range(min(declared_h, len(expected))):
-        expected[row] = [math.nan] * len(expected[row])
-    return expected, declared_h
+    # The panel preserves the formula's own finite/NaN output on every row;
+    # only incomplete presence windows are masked by the collector.
+    return [list(row) for row in expected], declared_h
 
 
 def actual_matrix(strategy: Any, alpha_id: int, assets: Sequence[str], grid: Sequence[Any]) -> list:
-    raw = strategy.get_dataset().raw_factors
+    factors = strategy.get_panel().factors
     name = alpha_name(alpha_id)
     return [
-        [float(raw.at[(point.to_pydatetime(), asset), name]) for asset in assets] for point in grid
+        [float(factors.at[(point.to_pydatetime(), asset), name]) for asset in assets]
+        for point in grid
     ]
 
 
@@ -518,26 +506,21 @@ def assert_lifecycle(
             assert tuple(nested_diagnostics["call_times"]) == expected_times
 
 
-def assert_availability_matches_values(
-    strategy: Any, alpha_ids: Iterable[int], grid: Sequence[Any], assets: Sequence[str]
+def assert_panel_matches_oracle(
+    strategy: Any,
+    expected: Mapping[int, Sequence[Sequence[float]]],
+    assets: Sequence[str],
+    grid: Sequence[Any],
+    *,
+    label: str,
 ) -> None:
-    dataset = strategy.get_dataset()
-    raw = dataset.raw_factors
-    availability = dataset.availability
-    for alpha_id in alpha_ids:
-        name = alpha_name(alpha_id)
-        for point in grid:
-            point = point.to_pydatetime()
-            for asset in assets:
-                value = float(raw.at[(point, asset), name])
-                state = availability.loc[(point, asset, name)]
-                assert bool(state["valid"]) == math.isfinite(value)
-                if not state["valid"]:
-                    assert not state["ready"] or state["reason"] in {
-                        "DOMAIN_ERROR",
-                        "NONFINITE_INPUT",
-                    }
-                    assert isinstance(state["reason"], str) and state["reason"]
+    """Compare every selected factor's panel column with the oracle matrix."""
+    for alpha_id, matrix in expected.items():
+        assert_matrix_matches(
+            actual_matrix(strategy, alpha_id, assets, grid),
+            matrix,
+            label="%s Alpha%d" % (label, alpha_id),
+        )
 
 
 def assert_finite_witness(
@@ -597,19 +580,18 @@ __all__ = (
     "PROMOTED_ALPHA_IDS",
     "actual_matrix",
     "alpha_name",
-    "assert_availability_matches_values",
     "assert_batch_partition",
     "assert_finite_witness",
     "assert_lifecycle",
     "assert_matrix_matches",
     "assert_native_class_metadata",
+    "assert_panel_matches_oracle",
     "assert_registry_covers_all_ids",
-    "formula_universe_matrix",
-    "formula_universe_series",
     "make_positive_fixture",
     "make_research_spec",
     "oracle_expected",
     "oracle_frames",
+    "presence_matrix",
     "run_native_batch",
     "selected_alpha_batches",
     "selected_alpha_ids",

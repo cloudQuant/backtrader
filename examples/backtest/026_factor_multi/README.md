@@ -22,10 +22,10 @@ Outputs:
 - `evaluation/`: fincore's tables and chart, when the fincore factor-research API is installed.
 - `summary.json`: status, symbol/date counts, evaluation identity and report paths.
 - `factor_report_<factor>.html`: written with `--report`, one self-contained bilingual (中文/English) report per factor with interactive ECharts charts and IC, quantile-return, turnover and coverage tables.
-- `dataset/`: written only with `--save-dataset`; a full `ResearchDataset` snapshot.
+- `panel/`: written only with `--save-panel`; the six CSV files (`factors`, `grid`, `prices_open`, `prices_close`, `universe`, `groups`) for an explicit offline re-evaluation.
 
-Evaluation is optional. When fincore's research API is unavailable, `factor_values.csv` is still written, `EVALUATION SKIPPED` is printed, and the run exits 0 with `summary.json.status="DATASET_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
+Evaluation is optional. When fincore's research API is unavailable, `factor_values.csv` is still written, `EVALUATION SKIPPED` is printed, and the run exits 0 with `summary.json.status="PANEL_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
-Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-dataset`, and `--dataset <saved-dataset>` for offline re-evaluation. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
+Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-panel`, and `--panel <saved-panel>` for offline re-evaluation without Cerebro. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
 
 The output is a factor research result, not a trading strategy or evidence of investment performance.

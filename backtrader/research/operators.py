@@ -19,9 +19,7 @@ takes PIT category lines through ``groups=`` (or reads the requested ``level``
 line from each feed).
 """
 
-from decimal import Decimal, localcontext
 from enum import IntEnum
-from fractions import Fraction
 import math
 import numbers
 import operator
@@ -893,7 +891,13 @@ class _RollingPair(_Rolling):
 
 
 class RollingCovariance(_RollingPair):
-    """Population covariance (ddof=0); a one-value window is zero."""
+    """Population covariance (ddof=0); a one-value window is zero.
+
+    Stable float64 kernel: center first, scale each series by its largest
+    magnitude so the squares cannot overflow, and accumulate with
+    ``math.fsum``.  A constant window has covariance exactly 0 (it is not a
+    domain error); a one-value population covariance is 0 as well.
+    """
 
     def _evaluate(self):
         left, right, reason = self._pair_windows()
@@ -901,16 +905,20 @@ class RollingCovariance(_RollingPair):
             return _NAN, reason
 
         def calculate() -> float:
-            # Treat each input float as its exact binary64 rational, accumulate
-            # the population covariance exactly, and round only the final
-            # result. Center-then-scale float arithmetic can reverse the sign
-            # of near-zero covariances, which changes subsequent CS rank/ties.
-            left_exact = [Fraction.from_float(value) for value in left]
-            right_exact = [Fraction.from_float(value) for value in right]
-            count = len(left_exact)
-            product_sum = sum((x * y for x, y in zip(left_exact, right_exact)), Fraction(0))
-            numerator = count * product_sum - sum(left_exact) * sum(right_exact)
-            return float(numerator / (count * count))
+            count = len(left)
+            if count == 1:
+                return 0.0
+            scale = max(max(abs(value) for value in left), max(abs(value) for value in right))
+            if scale == 0.0:
+                return 0.0
+            scaled_left = [value / scale for value in left]
+            scaled_right = [value / scale for value in right]
+            mean_left = math.fsum(scaled_left) / count
+            mean_right = math.fsum(scaled_right) / count
+            covariance = math.fsum(
+                (a - mean_left) * (b - mean_right) for a, b in zip(scaled_left, scaled_right)
+            ) / count
+            return covariance * scale * scale
 
         return _guarded_result(calculate)
 
@@ -926,34 +934,28 @@ class RollingCorrelation(_RollingPair):
             return _NAN, reason
 
         def calculate() -> float:
-            # Each input is an exact binary64 value. Compute the centered
-            # sums as rational numbers so tiny differences between mathematically
-            # tied correlations are not introduced by rounded means/products.
-            # Decimal is used only for sqrt; converting the final high-precision
-            # ratio to float performs the sole binary64 rounding.
-            left_exact = [Fraction.from_float(value) for value in left]
-            right_exact = [Fraction.from_float(value) for value in right]
-            count = len(left_exact)
-            left_sum = sum(left_exact, Fraction(0))
-            right_sum = sum(right_exact, Fraction(0))
-            left_squares = sum((value * value for value in left_exact), Fraction(0))
-            right_squares = sum((value * value for value in right_exact), Fraction(0))
-            cross_products = sum((x * y for x, y in zip(left_exact, right_exact)), Fraction(0))
-            left_ss = count * left_squares - left_sum * left_sum
-            right_ss = count * right_squares - right_sum * right_sum
-            covariance = count * cross_products - left_sum * right_sum
-            if left_ss <= 0 or right_ss <= 0:
+            count = len(left)
+            left_scale = max(abs(value) for value in left)
+            right_scale = max(abs(value) for value in right)
+            if left_scale == 0.0 or right_scale == 0.0:
                 raise ValueError("correlation requires non-constant inputs")
-
-            with localcontext() as context:
-                context.prec = 120
-                decimal_covariance = Decimal(covariance.numerator) / Decimal(covariance.denominator)
-                decimal_product = Decimal(left_ss.numerator) / Decimal(left_ss.denominator)
-                decimal_product *= Decimal(right_ss.numerator) / Decimal(right_ss.denominator)
-                correlation = float(decimal_covariance / decimal_product.sqrt())
-            if not math.isfinite(correlation) or abs(correlation) > 1.0:
+            scaled_left = [value / left_scale for value in left]
+            scaled_right = [value / right_scale for value in right]
+            mean_left = math.fsum(scaled_left) / count
+            mean_right = math.fsum(scaled_right) / count
+            deviations_left = [value - mean_left for value in scaled_left]
+            deviations_right = [value - mean_right for value in scaled_right]
+            left_ss = math.fsum(value * value for value in deviations_left)
+            right_ss = math.fsum(value * value for value in deviations_right)
+            if left_ss <= 0.0 or right_ss <= 0.0:
+                raise ValueError("correlation requires non-constant inputs")
+            cross = math.fsum(
+                a * b for a, b in zip(deviations_left, deviations_right)
+            )
+            correlation = cross / math.sqrt(left_ss * right_ss)
+            if not math.isfinite(correlation) or abs(correlation) > 1.0 + 1e-12:
                 raise ValueError("correlation result is outside its mathematical domain")
-            return correlation
+            return min(1.0, max(-1.0, correlation))
 
         try:
             return calculate(), OperatorReason.READY

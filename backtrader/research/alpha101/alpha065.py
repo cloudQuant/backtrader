@@ -11,7 +11,7 @@ from ..operators import (
     Subtract,
     TsMin,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha065Native(FactorIndicator):
     lookback_h = 71
     formula_fields = ("open", "vwap", "dollar_volume", "adv60")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "((rank(correlation(((open * 0.00817205) + (vwap * (1 - 0.00817205))), sum(adv60, 8.6911), 6.40374)) < rank((open - ts_min(open, 13.635)))) * -1)"
 
     def __init__(self):

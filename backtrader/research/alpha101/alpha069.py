@@ -12,7 +12,7 @@ from ..operators import (
     TsMax,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,10 +24,8 @@ class Alpha069Native(FactorIndicator):
     alpha_id = 69
     case_id = "AF46-069"
     lookback_h = 30
-    formula_fields = ("vwap", "close", "dollar_volume", "adv20")
+    formula_fields = ("vwap", "close", "dollar_volume", "adv20", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
     formula = "((rank(ts_max(delta(IndNeutralize(vwap, IndClass.industry), 2.72412), 4.79344))^Ts_Rank(correlation(((close * 0.490655) + (vwap * (1 - 0.490655))), adv20, 4.92416), 9.0615)) * -1)"
 
     def __init__(self):
@@ -39,7 +37,7 @@ class Alpha069Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("vwap"),
             level="industry",
-            groups=self.classification_lines("industry"),
+            groups=self.field_lines("industry"),
         )
         neutral_delta = per_asset(self, "neutral_vwap_delta2", Delta, neutral_vwap, period=2.72412)
         neutral_max = per_asset(self, "neutral_vwap_ts_max4", TsMax, neutral_delta, period=4.79344)

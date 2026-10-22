@@ -10,7 +10,7 @@ from ..operators import (
     RollingCorrelation,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -22,10 +22,8 @@ class Alpha070Native(FactorIndicator):
     alpha_id = 70
     case_id = "AF46-070"
     lookback_h = 81
-    formula_fields = ("vwap", "close", "dollar_volume", "adv50")
+    formula_fields = ("vwap", "close", "dollar_volume", "adv50", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
     formula = "((rank(delta(vwap, 1.29456))^Ts_Rank(correlation(IndNeutralize(close, IndClass.industry), adv50, 17.8256), 17.9171)) * -1)"
 
     def __init__(self):
@@ -39,7 +37,7 @@ class Alpha070Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("close"),
             level="industry",
-            groups=self.classification_lines("industry"),
+            groups=self.field_lines("industry"),
         )
         correlation = per_asset(
             self,

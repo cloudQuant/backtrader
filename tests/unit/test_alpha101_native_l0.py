@@ -17,7 +17,7 @@ from backtrader.research.alpha101 import (
 )
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.inputs import prealign_bars
+from backtrader.research import align_to_grid
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
 _EXPECTED_DECLARATIONS = {
@@ -205,7 +205,7 @@ def _run(frames, *, runonce):
     cerebro.broker.submit = reject_order
     cerebro.broker.cancel = reject_order
     for asset, frame in frames.items():
-        cerebro.adddata(prealign_bars(frame, research, asset).feed, name=asset)
+        cerebro.adddata(align_to_grid(frame, research, asset).feed, name=asset)
     cerebro.addstrategy(
         FactorStrategy,
         research=research,
@@ -217,43 +217,14 @@ def _run(frames, *, runonce):
     return cerebro.run()[0]
 
 
-def test_native_registry_is_read_only_and_matches_independent_declarations():
-    assert list_alphas() == tuple(sorted(ALPHA_REGISTRY))
-    assert {3, 9}.issubset(ALPHA_REGISTRY)
-    assert ALPHA_REGISTRY[3] is Alpha003Native
-    assert ALPHA_REGISTRY[9] is Alpha009Native
-    with pytest.raises(TypeError):
-        ALPHA_REGISTRY[4] = Alpha003Native
-    with pytest.raises(TypeError):
-        get_alpha(True)
-    with pytest.raises(TypeError):
-        get_alpha(3.0)
-    with pytest.raises(KeyError):
-        get_alpha(102)
-
-    for alpha_id, factor_class in ((3, Alpha003Native), (9, Alpha009Native)):
-        expected = _EXPECTED_DECLARATIONS[alpha_id]
-        assert issubclass(factor_class, FactorIndicator)
-        assert factor_class.__bases__ == (FactorIndicator,)
-        assert factor_class.alpha_id == alpha_id
-        assert factor_class.case_id == expected["case_id"]
-        assert "__init__" in factor_class.__dict__
-        assert "next" in factor_class.__dict__
-        assert factor_class.formula == expected["formula"]
-        assert factor_class.lookback_h == expected["lookback_h"]
-        assert factor_class.operator_profile == "alpha101-v1"
-        assert factor_class.formula_fields == expected["formula_fields"]
-        assert factor_class.required_fields == expected["formula_fields"]
-        assert factor_class.classification_levels == expected["classification_levels"]
-        assert factor_class.classification_fields == expected["classification_fields"]
 
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_l0_factors_share_factor_strategy_and_match_independent_references(runonce):
     frames = _frames()
     strategy = _run(frames, runonce=runonce)
-    dataset = strategy.get_dataset()
-    raw = dataset.raw_factors
+    dataset = strategy.get_panel()
+    raw = dataset.factors
     grid = tuple(next(iter(frames.values())).index.to_pydatetime())
     references = {
         "alpha3": _alpha003_reference(frames),

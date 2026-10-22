@@ -13,7 +13,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -26,10 +26,8 @@ class Alpha082Native(FactorIndicator):
     case_id = "AF46-082"
     lookback_h = 33
     formula = "(min(rank(decay_linear(delta(open, 1.46063), 14.8717)), Ts_Rank(decay_linear(correlation(IndNeutralize(volume, IndClass.sector), ((open * 0.634196) + (open * (1 - 0.634196))), 17.4842), 6.92131), 13.4283)) * -1)"
-    formula_fields = ("open", "volume")
+    formula_fields = ("open", "volume", "sector")
     required_fields = formula_fields
-    classification_levels = ("sector",)
-    classification_fields = ("sector",)
 
     def __init__(self):
         super().__init__()
@@ -47,7 +45,7 @@ class Alpha082Native(FactorIndicator):
         beta = per_asset(self, "open_weight_b", Multiply, self.field_lines("open"), one_minus_alpha)
         weighted_open = per_asset(self, "weighted_open", Add, alpha, beta)
         neutral_volume = panel(
-            self, "sector_neutral_volume", IndNeutralize, self.field_lines("volume"), level="sector"
+            self, "sector_neutral_volume", IndNeutralize, self.field_lines("volume"), level="sector", groups=self.field_lines("sector")
         )
         correlation = per_asset(
             self,

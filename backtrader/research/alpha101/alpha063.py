@@ -12,7 +12,7 @@ from ..operators import (
     RollingSum,
     Subtract,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,10 +24,8 @@ class Alpha063Native(FactorIndicator):
     alpha_id = 63
     case_id = "AF46-063"
     lookback_h = 238
-    formula_fields = ("close", "vwap", "open", "dollar_volume", "adv180")
+    formula_fields = ("close", "vwap", "open", "dollar_volume", "adv180", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
     formula = "((rank(decay_linear(delta(IndNeutralize(close, IndClass.industry), 2.25164), 8.22237)) - rank(decay_linear(correlation(((vwap * 0.318108) + (open * (1 - 0.318108))), sum(adv180, 37.2467), 13.557), 12.2883))) * -1)"
 
     def __init__(self):
@@ -39,7 +37,7 @@ class Alpha063Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("close"),
             level="industry",
-            groups=self.classification_lines("industry"),
+            groups=self.field_lines("industry"),
         )
         close_delta = per_asset(self, "neutral_close_delta2", Delta, neutral_close, period=2.25164)
         left_decay = per_asset(self, "left_decay8", DecayLinear, close_delta, period=8.22237)

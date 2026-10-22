@@ -8,7 +8,7 @@ from ..operators import (
     TsMax,
     TsRank,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha084Native(FactorIndicator):
     lookback_h = 33
     formula_fields = ("close", "vwap")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "SignedPower(Ts_Rank((vwap - ts_max(vwap, 15.3217)), 20.7127), delta(close, 4.96796))"
 
     def __init__(self):

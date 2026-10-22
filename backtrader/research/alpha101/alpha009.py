@@ -10,7 +10,7 @@ from ..operators import (
     TsMin,
     Where,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -27,8 +27,6 @@ class Alpha009Native(FactorIndicator):
     lookback_h = 5
     formula_fields = ("close",)
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "((0 < ts_min(delta(close, 1), 5)) ? delta(close, 1) : ((ts_max(delta(close, 1), 5) < 0) ? delta(close, 1) : (-1 * delta(close, 1))))"
 
     def __init__(self):

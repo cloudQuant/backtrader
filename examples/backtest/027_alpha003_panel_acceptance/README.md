@@ -14,7 +14,7 @@ From the repository root:
 python examples/backtest/027_alpha003_panel_acceptance/run.py --output-dir output/027-real
 ```
 
-Add `--report` to write the HTML report, and `--report-language zh|en` to choose its default language (the HTML also has a 中文/EN switch). The runner evenly samples **500** symbols from the manifest by default; `--max-symbols 0` uses all 5,471 symbols, and `--data-dir` selects another panel with the same `_metadata/manifest.json` and per-symbol CSV layout. The calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled. Alpha003 needs a complete 10-row window of cross-sectional ranks, so suspended or newly listed symbols produce NaN windows and a reason in the dataset availability table.
+Add `--report` to write the HTML report, and `--report-language zh|en` to choose its default language (the HTML also has a 中文/EN switch). The runner evenly samples **500** symbols from the manifest by default; `--max-symbols 0` uses all 5,471 symbols, and `--data-dir` selects another panel with the same `_metadata/manifest.json` and per-symbol CSV layout. The calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled. Alpha003 needs a complete 10-row window of cross-sectional ranks, so suspended or newly listed symbols produce NaN windows; the missing bar itself and the following lookback points are NaN.
 
 Outputs:
 

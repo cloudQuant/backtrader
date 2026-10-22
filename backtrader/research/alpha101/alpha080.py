@@ -12,7 +12,7 @@ from ..operators import (
     Sign,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -24,10 +24,8 @@ class Alpha080Native(FactorIndicator):
     alpha_id = 80
     case_id = "AF46-080"
     lookback_h = 17
-    formula_fields = ("open", "high", "dollar_volume", "adv10")
+    formula_fields = ("open", "high", "dollar_volume", "adv10", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
     formula = "((rank(Sign(delta(IndNeutralize(((open * 0.868128) + (high * (1 - 0.868128))), IndClass.industry), 4.04545)))^Ts_Rank(correlation(high, adv10, 5.11456), 5.53756)) * -1)"
 
     def __init__(self):
@@ -50,7 +48,7 @@ class Alpha080Native(FactorIndicator):
             IndNeutralize,
             per_asset(self, "weighted_price", Add, open_part, high_part),
             level="industry",
-            groups=self.classification_lines("industry"),
+            groups=self.field_lines("industry"),
         )
         delta = per_asset(self, "neutral_price_delta4", Delta, neutral_price, period=4.04545)
         signed = per_asset(self, "sign_delta", Sign, delta)

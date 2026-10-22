@@ -8,7 +8,7 @@ from ..operators import (
     RollingCorrelation,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -20,10 +20,8 @@ class Alpha058Native(FactorIndicator):
     alpha_id = 58
     case_id = "AF46-058"
     lookback_h = 12
-    formula_fields = ("vwap", "volume")
+    formula_fields = ("vwap", "volume", "sector")
     required_fields = formula_fields
-    classification_levels = ("sector",)
-    classification_fields = ("sector",)
     formula = "(-1 * Ts_Rank(decay_linear(correlation(IndNeutralize(vwap, IndClass.sector), volume, 3.92795), 7.89291), 5.50322))"
 
     def __init__(self):
@@ -35,7 +33,7 @@ class Alpha058Native(FactorIndicator):
             IndNeutralize,
             self.field_lines("vwap"),
             level="sector",
-            groups=self.classification_lines("sector"),
+            groups=self.field_lines("sector"),
         )
         correlation = per_asset(
             self,

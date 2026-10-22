@@ -11,7 +11,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha066Native(FactorIndicator):
     lookback_h = 15
     formula_fields = ("vwap", "low", "open", "high")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "((rank(decay_linear(delta(vwap, 3.51013), 7.23052)) + Ts_Rank(decay_linear(((((low * 0.96633) + (low * (1 - 0.96633))) - vwap) / (open - ((high + low) / 2))), 11.4157), 6.72611)) * -1)"
 
     def __init__(self):

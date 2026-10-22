@@ -6,7 +6,7 @@ from ..operators import (
     Multiply,
     RollingCovariance,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -20,8 +20,6 @@ class Alpha013Native(FactorIndicator):
     lookback_h = 4
     formula_fields = ("close", "volume")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "(-1 * rank(covariance(rank(close), rank(volume), 5)))"
 
     def __init__(self):

@@ -126,12 +126,12 @@ def _create_research_spec(config: Mapping[str, Any], panel: Mapping[str, Any]) -
     )
 
 
-def _evaluation_spec(config: Mapping[str, Any], dataset: Any, periods: Sequence[int]) -> Any:
+def _evaluation_spec(config: Mapping[str, Any], panel: Any, periods: Sequence[int]) -> Any:
     from fincore.factor_analysis.research import ResearchEvaluationSpec
 
-    research = dataset.metadata["research"]
-    grid = dataset.grid
-    research_times = grid.index[(grid.index >= dataset.start) & (grid.index <= dataset.end)]
+    data_config = config["data"]
+    grid = panel.grid
+    research_times = grid.index[(grid.index >= panel.start) & (grid.index <= panel.end)]
     configured = config["evaluation"]
     segments = {}
     for name, definition in configured.get("segments", {}).items():
@@ -145,15 +145,15 @@ def _evaluation_spec(config: Mapping[str, Any], dataset: Any, periods: Sequence[
             raise ValueError("configured segment positions must fall inside the research grid")
         segments[name] = (research_times[first], research_times[last], definition["role"])
     return ResearchEvaluationSpec(
-        targets=dataset.targets,
-        start=dataset.start,
-        end=dataset.end,
-        snapshot_id=research["snapshot_id"],
-        price_basis=research["price_basis"],
-        calendar_id=research["calendar_id"],
-        frequency=research["frequency"],
-        source_timezone=research.get("source_timezone", "UTC"),
-        feed_time_kind=research.get("feed_time_kind", "close_time"),
+        targets=panel.target_order,
+        start=panel.start,
+        end=panel.end,
+        snapshot_id=data_config["snapshot_id"],
+        price_basis=data_config["price_basis"],
+        calendar_id=data_config["calendar_id"],
+        frequency=data_config["frequency"],
+        source_timezone=data_config["source_timezone"],
+        feed_time_kind="close_time",
         periods=tuple(periods),
         label=configured["label"],
         precomputed_entry=configured["precomputed_entry"],
@@ -175,8 +175,7 @@ def _run_native_collection(
 ) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
-    from backtrader.research import FactorSpec, FactorStrategy
-    from backtrader.research.inputs import prealign_bars
+    from backtrader.research import FactorSpec, FactorStrategy, MemorySink, align_to_grid
     from multi_factor_strategy import CloseMAFactor, KDJFactor, ROCFactor
 
     class CountingBroker(BackBroker):
@@ -215,18 +214,18 @@ def _run_native_collection(
     broker = CountingBroker()
     cerebro.setbroker(broker)
     for asset in panel["assets"]:
-        aligned = prealign_bars(
+        aligned = align_to_grid(
             panel["feeds"][asset],
             research,
             asset,
             data_version=config["data"]["data_version"],
         )
         cerebro.adddata(aligned.feed, name=asset)
-    cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
+    cerebro.addstrategy(FactorStrategy, research=research, factors=factors, sink=MemorySink())
     strategies = cerebro.run(runonce=not runnext, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the native collection did not return exactly one strategy")
-    return strategies[0], strategies[0].get_dataset(), broker
+    return strategies[0], strategies[0].get_panel(), broker
 
 
 def _parse_periods(values: Optional[Sequence[int]], default: Sequence[int]) -> Tuple[int, ...]:
@@ -258,10 +257,10 @@ def _parser() -> argparse.ArgumentParser:
         help="evenly sampled symbol count; 0 uses every symbol in the manifest",
     )
     parser.add_argument(
-        "--save-dataset", action="store_true", help="also write the ResearchDataset snapshot"
+        "--save-panel", action="store_true", help="also write the CSV panel for offline reevaluation"
     )
     parser.add_argument(
-        "--dataset", help="saved ResearchDataset directory for offline reevaluation"
+        "--panel", help="saved CSV panel directory for offline reevaluation"
     )
     parser.add_argument("--periods", nargs="+", type=int, help="label horizons for this evaluation")
     parser.add_argument("--report", action="store_true", help="write bilingual HTML factor reports")
@@ -316,19 +315,31 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         broker = None
-        if args.dataset:
-            from backtrader.research.storage import load_dataset
+        if args.panel:
+            from backtrader.research import FactorPanel
 
-            dataset = load_dataset(_resolve_path(args.dataset))
+            research = _create_research_spec(config, load_daily_panel(config["data"]))
+            panel = FactorPanel.from_csv(
+                _resolve_path(args.panel),
+                start=research.start,
+                end=research.end,
+                directions={
+                    name: definition["direction"]
+                    for name, definition in config["factors"].items()
+                },
+                target_order=research.targets,
+                factor_order=list(config["factors"]),
+                groups=research.groups,
+            )
         else:
-            panel = load_daily_panel(config["data"])
-            _, dataset, broker = _run_native_collection(config, panel, args.runnext)
+            prices = load_daily_panel(config["data"])
+            _, panel, broker = _run_native_collection(config, prices, args.runnext)
             if (broker.submit_count, broker.cancel_count) != (0, 0):
                 raise RuntimeError("research-only Cerebro run submitted or cancelled an order")
 
-        if args.save_dataset:
-            dataset.save(output_dir / "dataset")
-        dataset.raw_factors.reset_index().to_csv(output_dir / "factor_values.csv", index=False)
+        if args.save_panel:
+            panel.to_csv(output_dir / "panel")
+        panel.factors.reset_index().to_csv(output_dir / "factor_values.csv", index=False)
         reports = []
         if args.report:
             from backtrader.research import write_factor_report
@@ -336,7 +347,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             for factor_name in config["factors"]:
                 try:
                     path = write_factor_report(
-                        dataset,
+                        panel,
                         factor_name,
                         output_dir / ("factor_report_%s.html" % factor_name),
                         periods=periods,
@@ -351,17 +362,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     print("REPORT SKIPPED for %s: %s" % (factor_name, exc), file=sys.stderr)
 
         try:
-            result = dataset.evaluate(_evaluation_spec(config, dataset, periods))
+            from backtrader.research import evaluate_frames
+
+            result = evaluate_frames(panel, _evaluation_spec(config, panel, periods))
         except Exception as exc:
             if not _evaluation_unavailable(exc):
                 raise
             print("EVALUATION SKIPPED: %s" % exc, file=sys.stderr)
             _write_summary(
                 output_dir,
-                "DATASET_ONLY",
+                "PANEL_ONLY",
                 reason=str(exc),
-                symbols=len(dataset.targets),
-                dates=len(dataset.grid),
+                symbols=len(panel.target_order),
+                dates=len(panel.grid),
                 reports=reports,
             )
             return 0
@@ -381,8 +394,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         extra = {
             "evaluation_status": status,
             "evaluation_id": evaluation_id,
-            "symbols": len(dataset.targets),
-            "dates": len(dataset.grid),
+            "symbols": len(panel.target_order),
+            "dates": len(panel.grid),
             "reports": reports,
         }
         if broker is not None:

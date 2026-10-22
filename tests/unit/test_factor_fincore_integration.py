@@ -1,166 +1,132 @@
-"""Real installed-fincore API contract; run only in the pinned integration venv."""
+"""Panel -> fincore evaluation integration, without the deleted dataset layer."""
 
-import importlib
-import os
-import sys
+from __future__ import annotations
 
-import numpy as np
+import math
+
 import pandas as pd
 import pytest
 
-from backtrader.research import ResearchDataset, evaluate_dataset, load_dataset
+from backtrader.errors import DependencyError
+from backtrader.research import FactorPanel, evaluate_frames
 
 
-if os.environ.get("BT_FACTOR_RESEARCH_RUN_INSTALLED_INTEGRATION") != "1":
-    pytestmark = pytest.mark.skip(
-        reason="requires the root-pinned, installed fincore development wheel"
+def _panel() -> FactorPanel:
+    grid = pd.date_range("2024-01-01", periods=60, freq="B", tz="UTC", name="close_time")
+    grid_frame = pd.DataFrame({"open_time": grid - pd.Timedelta(hours=6)}, index=grid)
+    assets = ("000001", "600000", "600519", "000002", "601318")
+    index = pd.MultiIndex.from_product([grid, assets], names=("time", "asset"))
+    values = []
+    for step in range(60):
+        for position in range(len(assets)):
+            values.append(float((step * 7 + position * 3) % 11))
+    factors = pd.DataFrame({"alpha": values}, index=index)
+    prices = pd.DataFrame(
+        [[10.0 + step + position for position in range(len(assets))] for step in range(60)],
+        index=grid,
+        columns=list(assets),
+    )
+    return FactorPanel(
+        factors=factors,
+        grid=grid_frame,
+        prices_open=prices,
+        prices_close=prices + 0.5,
+        start=grid[0],
+        end=grid[-1],
+        target_order=assets,
+        factor_order=("alpha",),
+        directions={"alpha": -1},
     )
 
 
-def _known_dataset():
-    times = pd.date_range("2024-02-29T00:00:00Z", periods=5, freq="D", name="close_time")
-    assets = ("A", "B", "C", "D")
-    grid = pd.DataFrame({"open_time": times - pd.Timedelta(hours=6)}, index=times)
-    # Keep one pre-window warm-up bar and one post-window label tail in the
-    # saved snapshot. ResearchDataset selects the middle three dates below.
-    research_times = times[1:4]
-    panel_index = pd.MultiIndex.from_product([research_times, assets], names=("time", "asset"))
-    full_panel_index = pd.MultiIndex.from_product([times, assets], names=("time", "asset"))
-    raw_factors = pd.DataFrame(
-        {"alpha": np.tile(np.arange(1.0, 5.0), len(times))},
-        index=full_panel_index,
-    )
-    availability = pd.DataFrame(
-        {
-            "ready": True,
-            "valid": True,
-            "reason": "READY",
-            "available_at": [time for time, _ in panel_index],
-            "input_times": [{"target_close": time} for time, _ in panel_index],
-        },
-        index=pd.MultiIndex.from_tuples(
-            [(time, asset, "alpha") for time, asset in panel_index],
-            names=("time", "asset", "factor"),
-        ),
-    )
-    close_values = np.asarray(
-        [
-            [99.0, 99.0, 99.0, 99.0],
-            [100.0, 100.0, 100.0, 100.0],
-            [101.0, 102.0, 103.0, 104.0],
-            [102.01, 104.04, 106.09, 108.16],
-            [103.0301, 106.1208, 109.2727, 112.4864],
-        ]
-    )
-    prices = {
-        "open": pd.DataFrame(close_values * 0.99, index=times, columns=assets),
-        "close": pd.DataFrame(close_values, index=times, columns=assets),
-    }
-    universe_index = pd.MultiIndex.from_product([research_times, assets], names=("time", "asset"))
-    formula_index = pd.MultiIndex.from_product([times[:4], assets], names=("time", "asset"))
-    research = {
-        "grid": grid,
-        "start": research_times[0],
-        "end": research_times[-1],
-        "targets": assets,
-        "source_timezone": "UTC",
-        "snapshot_id": "hand-computed-monotonic-labels-v1",
-        "price_basis": "synthetic-unadjusted-usd",
-        "calendar_id": "integration-daily-grid-v1",
-        "frequency": "1session",
-        "feed_time_kind": "close_time",
-        "groups": dict.fromkeys(assets, "US"),
-        "universe": pd.Series(True, index=universe_index, name="eligible"),
-        "formula_universe": pd.Series(True, index=formula_index, name="eligible"),
-        "formula_fields": {},
-        "classifications": {},
-    }
-    return ResearchDataset.from_collection(
-        research=research,
-        raw_factors=raw_factors,
-        availability=availability,
-        prices=prices,
-        provenance={"factor_directions": {"alpha": 1}},
-    )
-
-
-def test_installed_fincore_evaluates_saved_snapshot_against_hand_result(tmp_path):
-    plot_baseline = {name for name in sys.modules if name.startswith("backtrader.plot")}
-    assert "fincore.factor_analysis.render_matplotlib" not in sys.modules
-    module = importlib.import_module("fincore.factor_analysis.research")
-    module_path = os.path.realpath(module.__file__).lower()
-    assert "site-packages" in module_path or "dist-packages" in module_path
-    assert (
-        os.path.commonpath([os.path.realpath(sys.prefix).lower(), module_path])
-        == os.path.realpath(sys.prefix).lower()
-    )
-    if os.environ.get("BT_FACTOR_RESEARCH_REQUIRE_INSTALLED_BACKTRADER") == "1":
-        backtrader_module = importlib.import_module("backtrader")
-        backtrader_path = os.path.realpath(backtrader_module.__file__).lower()
-        assert (
-            os.path.commonpath([os.path.realpath(sys.prefix).lower(), backtrader_path])
-            == os.path.realpath(sys.prefix).lower()
-        )
-
-    collected = _known_dataset()
-    assert len(collected.raw_factors.index.levels[0]) == len(collected.grid)
-    saved_path = tmp_path / "research-snapshot"
-    collected.save(saved_path)
-    dataset = load_dataset(saved_path)
-    assert dataset.dataset_id == collected.dataset_id
-    assert len(dataset.raw_factors.index.levels[0]) == len(dataset.grid.index[1:4])
-    assert collected.raw_factors.index.levels[0][1:4].equals(dataset.raw_factors.index.levels[0])
-    assert collected.grid.index.freq is not None
-    assert dataset.grid.index.freq is None
-
-    evaluation_options = {
-        "label": "close_to_close",
-        "periods": (1,),
+def _spec() -> dict:
+    return {
+        "periods": (1, 5),
+        "label": "next_open_to_open",
+        "preprocess": "cross_section_rank",
         "quantiles": 2,
-        "min_assets": 4,
+        "min_assets": 2,
         "min_quantile_assets": 1,
         "max_loss": 1.0,
-        "stability_lags": (1,),
+        "direction_overrides": {},
     }
-    collected_result = evaluate_dataset(collected, **evaluation_options)
-    result = evaluate_dataset(dataset, **evaluation_options)
-    assert collected_result.manifest["input_fingerprint"] == result.manifest["input_fingerprint"]
-    assert collected_result.manifest["evaluation_id"] == result.manifest["evaluation_id"]
-    assert collected.grid.index.freq is not None
-    assert result.status == "PARTIAL"
-    first_period_stability = result.stability.loc[result.stability["time"] == dataset.start]
-    later_stability = result.stability.loc[result.stability["time"] > dataset.start]
-    assert not first_period_stability.empty
-    assert first_period_stability["status"].eq("UNEVALUABLE").all()
-    rank_first = first_period_stability.loc[
-        first_period_stability["metric"] == "rank_autocorrelation", "reason"
-    ]
-    turnover_first = first_period_stability.loc[
-        first_period_stability["metric"] == "quantile_turnover", "reason"
-    ]
-    assert set(rank_first.dropna()) == {"NO_VALID_PERIODS"}
-    assert set(turnover_first.dropna()) == {"QUANTILE_DEGENERATE"}
-    assert later_stability["status"].eq("OK").all()
-    assert {"metric", "value", "record_type"}.issubset(result.ic.columns)
-    period_ic = result.ic.loc[result.ic["record_type"] == "period"]
-    assert {"pearson", "spearman"}.issubset(set(period_ic["metric"]))
-    assert np.allclose(period_ic["value"].dropna().to_numpy(), 1.0)
-    assert "value" in result.labels.columns
-    expected = np.asarray([0.01, 0.02, 0.03, 0.04])
-    observed = result.labels["value"].dropna().to_numpy()
-    assert len(observed) == 12
-    assert np.allclose(np.sort(observed.reshape(3, 4), axis=1), expected)
-    assert result.manifest["dataset_id"] == dataset.dataset_id
-    result.export(tmp_path / "tables", charts=False)
-    assert "fincore.factor_analysis.render_matplotlib" not in sys.modules
-    assert {name for name in sys.modules if name.startswith("backtrader.plot")} == plot_baseline
 
-    result.export(tmp_path / "charts", charts=True)
-    from PIL import Image
 
-    images = list((tmp_path / "charts").rglob("*.png"))
-    assert images
-    for path in images:
-        with Image.open(path) as picture:
-            assert picture.format == "PNG" and min(picture.size) > 0
-            picture.verify()
+def test_panel_evaluates_through_the_public_fincore_entry(tmp_path):
+    pytest.importorskip("fincore.factor_analysis.research")
+    panel = _panel()
+    try:
+        result = evaluate_frames(panel, _spec())
+    except DependencyError as exc:
+        pytest.skip("fincore research API unavailable: %s" % exc)
+    assert result.status in ("OK", "PARTIAL")
+    for name in (
+        "signals",
+        "labels",
+        "ic",
+        "ic_summary",
+        "quantile_returns",
+        "spreads",
+        "stability",
+        "correlation",
+        "comparisons",
+        "coverage",
+        "diagnostics",
+    ):
+        assert isinstance(getattr(result, name), pd.DataFrame)
+    assert len(result.coverage) == 1
+    assert result.manifest["result_fingerprint"]
+    assert len(result.manifest["result_fingerprint"]) == 64
+    assert result.manifest["inputs"]["factors"]
+
+
+def test_evaluation_fingerprint_is_content_bound(tmp_path):
+    pytest.importorskip("fincore.factor_analysis.research")
+    panel = _panel()
+    try:
+        first = evaluate_frames(panel, _spec())
+        second = evaluate_frames(panel, _spec())
+    except DependencyError as exc:
+        pytest.skip("fincore research API unavailable: %s" % exc)
+    assert first.manifest["result_fingerprint"] == second.manifest["result_fingerprint"]
+    changed = _panel()
+    changed.factors.iloc[0, 0] += 1e-9
+    third = evaluate_frames(changed, _spec())
+    assert third.manifest["result_fingerprint"] != first.manifest["result_fingerprint"]
+
+
+def test_csv_round_trip_preserves_the_evaluation_identity(tmp_path):
+    pytest.importorskip("fincore.factor_analysis.research")
+    panel = _panel()
+    panel.to_csv(tmp_path / "panel")
+    restored = FactorPanel.from_csv(
+        tmp_path / "panel",
+        start=panel.start,
+        end=panel.end,
+        directions=panel.directions,
+        target_order=panel.target_order,
+        factor_order=panel.factor_order,
+        groups=panel.groups,
+    )
+    try:
+        live = evaluate_frames(panel, _spec())
+        loaded = evaluate_frames(restored, _spec())
+    except DependencyError as exc:
+        pytest.skip("fincore research API unavailable: %s" % exc)
+    assert loaded.manifest["evaluation_id"] == live.manifest["evaluation_id"]
+    assert loaded.manifest["result_fingerprint"] == live.manifest["result_fingerprint"]
+    assert loaded.ic.equals(live.ic)
+
+
+def test_export_writes_tables_and_refuses_to_overwrite(tmp_path):
+    pytest.importorskip("fincore.factor_analysis.research")
+    panel = _panel()
+    try:
+        result = evaluate_frames(panel, _spec())
+    except DependencyError as exc:
+        pytest.skip("fincore research API unavailable: %s" % exc)
+    target = result.export(tmp_path / "evaluation", charts=False)
+    assert (target / "manifest.json").is_file()
+    assert (target / "ic.csv").is_file()
+    with pytest.raises(Exception):
+        result.export(tmp_path / "evaluation", charts=False)

@@ -54,7 +54,6 @@ def _bind(*datas, output_datas):
         asset_names=tuple("asset_%d" % index for index in range(len(output_datas))),
         factor_name=None,
         field_bindings={"close": "feed:target:close"},
-        classification_bindings={},
         research=None,
         strict=False,
     )

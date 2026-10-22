@@ -410,7 +410,8 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 ### Native factor research (Iterations 45–46)
 
 `backtrader.research` provides `FactorIndicator`, `FactorSpec`, `ResearchSpec`,
-`FactorStrategy`, and immutable `ResearchDataset` snapshots. Research requires
+`FactorStrategy`, plain-frame `FactorPanel`/`FactorSink` (memory/CSV),
+`align_to_grid`, and the thin `evaluate_frames` adapter. Research requires
 Python 3.11 and pandas. Cerebro owns the normal indicator lifecycle; the strategy
 assembles and collects outputs without manually advancing factors or placing
 orders. Ordinary Indicators remain usable as factor children. Research rejects
@@ -424,10 +425,11 @@ framework's `ConfigError` remains a separate category. `backtrader.research`
 re-exports the research exceptions and keeps `ConfigError` as an alias of
 `ResearchConfigError`. New direct exception imports use `backtrader.errors`.
 
-Collection and save/load work without fincore. Evaluation lazily calls the
-separately developed fincore public research API; do not duplicate its IC,
-labels, signal-combination or reporting algorithms in Backtrader. The native
-operators use the frozen `alpha101-v1` profile. `research/alpha101/alpha001.py`
+Collection and CSV exchange work without fincore. Evaluation lazily calls the
+separately developed fincore public research API
+(`fincore.factor_analysis.research.evaluate_factor_research`); do not duplicate
+its IC, labels, signal-combination or reporting algorithms in Backtrader. The
+native operators use the frozen `alpha101-v2` float64 profile. `research/alpha101/alpha001.py`
 through `alpha101.py` contain the 101 concrete formula classes, each directly
 subclassing `FactorIndicator` with ordinary `__init__` and `next` methods.
 `get_alpha(id)` and `list_alphas()` expose the immutable production registry.

@@ -1,8 +1,8 @@
-"""Thin, lazy adapter to the public fincore factor-research API.
+"""Thin, lazy adapter to the public fincore frame-research API.
 
-All formula math, labels, transforms, weighting, statistics, and report
-construction belong to fincore. This module performs dependency/capability
-checks, configuration normalization, and typed exception translation only.
+All labels, transforms, weighting, statistics and report construction belong to
+fincore.  This module performs dependency/capability checks, configuration
+normalization and typed exception translation only.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import importlib
 import inspect
 import sys
 from collections.abc import Mapping
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 from ..errors import (
     ResearchConfigError,
@@ -52,7 +52,6 @@ _REQUIRED_METRICS = (
     "quantile_returns",
     "spread",
     "rank_autocorrelation",
-    "quantile_turnover",
     "factor_correlation",
     "paired_comparison",
 )
@@ -109,7 +108,7 @@ def _check_capabilities(module: Any) -> Mapping:
                 code="DEPENDENCY_UNAVAILABLE",
             )
     for key, expected in (
-        ("labels", {"close_to_close", "next_open_to_open", "precomputed"}),
+        ("labels", {"close_to_close", "next_open_to_open"}),
         ("preprocess", {"cross_section_rank", "cross_section_zscore"}),
         ("metrics", set(_REQUIRED_METRICS)),
         ("result_tables", set(_REQUIRED_TABLES)),
@@ -123,11 +122,6 @@ def _check_capabilities(module: Any) -> Mapping:
                 "fincore research capabilities do not support %s" % key,
                 code="DEPENDENCY_UNAVAILABLE",
             )
-    if capabilities.get("charts_supported") is not True:
-        raise DependencyError(
-            "fincore research capability does not support explicit chart export",
-            code="DEPENDENCY_UNAVAILABLE",
-        )
     try:
         parameters = inspect.signature(module.evaluate_factor_research).parameters
     except (TypeError, ValueError) as exc:
@@ -172,64 +166,22 @@ def _spec_mapping(spec: Any) -> Dict[str, Any]:
     )
 
 
-def _dataset_defaults(dataset: Any) -> Dict[str, Any]:
-    metadata = dataset._metadata
-    research = metadata.get("research", {})
+def _panel_defaults(panel: Any) -> Dict[str, Any]:
     return {
-        "targets": tuple(dataset._targets),
-        "start": dataset._start,
-        "end": dataset._end,
-        "snapshot_id": research.get("snapshot_id", "unspecified"),
-        "price_basis": research.get("price_basis", "unspecified"),
-        "calendar_id": research.get("calendar_id", "unspecified"),
-        "frequency": research.get("frequency", "unspecified"),
+        "targets": tuple(panel.target_order),
+        "start": panel.start,
+        "end": panel.end,
     }
 
 
-def _factor_directions(dataset: Any) -> Dict[str, int]:
-    provenance = dataset._metadata.get("provenance", {})
-    directions = provenance.get("factor_directions", {}) if isinstance(provenance, Mapping) else {}
-    if not isinstance(directions, Mapping):
-        raise DatasetError(
-            "factor_directions provenance must map factor names to +1/-1",
-            code="INVALID_DATASET",
-        )
-    output = {}
-    for factor, direction in directions.items():
-        if (
-            not isinstance(factor, str)
-            or factor not in dataset._factor_names
-            or type(direction) is not int
-            or direction not in (-1, 1)
-        ):
-            raise DatasetError(
-                "factor_directions provenance is invalid",
-                code="INVALID_DATASET",
-            )
-        output[factor] = int(direction)
-    missing = set(dataset._factor_names) - set(output)
-    if missing:
-        raise DatasetError(
-            "dataset provenance is missing FactorSpec.direction for: %s"
-            % ", ".join(sorted(missing)),
-            code="INVALID_DATASET",
-        )
-    return output
-
-
-def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
-    values = _dataset_defaults(dataset)
-    supplied = _spec_mapping(spec)
-    values.update(supplied)
+def _normalized_spec(module: Any, panel: Any, spec: Any) -> Any:
+    values = _panel_defaults(panel)
+    values.update(_spec_mapping(spec))
     explicit = values.get("direction_overrides") or {}
     if not isinstance(explicit, Mapping):
-        raise ResearchConfigError(
-            "direction_overrides must be a mapping",
-            code="INVALID_CONFIG",
-        )
-    # FactorSpec.direction belongs to immutable dataset provenance. Keep the
-    # evaluation config limited to caller overrides so configuration identity
-    # does not accidentally absorb collection metadata.
+        raise ResearchConfigError("direction_overrides must be a mapping", code="INVALID_CONFIG")
+    # FactorPanel.directions is the default applied by the adapter;
+    # direction_overrides only carries explicit caller overrides.
     values["direction_overrides"] = dict(explicit)
     try:
         return module.normalize_research_evaluation_spec(values)
@@ -242,18 +194,9 @@ def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
 
 
 def _canonicalize_evaluation_index(value: Any, pandas: Any) -> Any:
-    """Canonicalize hash-visible index metadata on a defensive evaluation copy.
-
-    A DatetimeIndex's ``freq`` is derivable metadata: dataset persistence keeps
-    the timestamps and their order, but CSV reconstruction cannot retain that
-    cache. Research-window slicing can also leave unused warm-up dates in a
-    MultiIndex level, while CSV reconstruction creates only the used levels.
-    Fincore fingerprints pandas index metadata, so these caches must be
-    canonicalized before passing a collected frame or its save/load copy.
-    """
+    """Drop derivable ``freq`` caches so identical timestamps fingerprint equal."""
     if not isinstance(value, (pandas.DataFrame, pandas.Series)):
         return value
-
     index = value.index
     if isinstance(index, pandas.MultiIndex):
         index = index.remove_unused_levels()
@@ -288,76 +231,48 @@ def _translate_known_error(module: Any, exc: BaseException) -> BaseException:
     quality_cls = classes.get("DataQualityError")
     computation_cls = classes.get("FactorComputationError")
     if config_cls is not None and isinstance(exc, config_cls):
-        return cast(
-            BaseException,
-            ResearchConfigError(
-                str(exc),
-                code=getattr(exc, "code", "INVALID_CONFIG"),
-                report=getattr(exc, "report", None),
-            ),
+        return ResearchConfigError(
+            str(exc),
+            code=getattr(exc, "code", "INVALID_CONFIG"),
+            report=getattr(exc, "report", None),
         )
     if dependency_cls is not None and isinstance(exc, dependency_cls):
-        return cast(
-            BaseException,
-            DependencyError(
-                str(exc),
-                code=getattr(exc, "code", "DEPENDENCY_UNAVAILABLE"),
-                report=getattr(exc, "report", None),
-            ),
+        return DependencyError(
+            str(exc),
+            code=getattr(exc, "code", "DEPENDENCY_UNAVAILABLE"),
+            report=getattr(exc, "report", None),
         )
     if quality_cls is not None and isinstance(exc, quality_cls):
-        return cast(
-            BaseException,
-            DataQualityError(
-                str(exc),
-                code=getattr(exc, "code", "LOSS_LIMIT_EXCEEDED"),
-                report=getattr(exc, "report", None),
-            ),
+        return DataQualityError(
+            str(exc),
+            code=getattr(exc, "code", "LOSS_LIMIT_EXCEEDED"),
+            report=getattr(exc, "report", None),
         )
     if dataset_cls is not None and isinstance(exc, dataset_cls):
-        return cast(
-            BaseException,
-            DatasetError(
-                str(exc),
-                code=getattr(exc, "code", "INVALID_DATASET"),
-                report=getattr(exc, "report", None),
-            ),
+        return DatasetError(
+            str(exc),
+            code=getattr(exc, "code", "INVALID_DATASET"),
+            report=getattr(exc, "report", None),
         )
     if computation_cls is not None and isinstance(exc, computation_cls):
-        return cast(
-            BaseException,
-            FactorComputationError(
-                str(exc),
-                factor=getattr(exc, "factor", "fincore"),
-                asset=getattr(exc, "asset", None),
-                phase=getattr(exc, "phase", "evaluation"),
-                code=getattr(exc, "code", "FACTOR_COMPUTATION_FAILED"),
-                report=getattr(exc, "report", None),
-            ),
+        return FactorComputationError(
+            str(exc),
+            factor=getattr(exc, "factor", "fincore"),
+            asset=getattr(exc, "asset", None),
+            phase=getattr(exc, "phase", "evaluation"),
+            code=getattr(exc, "code", "FACTOR_COMPUTATION_FAILED"),
+            report=getattr(exc, "report", None),
         )
     return exc
 
 
-def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
-    """Call fincore's public evaluator with a content-bound dataset snapshot.
-
-    Callers may pass one mapping/dataclass ``spec`` or individual evaluation
-    fields as keyword arguments. Combining the two forms is rejected so there
-    is no implicit precedence rule between duplicate configuration sources.
-    """
-    if spec is not None and kwargs:
-        raise ResearchConfigError(
-            "pass either spec or evaluation keyword arguments, not both",
-            code="INVALID_CONFIG",
-        )
-    if spec is None and kwargs:
-        spec = kwargs
+def evaluate_frames(panel: Any, spec: Any = None) -> Any:
+    """Evaluate one :class:`FactorPanel` through fincore's public entry."""
     module = _import_research_module()
     capabilities = _check_capabilities(module)
-    normalized = _normalized_spec(module, dataset, spec)
+    normalized = _normalized_spec(module, panel, spec)
     label = getattr(normalized, "label", None)
-    available_labels = set(capabilities.get("labels", ()))
-    if label not in available_labels:
+    if label not in set(capabilities.get("labels", ())):
         raise DependencyError(
             "the installed fincore build does not support label %r" % label,
             code="DEPENDENCY_UNAVAILABLE",
@@ -370,28 +285,20 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
             code="DEPENDENCY_UNAVAILABLE",
         ) from exc
 
-    prices = None if label == "precomputed" else dataset.prices or None
-    if prices is not None:
-        prices = {
-            name: _canonicalize_evaluation_index(frame, pandas) for name, frame in prices.items()
-        }
-    precomputed_returns = dataset.precomputed_returns if label == "precomputed" else None
-    if precomputed_returns is not None:
-        precomputed_returns = _canonicalize_evaluation_index(precomputed_returns, pandas)
-    grid = _canonicalize_evaluation_index(dataset.grid, pandas)
-    universe = _canonicalize_evaluation_index(dataset.universe, pandas)
-    factors = _canonicalize_evaluation_index(dataset.raw_factors, pandas)
-    factors.attrs["factor_directions"] = _factor_directions(dataset)
-    factors.attrs["dataset_id"] = dataset.dataset_id
-    factors.attrs["provenance"] = dataset.metadata.get("provenance", {})
+    factors = _canonicalize_evaluation_index(panel.factors, pandas)
+    factors.attrs["factor_directions"] = dict(panel.directions)
+    prices = {
+        "open": _canonicalize_evaluation_index(panel.prices_open, pandas),
+        "close": _canonicalize_evaluation_index(panel.prices_close, pandas),
+    }
     try:
         result = module.evaluate_factor_research(
             factors,
-            grid=grid,
+            grid=_canonicalize_evaluation_index(panel.grid, pandas),
             prices=prices,
-            universe=universe,
-            groups=dataset.groups,
-            precomputed_returns=precomputed_returns,
+            universe=_canonicalize_evaluation_index(panel.universe, pandas),
+            groups=dict(panel.groups),
+            precomputed_returns=None,
             spec=normalized,
         )
     except BaseException as exc:
@@ -450,4 +357,4 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
     return result
 
 
-__all__ = ("evaluate_dataset",)
+__all__ = ("evaluate_frames",)

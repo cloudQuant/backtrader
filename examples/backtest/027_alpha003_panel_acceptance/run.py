@@ -106,7 +106,13 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
 
 def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[Any, Any, Any]:
     import backtrader as bt
-    from backtrader.research import FactorSpec, FactorStrategy, ResearchSpec, prealign_bars
+    from backtrader.research import (
+        FactorSpec,
+        FactorStrategy,
+        MemorySink,
+        ResearchSpec,
+        align_to_grid,
+    )
     from backtrader.research.alpha101 import get_alpha
 
     data_config = config["data"]
@@ -136,18 +142,20 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
     )
     cerebro = bt.Cerebro(stdstats=False)
     for asset in assets:
-        aligned = prealign_bars(
+        aligned = align_to_grid(
             panel["feeds"][asset],
             research,
             asset,
             data_version=data_config["data_version"],
         )
         cerebro.adddata(aligned.feed, name=asset)
-    cerebro.addstrategy(FactorStrategy, research=research, factors={FACTOR_NAME: factor})
+    cerebro.addstrategy(
+        FactorStrategy, research=research, factors={FACTOR_NAME: factor}, sink=MemorySink()
+    )
     strategies = cerebro.run(runonce=False, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the factor run did not return exactly one strategy")
-    return strategies[0], strategies[0].get_dataset(), indicator
+    return strategies[0], strategies[0].get_panel(), indicator
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -181,7 +189,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     started = time.perf_counter()
     try:
         config = _load_config()
-        if config.get("factor") != FACTOR_NAME or config.get("operator_profile") != "alpha101-v1":
+        if config.get("factor") != FACTOR_NAME or config.get("operator_profile") != "alpha101-v2":
             raise ValueError("this example fixes factor=alpha003 and operator_profile=alpha101-v1")
         if args.data_dir:
             config["data"]["directory"] = args.data_dir
@@ -202,8 +210,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         panel = load_daily_panel(config.get("data", {}))
-        _, dataset, indicator = _run_factor(config, panel)
-        factors = dataset.raw_factors.reset_index()
+        _, collected, indicator = _run_factor(config, panel)
+        factors = collected.factors.reset_index()
         factors.to_csv(output_dir / "factor_values.csv", index=False)
         report = None
         if args.report:
@@ -211,7 +219,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
             try:
                 report = write_factor_report(
-                    dataset,
+                    collected,
                     FACTOR_NAME,
                     output_dir / ("factor_report_%s.html" % FACTOR_NAME),
                     language=args.report_language,
@@ -225,8 +233,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "factor": FACTOR_NAME,
             "operator_profile": indicator.operator_profile,
             "indicator": indicator.__module__ + "." + indicator.__qualname__,
-            "symbols": len(dataset.targets),
-            "dates": len(dataset.grid),
+            "symbols": len(collected.target_order),
+            "dates": len(collected.grid),
             "cells": len(factors),
             "finite": int(factors[FACTOR_NAME].notna().sum()),
             "output": "factor_values.csv",

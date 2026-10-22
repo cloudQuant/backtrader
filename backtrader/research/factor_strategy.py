@@ -1,4 +1,4 @@
-"""Native Backtrader strategy that collects a validated research dataset."""
+"""Native Backtrader strategy that collects a plain-frame research panel."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import math
 import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from .. import Strategy
 from ..utils import num2date
@@ -20,7 +20,8 @@ from .specs import (
     thaw,
 )
 
-_FEED_ALIGNMENT = "_factor_research_alignment_v1"
+_ALIGNMENT_V1 = "_factor_research_alignment_v1"
+_ALIGNMENT_V2 = "_factor_research_alignment_v2"
 
 
 class _FactorGroupInstances:
@@ -56,13 +57,14 @@ class _FactorGroupInstances:
 
 
 class FactorStrategy(Strategy):
-    """Construct native factor indicators and sample their output lines.
+    """Construct native factor indicators and collect one :class:`FactorPanel`.
 
-    Cerebro owns all indicator and feed clocks. The strategy only samples each
-    callback and seals the result as a :class:`ResearchDataset` after the run.
+    Cerebro owns all indicator and feed clocks.  The strategy only samples the
+    research window once per grid point into a :class:`FactorSink`; it never
+    advances a factor, builds a second clock or records per-cell availability.
     """
 
-    params = (("research", None), ("factors", None))
+    params = (("research", None), ("factors", None), ("sink", None))
 
     def __init__(self) -> None:
         self._research = self.p.research
@@ -70,6 +72,21 @@ class FactorStrategy(Strategy):
             raise ResearchConfigError("FactorStrategy requires research=ResearchSpec(...)")
         if not self.datas:
             raise ResearchConfigError("FactorStrategy requires named target data feeds")
+        if self._research.start > self._research.end:
+            raise ResearchConfigError("research start must not follow end")
+        self._sink = self.p.sink
+        if self._sink is None:
+            from .sink import MemorySink
+
+            self._sink = MemorySink()
+        else:
+            from .sink import FactorSink
+
+            if not isinstance(self._sink, FactorSink):
+                raise ResearchConfigError("sink must be a FactorSink instance")
+        self._panel: Any = None
+        self._panel_context_cache: Any = None
+        self._present_cumsum: Dict[int, Any] = {}
 
         self._data_names = tuple(getattr(data, "_name", "") for data in self.datas)
         if any(not isinstance(name, str) or not name for name in self._data_names):
@@ -86,7 +103,6 @@ class FactorStrategy(Strategy):
                 report={"missing_targets": tuple(sorted(missing))},
             )
         self._target_datas = tuple(target_data[name] for name in self._research.targets)
-        self._formula_universe = self._research.formula_universe
         self._asset_by_target_data_id = {
             id(data): asset for asset, data in zip(self._research.targets, self._target_datas)
         }
@@ -100,32 +116,7 @@ class FactorStrategy(Strategy):
         for name, spec in self._factor_specs_by_name.items():
             if spec.panel_line not in spec.indicator._factor_template_names():
                 raise ResearchConfigError("factor %s selects an unknown panel_line" % name)
-            declared_fields = tuple(getattr(spec.indicator, "formula_fields", ()))
-            declared_classes = tuple(getattr(spec.indicator, "classification_fields", ()))
-            missing_fields = set(declared_fields) - set(spec.field_bindings)
-            missing_classes = set(declared_classes) - set(spec.classification_bindings)
-            if missing_fields:
-                raise DatasetError(
-                    "factor %s is missing explicit field bindings: %s"
-                    % (name, sorted(missing_fields)),
-                    code="MISSING_INPUT",
-                    report={"factor": name, "missing_fields": tuple(sorted(missing_fields))},
-                )
-            if missing_classes:
-                raise DatasetError(
-                    "factor %s is missing explicit classification bindings: %s"
-                    % (name, sorted(missing_classes)),
-                    code="MISSING_INPUT",
-                    report={
-                        "factor": name,
-                        "missing_classifications": tuple(sorted(missing_classes)),
-                    },
-                )
             self._validate_bindings(spec)
-            from .field_validation import validate_factor_field_metadata
-
-            validate_factor_field_metadata(spec, self._research, self.datas, self._target_datas)
-
             assets_by_group: Dict[str, List[str]] = {}
             for asset in self._research.targets:
                 group = self._research.groups[asset]
@@ -139,7 +130,6 @@ class FactorStrategy(Strategy):
                     asset_names=tuple(assets),
                     factor_name=name,
                     field_bindings=spec.field_bindings,
-                    classification_bindings=spec.classification_bindings,
                     research=self._research,
                     available_datas=self.datas,
                     strict=True,
@@ -161,10 +151,7 @@ class FactorStrategy(Strategy):
 
         self._grid = self._calculation_times()
         self._grid_cursor = 0
-        self._raw_rows: List[Dict[str, Any]] = []
-        self._availability_rows: List[Dict[str, Any]] = []
-        self._price_rows: List[Dict[str, Any]] = []
-        self._dataset: Any = None
+        self._field_counts = self._build_field_counts()
 
     def _calculation_times(self) -> Tuple[datetime, ...]:
         return tuple(value.to_pydatetime() for value in self._research.calculation_grid.index)
@@ -207,92 +194,24 @@ class FactorStrategy(Strategy):
                 source = binding
             elif isinstance(binding, Mapping):
                 if binding.get("derive") in ("adv", "vwap_volume"):
-                    if binding.get("derive") == "adv":
-                        source_alias = binding.get("source")
-                        if not isinstance(source_alias, str):
-                            raise ResearchConfigError("derived ADV source alias must be a string")
-                        source_value: Any = spec.field_bindings.get(source_alias, "")
-                        if isinstance(source_value, Mapping):
-                            if source_value.get("derive") not in ("vwap_volume", None):
-                                raise ResearchConfigError("derived ADV source is not dollar_volume")
-                        elif not str(source_value).endswith(":dollar_volume"):
-                            raise ResearchConfigError("derived ADV source must bind dollar_volume")
                     continue
                 source = binding.get("source", "")
             else:
                 raise ResearchConfigError("factor field bindings must be qualified")
-            if isinstance(source, str) and source.startswith("table:"):
-                table = source.split(":", 1)[1]
-                if table not in self._research.formula_fields:
-                    raise DatasetError(
-                        "factor field binding references an unknown formula table",
-                        code="MISSING_INPUT",
-                        report={"factor": spec.name, "field": alias, "table": table},
-                    )
-            elif isinstance(source, str) and source.startswith("feed:"):
-                parts = source.split(":")
-                if len(parts) != 3 or (parts[1] != "target" and parts[1] not in self._data_names):
-                    raise DatasetError(
-                        "factor field binding references an unknown feed",
-                        code="MISSING_INPUT",
-                        report={"factor": spec.name, "field": alias, "feed": parts[1]},
-                    )
-            else:
-                raise ResearchConfigError("factor field binding must use a qualified feed or table")
-        for alias, binding in spec.classification_bindings.items():
-            if binding.startswith("table:"):
-                table = binding.split(":", 1)[1]
-                if table not in self._research.classifications:
-                    raise DatasetError(
-                        "classification binding references an unknown table",
-                        code="MISSING_INPUT",
-                        report={"factor": spec.name, "classification": alias, "table": table},
-                    )
-                self._validate_classification_level(spec, alias, table)
-            elif binding.startswith("feed:"):
+            if not isinstance(source, str) or not source.startswith("feed:"):
                 raise ResearchConfigError(
-                    "classification bindings require a named PIT table with taxonomy metadata"
+                    "factor field bindings must use feed:<name>:<line>; PIT/table inputs "
+                    "are not supported"
                 )
-            elif binding in self._research.classifications:
-                # A bare, exact key is still an explicit ResearchSpec table
-                # binding; it is never interpreted as a same-named feed line.
-                self._validate_classification_level(spec, alias, binding)
-            else:
-                raise ResearchConfigError(
-                    "classification bindings require an explicit named PIT table"
+            parts = source.split(":")
+            if len(parts) != 3 or (parts[1] != "target" and parts[1] not in self._data_names):
+                raise DatasetError(
+                    "factor field binding references an unknown feed",
+                    code="MISSING_INPUT",
+                    report={"factor": spec.name, "field": alias, "feed": parts[1]},
                 )
 
-    def _validate_classification_level(self, spec: FactorSpec, alias: str, table_name: str) -> None:
-        """Reject taxonomy-level mismatches before constructing an algorithm."""
-        indicator = spec.indicator
-        fields = tuple(getattr(indicator, "classification_fields", ()))
-        levels = tuple(getattr(indicator, "classification_levels", ()))
-        expected: Optional[str] = None
-        if alias in fields and len(fields) == len(levels):
-            expected = cast(str, levels[fields.index(alias)])
-        elif levels and len(set(levels)) == 1:
-            expected = cast(str, levels[0])
-        elif alias in levels:
-            expected = alias
-        if expected is None:
-            raise ResearchConfigError(
-                "factor %s has no unambiguous declared classification level for %s"
-                % (spec.name, alias)
-            )
-
-        table = self._research.classifications[table_name]
-        actual_levels = set(table["level"].dropna().tolist())
-        if actual_levels != {expected}:
-            raise ResearchConfigError(
-                "classification table level does not match the factor binding",
-                report={
-                    "factor": spec.name,
-                    "classification": alias,
-                    "table": table_name,
-                    "expected_level": expected,
-                    "actual_levels": tuple(sorted(str(value) for value in actual_levels)),
-                },
-            )
+    # -- collection ------------------------------------------------------
 
     def prenext(self) -> None:
         self._collect_current_grid_point()
@@ -304,144 +223,79 @@ class FactorStrategy(Strategy):
         self._collect_current_grid_point()
 
     def _collect_current_grid_point(self) -> None:
-        if self._grid_cursor == len(self._grid):
+        if self._grid_cursor >= len(self._grid):
             current = num2date(float(self.datetime[0]), tz=timezone.utc, naive=False)
             if current > self._grid[-1]:
                 return
-        if self._grid_cursor >= len(self._grid):
             raise RuntimeError("FactorStrategy received more callbacks than the declared grid")
         current = num2date(float(self.datetime[0]), tz=timezone.utc, naive=False)
-        expected = self._grid[self._grid_cursor]
-        if current != expected:
+        if current != self._grid[self._grid_cursor]:
             raise RuntimeError("FactorStrategy callback time does not match the ResearchSpec grid")
-
         research = self._research
         in_research = research.start.to_pydatetime() <= current <= research.end.to_pydatetime()
-        for index, (asset, data) in enumerate(zip(research.targets, self._target_datas)):
-            feed_time = self._current_feed_time(data)
+        for asset, data in zip(research.targets, self._target_datas):
             present = self._feed_present(data, self._grid_cursor)
-            current_bar = feed_time == current and present
-            row = {"time": current, "asset": asset}
-            availability_at_point: List[Dict[str, Any]] = []
-            for name in self._factor_specs_by_name:
-                spec = self._factor_specs_by_name[name]
-                indicator = self._factor_instance_by_data[name][id(data)]
-                raw_value = (
-                    float(indicator.outputs[data][spec.panel_line][0])
-                    if current_bar
-                    else float("nan")
-                )
-                state = indicator.availability_for(data, spec.panel_line, current)
-                reason, ready, valid = self._classify_output(
-                    indicator,
-                    spec,
-                    data,
-                    current,
-                    raw_value,
-                    current_bar,
-                    state,
-                    self._grid_cursor,
-                )
-                if not valid:
-                    raw_value = float("nan")
-                row[name] = raw_value
-                if in_research:
-                    input_times = self._input_times(indicator, spec, data, current, state)
-                    availability_at_point.append(
-                        {
-                            "time": current,
-                            "asset": asset,
-                            "factor": name,
-                            "ready": ready,
-                            "valid": valid,
-                            "reason": reason,
-                            "available_at": current if ready else None,
-                            "input_times": input_times,
-                        }
-                    )
-            self._raw_rows.append(row)
+            current_bar = self._current_feed_time(data) == current and present
             if in_research:
-                self._availability_rows.extend(availability_at_point)
-            self._price_rows.append(
-                {
-                    "time": current,
-                    "asset": asset,
-                    "open": self._line_value(data, "open") if current_bar else float("nan"),
-                    "close": self._line_value(data, "close") if current_bar else float("nan"),
-                }
-            )
+                self._sink.on_point(
+                    current,
+                    asset,
+                    self._point_values(data, asset, current, current_bar),
+                    self._line_value(data, "open") if current_bar else float("nan"),
+                    self._line_value(data, "close") if current_bar else float("nan"),
+                    present,
+                )
         self._grid_cursor += 1
 
-    def _classify_output(
-        self,
-        indicator: FactorIndicator,
-        spec: FactorSpec,
-        data: Any,
-        point: datetime,
-        value: float,
-        current_bar: bool,
-        state: Optional[Mapping[str, Any]],
-        grid_index: int,
-    ) -> Tuple[str, bool, bool]:
-        if not current_bar:
-            return "NO_CURRENT_BAR", False, False
-        for alias in tuple(getattr(spec.indicator, "formula_fields", ())) + tuple(
-            getattr(spec.indicator, "classification_fields", ())
-        ):
-            input_start = max(0, grid_index - spec.lookback_h)
-            details = indicator.input_availability(
-                data, point, start_index=input_start, end_index=grid_index
-            ).get(alias, {})
-            reason = details.get("reason")
-            if reason in (
-                "MISSING_FIELD",
-                "NOT_YET_AVAILABLE",
-                "UNKNOWN_CLASSIFICATION",
-                "NO_CURRENT_BAR",
-                "FORMULA_INELIGIBLE",
-            ):
-                return str(reason), False, False
-            if reason == "NONFINITE_INPUT":
-                return "NONFINITE_INPUT", True, False
-        asset = self._asset_by_target_data_id[id(data)]
-        if not bool(self._formula_universe.loc[(point, asset)]):
-            return "FORMULA_INELIGIBLE", False, False
-        if state is not None:
-            reason = str(state["reason"])
-            return reason, bool(state["ready"]), bool(state["valid"] and math.isfinite(value))
-        if grid_index < spec.lookback_h:
-            return "INCOMPLETE_WINDOW", False, False
-        if math.isfinite(value):
-            return "READY", True, True
-        return "DOMAIN_ERROR", True, False
+    def _point_values(
+        self, data: Any, asset: str, current: datetime, current_bar: bool
+    ) -> Dict[str, float]:
+        values: Dict[str, float] = {}
+        cursor = self._grid_cursor
+        for name, spec in self._factor_specs_by_name.items():
+            value = float("nan")
+            if current_bar and self._window_is_complete(data, cursor, spec):
+                indicator = self._factor_instance_by_data[name][id(data)]
+                value = float(indicator.outputs[data][spec.panel_line][0])
+                if not math.isfinite(value):
+                    value = float("nan")
+            values[name] = value
+        return values
 
-    def _input_times(
-        self,
-        indicator: FactorIndicator,
-        spec: FactorSpec,
-        data: Any,
-        point: datetime,
-        state: Optional[Mapping[str, Any]],
-    ) -> Dict[str, Any]:
-        names = tuple(getattr(spec.indicator, "formula_fields", ())) + tuple(
-            getattr(spec.indicator, "classification_fields", ())
-        )
-        output: Dict[str, Any] = {"target_close": point}
-        start_index = max(0, self._grid_cursor - spec.lookback_h)
-        details = indicator.input_availability(
-            data, point, start_index=start_index, end_index=max(0, self._grid_cursor)
-        )
-        for alias in names:
-            values = details.get(alias, {}).get("available_at", ())
-            if not values:
-                output[alias] = None
-            elif spec.lookback_h:
-                output[alias] = tuple(values)
-            else:
-                output[alias] = values[-1]
-        if isinstance(state, Mapping) and isinstance(state.get("input_times"), Mapping):
-            output.update(state["input_times"])
-        return output
+    def _window_is_complete(self, data: Any, cursor: int, spec: FactorSpec) -> bool:
+        """True when every bar and every declared input in the window is usable.
+
+        A missing bar nulls its own grid point and the next ``lookback_h``
+        points, and a present bar whose declared input value is non-finite does
+        the same; this reproduces the previously published factor results
+        without rebuilding the deleted per-cell availability table.  Per-field
+        cumulative presence counts answer each query in constant time.
+        """
+        lookback = spec.lookback_h
+        if lookback <= 0:
+            return True
+        start = max(0, cursor - lookback)
+        expected = cursor - start + 1
+        for alias in _input_aliases(spec):
+            counts = self._field_counts.get((id(data), alias))
+            if counts is None:
+                continue
+            if int(counts[cursor + 1] - counts[start]) != expected:
+                return False
+        return True
+
+    def _build_field_counts(self) -> Dict[Any, Any]:
+        import numpy as np
+
+        counts: Dict[Any, Any] = {}
+        for data in self._target_datas:
+            metadata = _alignment_metadata(data)
+            if not isinstance(metadata, Mapping):
+                continue
+            fields = metadata.get("field_present") or {}
+            for name, values in fields.items():
+                counts[(id(data), str(name))] = _cumulative(values, np)
+        return counts
 
     @staticmethod
     def _current_feed_time(data: Any) -> Optional[datetime]:
@@ -452,8 +306,8 @@ class FactorStrategy(Strategy):
 
     @staticmethod
     def _feed_present(data: Any, index: int) -> bool:
-        metadata = getattr(data, _FEED_ALIGNMENT, None)
-        if not isinstance(metadata, Mapping):
+        metadata = _alignment_metadata(data)
+        if metadata is None:
             return True
         present = metadata.get("present", ())
         return index < len(present) and bool(present[index])
@@ -465,6 +319,53 @@ class FactorStrategy(Strategy):
         except (AttributeError, IndexError, TypeError, ValueError, OverflowError):
             return float("nan")
         return value if math.isfinite(value) else float("nan")
+
+    # -- finalization ----------------------------------------------------
+
+    def _panel_context(self) -> Any:
+        if self._panel_context_cache is not None:
+            return self._panel_context_cache
+        from .sink import PanelContext
+
+        pd = require_research_runtime()
+        grid = self._research.grid
+        targets = tuple(self._research.targets)
+        opens: Dict[str, Any] = {}
+        closes: Dict[str, Any] = {}
+        complete = True
+        for asset, data in zip(targets, self._target_datas):
+            metadata = _alignment_metadata(data)
+            values = metadata.get("prices_open") if isinstance(metadata, Mapping) else None
+            if values is None or len(values) != len(grid):
+                complete = False
+                break
+            opens[asset] = values
+            closes[asset] = metadata["prices_close"]
+        prices_open = pd.DataFrame(opens, index=grid.index) if complete else None
+        prices_close = pd.DataFrame(closes, index=grid.index) if complete else None
+        study_index = grid.index[(grid.index >= self._research.start) & (grid.index <= self._research.end)]
+        universe = self._research.universe.unstack("asset")
+        universe.index = pd.DatetimeIndex(study_index, name="close_time", freq=None)
+        universe = universe.reindex(index=study_index, columns=list(targets))
+        self._panel_context_cache = PanelContext(
+            grid=grid,
+            start=self._research.start,
+            end=self._research.end,
+            target_order=targets,
+            factor_order=tuple(self._factor_specs_by_name),
+            directions={name: spec.direction for name, spec in self._factor_specs_by_name.items()},
+            universe=universe,
+            groups=self._research.groups,
+            prices_open=prices_open,
+            prices_close=prices_close,
+        )
+        return self._panel_context_cache
+
+    def get_panel(self) -> Any:
+        """Return the finalized panel; repeated calls return the same object."""
+        if self._panel is None:
+            raise RuntimeError("panel is unavailable before the full grid has run")
+        return self._panel
 
     def stop(self) -> None:
         # Cerebro calls _stop() while unwinding a failing run. Do not replace a
@@ -484,6 +385,8 @@ class FactorStrategy(Strategy):
                         raise RuntimeError(
                             "factor %s did not run once per calculation-grid point" % name
                         )
+        self._panel = self._sink.finalize(self._panel_context())
+        self._sink.close()
 
     @staticmethod
     def _factor_tree(root: FactorIndicator) -> Tuple[FactorIndicator, ...]:
@@ -503,114 +406,60 @@ class FactorStrategy(Strategy):
         visit(root)
         return tuple(result)
 
-    def get_dataset(
-        self,
-        *,
-        prices: Optional[Mapping[str, Any]] = None,
-        provenance: Optional[Mapping[str, Any]] = None,
-    ) -> Any:
-        """Seal and return a defensive ResearchDataset after Cerebro finishes."""
-        if self._grid_cursor != len(self._grid):
-            raise RuntimeError("dataset is unavailable before the full grid has run")
-        if self._dataset is not None and prices is None and provenance is None:
-            return self._dataset
-        pd = require_research_runtime()
-        factor_names = tuple(self.factor_instances)
-        panel = pd.DataFrame(self._raw_rows, columns=("time", "asset") + factor_names)
-        panel = panel.set_index(["time", "asset"])
-        availability = pd.DataFrame(self._availability_rows)
-        if len(availability):
-            availability = availability.set_index(["time", "asset", "factor"])
-        else:
-            availability = pd.DataFrame(
-                columns=("ready", "valid", "reason", "available_at", "input_times"),
-                index=pd.MultiIndex.from_tuples((), names=("time", "asset", "factor")),
-            )
-        if prices is None:
-            full_grid = self._research.grid.index
-            open_values: Dict[str, Sequence[float]] = {}
-            close_values: Dict[str, Sequence[float]] = {}
-            complete_full_prices = True
-            for asset, data in zip(self._research.targets, self._target_datas):
-                metadata = getattr(data, _FEED_ALIGNMENT, None)
-                source_prices = (
-                    metadata.get("full_prices") if isinstance(metadata, Mapping) else None
-                )
-                if not isinstance(source_prices, Mapping):
-                    complete_full_prices = False
-                    break
-                opens = source_prices.get("open")
-                closes = source_prices.get("close")
-                if (
-                    opens is None
-                    or closes is None
-                    or len(opens) != len(full_grid)
-                    or len(closes) != len(full_grid)
-                ):
-                    complete_full_prices = False
-                    break
-                open_values[asset] = tuple(opens)
-                close_values[asset] = tuple(closes)
-            if complete_full_prices:
-                price_tables: Mapping[str, Any] = {
-                    "open": pd.DataFrame(open_values, index=full_grid),
-                    "close": pd.DataFrame(close_values, index=full_grid),
-                }
-            else:
-                # Custom feeds may not come from prealign_bars. Preserve only
-                # prices actually observed by this native calculation clock.
-                observed = pd.DataFrame(self._price_rows)
-                price_tables = {
-                    "open": observed.pivot(index="time", columns="asset", values="open"),
-                    "close": observed.pivot(index="time", columns="asset", values="close"),
-                }
-        else:
-            price_tables = prices
-        metadata = {
-            "factor_specs": {
-                name: spec.to_metadata() for name, spec in self._factor_specs_by_name.items()
-            },
-            "factor_directions": {
-                name: spec.direction for name, spec in self._factor_specs_by_name.items()
-            },
-            "research_grid_sha256": self._research.grid_sha256,
-        }
-        if provenance:
-            metadata.update(dict(provenance))
-        from .field_validation import collect_bound_feed_tables
-
-        formula_inputs = dict(self._research.formula_fields)
-        bound_feed_tables = collect_bound_feed_tables(
-            self._factor_specs_by_name,
-            self._research,
-            self.datas,
-            self._target_datas,
-        )
-        collisions = set(formula_inputs).intersection(bound_feed_tables)
-        if collisions:
-            raise ResearchConfigError(
-                "formula table names conflict with collected feed bindings",
-                report={"tables": tuple(sorted(collisions))},
-            )
-        formula_inputs.update(bound_feed_tables)
-        from .dataset import ResearchDataset
-
-        self._dataset = ResearchDataset.from_collection(
-            research=self._research,
-            raw_factors=panel,
-            availability=availability,
-            prices=price_tables,
-            formula_inputs=formula_inputs,
-            classifications=self._research.classifications,
-            provenance=metadata,
-        )
-        return self._dataset
-
     def evaluate(self, spec: Any = None, **kwargs: Any) -> Any:
-        """Evaluate the sealed dataset through the public research adapter."""
-        from .fincore_adapter import evaluate_dataset
+        """Evaluate the collected panel through the public research adapter."""
+        from .fincore_adapter import evaluate_frames
 
-        return evaluate_dataset(self.get_dataset(), spec=spec, **kwargs)
+        if spec is not None and kwargs:
+            raise ResearchConfigError("pass either spec or evaluation keyword arguments, not both")
+        if spec is None and kwargs:
+            spec = kwargs
+        return evaluate_frames(self.get_panel(), spec)
+
+
+def _cumulative(values: Any, np: Any) -> Any:
+    array = np.asarray(values, dtype=np.int64)
+    return np.concatenate(([0], np.cumsum(array)))
+
+
+def _input_aliases(spec: FactorSpec) -> Tuple[str, ...]:
+    """Map declared formula fields to the feed columns whose values they read."""
+    bindings = spec.field_bindings
+    aliases: List[str] = []
+    for alias in tuple(getattr(spec.indicator, "formula_fields", ())):
+        binding = bindings.get(alias)
+        resolved = _source_aliases(alias, binding, bindings)
+        aliases.extend(resolved)
+    return tuple(dict.fromkeys(aliases))
+
+
+def _source_aliases(alias: str, binding: Any, bindings: Mapping) -> List[str]:
+    if isinstance(binding, Mapping):
+        derive = binding.get("derive")
+        if derive == "adv":
+            source = binding.get("source")
+            return _source_aliases(source, bindings.get(source), bindings) if source else []
+        if derive == "vwap_volume":
+            output: List[str] = []
+            for source in (binding.get("vwap"), binding.get("volume")):
+                if source:
+                    output.extend(_source_aliases(source, bindings.get(source), bindings))
+            return output
+        binding = binding.get("source")
+    if not isinstance(binding, str) or not binding.startswith("feed:"):
+        return []
+    parts = binding.split(":")
+    if len(parts) != 3:
+        return []
+    return [parts[2]]
+
+
+def _alignment_metadata(data: Any) -> Optional[Mapping]:
+    metadata = getattr(data, _ALIGNMENT_V2, None)
+    if isinstance(metadata, Mapping):
+        return metadata
+    metadata = getattr(data, _ALIGNMENT_V1, None)
+    return metadata if isinstance(metadata, Mapping) else None
 
 
 __all__ = ("FactorStrategy",)

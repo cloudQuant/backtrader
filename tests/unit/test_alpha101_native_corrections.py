@@ -33,7 +33,7 @@ def test_alpha067_has_no_rank_after_ordinary_power(runonce):
     expected = reference(67, frames)
     h = history_h(67)
     strategy = _run_subset(frames, {"alpha67": Alpha067Native}, runonce=runonce)
-    raw = strategy.get_dataset().raw_factors
+    raw = strategy.get_panel().factors
     factor = strategy.factor_instances["alpha67"]
     assets = tuple(frames)
     grid = next(iter(frames.values())).index

@@ -1,10 +1,9 @@
 """Native Backtrader factor-research APIs.
 
 Importing this package keeps pandas and fincore lazy; their runtime checks are
-performed when a ResearchSpec or ResearchDataset is constructed.
+performed when a research spec, panel or evaluation is constructed.
 """
 
-from .dataset import ResearchDataset
 from ..errors import (
     DataQualityError,
     DatasetError,
@@ -14,36 +13,38 @@ from ..errors import (
     ResearchConfigError,
     ResearchError,
 )
-
+from .align import AlignedFeed, align_to_grid, feed_alignment
 from .factor_indicator import FactorIndicator
 from .factor_report import write_factor_report
 from .factor_strategy import FactorStrategy
-from .inputs import AlignedBars, AlignedPITInput, prealign_bars, prealign_pit_table
+from .fincore_adapter import evaluate_frames
+from .panel import FactorPanel
+from .sink import CsvSink, FactorSink, MemorySink, PanelContext
 from .specs import FactorSpec, ResearchSpec
-from .storage import load_dataset
-from .fincore_adapter import evaluate_dataset
 
 ConfigError = ResearchConfigError
 
 __all__ = (
-    "AlignedBars",
-    "AlignedPITInput",
+    "AlignedFeed",
     "ConfigError",
-    "ResearchConfigError",
+    "CsvSink",
     "DataQualityError",
     "DatasetError",
     "DependencyError",
     "FactorComputationContext",
     "FactorComputationError",
     "FactorIndicator",
+    "FactorPanel",
+    "FactorSink",
     "FactorSpec",
     "FactorStrategy",
-    "ResearchDataset",
+    "MemorySink",
+    "PanelContext",
+    "ResearchConfigError",
     "ResearchError",
     "ResearchSpec",
-    "evaluate_dataset",
-    "load_dataset",
-    "prealign_bars",
-    "prealign_pit_table",
+    "align_to_grid",
+    "evaluate_frames",
+    "feed_alignment",
     "write_factor_report",
 )

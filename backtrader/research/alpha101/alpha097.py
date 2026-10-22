@@ -12,7 +12,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,10 +25,8 @@ class Alpha097Native(FactorIndicator):
     case_id = "AF46-097"
     lookback_h = 114
     formula = "((rank(decay_linear(delta(IndNeutralize(((low * 0.721001) + (vwap * (1 - 0.721001))), IndClass.industry), 3.3705), 20.4523)) - Ts_Rank(decay_linear(Ts_Rank(correlation(Ts_Rank(low, 7.87871), Ts_Rank(adv60, 17.255), 4.97547), 18.5925), 15.7152), 6.71659)) * -1)"
-    formula_fields = ("low", "vwap", "dollar_volume", "adv60")
+    formula_fields = ("low", "vwap", "dollar_volume", "adv60", "industry")
     required_fields = formula_fields
-    classification_levels = ("industry",)
-    classification_fields = ("industry",)
 
     def __init__(self):
         super().__init__()
@@ -44,7 +42,7 @@ class Alpha097Native(FactorIndicator):
         )
         weighted_price = per_asset(self, "weighted_price", Add, low_part, vwap_part)
         neutral_price = panel(
-            self, "industry_neutral_weighted_price", IndNeutralize, weighted_price, level="industry"
+            self, "industry_neutral_weighted_price", IndNeutralize, weighted_price, level="industry", groups=self.field_lines("industry")
         )
         price_delta = per_asset(self, "neutral_price_delta", Delta, neutral_price, period=3.3705)
         price_decay = per_asset(

@@ -10,7 +10,7 @@ from ..operators import (
     TsRank,
     Where,
 )
-from ._helpers import per_asset
+from .._helpers import per_asset
 from ._metadata import native_alpha
 
 
@@ -24,8 +24,6 @@ class Alpha007Native(FactorIndicator):
     lookback_h = 66
     formula_fields = ("close", "volume", "dollar_volume", "adv20")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = "((adv20 < volume) ? ((-1 * ts_rank(abs(delta(close, 7)), 60)) * sign(delta(close, 7))) : (-1 * 1))"
 
     def __init__(self):

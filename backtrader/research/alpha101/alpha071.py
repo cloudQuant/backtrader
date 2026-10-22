@@ -11,7 +11,7 @@ from ..operators import (
     Subtract,
     TsRank,
 )
-from ._helpers import panel, per_asset
+from .._helpers import panel, per_asset
 from ._metadata import native_alpha
 
 
@@ -25,8 +25,6 @@ class Alpha071Native(FactorIndicator):
     lookback_h = 224
     formula_fields = ("close", "low", "open", "vwap", "dollar_volume", "adv180")
     required_fields = formula_fields
-    classification_levels = ()
-    classification_fields = ()
     formula = "max(Ts_Rank(decay_linear(correlation(Ts_Rank(close, 3.43976), Ts_Rank(adv180, 12.0647), 18.0175), 4.20501), 15.6948), Ts_Rank(decay_linear((rank(((low + open) - (vwap + vwap)))^2), 16.4662), 4.4388))"
 
     def __init__(self):

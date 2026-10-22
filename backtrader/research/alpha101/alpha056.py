@@ -8,7 +8,7 @@ from ..operators import (
     RollingSum,
     Subtract,
 )
-from ._helpers import panel, per_asset, simple_returns
+from .._helpers import panel, per_asset, simple_returns
 from ._metadata import native_alpha
 
 
@@ -22,8 +22,6 @@ class Alpha056Native(FactorIndicator):
     lookback_h = 10
     formula_fields = ("close", "cap")
     required_fields = formula_fields
-    classification_fields = ()
-    classification_levels = ()
     formula = (
         "(0 - (1 * (rank((sum(returns, 10) / sum(sum(returns, 2), 3))) * rank((returns * cap)))))"
     )
