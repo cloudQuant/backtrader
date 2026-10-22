@@ -181,6 +181,9 @@ examples/live/000_live_certification/*_penetration/reports/
 /examples/output/
 /examples/**/output/
 
+# Generated evidence directories and their repeatable outputs at any depth
+evidence/
+
 # Local workspace / editor artifacts
 .benchmarks/
 .agent/
