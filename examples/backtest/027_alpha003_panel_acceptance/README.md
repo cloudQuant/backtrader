@@ -6,13 +6,16 @@ This example runs the production native Alpha003 factor over the observed daily 
 -correlation(rank(open), rank(volume), 10)
 ```
 
-It uses `backtrader.research.alpha101.get_alpha(3)` → `Alpha003Native`, so the formula is the library implementation, not a copy inside the example. The old three-asset synthetic fixture and its handwritten `alpha003_strategy.py` duplicate have been removed.
+It uses `backtrader.research.alpha101.get_alpha(3)` → `Alpha003Native` by default. `--factor-mode build` selects the production `Alpha003Build` companion in the same formula module. Both use the same factor strategy and Cerebro lifecycle. The old three-asset synthetic fixture and its handwritten `alpha003_strategy.py` duplicate have been removed.
 
 From the repository root:
 
 ```powershell
 python examples/backtest/027_alpha003_panel_acceptance/run.py --output-dir output/027-real
+python examples/backtest/027_alpha003_panel_acceptance/run.py --factor-mode build --report --output-dir output/027-build
 ```
+
+For this quick entry, `--factor-mode native|build` overrides `config.yaml`'s `factor_mode`, with `native` as the default. The engine remains runnext in both modes. The summary includes the actual mode, class, `factor_calculation="RAN"` and zero order counters. Use a new output directory for each run.
 
 Add `--report` to write the HTML report, and `--report-language zh|en` to choose its default language (the HTML also has a 中文/EN switch). The runner evenly samples **500** symbols from the manifest by default; `--max-symbols 0` uses all 5,471 symbols, and `--data-dir` selects another panel with the same `_metadata/manifest.json` and per-symbol CSV layout. The calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled. Alpha003 needs a complete 10-row window of cross-sectional ranks, so suspended or newly listed symbols produce NaN windows; the missing bar itself and the following lookback points are NaN.
 
@@ -23,6 +26,8 @@ Outputs:
 - `factor_report_alpha003.html`: written with `--report`; a self-contained bilingual (中文/English) HTML report with interactive ECharts charts and IC, quantile-return, turnover and coverage tables.
 
 For the full-market runner with date chunking, resume, and an independent full-panel oracle check, see [`run_daily.py`](run_daily.py) and [HANDOFF.md](HANDOFF.md). `run.py` is the quick real-data demonstration; `run_daily.py` is the longer full-market pipeline.
+
+The daily runner also accepts `--factor-mode native|build`, defaults to native and does not read the quick YAML. The mode is part of its run identity and is passed to each worker. Resume requires the same mode, inputs, parameters and source identity; use a separate directory for another mode. Iteration47 checks actual workers and resume on a small multi-chunk fixture; the historical HANDOFF's unfinished full-market run remains separate evidence.
 
 `025_factor_single` and `026_factor_multi` use the same real panel to demonstrate single-factor and multi-factor research with fincore evaluation.
 

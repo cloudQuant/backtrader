@@ -466,8 +466,12 @@ Its callbacks do not receive a time loop or panel scheduler. Quick runners
 precedence; saved-panel reevaluation does not calculate factors. The 027 daily
 runner binds mode and class identity into actual worker parameters and resume
 identity, rejecting cross-mode reuse without changing existing run state.
-Full 500-asset output pairing, installed acceptance and the remaining 100 build
-formulas are tracked separately in the Iteration 47/48 plans.
+Iteration 47 passed full 500-asset quick output pairing (12 runs, six exact
+comparisons) and pinned-wheel acceptance at `ff486565` with fincore `fc512cdf`
+(132 tests plus actual 20-asset quick pairs and CSV reevaluation). These local
+checks reuse Anaconda base dependencies; they are not release or deployment
+evidence. The remaining 100 build formulas and their all-registry acceptance
+are tracked in Iteration 48.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone

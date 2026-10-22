@@ -10,7 +10,10 @@ From the repository root:
 
 ```powershell
 python examples/backtest/026_factor_multi/run.py --output-dir output/026-real
+python examples/backtest/026_factor_multi/run.py --factor-mode build --report --save-panel --output-dir output/026-build
 ```
+
+`--factor-mode native|build` switches all three factors together. The CLI overrides `config.yaml`'s `factor_mode`; the default is `native`. The output order remains `close_ma`, `kdj_j`, `roc`. Both modes construct ordinary indicator dependencies and use the same Cerebro lifecycle; mode selection is independent of the default runonce engine or `--runnext`. The build companions retain the native SMA/ROC/highest/lowest calculations and pointwise validity rules.
 
 Like 025, the runner evenly samples **500** symbols from `tests/datas/a_stocks` by default; `--max-symbols 0` uses all 5,471, and `--data-dir` selects another panel with the same layout. The research calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled.
 
@@ -20,12 +23,14 @@ Outputs:
 
 - `factor_values.csv`: `time`, `asset`, and the three factor columns.
 - `evaluation/`: fincore's tables and chart, when the fincore factor-research API is installed.
-- `summary.json`: status, symbol/date counts, evaluation identity and report paths.
+- `summary.json`: status, symbol/date counts, evaluation identity, report paths, actual factor mode/classes and order counters.
 - `factor_report_<factor>.html`: written with `--report`, one self-contained bilingual (中文/English) report per factor with interactive ECharts charts and IC, quantile-return, turnover and coverage tables.
 - `panel/`: written only with `--save-panel`; the six CSV files (`factors`, `grid`, `prices_open`, `prices_close`, `universe`, `groups`) for an explicit offline re-evaluation.
 
 Evaluation is optional. When fincore's research API is unavailable, `factor_values.csv` is still written, `EVALUATION SKIPPED` is printed, and the run exits 0 with `summary.json.status="PANEL_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
 Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-panel`, and `--panel <saved-panel>` for offline re-evaluation without Cerebro. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
+
+`--panel` cannot be combined with an explicit `--factor-mode`; the config's default mode does not trigger calculation. Its summary records `factor_mode="NOT_APPLICABLE"` and `factor_calculation="NOT_RUN"`. Use a new output directory for each run.
 
 The output is a factor research result, not a trading strategy or evidence of investment performance.

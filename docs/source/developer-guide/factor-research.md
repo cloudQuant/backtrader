@@ -2,9 +2,11 @@
 
 迭代45把因子计算留在 Backtrader，把标签、IC、多因子合成与报告放在 fincore。所有研究因子继承 `FactorIndicator`；`FactorStrategy` 负责装配和采集，作者不用为每个因子重写策略的 `next()`。
 
-逐项验收状态见[迭代45验收结果](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/验收结果.md)，分轮提交与检查记录见[迭代45开发记录](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/开发与验收记录.md)。后续 build 简洁写法属于迭代47，完整101个生产因子属于迭代46/48。
+重构与性能验收见[45–46优化验收结果](../../_internal/opts/requirements/迭代45-46优化/验收结果.md)。原生101式已实现；迭代47增加公式式 build 和025/026/027双模式，实际验收范围见[47开发与验收记录](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/开发与验收记录.md)。全101式的build伴随实现属于迭代48。
 
 > 迭代45-46优化（2026-10-22）后，研究链路直接产出普通 `FactorPanel`：`ResearchDataset`、`inputs.py`、`dataset.py`、`storage.py`、`field_validation.py`、PIT/as-of 表、`table:` 绑定和 `classification_bindings` 已删除。本文描述的是当前 API；历史快照文件不再保证可读。
+
+迭代47的四公式build、三个500资产示例完整配对和固定wheel验收已通过，见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。全101 build扩展仍在迭代48单独验收。
 
 ## 环境与职责
 
@@ -61,6 +63,30 @@ class CloseMAFactor(FactorIndicator):
 `lookback_h` 表示当前格点之前需要的历史格数，20格均线为19。它不是“已经有足够有效数据”的保证：中间缺格仍会使该格点及其后 `lookback_h` 个格点的因子值记为 NaN。新增因子需要独立已知答案验证其 H 和真实首个有效时点。
 
 普通 `bt.Indicator` 可以作为因子内部的子指标。配置不接受 `execution`、旧 `line` 或旧 `inputs`。
+
+## 用 build 编写公式
+
+`panel_mode = "expression"` 的类声明一个 `@classmethod build(cls, ctx, **params)`，返回单个表达式；无需编写资产循环或 `next()`。例如生产 Alpha003 的伴随实现为：
+
+```python
+class Alpha003Build(FactorIndicator):
+    lines = ("factor",)
+    panel_mode = "expression"
+    formula_fields = ("open", "volume")
+    lookback_h = 9
+
+    @classmethod
+    def build(cls, ctx, **params):
+        return ctx.correlation(ctx.rank(ctx.open), ctx.rank(ctx.volume), 10) * -1.0
+```
+
+`ctx.open` 等字段必须已声明并显式绑定。表达式支持四则运算、幂、比较、`ctx.where(condition, yes, no)`，以及 `rank`、`correlation`、`sma`、`roc`、`highest`、`lowest`。条件表达式不能进入 Python 的 `if`、`and`、`or` 或 `bool()`。H仍由类显式声明或按参数计算，不自动推导。
+
+每个绑定后的因子实例只调用一次build。ctx构造普通Indicator/Line依赖，由Cerebro按原有时钟推进；不同研究组和实例不共享节点。build返回后上下文关闭，不能在运行期间继续构图，也不能混用另一实例的表达式。
+
+`ctx.apply(function, *expressions)` 将无状态逐点函数适配为普通子指标，参数仅为当前各输入的float值。025/026的伴随类用它保留原生比值与KDJ逐点运算的有限值、除零及严格错误行为；SMA、ROC、Highest和Lowest仍是真实子指标。函数不接收历史数组、整个资产面板或调度权。研究四则算子的DOMAIN_ERROR/NaN语义与任意Python算式并非完全相同，迁移已有因子时应验证极端输入和错误行为。
+
+选择生产Alpha实现使用 `get_alpha(3, mode="build")`；省略mode等同于native。当前只有Alpha003提供生产build伴随类，其他ID请求build会明确报未实现。025/026在各自示例文件内提供CloseMA、ROC和KDJ.J伴随类。build/native是公式编写方式，与 `runonce=True/False` 的引擎选择相互独立。
 
 ## 装配研究
 
@@ -168,6 +194,8 @@ VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的�
 
 正式例子为 `examples/backtest/025_factor_single`、`026_factor_multi` 和 `027_alpha003_panel_acceptance`；三个 quick `run.py` 入口使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。025/026 两个入口先完成原生采集并写出 `factor_values.csv`，可用 `--save-panel` 保存 CSV 面板、`--panel` 跳过 Cerebro 直接复评；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `PANEL_ONLY` 正常退出。
 
-027 的 `run_daily.py` 是独立的全市场分块/续跑入口，`--chunk-days` 控制分块；它不使用 quick 入口的 500 只默认值或 `--report` 参数。
+三个quick入口均可传 `--factor-mode native|build`，优先级为CLI、config.yaml的factor_mode、native默认值。026整体切换三个因子，列顺序仍为close_ma、kdj_j、roc。025/026的 `--panel` 只复评已有面板，不能同时显式传 `--factor-mode`；摘要记录 `factor_mode="NOT_APPLICABLE"`、`factor_calculation="NOT_RUN"`。
+
+027 的 `run_daily.py` 是独立的全市场分块/续跑入口，`--chunk-days` 控制分块；它不使用quick YAML、500只默认值或 `--report` 参数。daily也支持 `--factor-mode native|build`，默认native。模式进入运行指纹并传至实际worker，同一输出目录不能跨模式续跑；为另一模式选择新目录。47的daily验收使用小型多分段真实子进程，不代表5,471只全年验收完成。
 
 需要专业因子图表时，三个 quick `run.py` 入口都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 会应用该因子的显式方向，并按 `label` 传入原始价格。默认 `next_open_to_open` 使用开盘价与 `next_open=True`，`close_to_close` 使用收盘价与 `next_open=False`；标签只由 fincore 计算一次。025/026 的报告采用与研究评价相同的配置标签，027 保持默认 next-open。评价和报告不修改传入面板的帧、索引或属性。
