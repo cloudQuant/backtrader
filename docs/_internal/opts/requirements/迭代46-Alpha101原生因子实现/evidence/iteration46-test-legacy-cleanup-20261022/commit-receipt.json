@@ -1,0 +1,9 @@
+{
+  "branch": "dev",
+  "implementation_commit": "19871c642be7a45ceb7fec70d5b76f15b8d7fab1",
+  "baseline_commit": "3bf22a758198d611c429a04c57df7ba709cc7095",
+  "accepted_test_sources_match_commit": true,
+  "runtime_source_and_setup_unchanged": true,
+  "legacy_helper_absent_from_commit": true,
+  "source_tests_passed": 55
+}
