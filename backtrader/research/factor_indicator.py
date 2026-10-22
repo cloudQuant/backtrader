@@ -98,6 +98,9 @@ class FactorIndicator(Indicator):
             raise RuntimeError("bound factor outputs do not match their line layout")
 
         self._factor_target_datas = output_datas
+        self._factor_target_index_by_id: Dict[int, int] = {}
+        for index, data in enumerate(output_datas):
+            self._factor_target_index_by_id.setdefault(id(data), index)
         self.outputs: Dict[Any, _OutputLines] = {}
         for data, names in zip(output_datas, output_names):
             feed_lines: Dict[str, Any] = {}
@@ -227,7 +230,8 @@ class FactorIndicator(Indicator):
         names = tuple(asset_names)
         if not targets or len(targets) != len(names) or len(set(names)) != len(names):
             raise ConfigError("factor output targets and unique asset names are required")
-        if any(data not in datas for data in targets):
+        input_data_ids = {id(data) for data in datas}
+        if any(id(data) not in input_data_ids for data in targets):
             raise ConfigError("factor output targets must be native indicator inputs")
         if not isinstance(field_bindings, Mapping) or not isinstance(
             classification_bindings, Mapping
@@ -476,10 +480,9 @@ class FactorIndicator(Indicator):
     def field(self, alias: str, data: Any) -> Any:
         """Resolve one target's formula input line by its actual feed object."""
         lines = self.field_lines(alias)
-        try:
-            index = self._factor_target_datas.index(data)
-        except ValueError as exc:
-            raise ConfigError("field access requires a factor target feed") from exc
+        index = self._factor_target_index_by_id.get(id(data))
+        if index is None:
+            raise ConfigError("field access requires a factor target feed")
         return lines[index]
 
     def classification_lines(self, alias: str) -> Tuple[Any, ...]:
