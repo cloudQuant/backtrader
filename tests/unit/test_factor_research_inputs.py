@@ -58,17 +58,6 @@ def _expected_keys(times: pd.DatetimeIndex, targets: tuple[str, ...]) -> pd.Mult
     return pd.MultiIndex.from_product([times, targets], names=("time", "asset"))
 
 
-def _input_table(index: pd.MultiIndex, values: list[float]) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "value": values,
-            "available_at": [key[0] for key in index],
-            "data_version": ["fixture-v1"] * len(index),
-        },
-        index=index,
-    )
-
-
 def test_research_spec_keeps_explicit_utc_grid_and_inclusive_ranges() -> None:
     grid = _utc_grid()
     spec = _research(grid, start=grid.index[1].tz_convert("America/New_York"))

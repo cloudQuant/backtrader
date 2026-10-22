@@ -389,6 +389,58 @@ def test_report_profile_groups_only_fincore_label_weight_and_position_functions(
     assert profile["by_category"]["weights"]["normalize_weights"]["ncalls"] == 5
     assert profile["by_category"]["positions"]["make_positions"]["ncalls"] == 6
     assert len(profile["rows"]) == 3
+    assert profile["label_semantics"]["by_category.labels"].startswith("nonsemantic name match")
+    assert profile["by_exact_function"]["economic_label_construction"]["ncalls"] == 0
+
+
+def test_report_profile_distinguishes_economic_returns_from_ui_labels() -> None:
+    data_file = "/venv/site-packages/fincore/factor_analysis/data.py"
+    analysis_file = "/venv/site-packages/fincore/factor_analysis/analysis.py"
+    stats = {
+        (data_file, 155, "compute_forward_returns"): (1, 13, 0.3, 0.8, {}),
+        (data_file, 133, "_period_label"): (1, 39, 0.1, 0.2, {}),
+        (data_file, 400, "prepare_factor_data"): (1, 3, 0.2, 0.7, {}),
+        (analysis_file, 735, "analyze_factor"): (1, 2, 0.4, 0.9, {}),
+        (
+            "/venv/site-packages/fincore/factor_analysis/report.py",
+            20,
+            "_row_labels",
+        ): (1, 5, 0.01, 0.02, {}),
+        (
+            "/venv/site-packages/fincore/factor_analysis/report.py",
+            30,
+            "_column_labels",
+        ): (1, 7, 0.02, 0.03, {}),
+        (
+            "/app/backtrader/factor_analysis/data.py",
+            155,
+            "compute_forward_returns",
+        ): (1, 99, 9.9, 10.0, {}),
+    }
+
+    profile = _report_profile_summary(stats)
+
+    exact = profile["by_exact_function"]
+    assert exact["economic_label_construction"]["ncalls"] == 13
+    assert exact["economic_label_construction"]["rows"] == [
+        {
+            "file": data_file,
+            "line": 155,
+            "function": "compute_forward_returns",
+            "ncalls": 13,
+            "tottime_s": 0.3,
+            "cumtime_s": 0.8,
+        }
+    ]
+    assert exact["prepare_factor_data"]["ncalls"] == 3
+    assert exact["analyze_factor"]["ncalls"] == 2
+    assert exact["period_label_formatting"]["ncalls"] == 39
+    assert profile["by_category"]["labels"]["_row_labels"]["ncalls"] == 5
+    assert profile["by_category"]["labels"]["_column_labels"]["ncalls"] == 7
+    assert "does not prove forward returns were constructed" in profile["label_semantics"][
+        "by_category.labels"
+    ]
+    assert profile["by_exact_function"]["economic_label_construction"]["ncalls"] != 99
 
 
 def test_operators_mode_does_not_require_a_market_data_directory() -> None:

@@ -729,18 +729,71 @@ def _operator_profile_summary(
 def _report_profile_summary(
     profile_stats: Mapping[Tuple[str, int, str], Tuple[Any, ...]],
 ) -> Dict[str, Any]:
-    """Keep report-boundary profiles limited to fincore label/weight/position work."""
+    """Summarize report-boundary work without conflating UI and economic labels.
+
+    ``by_category.labels`` is deliberately a broad, name-based bucket: it can
+    contain UI label rendering and period-label formatting. Economic forward
+    return construction is reported separately by its exact fincore source
+    path and function name.
+    """
     categories = {"labels": {}, "weights": {}, "positions": {}}
+    exact_function_specs = {
+        "economic_label_construction": (
+            "/fincore/factor_analysis/data.py",
+            "compute_forward_returns",
+            "fincore.factor_analysis.data::compute_forward_returns",
+        ),
+        "prepare_factor_data": (
+            "/fincore/factor_analysis/data.py",
+            "prepare_factor_data",
+            "fincore.factor_analysis.data::prepare_factor_data",
+        ),
+        "analyze_factor": (
+            "/fincore/factor_analysis/analysis.py",
+            "analyze_factor",
+            "fincore.factor_analysis.analysis::analyze_factor",
+        ),
+        "period_label_formatting": (
+            "/fincore/factor_analysis/data.py",
+            "_period_label",
+            "fincore.factor_analysis.data::_period_label",
+        ),
+    }
+    exact_functions = {
+        key: {
+            "identity": identity,
+            "ncalls": 0,
+            "tottime_s": 0.0,
+            "cumtime_s": 0.0,
+            "rows": [],
+        }
+        for key, (_suffix, _function, identity) in exact_function_specs.items()
+    }
     details = []
     for (filename, line, function), values in profile_stats.items():
         normalized = str(filename).replace("\\", "/")
         if "/fincore/" not in normalized:
             continue
+        _primitive_calls, total_calls, total_time, cumulative_time = values[:4]
+        for key, (path_suffix, expected_function, _identity) in exact_function_specs.items():
+            if normalized.endswith(path_suffix) and function == expected_function:
+                exact_row = {
+                    "file": normalized,
+                    "line": int(line),
+                    "function": function,
+                    "ncalls": int(total_calls),
+                    "tottime_s": float(total_time),
+                    "cumtime_s": float(cumulative_time),
+                }
+                bucket = exact_functions[key]
+                bucket["ncalls"] += exact_row["ncalls"]
+                bucket["tottime_s"] += exact_row["tottime_s"]
+                bucket["cumtime_s"] += exact_row["cumtime_s"]
+                bucket["rows"].append(exact_row)
         lowered = function.casefold()
         matched = [category for category in categories if category.rstrip("s") in lowered]
         if not matched:
             continue
-        _primitive_calls, total_calls, total_time, cumulative_time = values[:4]
         row = {
             "file": normalized,
             "line": int(line),
@@ -760,7 +813,22 @@ def _report_profile_summary(
             bucket["tottime_s"] += row["tottime_s"]
             bucket["cumtime_s"] += row["cumtime_s"]
     details.sort(key=lambda row: (row["file"], row["line"], row["function"]))
-    return {"by_category": categories, "rows": details}
+    for bucket in exact_functions.values():
+        bucket["rows"].sort(key=lambda row: (row["file"], row["line"], row["function"]))
+    return {
+        "by_category": categories,
+        "rows": details,
+        "by_exact_function": exact_functions,
+        "label_semantics": {
+            "by_category.labels": (
+                "nonsemantic name match; may include UI labels and period formatting, "
+                "and does not prove forward returns were constructed"
+            ),
+            "economic_label_construction": (
+                "exact fincore/factor_analysis/data.py::compute_forward_returns profile match"
+            ),
+        },
+    }
 
 
 def _operator_worker(args: argparse.Namespace, root: Path, origins: Dict[str, str]) -> int:
@@ -929,7 +997,12 @@ def _operator_worker(args: argparse.Namespace, root: Path, origins: Dict[str, st
         "limitations": [
             "DIAGNOSTIC_ONLY; profiler overhead makes this unsuitable for a performance gate",
             "cProfile does not count semantic cache hits or infer mathematical contributions",
-            "report profile includes only fincore functions whose names match labels, weights, or positions",
+            (
+                "report profile separates exact economic-label construction, prepare/analyze "
+                "entry points, and period-label formatting from broad name-based "
+                "labels/weights/positions buckets; the broad labels bucket may include UI "
+                "rendering and is not evidence that forward returns were constructed"
+            ),
         ],
     }
     result_path = work_dir / "worker-result.json"

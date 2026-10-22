@@ -476,7 +476,7 @@ def test_panel_rank_scale_and_pit_industry_neutralization(runonce):
     assert math.isnan(second["C"]["rank"])
     assert second["A"]["rank"] == pytest.approx(1.0)
     assert second["B"]["rank"] == pytest.approx(0.5)
-    # Dynamic PIT industry memberships are read at each grid and do not rewrite
+    # Ordinary feed memberships are read at each grid and do not rewrite
     # the prior output. A/B become singleton groups on the second row.
     assert second["A"]["neutral"] == 0.0
     assert second["B"]["neutral"] == 0.0

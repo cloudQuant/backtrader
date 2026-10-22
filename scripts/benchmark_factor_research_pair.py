@@ -135,6 +135,9 @@ def _source_manifest(root: Path) -> Dict[str, str]:
         directory = root / package
         if directory.is_dir():
             paths.update(directory.rglob("*.py"))
+    colocated_fincore = root / "fincore"
+    if colocated_fincore.is_dir():
+        paths.update(path for path in colocated_fincore.rglob("*.py") if path.is_file())
     for relative in EXAMPLE_DIRS.values():
         directory = root / relative
         if directory.is_dir():
@@ -304,6 +307,8 @@ def _inspect_side(
         example: _probe_entrypoint(root, example, requested_save=requested_save)
         for example in examples
     }
+    module_probe = _probe_modules(root)
+    _validate_colocated_fincore_origin(root, module_probe)
     source_hashes = _source_manifest(root)
     git_status = _git_status(root)
     git_head = _git_head(root)
@@ -325,7 +330,7 @@ def _inspect_side(
         "entrypoints": entrypoints,
         "requested_save": requested_save,
         "pythonpath": str(root),
-        "module_probe": _probe_modules(root),
+        "module_probe": module_probe,
         "execution_environment_sha256": _canonical_hash(execution_environment),
         "dependency_declaration_sha256": {
             path: digest
@@ -439,6 +444,20 @@ def _path_inside(path: Path, parent: Path) -> bool:
         )
     except ValueError:
         return False
+
+
+def _validate_colocated_fincore_origin(root: Path, module_probe: Mapping[str, Any]) -> None:
+    """Require probed fincore to match source included beside this checkout."""
+    package = root / "fincore"
+    if not package.is_dir():
+        return
+    modules = module_probe.get("modules")
+    origin = modules.get("fincore") if isinstance(modules, dict) else None
+    if not isinstance(origin, str) or not origin or not _path_inside(Path(origin), package):
+        raise ValueError(
+            "colocated fincore source exists at %s but module probe resolved fincore outside "
+            "that package: %s" % (package, origin)
+        )
 
 
 def _artifact_manifest(path: Path) -> List[Dict[str, Any]]:

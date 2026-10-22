@@ -446,7 +446,7 @@ class FactorIndicator(Indicator):
         """Resolve a declared raw/derived formula field to target-ordered lines.
 
         Default target fields are lines with the same name as *alias*. Explicit
-        field bindings may name another feed, a prealigned table, or one exact
+        field bindings may name another feed's ordinary line or one exact
         ``derive_adv`` rolling-mean recipe.
         """
         if alias in self._field_line_cache:

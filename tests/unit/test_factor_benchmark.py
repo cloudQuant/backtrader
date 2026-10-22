@@ -21,6 +21,79 @@ def _write_report(output_dir: Path, factor: str) -> str:
     return str(report)
 
 
+def test_source_manifest_includes_colocated_fincore_python_sources(tmp_path: Path) -> None:
+    root = tmp_path / "checkout"
+    root.mkdir()
+
+    without_fincore = pair_benchmark._source_manifest(root)
+    assert not any(path.startswith("fincore/") for path in without_fincore)
+
+    package = root / "fincore"
+    nested = package / "factor_analysis"
+    nested.mkdir(parents=True)
+    (package / "__init__.py").write_text("# fincore\n", encoding="utf-8")
+    module = nested / "data.py"
+    module.write_text("def compute_forward_returns(): pass\n", encoding="utf-8")
+    (nested / "ignored.pyc").write_bytes(b"bytecode")
+
+    with_fincore = pair_benchmark._source_manifest(root)
+
+    assert with_fincore["fincore/__init__.py"] == pair_benchmark._sha256(package / "__init__.py")
+    assert with_fincore["fincore/factor_analysis/data.py"] == pair_benchmark._sha256(module)
+    assert not any(path.endswith(".pyc") for path in with_fincore)
+
+
+def test_inspect_side_rejects_colocated_fincore_when_probe_uses_other_origin(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "checkout"
+    (root / "backtrader").mkdir(parents=True)
+    (root / "backtrader" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "fincore").mkdir()
+    example_dir = root / pair_benchmark.EXAMPLE_DIRS["025"]
+    example_dir.mkdir(parents=True)
+    (example_dir / "run.py").write_text("", encoding="utf-8")
+    (example_dir / "config.yaml").write_text("data: {}\n", encoding="utf-8")
+
+    monkeypatch.setattr(pair_benchmark, "_effective_config", lambda *args: {})
+    monkeypatch.setattr(pair_benchmark, "_probe_entrypoint", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        pair_benchmark,
+        "_probe_modules",
+        lambda _root: {"returncode": 0, "modules": {"fincore": "/venv/fincore/__init__.py"}},
+    )
+
+    with pytest.raises(ValueError, match="colocated fincore source exists.*outside that package"):
+        pair_benchmark._inspect_side(
+            root,
+            "candidate",
+            tmp_path,
+            500,
+            "revision",
+            {},
+            examples=("025",),
+        )
+
+
+def test_colocated_fincore_origin_guard_allows_local_and_ambient_imports(tmp_path: Path) -> None:
+    root_without_fincore = tmp_path / "without-fincore"
+    root_without_fincore.mkdir()
+    pair_benchmark._validate_colocated_fincore_origin(
+        root_without_fincore,
+        {"modules": {"fincore": "/venv/fincore/__init__.py"}},
+    )
+
+    root_with_fincore = tmp_path / "with-fincore"
+    package = root_with_fincore / "fincore"
+    package.mkdir(parents=True)
+    origin = package / "__init__.py"
+    origin.write_text("", encoding="utf-8")
+    pair_benchmark._validate_colocated_fincore_origin(
+        root_with_fincore,
+        {"modules": {"fincore": str(origin)}},
+    )
+
+
 def _valid_summary(example: str, output_dir: Path, charts_enabled: bool = True) -> dict:
     output_dir.mkdir(parents=True, exist_ok=True)
     factors = pair_benchmark.EXPECTED_FACTORS[example]
