@@ -5,5 +5,7 @@
   "accepted_test_sources_match_commit": true,
   "runtime_source_and_setup_unchanged": true,
   "legacy_helper_absent_from_commit": true,
-  "source_tests_passed": 55
+  "source_tests_passed": 55,
+  "authoritative_acceptance": "clean-source-affected.xml",
+  "clean_snapshot_commit": "19871c642be7a45ceb7fec70d5b76f15b8d7fab1"
 }

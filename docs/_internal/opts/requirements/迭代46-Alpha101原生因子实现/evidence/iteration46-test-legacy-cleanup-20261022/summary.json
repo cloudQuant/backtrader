@@ -25,6 +25,16 @@
     "source-affected.xml": "5327ce77f5a0370134dc682e07609dd083ddc20f96faadc5378ba5ebe0b6410d",
     "process-result.json": "e4330e30420192d716b0f3f2fe2ae681e8f64e89c26d4dfaabf635545077b0df",
     "cleanup-audit.json": "9e686fd73ebee3555a5802c0df27f4b205a2ca387d28586fce4ea4a5cbd27f1d",
-    "static-checks.json": "d155efc032ec54f845abf371d285e1b3d92ed11790397e67ff4b6136fc4f41ff"
-  }
+    "static-checks.json": "d155efc032ec54f845abf371d285e1b3d92ed11790397e67ff4b6136fc4f41ff",
+    "clean-snapshot.json": "9265a0bbdced7fc70fd3f8c267cd29458e10483fb78dd8631bacec0694d5eee9",
+    "clean-source-affected.xml": "efc01d2b16d977d808079ad0d71817c4990b8046e753380e0059bcaba617dbaf",
+    "clean-process-result.json": "f180e8ab85b9cfd94a40c8a3bd4624437b9fa348d5c9be1a408a1b504b33c28f",
+    "clean-source-process.log": "20ba968766ca3f94d9c46ef0cb8d19b9399519830e003b12a6843a5ecc41b91e",
+    "run_clean_snapshot.py": "a942d5f5b8fb2be4561e18a746b4f646e8a6af49e40e76534b29b0ce6210db39"
+  },
+  "authoritative_source_run": "clean-source-affected.xml",
+  "accepted_source_commit": "19871c642be7a45ceb7fec70d5b76f15b8d7fab1",
+  "committed_snapshot_passed_unique_test_ids": 55,
+  "snapshot_source_files_verified_unchanged": 1118,
+  "initial_workspace_run": "PASS; concurrent source edits detected; use clean snapshot for commit-bound acceptance"
 }
