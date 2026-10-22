@@ -2,6 +2,7 @@
 
 日期：2026-10-22。仓库：Backtrader；分支：`dev`。原始 HEAD：`b353bb27`。
 本轮按用户要求重构生产实现，不增加公式语言或独立计算引擎。
+实现及验收证据提交：`69437b07bc234471903ed0e195819886d9575af2`。安装 wheel 的全部包输入已与该提交逐项比较一致；见[提交回执](evidence/iteration46-direct-factor-refactor-20261022/commit-receipt.json)。复现 wheel 检查时可将 `--tree` 指定为该提交。
 
 ## 结构
 
