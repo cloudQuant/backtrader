@@ -1,0 +1,297 @@
+{
+  "metadata": {
+    "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "root_head_before": "cef3e8501f78e546c7b1a9a3cfd8402c6dd67595",
+    "root_branch_before": "dev",
+    "fincore_root": "/Users/yunjinqi/Documents/new_projects/fincore",
+    "fincore_head_before": "7679c71a59efc4762255d0df7ffd3ccf72865f4d",
+    "python": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+    "python_executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "total_budget_s": 100.0,
+    "case_timeout_s": 45,
+    "symbols": 20,
+    "grid_rows_expected": 243,
+    "root_source_hashes_before": {
+      "examples/backtest/025_factor_single/run.py": "c7dc924883497d66a146a7bf4f023491c95dede6992411b666833f344183183e",
+      "examples/backtest/026_factor_multi/run.py": "b177349b0dede2a1015122bd641fe88ab6acae535b69f322dc89315f0f6be8bd",
+      "backtrader/research/dataset.py": "8242ab159ffea927e5fd808f64e5744fe0c4802840207080010841ecd0dffcf0",
+      "backtrader/research/fincore_adapter.py": "986272ee2ecb17108709b246215d55bdcddd18fe727c1213060a6e4a9b9fbd97",
+      "backtrader/research/specs.py": "53e5db6c309d051e9d6213c8ab29f4a469d4b6882681c3c3d93f937a5f23c990"
+    },
+    "fincore_source_hashes_before": {
+      "fincore/__init__.py": "dfb6a1f00e864911c6830c478cbc97418126654707ae0be9379dd20fbae90ea8",
+      "fincore/factor_analysis/__init__.py": "94a43d49f6cb3469b10828b5f8707185ef01df3a9ac3ff4083f754e39852cb90",
+      "fincore/factor_analysis/research.py": "MISSING",
+      "fincore/factor_analysis/workflows.py": "066b723698dbc5298c0183048104b9a89d0eb083c57494df67bd4112237df3b0",
+      "fincore/factor_analysis/analysis.py": "9ae04958331957b76666ddee1463a3a69ea994aeec620eb88b6139584b9a3c99",
+      "fincore/factor_analysis/data.py": "4e97c787e279c37740c8d84ae5b854b8c88f74670c04a099188b0b8b0b760d24",
+      "fincore/report/factor/html.py": "e79f2ec5af89fa4d6d1d98809db8247c0270ed7862f27c4bfe7902efde74dca9"
+    },
+    "root_relevant_status_before": "",
+    "fincore_relevant_status_before": "",
+    "fincore_public_entrypoint": "fincore.factor_analysis.research.evaluate_factor_research",
+    "root_source_hashes_after": {
+      "examples/backtest/025_factor_single/run.py": "c7dc924883497d66a146a7bf4f023491c95dede6992411b666833f344183183e",
+      "examples/backtest/026_factor_multi/run.py": "b177349b0dede2a1015122bd641fe88ab6acae535b69f322dc89315f0f6be8bd",
+      "backtrader/research/dataset.py": "8242ab159ffea927e5fd808f64e5744fe0c4802840207080010841ecd0dffcf0",
+      "backtrader/research/fincore_adapter.py": "986272ee2ecb17108709b246215d55bdcddd18fe727c1213060a6e4a9b9fbd97",
+      "backtrader/research/specs.py": "53e5db6c309d051e9d6213c8ab29f4a469d4b6882681c3c3d93f937a5f23c990"
+    },
+    "fincore_source_hashes_after": {
+      "fincore/__init__.py": "dfb6a1f00e864911c6830c478cbc97418126654707ae0be9379dd20fbae90ea8",
+      "fincore/factor_analysis/__init__.py": "94a43d49f6cb3469b10828b5f8707185ef01df3a9ac3ff4083f754e39852cb90",
+      "fincore/factor_analysis/research.py": "MISSING",
+      "fincore/factor_analysis/workflows.py": "066b723698dbc5298c0183048104b9a89d0eb083c57494df67bd4112237df3b0",
+      "fincore/factor_analysis/analysis.py": "9ae04958331957b76666ddee1463a3a69ea994aeec620eb88b6139584b9a3c99",
+      "fincore/factor_analysis/data.py": "4e97c787e279c37740c8d84ae5b854b8c88f74670c04a099188b0b8b0b760d24",
+      "fincore/report/factor/html.py": "e79f2ec5af89fa4d6d1d98809db8247c0270ed7862f27c4bfe7902efde74dca9"
+    },
+    "root_hash_drift": {},
+    "fincore_hash_drift": {},
+    "root_head_after": "cef3e8501f78e546c7b1a9a3cfd8402c6dd67595",
+    "fincore_head_after": "7679c71a59efc4762255d0df7ffd3ccf72865f4d",
+    "root_relevant_status_after": "",
+    "fincore_relevant_status_after": ""
+  },
+  "cases": [
+    {
+      "case": "025",
+      "symbols": 20,
+      "timeout_s": 45.0,
+      "status": "OK",
+      "return_code": 0,
+      "elapsed_s": 4.056734499987215,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/eval_export/025.jsonl"
+    },
+    {
+      "case": "026",
+      "symbols": 20,
+      "timeout_s": 45.0,
+      "status": "OK",
+      "return_code": 0,
+      "elapsed_s": 8.66543129197089,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/eval_export/026.jsonl"
+    }
+  ],
+  "events": {
+    "025": [
+      {
+        "case": "025",
+        "kind": "case_start",
+        "pid": 72659,
+        "time_unix": 1792647758.883615
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647758.883778
+      },
+      {
+        "cpu_s": 3.321764,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647760.994693,
+        "wall_s": 2.1108270830009133
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647760.99662
+      },
+      {
+        "cpu_s": 0.06052200000000019,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647761.06563,
+        "wall_s": 0.06889624998439103
+      },
+      {
+        "kind": "stage_start",
+        "stage": "rebuild_dataset",
+        "time_unix": 1792647761.0657432
+      },
+      {
+        "cpu_s": 1.5934039999999996,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "raw_factor_shape": [
+          4860,
+          1
+        ],
+        "stage": "rebuild_dataset",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647762.67068,
+        "wall_s": 1.6047507090261206
+      },
+      {
+        "kind": "stage_start",
+        "stage": "fincore_capability_probe",
+        "time_unix": 1792647762.67078
+      },
+      {
+        "capabilities": null,
+        "cpu_s": 0.010137000000000285,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "message": "install the committed fincore development build with factor-research support",
+          "type": "DependencyError"
+        },
+        "kind": "stage_end",
+        "module_path": null,
+        "stage": "fincore_capability_probe",
+        "status": "UNAVAILABLE",
+        "time_unix": 1792647762.684758,
+        "wall_s": 0.013928458036389202
+      },
+      {
+        "kind": "stage_start",
+        "stage": "evaluation_spec",
+        "time_unix": 1792647762.684839
+      },
+      {
+        "cpu_s": 2.9000000000500847e-05,
+        "error_type": "ModuleNotFoundError",
+        "kind": "stage_end",
+        "message": "No module named 'fincore.factor_analysis.research'",
+        "stage": "evaluation_spec",
+        "status": "ERROR",
+        "time_unix": 1792647762.684911,
+        "wall_s": 2.9374961741268635e-05
+      },
+      {
+        "kind": "stage_skipped",
+        "stage": "result_export",
+        "status": "SKIPPED_EVALUATION_FAILED_OR_NON_ACCEPTED",
+        "time_unix": 1792647762.684952
+      },
+      {
+        "cpu_s": 4.988647,
+        "kind": "case_end",
+        "status": "EVALUATION_NOT_EXPORTABLE",
+        "time_unix": 1792647762.684988,
+        "wall_s": 3.8013715829583816
+      }
+    ],
+    "026": [
+      {
+        "case": "026",
+        "kind": "case_start",
+        "pid": 72774,
+        "time_unix": 1792647762.946773
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647762.946892
+      },
+      {
+        "cpu_s": 3.163285,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647765.001194,
+        "wall_s": 2.054244708037004
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647765.0032241
+      },
+      {
+        "cpu_s": 0.05735800000000024,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647765.065046,
+        "wall_s": 0.06174695899244398
+      },
+      {
+        "kind": "stage_start",
+        "stage": "rebuild_dataset",
+        "time_unix": 1792647765.065195
+      },
+      {
+        "cpu_s": 5.428501000000001,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "raw_factor_shape": [
+          4860,
+          3
+        ],
+        "stage": "rebuild_dataset",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647771.2620301,
+        "wall_s": 6.1958742089918815
+      },
+      {
+        "kind": "stage_start",
+        "stage": "fincore_capability_probe",
+        "time_unix": 1792647771.26253
+      },
+      {
+        "capabilities": null,
+        "cpu_s": 0.00840300000000127,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "message": "install the committed fincore development build with factor-research support",
+          "type": "DependencyError"
+        },
+        "kind": "stage_end",
+        "module_path": null,
+        "stage": "fincore_capability_probe",
+        "status": "UNAVAILABLE",
+        "time_unix": 1792647771.271019,
+        "wall_s": 0.008402790990658104
+      },
+      {
+        "kind": "stage_start",
+        "stage": "evaluation_spec",
+        "time_unix": 1792647771.271104
+      },
+      {
+        "cpu_s": 0.00014299999999956015,
+        "error_type": "ModuleNotFoundError",
+        "kind": "stage_end",
+        "message": "No module named 'fincore.factor_analysis.research'",
+        "stage": "evaluation_spec",
+        "status": "ERROR",
+        "time_unix": 1792647771.271667,
+        "wall_s": 0.0005079999682493508
+      },
+      {
+        "kind": "stage_skipped",
+        "stage": "result_export",
+        "status": "SKIPPED_EVALUATION_FAILED_OR_NON_ACCEPTED",
+        "time_unix": 1792647771.27189
+      },
+      {
+        "cpu_s": 8.661545,
+        "kind": "case_end",
+        "status": "EVALUATION_NOT_EXPORTABLE",
+        "time_unix": 1792647771.2722151,
+        "wall_s": 8.32541491696611
+      }
+    ]
+  },
+  "total_elapsed_s": 12.897263124992605
+}

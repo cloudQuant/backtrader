@@ -1,0 +1,5307 @@
+{
+  "metadata": {
+    "cwd": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "head": "37d3fcabe81df459a3b7eb4d72df5d793ed14016",
+    "branch": "dev",
+    "python": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+    "python_executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "platform": "darwin",
+    "git_status_before_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/git_status_full_before.txt",
+    "source_dirty_at_start": true,
+    "source_status_before_relevant": "M  backtrader/research/__init__.py\nM  backtrader/research/dataset.py\nM  backtrader/research/factor_indicator.py\nM  backtrader/research/factor_strategy.py\nM  backtrader/research/field_validation.py\nM  backtrader/research/operators.py\nM  backtrader/research/specs.py",
+    "hashes_before": {
+      "examples/backtest/025_factor_single/run.py": "c7dc924883497d66a146a7bf4f023491c95dede6992411b666833f344183183e",
+      "examples/backtest/026_factor_multi/run.py": "b177349b0dede2a1015122bd641fe88ab6acae535b69f322dc89315f0f6be8bd",
+      "examples/backtest/027_alpha003_panel_acceptance/run.py": "d70309d9ac36337382622d6401cb657767d2d94c5ecd4e3e5643a000e0c97d87",
+      "examples/backtest/025_factor_single/config.yaml": "e695028b19814f84ea9f7feda601998fd1611502c62ca35db93eab116c1476aa",
+      "examples/backtest/026_factor_multi/config.yaml": "451a6dc7da347ab447bfed9dbbe3dbc4e49459103fba639b93a3aaeecc577b0c",
+      "examples/backtest/027_alpha003_panel_acceptance/config.yaml": "46caff55571ad27011eaa6fb0476d337fddc9327677d266e338720a262d8043f",
+      "tests/datas/a_stocks/_metadata/manifest.json": "72e99dd547a86102abaf1396fd72b7c10ef7ca4f1a75698d1116f29b950d53b2",
+      "tests/datas/a_stocks/_metadata/observed_calendar.csv": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1",
+      "backtrader/errors.py": "348fff76a129d688d590d55761b6f2a05c9f2d977e4079c03aa0fd616e0ec1a0",
+      "backtrader/research/__init__.py": "2979ce3cfc1ab0f517b5b23feda8616574031d70038d6e06b88f4d06445fceba",
+      "backtrader/research/inputs.py": "3f60557230cc3a4381aeb610530a9f450352cc0117cec6aa7b67b455568952e5",
+      "backtrader/research/factor_strategy.py": "3d8e9da7a431823865ebb25044911eb57be8de7226379912caf1be879380e44e",
+      "backtrader/research/factor_indicator.py": "fae9a708cdb3224dcc5508508afd53a5857a1becbd051cc7f4faa54ec68b48b5",
+      "backtrader/research/dataset.py": "8242ab159ffea927e5fd808f64e5744fe0c4802840207080010841ecd0dffcf0",
+      "backtrader/research/operators.py": "b1710354477a71f571046f30e5132ed1226b685a0ee150b917164092823f03d1",
+      "backtrader/research/specs.py": "53e5db6c309d051e9d6213c8ab29f4a469d4b6882681c3c3d93f937a5f23c990",
+      "backtrader/research/field_validation.py": "133518f5c7aa9f2e27606cdb8753cef41766f5daa3fbcb5d4037fed00d1d8cf1",
+      "backtrader/research/factor_report.py": "76aa17fdf081c239b2eb82130e69c74c58e197c0d369060ddeda3d5f4fbd7574",
+      "backtrader/indicator.py": "a6c0238bbd135002733465ca1988f23b3805ec8293f048da6c22a8134e4f0619"
+    },
+    "total_budget_s": 300.0,
+    "case_timeout_baseline_s": 45,
+    "case_timeout_profile_s": 60,
+    "stock_sizes": [
+      5,
+      20,
+      50
+    ],
+    "grid_rows_expected": 243,
+    "profile_stages": [
+      "native_collection",
+      "factor_report"
+    ],
+    "report_scope": "backtrader.research.write_factor_report only; evaluation/charts excluded",
+    "total_elapsed_s": 257.0582862080191,
+    "hashes_after": {
+      "examples/backtest/025_factor_single/run.py": "c7dc924883497d66a146a7bf4f023491c95dede6992411b666833f344183183e",
+      "examples/backtest/026_factor_multi/run.py": "b177349b0dede2a1015122bd641fe88ab6acae535b69f322dc89315f0f6be8bd",
+      "examples/backtest/027_alpha003_panel_acceptance/run.py": "d70309d9ac36337382622d6401cb657767d2d94c5ecd4e3e5643a000e0c97d87",
+      "examples/backtest/025_factor_single/config.yaml": "e695028b19814f84ea9f7feda601998fd1611502c62ca35db93eab116c1476aa",
+      "examples/backtest/026_factor_multi/config.yaml": "451a6dc7da347ab447bfed9dbbe3dbc4e49459103fba639b93a3aaeecc577b0c",
+      "examples/backtest/027_alpha003_panel_acceptance/config.yaml": "46caff55571ad27011eaa6fb0476d337fddc9327677d266e338720a262d8043f",
+      "tests/datas/a_stocks/_metadata/manifest.json": "72e99dd547a86102abaf1396fd72b7c10ef7ca4f1a75698d1116f29b950d53b2",
+      "tests/datas/a_stocks/_metadata/observed_calendar.csv": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1",
+      "backtrader/errors.py": "348fff76a129d688d590d55761b6f2a05c9f2d977e4079c03aa0fd616e0ec1a0",
+      "backtrader/research/__init__.py": "2979ce3cfc1ab0f517b5b23feda8616574031d70038d6e06b88f4d06445fceba",
+      "backtrader/research/inputs.py": "3f60557230cc3a4381aeb610530a9f450352cc0117cec6aa7b67b455568952e5",
+      "backtrader/research/factor_strategy.py": "3d8e9da7a431823865ebb25044911eb57be8de7226379912caf1be879380e44e",
+      "backtrader/research/factor_indicator.py": "fae9a708cdb3224dcc5508508afd53a5857a1becbd051cc7f4faa54ec68b48b5",
+      "backtrader/research/dataset.py": "8242ab159ffea927e5fd808f64e5744fe0c4802840207080010841ecd0dffcf0",
+      "backtrader/research/operators.py": "b1710354477a71f571046f30e5132ed1226b685a0ee150b917164092823f03d1",
+      "backtrader/research/specs.py": "53e5db6c309d051e9d6213c8ab29f4a469d4b6882681c3c3d93f937a5f23c990",
+      "backtrader/research/field_validation.py": "133518f5c7aa9f2e27606cdb8753cef41766f5daa3fbcb5d4037fed00d1d8cf1",
+      "backtrader/research/factor_report.py": "76aa17fdf081c239b2eb82130e69c74c58e197c0d369060ddeda3d5f4fbd7574",
+      "backtrader/indicator.py": "a6c0238bbd135002733465ca1988f23b3805ec8293f048da6c22a8134e4f0619"
+    },
+    "hash_drift": {},
+    "git_status_relevant_after": "",
+    "git_status_full_after_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/git_status_full_after.txt",
+    "coordinator_elapsed_s": 237.14216570800636
+  },
+  "cases": [
+    {
+      "case_id": "025-5-baseline",
+      "runner": "025",
+      "symbols": 5,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 5.73548266699072,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-5-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-5-baseline.stdout.txt"
+    },
+    {
+      "case_id": "025-20-baseline",
+      "runner": "025",
+      "symbols": 20,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 6.948254790971987,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-baseline.stdout.txt"
+    },
+    {
+      "case_id": "025-50-baseline",
+      "runner": "025",
+      "symbols": 50,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 10.082406042027287,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-50-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-50-baseline.stdout.txt"
+    },
+    {
+      "case_id": "026-5-baseline",
+      "runner": "026",
+      "symbols": 5,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 14.144298500032164,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline.stdout.txt"
+    },
+    {
+      "case_id": "026-20-baseline",
+      "runner": "026",
+      "symbols": 20,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 25.061675667006057,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline.stdout.txt"
+    },
+    {
+      "case_id": "026-50-baseline",
+      "runner": "026",
+      "symbols": 50,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 27.785057250002865,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline.stdout.txt"
+    },
+    {
+      "case_id": "027-5-baseline",
+      "runner": "027",
+      "symbols": 5,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 4.751059916045051,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-5-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-5-baseline.stdout.txt"
+    },
+    {
+      "case_id": "027-20-baseline",
+      "runner": "027",
+      "symbols": 20,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 11.089660000056028,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-baseline.stdout.txt"
+    },
+    {
+      "case_id": "027-50-baseline",
+      "runner": "027",
+      "symbols": 50,
+      "mode": "baseline",
+      "status": "OK",
+      "timeout_s": 45,
+      "elapsed_s": 19.77443441597279,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-50-baseline.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-50-baseline.stdout.txt"
+    },
+    {
+      "case_id": "025-20-profile",
+      "runner": "025",
+      "symbols": 20,
+      "mode": "profile",
+      "status": "OK",
+      "timeout_s": 60,
+      "elapsed_s": 21.135581457987428,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile.stdout.txt"
+    },
+    {
+      "case_id": "026-20-profile",
+      "runner": "026",
+      "symbols": 20,
+      "mode": "profile",
+      "status": "OK",
+      "timeout_s": 60,
+      "elapsed_s": 55.141932416008785,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile.stdout.txt"
+    },
+    {
+      "case_id": "027-20-profile",
+      "runner": "027",
+      "symbols": 20,
+      "mode": "profile",
+      "status": "OK",
+      "timeout_s": 60,
+      "elapsed_s": 34.99649270798545,
+      "return_code": 0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile.jsonl",
+      "stdout_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile.stdout.txt"
+    },
+    {
+      "case_id": "025-100-baseline",
+      "runner": "025",
+      "symbols": 100,
+      "mode": "baseline",
+      "status": "OK",
+      "return_code": 0,
+      "elapsed_s": 19.916120500012767,
+      "timeout_s": 45.0,
+      "events_path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-100-baseline.jsonl"
+    }
+  ],
+  "events": {
+    "025-5-baseline": [
+      {
+        "case_id": "025-5-baseline",
+        "kind": "case_start",
+        "pid": 50959,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647234.169735
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647234.170155
+      },
+      {
+        "cpu_s": 3.147914,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647236.5959291,
+        "wall_s": 2.425538624986075
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647236.597905
+      },
+      {
+        "cpu_s": 0.0377970000000003,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 5,
+        "time_unix": 1792647236.6398778,
+        "wall_s": 0.04144466697471216
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647236.640048
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.005523999999999862,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647236.65869,
+        "wall_s": 0.00592500000493601
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.005071000000000048,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647236.6641212,
+        "wall_s": 0.005076249944977462
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.004139000000000337,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647236.668413,
+        "wall_s": 0.004138834017794579
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.004132999999999942,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647236.67269,
+        "wall_s": 0.0041773340199142694
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.005295999999999967,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647236.678305,
+        "wall_s": 0.0054779170313850045
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.09698200000000012,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647236.779586,
+        "wall_s": 0.10112674999982119
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.34738000000000024,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647237.166538,
+        "wall_s": 0.3532619579927996
+      },
+      {
+        "cpu_s": 0.5121500000000001,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          1215,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 5,
+        "time_unix": 1792647237.166815,
+        "wall_s": 0.5266546669881791
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647237.166892
+      },
+      {
+        "bytes": 62761,
+        "cpu_s": 0.005110999999999866,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-5-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647237.172276,
+        "wall_s": 0.005321416014339775
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647237.172352
+      },
+      {
+        "cpu_s": 2.3085700000000005,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1115365,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-5-baseline_artifacts/factor_report_close_ma.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647239.5324569,
+        "wall_s": 2.360039541963488
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647239.532685,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 0.09698200000000012,
+            "wall_s": 0.10112674999982119
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 0.34738000000000024,
+            "wall_s": 0.3532619579927996
+          },
+          "prealign_bars": {
+            "calls": 5,
+            "cpu_s": 0.024163000000000157,
+            "wall_s": 0.024795335019007325
+          }
+        }
+      },
+      {
+        "cpu_s": 6.0145230000000005,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647239.532753,
+        "wall_s": 5.362597667030059
+      }
+    ],
+    "025-20-baseline": [
+      {
+        "case_id": "025-20-baseline",
+        "kind": "case_start",
+        "pid": 51278,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647239.8848221
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647239.884984
+      },
+      {
+        "cpu_s": 3.390949,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647241.9977732,
+        "wall_s": 2.1126951670157723
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647241.999161
+      },
+      {
+        "cpu_s": 0.059188999999999936,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647242.0594718,
+        "wall_s": 0.06017766596050933
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647242.059718
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.004307000000000283,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.0699131,
+        "wall_s": 0.004306749964598566
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.0047719999999999985,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.07489,
+        "wall_s": 0.004841917019803077
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.004194000000000031,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.07927,
+        "wall_s": 0.004202666983474046
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.0038370000000003124,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.083209,
+        "wall_s": 0.0038382920320145786
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.004299000000000053,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.087615,
+        "wall_s": 0.004317375016398728
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.005042999999999687,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.092869,
+        "wall_s": 0.005131999962031841
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.0043279999999996654,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.097353,
+        "wall_s": 0.004330500029027462
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.0038809999999998013,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.101363,
+        "wall_s": 0.0038811249542050064
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.004126999999999992,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.1056268,
+        "wall_s": 0.004158792027737945
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.004565000000000374,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.1104078,
+        "wall_s": 0.004658833961002529
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.003980000000000317,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.114508,
+        "wall_s": 0.003981208021286875
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.003642000000000145,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.1182332,
+        "wall_s": 0.003642333031166345
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.003924999999999734,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.122247,
+        "wall_s": 0.00393874995643273
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.004218000000000277,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.126663,
+        "wall_s": 0.004308167030103505
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.003854000000000024,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.130674,
+        "wall_s": 0.0038646250031888485
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.0037210000000000854,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.134507,
+        "wall_s": 0.0037200420047156513
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.0038999999999997925,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.138556,
+        "wall_s": 0.003958999994210899
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.004478000000000204,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.1432362,
+        "wall_s": 0.0045726249809376895
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.004158000000000328,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.147527,
+        "wall_s": 0.004157041956204921
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.0038089999999999513,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647242.151428,
+        "wall_s": 0.0038083340041339397
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.3756900000000005,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647242.570723,
+        "wall_s": 0.41915699996752664
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.2696099999999992,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647243.9882271,
+        "wall_s": 1.3007198330014944
+      },
+      {
+        "cpu_s": 1.8509400000000005,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          4860,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647243.9886441,
+        "wall_s": 1.9287167910370044
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647243.9887328
+      },
+      {
+        "bytes": 253107,
+        "cpu_s": 0.017558000000000185,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647244.00735,
+        "wall_s": 0.01854233304038644
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647244.0075362
+      },
+      {
+        "cpu_s": 2.501639999999999,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1118638,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-baseline_artifacts/factor_report_close_ma.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647246.5561159,
+        "wall_s": 2.548484582977835
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647246.556227,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 0.3756900000000005,
+            "wall_s": 0.41915699996752664
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 1.2696099999999992,
+            "wall_s": 1.3007198330014944
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.08303800000000106,
+            "wall_s": 0.08362037793267518
+          }
+        }
+      },
+      {
+        "cpu_s": 7.822895,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647246.5562859,
+        "wall_s": 6.671296540996991
+      }
+    ],
+    "025-50-baseline": [
+      {
+        "case_id": "025-50-baseline",
+        "kind": "case_start",
+        "pid": 51678,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647246.8094661
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647246.809661
+      },
+      {
+        "cpu_s": 3.3274139999999996,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647248.922873,
+        "wall_s": 2.1129020000225864
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647248.925397
+      },
+      {
+        "cpu_s": 0.13403300000000007,
+        "feed_rows_max": 243,
+        "feed_rows_min": 201,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 50,
+        "time_unix": 1792647249.0689542,
+        "wall_s": 0.14340229198569432
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647249.069115
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.00533299999999981,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.081971,
+        "wall_s": 0.0053692919900640845
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.0043120000000000935,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.086498,
+        "wall_s": 0.004342000000178814
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.005579000000000001,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.093089,
+        "wall_s": 0.0063935830257833
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.006149000000000182,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.099631,
+        "wall_s": 0.006202291988302022
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.007619000000000042,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.1080918,
+        "wall_s": 0.008312499965541065
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.0065990000000000215,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.115953,
+        "wall_s": 0.0073184160282835364
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.004226999999999759,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.12033,
+        "wall_s": 0.004226375021971762
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.00611000000000006,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.1270242,
+        "wall_s": 0.006557292013894767
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.0043560000000000265,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.1315799,
+        "wall_s": 0.004381833015941083
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.004437999999999942,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.1361868,
+        "wall_s": 0.0044473750167526305
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.00843000000000016,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.145508,
+        "wall_s": 0.009016667027026415
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.006609000000000087,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.15264,
+        "wall_s": 0.006737000017892569
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.006622000000000128,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.159942,
+        "wall_s": 0.00710933399386704
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.004534999999999734,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.164715,
+        "wall_s": 0.004577583982609212
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.005946999999999925,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.170881,
+        "wall_s": 0.005967334029264748
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.007541999999999938,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.17907,
+        "wall_s": 0.007986082986462861
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.00627000000000022,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.1856132,
+        "wall_s": 0.00630612502573058
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.004774999999999974,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.190658,
+        "wall_s": 0.004859208012931049
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.004774000000000278,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.19586,
+        "wall_s": 0.0048187500215135515
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.0048720000000002095,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2009149,
+        "wall_s": 0.004887166025582701
+      },
+      {
+        "call": 21,
+        "cpu_s": 0.005360000000000031,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.206687,
+        "wall_s": 0.005390000005718321
+      },
+      {
+        "call": 22,
+        "cpu_s": 0.004642000000000035,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.211885,
+        "wall_s": 0.004776125017087907
+      },
+      {
+        "call": 23,
+        "cpu_s": 0.004612999999999978,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2167308,
+        "wall_s": 0.004669832997024059
+      },
+      {
+        "call": 24,
+        "cpu_s": 0.004786999999999875,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.221733,
+        "wall_s": 0.004865833965595812
+      },
+      {
+        "call": 25,
+        "cpu_s": 0.005762999999999963,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.227993,
+        "wall_s": 0.006109124980866909
+      },
+      {
+        "call": 26,
+        "cpu_s": 0.005015999999999909,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.233296,
+        "wall_s": 0.005087500030640513
+      },
+      {
+        "call": 27,
+        "cpu_s": 0.004919999999999813,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.23841,
+        "wall_s": 0.0049950830289162695
+      },
+      {
+        "call": 28,
+        "cpu_s": 0.005635999999999974,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.244721,
+        "wall_s": 0.006102499959524721
+      },
+      {
+        "call": 29,
+        "cpu_s": 0.004591000000000012,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.249632,
+        "wall_s": 0.0046175410388968885
+      },
+      {
+        "call": 30,
+        "cpu_s": 0.0040599999999999525,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2538571,
+        "wall_s": 0.004059875034727156
+      },
+      {
+        "call": 31,
+        "cpu_s": 0.00471599999999972,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.258883,
+        "wall_s": 0.004831333004403859
+      },
+      {
+        "call": 32,
+        "cpu_s": 0.0042480000000000295,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.263322,
+        "wall_s": 0.004278708016499877
+      },
+      {
+        "call": 33,
+        "cpu_s": 0.004016999999999715,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2674508,
+        "wall_s": 0.0040162919904105365
+      },
+      {
+        "call": 34,
+        "cpu_s": 0.0039519999999999555,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2714849,
+        "wall_s": 0.003950624959543347
+      },
+      {
+        "call": 35,
+        "cpu_s": 0.0046200000000000685,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.276549,
+        "wall_s": 0.004969957983121276
+      },
+      {
+        "call": 36,
+        "cpu_s": 0.004283000000000037,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2810812,
+        "wall_s": 0.004306124988943338
+      },
+      {
+        "call": 37,
+        "cpu_s": 0.005170000000000119,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.286507,
+        "wall_s": 0.005217999976594001
+      },
+      {
+        "call": 38,
+        "cpu_s": 0.005247000000000224,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.2919471,
+        "wall_s": 0.005282833997625858
+      },
+      {
+        "call": 39,
+        "cpu_s": 0.0439449999999999,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.337155,
+        "wall_s": 0.04505595797672868
+      },
+      {
+        "call": 40,
+        "cpu_s": 0.0049640000000001905,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.342656,
+        "wall_s": 0.0052860419964417815
+      },
+      {
+        "call": 41,
+        "cpu_s": 0.004100000000000215,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.346911,
+        "wall_s": 0.004100208054296672
+      },
+      {
+        "call": 42,
+        "cpu_s": 0.004157999999999884,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.351278,
+        "wall_s": 0.004269500030204654
+      },
+      {
+        "call": 43,
+        "cpu_s": 0.005381000000000302,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.356936,
+        "wall_s": 0.0054989170166663826
+      },
+      {
+        "call": 44,
+        "cpu_s": 0.004502000000000006,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.361923,
+        "wall_s": 0.004668249981477857
+      },
+      {
+        "call": 45,
+        "cpu_s": 0.004001999999999839,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.366085,
+        "wall_s": 0.004028874973300844
+      },
+      {
+        "call": 46,
+        "cpu_s": 0.0043919999999997295,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.370615,
+        "wall_s": 0.00442716694669798
+      },
+      {
+        "call": 47,
+        "cpu_s": 0.004529999999999923,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.375581,
+        "wall_s": 0.004809291975107044
+      },
+      {
+        "call": 48,
+        "cpu_s": 0.004018000000000299,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.3797681,
+        "wall_s": 0.004050042014569044
+      },
+      {
+        "call": 49,
+        "cpu_s": 0.004058000000000117,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.383919,
+        "wall_s": 0.004057499987538904
+      },
+      {
+        "call": 50,
+        "cpu_s": 0.0039349999999998,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647249.387947,
+        "wall_s": 0.0039471249911002815
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.7376800000000006,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647250.136566,
+        "wall_s": 0.7485046249930747
+      },
+      {
+        "call": 1,
+        "cpu_s": 3.121727,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647253.669836,
+        "wall_s": 3.189370375010185
+      },
+      {
+        "cpu_s": 4.504885999999999,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          12150,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 50,
+        "time_unix": 1792647253.6714802,
+        "wall_s": 4.602145750017371
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647253.671604
+      },
+      {
+        "bytes": 633569,
+        "cpu_s": 0.04094799999999843,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-50-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647253.714011,
+        "wall_s": 0.04221620794851333
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647253.714141
+      },
+      {
+        "cpu_s": 2.7489229999999996,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1118909,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-50-baseline_artifacts/factor_report_close_ma.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647256.547821,
+        "wall_s": 2.8336116669815965
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647256.547914,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 0.7376800000000006,
+            "wall_s": 0.7485046249930747
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 3.121727,
+            "wall_s": 3.189370375010185
+          },
+          "prealign_bars": {
+            "calls": 50,
+            "cpu_s": 0.2927240000000002,
+            "wall_s": 0.30154237610986456
+          }
+        }
+      },
+      {
+        "cpu_s": 10.759745,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647256.548042,
+        "wall_s": 9.738374417007435
+      }
+    ],
+    "026-5-baseline": [
+      {
+        "case_id": "026-5-baseline",
+        "kind": "case_start",
+        "pid": 52391,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647256.898664
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647256.898827
+      },
+      {
+        "cpu_s": 3.5648180000000003,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647259.631029,
+        "wall_s": 2.732104084047023
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647259.6333141
+      },
+      {
+        "cpu_s": 0.034018000000000104,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 5,
+        "time_unix": 1792647259.6688268,
+        "wall_s": 0.035387499956414104
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647259.6690218
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.004665999999999837,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647259.689475,
+        "wall_s": 0.0046971249976195395
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.005845999999999574,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647259.696158,
+        "wall_s": 0.006485083024017513
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.004524999999999668,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647259.700897,
+        "wall_s": 0.004552958998829126
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.003997000000000028,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647259.705075,
+        "wall_s": 0.004022957989946008
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.004973999999999812,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647259.710291,
+        "wall_s": 0.00508141698082909
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.30527499999999996,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647260.0203562,
+        "wall_s": 0.3098451669793576
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.0979999999999999,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647261.319577,
+        "wall_s": 1.1825313749723136
+      },
+      {
+        "cpu_s": 1.5529129999999998,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          1215,
+          3
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 5,
+        "time_unix": 1792647261.3202791,
+        "wall_s": 1.6508544170064852
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647261.320488
+      },
+      {
+        "bytes": 105242,
+        "cpu_s": 0.00759700000000052,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647261.328872,
+        "wall_s": 0.008231041952967644
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647261.328964
+      },
+      {
+        "cpu_s": 8.685385,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1115362,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline_artifacts/factor_report_close_ma.html"
+          },
+          {
+            "bytes": 1114956,
+            "factor": "roc",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline_artifacts/factor_report_roc.html"
+          },
+          {
+            "bytes": 1117071,
+            "factor": "kdj_j",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-5-baseline_artifacts/factor_report_kdj_j.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647270.7517178,
+        "wall_s": 9.422692292020656
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647270.75239,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 0.30527499999999996,
+            "wall_s": 0.3098451669793576
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 1.0979999999999999,
+            "wall_s": 1.1825313749723136
+          },
+          "prealign_bars": {
+            "calls": 5,
+            "cpu_s": 0.02400799999999892,
+            "wall_s": 0.024839541991241276
+          }
+        }
+      },
+      {
+        "cpu_s": 13.848357,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647270.7524989,
+        "wall_s": 13.853659000014886
+      }
+    ],
+    "026-20-baseline": [
+      {
+        "case_id": "026-20-baseline",
+        "kind": "case_start",
+        "pid": 53199,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647271.107557
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647271.108352
+      },
+      {
+        "cpu_s": 3.9494529999999997,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647273.9064362,
+        "wall_s": 2.797845209017396
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647273.910306
+      },
+      {
+        "cpu_s": 0.09399599999999975,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647274.0128992,
+        "wall_s": 0.10243745794286951
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647274.013168
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.0063990000000000435,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.0396988,
+        "wall_s": 0.0064627500250935555
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.007399999999999629,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.047717,
+        "wall_s": 0.007802625012118369
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.006325000000000358,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.054344,
+        "wall_s": 0.006378333026077598
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.0067269999999997054,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.0615098,
+        "wall_s": 0.006968625006265938
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.006420999999999566,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.0681548,
+        "wall_s": 0.006451375025790185
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.006034000000000539,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.074532,
+        "wall_s": 0.006209416955243796
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.006895999999999347,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.0817668,
+        "wall_s": 0.007008875021710992
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.005926000000000542,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.0879738,
+        "wall_s": 0.00599283300107345
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.007005000000000372,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.095277,
+        "wall_s": 0.007129999983590096
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.005479000000000234,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.100986,
+        "wall_s": 0.005510041024535894
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.005326000000000164,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.106519,
+        "wall_s": 0.005349665996618569
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.0071989999999999554,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.114152,
+        "wall_s": 0.007389915990643203
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.005955000000000155,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.120384,
+        "wall_s": 0.00604875001590699
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.006015000000000548,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.127311,
+        "wall_s": 0.0067417919635772705
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.005317999999999934,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.132847,
+        "wall_s": 0.00537320802686736
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.005015000000000214,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.13802,
+        "wall_s": 0.005051749991253018
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.005904000000000131,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.144215,
+        "wall_s": 0.0060718749882653356
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.005206000000000266,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.149607,
+        "wall_s": 0.005227625020779669
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.005685999999999858,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.155454,
+        "wall_s": 0.005710666999220848
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.005787999999999904,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647274.161684,
+        "wall_s": 0.00606458296533674
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.551265,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647275.7862148,
+        "wall_s": 1.624267624982167
+      },
+      {
+        "call": 1,
+        "cpu_s": 5.358889,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647281.7622411,
+        "wall_s": 5.506381208950188
+      },
+      {
+        "cpu_s": 7.513819,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          4860,
+          3
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647281.7635012,
+        "wall_s": 7.749922874965705
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647281.763635
+      },
+      {
+        "bytes": 426858,
+        "cpu_s": 0.033623999999999654,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647281.798126,
+        "wall_s": 0.034401250013615936
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647281.7982578
+      },
+      {
+        "cpu_s": 12.310864,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1118635,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline_artifacts/factor_report_close_ma.html"
+          },
+          {
+            "bytes": 1118462,
+            "factor": "roc",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline_artifacts/factor_report_roc.html"
+          },
+          {
+            "bytes": 1120645,
+            "factor": "kdj_j",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-baseline_artifacts/factor_report_kdj_j.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647295.707912,
+        "wall_s": 13.909567624970805
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647295.7082508,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 1.551265,
+            "wall_s": 1.624267624982167
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 5.358889,
+            "wall_s": 5.506381208950188
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.12202400000000146,
+            "wall_s": 0.12494470603996888
+          }
+        }
+      },
+      {
+        "cpu_s": 23.907156,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647295.708349,
+        "wall_s": 24.599977334029973
+      }
+    ],
+    "026-50-baseline": [
+      {
+        "case_id": "026-50-baseline",
+        "kind": "case_start",
+        "pid": 54330,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647296.197505
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647296.1977758
+      },
+      {
+        "cpu_s": 3.873229,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647299.471736,
+        "wall_s": 3.2738001249963418
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647299.4743521
+      },
+      {
+        "cpu_s": 0.13409899999999997,
+        "feed_rows_max": 243,
+        "feed_rows_min": 201,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 50,
+        "time_unix": 1792647299.6095822,
+        "wall_s": 0.13509595801588148
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647299.6097898
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.0054059999999998,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.631988,
+        "wall_s": 0.005406041978858411
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.005043999999999826,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.6371741,
+        "wall_s": 0.005044166988227516
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.00507799999999925,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.6424,
+        "wall_s": 0.005101374990772456
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.005087999999999759,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.647601,
+        "wall_s": 0.005087250028736889
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.004942000000000668,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.652647,
+        "wall_s": 0.004942083032801747
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.004947000000000479,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.657693,
+        "wall_s": 0.004955500015057623
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.005067000000000377,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.662852,
+        "wall_s": 0.00506679096724838
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.005498000000000225,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.6684449,
+        "wall_s": 0.005497541045770049
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.00480500000000017,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.673336,
+        "wall_s": 0.0048057090025395155
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.005017999999999745,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.678435,
+        "wall_s": 0.005023958045057952
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.004941000000000528,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.683485,
+        "wall_s": 0.0049410840147174895
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.0045320000000002025,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.688116,
+        "wall_s": 0.004532958031632006
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.004677000000000042,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.6928918,
+        "wall_s": 0.004697041993495077
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.004655999999999771,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.697653,
+        "wall_s": 0.004656875040382147
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.004589000000000176,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.702337,
+        "wall_s": 0.004588291980326176
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.004979000000000511,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.707412,
+        "wall_s": 0.004996415984351188
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.004538000000000153,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.712039,
+        "wall_s": 0.004538332985248417
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.0045120000000000715,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.716627,
+        "wall_s": 0.004512624989729375
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.0046720000000002315,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.721371,
+        "wall_s": 0.004671583999879658
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.0045840000000003656,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.726036,
+        "wall_s": 0.004589541000314057
+      },
+      {
+        "call": 21,
+        "cpu_s": 0.004979000000000511,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.731157,
+        "wall_s": 0.004977750009857118
+      },
+      {
+        "call": 22,
+        "cpu_s": 0.004577999999999527,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.7358239,
+        "wall_s": 0.0045773329911753535
+      },
+      {
+        "call": 23,
+        "cpu_s": 0.004525999999999364,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.740437,
+        "wall_s": 0.004526291973888874
+      },
+      {
+        "call": 24,
+        "cpu_s": 0.004662999999999862,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.745182,
+        "wall_s": 0.004666917026042938
+      },
+      {
+        "call": 25,
+        "cpu_s": 0.004569000000000045,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.749843,
+        "wall_s": 0.004568874952383339
+      },
+      {
+        "call": 26,
+        "cpu_s": 0.004534000000000482,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.754477,
+        "wall_s": 0.004535124986432493
+      },
+      {
+        "call": 27,
+        "cpu_s": 0.004538000000000153,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.759112,
+        "wall_s": 0.0045451250043697655
+      },
+      {
+        "call": 28,
+        "cpu_s": 0.004606000000000776,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.763814,
+        "wall_s": 0.004606709000654519
+      },
+      {
+        "call": 29,
+        "cpu_s": 0.004566999999999766,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.768474,
+        "wall_s": 0.0045661660260520875
+      },
+      {
+        "call": 30,
+        "cpu_s": 0.004526000000000252,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.7730749,
+        "wall_s": 0.004526333010289818
+      },
+      {
+        "call": 31,
+        "cpu_s": 0.004894000000000176,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.778101,
+        "wall_s": 0.004942249972373247
+      },
+      {
+        "call": 32,
+        "cpu_s": 0.005116999999999372,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.783372,
+        "wall_s": 0.0051532500074245036
+      },
+      {
+        "call": 33,
+        "cpu_s": 0.03758399999999984,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.8211179,
+        "wall_s": 0.03762495896080509
+      },
+      {
+        "call": 34,
+        "cpu_s": 0.005230000000000068,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.826603,
+        "wall_s": 0.005258749995846301
+      },
+      {
+        "call": 35,
+        "cpu_s": 0.004820999999999742,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.831588,
+        "wall_s": 0.00482158298837021
+      },
+      {
+        "call": 36,
+        "cpu_s": 0.00465400000000038,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.8363578,
+        "wall_s": 0.004654417047277093
+      },
+      {
+        "call": 37,
+        "cpu_s": 0.004667999999999672,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.8411362,
+        "wall_s": 0.004670665948651731
+      },
+      {
+        "call": 38,
+        "cpu_s": 0.0047519999999998674,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.8460128,
+        "wall_s": 0.00475224998081103
+      },
+      {
+        "call": 39,
+        "cpu_s": 0.004586000000000645,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.850703,
+        "wall_s": 0.004585249989759177
+      },
+      {
+        "call": 40,
+        "cpu_s": 0.004586999999999897,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.855377,
+        "wall_s": 0.004586666997056454
+      },
+      {
+        "call": 41,
+        "cpu_s": 0.0046759999999999025,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.860182,
+        "wall_s": 0.004722749989014119
+      },
+      {
+        "call": 42,
+        "cpu_s": 0.004731000000000485,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.865013,
+        "wall_s": 0.0047350840177387
+      },
+      {
+        "call": 43,
+        "cpu_s": 0.004726999999999926,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.869848,
+        "wall_s": 0.004727000021375716
+      },
+      {
+        "call": 44,
+        "cpu_s": 0.004635000000000389,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.874593,
+        "wall_s": 0.0046413749805651605
+      },
+      {
+        "call": 45,
+        "cpu_s": 0.0047719999999999985,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.879458,
+        "wall_s": 0.00477208400843665
+      },
+      {
+        "call": 46,
+        "cpu_s": 0.004977999999999483,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.88452,
+        "wall_s": 0.004977457982022315
+      },
+      {
+        "call": 47,
+        "cpu_s": 0.004542999999999964,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.8891819,
+        "wall_s": 0.00454420899040997
+      },
+      {
+        "call": 48,
+        "cpu_s": 0.004557000000000144,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.893823,
+        "wall_s": 0.004560917033813894
+      },
+      {
+        "call": 49,
+        "cpu_s": 0.004843000000000153,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.898765,
+        "wall_s": 0.004842250025831163
+      },
+      {
+        "call": 50,
+        "cpu_s": 0.004636000000000529,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647299.903489,
+        "wall_s": 0.004636458004824817
+      },
+      {
+        "call": 1,
+        "cpu_s": 2.9511529999999997,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647302.873473,
+        "wall_s": 2.9698832090361975
+      },
+      {
+        "call": 1,
+        "cpu_s": 11.094983000000001,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647315.220172,
+        "wall_s": 11.386033584014513
+      },
+      {
+        "cpu_s": 15.282798999999997,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          12150,
+          3
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 50,
+        "time_unix": 1792647315.222416,
+        "wall_s": 15.612140959012322
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647315.222525
+      },
+      {
+        "bytes": 1068894,
+        "cpu_s": 0.0643659999999997,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647315.287385,
+        "wall_s": 0.06477404199540615
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647315.287509
+      },
+      {
+        "cpu_s": 8.242939,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1118906,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline_artifacts/factor_report_close_ma.html"
+          },
+          {
+            "bytes": 1118649,
+            "factor": "roc",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline_artifacts/factor_report_roc.html"
+          },
+          {
+            "bytes": 1120754,
+            "factor": "kdj_j",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-50-baseline_artifacts/factor_report_kdj_j.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647323.584403,
+        "wall_s": 8.296680665982421
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647323.5845308,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 2.9511529999999997,
+            "wall_s": 2.9698832090361975
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 11.094983000000001,
+            "wall_s": 11.386033584014513
+          },
+          "prealign_bars": {
+            "calls": 50,
+            "cpu_s": 0.2716500000000037,
+            "wall_s": 0.2719614180386998
+          }
+        }
+      },
+      {
+        "cpu_s": 27.601481,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647323.58461,
+        "wall_s": 27.38681012496818
+      }
+    ],
+    "027-5-baseline": [
+      {
+        "case_id": "027-5-baseline",
+        "kind": "case_start",
+        "pid": 56144,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647323.9178932
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647323.918046
+      },
+      {
+        "cpu_s": 3.361881,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647326.053545,
+        "wall_s": 2.1353910409961827
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647326.054649
+      },
+      {
+        "cpu_s": 0.03224999999999989,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 5,
+        "time_unix": 1792647326.0888991,
+        "wall_s": 0.03416970802936703
+      },
+      {
+        "kind": "stage_start",
+        "runnext": null,
+        "stage": "native_collection",
+        "time_unix": 1792647326.089049
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.005282999999999927,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647326.27926,
+        "wall_s": 0.00530849996721372
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.005327999999999999,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647326.2848508,
+        "wall_s": 0.005340666975826025
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.005193999999999921,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647326.290219,
+        "wall_s": 0.005192000011447817
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.0060069999999998736,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647326.296436,
+        "wall_s": 0.0060678329900838435
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.0047399999999999665,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647326.301335,
+        "wall_s": 0.004740290984045714
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.39751300000000045,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647326.7037592,
+        "wall_s": 0.40223649999825284
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.3762439999999998,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647327.178153,
+        "wall_s": 0.3771577500156127
+      },
+      {
+        "cpu_s": 1.0769430000000004,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          1215,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 5,
+        "time_unix": 1792647327.17847,
+        "wall_s": 1.0893087919685058
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647327.178598
+      },
+      {
+        "bytes": 48219,
+        "cpu_s": 0.004814999999999792,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-5-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647327.1834729,
+        "wall_s": 0.004814916988834739
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647327.183527
+      },
+      {
+        "cpu_s": 0.9773910000000008,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1074941,
+            "factor": "alpha003",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-5-baseline_artifacts/factor_report_alpha003.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647328.311531,
+        "wall_s": 1.1279573750216514
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647328.311647,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 0.39751300000000045,
+            "wall_s": 0.40223649999825284
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 0.3762439999999998,
+            "wall_s": 0.3771577500156127
+          },
+          "prealign_bars": {
+            "calls": 5,
+            "cpu_s": 0.026551999999999687,
+            "wall_s": 0.02664929092861712
+          }
+        }
+      },
+      {
+        "cpu_s": 5.455164,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647328.311713,
+        "wall_s": 4.393664875009563
+      }
+    ],
+    "027-20-baseline": [
+      {
+        "case_id": "027-20-baseline",
+        "kind": "case_start",
+        "pid": 56478,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647328.653184
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647328.653405
+      },
+      {
+        "cpu_s": 3.575016,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647330.7072241,
+        "wall_s": 2.0535237090080045
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647330.7095098
+      },
+      {
+        "cpu_s": 0.07956399999999997,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647330.794896,
+        "wall_s": 0.08506695798132569
+      },
+      {
+        "kind": "stage_start",
+        "runnext": null,
+        "stage": "native_collection",
+        "time_unix": 1792647330.7950988
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.005930999999999909,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.001714,
+        "wall_s": 0.0060301669873297215
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.004913999999999863,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.006937,
+        "wall_s": 0.004933624994009733
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.005622999999999934,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.0130088,
+        "wall_s": 0.005915958026889712
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.004866999999999955,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.0180511,
+        "wall_s": 0.0048940000124275684
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.005263999999999935,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.023573,
+        "wall_s": 0.005327790975570679
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.005612000000000172,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.029621,
+        "wall_s": 0.005923458025790751
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.005920000000000147,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.03579,
+        "wall_s": 0.005976540967822075
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.005471999999999699,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.041525,
+        "wall_s": 0.005562042002566159
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.006485000000000074,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.0483682,
+        "wall_s": 0.006664166983682662
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.005249999999999755,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.053887,
+        "wall_s": 0.005321000004187226
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.005765999999999938,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.060073,
+        "wall_s": 0.006030417047441006
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.005314000000000263,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.065818,
+        "wall_s": 0.005361584015190601
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.005393000000000647,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.071409,
+        "wall_s": 0.0054539169650524855
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.006522000000000361,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.078304,
+        "wall_s": 0.006750624976120889
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.00524699999999978,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.083808,
+        "wall_s": 0.005295208015013486
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.005069999999999908,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.0890722,
+        "wall_s": 0.005129957979079336
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.007508000000000514,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.097216,
+        "wall_s": 0.008008917036931962
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.0067349999999999355,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.104306,
+        "wall_s": 0.006797790993005037
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.0065590000000002036,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.111147,
+        "wall_s": 0.006683083949610591
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.005243000000000109,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647331.1165912,
+        "wall_s": 0.0052817080286331475
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.8149219999999993,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647333.00435,
+        "wall_s": 1.887555124994833
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.838787,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647335.1915169,
+        "wall_s": 1.9264107089838944
+      },
+      {
+        "cpu_s": 4.222428,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          4860,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647335.192698,
+        "wall_s": 4.397298666997813
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647335.192867
+      },
+      {
+        "bytes": 220467,
+        "cpu_s": 0.019142999999999688,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647335.212339,
+        "wall_s": 0.019373124989215285
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647335.2124438
+      },
+      {
+        "cpu_s": 3.3955279999999988,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1120167,
+            "factor": "alpha003",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-baseline_artifacts/factor_report_alpha003.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647339.3612,
+        "wall_s": 4.148690374975558
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647339.3613381,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 1.8149219999999993,
+            "wall_s": 1.887555124994833
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 1.838787,
+            "wall_s": 1.9264107089838944
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.1146950000000011,
+            "wall_s": 0.11734195798635483
+          }
+        }
+      },
+      {
+        "cpu_s": 11.295419,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647339.361439,
+        "wall_s": 10.708003250008915
+      }
+    ],
+    "027-50-baseline": [
+      {
+        "case_id": "027-50-baseline",
+        "kind": "case_start",
+        "pid": 57011,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647339.764705
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647339.764915
+      },
+      {
+        "cpu_s": 3.635693,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647342.58371,
+        "wall_s": 2.818672207999043
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647342.584866
+      },
+      {
+        "cpu_s": 0.20761899999999978,
+        "feed_rows_max": 243,
+        "feed_rows_min": 201,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 50,
+        "time_unix": 1792647342.86247,
+        "wall_s": 0.27742145798401907
+      },
+      {
+        "kind": "stage_start",
+        "runnext": null,
+        "stage": "native_collection",
+        "time_unix": 1792647342.862723
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.010366999999999571,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.212196,
+        "wall_s": 0.01292024995200336
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.009839999999999627,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.223179,
+        "wall_s": 0.010625583992805332
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.009529999999999816,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.236323,
+        "wall_s": 0.012837541988119483
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.008573000000000164,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.247828,
+        "wall_s": 0.011208791984245181
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.008610000000000007,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.2578392,
+        "wall_s": 0.009699625021312386
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.008144999999999847,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.267884,
+        "wall_s": 0.00951591698685661
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.009049000000000085,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.2794921,
+        "wall_s": 0.011398874979931861
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.011353999999999864,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.292354,
+        "wall_s": 0.012535332993138582
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.009546000000000276,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.3028412,
+        "wall_s": 0.010145541047677398
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.010272999999999755,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.31465,
+        "wall_s": 0.011528041970450431
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.008750000000000036,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.3255522,
+        "wall_s": 0.010605290997773409
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.009191999999999645,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.336868,
+        "wall_s": 0.010759374999906868
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.008936999999999529,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.347936,
+        "wall_s": 0.01074608403723687
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.008344000000000129,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.358298,
+        "wall_s": 0.01011650002328679
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.008221999999999952,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.36755,
+        "wall_s": 0.008999417012091726
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.009027999999999814,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.378719,
+        "wall_s": 0.010903500020503998
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.007849999999999469,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.3871439,
+        "wall_s": 0.008223666984122247
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.00835600000000003,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.396688,
+        "wall_s": 0.009344040998257697
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.0084919999999995,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.4061608,
+        "wall_s": 0.009255917044356465
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.007490999999999914,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.415411,
+        "wall_s": 0.009069124993402511
+      },
+      {
+        "call": 21,
+        "cpu_s": 0.07052100000000028,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.493779,
+        "wall_s": 0.0781886670156382
+      },
+      {
+        "call": 22,
+        "cpu_s": 0.008962000000000359,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.5034912,
+        "wall_s": 0.009356833004858345
+      },
+      {
+        "call": 23,
+        "cpu_s": 0.00802199999999953,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.5137432,
+        "wall_s": 0.009937542024999857
+      },
+      {
+        "call": 24,
+        "cpu_s": 0.0070909999999999584,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.5221472,
+        "wall_s": 0.008229791012126952
+      },
+      {
+        "call": 25,
+        "cpu_s": 0.007998999999999867,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.532008,
+        "wall_s": 0.009662875032518059
+      },
+      {
+        "call": 26,
+        "cpu_s": 0.007299999999999862,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.540603,
+        "wall_s": 0.008328584022819996
+      },
+      {
+        "call": 27,
+        "cpu_s": 0.00882300000000047,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.550797,
+        "wall_s": 0.009756708052009344
+      },
+      {
+        "call": 28,
+        "cpu_s": 0.008906999999999776,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.560993,
+        "wall_s": 0.00984787504421547
+      },
+      {
+        "call": 29,
+        "cpu_s": 0.008742000000000694,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.570579,
+        "wall_s": 0.009315458009950817
+      },
+      {
+        "call": 30,
+        "cpu_s": 0.008072999999999553,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.580653,
+        "wall_s": 0.009775791026186198
+      },
+      {
+        "call": 31,
+        "cpu_s": 0.006785999999999959,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.589841,
+        "wall_s": 0.008821625029668212
+      },
+      {
+        "call": 32,
+        "cpu_s": 0.008291999999999966,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.601103,
+        "wall_s": 0.011058916978072375
+      },
+      {
+        "call": 33,
+        "cpu_s": 0.008742999999999945,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.611124,
+        "wall_s": 0.009703957999590784
+      },
+      {
+        "call": 34,
+        "cpu_s": 0.008428999999999576,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.6209002,
+        "wall_s": 0.009380207979120314
+      },
+      {
+        "call": 35,
+        "cpu_s": 0.007909999999999862,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.63027,
+        "wall_s": 0.00912637502187863
+      },
+      {
+        "call": 36,
+        "cpu_s": 0.006572000000000244,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.6374998,
+        "wall_s": 0.007013374997768551
+      },
+      {
+        "call": 37,
+        "cpu_s": 0.007908999999999722,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.646094,
+        "wall_s": 0.008440957986749709
+      },
+      {
+        "call": 38,
+        "cpu_s": 0.00790100000000038,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.654579,
+        "wall_s": 0.008244041004218161
+      },
+      {
+        "call": 39,
+        "cpu_s": 0.008519999999999861,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.664279,
+        "wall_s": 0.009423958021216094
+      },
+      {
+        "call": 40,
+        "cpu_s": 0.007950999999999375,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.673611,
+        "wall_s": 0.009150333993602544
+      },
+      {
+        "call": 41,
+        "cpu_s": 0.008117999999999626,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.6830342,
+        "wall_s": 0.009191000019200146
+      },
+      {
+        "call": 42,
+        "cpu_s": 0.008099999999999774,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.6927118,
+        "wall_s": 0.009374416957143694
+      },
+      {
+        "call": 43,
+        "cpu_s": 0.008404999999999774,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.7020411,
+        "wall_s": 0.009113000007346272
+      },
+      {
+        "call": 44,
+        "cpu_s": 0.006898999999999766,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.711102,
+        "wall_s": 0.008796125010121614
+      },
+      {
+        "call": 45,
+        "cpu_s": 0.007672000000000345,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.7193222,
+        "wall_s": 0.008003457973245531
+      },
+      {
+        "call": 46,
+        "cpu_s": 0.00913400000000042,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.730357,
+        "wall_s": 0.010716832999605685
+      },
+      {
+        "call": 47,
+        "cpu_s": 0.007681999999999967,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.739717,
+        "wall_s": 0.00900245801312849
+      },
+      {
+        "call": 48,
+        "cpu_s": 0.00787899999999997,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.7491689,
+        "wall_s": 0.009276875003706664
+      },
+      {
+        "call": 49,
+        "cpu_s": 0.008314999999999628,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.759039,
+        "wall_s": 0.009683083975687623
+      },
+      {
+        "call": 50,
+        "cpu_s": 0.008894999999999875,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647343.768899,
+        "wall_s": 0.009512624994385988
+      },
+      {
+        "call": 1,
+        "cpu_s": 5.083805000000001,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647349.360241,
+        "wall_s": 5.591064082982484
+      },
+      {
+        "call": 1,
+        "cpu_s": 4.5701730000000005,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647354.903559,
+        "wall_s": 4.709360582986847
+      },
+      {
+        "cpu_s": 11.232266000000001,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          12150,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 50,
+        "time_unix": 1792647354.9044108,
+        "wall_s": 12.041233166994061
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647354.904702
+      },
+      {
+        "bytes": 616382,
+        "cpu_s": 0.04568100000000008,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-50-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647354.951587,
+        "wall_s": 0.04668412503087893
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647354.9517498
+      },
+      {
+        "cpu_s": 3.892526000000002,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1121369,
+            "factor": "alpha003",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-50-baseline_artifacts/factor_report_alpha003.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647358.996014,
+        "wall_s": 4.044185499951709
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647358.996292,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 5.083805000000001,
+            "wall_s": 5.591064082982484
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 4.5701730000000005,
+            "wall_s": 4.709360582986847
+          },
+          "prealign_bars": {
+            "calls": 50,
+            "cpu_s": 0.4845009999999954,
+            "wall_s": 0.5558721662382595
+          }
+        }
+      },
+      {
+        "cpu_s": 19.016825,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647358.996381,
+        "wall_s": 19.231448624981567
+      }
+    ],
+    "025-20-profile": [
+      {
+        "case_id": "025-20-profile",
+        "kind": "case_start",
+        "pid": 58062,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647359.587067
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647359.587424
+      },
+      {
+        "cpu_s": 3.313949,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647362.525481,
+        "wall_s": 2.937730207981076
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647362.5276859
+      },
+      {
+        "cpu_s": 0.08145599999999975,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647362.611846,
+        "wall_s": 0.08401745901210234
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection_profiled",
+        "time_unix": 1792647362.612076
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.00911699999999982,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.638413,
+        "wall_s": 0.009165499999653548
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.008783999999999903,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.647855,
+        "wall_s": 0.009120042028371245
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.007865999999999929,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.655957,
+        "wall_s": 0.007900625001639128
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.009005000000000152,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.665494,
+        "wall_s": 0.009362916985992342
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.009910000000000085,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.6760771,
+        "wall_s": 0.01031049998709932
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.008677000000000046,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.685194,
+        "wall_s": 0.008715250005479902
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.009943999999999953,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.695591,
+        "wall_s": 0.010190790984779596
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.008172000000000068,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.704015,
+        "wall_s": 0.008190166030544788
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.009840000000000071,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.714672,
+        "wall_s": 0.01049537502694875
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.008099000000000078,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.7230349,
+        "wall_s": 0.008132458024192601
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.00944900000000004,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.73321,
+        "wall_s": 0.009977833018638194
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.008808999999999845,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.7425432,
+        "wall_s": 0.00912487501045689
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.009098999999999968,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.752178,
+        "wall_s": 0.009268084017094225
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.009278999999999815,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.7619772,
+        "wall_s": 0.009570624970365316
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.00820199999999982,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.7704809,
+        "wall_s": 0.008260416041593999
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.008748999999999896,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.77966,
+        "wall_s": 0.008936416998039931
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.008086000000000038,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.7880251,
+        "wall_s": 0.008125875028781593
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.00974200000000014,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.798252,
+        "wall_s": 0.010027082986198366
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.009058999999999706,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.807573,
+        "wall_s": 0.009107165969908237
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.009532999999999792,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647362.8178718,
+        "wall_s": 0.009841249964665622
+      },
+      {
+        "call": 1,
+        "cpu_s": 1.2053029999999998,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647364.0520651,
+        "wall_s": 1.233868291019462
+      },
+      {
+        "call": 1,
+        "cpu_s": 3.3055850000000007,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647367.7814379,
+        "wall_s": 3.434807291952893
+      },
+      {
+        "cpu_s": 5.001846,
+        "kind": "stage_end",
+        "native_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_native.pstats",
+        "raw_factor_shape": [
+          4860,
+          1
+        ],
+        "stage": "native_collection_profiled",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647367.793833,
+        "wall_s": 5.170396250032354
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647367.7940228
+      },
+      {
+        "bytes": 253107,
+        "cpu_s": 0.02504799999999996,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647367.819826,
+        "wall_s": 0.02554987499024719
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report_profiled",
+        "time_unix": 1792647367.8200698
+      },
+      {
+        "cpu_s": 10.741998999999998,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_report.pstats",
+        "reports": [
+          {
+            "bytes": 1118638,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_artifacts/factor_report_close_ma.html"
+          }
+        ],
+        "stage": "factor_report_profiled",
+        "status": "OK",
+        "time_unix": 1792647380.054349,
+        "wall_s": 12.216625708038919
+      },
+      {
+        "kind": "profile_summaries",
+        "profiles": {
+          "native": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_native.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_native.txt"
+          },
+          "report": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_report.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-20-profile_report.txt"
+          }
+        },
+        "time_unix": 1792647380.3098722
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647380.31005,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 1.2053029999999998,
+            "wall_s": 1.233868291019462
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 3.3055850000000007,
+            "wall_s": 3.434807291952893
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.17942099999999916,
+            "wall_s": 0.1838232480804436
+          }
+        }
+      },
+      {
+        "cpu_s": 19.44663,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647380.310144,
+        "wall_s": 20.722699749981984
+      }
+    ],
+    "026-20-profile": [
+      {
+        "case_id": "026-20-profile",
+        "kind": "case_start",
+        "pid": 59230,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647380.698708
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647380.698904
+      },
+      {
+        "cpu_s": 3.9620900000000003,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647383.3760939,
+        "wall_s": 2.6770670410478488
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647383.379358
+      },
+      {
+        "cpu_s": 0.07706700000000044,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647383.4624262,
+        "wall_s": 0.08291399996960536
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection_profiled",
+        "time_unix": 1792647383.462641
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.00834099999999971,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.50279,
+        "wall_s": 0.008344833040609956
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.008234999999999992,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.511636,
+        "wall_s": 0.00860787503188476
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.007835000000000036,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.5197709,
+        "wall_s": 0.007896082999650389
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.00838000000000072,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.528629,
+        "wall_s": 0.008625624992419034
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.008750000000000036,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.5376582,
+        "wall_s": 0.008804375014733523
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.00881099999999968,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.547067,
+        "wall_s": 0.009195416991133243
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.008344000000000129,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.55564,
+        "wall_s": 0.008344167028553784
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.008261000000000074,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.5642161,
+        "wall_s": 0.008362958033103496
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.008328999999999809,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.5727758,
+        "wall_s": 0.00836029095808044
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.008645000000000458,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.581711,
+        "wall_s": 0.00873999996110797
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.007354000000000305,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.5893078,
+        "wall_s": 0.007397249981295317
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.008866000000000263,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.598531,
+        "wall_s": 0.009034832997713238
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.007457999999999743,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.606196,
+        "wall_s": 0.007483874971512705
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.008099000000000522,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.614673,
+        "wall_s": 0.00820333301089704
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.00725399999999965,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.622129,
+        "wall_s": 0.007270667003467679
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.008117000000000374,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.6306229,
+        "wall_s": 0.008277541026473045
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.007310999999999623,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.638159,
+        "wall_s": 0.007330333988647908
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.007953999999999795,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.646358,
+        "wall_s": 0.008016625011805445
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.008404000000000522,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.6549928,
+        "wall_s": 0.008433499955572188
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.00805800000000012,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647383.663361,
+        "wall_s": 0.008178166986908764
+      },
+      {
+        "call": 1,
+        "cpu_s": 4.994957,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647388.9101791,
+        "wall_s": 5.24654191697482
+      },
+      {
+        "call": 1,
+        "cpu_s": 11.696398,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647402.415481,
+        "wall_s": 12.519538541033398
+      },
+      {
+        "cpu_s": 17.849069,
+        "kind": "stage_end",
+        "native_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_native.pstats",
+        "raw_factor_shape": [
+          4860,
+          3
+        ],
+        "stage": "native_collection_profiled",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647402.42814,
+        "wall_s": 18.953618917032145
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647402.428283
+      },
+      {
+        "bytes": 426858,
+        "cpu_s": 0.034915000000001584,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647402.464443,
+        "wall_s": 0.03605962498113513
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report_profiled",
+        "time_unix": 1792647402.464588
+      },
+      {
+        "cpu_s": 29.322377,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_report.pstats",
+        "reports": [
+          {
+            "bytes": 1118635,
+            "factor": "close_ma",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_artifacts/factor_report_close_ma.html"
+          },
+          {
+            "bytes": 1118462,
+            "factor": "roc",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_artifacts/factor_report_roc.html"
+          },
+          {
+            "bytes": 1120645,
+            "factor": "kdj_j",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_artifacts/factor_report_kdj_j.html"
+          }
+        ],
+        "stage": "factor_report_profiled",
+        "status": "OK",
+        "time_unix": 1792647435.097495,
+        "wall_s": 32.6132512910408
+      },
+      {
+        "kind": "profile_summaries",
+        "profiles": {
+          "native": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_native.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_native.txt"
+          },
+          "report": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_report.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/026-20-profile_report.txt"
+          }
+        },
+        "time_unix": 1792647435.3576581
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647435.357773,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 4.994957,
+            "wall_s": 5.24654191697482
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 11.696398,
+            "wall_s": 12.519538541033398
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.16280600000000156,
+            "wall_s": 0.16490774898556992
+          }
+        }
+      },
+      {
+        "cpu_s": 51.534058,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647435.357877,
+        "wall_s": 54.65891845797887
+      }
+    ],
+    "027-20-profile": [
+      {
+        "case_id": "027-20-profile",
+        "kind": "case_start",
+        "pid": 61964,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647435.850903
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647435.8510778
+      },
+      {
+        "cpu_s": 3.878843,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647439.057159,
+        "wall_s": 3.205966665991582
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647439.0591302
+      },
+      {
+        "cpu_s": 0.10174599999999989,
+        "feed_rows_max": 243,
+        "feed_rows_min": 233,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 20,
+        "time_unix": 1792647439.17298,
+        "wall_s": 0.11368787504034117
+      },
+      {
+        "kind": "stage_start",
+        "runnext": null,
+        "stage": "native_collection_profiled",
+        "time_unix": 1792647439.173235
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.010264000000000273,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.532131,
+        "wall_s": 0.010696459037717432
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.008968000000000309,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.541409,
+        "wall_s": 0.00902916700579226
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.009151999999999383,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.550921,
+        "wall_s": 0.009311291971243918
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.011231999999999687,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.56254,
+        "wall_s": 0.011415540997404605
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.010602000000000444,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.573499,
+        "wall_s": 0.010742624988779426
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.010954000000000796,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.585427,
+        "wall_s": 0.011668291001114994
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.011828000000000394,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.597864,
+        "wall_s": 0.012212125002406538
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.008770000000000167,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.6069388,
+        "wall_s": 0.008813332999125123
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.010950000000000237,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.618307,
+        "wall_s": 0.011141292052343488
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.011934000000000111,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.631018,
+        "wall_s": 0.012325082963798195
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.012649999999999828,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.644402,
+        "wall_s": 0.013082458986900747
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.012960999999999778,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.658656,
+        "wall_s": 0.013815082958899438
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.01207600000000042,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.6718268,
+        "wall_s": 0.012531917018350214
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.00976200000000027,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.682496,
+        "wall_s": 0.010356875020079315
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.008779999999999788,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.691574,
+        "wall_s": 0.008825166965834796
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.010120000000000573,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.7026649,
+        "wall_s": 0.010765708982944489
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.009873999999999938,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.7130969,
+        "wall_s": 0.010202499979641289
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.009238999999999997,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.722663,
+        "wall_s": 0.009305708983447403
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.01066900000000004,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.734101,
+        "wall_s": 0.011163624993059784
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.00970999999999922,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647439.7446148,
+        "wall_s": 0.010323792055714875
+      },
+      {
+        "call": 1,
+        "cpu_s": 6.680735,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647449.045268,
+        "wall_s": 9.300320042006206
+      },
+      {
+        "call": 1,
+        "cpu_s": 5.418944999999999,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647456.129741,
+        "wall_s": 6.492278499994427
+      },
+      {
+        "cpu_s": 13.229261999999999,
+        "kind": "stage_end",
+        "native_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_native.pstats",
+        "raw_factor_shape": [
+          4860,
+          1
+        ],
+        "stage": "native_collection_profiled",
+        "status": "OK",
+        "targets": 20,
+        "time_unix": 1792647456.162581,
+        "wall_s": 16.957760041987058
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647456.162904
+      },
+      {
+        "bytes": 220467,
+        "cpu_s": 0.03265999999999991,
+        "kind": "stage_end",
+        "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647456.221339,
+        "wall_s": 0.05815975001314655
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report_profiled",
+        "time_unix": 1792647456.223047
+      },
+      {
+        "cpu_s": 11.964452000000001,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_report.pstats",
+        "reports": [
+          {
+            "bytes": 1120167,
+            "factor": "alpha003",
+            "path": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_artifacts/factor_report_alpha003.html"
+          }
+        ],
+        "stage": "factor_report_profiled",
+        "status": "OK",
+        "time_unix": 1792647470.146742,
+        "wall_s": 13.822174832981545
+      },
+      {
+        "kind": "profile_summaries",
+        "profiles": {
+          "native": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_native.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_native.txt"
+          },
+          "report": {
+            "json": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_report.json",
+            "text": "/private/tmp/backtrader_factor_timing.sTMrFj/results_v2/027-20-profile_report.txt"
+          }
+        },
+        "time_unix": 1792647470.437658
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647470.4377751,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 6.680735,
+            "wall_s": 9.300320042006206
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 5.418944999999999,
+            "wall_s": 6.492278499994427
+          },
+          "prealign_bars": {
+            "calls": 20,
+            "cpu_s": 0.21049500000000165,
+            "wall_s": 0.21772804396459833
+          }
+        }
+      },
+      {
+        "cpu_s": 29.611556,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647470.4378638,
+        "wall_s": 34.58675087499432
+      }
+    ],
+    "025-100-baseline": [
+      {
+        "case_id": "025-100-baseline",
+        "kind": "case_start",
+        "pid": 64345,
+        "root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "time_unix": 1792647481.3927438
+      },
+      {
+        "kind": "stage_start",
+        "stage": "import_warmup",
+        "time_unix": 1792647481.39325
+      },
+      {
+        "cpu_s": 4.1900949999999995,
+        "kind": "stage_end",
+        "loaded_modules": {
+          "backtrader": true,
+          "fincore": false,
+          "pandas": true,
+          "yaml": true
+        },
+        "stage": "import_warmup",
+        "status": "OK",
+        "time_unix": 1792647484.373525,
+        "wall_s": 2.979937457945198
+      },
+      {
+        "kind": "stage_start",
+        "stage": "load_daily_panel",
+        "time_unix": 1792647484.3764422
+      },
+      {
+        "cpu_s": 0.3497729999999999,
+        "feed_rows_max": 243,
+        "feed_rows_min": 61,
+        "grid_rows": 243,
+        "kind": "stage_end",
+        "stage": "load_daily_panel",
+        "status": "OK",
+        "symbols": 100,
+        "time_unix": 1792647484.744194,
+        "wall_s": 0.36749249999411404
+      },
+      {
+        "kind": "stage_start",
+        "runnext": false,
+        "stage": "native_collection",
+        "time_unix": 1792647484.744477
+      },
+      {
+        "call": 1,
+        "cpu_s": 0.006860999999999784,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.7610712,
+        "wall_s": 0.007038166979327798
+      },
+      {
+        "call": 2,
+        "cpu_s": 0.006393000000000093,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.767734,
+        "wall_s": 0.006424167018849403
+      },
+      {
+        "call": 3,
+        "cpu_s": 0.007314000000000043,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.775411,
+        "wall_s": 0.00751883297925815
+      },
+      {
+        "call": 4,
+        "cpu_s": 0.007012999999999714,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.7828832,
+        "wall_s": 0.007212167023681104
+      },
+      {
+        "call": 5,
+        "cpu_s": 0.008388000000000062,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.7929542,
+        "wall_s": 0.009611333021894097
+      },
+      {
+        "call": 6,
+        "cpu_s": 0.006686000000000192,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.80002,
+        "wall_s": 0.006854958017356694
+      },
+      {
+        "call": 7,
+        "cpu_s": 0.0059080000000006905,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.8062441,
+        "wall_s": 0.0059538750210776925
+      },
+      {
+        "call": 8,
+        "cpu_s": 0.006406999999999385,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.813149,
+        "wall_s": 0.006723916972987354
+      },
+      {
+        "call": 9,
+        "cpu_s": 0.00571599999999961,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.819099,
+        "wall_s": 0.005758583021815866
+      },
+      {
+        "call": 10,
+        "cpu_s": 0.0063990000000000435,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.825783,
+        "wall_s": 0.006479790958110243
+      },
+      {
+        "call": 11,
+        "cpu_s": 0.006421999999999706,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.8326058,
+        "wall_s": 0.006524124997667968
+      },
+      {
+        "call": 12,
+        "cpu_s": 0.0063789999999999125,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.8393059,
+        "wall_s": 0.006474000052548945
+      },
+      {
+        "call": 13,
+        "cpu_s": 0.007289000000000101,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.846934,
+        "wall_s": 0.00739658297970891
+      },
+      {
+        "call": 14,
+        "cpu_s": 0.0067750000000001975,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.854006,
+        "wall_s": 0.006880125030875206
+      },
+      {
+        "call": 15,
+        "cpu_s": 0.008596999999999966,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.863929,
+        "wall_s": 0.009764750022441149
+      },
+      {
+        "call": 16,
+        "cpu_s": 0.009472000000000591,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.874045,
+        "wall_s": 0.009887333028018475
+      },
+      {
+        "call": 17,
+        "cpu_s": 0.009225999999999956,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.8840919,
+        "wall_s": 0.009786374983377755
+      },
+      {
+        "call": 18,
+        "cpu_s": 0.007201999999999487,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.8917131,
+        "wall_s": 0.007309207983780652
+      },
+      {
+        "call": 19,
+        "cpu_s": 0.008808000000000149,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.901312,
+        "wall_s": 0.009278999990783632
+      },
+      {
+        "call": 20,
+        "cpu_s": 0.005957000000000434,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.907514,
+        "wall_s": 0.005977957975119352
+      },
+      {
+        "call": 21,
+        "cpu_s": 0.007374000000000436,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.915284,
+        "wall_s": 0.0075330419931560755
+      },
+      {
+        "call": 22,
+        "cpu_s": 0.0060989999999998545,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.92173,
+        "wall_s": 0.006177042028866708
+      },
+      {
+        "call": 23,
+        "cpu_s": 0.006174000000000568,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.928349,
+        "wall_s": 0.006454458984080702
+      },
+      {
+        "call": 24,
+        "cpu_s": 0.005785000000000373,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.9344041,
+        "wall_s": 0.005858416028786451
+      },
+      {
+        "call": 25,
+        "cpu_s": 0.005872000000000099,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.940417,
+        "wall_s": 0.00588945799972862
+      },
+      {
+        "call": 26,
+        "cpu_s": 0.006844000000000072,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.947853,
+        "wall_s": 0.007248500012792647
+      },
+      {
+        "call": 27,
+        "cpu_s": 0.006064000000000291,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.954249,
+        "wall_s": 0.006140750017948449
+      },
+      {
+        "call": 28,
+        "cpu_s": 0.007182000000000244,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.9620962,
+        "wall_s": 0.007637459028046578
+      },
+      {
+        "call": 29,
+        "cpu_s": 0.006705000000000183,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.9693499,
+        "wall_s": 0.00688704097410664
+      },
+      {
+        "call": 30,
+        "cpu_s": 0.007814000000000654,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647484.9778738,
+        "wall_s": 0.00813758303411305
+      },
+      {
+        "call": 31,
+        "cpu_s": 0.061501000000000694,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.040567,
+        "wall_s": 0.06240554101532325
+      },
+      {
+        "call": 32,
+        "cpu_s": 0.007521999999999807,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.0485592,
+        "wall_s": 0.007723249960690737
+      },
+      {
+        "call": 33,
+        "cpu_s": 0.0063069999999996185,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.055229,
+        "wall_s": 0.00640966696664691
+      },
+      {
+        "call": 34,
+        "cpu_s": 0.0068830000000001945,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.062529,
+        "wall_s": 0.007077499991282821
+      },
+      {
+        "call": 35,
+        "cpu_s": 0.006126000000000076,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.068964,
+        "wall_s": 0.00619674997869879
+      },
+      {
+        "call": 36,
+        "cpu_s": 0.00649299999999986,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.075852,
+        "wall_s": 0.0066155410022474825
+      },
+      {
+        "call": 37,
+        "cpu_s": 0.007580999999999172,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.085016,
+        "wall_s": 0.008749958011321723
+      },
+      {
+        "call": 38,
+        "cpu_s": 0.007594000000000101,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.093287,
+        "wall_s": 0.007861915975809097
+      },
+      {
+        "call": 39,
+        "cpu_s": 0.0063509999999995514,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.100137,
+        "wall_s": 0.006442292011342943
+      },
+      {
+        "call": 40,
+        "cpu_s": 0.00602899999999984,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.1065059,
+        "wall_s": 0.006115500000305474
+      },
+      {
+        "call": 41,
+        "cpu_s": 0.0070030000000000925,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.113937,
+        "wall_s": 0.007190957956481725
+      },
+      {
+        "call": 42,
+        "cpu_s": 0.005713000000000079,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.119901,
+        "wall_s": 0.005746625014580786
+      },
+      {
+        "call": 43,
+        "cpu_s": 0.006751000000000396,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.127062,
+        "wall_s": 0.00691283296328038
+      },
+      {
+        "call": 44,
+        "cpu_s": 0.00682900000000064,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.134271,
+        "wall_s": 0.006948125024791807
+      },
+      {
+        "call": 45,
+        "cpu_s": 0.005916000000000032,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.14049,
+        "wall_s": 0.005978583008982241
+      },
+      {
+        "call": 46,
+        "cpu_s": 0.006770999999999638,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.147561,
+        "wall_s": 0.00682987499749288
+      },
+      {
+        "call": 47,
+        "cpu_s": 0.005995999999999668,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.153932,
+        "wall_s": 0.006052292010281235
+      },
+      {
+        "call": 48,
+        "cpu_s": 0.006537999999999933,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.160823,
+        "wall_s": 0.006706917018163949
+      },
+      {
+        "call": 49,
+        "cpu_s": 0.006005000000000038,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.1671228,
+        "wall_s": 0.00606258399784565
+      },
+      {
+        "call": 50,
+        "cpu_s": 0.006934000000000218,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.17433,
+        "wall_s": 0.007019209035206586
+      },
+      {
+        "call": 51,
+        "cpu_s": 0.00696399999999997,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.181712,
+        "wall_s": 0.007161208020988852
+      },
+      {
+        "call": 52,
+        "cpu_s": 0.005868000000000428,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.1878731,
+        "wall_s": 0.005882458004634827
+      },
+      {
+        "call": 53,
+        "cpu_s": 0.007628000000000412,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.19627,
+        "wall_s": 0.008206458995118737
+      },
+      {
+        "call": 54,
+        "cpu_s": 0.007680999999999827,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.204581,
+        "wall_s": 0.00804183300351724
+      },
+      {
+        "call": 55,
+        "cpu_s": 0.006782999999999539,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.211833,
+        "wall_s": 0.00699529197299853
+      },
+      {
+        "call": 56,
+        "cpu_s": 0.006415999999999755,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.218511,
+        "wall_s": 0.006472750043030828
+      },
+      {
+        "call": 57,
+        "cpu_s": 0.005817999999999657,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.224519,
+        "wall_s": 0.005852542002685368
+      },
+      {
+        "call": 58,
+        "cpu_s": 0.006994000000000611,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.231806,
+        "wall_s": 0.0071435829740948975
+      },
+      {
+        "call": 59,
+        "cpu_s": 0.005945999999999785,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.238074,
+        "wall_s": 0.006094833021052182
+      },
+      {
+        "call": 60,
+        "cpu_s": 0.006869000000000014,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.2453299,
+        "wall_s": 0.007114499981980771
+      },
+      {
+        "call": 61,
+        "cpu_s": 0.005746000000000251,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.251283,
+        "wall_s": 0.005790500028524548
+      },
+      {
+        "call": 62,
+        "cpu_s": 0.005776000000000003,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.2573519,
+        "wall_s": 0.005905749974772334
+      },
+      {
+        "call": 63,
+        "cpu_s": 0.0064360000000007744,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.2641878,
+        "wall_s": 0.006694666983094066
+      },
+      {
+        "call": 64,
+        "cpu_s": 0.005899999999999572,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.270377,
+        "wall_s": 0.006027958996128291
+      },
+      {
+        "call": 65,
+        "cpu_s": 0.006279000000000146,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.277214,
+        "wall_s": 0.006651083996985108
+      },
+      {
+        "call": 66,
+        "cpu_s": 0.006020000000000358,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.283508,
+        "wall_s": 0.006098584039136767
+      },
+      {
+        "call": 67,
+        "cpu_s": 0.005804000000000364,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.289533,
+        "wall_s": 0.005879791977349669
+      },
+      {
+        "call": 68,
+        "cpu_s": 0.006668999999999592,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.297131,
+        "wall_s": 0.007385333010461181
+      },
+      {
+        "call": 69,
+        "cpu_s": 0.0066910000000000025,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.304258,
+        "wall_s": 0.006913667020853609
+      },
+      {
+        "call": 70,
+        "cpu_s": 0.00695800000000002,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.311695,
+        "wall_s": 0.007199958025012165
+      },
+      {
+        "call": 71,
+        "cpu_s": 0.006449999999999179,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.318712,
+        "wall_s": 0.00667233404237777
+      },
+      {
+        "call": 72,
+        "cpu_s": 0.005784999999999485,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.324746,
+        "wall_s": 0.005812042043544352
+      },
+      {
+        "call": 73,
+        "cpu_s": 0.00683600000000073,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.332014,
+        "wall_s": 0.007000124955084175
+      },
+      {
+        "call": 74,
+        "cpu_s": 0.0057709999999993045,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.337997,
+        "wall_s": 0.005792499985545874
+      },
+      {
+        "call": 75,
+        "cpu_s": 0.007264000000000159,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.3456042,
+        "wall_s": 0.007424458977766335
+      },
+      {
+        "call": 76,
+        "cpu_s": 0.005983999999999767,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.351841,
+        "wall_s": 0.006009000004269183
+      },
+      {
+        "call": 77,
+        "cpu_s": 0.006110000000000504,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.358369,
+        "wall_s": 0.00634558399906382
+      },
+      {
+        "call": 78,
+        "cpu_s": 0.0067870000000000985,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.3656251,
+        "wall_s": 0.006829249963629991
+      },
+      {
+        "call": 79,
+        "cpu_s": 0.005911000000000222,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.3718,
+        "wall_s": 0.005982582981232554
+      },
+      {
+        "call": 80,
+        "cpu_s": 0.00726799999999983,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.379447,
+        "wall_s": 0.007440707995556295
+      },
+      {
+        "call": 81,
+        "cpu_s": 0.005829000000000306,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.3854861,
+        "wall_s": 0.0058427079929970205
+      },
+      {
+        "call": 82,
+        "cpu_s": 0.00587900000000019,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.3916001,
+        "wall_s": 0.005917333997786045
+      },
+      {
+        "call": 83,
+        "cpu_s": 0.006740999999999886,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.398838,
+        "wall_s": 0.007048500003293157
+      },
+      {
+        "call": 84,
+        "cpu_s": 0.00587800000000005,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.404969,
+        "wall_s": 0.005915041023399681
+      },
+      {
+        "call": 85,
+        "cpu_s": 0.0062509999999997845,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.411631,
+        "wall_s": 0.00643899996066466
+      },
+      {
+        "call": 86,
+        "cpu_s": 0.006084999999999674,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.4180071,
+        "wall_s": 0.006147374981082976
+      },
+      {
+        "call": 87,
+        "cpu_s": 0.005657000000000245,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.423903,
+        "wall_s": 0.005719791050069034
+      },
+      {
+        "call": 88,
+        "cpu_s": 0.006312999999999569,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.4305742,
+        "wall_s": 0.00649470800999552
+      },
+      {
+        "call": 89,
+        "cpu_s": 0.006099000000000743,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.4369931,
+        "wall_s": 0.006210000021383166
+      },
+      {
+        "call": 90,
+        "cpu_s": 0.006536999999999793,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.443949,
+        "wall_s": 0.006752917019184679
+      },
+      {
+        "call": 91,
+        "cpu_s": 0.006620999999999988,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.450881,
+        "wall_s": 0.0066755840089172125
+      },
+      {
+        "call": 92,
+        "cpu_s": 0.0063149999999998485,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.457409,
+        "wall_s": 0.00633937498787418
+      },
+      {
+        "call": 93,
+        "cpu_s": 0.006103999999999665,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.463779,
+        "wall_s": 0.006215500005055219
+      },
+      {
+        "call": 94,
+        "cpu_s": 0.0056829999999994385,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.4696488,
+        "wall_s": 0.005683208990376443
+      },
+      {
+        "call": 95,
+        "cpu_s": 0.0055840000000006995,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.475455,
+        "wall_s": 0.0056415420258417726
+      },
+      {
+        "call": 96,
+        "cpu_s": 0.006170000000000009,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.482156,
+        "wall_s": 0.006304832990281284
+      },
+      {
+        "call": 97,
+        "cpu_s": 0.005991000000000746,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.488393,
+        "wall_s": 0.006053957971744239
+      },
+      {
+        "call": 98,
+        "cpu_s": 0.0069030000000003255,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.495761,
+        "wall_s": 0.007133665960282087
+      },
+      {
+        "call": 99,
+        "cpu_s": 0.006281999999999677,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.503201,
+        "wall_s": 0.0072037079953588545
+      },
+      {
+        "call": 100,
+        "cpu_s": 0.00806600000000035,
+        "kind": "inclusive_timer",
+        "name": "prealign_bars",
+        "time_unix": 1792647485.5139,
+        "wall_s": 0.010476208000909537
+      },
+      {
+        "call": 1,
+        "cpu_s": 2.384798,
+        "kind": "inclusive_timer",
+        "name": "Cerebro.run",
+        "time_unix": 1792647488.016351,
+        "wall_s": 2.5022042079945095
+      },
+      {
+        "call": 1,
+        "cpu_s": 8.113045999999999,
+        "kind": "inclusive_timer",
+        "name": "ResearchDataset.from_collection",
+        "time_unix": 1792647497.6853619,
+        "wall_s": 8.85552237497177
+      },
+      {
+        "cpu_s": 12.029567,
+        "kind": "stage_end",
+        "native_profile": null,
+        "raw_factor_shape": [
+          24300,
+          1
+        ],
+        "stage": "native_collection",
+        "status": "OK",
+        "targets": 100,
+        "time_unix": 1792647497.6867352,
+        "wall_s": 12.941892875009216
+      },
+      {
+        "kind": "stage_start",
+        "stage": "raw_factors_csv",
+        "time_unix": 1792647497.686822
+      },
+      {
+        "bytes": 1262939,
+        "cpu_s": 0.08773599999999959,
+        "kind": "stage_end",
+        "path": "/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-100-baseline_artifacts/factor_values.csv",
+        "stage": "raw_factors_csv",
+        "status": "OK",
+        "time_unix": 1792647497.775088,
+        "wall_s": 0.08817495900439098
+      },
+      {
+        "kind": "stage_start",
+        "stage": "factor_report",
+        "time_unix": 1792647497.7752059
+      },
+      {
+        "cpu_s": 3.423567000000002,
+        "failures": [],
+        "kind": "stage_end",
+        "report_profile": null,
+        "reports": [
+          {
+            "bytes": 1118881,
+            "factor": "close_ma",
+            "path": "/tmp/backtrader_factor_timing.sTMrFj/results_v2/025-100-baseline_artifacts/factor_report_close_ma.html"
+          }
+        ],
+        "stage": "factor_report",
+        "status": "OK",
+        "time_unix": 1792647501.309189,
+        "wall_s": 3.5339143329765648
+      },
+      {
+        "kind": "instrumentation_summary",
+        "patch_notes": [],
+        "time_unix": 1792647501.3092768,
+        "timers": {
+          "Cerebro.run": {
+            "calls": 1,
+            "cpu_s": 2.384798,
+            "wall_s": 2.5022042079945095
+          },
+          "ResearchDataset.from_collection": {
+            "calls": 1,
+            "cpu_s": 8.113045999999999,
+            "wall_s": 8.85552237497177
+          },
+          "prealign_bars": {
+            "calls": 100,
+            "cpu_s": 0.7143680000000039,
+            "wall_s": 0.7369012081180699
+          }
+        }
+      },
+      {
+        "cpu_s": 20.085043000000002,
+        "kind": "case_end",
+        "status": "OK",
+        "time_unix": 1792647501.309333,
+        "wall_s": 19.916120500012767
+      }
+    ]
+  },
+  "generated_unix": 1792647470.897107
+}

@@ -1,0 +1,198 @@
+TOP 40 CUMULATIVE
+cum_s	self_s	calls	primitive_calls	file:line	function
+18.953571	0.000588	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/examples/backtest/026_factor_multi/run.py:173	_run_native_collection
+17.935539	0.000522	22	22	/private/tmp/backtrader_factor_timing.sTMrFj/perf_harness.py:128	wrapper
+13.505330	0.001194	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_strategy.py:506	get_dataset
+12.520083	0.000003	1	1	/private/tmp/backtrader_factor_timing.sTMrFj/perf_harness.py:176	wrapped
+12.519529	0.000185	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:356	from_collection
+12.519212	0.003598	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:215	__init__
+7.925404	1.587294	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:409	_validate_availability
+5.246535	0.000019	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/cerebro.py:101	_wrapped
+5.246476	0.000042	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/cerebro.py:657	run
+5.246362	0.000109	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/_cerebro/execution.py:118	runstrategies
+4.870010	0.005779	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/_cerebro/runonce.py:62	_runonce
+3.644978	0.006173	243	243	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategy.py:1247	_oncepost
+3.171111	0.119379	243	243	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_strategy.py:306	_collect_current_grid_point
+3.053304	0.000016	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:304	compute_dataset_id
+3.053085	0.002239	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:273	_payloads_and_descriptors
+3.040468	0.106700	10	10	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:191	_table_bytes
+2.980633	0.000364	222	222	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_strategy.py:303	next
+2.344722	0.102393	29119	29119	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/frame.py:1538	iterrows
+2.285028	0.091588	14580	14580	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_strategy.py:375	_classify_output
+2.133822	0.028157	14580	14580	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:2568	__getitem__
+2.082068	0.048336	14580	14580	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:2518	__getitem__
+2.028700	0.301482	14580	14580	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/frame.py:4466	_get_value
+1.742896	0.216596	29404	29402	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:369	__init__
+1.644671	0.523020	282537	282537	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:154	_encode
+1.560516	0.016533	15072	15072	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/frame.py:4966	_get_item
+1.534594	0.018209	15278	15278	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/frame.py:4292	_ixs
+1.483514	1.017835	38709	38709	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_indicator.py:644	input_availability
+1.471704	0.041696	2	2	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:701	_validate_named_tables
+1.439058	0.069480	29103	29103	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:1192	__getitem__
+1.322788	1.322788	417348	417348	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:79	_utc_timestamp
+1.245863	0.068316	44424	44424	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:221	<listcomp>
+1.141440	0.717479	6369265	6338786	~:0	<built-in method builtins.isinstance>
+1.099119	0.001774	144	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/lineiterator.py:1848	_once
+1.085513	0.021905	6021	432	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/lineiterator.py:382	_factor_run_callback
+1.063322	0.105420	15278	15278	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/internals/managers.py:1213	iget
+1.054091	0.497655	520650	520650	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:45	_is_missing
+1.037792	0.027999	23	23	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/indicator.py:381	once_via_next
+0.976033	0.036490	14331	14331	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:1383	_getitem_tuple
+0.942364	0.002542	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/field_validation.py:96	collect_bound_feed_tables
+0.933087	0.011917	14781	14781	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1416	view
+
+TOP 40 SELF
+cum_s	self_s	calls	primitive_calls	file:line	function
+7.925404	1.587294	1	1	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:409	_validate_availability
+1.322788	1.322788	417348	417348	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:79	_utc_timestamp
+1.483514	1.017835	38709	38709	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_indicator.py:644	input_availability
+1.141440	0.717479	6369265	6338786	~:0	<built-in method builtins.isinstance>
+1.644671	0.523020	282537	282537	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:154	_encode
+1.054091	0.497655	520650	520650	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:45	_is_missing
+0.403692	0.403692	4069493	4069493	~:0	<method 'get' of 'dict' objects>
+0.800791	0.342685	429580	14580	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/dataset.py:67	_copy_cell_container
+0.526828	0.317212	1627006	1255969	~:0	<built-in method builtins.len>
+2.028700	0.301482	14580	14580	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/frame.py:4466	_get_value
+0.640654	0.274880	29636	29636	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/construction.py:531	sanitize_array
+0.388988	0.246617	670713	670713	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/missing.py:180	_isna
+0.240883	0.240883	44434	44434	~:0	<method 'writerow' of '_csv.writer' objects>
+0.589261	0.235022	14331	14331	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:3653	_get_loc_level
+1.742896	0.216596	29404	29402	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:369	__init__
+0.212453	0.210628	144458	144458	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/arrays/datetimes.py:670	__iter__
+0.249346	0.208878	189520	189520	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:3601	get_loc
+0.428053	0.201281	74015	74015	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/lineroot.py:617	__nonzero__
+0.195428	0.195230	214465	214465	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/arrays/arrow/array.py:819	__iter__
+0.582498	0.193511	670713	670713	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/missing.py:97	isna
+0.349043	0.185608	429592	14583	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:126	_json_value
+0.694520	0.176631	116601	116601	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:945	__getitem__
+0.841860	0.161362	78489	34749	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/indicator.py:314	advance
+0.520669	0.156284	45054	45054	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:6131	__finalize__
+0.292060	0.152380	902110	894807	~:0	<built-in method builtins.getattr>
+0.241028	0.137665	146246	146246	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:2780	check_dict_or_set_indexers
+0.263348	0.136919	131752	14662	/Users/yunjinqi/opt/anaconda3/lib/python3.11/copy.py:128	deepcopy
+0.453067	0.132476	43258	43258	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/datetimes.py:948	get_loc
+0.228265	0.123318	44503	44503	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1147	<genexpr>
+0.120132	0.120132	156079	156079	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/linebuffer.py:545	__getitem__
+3.171111	0.119379	243	243	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_strategy.py:306	_collect_current_grid_point
+0.118034	0.118034	1623287	1623287	~:0	<method 'append' of 'list' objects>
+0.113609	0.113609	283338	283338	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/linebuffer.py:989	advance
+0.111769	0.111570	24200	24200	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feed.py:596	_tick_fill
+0.112896	0.108607	29803	29803	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:5334	__contains__
+0.108460	0.108460	14704	14704	/Users/yunjinqi/opt/anaconda3/lib/python3.11/json/encoder.py:205	iterencode
+0.107711	0.107711	462015	462015	~:0	<method 'replace' of 'str' objects>
+0.293147	0.106980	116595	116595	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:1029	_get_value
+3.040468	0.106700	10	10	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/storage.py:191	_table_bytes
+1.063322	0.105420	15278	15278	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/internals/managers.py:1213	iget
+
+PROJECT FUNCTIONS TOP 100 CUMULATIVE
+cum_s	self_s	calls	primitive_calls	file:line	function
+18.953571	0.000588	1	1	examples/backtest/026_factor_multi/run.py:	_run_native_collection
+13.505330	0.001194	1	1	backtrader/research/factor_strategy.py:	get_dataset
+12.519529	0.000185	1	1	backtrader/research/dataset.py:	from_collection
+12.519212	0.003598	1	1	backtrader/research/dataset.py:	__init__
+7.925404	1.587294	1	1	backtrader/research/dataset.py:	_validate_availability
+5.246535	0.000019	1	1	backtrader/cerebro.py:	_wrapped
+5.246476	0.000042	1	1	backtrader/cerebro.py:	run
+5.246362	0.000109	1	1	backtrader/_cerebro/execution.py:	runstrategies
+4.870010	0.005779	1	1	backtrader/_cerebro/runonce.py:	_runonce
+3.644978	0.006173	243	243	backtrader/strategy.py:	_oncepost
+3.171111	0.119379	243	243	backtrader/research/factor_strategy.py:	_collect_current_grid_point
+3.053304	0.000016	1	1	backtrader/research/storage.py:	compute_dataset_id
+3.053085	0.002239	1	1	backtrader/research/storage.py:	_payloads_and_descriptors
+3.040468	0.106700	10	10	backtrader/research/storage.py:	_table_bytes
+2.980633	0.000364	222	222	backtrader/research/factor_strategy.py:	next
+2.575492	0.274829	113289	113289	backtrader/research/storage.py:	<listcomp>
+2.285028	0.091588	14580	14580	backtrader/research/factor_strategy.py:	_classify_output
+1.644671	0.523020	282537	282537	backtrader/research/storage.py:	_encode
+1.483514	1.017835	38709	38709	backtrader/research/factor_indicator.py:	input_availability
+1.471704	0.041696	2	2	backtrader/research/dataset.py:	_validate_named_tables
+1.322788	1.322788	417348	417348	backtrader/research/dataset.py:	_utc_timestamp
+1.141440	0.717479	6369265	6338786	~:	<built-in method builtins.isinstance>
+1.099119	0.001774	144	1	backtrader/lineiterator.py:	_once
+1.085513	0.021905	6021	432	backtrader/lineiterator.py:	_factor_run_callback
+1.054091	0.497655	520650	520650	backtrader/research/storage.py:	_is_missing
+1.037792	0.027999	23	23	backtrader/indicator.py:	once_via_next
+0.942364	0.002542	1	1	backtrader/research/field_validation.py:	collect_bound_feed_tables
+0.876641	0.094183	60	60	backtrader/research/field_validation.py:	_collect_dataframe_rows
+0.841860	0.161362	78489	34749	backtrader/indicator.py:	advance
+0.813304	0.000209	8	8	backtrader/research/dataset.py:	_frame_copy
+0.800791	0.342685	429580	14580	backtrader/research/dataset.py:	_copy_cell_container
+0.778365	0.016130	14580	14580	backtrader/research/dataset.py:	<dictcomp>
+0.722332	0.122454	458800	458800	backtrader/research/dataset.py:	<genexpr>
+0.596422	0.003648	66	66	backtrader/research/storage.py:	_kind_for_series
+0.590241	0.057477	14580	14580	backtrader/research/factor_strategy.py:	_input_times
+0.526828	0.317212	1627006	1255969	~:	<built-in method builtins.len>
+0.428053	0.201281	74015	74015	backtrader/lineroot.py:	__nonzero__
+0.403692	0.403692	4069493	4069493	~:	<method 'get' of 'dict' objects>
+0.360965	0.042005	24300	24300	backtrader/feed.py:	advance
+0.349043	0.185608	429592	14583	backtrader/research/storage.py:	_json_value
+0.292060	0.152380	902110	894807	~:	<built-in method builtins.getattr>
+0.253826	0.008951	687	21	backtrader/metabase.py:	patched_init
+0.253686	0.075636	120643	120643	~:	<built-in method builtins.any>
+0.245467	0.000039	1	1	backtrader/strategy.py:	_create_strategy_safely
+0.244909	0.074141	5589	5589	examples/backtest/026_factor_multi/multi_factor_strategy.py:	next
+0.244743	0.000053	1	1	backtrader/strategy.py:	__init__
+0.244512	0.000232	1	1	backtrader/research/factor_strategy.py:	__init__
+0.242900	0.000456	23	23	examples/backtest/026_factor_multi/multi_factor_strategy.py:	__init__
+0.240883	0.240883	44434	44434	~:	<method 'writerow' of '_csv.writer' objects>
+0.238067	0.000317	3	3	backtrader/research/factor_indicator.py:	_bind_for_research
+0.215394	0.001076	729	729	backtrader/research/factor_indicator.py:	counted_next
+0.210618	0.001281	206	3	backtrader/indicator.py:	owner_context_init
+0.209677	0.096069	108378	108378	backtrader/lineseries.py:	advance
+0.194125	0.000875	10	10	backtrader/research/storage.py:	_index_parts
+0.183938	0.000078	18	18	backtrader/research/storage.py:	_kind_for_array
+0.182411	0.093842	464668	464668	<frozen abc>:	__instancecheck__
+0.180424	0.000036	20	20	backtrader/research/factor_strategy.py:	prenext
+0.164555	0.008220	20	20	backtrader/research/inputs.py:	prealign_bars
+0.156603	0.036954	45071	44986	~:	<built-in method builtins.all>
+0.145111	0.002030	101	101	backtrader/research/specs.py:	grid_sha256
+0.120460	0.091621	101	101	backtrader/research/specs.py:	<listcomp>
+0.120132	0.120132	156079	156079	backtrader/linebuffer.py:	__getitem__
+0.118034	0.118034	1623287	1623287	~:	<method 'append' of 'list' objects>
+0.117917	0.000129	1	1	backtrader/_cerebro/execution.py:	_prepare_run
+0.115246	0.000328	63	63	backtrader/research/factor_indicator.py:	__init__
+0.114686	0.000043	5	5	backtrader/research/factor_indicator.py:	field_lines
+0.114357	0.000035	5	5	backtrader/research/factor_indicator.py:	_bind_input_metadata_alias
+0.114304	0.032045	5	5	backtrader/research/factor_indicator.py:	_record_feed_input_metadata
+0.113609	0.113609	283338	283338	backtrader/linebuffer.py:	advance
+0.111769	0.111570	24200	24200	backtrader/feed.py:	_tick_fill
+0.107711	0.107711	462015	462015	~:	<method 'replace' of 'str' objects>
+0.100921	0.001387	20	20	backtrader/feed.py:	preload
+0.099344	0.026310	4880	4880	backtrader/feed.py:	load
+0.093473	0.083659	280768	280768	backtrader/lineseries.py:	__len__
+0.088569	0.079924	464668	464668	~:	<built-in method _abc._abc_instancecheck>
+0.082123	0.073292	505454	505454	~:	<built-in method builtins.hasattr>
+0.067669	0.010278	4860	4860	backtrader/research/factor_strategy.py:	_current_feed_time
+0.066842	0.000141	4	4	backtrader/research/dataset.py:	_normalise_multiindex
+0.066794	0.038237	26567	26567	backtrader/lineseries.py:	__getattr__
+0.065047	0.055197	48621	48621	backtrader/linebuffer.py:	__setitem__
+0.063729	0.044365	5832	5832	backtrader/utils/dateintern.py:	num2date
+0.062950	0.024355	72675	72675	backtrader/research/field_validation.py:	_is_missing
+0.061589	0.057345	24300	24300	backtrader/feed.py:	_tick_nullify
+0.054558	0.054558	222406	222406	~:	<built-in method builtins.hash>
+0.053728	0.015967	4880	4880	backtrader/feeds/pandafeed.py:	_load
+0.053728	0.002547	280	280	backtrader/lineiterator.py:	__init__
+0.053387	0.053387	14535	14535	backtrader/research/field_validation.py:	_utc_timestamp
+0.053049	0.030449	28250	28250	backtrader/indicator.py:	__getitem__
+0.052532	0.031769	41819	41819	backtrader/parameters.py:	__getattribute__
+0.050888	0.042113	79462	79462	backtrader/lineiterator.py:	__len__
+0.048043	0.000432	74	74	backtrader/research/storage.py:	_kind_for_values
+0.042430	0.038029	244	244	~:	<built-in method numpy.array>
+0.036352	0.016813	30954	30931	~:	<built-in method numpy.asarray>
+0.035258	0.028158	116672	116672	backtrader/research/storage.py:	<genexpr>
+0.033155	0.000687	164	164	backtrader/lineseries.py:	__new__
+0.032417	0.001855	145	145	backtrader/lineiterator.py:	__new__
+0.032055	0.032055	344187	344187	~:	<built-in method builtins.id>
+0.031200	0.020558	67990	67990	backtrader/research/dataset.py:	<lambda>
+0.030180	0.008127	4860	4860	backtrader/research/factor_strategy.py:	_feed_present
+0.029992	0.029986	136761	136761	~:	<built-in method builtins.max>
+
+REQUIRED / HOTSPOT FUNCTIONS
+cum_s	self_s	calls	primitive_calls	file:line	function
+7.925404	1.587294	1	1	backtrader/research/dataset.py:	_validate_availability
+2.285028	0.091588	14580	14580	backtrader/research/factor_strategy.py:	_classify_output
+1.483514	1.017835	38709	38709	backtrader/research/factor_indicator.py:	input_availability
+1.037792	0.027999	23	23	backtrader/indicator.py:	once_via_next
+0.942364	0.002542	1	1	backtrader/research/field_validation.py:	collect_bound_feed_tables
+0.590241	0.057477	14580	14580	backtrader/research/factor_strategy.py:	_input_times
+0.000102	0.000102	35	35	backtrader/research/specs.py:	require_research_runtime

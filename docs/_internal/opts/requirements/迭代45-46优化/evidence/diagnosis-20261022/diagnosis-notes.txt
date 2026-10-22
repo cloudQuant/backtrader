@@ -1,0 +1,16 @@
+Extra conditional sample
+025-100-baseline (fresh process, no profile): import 2.980s wall / 4.190s CPU; load 0.367s / 0.350s; native collection 12.942s / 12.030s; raw CSV 0.088s / 0.088s; report 3.534s / 3.424s; total child 19.916s wall / 20.085s CPU. Full observed grid 243; 100 assets; individual feed rows ranged 61-243. Raw event evidence: 025-100-baseline.jsonl; artifacts under 025-100-baseline_artifacts/.
+This optional 100-asset case was run because 025's 50-asset native+report stages remained below 10 seconds. No 500-asset case was run.
+
+Fincore report package origin
+/Users/yunjinqi/Documents/new_projects/fincore/fincore/report/factor/__init__.py
+Fincore HEAD at capture: 7679c71a59efc4762255d0df7ffd3ccf72865f4d
+Source hashes before and after are recorded in fincore_report_factor_hashes_before.txt and fincore_report_factor_hashes_after.txt. The files match (no hash drift observed).
+
+Backtrader source snapshot
+HEAD at measurement start: 37d3fcabe81df459a3b7eb4d72df5d793ed14016; current HEAD after measurement: cef3e8501f78e546c7b1a9a3cfd8402c6dd67595.
+Relevant source files were staged/dirty at start; see git_status_full_before.txt and run_metadata.json. The selected source SHA256 values did not drift during the timed run (hash_drift is empty). The timing samples therefore identify the working-tree source content by those hashes; do not interpret HEAD alone as the exact source snapshot.
+The first harness attempt (24.794s) failed during import before any timed stage because the temporary loader had not inserted the checkout root into sys.path. It is kept separately in ../results/ and excluded from all measurements. Adjusted runs are in results_v2/.
+ed824fc1fb41a59d94c08d707f72d7159c050e4932a56543aef200dd917cc2d8  /Users/yunjinqi/Documents/new_projects/fincore/fincore/report/factor/__init__.py
+69151a2fcbdbcf535baa8ffc5bf03e4fb8656f62c622493b1ae800bef5e9589a  /Users/yunjinqi/Documents/new_projects/fincore/fincore/report/factor/compute.py
+e79f2ec5af89fa4d6d1d98809db8247c0270ed7862f27c4bfe7902efde74dca9  /Users/yunjinqi/Documents/new_projects/fincore/fincore/report/factor/html.py

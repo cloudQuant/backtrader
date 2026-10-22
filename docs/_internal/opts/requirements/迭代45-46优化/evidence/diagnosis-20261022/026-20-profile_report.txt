@@ -1,0 +1,192 @@
+TOP 40 CUMULATIVE
+cum_s	self_s	calls	primitive_calls	file:line	function
+32.612865	0.000879	3	3	/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/factor_report.py:9	write_factor_report
+32.554078	0.000583	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/report/factor/html.py:932	write_factor_report
+30.644164	0.001287	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/analysis.py:731	analyze_factor
+30.642878	0.001753	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/analysis.py:385	_analyze_factor
+14.773002	0.000387	33	33	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/performance.py:174	factor_weights
+14.748130	0.069597	33	33	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/performance.py:159	_apply_groupwise_weights
+13.592621	0.001024	12	12	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/portfolio.py:165	factor_positions
+12.656302	0.103727	19422	19422	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:917	__setitem__
+10.697484	0.000346	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/analysis.py:608	<dictcomp>
+8.152519	0.000796	18	18	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/performance.py:206	factor_returns
+7.959882	0.103485	12	12	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/portfolio.py:37	positions
+7.155279	0.063213	19440	19422	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:1889	_setitem_with_indexer
+7.116247	0.000352	15	15	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/portfolio.py:142	factor_cumulative_returns
+7.111632	0.000564	15	15	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/portfolio.py:112	_factor_portfolio_returns
+6.810410	0.111397	19377	19377	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:2183	_setitem_single_block
+6.563153	0.000306	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/portfolio.py:199	build_factor_portfolio_inputs
+5.445851	0.074831	6765	6765	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/performance.py:135	_to_weights
+5.247843	0.055728	10587	10587	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:772	_get_setitem_indexer
+4.534046	0.122694	9294	9294	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:2339	_align_series
+4.175990	0.066883	13170	13170	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:1470	_convert_to_indexer
+4.123208	0.028727	21708	21708	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:5299	reindex
+4.100444	0.073920	21735	21735	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:5201	reindex
+3.861930	0.341683	83721	83721	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/internals/managers.py:399	apply
+3.736456	0.051846	74592	74592	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1416	view
+3.687503	0.253527	74640	74640	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1322	copy
+3.592803	0.399077	105747	105747	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:297	__new__
+3.531001	0.028525	9321	9321	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexing.py:1550	_get_listlike_indexer
+3.474757	0.000034	3	3	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/analysis.py:597	<dictcomp>
+3.254360	0.161985	250263	201438	~:0	<built-in method builtins.all>
+3.217281	0.122313	47451	47451	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/internals/managers.py:726	copy
+3.120441	0.065319	9336	9336	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:6288	_get_indexer_strict
+3.050955	0.000388	6	6	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1329	fingerprint_value
+3.049055	0.003441	1344	933	~:0	<built-in method builtins.sorted>
+3.045123	1.061015	293584	6	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1202	_fingerprint_bytes
+3.043165	0.001359	1572	144	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1244	<genexpr>
+3.035966	0.012988	120	120	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1149	_fingerprint_pandas
+3.010502	0.020878	6765	6765	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:3229	_get_indexer_strict
+2.846205	0.065139	35361	35361	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:6560	copy
+2.662157	0.034176	43470	43470	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:5464	<genexpr>
+2.630022	0.187455	69942	69942	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:5384	__getitem__
+
+TOP 40 SELF
+cum_s	self_s	calls	primitive_calls	file:line	function
+2.215277	1.450179	10953296	10815968	~:0	<built-in method builtins.isinstance>
+3.045123	1.061015	293584	6	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1202	_fingerprint_bytes
+0.953825	0.689976	462603	462603	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:652	_simple_new
+1.307515	0.679515	4245392	3297111	~:0	<built-in method builtins.len>
+0.844100	0.535710	296209	296209	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/models.py:1026	_fingerprint_envelope
+0.519700	0.519700	160332	160332	~:0	<method 'reduce' of 'numpy.ufunc' objects>
+0.699220	0.475031	129021	129021	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:6131	__finalize__
+1.238796	0.429540	13722	13722	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:3798	_get_indexer
+3.592803	0.399077	105747	105747	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:297	__new__
+1.258805	0.383907	400812	400812	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:779	_view
+0.625353	0.366218	105942	105942	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1662	_set_names
+3.861930	0.341683	83721	83721	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/internals/managers.py:399	apply
+0.636389	0.319415	81270	81270	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:1816	_validate_names
+1.336397	0.304458	105768	105768	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:885	_set_levels
+0.644688	0.290407	746808	746808	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/generic.py:43	_instancecheck
+2.558962	0.273883	31461	31461	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/series.py:369	__init__
+0.564510	0.268694	184908	184908	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:6208	__setattr__
+0.340025	0.259873	373587	373587	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/frozen.py:75	__getitem__
+1.007618	0.259838	37641	37641	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/arrays/arrow/array.py:722	__getitem__
+1.151942	0.259593	105768	105768	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1130	_set_codes
+3.687503	0.253527	74640	74640	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1322	copy
+1.025046	0.251656	36609	36609	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/construction.py:531	sanitize_array
+0.337637	0.243958	747786	747786	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/generic.py:38	_check
+0.324423	0.243948	121863	121863	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/generic.py:258	__init__
+0.341856	0.240366	2472	2472	/Users/yunjinqi/Documents/new_projects/fincore/fincore/factor_analysis/calendar.py:103	add_custom_calendar_timedelta
+0.650640	0.236027	67464	67464	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexers/utils.py:441	check_array_indexer
+0.250043	0.235709	1171146	1171104	~:0	<built-in method builtins.hasattr>
+0.277103	0.227435	1353317	1351919	~:0	<built-in method builtins.getattr>
+0.325282	0.224991	392292	392292	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/base.py:106	_reset_cache
+0.523521	0.224595	147120	147120	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/common.py:1821	pandas_dtype
+0.919369	0.223012	72843	72843	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:5584	equals
+2.542872	0.217244	31032	31032	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:4190	equals
+0.287045	0.208332	588334	588334	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/dtypes/inference.py:387	is_hashable
+0.579137	0.206205	211536	211536	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:4713	_coerce_indexer_frozen
+0.200472	0.194710	11886	11886	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pyarrow/compute.py:465	take
+2.630022	0.187455	69942	69942	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:5384	__getitem__
+0.461456	0.182819	467508	467508	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:918	__len__
+0.943210	0.181790	20364	20364	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:2425	__getitem__
+1.197241	0.181200	16290	16290	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/base.py:486	__new__
+0.805455	0.177376	317304	317304	/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pandas/core/indexes/multi.py:1147	<genexpr>
+
+PROJECT FUNCTIONS TOP 100 CUMULATIVE
+cum_s	self_s	calls	primitive_calls	file:line	function
+32.612865	0.000879	3	3	backtrader/research/factor_report.py:	write_factor_report
+3.254360	0.161985	250263	201438	~:	<built-in method builtins.all>
+3.049055	0.003441	1344	933	~:	<built-in method builtins.sorted>
+2.215277	1.450179	10953296	10815968	~:	<built-in method builtins.isinstance>
+1.307515	0.679515	4245392	3297111	~:	<built-in method builtins.len>
+0.519700	0.519700	160332	160332	~:	<method 'reduce' of 'numpy.ufunc' objects>
+0.445142	0.056883	226416	224523	~:	<built-in method numpy.asarray>
+0.277103	0.227435	1353317	1351919	~:	<built-in method builtins.getattr>
+0.250043	0.235709	1171146	1171104	~:	<built-in method builtins.hasattr>
+0.234163	0.025527	36294	36294	~:	<method 'sum' of 'numpy.ndarray' objects>
+0.219191	0.102391	43993	43993	~:	<built-in method numpy.array>
+0.216611	0.032524	64110	64110	~:	<method 'all' of 'numpy.ndarray' objects>
+0.141909	0.023227	36540	36540	~:	<method 'any' of 'numpy.ndarray' objects>
+0.137861	0.076318	344806	344806	<frozen abc>:	__instancecheck__
+0.135145	0.044119	139501	139501	~:	<built-in method builtins.any>
+0.129706	0.129680	662426	662426	~:	<built-in method __new__ of type object at 0x1006dd600>
+0.107404	0.107404	315972	315972	~:	<method 'view' of 'numpy.ndarray' objects>
+0.102076	0.102076	725854	725854	~:	<built-in method builtins.hash>
+0.097704	0.097704	886464	886464	~:	<method 'to_bytes' of 'int' objects>
+0.075590	0.025725	582	582	~:	<built-in method _pickle.loads>
+0.067079	0.067079	53339	53339	~:	<method 'copy' of 'numpy.ndarray' objects>
+0.066641	0.066641	296209	296209	~:	<method 'join' of 'bytes' objects>
+0.061543	0.061257	344806	344806	~:	<built-in method _abc._abc_instancecheck>
+0.061278	0.000270	52	8	<frozen importlib._bootstrap>:	_find_and_load
+0.061109	0.000229	49	5	<frozen importlib._bootstrap>:	_find_and_load_unlocked
+0.058501	0.000174	48	6	<frozen importlib._bootstrap>:	_load_unlocked
+0.058316	0.000114	48	6	<frozen importlib._bootstrap_external>:	exec_module
+0.057156	0.000056	111	11	<frozen importlib._bootstrap>:	_call_with_frames_removed
+0.055662	0.010674	12240	12240	~:	<method 'max' of 'numpy.ndarray' objects>
+0.055241	0.026713	29128	29128	<frozen importlib._bootstrap>:	_handle_fromlist
+0.054828	0.001985	711	702	~:	<built-in method _operator.add>
+0.054692	0.012132	170	6	~:	<built-in method builtins.exec>
+0.053847	0.052534	395699	395699	~:	<built-in method builtins.issubclass>
+0.053380	0.051721	590742	590742	~:	<method 'extend' of 'list' objects>
+0.048802	0.035729	582	582	~:	<built-in method _pickle.dumps>
+0.045931	0.045931	9348	9348	~:	<built-in method _operator.truediv>
+0.045779	0.001691	1845	1845	~:	<method 'mean' of 'numpy.ndarray' objects>
+0.045743	0.045743	403785	403785	~:	<method 'encode' of 'str' objects>
+0.042494	0.042494	17961	17961	~:	<method 'view' of 'numpy.generic' objects>
+0.040557	0.040557	373587	373587	~:	<function FrozenList.__getitem__ at 0x12d21b380>
+0.038845	0.038845	36784	36784	~:	<method 'remove' of 'list' objects>
+0.033153	0.000043	15	1	~:	<built-in method builtins.__import__>
+0.027019	0.027019	258271	258271	~:	<method 'append' of 'list' objects>
+0.026906	0.026906	186317	186317	~:	<built-in method _struct.pack>
+0.025002	0.025002	19344	19344	~:	<method 'take' of 'numpy.ndarray' objects>
+0.022112	0.022112	181405	181405	~:	<method 'pop' of 'dict' objects>
+0.021982	0.002436	3690	3690	~:	<method 'clip' of 'numpy.ndarray' objects>
+0.020901	0.020901	211536	211536	~:	<method 'clear' of 'dict' objects>
+0.020413	0.019322	6258	6249	~:	<built-in method _operator.sub>
+0.019685	0.019685	75105	75105	~:	<method 'copy' of 'dict' objects>
+0.018496	0.000125	123	123	<frozen _collections_abc>:	__iter__
+0.018465	0.018465	33276	33276	~:	<method 'reshape' of 'numpy.ndarray' objects>
+0.018401	0.000446	48	48	<frozen importlib._bootstrap_external>:	get_code
+0.017825	0.017825	36750	36750	~:	<built-in method numpy.seterrobj>
+0.017150	0.017150	11550	11550	~:	<built-in method numpy.arange>
+0.016756	0.000974	175	175	<frozen importlib._bootstrap_external>:	find_spec
+0.016412	0.016408	6597	6597	~:	<built-in method numpy.fromiter>
+0.015999	0.007387	12792	10947	~:	<built-in method builtins.next>
+0.014223	0.014223	136227	136227	~:	<built-in method builtins.callable>
+0.012522	0.012522	4083	4083	~:	<method 'argsort' of 'numpy.ndarray' objects>
+0.012136	0.012136	13237	13237	~:	<method 'astype' of 'numpy.ndarray' objects>
+0.012017	0.012017	19635	19635	~:	<built-in method numpy.empty>
+0.011141	0.011141	73500	73500	~:	<built-in method numpy.geterrobj>
+0.010854	0.000143	48	48	<frozen importlib._bootstrap_external>:	get_data
+0.010761	0.010455	37230	37182	~:	<built-in method builtins.iter>
+0.010472	0.010472	110346	110346	~:	<built-in method _warnings._filters_mutated>
+0.009692	0.000424	48	48	<frozen importlib._bootstrap>:	_find_spec
+0.009085	0.001116	828	828	~:	<built-in method builtins.repr>
+0.008942	0.000278	95	95	<frozen importlib._bootstrap_external>:	_get_spec
+0.008300	0.008300	49	49	~:	<method 'read' of '_io.BufferedReader' objects>
+0.008260	0.006634	46971	46971	~:	<built-in method numpy.asanyarray>
+0.007450	0.007450	37412	37412	~:	<method 'insert' of 'list' objects>
+0.007095	0.007095	56648	56648	~:	<method 'get' of 'dict' objects>
+0.006336	0.004294	10401	10401	~:	<built-in method builtins.sum>
+0.006281	0.006281	12993	12993	~:	<method 'transpose' of 'numpy.ndarray' objects>
+0.006000	0.000092	48	48	<frozen importlib._bootstrap_external>:	_compile_bytecode
+0.005866	0.005866	48	48	~:	<built-in method marshal.loads>
+0.005420	0.005420	6	6	~:	<built-in method _hashlib.openssl_sha256>
+0.005256	0.005256	8499	8499	~:	<method 'match' of 're.Pattern' objects>
+0.005172	0.005172	10950	10950	~:	<method 'ravel' of 'numpy.ndarray' objects>
+0.005082	0.004252	663	663	~:	<method 'searchsorted' of 'numpy.ndarray' objects>
+0.005044	0.005044	47943	47943	~:	<method 'read' of '_io.StringIO' objects>
+0.004645	0.004645	33977	33977	~:	<method 'add' of 'set' objects>
+0.004468	0.004468	33774	33774	~:	<method 'items' of 'dict' objects>
+0.004468	0.004149	32763	32763	~:	<built-in method builtins.setattr>
+0.004429	0.004429	8886	8886	~:	<built-in method numpy.zeros>
+0.004205	0.004163	300	300	~:	<built-in method posix.stat>
+0.004177	0.000109	288	288	<frozen importlib._bootstrap_external>:	_path_stat
+0.004042	0.004042	50370	50370	~:	<method 'isalpha' of 'str' objects>
+0.003696	0.003696	3732	3732	~:	<method 'repeat' of 'numpy.ndarray' objects>
+0.003632	0.003632	16671	16671	~:	<built-in method math.prod>
+0.003483	0.003483	33305	33305	~:	<built-in method builtins.id>
+0.003141	0.003141	16737	16737	~:	<built-in method numpy.core._multiarray_umath.normalize_axis_index>
+0.003079	0.003079	16659	16659	~:	<built-in method math.isnan>
+0.002964	0.000051	95	95	<frozen importlib._bootstrap_external>:	_path_isfile
+0.002952	0.000179	104	104	<frozen importlib._bootstrap_external>:	_path_is_mode_type
+0.002688	0.002688	5493	5493	~:	<built-in method numpy.datetime_data>
+0.002651	0.002651	8055	8055	~:	<built-in method _locale.setlocale>
+0.002642	0.002642	3	3	~:	<method 'write' of '_io.TextIOWrapper' objects>
+0.002639	0.002639	10152	10152	~:	<method 'search' of 're.Pattern' objects>
+
+REQUIRED / HOTSPOT FUNCTIONS
+cum_s	self_s	calls	primitive_calls	file:line	function
+32.612865	0.000879	3	3	backtrader/research/factor_report.py:	write_factor_report
