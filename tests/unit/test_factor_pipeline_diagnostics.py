@@ -215,10 +215,10 @@ def test_scaling_comparison_requires_identical_inputs_groups_and_actual_counts()
     }
     runs = []
     for count in (1, 3, 10):
-        bindings = {
-            "%s_ma_%02d" % (_scaling_field_name(index), index + 1): _scaling_field_binding(index)
-            for index in range(count)
-        }
+        factor_names = [
+            "%s_ma_%02d" % (_scaling_field_name(index), index + 1) for index in range(count)
+        ]
+        bindings = {name: _scaling_field_binding(index) for index, name in enumerate(factor_names)}
         runs.append(
             {
                 "mode": "scaling",
@@ -230,6 +230,7 @@ def test_scaling_comparison_requires_identical_inputs_groups_and_actual_counts()
                     "fixed_input_targets": targets,
                     "groups_by_target": groups,
                     "group_members": members,
+                    "factor_names": factor_names,
                     "factor_bindings": bindings,
                     "actual_instances_after_run": {
                         "observed_after_run": True,
@@ -239,10 +240,35 @@ def test_scaling_comparison_requires_identical_inputs_groups_and_actual_counts()
             }
         )
 
-    assert _compare_scaling_workloads(runs, (1, 3, 10))["all_match"] is True
+    serialized_runs = json.dumps(runs, sort_keys=True)
+    reloaded_runs = json.loads(serialized_runs)
+    assert _compare_scaling_workloads(reloaded_runs, (1, 3, 10))["all_match"] is True
 
-    runs[1]["scaling_workload"]["group_members"] = {"scale_a": targets[:9], "scale_b": targets[9:]}
-    comparison = _compare_scaling_workloads(runs, (1, 3, 10))
+    wrong_binding = json.loads(serialized_runs)
+    wrong_binding[1]["scaling_workload"]["factor_bindings"]["open_ma_02"][
+        "close"
+    ] = "feed:target:close"
+    comparison = _compare_scaling_workloads(wrong_binding, (1, 3, 10))
+    assert comparison["per_profile_contracts"]["3"]["alternating_binding_order_matches"] is False
+    assert comparison["all_match"] is False
+
+    wrong_order = json.loads(serialized_runs)
+    wrong_order[2]["scaling_workload"]["factor_names"][:2] = list(
+        reversed(wrong_order[2]["scaling_workload"]["factor_names"][:2])
+    )
+    comparison = _compare_scaling_workloads(wrong_order, (1, 3, 10))
+    assert (
+        comparison["per_profile_contracts"]["10"]["factor_names_complete_unique_and_ordered"]
+        is False
+    )
+    assert comparison["all_match"] is False
+
+    wrong_groups = json.loads(serialized_runs)
+    wrong_groups[1]["scaling_workload"]["group_members"] = {
+        "scale_a": targets[:9],
+        "scale_b": targets[9:],
+    }
+    comparison = _compare_scaling_workloads(wrong_groups, (1, 3, 10))
     assert comparison["checks"]["same_two_group_assignment"] is False
     assert comparison["all_match"] is False
 

@@ -1037,18 +1037,38 @@ def _compare_scaling_workloads(
         run = by_count.get(count, {})
         workload = run.get("scaling_workload") or {}
         bindings = workload.get("factor_bindings")
-        binding_fields = (
-            [
-                next(iter(binding.values())).rsplit(":", 1)[-1]
-                for binding in bindings.values()
-                if isinstance(binding, Mapping) and binding
-            ]
-            if isinstance(bindings, Mapping)
-            else []
+        factor_names = workload.get("factor_names")
+        expected_names = [
+            "%s_ma_%02d" % (_scaling_field_name(index), index + 1) for index in range(count)
+        ]
+        names_complete_and_ordered = (
+            isinstance(factor_names, list)
+            and len(factor_names) == count
+            and all(isinstance(name, str) and name for name in factor_names)
+            and len(set(factor_names)) == count
+            and isinstance(bindings, Mapping)
+            and len(bindings) == count
+            and set(factor_names) == set(bindings)
+            and factor_names == expected_names
         )
+        binding_fields = []
+        if names_complete_and_ordered:
+            for name in factor_names:
+                binding = bindings.get(name)
+                source = (
+                    binding.get("close")
+                    if isinstance(binding, Mapping) and set(binding) == {"close"}
+                    else None
+                )
+                binding_fields.append(
+                    source.rsplit(":", 1)[-1]
+                    if isinstance(source, str) and source.startswith("feed:target:")
+                    else None
+                )
         actuals = workload.get("actual_instances_after_run") or {}
         per_profile_contracts[str(count)] = {
             "worker_status_ok": run.get("status") == "OK" and run.get("worker_returncode") == 0,
+            "factor_names_complete_unique_and_ordered": names_complete_and_ordered,
             "binding_count_matches": isinstance(bindings, Mapping) and len(bindings) == count,
             "alternating_binding_order_matches": binding_fields
             == [_scaling_field_name(index) for index in range(count)],
@@ -1878,6 +1898,7 @@ def _worker(args: argparse.Namespace) -> int:
                 "fixed_input_targets": observer.metrics["runtime_window"]["targets"],
                 "groups_by_target": observer.metrics["runtime_window"]["groups_by_target"],
                 "group_members": observer.metrics["runtime_window"]["group_members"],
+                "factor_names": observer.metrics["factor_spec_configuration"]["factor_names"],
                 "factor_bindings": observer.metrics["factor_spec_configuration"]["factor_bindings"],
                 "binding_semantics": (
                     "diagnostic FactorIndicator reads its declared close alias; each factor's "
