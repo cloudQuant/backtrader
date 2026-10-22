@@ -1,4 +1,4 @@
-"""Native alpha101-v1 research operators.
+"""Native alpha101-v2 research operators.
 
 This module provides a small, explicit operator vocabulary for formula authors.
 It is deliberately not an expression parser or a second scheduler: scalar nodes
@@ -9,14 +9,14 @@ normal Indicator tree.
 Every node has a ``value`` line and a numeric ``reason`` line.  Reason values
 are the :class:`OperatorReason` enum values.  NaN is the numerical representation
 of a missing or mathematically invalid value; infinities in source lines are
-rejected because they are not a valid alpha101-v1 input.
+rejected because they are not a valid alpha101-v2 input.
 
 Panel nodes accept one source line per bound feed through ``values=`` and return
 one real output line per feed as ``node.outputs[data].value``.  Panel membership
 is optional and is supplied as one Boolean/numeric line per feed; known false
 members are excluded, while unknown membership is rejected.  ``IndNeutralize``
-takes PIT category lines through ``groups=`` (or reads the requested ``level``
-line from each feed).
+takes ordinary feed category lines through ``groups=`` (or reads the requested
+``level`` line from each feed).
 """
 
 from enum import IntEnum
@@ -96,7 +96,7 @@ def _associated_reason(
 
 
 def _floor_window(value: Any, name: str, allow_zero: bool = False) -> int:
-    """Validate a finite scalar window and apply alpha101-v1 floor semantics."""
+    """Validate a finite scalar window and apply alpha101-v2 floor semantics."""
     if isinstance(value, bool):
         raise ValueError("%s must be a finite non-boolean number" % name)
     try:
@@ -360,8 +360,8 @@ def _line_target_relation(source: Any, target: Any, seen: Optional[set] = None) 
 def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
     """Read a panel parameter at the target feed's populated current grid.
 
-    Panel operands such as PIT lines are sibling indicators, not ``datas`` of
-    the panel node, so their line cursors are not advanced by the panel's
+    Panel operands may be outputs of sibling indicators rather than ``datas``
+    of the panel node.  Their cursors are not advanced by the panel's
     ``once_via_next`` loop.  The native feed line is the authoritative grid
     index.  Target provenance and source-array bounds make the absolute read
     safe in both runnext and runonce without consuming or scheduling a node.
@@ -1040,7 +1040,7 @@ class _PanelOperator(FactorIndicator):
         if self.p.groups is not None:
             self._groups = tuple(self.p.groups)
             if len(self._groups) != len(targets):
-                raise ValueError("groups must contain one PIT category line per bound feed")
+                raise ValueError("groups must contain one feed category line per bound feed")
 
         # A FactorIndicator has one native owner clock for all output lines.
         # Retain the target identity on each line so downstream operators can
@@ -1184,7 +1184,7 @@ class CrossSectionalScale(_PanelOperator):
 
 
 class IndNeutralize(_PanelOperator):
-    """Subtract a finite-value group mean using a PIT category line.
+    """Subtract a finite-value group mean using an ordinary feed category line.
 
     ``level`` must be one of ``sector``, ``industry`` or ``subindustry``.  If
     ``groups`` is omitted, each bound feed must expose a same-named line.
@@ -1204,7 +1204,7 @@ class IndNeutralize(_PanelOperator):
                     getattr(data, self.p.level) for data in self._factor_target_datas
                 )
             except AttributeError as exc:
-                raise ValueError("all feeds require the requested PIT category line") from exc
+                raise ValueError("all feeds require the requested feed category line") from exc
 
     def _evaluate_panel(self) -> None:
         values, eligible, reasons = self._active_values()

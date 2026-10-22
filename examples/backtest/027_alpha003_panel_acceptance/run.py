@@ -190,7 +190,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         config = _load_config()
         if config.get("factor") != FACTOR_NAME or config.get("operator_profile") != "alpha101-v2":
-            raise ValueError("this example fixes factor=alpha003 and operator_profile=alpha101-v1")
+            raise ValueError("this example fixes factor=alpha003 and operator_profile=alpha101-v2")
         if args.data_dir:
             config["data"]["directory"] = args.data_dir
         if args.max_symbols is not None:
