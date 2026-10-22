@@ -195,15 +195,27 @@ def _normalized_spec(module: Any, panel: Any, spec: Any) -> Any:
         ) from exc
 
 
-def _canonicalize_evaluation_index(value: Any, pandas: Any) -> Any:
-    """Drop derivable ``freq`` caches so identical timestamps fingerprint equal."""
+def _canonicalize_evaluation_index(value: Any, pandas: Any, *, copy: bool = False) -> Any:
+    """Drop derivable ``freq`` caches without changing a borrowed frame."""
     if not isinstance(value, (pandas.DataFrame, pandas.Series)):
         return value
-    index = value.index
+    original_index = value.index
+    index = original_index
+    changed = False
     if isinstance(index, pandas.MultiIndex):
         index = index.remove_unused_levels()
+        changed = (
+            len(index.levels) != len(original_index.levels)
+            or index.names != original_index.names
+            or index.sortorder != original_index.sortorder
+        )
+        for original_level, level in zip(original_index.levels, index.levels):
+            if original_level.name != level.name or not original_level.equals(level):
+                changed = True
+        for original_codes, codes in zip(original_index.codes, index.codes):
+            if len(original_codes) != len(codes) or not bool((original_codes == codes).all()):
+                changed = True
         levels = []
-        changed = False
         for level in index.levels:
             if isinstance(level, pandas.DatetimeIndex) and level.freq is not None:
                 levels.append(pandas.DatetimeIndex(level, name=level.name, freq=None))
@@ -218,10 +230,17 @@ def _canonicalize_evaluation_index(value: Any, pandas: Any) -> Any:
                 names=index.names,
                 verify_integrity=False,
             )
-        value.index = index
     elif isinstance(index, pandas.DatetimeIndex) and index.freq is not None:
-        value.index = pandas.DatetimeIndex(index, name=index.name, freq=None)
-    return value
+        index = pandas.DatetimeIndex(index, name=index.name, freq=None)
+        changed = True
+
+    if not changed and not copy:
+        return value
+
+    result = value.copy(deep=False)
+    if changed:
+        result.index = index
+    return result
 
 
 def _translate_known_error(module: Any, exc: BaseException) -> BaseException:
@@ -274,6 +293,12 @@ def evaluate_frames(panel: Any, spec: Any = None) -> Any:
     capabilities = _check_capabilities(module)
     normalized = _normalized_spec(module, panel, spec)
     label = getattr(normalized, "label", None)
+    if label == "precomputed":
+        raise ResearchConfigError(
+            "label 'precomputed' requires precomputed_returns, which FactorPanel does not provide",
+            code="missing_precomputed_returns",
+            report={"field": "precomputed_returns"},
+        )
     if label not in set(capabilities.get("labels", ())):
         raise DependencyError(
             "the installed fincore build does not support label %r" % label,
@@ -287,7 +312,7 @@ def evaluate_frames(panel: Any, spec: Any = None) -> Any:
             code="DEPENDENCY_UNAVAILABLE",
         ) from exc
 
-    factors = _canonicalize_evaluation_index(panel.factors, pandas)
+    factors = _canonicalize_evaluation_index(panel.factors, pandas, copy=True)
     factors.attrs["factor_directions"] = dict(panel.directions)
     prices = {
         "open": _canonicalize_evaluation_index(panel.prices_open, pandas),

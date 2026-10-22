@@ -353,6 +353,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         periods=periods,
                         quantiles=config["evaluation"]["quantiles"],
                         max_loss=config["evaluation"]["max_loss"],
+                        label=config["evaluation"]["label"],
                         language=args.report_language,
                         title="026 factor_multi · %s" % factor_name,
                     )

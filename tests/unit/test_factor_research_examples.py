@@ -13,6 +13,7 @@ import math
 import sys
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
@@ -140,6 +141,73 @@ def test_single_and_multi_examples_load_the_same_real_panel(tmp_path: Path):
         panels.append(panel)
     for asset in panels[0]["assets"]:
         pd.testing.assert_frame_equal(panels[0]["feeds"][asset], panels[1]["feeds"][asset])
+
+
+@pytest.mark.parametrize(
+    ("runner_path", "module_name", "factor_names"),
+    (
+        (SINGLE_RUNNER, "iteration45_single_report_label", ("close_ma",)),
+        (
+            MULTI_RUNNER,
+            "iteration45_multi_report_label",
+            ("close_ma", "roc", "kdj_j"),
+        ),
+    ),
+)
+@pytest.mark.parametrize("label", ("next_open_to_open", "close_to_close"))
+def test_factor_example_reports_follow_the_evaluation_label(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    runner_path: Path,
+    module_name: str,
+    factor_names: Tuple[str, ...],
+    label: str,
+):
+    from backtrader.errors import DependencyError
+    import backtrader.research as research
+
+    runner = _load_module(runner_path, module_name)
+    config = runner._load_config()
+    assert config["evaluation"]["label"] == "next_open_to_open"
+    config["evaluation"]["label"] = label
+    monkeypatch.setattr(runner, "_load_config", lambda: config)
+
+    dates = pd.date_range("2025-01-02", periods=3, freq="B", tz="UTC", name="time")
+    assets = ("ASSET_A", "ASSET_B")
+    index = pd.MultiIndex.from_product([dates, assets], names=("time", "asset"))
+    factors = pd.DataFrame(
+        {name: range(len(index)) for name in factor_names},
+        index=index,
+    )
+    panel = SimpleNamespace(
+        factors=factors,
+        target_order=assets,
+        grid=pd.DataFrame(index=dates),
+    )
+    broker = SimpleNamespace(submit_count=0, cancel_count=0)
+    monkeypatch.setattr(runner, "load_daily_panel", lambda data_config: {})
+    monkeypatch.setattr(
+        runner,
+        "_run_native_collection",
+        lambda run_config, data, runnext: (None, panel, broker),
+    )
+    monkeypatch.setattr(runner, "_evaluation_spec", lambda run_config, result_panel, periods: None)
+    report_calls = []
+
+    def capture_report(_panel, factor_name, target, **kwargs):
+        report_calls.append((factor_name, kwargs["label"]))
+        return Path(target)
+
+    def unavailable(*args, **kwargs):
+        raise DependencyError("synthetic unavailable evaluation")
+
+    monkeypatch.setattr(research, "write_factor_report", capture_report)
+    monkeypatch.setattr(research, "evaluate_frames", unavailable)
+
+    result = runner.main(["--output-dir", str(tmp_path / (module_name + "-" + label)), "--report"])
+
+    assert result == 0
+    assert report_calls == [(name, label) for name in factor_names]
 
 
 @pytest.mark.parametrize(

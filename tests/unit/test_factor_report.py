@@ -75,3 +75,90 @@ def test_write_factor_report_rejects_an_unknown_factor(tmp_path):
 
     with pytest.raises(KeyError):
         write_factor_report(_dataset(), "missing", tmp_path / "report.html")
+
+
+def test_write_factor_report_applies_each_direction_without_mutating_panel(monkeypatch, tmp_path):
+    report_module = _require_fincore_report()
+    from backtrader.research import FactorPanel
+    from backtrader.research.factor_report import write_factor_report
+
+    source = _dataset()
+    factors = source.factors.copy(deep=True)
+    factors["positive_factor"] = factors["factor"]
+    panel = FactorPanel(
+        factors=factors,
+        grid=source.grid,
+        prices_open=source.prices_open,
+        prices_close=source.prices_close,
+        start=source.start,
+        end=source.end,
+        target_order=source.target_order,
+        factor_order=("factor", "positive_factor"),
+        directions={"factor": -1, "positive_factor": 1},
+    )
+    original_factors = panel.factors.copy(deep=True)
+    original_index = panel.factors.index
+    original_attrs = panel.factors.attrs.copy()
+    calls = []
+
+    def capture_report(factor, prices, target, **kwargs):
+        calls.append((factor.copy(deep=True), prices, kwargs))
+        return target
+
+    monkeypatch.setattr(report_module, "write_factor_report", capture_report)
+
+    write_factor_report(panel, "factor", tmp_path / "negative.html")
+    write_factor_report(panel, "positive_factor", tmp_path / "positive.html")
+
+    expected_negative = source.factor_values("factor").mul(-1).rename("factor")
+    expected_positive = source.factor_values("factor").rename("factor")
+    assert calls[0][0].equals(expected_negative)
+    assert calls[1][0].equals(expected_positive)
+    assert calls[0][1] is panel.prices_open
+    assert calls[1][1] is panel.prices_open
+    assert calls[0][2]["next_open"] is True
+    assert calls[1][2]["next_open"] is True
+    assert panel.factors.equals(original_factors)
+    assert panel.factors.index is original_index
+    assert panel.factors.attrs == original_attrs
+
+
+def test_write_factor_report_close_to_close_matches_raw_close_baseline(monkeypatch, tmp_path):
+    report_module = _require_fincore_report()
+    from backtrader.research.factor_report import write_factor_report
+
+    panel = _dataset()
+    panel.directions["factor"] = -1
+    calls = []
+
+    def capture_report(factor, prices, target, **kwargs):
+        calls.append((factor.copy(deep=True), prices, kwargs))
+        return target
+
+    monkeypatch.setattr(report_module, "write_factor_report", capture_report)
+    write_factor_report(
+        panel,
+        "factor",
+        tmp_path / "close-report.html",
+        label="close_to_close",
+    )
+
+    explicit_factor = panel.factor_values("factor").mul(-1).rename("factor")
+    assert len(calls) == 1
+    assert calls[0][0].equals(explicit_factor)
+    assert calls[0][1] is panel.prices_close
+    assert calls[0][2]["next_open"] is False
+
+
+def test_write_factor_report_rejects_labels_without_panel_price_support():
+    from backtrader.errors import ResearchConfigError
+    from backtrader.research.factor_report import write_factor_report
+
+    class MinimalPanel:
+        factor_order = ("factor",)
+
+    with pytest.raises(ResearchConfigError) as caught:
+        write_factor_report(MinimalPanel(), "factor", "report.html", label="precomputed")
+
+    assert caught.value.code == "INVALID_CONFIG"
+    assert caught.value.report["field"] == "label"
