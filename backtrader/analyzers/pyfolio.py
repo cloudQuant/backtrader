@@ -17,9 +17,6 @@ Example:
 import datetime
 import math
 
-import numpy as np
-import pandas as pd
-
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..metabase import OwnerContext
@@ -32,6 +29,9 @@ from .transactions import Transactions
 
 def _daily_returns(values, name):
     """Copy a daily return series and align timezone-aware and naive date indices."""
+    import numpy as np
+    import pandas as pd
+
     if isinstance(values, pd.DataFrame):
         if name in values:
             values = values[name]
@@ -56,6 +56,8 @@ def _ratio(numerator, denominator):
 
 def _drawdown_details(returns):
     """Return signed maximum drawdown and (peak, trough, recovery) dates."""
+    import numpy as np
+
     if returns.empty:
         return float("nan"), None
     wealth = (1.0 + returns).cumprod()
@@ -178,6 +180,8 @@ class PyFolio(Analyzer):
         The method will break if ``pandas`` is not installed
         """
         # keep import local to avoid disturbing installations with no pandas
+        import pandas as pd
+
         # Returns
         # Process returns
         cols = ["index", "return"]
@@ -242,6 +246,8 @@ class PyFolio(Analyzer):
 
     def _get_order_type(self, row):
         """Return the execution side, including buys that close a short position."""
+        import numpy as np
+
         if row["TRADE_TYPE"] not in {"开仓", "平仓"} or not row["amount"]:
             return np.nan
         return "买入" if row["amount"] > 0 else "卖出"
@@ -287,6 +293,9 @@ class PyFolio(Analyzer):
         """
         if pair_num is not None and (not isinstance(pair_num, int) or pair_num < 1):
             raise ValueError("pair_num must be a positive integer or None")
+        import numpy as np
+        import pandas as pd
+
         columns = [
             "TRADE_DATE",
             "ENTRUST_DATE",
@@ -375,6 +384,8 @@ class PyFolio(Analyzer):
         supplies net win/loss counts; without it nonempty trade statistics are NaN.
         """
         from .tradeanalyzer import TradeAnalyzer
+        import numpy as np
+        import pandas as pd
 
         strategy_returns = _daily_returns(returns, "return")
         benchmark = _daily_returns(benchmark_returns, "returns")

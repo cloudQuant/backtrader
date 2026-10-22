@@ -31,8 +31,6 @@ Example:
                 self.sell(data=self.data1)
 """
 
-import pandas as pd
-
 from . import PeriodN
 
 # Lazy import statsmodels to avoid slow import at module load time
@@ -67,10 +65,6 @@ class OLS_Slope_InterceptN(PeriodN):
 
     _mindatas = 2  # ensure at least 2 data feeds are passed
 
-    packages = (
-        ("pandas", "pd"),
-        ("statsmodels.api", "sm"),
-    )
     lines = (
         "slope",
         "intercept",
@@ -82,6 +76,8 @@ class OLS_Slope_InterceptN(PeriodN):
 
         Uses statsmodels OLS to perform linear regression.
         """
+        import pandas as pd
+
         sm = _get_statsmodels()
         p0 = pd.Series(self.data0.get(size=self.p.period))
         p1 = pd.Series(self.data1.get(size=self.p.period))
@@ -216,8 +212,6 @@ class OLS_BetaN(PeriodN):
 
     _mindatas = 2  # ensure at least 2 data feeds are passed
 
-    packages = (("pandas", "pd"),)
-
     lines = ("beta",)
     params = (("period", 10),)
 
@@ -226,6 +220,8 @@ class OLS_BetaN(PeriodN):
 
         Uses pandas OLS to calculate regression beta.
         """
+        import pandas as pd
+
         y, x = (pd.Series(d.get(size=self.p.period)) for d in self.datas)
         r_beta = pd.ols(y=y, x=x, window_type="full_sample")
         self.lines.beta[0] = r_beta.beta["x"]
@@ -241,9 +237,6 @@ class CointN(PeriodN):
 
     _mindatas = 2  # ensure at least 2 data feeds are passed
 
-    packages = (("pandas", "pd"),)  # import pandas as pd
-    frompackages = (("statsmodels.tsa.stattools", "coint"),)  # from st... import coint
-
     lines = (
         "score",
         "pvalue",
@@ -258,6 +251,8 @@ class CointN(PeriodN):
 
         Uses statsmodels coint function to test for cointegration.
         """
+        import pandas as pd
+
         coint = _get_coint()
         x, y = (pd.Series(d.get(size=self.p.period)) for d in self.datas)
         score, pvalue, _ = coint(x, y, trend=self.p.trend)

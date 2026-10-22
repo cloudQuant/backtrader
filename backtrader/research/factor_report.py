@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
-from ..errors import ResearchConfigError
+from ..errors import DependencyError, ResearchConfigError
 
 
 _REPORT_LABELS = ("next_open_to_open", "close_to_close")
@@ -42,9 +42,10 @@ def write_factor_report(
     try:
         from fincore.report.factor import write_factor_report as _write_factor_report
     except ImportError as exc:
-        raise RuntimeError(
+        raise DependencyError(
             "the factor HTML report requires a fincore build with "
-            "fincore.report.factor.write_factor_report"
+            "fincore.report.factor.write_factor_report",
+            code="DEPENDENCY_UNAVAILABLE",
         ) from exc
 
     factor = panel.factor_values(factor_name).mul(panel.directions[factor_name]).rename("factor")

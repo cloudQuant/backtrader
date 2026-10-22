@@ -5,8 +5,6 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator
 
-import pandas as pd
-
 from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num
@@ -90,6 +88,8 @@ class CryptoHFTData(DataBase):
 
     def _prepare_rows(self, trades, start: datetime, end: datetime):
         """Normalize SDK trades and optionally aggregate them into bars."""
+        import pandas as pd
+
         required = {"trade_time", "trade_id", "price", "quantity"}
         missing = required.difference(trades.columns)
         if missing:

@@ -1,0 +1,5 @@
+ERROR: file or directory not found: tests/unit/indicators/test_ols.py
+
+
+no tests ran in 0.22s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/test_factor_optional_dependencies.py tests/unit/test_factor_report.py tests/unit/analyzers/test_analyzer_pyfolio.py tests/unit/analyzers/test_pyfolio_master_compatibility.py tests/unit/feeds/test_cryptohftdata.py tests/unit/indicators/test_ols.py -q` failed. (See above for error)

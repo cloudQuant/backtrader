@@ -7,8 +7,6 @@ helper functions and constants without cross-test name collisions.
 
 from collections import deque
 
-import pandas as pd
-
 from .. import (
     EMA,
     SMA,
@@ -111,6 +109,8 @@ class LinearRegSlopeV2Indicator(Indicator):
 
     def next(self):
         """Update one bar of regression slope and trigger calculations."""
+        import pandas as pd
+
         self._window.appendleft(float(self.smooth[0]))
         if len(self._window) < self.p.sl_length:
             self.lines.reg_slope[0] = float("nan")

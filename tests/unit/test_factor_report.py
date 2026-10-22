@@ -162,3 +162,27 @@ def test_write_factor_report_rejects_labels_without_panel_price_support():
 
     assert caught.value.code == "INVALID_CONFIG"
     assert caught.value.report["field"] == "label"
+
+
+def test_write_factor_report_reports_missing_fincore_as_typed_dependency_error(monkeypatch):
+    import builtins
+    from types import SimpleNamespace
+
+    from backtrader.errors import DependencyError
+    from backtrader.research.factor_report import write_factor_report
+
+    original_import = builtins.__import__
+
+    def import_without_fincore(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "fincore.report.factor":
+            raise ImportError("blocked report dependency")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_fincore)
+    panel = SimpleNamespace(factor_order=("alpha",))
+
+    with pytest.raises(DependencyError) as caught:
+        write_factor_report(panel, "alpha", "report.html")
+
+    assert caught.value.code == "DEPENDENCY_UNAVAILABLE"
+    assert isinstance(caught.value.__cause__, ImportError)
