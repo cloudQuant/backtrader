@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "expected_count": 298,
+  "completed_count": 298,
+  "initial_passed_count": 292,
+  "remainder_passed_count": 6,
+  "initial_run_status": "INTENTIONALLY_INTERRUPTED_TO_RESCHEDULE_PENDING_CASES",
+  "initial_exit_code": 2,
+  "initial_unnamed_interrupted_items_excluded": [
+    {
+      "time": "0.648"
+    }
+  ],
+  "remainder_exit_code": 0,
+  "initial_junit_counters": {
+    "tests": 292,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "remainder_junit_counters": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "missing_nodeids": [],
+  "unexpected_nodeids": [],
+  "duplicate_passed_nodeids": [],
+  "expected_nodeids_sha256": "4e84e1b6c6813143b9cd4800ccc88d73f64e04cca5fcb1f23fd56d71320977df",
+  "completed_nodeids_sha256": "4e84e1b6c6813143b9cd4800ccc88d73f64e04cca5fcb1f23fd56d71320977df",
+  "raw_collection_sha256": "d889089c5abf92702ceaa845f6ffd8d56d4b1d6017726ac10472fd2167f7a267",
+  "junit_sha256": {
+    "source-native-initial.xml": "71c525f0fc8066ac7e23e2ee2b98e0c36e8b1125ccbbb3db2187f75d529e001d",
+    "source-native-remainder.xml": "a63c2a28412b4ab476c36a3858a7824c8a049a6df49b0da090a6b8bcd39f5ccf"
+  }
+}

@@ -9,8 +9,8 @@ reference calculations.
 
 from typing import Any, Dict, Mapping, Sequence, Tuple, Type
 
-from .factor_indicator import FactorIndicator
-from .operators import (
+from backtrader.research.factor_indicator import FactorIndicator
+from backtrader.research.operators import (
     Abs,
     Add,
     CrossSectionalRank,

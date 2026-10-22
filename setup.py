@@ -35,7 +35,6 @@ setup(
     package_data={
         "backtrader": [
             "configs/account_config_example.yaml",
-            "research/alpha101_dependencies.json",
         ],
         # Immutable, credential-free data belongs only to the packaged
         # Iteration 41 acceptance fixtures: two fake-provider L2 configs plus

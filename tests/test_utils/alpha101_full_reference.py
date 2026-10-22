@@ -21,9 +21,8 @@ from pathlib import Path
 import re
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-
 _CATALOG_PATH = (
-    Path(__file__).resolve().parents[2] / "backtrader" / "research" / "alpha101_dependencies.json"
+    Path(__file__).resolve().parents[1] / "fixtures" / "research" / "alpha101_dependencies.json"
 )
 with _CATALOG_PATH.open("r", encoding="utf-8") as _catalog_file:
     _CATALOG = json.load(_catalog_file)

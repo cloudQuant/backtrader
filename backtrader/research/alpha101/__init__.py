@@ -1,136 +1,117 @@
-"""Native Alpha101 formula registry.
-
-Only individually promoted and accepted formulas belong in this registry.
-Formula IDs identify Appendix A equations; each class carries a separate
-implementation identity for its native code revision.
-"""
+"""Native Alpha101 formula registry."""
 
 from types import MappingProxyType
 from typing import Mapping, Tuple, Type
 
 from ..factor_indicator import FactorIndicator
-from ._base import (
+from ._metadata import (
     DEFAULT_FORMULA_UNIVERSE_POLICY,
     DEFAULT_PIT_POLICY,
     FormulaIdentity,
     ImplementationIdentity,
-    NativeAlphaBase,
     native_alpha,
 )
-from .batch_a import (
-    Alpha005Native,
-    Alpha006Native,
-    Alpha008Native,
-    Alpha010Native,
-    Alpha011Native,
-    Alpha012Native,
-    Alpha014Native,
-    Alpha015Native,
-    Alpha016Native,
-    Alpha017Native,
-    Alpha018Native,
-    Alpha019Native,
-    Alpha020Native,
-)
-from .batch_c import (
-    Alpha041Native,
-    Alpha042Native,
-    Alpha043Native,
-    Alpha044Native,
-    Alpha045Native,
-    Alpha046Native,
-    Alpha047Native,
-    Alpha049Native,
-    Alpha050Native,
-    Alpha051Native,
-    Alpha052Native,
-    Alpha053Native,
-    Alpha054Native,
-    Alpha055Native,
-    Alpha057Native,
-    Alpha059Native,
-    Alpha060Native,
-    Alpha061Native,
-)
-from .batch_b import (
-    Alpha021Native,
-    Alpha022Native,
-    Alpha023Native,
-    Alpha024Native,
-    Alpha025Native,
-    Alpha026Native,
-    Alpha027Native,
-    Alpha028Native,
-    Alpha030Native,
-    Alpha031Native,
-    Alpha032Native,
-    Alpha033Native,
-    Alpha034Native,
-    Alpha035Native,
-    Alpha036Native,
-    Alpha037Native,
-    Alpha038Native,
-    Alpha039Native,
-    Alpha040Native,
-)
-from .batch_d import (
-    Alpha064Native,
-    Alpha065Native,
-    Alpha066Native,
-    Alpha068Native,
-    Alpha069Native,
-    Alpha070Native,
-    Alpha071Native,
-    Alpha072Native,
-    Alpha073Native,
-    Alpha074Native,
-    Alpha075Native,
-    Alpha076Native,
-    Alpha077Native,
-    Alpha078Native,
-    Alpha079Native,
-    Alpha080Native,
-)
-from .batch_e import (
-    Alpha082Native,
-    Alpha083Native,
-    Alpha085Native,
-    Alpha086Native,
-    Alpha087Native,
-    Alpha088Native,
-    Alpha089Native,
-    Alpha090Native,
-    Alpha091Native,
-    Alpha093Native,
-    Alpha094Native,
-    Alpha095Native,
-    Alpha097Native,
-    Alpha098Native,
-    Alpha099Native,
-)
-from .promoted import (
-    Alpha001Native,
-    Alpha002Native,
-    Alpha003Native,
-    Alpha004Native,
-    Alpha007Native,
-    Alpha009Native,
-    Alpha013Native,
-    Alpha029Native,
-    Alpha048Native,
-    Alpha056Native,
-    Alpha058Native,
-    Alpha062Native,
-    Alpha063Native,
-    Alpha067Native,
-    Alpha081Native,
-    Alpha084Native,
-    Alpha092Native,
-    Alpha096Native,
-    Alpha100Native,
-    Alpha101Native,
-)
-
+from .alpha001 import Alpha001Native
+from .alpha002 import Alpha002Native
+from .alpha003 import Alpha003Native
+from .alpha004 import Alpha004Native
+from .alpha005 import Alpha005Native
+from .alpha006 import Alpha006Native
+from .alpha007 import Alpha007Native
+from .alpha008 import Alpha008Native
+from .alpha009 import Alpha009Native
+from .alpha010 import Alpha010Native
+from .alpha011 import Alpha011Native
+from .alpha012 import Alpha012Native
+from .alpha013 import Alpha013Native
+from .alpha014 import Alpha014Native
+from .alpha015 import Alpha015Native
+from .alpha016 import Alpha016Native
+from .alpha017 import Alpha017Native
+from .alpha018 import Alpha018Native
+from .alpha019 import Alpha019Native
+from .alpha020 import Alpha020Native
+from .alpha021 import Alpha021Native
+from .alpha022 import Alpha022Native
+from .alpha023 import Alpha023Native
+from .alpha024 import Alpha024Native
+from .alpha025 import Alpha025Native
+from .alpha026 import Alpha026Native
+from .alpha027 import Alpha027Native
+from .alpha028 import Alpha028Native
+from .alpha029 import Alpha029Native
+from .alpha030 import Alpha030Native
+from .alpha031 import Alpha031Native
+from .alpha032 import Alpha032Native
+from .alpha033 import Alpha033Native
+from .alpha034 import Alpha034Native
+from .alpha035 import Alpha035Native
+from .alpha036 import Alpha036Native
+from .alpha037 import Alpha037Native
+from .alpha038 import Alpha038Native
+from .alpha039 import Alpha039Native
+from .alpha040 import Alpha040Native
+from .alpha041 import Alpha041Native
+from .alpha042 import Alpha042Native
+from .alpha043 import Alpha043Native
+from .alpha044 import Alpha044Native
+from .alpha045 import Alpha045Native
+from .alpha046 import Alpha046Native
+from .alpha047 import Alpha047Native
+from .alpha048 import Alpha048Native
+from .alpha049 import Alpha049Native
+from .alpha050 import Alpha050Native
+from .alpha051 import Alpha051Native
+from .alpha052 import Alpha052Native
+from .alpha053 import Alpha053Native
+from .alpha054 import Alpha054Native
+from .alpha055 import Alpha055Native
+from .alpha056 import Alpha056Native
+from .alpha057 import Alpha057Native
+from .alpha058 import Alpha058Native
+from .alpha059 import Alpha059Native
+from .alpha060 import Alpha060Native
+from .alpha061 import Alpha061Native
+from .alpha062 import Alpha062Native
+from .alpha063 import Alpha063Native
+from .alpha064 import Alpha064Native
+from .alpha065 import Alpha065Native
+from .alpha066 import Alpha066Native
+from .alpha067 import Alpha067Native
+from .alpha068 import Alpha068Native
+from .alpha069 import Alpha069Native
+from .alpha070 import Alpha070Native
+from .alpha071 import Alpha071Native
+from .alpha072 import Alpha072Native
+from .alpha073 import Alpha073Native
+from .alpha074 import Alpha074Native
+from .alpha075 import Alpha075Native
+from .alpha076 import Alpha076Native
+from .alpha077 import Alpha077Native
+from .alpha078 import Alpha078Native
+from .alpha079 import Alpha079Native
+from .alpha080 import Alpha080Native
+from .alpha081 import Alpha081Native
+from .alpha082 import Alpha082Native
+from .alpha083 import Alpha083Native
+from .alpha084 import Alpha084Native
+from .alpha085 import Alpha085Native
+from .alpha086 import Alpha086Native
+from .alpha087 import Alpha087Native
+from .alpha088 import Alpha088Native
+from .alpha089 import Alpha089Native
+from .alpha090 import Alpha090Native
+from .alpha091 import Alpha091Native
+from .alpha092 import Alpha092Native
+from .alpha093 import Alpha093Native
+from .alpha094 import Alpha094Native
+from .alpha095 import Alpha095Native
+from .alpha096 import Alpha096Native
+from .alpha097 import Alpha097Native
+from .alpha098 import Alpha098Native
+from .alpha099 import Alpha099Native
+from .alpha100 import Alpha100Native
+from .alpha101 import Alpha101Native
 
 ALPHA_REGISTRY: Mapping[int, Type[FactorIndicator]] = MappingProxyType(
     {
@@ -363,7 +344,6 @@ __all__ = (
     "DEFAULT_PIT_POLICY",
     "FormulaIdentity",
     "ImplementationIdentity",
-    "NativeAlphaBase",
     "get_alpha",
     "list_alphas",
     "native_alpha",

@@ -419,12 +419,18 @@ the old `execution` selector and unsupported live/replay/mixed-clock inputs.
 Collection and save/load work without fincore. Evaluation lazily calls the
 separately developed fincore public research API; do not duplicate its IC,
 labels, signal-combination or reporting algorithms in Backtrader. The native
-operators use the frozen `alpha101-v1` profile. `research/representative.py`
-contains 20 diagnostic formulas; `alpha101_dependencies.json` is the static
-101-formula inventory. `research/alpha101/` provides 101 explicit native classes
-through `get_alpha(id)` and the immutable registry exposed by `list_alphas()`.
-They reuse the research operators and native Indicator lifecycle; no build/DSL
-front end is implemented. Iteration 46 acceptance is tracked separately in its
+operators use the frozen `alpha101-v1` profile. `research/alpha101/alpha001.py`
+through `alpha101.py` contain the 101 concrete formula classes, each directly
+subclassing `FactorIndicator` with ordinary `__init__` and `next` methods.
+`get_alpha(id)` and `list_alphas()` expose the immutable production registry.
+Small package-local helpers only construct native child indicators and retain
+their references for intermediate-value diagnostics; they do not schedule
+calculations. Metadata is frozen separately in `alpha101/_metadata.py`.
+The old diagnostic formulas and static paper catalog are test assets under
+`tests/test_utils/alpha101_diagnostic_factors.py` and
+`tests/fixtures/research/alpha101_dependencies.json`, respectively; neither is
+installed as runtime code/data. No build/DSL front end is implemented.
+Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone
 single/multi-factor examples and 027 is the native Alpha003 demonstration.

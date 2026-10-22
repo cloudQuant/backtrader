@@ -30,20 +30,18 @@ from backtrader.research.alpha101 import (
     DEFAULT_FORMULA_UNIVERSE_POLICY,
     FormulaIdentity,
     ImplementationIdentity,
-    NativeAlphaBase,
     get_alpha,
     list_alphas,
     native_alpha,
 )
 from backtrader.research.factor_indicator import FactorIndicator
-from backtrader.research.representative import REPRESENTATIVE_FACTORS
+from tests.test_utils.alpha101_diagnostic_factors import REPRESENTATIVE_FACTORS
 from tests.unit.test_factor_research_representatives import (
     _HISTORY,
     _formula_reference,
     _frames,
     _run_subset,
 )
-
 
 _PROMOTED = {
     1: Alpha001Native,
@@ -74,7 +72,7 @@ def test_metadata_decorator_is_immutable_and_has_no_registry_side_effect():
     before_registry = tuple(ALPHA_REGISTRY.items())
 
     @native_alpha
-    class UnregisteredAlpha077(NativeAlphaBase):
+    class UnregisteredAlpha077(FactorIndicator):
         lines = ("factor",)
         alpha_id = 77
         formula = "rank(close)"
@@ -82,6 +80,9 @@ def test_metadata_decorator_is_immutable_and_has_no_registry_side_effect():
         formula_fields = ("close",)
         classification_fields = ()
         classification_levels = ()
+
+        def next(self):
+            pass
 
     assert list_alphas() == before
     assert tuple(ALPHA_REGISTRY.items()) == before_registry
@@ -116,11 +117,17 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
         implementation = native_class.implementation_identity
 
         assert get_alpha(alpha_id) is native_class
-        assert issubclass(native_class, NativeAlphaBase)
         assert issubclass(native_class, FactorIndicator)
-        assert issubclass(native_class, representative)
+        assert native_class.__bases__ == (FactorIndicator,)
         assert native_class.__dict__["alpha_id"] == alpha_id
-        assert native_class._make_formula is representative.__dict__["_make_formula"]
+        assert "__init__" in native_class.__dict__
+        assert "next" in native_class.__dict__
+        assert "_make_formula" not in native_class.__dict__
+        assert native_class.__dict__["formula"] == representative.formula
+        assert native_class.__dict__["lookback_h"] == representative.lookback_h
+        assert native_class.__dict__["formula_fields"] == tuple(representative.formula_fields)
+        assert "classification_fields" in native_class.__dict__
+        assert "classification_levels" in native_class.__dict__
         assert native_class.formula == identity.expression == representative.formula
         assert native_class.lookback_h == identity.lookback_h == representative.lookback_h
         assert native_class.operator_profile == identity.operator_profile

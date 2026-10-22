@@ -15,8 +15,8 @@ from pathlib import Path
 
 
 REGISTRY_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "backtrader"
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
     / "research"
     / "alpha101_dependencies.json"
 )
@@ -177,10 +177,9 @@ def _calls(formula: str) -> list[dict[str, object]]:
         if name in {"correlation", "covariance"} and len(arguments) >= 3:
             raw_window = _literal(arguments[2])
             argument_index = 3
-        elif name in WINDOW_FUNCTIONS and len(arguments) >= 2:
-            raw_window = _literal(arguments[1])
-            argument_index = 2
-        elif name in {"min", "max"} and len(arguments) == 2:
+        elif (name in WINDOW_FUNCTIONS and len(arguments) >= 2) or (
+            name in {"min", "max"} and len(arguments) == 2
+        ):
             raw_window = _literal(arguments[1])
             argument_index = 2
 

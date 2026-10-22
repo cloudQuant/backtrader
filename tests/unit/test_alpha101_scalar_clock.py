@@ -14,9 +14,8 @@ from backtrader.research.operators import (
     Multiply,
     Subtract,
 )
-from backtrader.research.representative import _RepresentativeFactor
+from tests.test_utils.alpha101_diagnostic_factors import _RepresentativeFactor
 from tests.unit.test_factor_research_representatives import _frames, _run_subset
-
 
 _WEIGHT = 0.728317
 

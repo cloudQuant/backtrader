@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "black_native",
+      "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m black --check backtrader/research/alpha101",
+      "exit_code": 0,
+      "output": "All done! ✨ 🍰 ✨\n104 files would be left unchanged."
+    },
+    {
+      "name": "ruff_changed",
+      "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m ruff check backtrader/research/alpha101 tests/test_utils/alpha101_diagnostic_factors.py tests/test_utils/alpha101_full_reference.py tests/unit/test_alpha101_native_promotion.py tests/unit/test_alpha101_native_l0.py tests/unit/test_alpha101_pit_derived_clock.py tests/unit/test_alpha101_scalar_clock.py tests/unit/test_alpha101_dependency_registry.py tests/unit/test_factor_research_representatives.py tests/integration/test_alpha101_native_matrix.py tests/integration/test_alpha101_native_installed.py tests/integration/test_factor_research_installed_representatives.py",
+      "exit_code": 0,
+      "output": "All checks passed!"
+    },
+    {
+      "name": "staged_whitespace",
+      "command": "git diff --cached --check",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

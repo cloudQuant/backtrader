@@ -15,10 +15,9 @@ import pytest
 import backtrader as bt
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.representative import REPRESENTATIVE_FACTORS
+from tests.test_utils.alpha101_diagnostic_factors import REPRESENTATIVE_FACTORS
 from backtrader.research.specs import FactorSpec, ResearchSpec
 from backtrader.research.inputs import prealign_bars
-
 
 _ALPHA_IDS = (1, 2, 3, 4, 7, 9, 13, 29, 48, 56, 58, 62, 63, 67, 81, 84, 92, 96, 100, 101)
 _HISTORY = {
@@ -532,7 +531,7 @@ def test_alpha096_exact_float_correlation_tie_keeps_earliest_argmax():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha081_exact_float_correlation_tie_keeps_average_rank(runonce):
-    from backtrader.research.representative import Alpha081
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha081
 
     frames = _frames()
     expected, intermediate = _formula_reference(81, frames)
@@ -572,9 +571,7 @@ def _correlation(left, right):
         - left_sum * right_sum
     )
     left_variance_numerator = count * sum((x * x for x in left_exact), Fraction()) - left_sum**2
-    right_variance_numerator = (
-        count * sum((y * y for y in right_exact), Fraction()) - right_sum**2
-    )
+    right_variance_numerator = count * sum((y * y for y in right_exact), Fraction()) - right_sum**2
     if left_variance_numerator <= 0 or right_variance_numerator <= 0:
         return math.nan
     denominator_squared = left_variance_numerator * right_variance_numerator
@@ -1249,7 +1246,7 @@ def test_every_formula_has_a_positive_finite_distinguishing_input_boundary(alpha
 
 
 def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
-    from backtrader.research.representative import Alpha003, Alpha004, Alpha009, Alpha013
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha003, Alpha004, Alpha009, Alpha013
 
     rank_open = (
         (1, 2, 3),
@@ -1346,7 +1343,7 @@ def test_manual_known_answers_for_alpha003_alpha004_alpha009_and_alpha013():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha013_near_zero_covariance_matches_exact_float_input_oracle(runonce):
-    from backtrader.research.representative import Alpha013
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha013
 
     frames = _frames(periods=56)
     strategy = _run_subset(frames, {"alpha13": Alpha013}, runonce=runonce)
@@ -1421,7 +1418,7 @@ def _run_subset(
 
 
 def test_alpha101_positive_finite_known_answers_and_zero_range_boundary():
-    from backtrader.research.representative import Alpha101
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha101
 
     grid = pd.date_range("2024-04-01", periods=1, freq="D", tz="UTC")
     frames = {
@@ -1437,7 +1434,7 @@ def test_alpha101_positive_finite_known_answers_and_zero_range_boundary():
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
-    from backtrader.research.representative import Alpha048
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha048
 
     frames = _frames(periods=252)
     frames["asset-0"]["close"] = 100.0
@@ -1457,7 +1454,7 @@ def test_alpha048_zero_ratio_window_and_252_point_h_boundary(runonce):
 
 
 def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale():
-    from backtrader.research.representative import Alpha029
+    from tests.test_utils.alpha101_diagnostic_factors import Alpha029
 
     frames = _frames(periods=100)
     names = tuple(frames)
@@ -1549,7 +1546,13 @@ def test_formula_universe_and_static_groups_bound_cross_sectional_rank_and_scale
 
 
 def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
-    from backtrader.research.representative import Alpha009, Alpha058, Alpha063, Alpha067, Alpha100
+    from tests.test_utils.alpha101_diagnostic_factors import (
+        Alpha009,
+        Alpha058,
+        Alpha063,
+        Alpha067,
+        Alpha100,
+    )
     from backtrader.research.operators import OperatorReason
 
     baseline = _frames()
@@ -1674,7 +1677,7 @@ def test_pit_classification_and_missing_grid_boundaries_are_point_in_time():
 def test_composed_comparison_paths_preserve_unknown_inputs(
     alpha_id, factor_class, missing_field, reason_node
 ):
-    from backtrader.research import representative
+    from tests.test_utils import alpha101_diagnostic_factors as representative
     from backtrader.research.operators import OperatorReason
 
     frames = _frames(periods=80)

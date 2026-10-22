@@ -16,6 +16,7 @@ import pytest
 
 import backtrader as bt
 from backtrader.research.errors import DatasetError
+from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
 from backtrader.research.alpha101 import get_alpha
@@ -45,7 +46,6 @@ from tests.test_utils.alpha101_native_harness import (
     selection_is_focused,
 )
 from tests.unit.test_factor_research_representatives import _factor_spec, _research_feed
-
 
 _RUN_MODES = (False, True)  # runnext, runonce
 _MARKET_FIELDS = (
@@ -388,6 +388,13 @@ test_alpha101_batch_matrix_matches_independent_oracle = pytest.mark.parametrize(
 def test_alpha101_batch_partition_and_full_registry_contract():
     assert_batch_partition()
     selected = selected_alpha_ids()
+    for alpha_id in selected:
+        factor_class = get_alpha(alpha_id)
+        assert factor_class.__bases__ == (FactorIndicator,)
+        assert factor_class.__module__ == "backtrader.research.alpha101.alpha%03d" % alpha_id
+        assert "__init__" in factor_class.__dict__
+        assert "next" in factor_class.__dict__
+        assert "_make_formula" not in factor_class.__dict__
     if not selection_is_focused():
         assert tuple(sorted(selected)) == tuple(range(1, 102))
         assert_registry_covers_all_ids()

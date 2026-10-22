@@ -1,9 +1,12 @@
-"""Run the twenty diagnostic formulas through both committed installed wheels.
+"""Run twenty production Alpha101 formulas through both committed installed wheels.
 
-Copy this file and the committed unit reference fixture to an external test
-tree before running. This is an acceptance diagnostic, not another example.
+Copy this file, the committed unit reference fixture, and its test-only
+diagnostic-factor helper to an external test tree before running. The helper
+supplies the independent matrix oracle; installed factors come from the public
+Alpha101 registry. This is an acceptance diagnostic, not another example.
 """
 
+import importlib
 import importlib.util
 import json
 import math
@@ -14,7 +17,6 @@ import sys
 
 import pandas as pd
 import pytest
-
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("BT_FACTOR_RESEARCH_RUN_INSTALLED_INTEGRATION") != "1",
@@ -53,7 +55,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     import backtrader as bt
     import fincore
     from backtrader.research import FactorStrategy, ResearchSpec, load_dataset
-    from backtrader.research.representative import REPRESENTATIVE_FACTORS
+    from backtrader.research import alpha101
 
     origins = {"backtrader": _installed(bt), "fincore": _installed(fincore)}
     reference_path = (
@@ -63,6 +65,17 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     reference = importlib.util.module_from_spec(loader)
     sys.modules[loader.name] = reference
     loader.loader.exec_module(reference)
+
+    production_ids = tuple(reference._ALPHA_IDS)
+    production_factors = {}
+    for number in production_ids:
+        factor_class = alpha101.get_alpha(number)
+        module_name = "backtrader.research.alpha101.alpha%03d" % number
+        assert factor_class.__module__ == module_name
+        module = importlib.import_module(module_name)
+        assert getattr(module, factor_class.__name__) is factor_class
+        origins[module_name] = _installed(module)
+        production_factors[number] = factor_class
 
     frames = reference._frames(286)
     assets = tuple(frames)
@@ -76,7 +89,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     # 251, so no interval covering both can be shorter than 136 bars.
     oracle_by_name = {}
     finite_offsets = {}
-    for number in REPRESENTATIVE_FACTORS:
+    for number in production_ids:
         name = "alpha%d" % number
         formula_values, _ = reference._formula_reference(number, frames)
         history = reference._HISTORY[number]
@@ -93,7 +106,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
 
     assert finite_offsets[96][-1] == _WINDOW_START
     assert finite_offsets[48][0] == _WINDOW_END
-    for number in REPRESENTATIVE_FACTORS:
+    for number in production_ids:
         assert any(offset in window_offsets for offset in finite_offsets[number]), (
             "alpha%d has no finite oracle witness in the research window" % number
         )
@@ -110,7 +123,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     assert all(math.isfinite(value) for value in label_values.values())
     expected_ic = {}
     degeneracy_witnesses = []
-    for number in REPRESENTATIVE_FACTORS:
+    for number in production_ids:
         name = "alpha%d" % number
         formula_values = oracle_by_name[name]
         for offset in window_offsets:
@@ -177,8 +190,8 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     for asset, frame in frames.items():
         cerebro.adddata(reference._research_feed(frame, research, asset), name=asset)
     factors = {
-        "alpha%d" % number: reference._factor_spec("alpha%d" % number, indicator)
-        for number, indicator in REPRESENTATIVE_FACTORS.items()
+        "alpha%d" % number: reference._factor_spec("alpha%d" % number, factor_class)
+        for number, factor_class in production_factors.items()
     }
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
     strategy = cerebro.run()[0]
@@ -217,7 +230,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     ic = result.ic.loc[(result.ic.record_type == "period") & (result.ic.variant == "raw")]
     expected_all_ic_keys = {
         ("alpha%d" % number, pd.Timestamp(times[offset]), metric)
-        for number in REPRESENTATIVE_FACTORS
+        for number in production_ids
         for offset in window_offsets
         for metric in _IC_METRICS
     }
@@ -226,10 +239,10 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
     ]
     assert len(actual_all_ic_keys) == len(set(actual_all_ic_keys))
     assert set(actual_all_ic_keys) == expected_all_ic_keys
-    assert len(ic) == len(REPRESENTATIVE_FACTORS) * len(window_offsets) * len(_IC_METRICS)
+    assert len(ic) == len(production_ids) * len(window_offsets) * len(_IC_METRICS)
     report = {}
     total_degeneracies = 0
-    for number in REPRESENTATIVE_FACTORS:
+    for number in production_ids:
         name = "alpha%d" % number
         wanted = oracle_by_name[name]
         observed = (
@@ -270,7 +283,7 @@ def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path)
             "verified_ic": usable,
             "verified_degeneracies": degenerate,
         }
-    assert len(report) == 20
+    assert len(report) == len(production_ids) == 20
     assert total_degeneracies > 0
     result.export(tmp_path / "evaluation", charts=False)
     (tmp_path / "installed-acceptance.json").write_text(

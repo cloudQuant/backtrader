@@ -4,6 +4,8 @@
 
 > **实现状态（2026-10-22）**：迭代46已完成；101个native类、独立数学参考、完整源码场景、已提交wheel上的6项研究场景及025/026集成验收均通过（AC46-01–06 PASS）。已安装包的 `list_alphas()` 返回1至101。详见[迭代46验收结果](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/验收结果.md)、[安装验收摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json)及[025/026集成摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-examples-20261022/summary.json)。后续build前端和全101 native/build对齐分别属于迭代47和48。
 
+本轮直接继承 `FactorIndicator` 的结构重构、模块清理与新验收范围见[重构记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/直接FactorIndicator重构记录.md)。原迭代46安装验收对应其记录的源码版本。
+
 ## 查找原生因子
 
 `get_alpha()` 返回一个具体的 `FactorIndicator` 子类；将这个类交给 `FactorSpec`，再由 `FactorStrategy` 装配。`list_alphas()` 返回当前已经登记的升序 ID 元组，是检查当前运行环境可用公式的权威接口。注册表只读；ID 必须是普通整数，`bool` 不算整数 ID，未知或尚未登记的 ID 会报错。
@@ -17,9 +19,29 @@ alpha003_class = get_alpha(3)
 assert 3 in registered_ids
 ```
 
-写自己的公式时，直接继承 `FactorIndicator` 并声明 `formula_fields`、`lookback_h`、输出线及计算过程。`NativeAlphaBase` 是库内正式 Alpha101 原生类共用的基类，承载公式元数据并复用既有 Indicator/Lines 算法；它不是另一套用户调度入口，也不提供公式解析器。原生因子和自定义因子都用 `FactorSpec` 与 `FactorStrategy` 运行。
+写自己的公式时，直接继承 `FactorIndicator` 并声明 `formula_fields`、`lookback_h`、输出线及计算过程。生产库的 101 个类分别位于 `alpha101/alpha001.py` 至 `alpha101/alpha101.py`，全部直接继承 `FactorIndicator`：在普通 `__init__` 中调用 `super().__init__()` 并组合原生子指标，在 `next` 中写入目标资产的输出线。原生因子和自定义因子都用 `FactorSpec` 与 `FactorStrategy` 运行。
 
 公式身份与实现身份分开记录：公式身份描述 Alpha ID、原式、窗口、`alpha101-v1` profile、字段/分类依赖及公式池/PIT 语义；实现身份描述具体的原生类和版本。`FactorSpec` 还固定参数、字段绑定、方向、H 与类源码摘要。改写算法实现不应悄悄改动原式或输入口径。
+
+## 实现结构与模块职责
+
+`alpha101/_helpers.py` 只负责逐资产创建子指标、绑定截面子指标和保留中间节点引用。公式运算仍由 Backtrader 的 Indicator/Lines 对象执行，所有节点都由 Cerebro 推进；`_metadata.py` 验证并冻结公式身份。原来的 `NativeAlphaBase`、`_make_formula` 钩子和按实施批次组织的公式模块已移除。
+
+其余研究模块保留各自实际使用的职责：
+
+| 模块 | 运行职责 |
+| --- | --- |
+| `factor_indicator.py` | 原生指标生命周期、字段绑定、逐资产输出及可用性状态 |
+| `factor_strategy.py` | 装配因子，按格点采集输出并生成研究数据集 |
+| `operators.py` | Alpha101 的原生子指标，包括截面秩、行业中性化及固定数值口径的滚动算子 |
+| `specs.py`、`inputs.py` | 冻结运行配置、对齐 Feed 和点时输入；025/026/027 均使用这些输入接口 |
+| `errors.py`、`strict.py`、`field_validation.py` | 区分计算错误与真实缺失，检查字段来源、数值和时间可用性 |
+| `dataset.py` | 保存原始因子面板、缺失原因及输入来源的不可变快照 |
+| `storage.py`、`fincore_adapter.py` | 为现有示例提供数据集保存/复评，以及 fincore 的评价接口 |
+
+这些算子不能仅按名称替换成近似指标。例如 Backtrader `PercentRank` 与 Alpha101 的并列秩定义不同，相关系数的常量窗口和数值精度也有固定合同。已有算子本身就是原生 Indicator/FactorIndicator 子类；共享调度、时钟和预热机制继续由 Backtrader 提供。
+
+原来的 20 个诊断公式已移至 `tests/test_utils/alpha101_diagnostic_factors.py`，只用于历史回归和中间值对照。论文公式目录位于 `tests/fixtures/research/alpha101_dependencies.json`，供独立参考计算读取；这两项不再随运行包安装。
 
 ## 数据与时间网格
 

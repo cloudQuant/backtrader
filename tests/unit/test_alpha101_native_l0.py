@@ -15,12 +15,10 @@ from backtrader.research.alpha101 import (
     get_alpha,
     list_alphas,
 )
-from backtrader.research.alpha101._base import NativeAlphaBase
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.inputs import prealign_bars
 from backtrader.research.specs import FactorSpec, ResearchSpec
-
 
 _OPEN_RANKS = (
     (1, 2, 3),
@@ -212,7 +210,7 @@ def test_native_registry_is_read_only_and_separates_formula_from_code_identity()
 
     for alpha_id, factor_class in ((3, Alpha003Native), (9, Alpha009Native)):
         assert issubclass(factor_class, FactorIndicator)
-        assert issubclass(factor_class, NativeAlphaBase)
+        assert factor_class.__bases__ == (FactorIndicator,)
         assert factor_class.alpha_id == factor_class.formula_identity.alpha_id == alpha_id
         assert factor_class.formula == factor_class.formula_identity.expression
         assert factor_class.lookback_h == factor_class.formula_identity.lookback_h

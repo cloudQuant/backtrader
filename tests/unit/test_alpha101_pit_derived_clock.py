@@ -15,7 +15,6 @@ from backtrader.research.inputs import prealign_bars
 from backtrader.research.operators import OperatorInputError, _read_panel_value
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
-
 _ASSETS = tuple("asset-%d" % index for index in range(6))
 _PERIODS = 100
 _FEED_ALIGNMENT = "_factor_research_alignment_v1"
@@ -242,7 +241,7 @@ def _assert_same_values(left: list[float], right: list[float]) -> None:
 
 @pytest.mark.parametrize("runonce", (False, True))
 def test_alpha081_pit_derived_panel_clock_matches_direct_chain_and_oracle(runonce: bool) -> None:
-    from backtrader.research.alpha101.promoted import Alpha081Native
+    from backtrader.research.alpha101 import Alpha081Native
 
     index = pd.date_range("2024-01-01", periods=_PERIODS, freq="D", tz="UTC")
     frames = _frames(index)

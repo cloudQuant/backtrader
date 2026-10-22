@@ -9,8 +9,9 @@ External test-tree contents (relative to the tree root):
 * ``tests/integration/test_alpha101_native_installed.py`` (this file)
 * ``tests/test_utils/alpha101_full_reference.py``
 * ``tests/test_utils/alpha101_native_harness.py``
+* ``tests/test_utils/alpha101_diagnostic_factors.py`` (imported by the unit oracle fixture)
 * ``tests/unit/test_factor_research_representatives.py``
-* ``backtrader/research/alpha101_dependencies.json`` (the pinned public
+* ``tests/fixtures/research/alpha101_dependencies.json`` (the pinned public
   formula catalog copied from the source checkout)
 * Empty ``__init__.py`` files in ``tests/``, ``tests/integration/``,
   ``tests/test_utils/`` and ``tests/unit/`` so the helper imports resolve to
@@ -54,7 +55,6 @@ import sys
 from typing import Any, Dict, Mapping, Sequence, Tuple
 
 import pytest
-
 
 _RUN_ENV = "BT_ALPHA101_NATIVE_INSTALLED_ACCEPTANCE"
 _PROVENANCE_ENV = "BT_ALPHA101_NATIVE_PROVENANCE_JSON"
@@ -112,18 +112,33 @@ def _installed_origin(module: Any, *, name: str) -> str:
 def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
     assert not os.environ.get("PYTHONPATH"), "installed acceptance must run without PYTHONPATH"
     backtrader = importlib.import_module("backtrader")
+    factor_indicator = importlib.import_module("backtrader.research.factor_indicator")
     factor_strategy = importlib.import_module("backtrader.research.factor_strategy")
     fincore_adapter = importlib.import_module("backtrader.research.fincore_adapter")
     alpha101 = importlib.import_module("backtrader.research.alpha101")
-    promoted = importlib.import_module("backtrader.research.alpha101.promoted")
-    alpha_batches = {
-        batch_name: importlib.import_module("backtrader.research.alpha101.batch_%s" % batch_name)
-        for batch_name in ("a", "b", "c", "d", "e")
-    }
+    alpha_helpers = importlib.import_module("backtrader.research.alpha101._helpers")
+    alpha_metadata = importlib.import_module("backtrader.research.alpha101._metadata")
+    alpha_modules = {}
+    alpha_class_module_names = {}
+    alpha_class_module_origins = {}
+    for alpha_id in alpha101.list_alphas():
+        factor_class = alpha101.get_alpha(alpha_id)
+        module_name = "backtrader.research.alpha101.alpha%03d" % alpha_id
+        assert factor_class.__module__ == module_name, (
+            "Alpha%d class is not defined by its per-alpha module" % alpha_id
+        )
+        module = importlib.import_module(module_name)
+        assert getattr(module, factor_class.__name__) is factor_class
+        alpha_modules[alpha_id] = module
+        alpha_class_module_names[str(alpha_id)] = module_name
+        alpha_class_module_origins[str(alpha_id)] = _installed_origin(module, name=module_name)
     fincore = importlib.import_module("fincore")
     fincore_research = importlib.import_module("fincore.factor_analysis.research")
     origins = {
         "backtrader": _installed_origin(backtrader, name="backtrader"),
+        "backtrader.research.factor_indicator": _installed_origin(
+            factor_indicator, name="backtrader.research.factor_indicator"
+        ),
         "backtrader.research.factor_strategy": _installed_origin(
             factor_strategy, name="backtrader.research.factor_strategy"
         ),
@@ -133,16 +148,15 @@ def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
         "backtrader.research.alpha101": _installed_origin(
             alpha101, name="backtrader.research.alpha101"
         ),
-        "backtrader.research.alpha101.promoted": _installed_origin(
-            promoted, name="backtrader.research.alpha101.promoted"
+        "backtrader.research.alpha101._helpers": _installed_origin(
+            alpha_helpers, name="backtrader.research.alpha101._helpers"
+        ),
+        "backtrader.research.alpha101._metadata": _installed_origin(
+            alpha_metadata, name="backtrader.research.alpha101._metadata"
         ),
         **{
-            "backtrader.research.alpha101.batch_%s"
-            % batch_name: _installed_origin(
-                module,
-                name="backtrader.research.alpha101.batch_%s" % batch_name,
-            )
-            for batch_name, module in alpha_batches.items()
+            "backtrader.research.alpha101.alpha%03d" % int(alpha_id): module_origin
+            for alpha_id, module_origin in alpha_class_module_origins.items()
         },
         "fincore": _installed_origin(fincore, name="fincore"),
         "fincore.factor_analysis.research": _installed_origin(
@@ -156,7 +170,9 @@ def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
     return {
         "backtrader": backtrader,
         "alpha101": alpha101,
-        "alpha_batches": alpha_batches,
+        "alpha_modules": alpha_modules,
+        "alpha_class_module_names": alpha_class_module_names,
+        "alpha_class_module_origins": alpha_class_module_origins,
         "fincore": fincore,
     }, origins | {
         "backtrader_version": versions["backtrader"],
@@ -219,7 +235,15 @@ def _sha256_sources(external_root: Path) -> Mapping[str, str]:
         / "tests"
         / "unit"
         / "test_factor_research_representatives.py",
-        "formula_catalog": external_root / "backtrader" / "research" / "alpha101_dependencies.json",
+        "diagnostic_factors": external_root
+        / "tests"
+        / "test_utils"
+        / "alpha101_diagnostic_factors.py",
+        "formula_catalog": external_root
+        / "tests"
+        / "fixtures"
+        / "research"
+        / "alpha101_dependencies.json",
     }
     for name, path in inputs.items():
         assert path.is_file(), "external acceptance input is missing: %s" % name
@@ -541,33 +565,18 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     harness.assert_batch_partition()
     harness.assert_registry_covers_all_ids()
     assert tuple(alpha101.list_alphas()) == tuple(reference.formula_ids()) == tuple(range(1, 102))
-    alpha_batch_modules = packages["alpha_batches"]
-    class_module_origins: Dict[str, str] = {}
-    expected_module_by_batch = {
-        "promoted_20": "backtrader.research.alpha101.promoted",
-        **{
-            name: "backtrader.research.alpha101.batch_%s" % name
-            for name in ("a", "b", "c", "d", "e")
-        },
-    }
-    for registry_batch_name, registry_alpha_ids in _BATCHES:
-        expected_module_name = expected_module_by_batch[registry_batch_name]
+    alpha_modules = packages["alpha_modules"]
+    class_module_names = packages["alpha_class_module_names"]
+    class_module_origins = packages["alpha_class_module_origins"]
+    for _, registry_alpha_ids in _BATCHES:
         for alpha_id in registry_alpha_ids:
             factor_class = alpha101.get_alpha(alpha_id)
-            assert (
-                factor_class.__module__ == expected_module_name
-            ), "Alpha%d class is not defined by its accepted %s module" % (
-                alpha_id,
-                expected_module_name,
-            )
-            module = (
-                importlib.import_module(expected_module_name)
-                if registry_batch_name == "promoted_20"
-                else alpha_batch_modules[registry_batch_name]
-            )
-            module_origin = _installed_origin(module, name=expected_module_name)
-            assert module_origin == origins[expected_module_name]
-            class_module_origins[str(alpha_id)] = module_origin
+            expected_module_name = "backtrader.research.alpha101.alpha%03d" % alpha_id
+            assert factor_class.__module__ == expected_module_name
+            module = alpha_modules[alpha_id]
+            assert getattr(module, factor_class.__name__) is factor_class
+            assert class_module_names[str(alpha_id)] == expected_module_name
+            assert class_module_origins[str(alpha_id)] == origins[expected_module_name]
 
     frames = harness.make_positive_fixture(periods=320)
     _force_constant_forward_return(frames, _CONSTANT_RETURN_OFFSET)
@@ -723,6 +732,7 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         "python": sys.version,
         "sys_prefix": str(Path(sys.prefix).resolve()),
         "origins": {key: value for key, value in origins.items() if not key.endswith("_version")},
+        "alpha_class_implementation_modules": class_module_names,
         "alpha_class_module_origins": class_module_origins,
         "installed_versions": versions,
         "artifact_provenance": provenance,

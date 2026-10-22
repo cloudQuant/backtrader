@@ -1,15 +1,9 @@
-"""Shared, metadata-only foundations for native Alpha101 factors.
-
-The implementation base deliberately reuses Iteration 45's explicit
-Indicator/Lines helpers.  The decorator below records identities only: it does
-not build or parse a formula, construct indicators, or register a class.
-"""
+"""Metadata identities for native Alpha101 implementations."""
 
 from dataclasses import dataclass
 from typing import Tuple, Type, TypeVar, cast
 
-from ..representative import _RepresentativeFactor
-
+from ..factor_indicator import FactorIndicator
 
 DEFAULT_FORMULA_UNIVERSE_POLICY = (
     "ResearchSpec.formula_universe; cross-sectional steps grouped by ResearchSpec.groups"
@@ -17,6 +11,7 @@ DEFAULT_FORMULA_UNIVERSE_POLICY = (
 DEFAULT_PIT_POLICY = (
     "ResearchSpec.close_time; causal prealigned inputs; classification availability enforced"
 )
+DEFAULT_OPERATOR_PROFILE = "alpha101-v1"
 IMPLEMENTATION_VERSION = "alpha101-native-v1"
 
 
@@ -43,21 +38,7 @@ class ImplementationIdentity:
     version: str
 
 
-class NativeAlphaBase(_RepresentativeFactor):
-    """Base class for explicitly composed native factors.
-
-    New formulas implement ``_make_formula`` using ordinary Backtrader
-    indicators/operators, as the accepted diagnostic recipes do.  This class
-    does not add a formula language or a second scheduler.
-    """
-
-    lines = ("factor",)
-    operator_profile = "alpha101-v1"
-    formula_universe_policy = DEFAULT_FORMULA_UNIVERSE_POLICY
-    pit_policy = DEFAULT_PIT_POLICY
-
-
-_FactorClass = TypeVar("_FactorClass", bound=Type[_RepresentativeFactor])
+_FactorClass = TypeVar("_FactorClass", bound=Type[FactorIndicator])
 
 
 def _field_tuple(value, label: str) -> Tuple[str, ...]:
@@ -70,18 +51,11 @@ def _field_tuple(value, label: str) -> Tuple[str, ...]:
 
 
 def native_alpha(cls: _FactorClass) -> _FactorClass:
-    """Bind immutable formula/implementation metadata to a native class.
-
-    Definitions may inherit the formula and its declared input metadata from
-    a reviewed representative.  ``alpha_id`` remains class-local so a new
-    native identity is always deliberate.  This function has no registry or
-    formula-construction side effects.
-    """
-
+    """Bind immutable formula/implementation metadata to a native factor class."""
     if not isinstance(cls, type):
         raise TypeError("native_alpha decorates a factor class")
-    if not issubclass(cls, NativeAlphaBase):
-        raise TypeError("native_alpha classes must inherit NativeAlphaBase")
+    if not issubclass(cls, FactorIndicator):
+        raise TypeError("native_alpha classes must inherit FactorIndicator")
 
     alpha_id = cls.__dict__.get("alpha_id")
     if type(alpha_id) is not int or not 1 <= alpha_id <= 101:
@@ -95,7 +69,7 @@ def native_alpha(cls: _FactorClass) -> _FactorClass:
     if type(lookback_h) is not int or lookback_h < 0:
         raise ValueError("native factor lookback_h must be a non-negative integer")
 
-    profile = getattr(cls, "operator_profile", None)
+    profile = getattr(cls, "operator_profile", DEFAULT_OPERATOR_PROFILE)
     if not isinstance(profile, str) or not profile:
         raise ValueError("native factor must define an operator profile")
 
@@ -104,7 +78,7 @@ def native_alpha(cls: _FactorClass) -> _FactorClass:
         getattr(cls, "classification_fields", ()), "classification_fields"
     )
     classification_levels = _field_tuple(
-        getattr(cls, "classification_levels", None), "classification_levels"
+        getattr(cls, "classification_levels", ()), "classification_levels"
     )
 
     formula_universe_policy = getattr(
@@ -116,8 +90,7 @@ def native_alpha(cls: _FactorClass) -> _FactorClass:
     if not isinstance(pit_policy, str) or not pit_policy:
         raise ValueError("native factor pit_policy must be non-empty")
 
-    # Store canonical tuples on the class and in the frozen identity.  This is
-    # metadata binding only; no tree, registry entry, or runtime object exists.
+    setattr(cls, "operator_profile", profile)
     setattr(cls, "formula_fields", formula_fields)
     setattr(cls, "classification_fields", classification_fields)
     setattr(cls, "classification_levels", classification_levels)
@@ -157,8 +130,6 @@ __all__ = (
     "DEFAULT_FORMULA_UNIVERSE_POLICY",
     "DEFAULT_PIT_POLICY",
     "FormulaIdentity",
-    "IMPLEMENTATION_VERSION",
     "ImplementationIdentity",
-    "NativeAlphaBase",
     "native_alpha",
 )
