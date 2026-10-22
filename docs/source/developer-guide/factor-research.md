@@ -15,7 +15,9 @@
 - `FactorStrategy`：原生指标装配、同步网格采集，把结果写入 `FactorSink`；不提交或撤销订单。
 - `FactorPanel`：五类普通帧（factors/grid/prices/universe/groups）加窗口、顺序和方向声明；不是不可变快照，也没有数据身份。
 - `MemorySink` / `CsvSink`：采集出口。默认内存面板；`CsvSink` 在结束时写出六个 CSV。
-- fincore：未来收益标签、方向和截面变换、固定权重组合、IC/Rank IC/ICIR、分层、覆盖、换手、相关性和导出。
+- fincore：未来收益标签、方向和截面变换、固定权重组合、IC/Rank IC/ICIR、分层、覆盖率、分位换手、因子相关性和导出（含 `turnover` 表）。
+
+`ResearchSpec.snapshot_id` 只是调用者的数据版本声明，不校验或生成面板身份；需要将声明用于评价时，须在 `ResearchEvaluationSpec` 中显式传入。
 
 研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为；`backtrader.research.ConfigError` 是同一对象别名。
 
@@ -102,7 +104,7 @@ strategy = cerebro.run()[0]
 panel = strategy.get_panel()
 ```
 
-`align_to_grid` 每个资产只做一次 `reindex`：返回 PandasData feed、当前网格的真实 bar 布尔标记，以及覆盖完整网格（含标签尾段）的 open/close 向量。它不维护 `available_at` 或 PIT as-of 选择。
+`align_to_grid` 每个资产只做一次 `reindex`：返回截止研究 `end` 的 PandasData feed、计算网格的真实 bar 布尔标记，以及覆盖完整网格（含标签尾段）的 open/close 向量。它不维护 `available_at` 或 PIT as-of 选择。
 
 输入缺格保持 NaN，不前填，也不删除后压缩时间。不同研究组分别进行公式截面计算；额外基准必须显式绑定，不自动变成输出资产。研究只处理同频、闭合的历史 bar，不支持 live、replay、tick 或混合频率。
 
@@ -110,7 +112,7 @@ panel = strategy.get_panel()
 
 ## 面板、CSV 与复评
 
-`panel.factors` 是 `(time, asset)` 唯一 UTC MultiIndex 的 float64 宽表，覆盖预热到研究结束的计算网格；`panel.grid` 是完整网格，`panel.prices_open/close` 覆盖完整网格（可到标签尾段），`panel.universe` 是研究窗口的布尔宽表，`panel.groups` 是资产到研究分组的映射。
+`panel.factors` 是 `(time, asset)` 唯一 UTC MultiIndex 的 float64 宽表，只覆盖 `start` 至 `end` 的研究窗口；`panel.grid` 是完整网格，`panel.prices_open/close` 覆盖完整网格（可到标签尾段），`panel.universe` 是研究窗口的布尔宽表，`panel.groups` 是资产到研究分组的映射。
 
 ```python
 panel.to_csv("research-panel")          # factors/grid/prices_open/prices_close/universe/groups
@@ -164,6 +166,8 @@ VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的�
 
 框架可以处理多种资产，但股票市值和行业字段不适用于所有市场。负价期货、连续合约换月、乘数或资金费相关收益需要有明确定义的预计算标签。公式数值复现不等于复现论文使用的专有数据、收益或交易成本。
 
-正式例子为 `examples/backtest/025_factor_single`、`026_factor_multi` 和 `027_alpha003_panel_acceptance`；它们使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。两个入口先完成原生采集并写出 `factor_values.csv`，可用 `--save-panel` 保存 CSV 面板、`--panel` 跳过 Cerebro 直接复评；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `PANEL_ONLY` 正常退出。
+正式例子为 `examples/backtest/025_factor_single`、`026_factor_multi` 和 `027_alpha003_panel_acceptance`；三个 quick `run.py` 入口使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。025/026 两个入口先完成原生采集并写出 `factor_values.csv`，可用 `--save-panel` 保存 CSV 面板、`--panel` 跳过 Cerebro 直接复评；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `PANEL_ONLY` 正常退出。
 
-需要专业因子图表时，三个示例都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 只是把面板的单因子列和开盘价传入 fincore，next-open 移位只由 fincore 执行一次。
+027 的 `run_daily.py` 是独立的全市场分块/续跑入口，`--chunk-days` 控制分块；它不使用 quick 入口的 500 只默认值或 `--report` 参数。
+
+需要专业因子图表时，三个 quick `run.py` 入口都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 会应用该因子的显式方向，并按 `label` 传入原始价格。默认 `next_open_to_open` 使用开盘价与 `next_open=True`，`close_to_close` 使用收盘价与 `next_open=False`；标签只由 fincore 计算一次。025/026 的报告采用与研究评价相同的配置标签，027 保持默认 next-open。评价和报告不修改传入面板的帧、索引或属性。

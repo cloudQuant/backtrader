@@ -90,7 +90,8 @@ def run_factor_panel(research, bars, factors, *, data_version, runonce=True):
 targets = tuple(bars)
 study_times = grid.index[(grid.index >= research_start) & (grid.index <= research_end)]
 
-# 以下标识必须来自实际数据快照、价格口径与交易日历，不是默认数据来源。
+# 以下标识由调用者按实际数据版本、价格口径与日历填写。
+# snapshot_id 仅作版本声明，研究层不生成或验证数据快照身份。
 research = ResearchSpec(
     grid=grid,
     start=research_start,
@@ -208,7 +209,8 @@ import backtrader as bt
 
 
 class ClassifiedPandasData(bt.feeds.PandasData):
-    lines = ("industry",)     # sector / subindustry 同理
+    lines = ("subindustry",)  # industry / sector 使用各自同名数值列
+    params = (("subindustry", "subindustry"),)
 
 
 alpha048 = FactorSpec(
@@ -229,15 +231,17 @@ Alpha048 需要 251 格历史跨度以及按子行业去均值。它现在读取
 
 依赖 ADV 的公式可以直接绑定调用者提供的 `advN` 行，或显式选择引擎支持的派生方式：从 `dollar_volume` 对 `N` 个历史格点取均值，或从单位一致、复权口径一致的 VWAP 与 volume 相乘得到 `dollar_volume`。VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；不要把 volume 本身当 ADV，也不要同时提供互相冲突的直接值和派生定义。详细合同见[研究指南中的 Alpha101 数据边界](factor-research.md)。
 
+数值口径（`alpha101-v2`）：相关/协方差分别中心化并缩放偏差，使用 `math.fsum` 累加；协方差通过指数安全乘法恢复尺度，避免中间溢出或下溢。常量窗口按原始值判定（协方差 0，相关为 DOMAIN_ERROR）。合法的近零或近 ±1 相关值不作吸附，只有计算舍入导致的极窄越界允许裁回数学边界。rank 始终按实际 float64 精确相等分组。此前按最终值多重集、资产列置换或固定行数偏差预算进行的验收不足以排除接线和排序错误，已在本轮续验中撤回；全 101 验收采用独立公式表达式与逐节点数值检查，结果以本轮验收记录为准。
+
 行业/市值/ADV 的发布时间、单位、复权和数据版本由调用者负责；研究层只做一次形状、索引、字段和配置检查，不再逐格构造来源/可用性对象。
 
 ## H、预热与标签
 
-`lookback_h` 是因子当前格点之前需要的历史网格跨度，不是“此时一定有有效值”的承诺。H=251 的因子需要当前点以及之前251个网格间隔，即完整输入至少跨252个格点；缺 bar、字段迟到或 PIT 分类未知可能使输出继续为 NaN。预热长度应按公式的嵌套窗口和真实源数据共同核对，不能只按自然日估算。
+`lookback_h` 是因子当前格点之前需要的历史网格跨度，不是“此时一定有有效值”的承诺。H=251 的因子需要当前点以及之前251个网格间隔，即完整输入至少跨252个格点；缺 bar、字段迟到或普通 feed 分类编码缺失可能使输出继续为 NaN。预热长度应按公式的嵌套窗口和真实源数据共同核对，不能只按自然日估算。
 
 因子输出与未来收益标签是两类数据。若公式身份注明 `paper_signal_delay=0`，它描述该公式在当前格点生成信号的时序约定；它既不是 forward-return label，也不表示可以在同一收盘价成交。评价标签由单独的评估 API 生成，例如 next-open 标签 `open[t+1+h] / open[t+1] - 1`，需要额外的尾部 bar。`FactorSpec.direction` 影响下游评价方向，不改写原生公式已定义的正负号。
 
-采集和保存原始数据集不依赖 fincore；`strategy.evaluate(...)` 才会按需要加载 fincore 的研究 API。IC、Rank IC、分层统计和组合结果是研究统计，不是含交易费用、滑点、成交约束和资金管理的策略收益。公式数值复现也不代表复现论文专有数据、股票池或论文收益。
+采集因子值、构建 FactorPanel 和保存 CSV 面板不依赖 fincore；`strategy.evaluate(...)` 才会按需要加载 fincore 的研究 API。IC、Rank IC、分层统计和组合结果是研究统计，不是含交易费用、滑点、成交约束和资金管理的策略收益。公式数值复现也不代表复现论文专有数据、股票池或论文收益。
 
 ## 示例与进一步阅读
 

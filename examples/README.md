@@ -47,8 +47,8 @@
 | `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | 目录内 `data/113013.csv`、`data/orcl-1995-2014.txt` | ✅ |
 | `011_hft_backtest` | `tick_backtest.py`、`orderbook_backtest.py` | `tests/datas/tick_data/`(7.2MB) | ⚠️ `exit 2` 指示先 `tools/generate_test_data.py`（假通过已修） |
 | `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config` 解析（不支持 `BACKTRADER_DATA_DIR`） | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
-| `025_factor_single` | `run.py`（支持 `--max-symbols/--data-dir/--no-charts/--report/--report-language/--save-dataset/--dataset`） | `tests/datas/a_stocks` 真实日线；默认均匀抽样500只 | 单因子 Close/MA；评价需含研究 API 的 fincore，缺失时仍输出因子值并以 `DATASET_ONLY` 退出0 |
-| `026_factor_multi` | `run.py`（同上） | 同一真实日线面板 | Close/MA、ROC、KDJ 及固定权重合成；支持离线复评 |
+| `025_factor_single` | `run.py`（支持 `--max-symbols/--data-dir/--no-charts/--report/--report-language/--save-panel/--panel`） | `tests/datas/a_stocks` 真实日线；默认均匀抽样500只 | 单因子 Close/MA；评价需含研究 API 的 fincore，缺失时仍输出因子值并以 `PANEL_ONLY` 退出0 |
+| `026_factor_multi` | `run.py`（同上） | 同一真实日线面板 | Close/MA、ROC、KDJ 及固定权重合成；支持 `--save-panel`/`--panel` 离线复评 |
 | `027_alpha003_panel_acceptance` | `run.py`（快速真实数据演示，支持 `--report/--report-language`）、`run_daily.py`（全市场分块） | `tests/datas/a_stocks` 真实日线；`run.py` 默认500只 | 生产 `get_alpha(3)`；`run_daily.py` 保留分块/续跑/oracle 验收 |
 
 小数据随目录走（`<leaf>/data/`，逐字节副本 + 漂移守卫）；**大数据不随目录复制**，缺失即 fail-closed 点名，

@@ -425,11 +425,17 @@ framework's `ConfigError` remains a separate category. `backtrader.research`
 re-exports the research exceptions and keeps `ConfigError` as an alias of
 `ResearchConfigError`. New direct exception imports use `backtrader.errors`.
 
+Importing the root package or `backtrader.research` does not require pandas or
+fincore; actual panel construction and evaluation check their dependencies.
 Collection and CSV exchange work without fincore. Evaluation lazily calls the
 separately developed fincore public research API
 (`fincore.factor_analysis.research.evaluate_factor_research`); do not duplicate
 its IC, labels, signal-combination or reporting algorithms in Backtrader. The
-native operators use the frozen `alpha101-v2` float64 profile. `research/alpha101/alpha001.py`
+native operators use the frozen `alpha101-v2` float64 profile. Correlation and
+covariance use stable centered/scaled float arithmetic; production does not
+use Fraction or Decimal. Rank ties use exact float64 equality. The full-registry
+tests validate formula wiring, each asset and each intermediate node rather
+than sorting outputs or allowing final rank-error budgets. `research/alpha101/alpha001.py`
 through `alpha101.py` contain the 101 concrete formula classes, each directly
 subclassing `FactorIndicator` with ordinary `__init__` and `next` methods.
 `get_alpha(id)` and `list_alphas()` expose the immutable production registry.
@@ -458,7 +464,7 @@ backtrader/            core library
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
-  research/           native factors, panel inputs/operators, snapshots, fincore adapter
+  research/           native factors, ordinary feed inputs/operators, panel/sinks, fincore adapter
   notifications/  alert delivery: dingtalk/wecom/feishu/telegram/email/slack/
                   discord/ntfy/gotify/bark/webhook/wechat_clawbot/qq_bot
 backtrader_runtime/    Iteration 41 config-first CLI, sealed preset policy and
