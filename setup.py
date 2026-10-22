@@ -10,7 +10,9 @@ exec((BASE_DIR / "backtrader" / "version.py").read_text(encoding="utf-8"), ABOUT
 README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
-    name="backtrader",  # Project name
+    # PyPI distribution name. The importable package stays `backtrader`
+    # (i.e. `pip install back-trader-python` then `import backtrader`).
+    name="back-trader-python",  # Project name
     version=ABOUT["__version__"],  # Version number
     packages=find_packages(
         exclude=[

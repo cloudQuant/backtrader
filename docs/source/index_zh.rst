@@ -77,8 +77,7 @@ Backtrader 中文文档
 
       .. code-block:: bash
 
-         git clone https://github.com/cloudQuant/backtrader.git
-         cd backtrader && pip install -U .
+         pip install back-trader-python
 
    .. tab-item:: 策略示例
 

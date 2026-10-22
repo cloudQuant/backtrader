@@ -1,0 +1,66 @@
+name: Publish back-trader-python to PyPI
+
+# Builds the sdist/wheel and publishes to PyPI via trusted publishing
+# (OIDC). No PyPI token is stored in repository secrets.
+#
+# One-time setup on PyPI (pending publisher, creates the project on first upload):
+#   pypi.org -> Account settings -> Publishing -> "Add a new pending publisher"
+#     PyPI project name: back-trader-python
+#     Owner:    cloudQuant
+#     Repository: backtrader
+#     Workflow name: publish-pypi.yml
+#     Environment: (leave empty)
+#
+# Publish: run this workflow manually (workflow_dispatch) from the
+# development branch after bumping backtrader/version.py.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist and wheel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build distribution
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Check distribution metadata
+        run: |
+          python -m pip install --upgrade twine
+          twine check dist/*
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Upload to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # OIDC token for PyPI trusted publishing
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -12,29 +12,41 @@ description: 如何安装和设置 Backtrader
 - Python 3.8 或更高版本 (测试至 3.13)
 - pip 包管理器
 
-## 安装方法（从源码安装）
+## 安装方法
 
-> **注意**：本项目未发布到 PyPI，请从源码安装。
+### 从 PyPI 安装（推荐）
 
-### 从 GitHub 安装（推荐）
+```bash
+pip install back-trader-python
+```
+
+> **注意**：`back-trader-python` 是 PyPI 发行名，安装后的导入名仍为 `backtrader`（`import backtrader as bt`）。
+
+如需 C++/pybind11 加速版：`pip install back-trader-cpp`。
+
+国内用户可通过镜像加速下载：
+
+```bash
+pip install back-trader-python -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+### 从源码安装
 
 ```bash
 git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 pip install -r requirements.txt
 pip install -U .
+```
 
-```bash
-
-### 从 Gitee 镜像安装（国内用户推荐）
+### 从 Gitee 镜像安装（国内用户）
 
 ```bash
 git clone <https://gitee.com/yunjinqi/backtrader.git>
 cd backtrader
 pip install -r requirements.txt
 pip install -U .
-
-```bash
+```
 
 ### 开发模式安装
 
@@ -45,8 +57,7 @@ git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 pip install -r requirements.txt
 pip install -e .
-
-```bash
+```
 
 ## 依赖项
 
