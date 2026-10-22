@@ -1,15 +1,14 @@
-"""Native Backtrader indicators with one real scalar output per target feed."""
+"""Backtrader research factors with one real scalar output per target feed."""
 
 from __future__ import annotations
 
-import math
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 from .. import Indicator
 from ..indicators import SMA
-from ..utils import date2num, num2date
+from ..utils import num2date
 from ..errors import ResearchConfigError, FactorComputationContext
 
 
@@ -73,12 +72,14 @@ class _FeedInputLine(Indicator):
 
 
 class FactorIndicator(Indicator):
-    """Base class for native, next-driven multi-target research factors.
+    """Base class for native and expression-driven multi-target research factors.
 
-    Concrete factors use the ordinary Indicator ``__init__``/``super()`` and
-    ``next`` lifecycle.  ``bind`` builds a private native subclass with a real
-    output line for each target and declared output template.  Research code
-    should normally let :class:`FactorStrategy` construct the bound instance.
+    Native factors use the ordinary Indicator ``__init__``/``super()`` and
+    ``next`` lifecycle. Expression factors provide a classmethod ``build`` that
+    returns one expression over the declared target fields. ``bind`` builds a
+    private native subclass with a real output line for each target and
+    declared output template. Research code should normally let
+    :class:`FactorStrategy` construct the bound instance.
     """
 
     lines: Any = ()
@@ -88,6 +89,10 @@ class FactorIndicator(Indicator):
     formula_fields: Tuple[str, ...] = ()
 
     def __init__(self) -> None:
+        if getattr(self.__class__, "panel_mode", None) == "expression" and getattr(
+            self, "_expression_initialization_started", False
+        ):
+            raise RuntimeError("expression factors may only be initialized once")
         if not getattr(self.__class__, "_factor_bound", False):
             raise TypeError("FactorIndicator instances must be created through bind()")
 
@@ -137,20 +142,13 @@ class FactorIndicator(Indicator):
         for alias in tuple(getattr(self.__class__, "formula_fields", ())):
             self.field_lines(alias)
 
+        if getattr(self.__class__, "panel_mode", None) == "expression":
+            self._initialize_expression()
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         is_bound = bool(cls.__dict__.get("_factor_bound", False))
         if not is_bound:
-            raw_lines = cls.__dict__.get("lines")
-            if not isinstance(raw_lines, (tuple, list)) or not raw_lines:
-                raise TypeError("each concrete factor class must declare line templates")
-            if "next" not in cls.__dict__ and not any(
-                "next" in base.__dict__ and base is not FactorIndicator for base in cls.__mro__[1:]
-            ):
-                raise TypeError("each concrete factor class must implement next()")
-            if getattr(cls, "panel_mode", None) != "next":
-                raise TypeError("FactorIndicator requires explicit panel_mode='next'")
-            if any(name in cls.__dict__ for name in ("build", "expression")):
-                raise TypeError("build/expression factor declarations are not implemented")
+            cls._validate_factor_declaration(check_raw_lines=True)
 
         super().__init_subclass__(**kwargs)
         if is_bound:
@@ -176,7 +174,83 @@ class FactorIndicator(Indicator):
         self.next()
 
     def next(self) -> None:
-        raise NotImplementedError("concrete factor classes must implement next()")
+        if getattr(self.__class__, "panel_mode", None) != "expression":
+            raise NotImplementedError("concrete factor classes must implement next()")
+        self._record_factor_call()
+        template = self._factor_template_names()[0]
+        for data, result in zip(self._factor_target_datas, self._result_lines):
+            self.outputs[data][template][0] = result[0]
+
+    def _initialize_expression(self) -> None:
+        """Build one native operator graph and retain its target result lines."""
+        from ._expression import _ExpressionContext
+        from .specs import _lookback
+
+        if getattr(self, "_expression_initialization_started", False):
+            raise RuntimeError("expression factors may only be initialized once")
+        # Keep the guard set even if build() fails. A subclass that catches an
+        # initialization error and retries super().__init__ must not build a
+        # second graph on the same bound instance.
+        object.__setattr__(self, "_expression_initialization_started", True)
+        context = _ExpressionContext(self)
+        resolved_params = self.p._getkwargs()
+        try:
+            result = self.__class__.build(context, **resolved_params)
+            result_lines = context.result_lines(result)
+        finally:
+            context._close()
+        self._expression_context = context
+        self._nodes = context.nodes
+        self._result_lines = result_lines
+        lookback_h = _lookback(self.__class__, resolved_params)
+        # The declaration is authoritative even when the graph's child
+        # minperiods would otherwise make the parent ready earlier.
+        self.addminperiod(lookback_h + 1)
+
+    @classmethod
+    def _validate_factor_declaration(cls, *, check_raw_lines: bool = False) -> str:
+        """Validate one concrete native or expression factor declaration."""
+        if check_raw_lines:
+            raw_lines = cls.__dict__.get("lines")
+            if not isinstance(raw_lines, (tuple, list)) or not raw_lines:
+                raise TypeError("each concrete factor class must declare line templates")
+
+        mode = getattr(cls, "panel_mode", None)
+        if mode == "next":
+            if "next" not in cls.__dict__ and not any(
+                "next" in base.__dict__ and base is not FactorIndicator for base in cls.__mro__[1:]
+            ):
+                raise TypeError("each native factor class must implement next()")
+            if any(
+                name in base.__dict__ for base in cls.__mro__ for name in ("build", "expression")
+            ):
+                raise TypeError("native factors cannot declare build()/expression()")
+            return mode
+
+        if mode != "expression" or cls.__dict__.get("panel_mode") != "expression":
+            raise TypeError("FactorIndicator requires panel_mode='next' or 'expression'")
+        if len(cls._factor_template_names()) != 1:
+            raise TypeError("expression factors must declare exactly one output line")
+        build = cls.__dict__.get("build")
+        if not isinstance(build, classmethod):
+            raise TypeError("expression factors must define build() as a classmethod")
+        if any("expression" in base.__dict__ for base in cls.__mro__):
+            raise TypeError("expression factors cannot declare expression()")
+        for base in cls.__mro__:
+            if base is FactorIndicator:
+                break
+            if "next" in base.__dict__:
+                raise TypeError("expression factors cannot define or inherit a custom next()")
+
+        formula_fields = cls.__dict__.get("formula_fields")
+        if isinstance(formula_fields, str) or not isinstance(formula_fields, (tuple, list)):
+            raise TypeError("expression formula_fields must be a tuple or list of field names")
+        fields = tuple(formula_fields)
+        if any(not isinstance(field, str) or not field for field in fields):
+            raise TypeError("expression formula_fields must contain non-empty strings")
+        if len(set(fields)) != len(fields):
+            raise TypeError("expression formula_fields must not contain duplicates")
+        return mode
 
     @classmethod
     def bind(cls, *datas: Any, **params: Any) -> "FactorIndicator":
@@ -355,11 +429,8 @@ class FactorIndicator(Indicator):
     def _validate_bind_request(cls, datas: Sequence[Any]) -> None:
         if cls is FactorIndicator or not issubclass(cls, FactorIndicator):
             raise TypeError("bind() must be called on a concrete FactorIndicator subclass")
-        if getattr(cls, "panel_mode", None) != "next":
-            raise TypeError("only native panel_mode='next' factors are supported")
-        if any(name in base.__dict__ for base in cls.__mro__ for name in ("build", "expression")):
-            raise TypeError("expression/build factor declarations are not implemented")
-        if cls.next is FactorIndicator.next:
+        mode = cls._validate_factor_declaration()
+        if mode == "next" and cls.next is FactorIndicator.next:
             raise TypeError("factor class has no concrete next() implementation")
         if not datas:
             raise ValueError("a factor requires at least one data feed")
@@ -617,6 +688,9 @@ class FactorIndicator(Indicator):
                 raise ResearchConfigError("named feed is missing a bound line") from exc
             bound_line = cast(Any, _FeedInputLine)(line).lines.value
             return (bound_line,) * len(self._factor_target_datas)
-        raise ResearchConfigError("field %s requires an explicit feed:<name>:<line> binding" % alias)
+        raise ResearchConfigError(
+            "field %s requires an explicit feed:<name>:<line> binding" % alias
+        )
+
 
 __all__ = ("FactorIndicator",)

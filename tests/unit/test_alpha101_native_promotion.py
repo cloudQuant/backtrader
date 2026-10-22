@@ -5,6 +5,7 @@ import pytest
 import backtrader.research.alpha101 as alpha101
 from backtrader.research.alpha101 import (
     ALPHA_REGISTRY,
+    Alpha003Build,
     Alpha001Native,
     Alpha002Native,
     Alpha003Native,
@@ -69,9 +70,8 @@ def test_public_registry_aliases_and_direct_factor_subclasses_cover_all_formulas
     assert tuple(ALPHA_REGISTRY) == _ALPHA_IDS
     assert alpha101.ALPHA_REGISTRY is ALPHA_REGISTRY
 
-    expected_exports = _PUBLIC_HELPERS | {
-        "Alpha%03dNative" % alpha_id for alpha_id in _ALPHA_IDS
-    }
+    expected_exports = _PUBLIC_HELPERS | {"Alpha%03dNative" % alpha_id for alpha_id in _ALPHA_IDS}
+    expected_exports.add(Alpha003Build.__name__)
     assert set(alpha101.__all__) == expected_exports
     for alpha_id in _ALPHA_IDS:
         factor_class = get_alpha(alpha_id)

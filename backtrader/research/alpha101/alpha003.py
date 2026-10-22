@@ -38,3 +38,21 @@ class Alpha003Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha003Build(FactorIndicator):
+    """AF47-003: build the Alpha003 graph from native research operators."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = 3
+    case_id = "AF46-003"
+    lookback_h = 9
+    formula_fields = ("open", "volume")
+    required_fields = formula_fields
+    formula = "(-1 * correlation(rank(open), rank(volume), 10))"
+
+    @classmethod
+    def build(cls, ctx, **params):
+        return ctx.correlation(ctx.rank(ctx.open), ctx.rank(ctx.volume), 10) * -1.0

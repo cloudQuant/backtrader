@@ -1,5 +1,6 @@
 """Native Alpha101 formula registry."""
 
+import sys
 from types import MappingProxyType
 from typing import Mapping, Tuple, Type
 
@@ -10,7 +11,7 @@ from ._metadata import (
 )
 from .alpha001 import Alpha001Native
 from .alpha002 import Alpha002Native
-from .alpha003 import Alpha003Native
+from .alpha003 import Alpha003Build, Alpha003Native
 from .alpha004 import Alpha004Native
 from .alpha005 import Alpha005Native
 from .alpha006 import Alpha006Native
@@ -217,15 +218,28 @@ ALPHA_REGISTRY: Mapping[int, Type[FactorIndicator]] = MappingProxyType(
 )
 
 
-def get_alpha(alpha_id: int) -> Type[FactorIndicator]:
-    """Return the promoted native class for an exact, non-bool Alpha ID."""
+def get_alpha(alpha_id: int, *, mode: str = "native") -> Type[FactorIndicator]:
+    """Return the promoted Alpha class for an exact ID and implementation mode."""
 
     if type(alpha_id) is not int:
         raise TypeError("alpha_id must be an integer Alpha101 ID; bool is not accepted")
+    if mode not in ("native", "build"):
+        raise ValueError("mode must be 'native' or 'build'")
     try:
-        return ALPHA_REGISTRY[alpha_id]
+        native = ALPHA_REGISTRY[alpha_id]
     except KeyError:
         raise KeyError("Alpha%d is not registered as a native formula" % alpha_id) from None
+    if mode == "native":
+        return native
+    native_name = native.__name__
+    companion_name = (
+        native_name[:-6] + "Build" if native_name.endswith("Native") else native_name + "Build"
+    )
+    module = sys.modules.get(native.__module__)
+    companion = getattr(module, companion_name, None) if module is not None else None
+    if isinstance(companion, type) and issubclass(companion, FactorIndicator):
+        return companion
+    raise NotImplementedError("Alpha%d build implementation is not available" % alpha_id)
 
 
 def list_alphas() -> Tuple[int, ...]:
@@ -236,6 +250,7 @@ def list_alphas() -> Tuple[int, ...]:
 
 __all__ = (
     "ALPHA_REGISTRY",
+    "Alpha003Build",
     "Alpha001Native",
     "Alpha002Native",
     "Alpha003Native",

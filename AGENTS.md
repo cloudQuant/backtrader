@@ -407,7 +407,7 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 - Multiple plotting backends: Plotly (`plot/`), Bokeh (`bokeh/`), Matplotlib.
 - Report generation: `reports/` (`reporter.py`, `performance.py`, `charts.py`).
 
-### Native factor research (Iterations 45–46)
+### Native factor research (Iterations 45–47)
 
 `backtrader.research` provides `FactorIndicator`, `FactorSpec`, `ResearchSpec`,
 `FactorStrategy`, plain-frame `FactorPanel`/`FactorSink` (memory/CSV),
@@ -448,7 +448,17 @@ Tests exercise the production formula classes against independent scalar/matrix
 references; the duplicate diagnostic factor implementations have been removed.
 The static paper catalog is a test asset at
 `tests/fixtures/research/alpha101_dependencies.json` and is not installed as
-runtime data. No build/DSL front end is implemented.
+runtime data. Iteration 47 adds a single package-local `_expression.py` adapter:
+an expression-mode FactorIndicator defines a classmethod `build(ctx, **params)`
+that constructs the same native operator children once during bound-factor
+initialization. The context keeps target-feed and instance identity, rejects
+Python boolean conversion and closes construction after build returns; the
+ordinary Cerebro lifecycle performs all calculation. `Alpha003Build` lives
+beside `Alpha003Native` and is selected by `get_alpha(3, mode="build")`.
+The native registry and default remain unchanged; other build IDs currently
+raise `NotImplementedError`. There is no string DSL or second scheduler.
+The four-formula example integration, full acceptance and remaining 100 build
+formulas are tracked separately in the Iteration 47/48 plans.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone

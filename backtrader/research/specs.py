@@ -163,7 +163,7 @@ def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
 
 @dataclass(frozen=True, init=False)
 class FactorSpec:
-    """One immutable named native factor declaration.
+    """One immutable named native or expression factor declaration.
 
     ``lookback_h`` and ``source_sha256`` are derived and stored metadata, not
     caller-supplied overrides.  The value-only ``factors`` mapping accepted by
@@ -217,14 +217,10 @@ class FactorSpec:
             raise ResearchConfigError(
                 "FactorSpec requires an unbound concrete FactorIndicator class"
             )
-        if getattr(indicator, "panel_mode", None) != "next":
-            raise ResearchConfigError("FactorSpec requires panel_mode='next'")
-        if any(
-            name in base.__dict__ for base in indicator.__mro__ for name in ("build", "expression")
-        ):
-            raise ResearchConfigError(
-                "build/expression declarations are not supported in iteration 45"
-            )
+        try:
+            indicator._validate_factor_declaration()
+        except (TypeError, ValueError) as exc:
+            raise ResearchConfigError("invalid factor declaration: %s" % exc) from exc
         declared = tuple(indicator._factor_template_names())
         if panel_line not in declared:
             raise ResearchConfigError("panel_line must select a declared output template")
@@ -581,7 +577,9 @@ def _normalize_bool_index(
     if value is None:
         return pd.Series(True, index=expected_index, dtype=bool, name=field_name)
     if not isinstance(value, pd.Series):
-        raise ResearchConfigError("%s must be a boolean Series indexed by (time, asset)" % field_name)
+        raise ResearchConfigError(
+            "%s must be a boolean Series indexed by (time, asset)" % field_name
+        )
     result = value.copy(deep=True)
     if not isinstance(result.index, pd.MultiIndex) or tuple(result.index.names) != (
         "time",
